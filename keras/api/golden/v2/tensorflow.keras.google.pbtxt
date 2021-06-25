@@ -1,0 +1,23 @@
+path: "tensorflow.keras.google"
+tf_module {
+  member_method {
+    name: "load_model"
+    argspec: "args=[\'filepath\'], varargs=None, keywords=load_model_kwargs, defaults=None"
+  }
+  member_method {
+    name: "load_model_from_cns"
+    argspec: "args=[\'filepath\', \'custom_objects\', \'compile\'], varargs=None, keywords=None, defaults=[\'None\', \'True\'], "
+  }
+  member_method {
+    name: "load_weights"
+    argspec: "args=[\'model\', \'filepath\'], varargs=None, keywords=load_weights_kwargs, defaults=None"
+  }
+  member_method {
+    name: "save_model"
+    argspec: "args=[\'model\', \'filepath\', \'overwrite\'], varargs=None, keywords=saved_model_kwargs, defaults=[\'False\'], "
+  }
+  member_method {
+    name: "save_model_to_cns"
+    argspec: "args=[\'model\', \'filepath\', \'overwrite\', \'include_optimizer\'], varargs=None, keywords=saved_model_kwargs, defaults=[\'True\', \'True\'], "
+  }
+}

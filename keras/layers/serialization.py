@@ -35,13 +35,14 @@ from keras.layers import local
 from keras.layers import merge
 from keras.layers import multi_head_attention
 from keras.layers import noise
-from keras.layers import normalization
-from keras.layers import normalization_v2
 from keras.layers import pooling
 from keras.layers import recurrent
 from keras.layers import recurrent_v2
 from keras.layers import rnn_cell_wrapper_v2
 from keras.layers import wrappers
+from keras.layers.normalization import batch_normalization
+from keras.layers.normalization import batch_normalization_v1
+from keras.layers.normalization import layer_normalization
 from keras.layers.preprocessing import category_crossing
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import discretization
@@ -57,12 +58,14 @@ from tensorflow.python.util.tf_export import keras_export
 
 ALL_MODULES = (base_layer, input_layer, advanced_activations, convolutional,
                convolutional_recurrent, core, cudnn_recurrent, dense_attention,
-               embeddings, einsum_dense, local, merge, noise, normalization,
+               embeddings, einsum_dense, local, merge, noise,
+               batch_normalization_v1, layer_normalization,
                pooling, image_preprocessing, recurrent, wrappers, hashing,
                category_crossing, category_encoding, discretization,
                multi_head_attention, integer_lookup,
                preprocessing_normalization, string_lookup, text_vectorization)
-ALL_V2_MODULES = (rnn_cell_wrapper_v2, normalization_v2, recurrent_v2)
+ALL_V2_MODULES = (rnn_cell_wrapper_v2, batch_normalization, layer_normalization,
+                  recurrent_v2)
 # ALL_OBJECTS is meant to be a global mutable. Hence we need to make it
 # thread-local to avoid concurrent mutations.
 LOCAL = threading.local()
@@ -101,9 +104,10 @@ def populate_deserializable_objects():
   # as in TF 1.13, "BatchNormalizationV1" and "BatchNormalizationV2"
   # were used as class name for v1 and v2 version of BatchNormalization,
   # respectively. Here we explicitly convert them to their canonical names.
-  LOCAL.ALL_OBJECTS['BatchNormalizationV1'] = normalization.BatchNormalization
   LOCAL.ALL_OBJECTS[
-      'BatchNormalizationV2'] = normalization_v2.BatchNormalization
+      'BatchNormalizationV1'] = batch_normalization_v1.BatchNormalization
+  LOCAL.ALL_OBJECTS[
+      'BatchNormalizationV2'] = batch_normalization.BatchNormalization
 
   # Prevent circular dependencies.
   from keras import models  # pylint: disable=g-import-not-at-top
@@ -140,6 +144,25 @@ def populate_deserializable_objects():
 
 @keras_export('keras.layers.serialize')
 def serialize(layer):
+  """Serializes a `Layer` object into a JSON-compatible representation.
+
+  Args:
+    layer: The `Layer` object to serialize.
+
+  Returns:
+    A JSON-serializable dict representing the object's config.
+
+  Example:
+
+  ```python
+  from pprint import pprint
+  model = tf.keras.models.Sequential()
+  model.add(tf.keras.Input(shape=(16,)))
+  model.add(tf.keras.layers.Dense(32, activation='relu'))
+
+  pprint(tf.keras.layers.serialize(model))
+  # prints the configuration of the model, as a dict.
+  """
   return generic_utils.serialize_keras_object(layer)
 
 
@@ -154,6 +177,32 @@ def deserialize(config, custom_objects=None):
 
   Returns:
       Layer instance (may be Model, Sequential, Network, Layer...)
+
+  Example:
+
+  ```python
+  # Configuration of Dense(32, activation='relu')
+  config = {
+    'class_name': 'Dense',
+    'config': {
+      'activation': 'relu',
+      'activity_regularizer': None,
+      'bias_constraint': None,
+      'bias_initializer': {'class_name': 'Zeros', 'config': {}},
+      'bias_regularizer': None,
+      'dtype': 'float32',
+      'kernel_constraint': None,
+      'kernel_initializer': {'class_name': 'GlorotUniform',
+                             'config': {'seed': None}},
+      'kernel_regularizer': None,
+      'name': 'dense',
+      'trainable': True,
+      'units': 32,
+      'use_bias': True
+    }
+  }
+  dense_layer = tf.keras.layers.deserialize(config)
+  ```
   """
   populate_deserializable_objects()
   return generic_utils.deserialize_keras_object(

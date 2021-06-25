@@ -43,7 +43,7 @@ def embedding_varlen(batch_size, max_length):
       shape=(None,), ragged=True, name="weight", dtype=tf.float32)
   embedded_data = keras.layers.Embedding(embedding_size, 256)(data_input)
   weighted_embedding = tf.multiply(
-      embedded_data, tf.compat.v1.expand_dims(weight_input, -1))
+      embedded_data, tf.expand_dims(weight_input, -1))
   reduced_embedding = tf.reduce_sum(weighted_embedding, axis=1)
   model = keras.Model([data_input, weight_input], reduced_embedding)
 

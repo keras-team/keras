@@ -734,12 +734,12 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
     # Switch to time-major.
     if time_major:
-      inputs = tf.compat.v1.transpose(inputs, [1, 0, 2])
-      mask = tf.compat.v1.transpose(mask, [1, 0])
+      inputs = tf.transpose(inputs, [1, 0, 2])
+      mask = tf.transpose(mask, [1, 0])
 
     keras_outputs = layer(inputs, mask=mask)
     if time_major:
-      keras_outputs = tf.compat.v1.transpose(keras_outputs, [1, 0, 2])
+      keras_outputs = tf.transpose(keras_outputs, [1, 0, 2])
 
     # expect the first element in batch has 1 step and second element in batch
     # has 2 steps.
@@ -1301,6 +1301,18 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
       y_merged = convert_ragged_tensor_value(y_merged)
       self.assertAllClose(y_merged.flat_values, y_expected.flat_values)
+
+  def test_Bidirectional_nested_state_reuse(self):
+    if not tf.executing_eagerly():
+      self.skipTest('Only test eager mode.')
+    x = tf.random.normal([4, 8, 16])
+    layer = keras.layers.Bidirectional(
+        keras.layers.RNN([keras.layers.LSTMCell(5),
+                          keras.layers.LSTMCell(5)],
+                         return_sequences=True,
+                         return_state=True))
+    y = layer(x)
+    self.assertAllClose(layer([x] + y[1:]), layer(x, initial_state=y[1:]))
 
   def test_full_input_spec(self):
     # See https://github.com/tensorflow/tensorflow/issues/38403

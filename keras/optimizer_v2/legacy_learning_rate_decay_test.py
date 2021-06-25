@@ -54,7 +54,7 @@ class LRDecayTest(keras_parameterized.TestCase):
       self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
   def testVariables(self):
-    step = tf.compat.v1.Variable(1)
+    step = tf.Variable(1)
 
     decayed_lr = tf.compat.v1.train.exponential_decay(
         .1, step, 3, 0.96, staircase=True)

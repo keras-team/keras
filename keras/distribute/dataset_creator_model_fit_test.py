@@ -17,130 +17,85 @@
 
 import tensorflow.compat.v2 as tf
 
-from absl import logging
-from absl.testing import parameterized
 import numpy as np
-
-import keras
-from keras import callbacks as callbacks_lib
-from keras.distribute import multi_worker_testing_utils
+from tensorflow.python.framework import test_util
+from keras.distribute import dataset_creator_model_fit_test_base as test_base
 from keras.distribute import strategy_combinations
-from keras.engine import sequential
-from keras.layers import core as core_layers
-from keras.optimizer_v2 import gradient_descent
 from keras.utils import dataset_creator
 
 
-class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
+# TODO(rchao): Investigate why there cannot be single worker and multi worker
+# PS strategies running in the same shard.
+@tf.__internal__.distribute.combinations.generate(
+    tf.__internal__.test.combinations.combine(
+        strategy=strategy_combinations.all_strategies +
+        strategy_combinations.multi_worker_mirrored_strategies +
+        strategy_combinations.parameter_server_strategies_multi_worker,
+        mode="eager"))
+class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
 
-  def _model_compile(self,
-                     strategy,
-                     steps_per_execution=1,
-                     run_eagerly=False,
-                     with_normalization_layer=False):
+  def setUp(self):
+    super().setUp()
+    if test_util.is_xla_enabled():
+      self.skipTest("model.optimizer.iterations values is not as expected "
+                    "with XLA: b/184384487")
 
-    class ResultAssertingCallback(callbacks_lib.Callback):
+  def testModelFit(self, strategy):
+    model = self._model_fit(strategy)
+    self.assertEqual(model.optimizer.iterations, 100)
 
-      def __init__(self):
-        self._prev_epoch = -1
-        self._loss_to_compare_against = 2  # Empirical initial value
-
-      def on_epoch_end(self, epoch, logs=None):
-        logging.info("testModelFit: epoch=%r, logs=%r", epoch, logs)
-        if epoch <= self._prev_epoch:
-          raise RuntimeError("Epoch is supposed to be larger than previous.")
-        self._prev_epoch = epoch
-        is_loss_float = (
-            logs.get("loss", None) is not None and
-            isinstance(logs["loss"], (float, np.floating)))
-        if not is_loss_float:
-          raise RuntimeError("loss is supposed to be in the logs and float.")
-        if epoch == 0 or epoch == 9:
-          # Making sure the loss of first epoch is below 1, and that of last
-          # epoch is smaller than the first epoch.
-          if logs["loss"] > self._loss_to_compare_against:
-            raise RuntimeError(
-                "loss at epoch {} is larger than previous.".format(epoch))
-          self._loss_to_compare_against = logs["loss"]
-
-      def on_train_end(self, logs=None):
-        if self._prev_epoch != 9:
-          raise RuntimeError("Unexpected last epoch: {}".format(
-              self._prev_epoch))
-
-    # TODO(b/182193218): Use ParameterServerStrategy as a proper strategy
-    # combination.
-    if strategy == "ParameterServerStrategy":
-      gpu_devices = tf.config.list_physical_devices("GPU")
-      if len(gpu_devices) > 1:
-        self.skipTest("b/178452835: Multi-GPUs not supported in "
-                      "ParameterServerStrategy.")
-      strategy = tf.distribute.experimental.ParameterServerStrategy(
-          multi_worker_testing_utils.make_parameter_server_cluster(3, 2),
-          variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(2))
-
-    with strategy.scope():
-      model = sequential.Sequential([core_layers.Dense(10)])
-      if with_normalization_layer:
-        norm = keras.layers.BatchNormalization(
-            axis=-1, input_shape=(4, 4, 3), momentum=0.8)
-        model.add(norm)
-
-    model.compile(
-        gradient_descent.SGD(),
-        loss="mse",
-        steps_per_execution=steps_per_execution,
-        run_eagerly=run_eagerly)
-    return model, [ResultAssertingCallback()]
-
-  def _model_fit(self,
-                 strategy,
-                 steps_per_execution=1,
-                 validation_data=None,
-                 x=None,
-                 steps_per_epoch=10,
-                 run_eagerly=False,
-                 with_normalization_layer=False,
-                 callbacks=None):
-    if callbacks is None:
-      callbacks = []
-
-    model, default_callbacks = self._model_compile(strategy,
-                                                   steps_per_execution,
-                                                   run_eagerly,
-                                                   with_normalization_layer)
-    callbacks += default_callbacks
-
+  def testModelFitwithStepsPerEpochNegativeOne(self, strategy):
     def dataset_fn(input_context):
       del input_context
       x = tf.random.uniform((10, 10))
       y = tf.random.uniform((10,))
       return tf.data.Dataset.from_tensor_slices(
-          (x, y)).shuffle(10).repeat().batch(2)
+          (x, y)).shuffle(10).batch(2)
 
-    x = x or dataset_creator.DatasetCreator(dataset_fn)
+    if strategy._should_use_with_coordinator:
+      with self.assertRaises((tf.errors.OutOfRangeError,
+                              tf.errors.CancelledError)):
+        self._model_fit(
+            strategy,
+            steps_per_epoch=-1,
+            x=dataset_creator.DatasetCreator(dataset_fn),
+            validation_data=dataset_creator.DatasetCreator(dataset_fn),
+        )
+    else:
+      self._model_fit(
+          strategy,
+          steps_per_epoch=-1,
+          x=dataset_creator.DatasetCreator(dataset_fn),
+          validation_data=dataset_creator.DatasetCreator(dataset_fn),
+      )
 
-    model.fit(
-        x,
-        epochs=10,
-        steps_per_epoch=steps_per_epoch,
-        callbacks=callbacks,
-        validation_data=validation_data)
-    return model
-
-
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
-        strategy=strategy_combinations.all_strategies +
-        strategy_combinations.multi_worker_mirrored_strategies +
-        ["ParameterServerStrategy"],
-        mode="eager"))
-class DatasetCreatorModelFitTest(DatasetCreatorModelFitTestBase):
-
-  def testModelFit(self, strategy):
-    model = self._model_fit(strategy)
+  def testModelFitWithNumpyData(self, strategy):
+    x = np.random.rand(100, 10)
+    y = np.random.rand(100, 1)
+    model = self._model_fit(
+        strategy,
+        x=x,
+        y=y,
+        batch_size=1,
+        validation_data=(x, y),
+    )
     self.assertEqual(model.optimizer.iterations, 100)
-    return model
+
+  def testModelFitWithTensorData(self, strategy):
+    x = tf.random.uniform((100, 10))
+    y = tf.random.uniform((100,))
+    model = self._model_fit(
+        strategy,
+        x=x,
+        y=y,
+        batch_size=1,
+        validation_data=(x, y),
+    )
+    self.assertEqual(model.optimizer.iterations, 100)
+
+  def testModelFitWithLookupLayer(self, strategy):
+    model = self._model_fit(strategy, use_lookup_layer=True)
+    self.assertEqual(model.optimizer.iterations, 100)
 
   def testModelFitWithNormalizationLayer(self, strategy):
     model = self._model_fit(strategy, with_normalization_layer=True)
@@ -152,105 +107,151 @@ class DatasetCreatorModelFitTest(DatasetCreatorModelFitTestBase):
 
   def testModelFitWithNoStepsPerEpoch(self, strategy):
     with self.assertRaisesRegex(
-        ValueError, "When using a "
-        "`tf.keras.utils.experimental.DatasetCreator`, "
-        "`steps_per_epoch` argument must be provided in "
-        "`Model.fit`."):
+        ValueError,
+        "When using a `tf.keras.utils.experimental.DatasetCreator`, "
+        "`steps_per_epoch`, `validation_steps` or `steps` argument must be "
+        "provided in `Model.fit`, `Model.evaluate`, or `Model.predict`."):
       self._model_fit(strategy, steps_per_epoch=None)
 
-
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(strategy=["ParameterServerStrategy"], mode="eager"))
-class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
-    DatasetCreatorModelFitTestBase):
-
-  def testModelFitWithRunEagerly(self, strategy):
-    with self.assertRaisesRegex(
-        ValueError, "When using `Model` with `ParameterServerStrategy`, "
-        "`run_eagerly` is not supported."):
-      self._model_fit(strategy, run_eagerly=True)
-
-  def testModelFitWithValidationData(self, strategy):
-    with self.assertRaisesRegex(
-        NotImplementedError, "Evaluation in `model.fit` with "
-        "`ParameterServerStrategy` is not yet supported."):
-      self._model_fit(
-          strategy,
-          validation_data=tf.data.Dataset.from_tensor_slices([1, 1]))
-
-  def testModelFitWithDatasetInstance(self, strategy):
-    with self.assertRaisesRegex(
-        NotImplementedError, "Only `DatasetCreator` input is supported in "
-        "`ParameterServerStrategy` at this time."):
-      self._model_fit(
-          strategy, x=tf.data.Dataset.from_tensor_slices([1, 1]))
-
   def testModelEvaluate(self, strategy):
-    model, _ = self._model_compile(strategy)
+    self._model_evaluate(strategy)
+    self.assertGreaterEqual(self._accuracy_metric.result(), 0.0)
+
+  def testModelEvaluateWithNumpyData(self, strategy):
+    x = np.random.rand(100, 10)
+    y = np.random.rand(100, 1)
+    self._model_evaluate(
+        strategy,
+        x=x,
+        y=y,
+        batch_size=1,
+    )
+    self.assertGreaterEqual(self._accuracy_metric.result(), 0.0)
+
+  def testModelEvaluateWithTensorData(self, strategy):
+    x = tf.random.uniform((100, 10))
+    y = tf.random.uniform((100,))
+    self._model_evaluate(
+        strategy,
+        x=x,
+        y=y,
+        batch_size=1,
+    )
+    self.assertGreaterEqual(self._accuracy_metric.result(), 0.0)
+
+  def testModelEvaluateWithNormalizationLayer(self, strategy):
+    self._model_evaluate(strategy, with_normalization_layer=True)
+    self.assertGreaterEqual(self._accuracy_metric.result(), 0.0)
+
+  def testModelEvaluateWithStepsPerExecution(self, strategy):
+    self._model_evaluate(strategy, steps_per_execution=10)
+    self.assertGreaterEqual(self._accuracy_metric.result(), 0.0)
+
+  def testModelEvaluateWithNoStepsPerEpoch(self, strategy):
     with self.assertRaisesRegex(
-        NotImplementedError, "`model.evaluate` is not yet supported with "
-        "`ParameterServerStrategy`."):
-      model.evaluate(x=tf.data.Dataset.from_tensor_slices([1, 1]))
+        ValueError,
+        "When using a `tf.keras.utils.experimental.DatasetCreator`, "
+        "`steps_per_epoch`, `validation_steps` or `steps` argument must be "
+        "provided in `Model.fit`, `Model.evaluate`, or `Model.predict`."):
+      self._model_evaluate(strategy, steps=None)
 
   def testModelPredict(self, strategy):
-    model, _ = self._model_compile(strategy)
-    with self.assertRaisesRegex(
-        NotImplementedError, "`model.predict` is not yet supported with "
-        "`ParameterServerStrategy`."):
-      model.predict(x=tf.data.Dataset.from_tensor_slices([1, 1]))
+    _, predictions = self._model_predict(strategy, steps=3)
+    # Check the first (0th index), fourth (3rd index) and the last predictions
+    # because the first, fourth and the last input are the same in
+    # `model.predict` so there predictions should match.
+    self.assertTrue(all(predictions[0] == predictions[i] for i in [0, 3, 5]))
 
-  def testClusterCoordinatorSingleInstance(self, strategy):
+    self.assertFalse(
+        all(predictions[0] == predictions[i] for i in [0, 1, 2, 4]))
+
+  def testModelPredictWithNumpyData(self, strategy):
+    x = np.array([1., 2., 3., 1., 5., 1.])
+    _, predictions = self._model_predict(strategy, test_data=x)
+
+    self.assertTrue(all(predictions[0] == predictions[i] for i in [0, 3, 5]))
+    self.assertFalse(
+        all(predictions[0] == predictions[i] for i in [0, 1, 2, 4]))
+
+  def testModelPredictWithTensorData(self, strategy):
+    x = tf.constant([1., 2., 3., 1., 5., 1.])
+    _, predictions = self._model_predict(strategy, test_data=x)
+    self.assertTrue(all(predictions[0] == predictions[i] for i in [0, 3, 5]))
+    self.assertFalse(
+        all(predictions[0] == predictions[i] for i in [0, 1, 2, 4]))
+
+  def testModelPredictWithNormalizationLayer(self, strategy):
+    _, predictions = self._model_predict(
+        strategy, with_normalization_layer=True, steps=3)
+    # Check the first (0th index), fourth (3rd index) and the last predictions
+    # because the first, fourth and the last input is the same in
+    # `model.predict` so there predictions should match.
+    self.assertTrue(all(predictions[0] == predictions[i] for i in [0, 3, 5]))
+
+    self.assertFalse(
+        all(predictions[0] == predictions[i] for i in [0, 1, 2, 4]))
+
+  def testModelPredictWithStepsPerExecution(self, strategy):
+    _, predictions = self._model_predict(
+        strategy, steps_per_execution=3, steps=3)
+
+    # Check the first (0th index), fourth (3rd index) and the last predictions
+    # because the first, fourth and the last input is the same in
+    # `model.predict` so there predictions should match.
+    self.assertTrue(all(predictions[0] == predictions[i] for i in [0, 3, 5]))
+
+    self.assertFalse(
+        all(predictions[0] == predictions[i] for i in [0, 1, 2, 4]))
+
+  def testModelFitAndPredict(self, strategy):
+    def fit_dataset_fn(input_context):
+      del input_context
+      x = tf.random.uniform((10, 1))
+      y = tf.random.uniform((10,))
+      return tf.data.Dataset.from_tensor_slices(
+          (x, y)).shuffle(10).repeat().batch(2)
+
+    x = dataset_creator.DatasetCreator(fit_dataset_fn)
+    validation_data = dataset_creator.DatasetCreator(fit_dataset_fn)
+
+    model = self._model_fit(strategy, x=x, validation_data=validation_data)
+    _, predictions = self._model_predict(strategy, model, steps=3)
+
+    # Check the first (0th index), fourth (3rd index) and the last predictions
+    # because the first, fourth and the last input is the same in
+    # `model.predict` so there predictions should match.
+    self.assertTrue(all(predictions[0] == predictions[i] for i in [0, 3, 5]))
+
+    self.assertFalse(
+        all(predictions[0] == predictions[i] for i in [0, 1, 2, 4]))
+
+  def testModelPredictWithDatasetCreator(self, strategy):
+    if isinstance(strategy,
+                  tf.distribute.MultiWorkerMirroredStrategy):
+      self.skipTest("b/189223991")
+
+    def _dataset_fn(input_context):
+      del input_context
+      x = tf.constant([1., 2., 3., 1., 5., 1.])
+      return tf.data.Dataset.from_tensor_slices(x).repeat().batch(2)
+
+    _, predictions = self._model_predict(
+        strategy,
+        steps=3,
+        test_data=dataset_creator.DatasetCreator(_dataset_fn),
+    )
+
+    # Check the first (0th index), fourth (3rd index) and the last predictions
+    # because the first, fourth and the last input is the same in
+    # `model.predict` so there predictions should match.
+    self.assertTrue(all(predictions[0] == predictions[i] for i in [0, 3, 5]))
+
+    self.assertFalse(
+        all(predictions[0] == predictions[i] for i in [0, 1, 2, 4]))
+
+  def testModelTrainTFFunction(self, strategy):
     model = self._model_fit(strategy)
-    strategy = model.distribute_strategy
-    self.assertIs(strategy._cluster_coordinator,
-                  tf.distribute.experimental.coordinator.ClusterCoordinator(strategy))
-
-  def testModelFitErrorOnBatchLevelCallbacks(self, strategy):
-
-    class BatchLevelCallback(callbacks_lib.Callback):
-
-      def on_train_batch_end(self, batch, logs=None):
-        pass
-
-    with self.assertRaisesRegex(ValueError,
-                                "Batch-level `Callback`s are not supported"):
-      callbacks = [BatchLevelCallback()]
-      self._model_fit(strategy, callbacks=callbacks)
-
-  def testModelFitCallbackSupportsTFLogs(self, strategy):
-
-    class MyCallback(callbacks_lib.Callback):
-
-      def __init__(self):
-        super(MyCallback, self).__init__()
-        # Fetches the RemoteValues if necessary.
-        self._supports_tf_logs = True
-
-      def on_train_batch_end(self, batch, logs=None):
-        assert isinstance(logs, tf.distribute.experimental.coordinator.RemoteValue)
-
-    my_callback = MyCallback()
-    callbacks = [my_callback]
-    self._model_fit(strategy, callbacks=callbacks)
-
-  def testModelFitVerbosity(self, strategy):
-
-    class MyCallback(callbacks_lib.Callback):
-      pass
-
-    my_callback = MyCallback()
-    callbacks = [my_callback]
-    self._model_fit(strategy, callbacks=callbacks)
-    # PSStrategy should default to epoch-level logging.
-    self.assertEqual(my_callback.params["verbose"], 2)
-
-  def testModelFitTensorBoardEpochLevel(self, strategy):
-    log_dir = self.get_temp_dir()
-    callbacks = [callbacks_lib.TensorBoard(log_dir)]
-    self._model_fit(strategy, callbacks=callbacks)
-    self.assertTrue(tf.compat.v1.gfile.Exists(log_dir))
-    files = tf.compat.v1.gfile.ListDirectory(log_dir)
-    self.assertGreaterEqual(len(files), 1)
+    self.assertIsInstance(model.train_tf_function, tf.__internal__.function.Function)
 
 
 if __name__ == "__main__":

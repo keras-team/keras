@@ -14,63 +14,78 @@
 # ==============================================================================
 """Normalization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
-# pylint: disable=g-classes-have-attributes
-
-import numpy as np
 from keras import backend
 from keras.engine import base_preprocessing_layer
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.util.tf_export import keras_export
 
+# pylint: disable=g-classes-have-attributes
 
-@keras_export('keras.layers.experimental.preprocessing.Normalization')
+
+@keras_export('keras.layers.Normalization',
+              'keras.layers.experimental.preprocessing.Normalization')
 class Normalization(base_preprocessing_layer.PreprocessingLayer):
   """Feature-wise normalization of the data.
 
   This layer will coerce its inputs into a distribution centered around
   0 with standard deviation 1. It accomplishes this by precomputing the mean and
-  variance of the data, and calling (input-mean)/sqrt(var) at runtime.
+  variance of the data, and calling `(input - mean) / sqrt(var)` at runtime.
 
-  What happens in `adapt`: Compute mean and variance of the data and store them
-    as the layer's weights. `adapt` should be called before `fit`, `evaluate`,
-    or `predict`.
+  What happens in `adapt()`: Compute mean and variance of the data and store
+  them as the layer's weights. `adapt()` should be called before `fit()`,
+  `evaluate()`, or `predict()`.
 
   Args:
-      axis: Integer or tuple of integers, the axis or axes that should be
-        "kept". These axes are not be summed over when calculating the
-        normalization statistics. By default the last axis, the `features` axis
-        is kept and any `space` or `time` axes are summed. Each element in the
-        the axes that are kept is normalized independently. If `axis` is set to
-        'None', the layer will perform scalar normalization (dividing the input
-        by a single scalar value). The `batch` axis, 0, is always summed over
-        (`axis=0` is not allowed).
+      axis: Integer, tuple of integers, or None. The axis or axes that should
+        have a separate mean and variance for each index in the shape. For
+        example, if shape is `(None, 5)` and `axis=1`, the layer will track 5
+        separate mean and variance values for the last axis. If `axis` is set to
+        `None`, the layer will normalize all elements in the input by a scalar
+        mean and variance. Defaults to -1, where the last axis of the input is
+        assumed to be a feature dimension and is normalized per index. Note that
+        in the specific case of batched scalar inputs where the only axis is the
+        batch axis, the default will normalize each index in the batch
+        separately. In this case, consider passing `axis=None`.
       mean: The mean value(s) to use during normalization. The passed value(s)
         will be broadcast to the shape of the kept axes above; if the value(s)
-        cannot be broadcast, an error will be raised when this layer's build()
+        cannot be broadcast, an error will be raised when this layer's `build()`
         method is called.
       variance: The variance value(s) to use during normalization. The passed
         value(s) will be broadcast to the shape of the kept axes above; if the
-        value(s)cannot be broadcast, an error will be raised when this layer's
-        build() method is called.
+        value(s) cannot be broadcast, an error will be raised when this layer's
+        `build()` method is called.
 
   Examples:
 
-  Calculate the mean and variance by analyzing the dataset in `adapt`.
+  Calculate a global mean and variance by analyzing the dataset in `adapt()`.
 
-  >>> adapt_data = np.array([[1.], [2.], [3.], [4.], [5.]], dtype=np.float32)
-  >>> input_data = np.array([[1.], [2.], [3.]], np.float32)
-  >>> layer = Normalization()
+  >>> adapt_data = np.array([1., 2., 3., 4., 5.], dtype='float32')
+  >>> input_data = np.array([1., 2., 3.], dtype='float32')
+  >>> layer = tf.keras.layers.Normalization(axis=None)
   >>> layer.adapt(adapt_data)
   >>> layer(input_data)
-  <tf.Tensor: shape=(3, 1), dtype=float32, numpy=
-  array([[-1.4142135 ],
-         [-0.70710677],
-         [ 0.        ]], dtype=float32)>
+  <tf.Tensor: shape=(3,), dtype=float32, numpy=
+  array([-1.4142135, -0.70710677, 0.], dtype=float32)>
+
+  Calculate a mean and variance for each index on the last axis.
+
+  >>> adapt_data = np.array([[0., 7., 4.],
+  ...                        [2., 9., 6.],
+  ...                        [0., 7., 4.],
+  ...                        [2., 9., 6.]], dtype='float32')
+  >>> input_data = np.array([[0., 7., 4.]], dtype='float32')
+  >>> layer = tf.keras.layers.Normalization(axis=-1)
+  >>> layer.adapt(adapt_data)
+  >>> layer(input_data)
+  <tf.Tensor: shape=(1, 3), dtype=float32, numpy=
+  array([0., 0., 0.], dtype=float32)>
 
   Pass the mean and variance directly.
 
-  >>> input_data = np.array([[1.], [2.], [3.]], np.float32)
-  >>> layer = Normalization(mean=3., variance=2.)
+  >>> input_data = np.array([[1.], [2.], [3.]], dtype='float32')
+  >>> layer = tf.keras.layers.Normalization(mean=3., variance=2.)
   >>> layer(input_data)
   <tf.Tensor: shape=(3, 1), dtype=float32, numpy=
   array([[-1.4142135 ],
@@ -79,7 +94,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   """
 
   def __init__(self, axis=-1, mean=None, variance=None, **kwargs):
-    super(Normalization, self).__init__(stateful=True, streaming=True, **kwargs)
+    super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Normalization').set(True)
 
     # Standardize `axis` to a tuple.
@@ -89,8 +104,6 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       axis = (axis,)
     else:
       axis = tuple(axis)
-    if 0 in axis:
-      raise ValueError('The argument \'axis\' may not be 0.')
     self.axis = axis
 
     # Set `mean` and `variance` if passed.
@@ -100,30 +113,39 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     if isinstance(variance, tf.Variable):
       raise ValueError('Normalization does not support passing a Variable '
                        'for the `variance` init arg.')
-    if mean is not None and variance is not None:
-      mean = convert_to_ndarray(mean)
-      variance = convert_to_ndarray(variance)
-    elif mean is not None or variance is not None:
+    if (mean is not None) != (variance is not None):
       raise ValueError(
           'When setting values directly, both `mean` and `variance` '
           'must be set. Got mean: {} and variance: {}'.format(mean, variance))
-    self.mean_val = mean
-    self.variance_val = variance
+    self.input_mean = mean
+    self.input_variance = variance
 
   def build(self, input_shape):
+    super().build(input_shape)
+
+    if (isinstance(input_shape, (list, tuple)) and
+        all(isinstance(shape, tf.TensorShape) for shape in input_shape)):
+      raise ValueError('Normalization only accepts a single input. If you are '
+                       'passing a python list or tuple as a single input, '
+                       'please convert to a numpy array or `tf.Tensor`.')
+
     input_shape = tf.TensorShape(input_shape).as_list()
-    if len(input_shape) == 1:
-      input_shape = input_shape + [1]
     ndim = len(input_shape)
 
-    if any(a < 1 - ndim or a >= ndim for a in self.axis):
-      raise ValueError('All `axis` values must be in the range '
-                       '[1 - ndim, ndim - 1]. Found '
-                       'ndim: `{}`, axis: {}'.format(ndim, self.axis))
+    if any(a < -ndim or a >= ndim for a in self.axis):
+      raise ValueError('All `axis` values must be in the range [-ndim, ndim). '
+                       'Found ndim: `{}`, axis: {}'.format(ndim, self.axis))
 
     # Axes to be kept, replacing negative values with positive equivalents.
     # Sorted to avoid transposing axes.
     self._keep_axis = sorted([d if d >= 0 else d + ndim for d in self.axis])
+    # All axes to be kept should have known shape.
+    for d in self._keep_axis:
+      if input_shape[d] is None:
+        raise ValueError(
+            'All `axis` values to be kept must have known shape. Got axis: {}, '
+            'input shape: {}, with unknown axis at index: {}'.format(
+                self.axis, input_shape, d))
     # Axes to be reduced.
     self._reduce_axis = [d for d in range(ndim) if d not in self._keep_axis]
     # 1 if an axis should be reduced, 0 otherwise.
@@ -134,47 +156,57 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     self._broadcast_shape = [
         input_shape[d] if d in self._keep_axis else 1 for d in range(ndim)
     ]
-    # Create variables without keeping reduced axes.
     mean_and_var_shape = tuple(input_shape[d] for d in self._keep_axis)
 
-    self.mean = self.add_weight(
-        name='mean',
-        shape=mean_and_var_shape,
-        dtype=self.dtype,
-        initializer=tf.compat.v1.zeros_initializer,
-        trainable=False)
-    self.variance = self.add_weight(
-        name='variance',
-        shape=mean_and_var_shape,
-        dtype=self.dtype,
-        initializer=tf.compat.v1.ones_initializer,
-        trainable=False)
-    self.count = self.add_weight(
-        name='count',
-        shape=(),
-        dtype=tf.int64,
-        initializer=tf.compat.v1.zeros_initializer,
-        trainable=False)
-
-    super(Normalization, self).build(input_shape)
-
-    if (self.mean_val is not None and self.variance_val is not None):
-      mean_val = self.mean_val * np.ones(mean_and_var_shape)
-      variance_val = self.variance_val * np.ones(mean_and_var_shape)
-      self.set_weights([mean_val, variance_val])
-
-    self.built = True
+    if self.input_mean is None:
+      self.adapt_mean = self.add_weight(
+          name='mean',
+          shape=mean_and_var_shape,
+          dtype=self.dtype,
+          initializer='zeros',
+          trainable=False)
+      self.adapt_variance = self.add_weight(
+          name='variance',
+          shape=mean_and_var_shape,
+          dtype=self.dtype,
+          initializer='ones',
+          trainable=False)
+      self.count = self.add_weight(
+          name='count',
+          shape=(),
+          dtype=tf.int64,
+          initializer='zeros',
+          trainable=False)
+      self.finalize_state()
+    else:
+      # In the no adapt case, make constant tensors for mean and variance with
+      # proper broadcast shape for use during call.
+      mean = self.input_mean * np.ones(mean_and_var_shape)
+      variance = self.input_variance * np.ones(mean_and_var_shape)
+      mean = tf.reshape(mean, self._broadcast_shape)
+      variance = tf.reshape(variance, self._broadcast_shape)
+      self.mean = tf.cast(mean, self.compute_dtype)
+      self.variance = tf.cast(variance, self.compute_dtype)
 
   def update_state(self, data):
+    if self.input_mean is not None:
+      raise ValueError(
+          'Cannot `adapt` a Normalization layer that is initialized with '
+          'static `mean` and `variance`, you passed mean {} and variance {}.'
+          .format(self.input_mean, self.input_variance))
+
     if not self.built:
       raise RuntimeError('`build` must be called before `update_state`.')
 
     data = self._standardize_inputs(data)
-    batch_mean, batch_variance = tf.nn.moments(
-        data, axes=self._reduce_axis)
-    batch_shape = tf.compat.v1.shape(data, out_type=self.count.dtype)
-    batch_reduce_shape = tf.compat.v1.gather(batch_shape, self._reduce_axis)
-    batch_count = tf.reduce_prod(batch_reduce_shape)
+    data = tf.cast(data, self.adapt_mean.dtype)
+    batch_mean, batch_variance = tf.nn.moments(data, axes=self._reduce_axis)
+    batch_shape = tf.shape(data, out_type=self.count.dtype)
+    if self._reduce_axis:
+      batch_reduce_shape = tf.gather(batch_shape, self._reduce_axis)
+      batch_count = tf.reduce_prod(batch_reduce_shape)
+    else:
+      batch_count = 1
 
     total_count = batch_count + self.count
     batch_weight = (
@@ -182,58 +214,43 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         tf.cast(total_count, dtype=self.dtype))
     existing_weight = 1. - batch_weight
 
-    total_mean = self.mean * existing_weight + batch_mean * batch_weight
+    total_mean = self.adapt_mean * existing_weight + batch_mean * batch_weight
     # The variance is computed using the lack-of-fit sum of squares
     # formula (see https://en.wikipedia.org/wiki/Lack-of-fit_sum_of_squares).
-    total_variance = ((self.variance +
-                       (self.mean - total_mean)**2) * existing_weight +
+    total_variance = ((self.adapt_variance +
+                       (self.adapt_mean - total_mean)**2) * existing_weight +
                       (batch_variance +
                        (batch_mean - total_mean)**2) * batch_weight)
-    self.mean.assign(total_mean)
-    self.variance.assign(total_variance)
-    self.count.assign(total_count)
-
-  def merge_state(self, layers):
-    layers = layers + [self]
-    if any(not l.built for l in layers):
-      raise ValueError(
-          'All layers to be merged must have been adapted to some inputs '
-          'first (otherwise they have no state).')
-
-    layer_counts = [l.count for l in layers]
-    layer_means = [l.mean for l in layers]
-    layer_variances = [l.variance for l in layers]
-
-    total_count = tf.reduce_sum(layer_counts)
-    layer_weightings = (
-        tf.cast(layer_counts, self.dtype) /
-        tf.cast(total_count, self.dtype))
-    layer_weightings = tf.reshape(
-        layer_weightings, shape=[len(layers)] + [1] * self.mean.shape.rank)
-
-    total_mean = tf.reduce_sum(layer_means * layer_weightings, axis=0)
-    inter_layer_variances = (layer_means - total_mean)**2
-    total_variance = tf.reduce_sum(
-        ((layer_variances + inter_layer_variances) * layer_weightings), axis=0)
-
-    self.mean.assign(total_mean)
-    self.variance.assign(total_variance)
+    self.adapt_mean.assign(total_mean)
+    self.adapt_variance.assign(total_variance)
     self.count.assign(total_count)
 
   def reset_state(self):  # pylint: disable=method-hidden
-    if self.built:
-      self.mean.assign(tf.compat.v1.zeros_like(self.mean))
-      self.variance.assign(tf.compat.v1.ones_like(self.variance))
-      self.count.assign(tf.compat.v1.zeros_like(self.count))
+    if self.input_mean is not None or not self.built:
+      return
+
+    self.adapt_mean.assign(tf.zeros_like(self.adapt_mean))
+    self.adapt_variance.assign(tf.ones_like(self.adapt_variance))
+    self.count.assign(tf.zeros_like(self.count))
+
+  def finalize_state(self):
+    if self.input_mean is not None or not self.built:
+      return
+
+    # In the adapt case, we make constant tensors for mean and variance with
+    # proper broadcast shape and dtype each time `finalize_state` is called.
+    self.mean = tf.reshape(self.adapt_mean, self._broadcast_shape)
+    self.mean = tf.cast(self.mean, self.compute_dtype)
+    self.variance = tf.reshape(self.adapt_variance, self._broadcast_shape)
+    self.variance = tf.cast(self.variance, self.compute_dtype)
 
   def call(self, inputs):
     inputs = self._standardize_inputs(inputs)
-    # We need to reshape the mean and variance data to ensure that Tensorflow
-    # broadcasts the data correctly.
-    mean = tf.reshape(self.mean, self._broadcast_shape)
-    variance = tf.reshape(self.variance, self._broadcast_shape)
-    return ((inputs - mean) /
-            tf.maximum(tf.sqrt(variance), backend.epsilon()))
+    # The base layer automatically casts floating-point inputs, but we
+    # explicitly cast here to also allow integer inputs to be passed
+    inputs = tf.cast(inputs, self.compute_dtype)
+    return ((inputs - self.mean) /
+            tf.maximum(tf.sqrt(self.variance), backend.epsilon()))
 
   def compute_output_shape(self, input_shape):
     return input_shape
@@ -242,32 +259,24 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     return input_spec
 
   def get_config(self):
-    config = super(Normalization, self).get_config()
-    config.update({'axis': self.axis})
+    config = super().get_config()
+    config.update({
+        'axis': self.axis,
+        'mean': self._convert_to_list(self.input_mean),
+        'variance': self._convert_to_list(self.input_variance),
+    })
     return config
-
-  def set_weights(self, weights):
-    """Override for set_weights to ensure we can set just mean/var weights."""
-    if len(weights) == 2:
-      weights.append(np.array(0))
-    super(Normalization, self).set_weights(weights)
 
   def _standardize_inputs(self, inputs):
     inputs = tf.convert_to_tensor(inputs)
-    if inputs.shape.rank == 0:
-      inputs = tf.reshape(inputs, [1, 1])
-    elif inputs.shape.rank == 1:
-      inputs = tf.compat.v1.expand_dims(inputs, 1)
-
     if inputs.dtype != self.dtype:
       inputs = tf.cast(inputs, self.dtype)
     return inputs
 
-
-def convert_to_ndarray(values):
-  if isinstance(values, np.ndarray):
-    return values
-  elif isinstance(values, tf.Tensor):
-    return backend.get_value(values)
-  else:
-    return np.array(values)
+  def _convert_to_list(self, inputs):
+    if tf.is_tensor(inputs):
+      inputs = inputs.numpy()
+    if isinstance(inputs, (np.ndarray)):
+      inputs = inputs.tolist()
+      inputs = list(inputs)
+    return inputs

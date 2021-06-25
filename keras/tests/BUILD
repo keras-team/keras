@@ -3,6 +3,8 @@
 
 # buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
+
+# buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 load("@org_keras//keras:keras.bzl", "tpu_py_test")
 
@@ -315,7 +317,7 @@ tf_py_test(
         "//keras/api:keras_api",
         "//keras/engine",
         "//keras/layers:core",
-        "//keras/layers:normalization",
+        "//keras/layers/normalization",
     ],
 )
 
@@ -340,6 +342,7 @@ tf_py_test(
     name = "tracking_util_with_v1_optimizers_test",
     srcs = ["tracking_util_with_v1_optimizers_test.py"],
     tags = [
+        "no_windows",  # TODO(b/184424727): Re-enable this.
         "notsan",  # b/74395663
     ],
     deps = [

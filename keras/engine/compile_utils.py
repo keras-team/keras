@@ -209,7 +209,7 @@ class LossesContainer(Container):
         if tf_utils.is_ragged(y_t):
           batch_dim = y_t.nrows()
         else:
-          batch_dim = tf.compat.v1.shape(y_t)[0]
+          batch_dim = tf.shape(y_t)[0]
 
       if metric_obj is not None:
         metric_obj.update_state(loss_metric_value, sample_weight=batch_dim)
@@ -497,7 +497,7 @@ class MetricsContainer(Container):
 
     # Convenience feature for selecting b/t binary, categorical,
     # and sparse categorical.
-    if metric not in ['accuracy', 'acc', 'crossentropy', 'ce']:
+    if str(metric).lower() not in ['accuracy', 'acc', 'crossentropy', 'ce']:
       metric_obj = metrics_mod.get(metric)
     else:
       y_t_rank = len(y_t.shape.as_list())
@@ -509,7 +509,7 @@ class MetricsContainer(Container):
       is_sparse_categorical = (
           y_t_rank < y_p_rank or y_t_last_dim == 1 and y_p_last_dim > 1)
 
-      if metric in ['accuracy', 'acc']:
+      if str(metric).lower() in ['accuracy', 'acc']:
         if is_binary:
           metric_obj = metrics_mod.binary_accuracy
         elif is_sparse_categorical:

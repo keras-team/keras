@@ -16,6 +16,8 @@
 
 import tensorflow.compat.v2 as tf
 
+import os
+
 from absl.testing import parameterized
 
 import numpy as np
@@ -114,21 +116,37 @@ class NormalizationTest(keras_parameterized.TestCase,
                         preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_broadcasting_during_direct_setting(self):
-    layer = normalization.Normalization(axis=-1, mean=[1.0], variance=[2.0])
-    layer.build((None, 2))
-    weights = layer.get_weights()
-    self.assertAllClose([1.0, 1.0], weights[0])
-    self.assertAllClose([2.0, 2.0], weights[1])
+    layer = normalization.Normalization(axis=-1, mean=[1.0], variance=[1.0])
+    output = layer(np.array([[1., 2.]]))
+    expected_output = [[0., 1.]]
+    self.assertAllClose(output, expected_output)
+    self.assertAllClose(layer.get_weights(), [])
 
   def test_broadcasting_during_direct_setting_with_tensors(self):
+    if not tf.executing_eagerly():
+      self.skipTest("Only supported in TF2.")
+
     layer = normalization.Normalization(
         axis=-1,
         mean=tf.constant([1.0]),
-        variance=tf.constant([2.0]))
-    layer.build((None, 2))
-    weights = layer.get_weights()
-    self.assertAllClose([1.0, 1.0], weights[0])
-    self.assertAllClose([2.0, 2.0], weights[1])
+        variance=tf.constant([1.0]))
+    output = layer(np.array([[1., 2.]]))
+    expected_output = [[0., 1.]]
+    self.assertAllClose(output, expected_output)
+    self.assertAllClose(layer.get_weights(), [])
+
+  def test_1d_data(self):
+    data = np.array([0., 2., 0., 2.])
+    layer = normalization.Normalization(mean=1.0, variance=1.0)
+    output = layer(data)
+    self.assertListEqual(output.shape.as_list(), [4])
+    self.assertAllClose(output, [-1, 1, -1, 1])
+
+  def test_0d_data(self):
+    layer = normalization.Normalization(axis=None, mean=1.0, variance=1.0)
+    output = layer(0.)
+    self.assertListEqual(output.shape.as_list(), [])
+    self.assertAllClose(output, -1)
 
   def test_broadcasting_during_direct_setting_with_variables_fails(self):
     with self.assertRaisesRegex(ValueError, "passing a Variable"):
@@ -137,27 +155,35 @@ class NormalizationTest(keras_parameterized.TestCase,
           mean=tf.Variable([1.0]),
           variance=tf.Variable([2.0]))
 
-  @parameterized.parameters(
-      {"axis": 0},
-      {"axis": (-1, 0)},
-  )
-  def test_zeros_fail_init(self, axis):
-    with self.assertRaisesRegex(ValueError,
-                                "The argument 'axis' may not be 0."):
-      normalization.Normalization(axis=axis)
+  def test_keeping_an_unknown_axis_fails(self):
+    layer = normalization.Normalization(axis=-1)
+    with self.assertRaisesRegex(ValueError, "axis.*must have known shape"):
+      layer.build([None])
 
   @parameterized.parameters(
       # Out of bounds
       {"axis": 3},
-      {"axis": -3},
+      {"axis": -4},
       # In a tuple
       {"axis": (1, 3)},
-      {"axis": (1, -3)},
+      {"axis": (1, -4)},
   )
   def test_bad_axis_fail_build(self, axis):
     layer = normalization.Normalization(axis=axis)
-    with self.assertRaisesRegex(ValueError, r"in the range"):
+    with self.assertRaisesRegex(ValueError, "in the range"):
       layer.build([None, 2, 3])
+
+  def test_list_input(self):
+    with self.assertRaisesRegex(
+        ValueError, ("Normalization only accepts a single input. If you are "
+                     "passing a python list or tuple as a single input, "
+                     "please convert to a numpy array or `tf.Tensor`.")):
+      normalization.Normalization()([1, 2, 3])
+
+  def test_scalar_input(self):
+    with self.assertRaisesRegex(ValueError,
+                                "axis.*values must be in the range"):
+      normalization.Normalization()(1)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -198,38 +224,26 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
     output_data = model.predict(test_data)
     self.assertAllClose(expected, output_data)
 
-    weights = layer.get_weights()
-    mean = weights[0]
-    var = weights[1]
-
-    direct_set_layer = normalization.Normalization(
-        axis=axis, mean=mean, variance=var)
-    input_data = keras.Input(shape=input_shape)
-    output = direct_set_layer(input_data)
-    model = keras.Model(input_data, output)
-    model._run_eagerly = testing_utils.should_run_eagerly()
-    output_data = model.predict(test_data)
-    self.assertAllClose(expected, output_data)
-
-  def test_1d_data(self):
-    data = [0, 2, 0, 2]
+  def test_1d_unbatched_adapt(self):
+    ds = tf.data.Dataset.from_tensor_slices([
+        [2., 0., 2., 0.],
+        [0., 2., 0., 2.],
+    ])
     layer = normalization.Normalization(axis=-1)
-    layer.adapt(data)
-    output = layer(data)
-    self.assertListEqual(output.shape.as_list(), [4, 1])
-    if tf.executing_eagerly():
-      self.assertAllClose(output.numpy(), [[-1], [1], [-1], [1]])
+    layer.adapt(ds)
+    output_ds = ds.map(layer)
+    self.assertAllClose(
+        list(output_ds.as_numpy_iterator()), [
+            [1., -1., 1., -1.],
+            [-1., 1., -1., 1.],
+        ])
 
-  def test_0d_data(self):
-    if not tf.executing_eagerly():
-      self.skipTest("Only supported in TF2.")
-
-    data = [0, 2, 0, 2]
-    layer = normalization.Normalization(axis=-1)
-    layer.adapt(data)
-    output = layer(0.)
-    self.assertListEqual(output.shape.as_list(), [1, 1])
-    self.assertAllClose(output.numpy(), [[-1]])
+  def test_0d_unbatched_adapt(self):
+    ds = tf.data.Dataset.from_tensor_slices([2., 0., 2., 0.])
+    layer = normalization.Normalization(axis=None)
+    layer.adapt(ds)
+    output_ds = ds.map(layer)
+    self.assertAllClose(list(output_ds.as_numpy_iterator()), [1., -1., 1., -1.])
 
   @parameterized.parameters(
       # Results should be identical no matter how the axes are specified (3d).
@@ -259,28 +273,128 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
          keras.layers.Dense(1)])
     model.summary()
 
-  def test_merge_state(self):
-    data = np.random.rand(30, 10, 2)
-    ds = tf.data.Dataset.from_tensor_slices(data).batch(2)
-    norm = normalization.Normalization(axis=(1, 2))
-    norm.adapt(ds)
+  def test_multiple_adapts(self):
+    first_adapt = [[0], [2], [0], [2]]
+    second_adapt = [[2], [4], [2], [4]]
+    predict_input = [[2], [2]]
+    expected_first_output = [[1], [1]]
+    expected_second_output = [[-1], [-1]]
 
-    partial_ds_1 = ds.shard(3, 0)
-    partial_ds_2 = ds.shard(3, 1)
-    partial_ds_3 = ds.shard(3, 2)
+    inputs = keras.Input(shape=(1,), dtype=tf.int32)
+    layer = normalization.Normalization(axis=-1)
+    layer.adapt(first_adapt)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
 
-    norm_1 = normalization.Normalization(axis=(1, 2))
-    norm_2 = normalization.Normalization(axis=(1, 2))
-    norm_3 = normalization.Normalization(axis=(1, 2))
+    actual_output = model.predict(predict_input)
+    self.assertAllClose(actual_output, expected_first_output)
 
-    norm_1.adapt(partial_ds_1)
-    norm_2.adapt(partial_ds_2)
-    norm_3.adapt(partial_ds_3)
+    # Re-adapt the layer on new inputs.
+    layer.adapt(second_adapt)
+    # Re-compile the model.
+    model.compile()
+    # `predict` should now use the new model state.
+    actual_output = model.predict(predict_input)
+    self.assertAllClose(actual_output, expected_second_output)
 
-    norm_1.merge_state([norm_2, norm_3])
-    merged_norm = norm_1
+  @parameterized.parameters(
+      {"adapted": True},
+      {"adapted": False},
+  )
+  def test_saved_model_tf(self, adapted):
+    input_data = [[0.], [2.], [0.], [2.]]
+    expected_output = [[-1.], [1.], [-1.], [1.]]
 
-    self.assertAllClose(norm(data), merged_norm(data))
+    inputs = keras.Input(shape=(1,), dtype=tf.float32)
+    if adapted:
+      layer = normalization.Normalization(axis=-1)
+      layer.adapt(input_data)
+    else:
+      layer = normalization.Normalization(mean=1., variance=1.)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    output_data = model.predict(input_data)
+    self.assertAllClose(output_data, expected_output)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), "tf_saved_model")
+    tf.saved_model.save(model, output_path)
+    loaded_model = tf.saved_model.load(output_path)
+    f = loaded_model.signatures["serving_default"]
+
+    # Ensure that the loaded model is unique (so that the save/load is real)
+    self.assertIsNot(model, loaded_model)
+
+    # Validate correctness of the new model.
+    new_output_data = f(tf.constant(input_data))["normalization"]
+    self.assertAllClose(new_output_data, expected_output)
+
+  @parameterized.parameters(
+      {"adapted": True},
+      {"adapted": False},
+  )
+  def test_saved_model_keras(self, adapted):
+    input_data = [[0.], [2.], [0.], [2.]]
+    expected_output = [[-1.], [1.], [-1.], [1.]]
+
+    cls = normalization.Normalization
+    inputs = keras.Input(shape=(1,), dtype=tf.float32)
+    if adapted:
+      layer = cls(axis=-1)
+      layer.adapt(input_data)
+    else:
+      layer = cls(mean=1., variance=1.)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    output_data = model.predict(input_data)
+    self.assertAllClose(output_data, expected_output)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
+    model.save(output_path, save_format="tf")
+    loaded_model = keras.models.load_model(
+        output_path, custom_objects={"Normalization": cls})
+
+    # Ensure that the loaded model is unique (so that the save/load is real)
+    self.assertIsNot(model, loaded_model)
+
+    # Validate correctness of the new model.
+    new_output_data = loaded_model.predict(input_data)
+    self.assertAllClose(new_output_data, expected_output)
+
+  @parameterized.parameters(
+      {"adapted": True},
+      {"adapted": False},
+  )
+  def test_saved_weights_keras(self, adapted):
+    input_data = [[0.], [2.], [0.], [2.]]
+    expected_output = [[-1.], [1.], [-1.], [1.]]
+
+    cls = normalization.Normalization
+    inputs = keras.Input(shape=(1,), dtype=tf.float32)
+    if adapted:
+      layer = cls(axis=-1)
+      layer.adapt(input_data)
+    else:
+      layer = cls(mean=1., variance=1.)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    output_data = model.predict(input_data)
+    self.assertAllClose(output_data, expected_output)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_weights")
+    model.save_weights(output_path, save_format="tf")
+    new_model = keras.Model.from_config(
+        model.get_config(), custom_objects={"Normalization": cls})
+    new_model.load_weights(output_path)
+
+    # Validate correctness of the new model.
+    new_output_data = new_model.predict(input_data)
+    self.assertAllClose(new_output_data, expected_output)
 
 
 if __name__ == "__main__":

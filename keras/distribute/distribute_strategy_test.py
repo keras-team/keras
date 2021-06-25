@@ -232,7 +232,6 @@ def all_strategy_minus_default_and_tpu_combinations():
           tf.__internal__.distribute.combinations.one_device_strategy_gpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
       ],
       mode=['graph', 'eager'])
 
@@ -1287,9 +1286,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       tf.__internal__.test.combinations.combine(
           distribution=[
               tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-              tf.__internal__.distribute.combinations
-              .mirrored_strategy_with_two_gpus_no_merge_call,
+              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus
           ],
           mode=['graph', 'eager']))
   def test_learning_phase_value(self, distribution):
@@ -1988,7 +1985,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
 
     def custom_transform(grads_and_vars):
       # Always set gradients to 1.
-      return [(tf.compat.v1.ones_like(g), v) for g, v in grads_and_vars]
+      return [(tf.ones_like(g), v) for g, v in grads_and_vars]
 
     x, y = np.ones((10, 1)), np.ones((10, 1))
 
@@ -2025,9 +2022,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       tf.__internal__.test.combinations.combine(
           distribution=[
               tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-              tf.__internal__.distribute.combinations
-              .mirrored_strategy_with_two_gpus_no_merge_call,
+              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus
           ],
           mode=['graph', 'eager'],
           reduction=[
@@ -2183,9 +2178,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
               tf.__internal__.distribute.combinations.one_device_strategy,
               tf.__internal__.distribute.combinations.one_device_strategy_gpu,
               tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-              tf.__internal__.distribute.combinations
-              .mirrored_strategy_with_two_gpus_no_merge_call,
+              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus
           ],
           mode=['eager']))
   def test_distribution_strategy_with_add_metric_object(
@@ -2284,8 +2277,8 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
 
       def call(self, inputs):
         indices = tf.where(tf.not_equal(inputs, 0))
-        values = tf.compat.v1.gather_nd(inputs, indices)
-        shape = tf.compat.v1.shape(inputs, out_type='int64')
+        values = tf.gather_nd(inputs, indices)
+        shape = tf.shape(inputs, out_type='int64')
         return tf.SparseTensor(indices, values, dense_shape=shape)
 
     model = keras.Sequential([ToSparse()])
@@ -2492,8 +2485,8 @@ def _functional_with_layer_reuse(input_shape, num_classes, l1, l2):
   logits = base_model(inputs)
   model = keras.Model(inputs=inputs, outputs=logits)
   # Reuse sequential layer and create new nodes.
-  zero_logits = base_model(tf.compat.v1.zeros_like(inputs))
-  one_logits = base_model(tf.compat.v1.ones_like(inputs))
+  zero_logits = base_model(tf.zeros_like(inputs))
+  one_logits = base_model(tf.ones_like(inputs))
   # L2 loss.
   l2_loss = tf.reduce_mean(
       tf.reduce_sum(tf.square(logits - zero_logits), -1))

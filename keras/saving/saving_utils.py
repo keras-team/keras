@@ -14,9 +14,9 @@
 # ==============================================================================
 """Utils related to keras model saving."""
 
+# pylint: disable=g-bad-import-order, g-direct-tensorflow-import
 import tensorflow.compat.v2 as tf
 
-import collections.abc as collections_abc
 import copy
 import os
 from keras import backend as K
@@ -28,6 +28,7 @@ from keras.utils import generic_utils
 from keras.utils import version_utils
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 from tensorflow.python.platform import tf_logging as logging
+# pylint: enable=g-bad-import-order, g-direct-tensorflow-import
 
 
 def extract_model_metrics(model):
@@ -50,7 +51,7 @@ def extract_model_metrics(model):
   return None
 
 
-def model_input_signature(model, keep_original_batch_size=False):
+def model_call_inputs(model, keep_original_batch_size=False):
   """Inspect model to get its input signature.
 
   The model's input signature is a list with a single (possibly-nested) object.
@@ -68,21 +69,15 @@ def model_input_signature(model, keep_original_batch_size=False):
       `None`.
 
   Returns:
-    A list containing either a single TensorSpec or an object with nested
-    TensorSpecs. This list does not contain the `training` argument.
+    A tuple containing `(args, kwargs)` TensorSpecs of the model call function
+    inputs.
+    `kwargs` does not contain the `training` argument.
   """
-  input_specs = model._get_save_spec(dynamic_batch=not keep_original_batch_size)  # pylint: disable=protected-access
+  input_specs = model.save_spec(dynamic_batch=not keep_original_batch_size)
   if input_specs is None:
-    return None
+    return None, None
   input_specs = _enforce_names_consistency(input_specs)
-  # Return a list with a single element as the model's input signature.
-  if isinstance(input_specs,
-                collections_abc.Sequence) and len(input_specs) == 1:
-    # Note that the isinstance check filters out single-element dictionaries,
-    # which should also be wrapped as a single-element list.
-    return input_specs
-  else:
-    return [input_specs]
+  return input_specs
 
 
 def raise_model_input_error(model):
@@ -111,22 +106,23 @@ def trace_model_call(model, input_signature=None):
     if isinstance(model.call, tf.__internal__.function.Function):
       input_signature = model.call.input_signature
 
-  if input_signature is None:
-    input_signature = model_input_signature(model)
+  if input_signature:
+    model_args = input_signature
+    model_kwargs = {}
+  else:
+    model_args, model_kwargs = model_call_inputs(model)
+    input_signature = model_args  # store
 
-  if input_signature is None:
-    raise_model_input_error(model)
+    if model_args is None:
+      raise_model_input_error(model)
 
-  @tf.function(input_signature=input_signature)
-  def _wrapped_model(*args):
+  @tf.function
+  def _wrapped_model(*args, **kwargs):
     """A concrete tf.function that wraps the model's call function."""
-    # When given a single input, Keras models will call the model on the tensor
-    # rather than a list consisting of the single tensor.
-    inputs = args[0] if len(input_signature) == 1 else list(args)
-
+    kwargs['training'] = False
     with base_layer_utils.call_context().enter(
-        model, inputs=inputs, build_graph=False, training=False, saving=True):
-      outputs = model(inputs, training=False)
+        model, inputs=None, build_graph=False, training=False, saving=True):
+      outputs = model(*args, **kwargs)
 
     # Outputs always has to be a flat dict.
     output_names = model.output_names  # Functional Model.
@@ -136,7 +132,7 @@ def trace_model_call(model, input_signature=None):
     outputs = tf.nest.flatten(outputs)
     return {name: output for name, output in zip(output_names, outputs)}
 
-  return _wrapped_model
+  return _wrapped_model.get_concrete_function(*model_args, **model_kwargs)
 
 
 def model_metadata(model, include_optimizer=True, require_config=True):

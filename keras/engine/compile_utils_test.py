@@ -380,9 +380,9 @@ class LossesContainerTest(keras_parameterized.TestCase):
     v_t = tf.constant([[3., 4.], [1., 2.], [3., 5.]])
     v_p = tf.constant([[3.1, 4.], [1., 2.], [3., 5.]])
 
-    y_t = tf.compat.v1.expand_dims(
+    y_t = tf.expand_dims(
         tf.RaggedTensor.from_row_splits(v_t, [0, 2, 3]), 0)
-    y_p = tf.compat.v1.expand_dims(
+    y_p = tf.expand_dims(
         tf.RaggedTensor.from_row_splits(v_p, [0, 2, 3]), 0)
     loss_container(y_t, y_p)
 
@@ -601,6 +601,12 @@ class MetricsContainerTest(keras_parameterized.TestCase):
 
   def test_accuracy(self):
     metric_container = compile_utils.MetricsContainer('accuracy')
+    y_t, y_p = tf.ones((10, 1)), tf.ones((10, 1))
+    metric_container.update_state(y_t, y_p)
+    self.assertEqual(metric_container.metrics[0]._fn,
+                     metrics_mod.binary_accuracy)
+
+    metric_container = compile_utils.MetricsContainer('Accuracy')
     y_t, y_p = tf.ones((10, 1)), tf.ones((10, 1))
     metric_container.update_state(y_t, y_p)
     self.assertEqual(metric_container.metrics[0]._fn,

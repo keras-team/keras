@@ -17,6 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
+import numpy as np
 from keras import keras_parameterized
 from keras import layers
 from keras.engine import training
@@ -78,6 +79,24 @@ class RaggedKerasTensorTest(keras_parameterized.TestCase):
 
     x = tf.ragged.constant([[3, 4], [1, 2], [3, 5]])
     self.assertAllEqual(model(x), x / x)
+
+  def test_getitem(self):
+    # Test slicing / getitem
+    inp = layers.Input(shape=(None, 2), ragged=True)
+    out = inp[:, :2]
+    model = training.Model(inp, out)
+
+    x = tf.RaggedTensor.from_row_lengths(
+        tf.cast(np.random.randn(6, 2), dtype=tf.float32), [3, 1, 2])
+    expected = x[:, :2]
+
+    self.assertAllEqual(model(x), expected)
+
+    # Test that models w/ slicing are correctly serialized/deserialized
+    config = model.get_config()
+    model = training.Model.from_config(config)
+
+    self.assertAllEqual(model(x), expected)
 
   @parameterized.parameters(
       {'property_name': 'values'},

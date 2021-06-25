@@ -20,28 +20,29 @@ import numpy as np
 
 import keras
 from keras import keras_parameterized
-from keras.distribute.strategy_combinations import all_strategies
+from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import preprocessing_test_utils
 
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
-        distribution=all_strategies,
+        strategy=strategy_combinations.all_strategies +
+        strategy_combinations.multi_worker_mirrored_strategies,
         mode=["eager", "graph"]))
 class ImagePreprocessingDistributionTest(
     keras_parameterized.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
-  def test_distribution(self, distribution):
-    if "CentralStorage" in type(distribution).__name__:
+  def test_distribution(self, strategy):
+    if "CentralStorage" in type(strategy).__name__:
       self.skipTest("Does not work with CentralStorageStrategy yet.")
     # TODO(b/159738418): large image input causes OOM in ubuntu multi gpu.
     np_images = np.random.random((32, 32, 32, 3)).astype(np.float32)
     image_dataset = tf.data.Dataset.from_tensor_slices(np_images).batch(
         16, drop_remainder=True)
 
-    with distribution.scope():
+    with strategy.scope():
       input_data = keras.Input(shape=(32, 32, 3), dtype=tf.float32)
       image_preprocessor = keras.Sequential([
           image_preprocessing.Resizing(height=256, width=256),
@@ -61,4 +62,5 @@ class ImagePreprocessingDistributionTest(
 
 
 if __name__ == "__main__":
-  tf.test.main()
+  tf.compat.v1.enable_v2_behavior()
+  tf.__internal__.distribute.multi_process_runner.test_main()

@@ -54,7 +54,8 @@ class Conv(Layer):
   Args:
     rank: An integer, the rank of the convolution, e.g. "2" for 2D convolution.
     filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
+      of filters in the convolution). Could be "None", eg in the case of
+      depth wise convolution.
     kernel_size: An integer or tuple/list of n integers, specifying the
       length of the convolution window.
     strides: An integer or tuple/list of n integers,
@@ -131,6 +132,9 @@ class Conv(Layer):
 
     if isinstance(filters, float):
       filters = int(filters)
+    if filters is not None and filters < 0:
+      raise ValueError(f'Received a negative value for `filters`.'
+                       f'Was expecting a positive value, got {filters}.')
     self.filters = filters
     self.groups = groups or 1
     self.kernel_size = conv_utils.normalize_tuple(
@@ -240,7 +244,7 @@ class Conv(Layer):
     input_shape = inputs.shape
 
     if self._is_causal:  # Apply causal padding to inputs for Conv1D.
-      inputs = tf.compat.v1.pad(inputs, self._compute_causal_padding(inputs))
+      inputs = tf.pad(inputs, self._compute_causal_padding(inputs))
 
     outputs = self._convolution_op(inputs, self.kernel)
 
@@ -991,7 +995,7 @@ class Conv1DTranspose(Conv1D):
     self.built = True
 
   def call(self, inputs):
-    inputs_shape = tf.compat.v1.shape(inputs)
+    inputs_shape = tf.shape(inputs)
     batch_size = inputs_shape[0]
     if self.data_format == 'channels_first':
       t_axis = 2
@@ -1262,7 +1266,7 @@ class Conv2DTranspose(Conv2D):
     self.built = True
 
   def call(self, inputs):
-    inputs_shape = tf.compat.v1.shape(inputs)
+    inputs_shape = tf.shape(inputs)
     batch_size = inputs_shape[0]
     if self.data_format == 'channels_first':
       h_axis, w_axis = 2, 3
@@ -1572,7 +1576,7 @@ class Conv3DTranspose(Conv3D):
     self.built = True
 
   def call(self, inputs):
-    inputs_shape = tf.compat.v1.shape(inputs)
+    inputs_shape = tf.shape(inputs)
     batch_size = inputs_shape[0]
     if self.data_format == 'channels_first':
       d_axis, h_axis, w_axis = 2, 3, 4
@@ -1617,7 +1621,7 @@ class Conv3DTranspose(Conv3D):
       strides = (1, stride_d, stride_h, stride_w, 1)
 
     output_shape_tensor = tf.stack(output_shape)
-    outputs = tf.compat.v1.nn.conv3d_transpose(
+    outputs = tf.nn.conv3d_transpose(
         inputs,
         self.kernel,
         output_shape_tensor,
@@ -2035,7 +2039,7 @@ class SeparableConv1D(SeparableConv):
 
   def call(self, inputs):
     if self.padding == 'causal':
-      inputs = tf.compat.v1.pad(inputs, self._compute_causal_padding(inputs))
+      inputs = tf.pad(inputs, self._compute_causal_padding(inputs))
     if self.data_format == 'channels_last':
       strides = (1,) + self.strides * 2 + (1,)
       spatial_start_dim = 1
@@ -2045,9 +2049,9 @@ class SeparableConv1D(SeparableConv):
 
     # Explicitly broadcast inputs and kernels to 4D.
     # TODO(fchollet): refactor when a native separable_conv1d op is available.
-    inputs = tf.compat.v1.expand_dims(inputs, spatial_start_dim)
-    depthwise_kernel = tf.compat.v1.expand_dims(self.depthwise_kernel, 0)
-    pointwise_kernel = tf.compat.v1.expand_dims(self.pointwise_kernel, 0)
+    inputs = tf.expand_dims(inputs, spatial_start_dim)
+    depthwise_kernel = tf.expand_dims(self.depthwise_kernel, 0)
+    pointwise_kernel = tf.expand_dims(self.pointwise_kernel, 0)
     dilation_rate = (1,) + self.dilation_rate
 
     if self.padding == 'causal':
@@ -2069,7 +2073,7 @@ class SeparableConv1D(SeparableConv):
           self.bias,
           data_format=conv_utils.convert_data_format(self.data_format, ndim=4))
 
-    outputs = tf.compat.v1.squeeze(outputs, [spatial_start_dim])
+    outputs = tf.squeeze(outputs, [spatial_start_dim])
 
     if self.activation is not None:
       return self.activation(outputs)

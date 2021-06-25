@@ -125,8 +125,8 @@ class TrainingTest(keras_parameterized.TestCase):
     class ReturnTraining(layers_module.Layer):
 
       def call(self, inputs):
-        return backend.in_train_phase(lambda: tf.compat.v1.ones_like(inputs),
-                                      lambda: tf.compat.v1.zeros_like(inputs))
+        return backend.in_train_phase(lambda: tf.ones_like(inputs),
+                                      lambda: tf.zeros_like(inputs))
 
     model = sequential.Sequential([ReturnTraining(input_shape=(2,))])
     model.compile(
@@ -157,8 +157,8 @@ class TrainingTest(keras_parameterized.TestCase):
 
       def call(self, inputs, training=None):
         return backend.in_train_phase(
-            lambda: tf.compat.v1.ones_like(inputs),
-            lambda: tf.compat.v1.zeros_like(inputs),
+            lambda: tf.ones_like(inputs),
+            lambda: tf.zeros_like(inputs),
             training=training)
 
     model = sequential.Sequential([ReturnTraining(input_shape=(2,))])
@@ -213,8 +213,8 @@ class TrainingTest(keras_parameterized.TestCase):
 
       def call(self, inputs, training=None):
         return backend.in_train_phase(
-            lambda: tf.compat.v1.ones_like(inputs),
-            lambda: tf.compat.v1.zeros_like(inputs),
+            lambda: tf.ones_like(inputs),
+            lambda: tf.zeros_like(inputs),
             training=training)
 
     class ReturnTraining(layers_module.Layer):
@@ -1669,6 +1669,37 @@ class TrainingTest(keras_parameterized.TestCase):
       self.assertLen(results_list, 2)
       self.assertEqual(results_list,
                        [results_dict['mean'], results_dict['sum']])
+
+  @keras_parameterized.run_all_keras_modes
+  @keras_parameterized.run_with_all_model_types
+  def test_model_make_function(self):
+    layers = [
+        layers_module.Dense(10, dtype=np.float64),
+        layers_module.Dense(10, dtype=np.float64)
+    ]
+    model = testing_utils.get_model_from_layers(layers, input_shape=(1,))
+    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+
+    original_train_function = model.make_train_function()
+    self.assertIsNotNone(original_train_function)
+    self.assertEqual(model.make_train_function(), original_train_function)
+    # Check that we regenerate it without reusing the cached version.
+    self.assertNotEqual(
+        model.make_train_function(force=True), original_train_function)
+
+    original_test_function = model.make_test_function()
+    self.assertIsNotNone(original_test_function)
+    self.assertEqual(model.make_test_function(), original_test_function)
+    # Check that we regenerate it without reusing the cached version.
+    self.assertNotEqual(
+        model.make_test_function(force=True), original_test_function)
+
+    original_predict_function = model.make_predict_function()
+    self.assertIsNotNone(original_predict_function)
+    self.assertEqual(model.make_predict_function(), original_predict_function)
+    # Check that we regenerate it without reusing the cached version.
+    self.assertNotEqual(
+        model.make_predict_function(force=True), original_predict_function)
 
 
 class TestExceptionsAndWarnings(keras_parameterized.TestCase):
@@ -3512,7 +3543,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
       def update_state(self, y_true, y_pred, sample_weight=None):
         self.l2_sum.assign_add(
             tf.reduce_sum(tf.square(y_true - y_pred)))
-        self.sample_count.assign_add(tf.compat.v1.shape(y_true)[0])
+        self.sample_count.assign_add(tf.shape(y_true)[0])
 
       def reset_state(self):
         self.sample_count.assign(0)

@@ -24,6 +24,7 @@ from google.protobuf import message
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
+from keras.optimizer_v2 import optimizer_v2
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import saving_utils
@@ -127,6 +128,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
     # When there are no Keras objects, return the results from the core loader
     return tf.saved_model.load(path, options=options)
 
+  metadata = _update_to_current_version(metadata)
   # Recreate layers and metrics using the info stored in the metadata.
   keras_loader = KerasObjectLoader(metadata, object_graph_def)
   keras_loader.load_layers(compile=compile)
@@ -153,6 +155,12 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
       model.compile(**saving_utils.compile_args_from_training_config(
           training_config), from_serialized=True)
       saving_utils.try_build_compiled_arguments(model)
+      if isinstance(model.optimizer, optimizer_v2.OptimizerV2):
+        if (model.optimizer.get_slot_names()):
+          logging.warning('Your optimizer uses slots. '
+                          'Slots cannot be restored from saved_model, '
+                          'as a result, your model is starting with  '
+                          'a new initialized optimizer.')
     else:
       logging.warning('No training configuration found in save file, so the '
                       'model was *not* compiled. Compile it manually.')
@@ -166,6 +174,21 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
   return model
 
 
+def _update_to_current_version(metadata):
+  """Applies version updates to the metadata proto for backwards compat."""
+  for node in metadata.nodes:
+    if node.version.producer == 1 and node.identifier in [
+        constants.MODEL_IDENTIFIER, constants.SEQUENTIAL_IDENTIFIER,
+        constants.NETWORK_IDENTIFIER]:
+      node_metadata = json_utils.decode(node.metadata)
+      save_spec = node_metadata.get('save_spec')
+
+      if save_spec is not None:
+        node_metadata['full_save_spec'] = ([save_spec], {})
+        node.metadata = json_utils.Encoder().encode(node_metadata)
+  return metadata
+
+
 def _read_legacy_metadata(object_graph_def, metadata):
   """Builds a KerasMetadata proto from the SavedModel ObjectGraphDef."""
   # Older SavedModels store the metadata directly in the proto instead of the
@@ -174,6 +197,12 @@ def _read_legacy_metadata(object_graph_def, metadata):
   for node_id, proto in enumerate(object_graph_def.nodes):
     if (proto.WhichOneof('kind') == 'user_object' and
         proto.user_object.identifier in constants.KERAS_OBJECT_IDENTIFIERS):
+      if not proto.user_object.metadata:
+        raise ValueError('Unable to create a Keras model from this SavedModel. '
+                         'This SavedModel was created with '
+                         '`tf.saved_model.save`, and lacks the Keras metadata.'
+                         'Please save your Keras model by calling `model.save`'
+                         'or `tf.keras.models.save_model`.')
       metadata.nodes.add(
           node_id=node_id,
           node_path=node_paths[node_id],
@@ -232,7 +261,7 @@ class KerasObjectLoader(object):
   """
 
   def __init__(self, metadata, object_graph_def):
-    self._metadata = metadata
+    self._metadata = {x.node_id: x for x in metadata.nodes}
     self._proto = object_graph_def
 
     self._node_paths = {node_data.node_id: node_data.node_path
@@ -288,7 +317,7 @@ class KerasObjectLoader(object):
     self._traversed_nodes_from_config.add(node_id)
     obj._maybe_initialize_trackable()
     if isinstance(obj, base_layer.Layer) and not obj.built:
-      metadata = json_utils.decode(proto.user_object.metadata)
+      metadata = json_utils.decode(self._metadata[node_id].metadata)
       self._try_build_layer(obj, node_id, metadata.get('build_input_shape'))
 
     # Create list of all possible children
@@ -357,7 +386,7 @@ class KerasObjectLoader(object):
     # and layers will create the metric when initialized (this avoids wasting
     # time by creating objects multiple times).
     metric_list = []
-    for node_metadata in self._metadata.nodes:
+    for node_metadata in self._metadata.values():
       if node_metadata.identifier == constants.METRIC_IDENTIFIER:
         metric_list.append(node_metadata)
         continue
@@ -516,9 +545,11 @@ class KerasObjectLoader(object):
     # Restore model save spec for subclassed models. (layers do not store a
     # SaveSpec)
     if isinstance(obj, training_lib.Model):
-      save_spec = metadata.get('save_spec')
-      if save_spec is not None:
-        obj._set_save_spec(save_spec)
+      full_save_spec = metadata.get('full_save_spec')
+      if full_save_spec is not None:
+        args_spec, kwargs_spec = full_save_spec
+        inputs_spec = args_spec.pop(0)
+        obj._set_save_spec(inputs_spec, args_spec, kwargs_spec)
     # pylint: enable=protected-access
 
     build_input_shape = metadata.get('build_input_shape')
@@ -645,8 +676,7 @@ class KerasObjectLoader(object):
 
   def _reconstruct_model(self, model_id, model, layers):
     """Reconstructs the network structure."""
-    config = json_utils.decode(
-        self._proto.nodes[model_id].user_object.metadata)['config']
+    config = json_utils.decode(self._metadata[model_id].metadata)['config']
 
     # Set up model inputs
     if model.inputs:
@@ -804,10 +834,22 @@ def _finalize_saved_model_layers(layers):
         if not call_fn.concrete_functions:
           continue
         if call_fn.input_signature is None:
-          inputs = infer_inputs_from_restored_call_function(call_fn)
+          args, kwargs = infer_inputs_from_restored_call_function(call_fn)
+          args = list(args)
+          inputs = args.pop(0)
         else:
-          inputs = call_fn.input_signature[0]
-        layer._set_inputs(inputs)  # pylint: disable=protected-access
+          args = call_fn.input_signature
+          args = list(args)
+          inputs = args.pop(0)
+          kwargs = None
+        layer._set_save_spec(inputs, args, kwargs)  # pylint: disable=protected-access
+
+        # V1 models require calling _set_inputs to set the `.inputs` attr.
+        # Skip this step when there are multiple tensor inputs (this behavior
+        # is not well supported in V1 models).
+        if not any(isinstance(x, tf.TensorSpec)
+                   for x in tf.nest.flatten([args, kwargs])):
+          layer._set_inputs(inputs)
 
     # 3. Add losses that aren't generated by the layer.call function.
     _restore_layer_unconditional_losses(layer)
@@ -875,13 +917,16 @@ def _finalize_config_layers(layers):
     # Restore metrics list.
     _restore_layer_metrics(layer)
 
-    # Restore RNN layer states
+    # Restore RNN layer states.
     if (isinstance(layer, recurrent.RNN) and
         layer.stateful and
         hasattr(_get_keras_attr(layer), 'states')):
       layer.states = getattr(_get_keras_attr(layer), 'states', None)
       for variable in tf.nest.flatten(layer.states):
         backend.track_variable(variable)
+
+    # Perform any layer defined finalization of the layer state.
+    layer.finalize_state()
 
 
 def _finalize_metric(metric):
@@ -1109,9 +1154,13 @@ def infer_inputs_from_restored_call_function(fn):
         one concrete function and that the inputs are in the first argument.
 
   Returns:
-    TensorSpec of call function inputs.
+    TensorSpec of call function inputs in the form of (args, kwargs)
   """
   def common_spec(x, y):
+    if not isinstance(x, tf.TensorSpec):
+      # Doesn't particularly matter what is returned in this case because the
+      # result will be filtered out in _set_input_shape.
+      return x
     common_shape = get_common_shape(x.shape, y.shape)
     if isinstance(x, tf.SparseTensorSpec):
       return tf.SparseTensorSpec(common_shape, x.dtype)
@@ -1119,9 +1168,9 @@ def infer_inputs_from_restored_call_function(fn):
       return tf.RaggedTensorSpec(common_shape, x.dtype)
     return tf.TensorSpec(common_shape, x.dtype, x.name)
 
-  spec = fn.concrete_functions[0].structured_input_signature[0][0]
+  spec = fn.concrete_functions[0].structured_input_signature
   for concrete in fn.concrete_functions[1:]:
-    spec2 = concrete.structured_input_signature[0][0]
+    spec2 = concrete.structured_input_signature
     spec = tf.nest.map_structure(common_spec, spec, spec2)
   return spec
 

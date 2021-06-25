@@ -21,6 +21,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "SidecarEvaluator"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "WideDeepModel"
     mtype: "<type \'type\'>"
   }

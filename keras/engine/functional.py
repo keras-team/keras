@@ -863,12 +863,12 @@ class Functional(training_lib.Model):
   def _trackable_saved_model_saver(self):
     return network_serialization.NetworkSavedModelSaver(self)
 
-  def _get_save_spec(self, dynamic_batch=True):
+  def _get_save_spec(self, dynamic_batch=True, inputs_only=True):
     if getattr(self, '_has_explicit_input_shape', True):
       # Functional models and Sequential models that have an explicit input
       # shape should use the batch size set by the input layer.
       dynamic_batch = False
-    return super(Functional, self)._get_save_spec(dynamic_batch)
+    return super(Functional, self)._get_save_spec(dynamic_batch, inputs_only)
 
 
 def _make_node_key(layer_name, node_index):

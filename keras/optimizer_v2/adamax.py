@@ -147,7 +147,7 @@ class Adamax(optimizer_v2.OptimizerV2):
 
     # m_t = beta1 * m + (1 - beta1) * g_t
     m = self.get_slot(var, 'm')
-    m_slice = tf.compat.v1.gather(m, indices, axis=coefficients['zero'])
+    m_slice = tf.gather(m, indices, axis=coefficients['zero'])
     m_t_slice = (m_slice * coefficients['beta_1_t'] +
                  grad * coefficients['one_minus_beta_1_t'])
     with tf.control_dependencies([m_t_slice]):
@@ -155,7 +155,7 @@ class Adamax(optimizer_v2.OptimizerV2):
 
     # u_t = max(beta2 * u, abs(g_t))
     v = self.get_slot(var, 'v')
-    v_slice = tf.compat.v1.gather(v, indices, axis=coefficients['zero'])
+    v_slice = tf.gather(v, indices, axis=coefficients['zero'])
     v_t_slice = tf.maximum(v_slice * coefficients['beta_2_t'],
                                  tf.abs(grad))
     with tf.control_dependencies([v_t_slice]):

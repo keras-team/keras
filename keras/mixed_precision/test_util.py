@@ -84,7 +84,7 @@ def create_identity_with_nan_gradients_fn(have_nan_gradients):
     """Function whose gradient is NaN iff `have_nan_gradients` is True."""
     x = tf.identity(x)
     def grad(dx):
-      return tf.compat.v1.cond(
+      return tf.cond(
           have_nan_gradients,
           lambda: dx * float('NaN'),
           lambda: dx
@@ -174,6 +174,27 @@ class MultiplyLayer(AssertTypeLayer):
     config['var_name'] = self._var_name
     config['assert_type'] = self._assert_type
     return config
+
+
+class MultiplyLayerWithoutAutoCast(MultiplyLayer):
+  """Same as MultiplyLayer, but does not use AutoCastVariables."""
+
+  def build(self, _):
+    dtype = self.dtype
+    if dtype in ('float16', 'bfloat16'):
+      dtype = 'float32'
+    self.v = self.add_weight(
+        'v', (),
+        initializer='ones',
+        dtype=dtype,
+        experimental_autocast=False,
+        regularizer=self._regularizer)
+    self.built = True
+
+  def call(self, inputs):
+    self.assert_input_types(inputs)
+    assert self.v.dtype in (tf.float32, tf.float64)
+    return self._multiply(inputs, tf.cast(self.v, inputs.dtype))
 
 
 class IdentityRegularizer(regularizers.Regularizer):

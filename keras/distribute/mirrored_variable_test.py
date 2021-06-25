@@ -15,32 +15,38 @@
 """Test MirroredVariable in MirroredStrategy and MultiWorkerMirroredStrategy."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.distribute import combinations as ds_combinations
 from keras.distribute import distributed_training_utils
 from keras.layers import core
 
 
 def _mimic_two_cpus():
-  cpus = tf.config.list_physical_devices("CPU")
+  try:
+    cpus = tf.config.list_physical_devices("CPU")
+  except tf.errors.NotFoundError:
+    # Testing device not available. Skip the test.
+    return False
 
   tf.config.set_logical_device_configuration(cpus[0], [
       tf.config.LogicalDeviceConfiguration(),
       tf.config.LogicalDeviceConfiguration(),
   ])
+  return True
+
+
+def get_strategy_with_mimicing_cpus():
+  if not _mimic_two_cpus():
+    return None
+  return (tf.distribute.MultiWorkerMirroredStrategy
+          ._from_local_devices(("/device:CPU:0", "/device:CPU:1")))
 
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
-        distribution=[
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-            ds_combinations.NamedDistribution(
-                "Collective2CPUs",
-                # pylint: disable=g-long-lambda
-                lambda: tf.distribute.
-                MultiWorkerMirroredStrategy._from_local_devices((
-                    "/device:CPU:0", "/device:CPU:1")),
-                required_gpus=0)
-        ],
+        distribution=list(
+            filter(None.__ne__, [
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                get_strategy_with_mimicing_cpus()
+            ])),
         mode=["graph", "eager"]))
 class MirroredVariableCreationTest(tf.test.TestCase):
   """Base class that tests mirrored variable creator.

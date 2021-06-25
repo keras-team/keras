@@ -188,7 +188,7 @@ class KerasTensor(object):
       # allows us to specify partially-unspecified shape values.
       #
       # See the comment on value extraction inside `from_tensor` for more info.
-      inferred_value = tf.compat.v1.shape(
+      inferred_value = tf.shape(
           tf.compat.v1.placeholder(
               shape=self._inferred_value, dtype=tf.int32))
       if self.type_spec.shape.rank == 0:
@@ -452,6 +452,10 @@ class RaggedKerasTensor(KerasTensor):
   def ragged_rank(self):
     return self.type_spec.ragged_rank
 
+# Overload slicing
+RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__getitem__')  # pylint: disable=protected-access
+
+# Overload math ops
 RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__add__')  # pylint: disable=protected-access
 RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__radd__')  # pylint: disable=protected-access
 RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__mul__')  # pylint: disable=protected-access

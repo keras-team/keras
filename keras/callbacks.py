@@ -482,8 +482,8 @@ class CallbackList:
     """Calls the `on_train_begin` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -493,8 +493,8 @@ class CallbackList:
     """Calls the `on_train_end` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -515,8 +515,8 @@ class CallbackList:
     """Calls the `on_test_end` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -537,8 +537,8 @@ class CallbackList:
     """Calls the `on_predict_end` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -695,9 +695,8 @@ class Callback:
 
     Args:
         batch: Integer, index of batch within the current epoch.
-        logs: Dict, contains the return value of `model.train_step`. Typically,
-          the values of the `Model`'s metrics are returned.  Example:
-          `{'loss': 0.2, 'accuracy': 0.7}`.
+        logs: Dict. Currently no data is passed to this argument for this method
+          but that may change in the future.
     """
     # For backwards compatibility.
     self.on_batch_begin(batch, logs=logs)
@@ -736,9 +735,8 @@ class Callback:
 
     Args:
         batch: Integer, index of batch within the current epoch.
-        logs: Dict, contains the return value of `model.test_step`. Typically,
-          the values of the `Model`'s metrics are returned.  Example:
-          `{'loss': 0.2, 'accuracy': 0.7}`.
+        logs: Dict. Currently no data is passed to this argument for this method
+          but that may change in the future.
     """
 
   @doc_controls.for_subclass_implementers
@@ -773,9 +771,8 @@ class Callback:
 
     Args:
         batch: Integer, index of batch within the current epoch.
-        logs: Dict, contains the return value of `model.predict_step`,
-          it typically returns a dict with a key 'outputs' containing
-          the model's outputs.
+        logs: Dict. Currently no data is passed to this argument for this method
+          but that may change in the future.
     """
 
   @doc_controls.for_subclass_implementers
@@ -976,7 +973,7 @@ class ProgbarLogger(Callback):
     else:
       raise ValueError('Unknown `count_mode`: ' + str(count_mode))
     # Defaults to all Model's metrics except for loss.
-    self.stateful_metrics = set(stateful_metrics) if stateful_metrics else None
+    self.stateful_metrics = set(stateful_metrics) if stateful_metrics else set()
 
     self.seen = 0
     self.progbar = None
@@ -1053,11 +1050,17 @@ class ProgbarLogger(Callback):
     self.progbar = None
 
   def _maybe_init_progbar(self):
-    if self.stateful_metrics is None:
-      if self.model:
-        self.stateful_metrics = set(m.name for m in self.model.metrics)
-      else:
-        self.stateful_metrics = set()
+    """Instantiate a `Progbar` if not yet, and update the stateful metrics."""
+    # TODO(rchao): Legacy TF1 code path may use list for
+    # `self.stateful_metrics`. Remove "cast to set" when TF1 support is dropped.
+    self.stateful_metrics = set(self.stateful_metrics)
+
+    if self.model:
+      # Update the existing stateful metrics as `self.model.metrics` may contain
+      # updated metrics after `MetricsContainer` is built in the first train
+      # step.
+      self.stateful_metrics = self.stateful_metrics.union(
+          set(m.name for m in self.model.metrics))
 
     if self.progbar is None:
       self.progbar = Progbar(
@@ -1065,6 +1068,8 @@ class ProgbarLogger(Callback):
           verbose=self.verbose,
           stateful_metrics=self.stateful_metrics,
           unit_name='step' if self.use_steps else 'sample')
+
+    self.progbar._update_stateful_metrics(self.stateful_metrics)  # pylint: disable=protected-access
 
   def _implements_train_batch_hooks(self):
     return self._call_batch_hooks
@@ -1351,7 +1356,7 @@ class ModelCheckpoint(Callback):
 
   def on_train_batch_end(self, batch, logs=None):
     if self._should_save_on_batch(batch):
-      self._save_model(epoch=self._current_epoch, logs=logs)
+      self._save_model(epoch=self._current_epoch, batch=batch, logs=logs)
 
   def on_epoch_begin(self, epoch, logs=None):
     self._current_epoch = epoch
@@ -1360,7 +1365,7 @@ class ModelCheckpoint(Callback):
     self.epochs_since_last_save += 1
     # pylint: disable=protected-access
     if self.save_freq == 'epoch':
-      self._save_model(epoch=epoch, logs=logs)
+      self._save_model(epoch=epoch, batch=None, logs=logs)
 
   def _should_save_on_batch(self, batch):
     """Handles batch-level saving logic, supports steps_per_execution."""
@@ -1379,11 +1384,13 @@ class ModelCheckpoint(Callback):
       return True
     return False
 
-  def _save_model(self, epoch, logs):
+  def _save_model(self, epoch, batch, logs):
     """Saves the model.
 
     Args:
         epoch: the epoch this iteration is in.
+        batch: the batch this iteration is in. `None` if the `save_freq`
+          is set to `epoch`.
         logs: the `logs` dict passed in to `on_batch_end` or `on_epoch_end`.
     """
     logs = logs or {}
@@ -1393,7 +1400,7 @@ class ModelCheckpoint(Callback):
       # Block only when saving interval is reached.
       logs = tf_utils.sync_to_numpy_or_python_type(logs)
       self.epochs_since_last_save = 0
-      filepath = self._get_file_path(epoch, logs)
+      filepath = self._get_file_path(epoch, batch, logs)
 
       try:
         if self.save_best_only:
@@ -1427,7 +1434,11 @@ class ModelCheckpoint(Callback):
             self.model.save(filepath, overwrite=True, options=self._options)
 
         self._maybe_remove_file()
-      except IOError as e:
+      except IsADirectoryError as e:  # h5py 3.x
+        raise IOError('Please specify a non-directory filepath for '
+                      'ModelCheckpoint. Filepath used is an existing '
+                      'directory: {}'.format(filepath))
+      except IOError as e:  # h5py 2.x
         # `e.errno` appears to be `None` so checking the content of `e.args[0]`.
         if 'is a directory' in str(e.args[0]).lower():
           raise IOError('Please specify a non-directory filepath for '
@@ -1436,14 +1447,18 @@ class ModelCheckpoint(Callback):
         # Re-throw the error for any other causes.
         raise e
 
-  def _get_file_path(self, epoch, logs):
+  def _get_file_path(self, epoch, batch, logs):
     """Returns the file path for checkpoint."""
     # pylint: disable=protected-access
     try:
-      # `filepath` may contain placeholders such as `{epoch:02d}` and
-      # `{mape:.2f}`. A mismatch between logged metrics and the path's
+      # `filepath` may contain placeholders such as `{epoch:02d}`,`{batch:02d}`
+      # and `{mape:.2f}`. A mismatch between logged metrics and the path's
       # placeholders can cause formatting to fail.
-      file_path = self.filepath.format(epoch=epoch + 1, **logs)
+      if batch is None or 'batch' in logs:
+        file_path = self.filepath.format(epoch=epoch + 1, **logs)
+      else:
+        file_path = self.filepath.format(
+            epoch=epoch + 1, batch=batch + 1, **logs)
     except KeyError as e:
       raise KeyError('Failed to format this callback filepath: "{}". '
                      'Reason: {}'.format(self.filepath, e))
@@ -1939,7 +1954,7 @@ class LearningRateScheduler(Callback):
       raise ValueError('The dtype of Tensor should be float')
     backend.set_value(self.model.optimizer.lr, backend.get_value(lr))
     if self.verbose > 0:
-      print('\nEpoch %05d: LearningRateScheduler reducing learning '
+      print('\nEpoch %05d: LearningRateScheduler setting learning '
             'rate to %s.' % (epoch + 1, lr))
 
   def on_epoch_end(self, epoch, logs=None):
@@ -1986,7 +2001,7 @@ def keras_model_summary(name, data, step=None):
 
   with tf.summary.experimental.summary_scope(name, 'graph_keras_model',
                                     [data, step]) as (tag, _):
-    with tf.compat.v1.device('cpu:0'):
+    with tf.device('cpu:0'):
       tensor = tf.constant(json_string, dtype=tf.string)
     return tf.summary.write(
         tag=tag, tensor=tensor, step=step, metadata=summary_metadata)
@@ -2048,12 +2063,10 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         to disable profiling.
       embeddings_freq: frequency (in epochs) at which embedding layers will be
         visualized. If set to 0, embeddings won't be visualized.
-      embeddings_metadata: a dictionary which maps layer name to a file name in
-        which metadata for this embedding layer is saved. See the
-        [details](
-          https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
-        about metadata files format. In case if the same metadata file is
-        used for all embedding layers, string can be passed.
+      embeddings_metadata: Dictionary which maps embedding layer names to the
+        filename of a file in which to save metadata for the embedding layer.
+        In case the same metadata file is to be
+        used for all embedding layers, a single filename can be passed.
 
   Examples:
 
@@ -2235,7 +2248,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     """Writes Keras model train_function graph to TensorBoard."""
     with self._train_writer.as_default():
       with tf.summary.record_if(True):
-        train_fn = self.model.train_function
+        train_fn = self.model.train_tf_function
         # If the train_function is a `tf.function`, we can write out a graph
         if hasattr(train_fn, 'function_spec'):
           tf.summary.graph(train_fn._concrete_stateful_fn.graph)  # pylint: disable=protected-access
@@ -2314,15 +2327,14 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   def _init_profile_batch(self, profile_batch):
     """Validate profile_batch value and set the range of batches to profile.
+    Sets values of _start_batch and _stop_batch attributes,
+    specifying the start and stop batch to profile.
+    Setting `profile_batch=0` disables profiling.
 
     Args:
       profile_batch: The range of batches to profile. Should be a non-negative
         integer or a comma separated string of pair of positive integers. A pair
         of positive integers signify a range of batches to profile.
-
-    Returns:
-      A pair of non-negative integers specifying the start and stop batch to
-      profile.
 
     Raises:
       ValueError: If profile_batch is not an integer or a comma seperated pair
@@ -2506,20 +2518,20 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   def _log_weight_as_image(self, weight, weight_name, epoch):
     """Logs a weight as a TensorBoard image."""
-    w_img = tf.compat.v1.squeeze(weight)
+    w_img = tf.squeeze(weight)
     shape = backend.int_shape(w_img)
     if len(shape) == 1:  # Bias case
       w_img = tf.reshape(w_img, [1, shape[0], 1, 1])
     elif len(shape) == 2:  # Dense layer kernel case
       if shape[0] > shape[1]:
-        w_img = tf.compat.v1.transpose(w_img)
+        w_img = tf.transpose(w_img)
         shape = backend.int_shape(w_img)
       w_img = tf.reshape(w_img, [1, shape[0], shape[1], 1])
     elif len(shape) == 3:  # ConvNet case
       if backend.image_data_format() == 'channels_last':
         # Switch to channels_first to display every kernel as a separate
         # image.
-        w_img = tf.compat.v1.transpose(w_img, perm=[2, 0, 1])
+        w_img = tf.transpose(w_img, perm=[2, 0, 1])
         shape = backend.int_shape(w_img)
       w_img = tf.reshape(w_img, [shape[0], shape[1], shape[2], 1])
 

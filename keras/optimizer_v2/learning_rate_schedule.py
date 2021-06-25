@@ -284,7 +284,7 @@ class PiecewiseConstantDecay(LearningRateSchedule):
       # The default isn't needed here because our conditions are mutually
       # exclusive and exhaustive, but tf.case requires it.
       default = lambda: values[0]
-      return tf.compat.v1.case(pred_fn_pairs, default, exclusive=True)
+      return tf.case(pred_fn_pairs, default, exclusive=True)
 
   def get_config(self):
     return {
@@ -742,7 +742,7 @@ class CosineDecayRestarts(LearningRateSchedule):
 
         return i_restart, completed_fraction
 
-      i_restart, completed_fraction = tf.compat.v1.cond(
+      i_restart, completed_fraction = tf.cond(
           tf.equal(t_mul, 1.0),
           lambda: compute_step(completed_fraction, geometric=False),
           lambda: compute_step(completed_fraction, geometric=True))
@@ -1023,11 +1023,57 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
 
 @keras_export("keras.optimizers.schedules.serialize")
 def serialize(learning_rate_schedule):
+  """Serializes a `LearningRateSchedule` into a JSON-compatible representation.
+
+  Args:
+    learning_rate_schedule: The `LearningRateSchedule` object to serialize.
+
+  Returns:
+    A JSON-serializable dict representing the object's config.
+
+  Example:
+
+  >>> lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+  ...   0.1, decay_steps=100000, decay_rate=0.96, staircase=True)
+  >>> tf.keras.optimizers.schedules.serialize(lr_schedule)
+  {'class_name': 'ExponentialDecay',
+   'config': {'decay_rate': 0.96,
+      'decay_steps': 100000,
+      'initial_learning_rate': 0.1,
+      'name': None,
+      'staircase': True}}
+  """
   return generic_utils.serialize_keras_object(learning_rate_schedule)
 
 
 @keras_export("keras.optimizers.schedules.deserialize")
 def deserialize(config, custom_objects=None):
+  """Instantiates a `LearningRateSchedule` object from a serialized form.
+
+  Args:
+    config: The serialized form of the `LearningRateSchedule`.
+      Dictionary of the form {'class_name': str, 'config': dict}.
+    custom_objects: A dictionary mapping class names (or function names) of
+      custom (non-Keras) objects to class/functions.
+
+  Returns:
+    A `LearningRateSchedule` object.
+
+  Example:
+
+  ```python
+  # Configuration for PolynomialDecay
+  config = {
+    'class_name': 'PolynomialDecay',
+    'config': {'cycle': False,
+      'decay_steps': 10000,
+      'end_learning_rate': 0.01,
+      'initial_learning_rate': 0.1,
+      'name': None,
+      'power': 0.5}}
+  lr_schedule = tf.keras.optimizers.schedules.deserialize(config)
+  ```
+  """
   return generic_utils.deserialize_keras_object(
       config,
       module_objects=globals(),

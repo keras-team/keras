@@ -407,6 +407,7 @@ tf_py_test(
     size = "small",
     srcs = ["vis_utils_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",

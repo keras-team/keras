@@ -87,7 +87,7 @@ class Nadam(optimizer_v2.OptimizerV2):
           dtype=var_dtype,
           initializer='ones',
           trainable=False,
-          aggregation=tf.compat.v1.VariableAggregation.ONLY_FIRST_REPLICA)
+          aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA)
       self._weights.append(self._m_cache)
     # Separate for-loops to respect the ordering of slot variables from v1.
     for var in var_list:
@@ -119,7 +119,7 @@ class Nadam(optimizer_v2.OptimizerV2):
 
     apply_state[(var_device, var_dtype)] = dict(
         lr_t=lr_t,
-        neg_lr_t=-lr_t,
+        neg_lr_t=-lr_t,  # pylint: disable=invalid-unary-operand-type
         epsilon=tf.convert_to_tensor(self.epsilon, var_dtype),
         beta_1_t=beta_1_t,
         beta_2_t=beta_2_t,
@@ -178,7 +178,7 @@ class Nadam(optimizer_v2.OptimizerV2):
 
     with tf.control_dependencies([m_t]):
       m_t = self._resource_scatter_add(m, indices, m_scaled_g_values)
-      m_t_slice = tf.compat.v1.gather(m_t, indices)
+      m_t_slice = tf.gather(m_t, indices)
 
     m_t_prime = m_t_slice / coefficients['one_minus_m_schedule_next']
     m_t_bar = (coefficients['one_minus_m_t'] * g_prime +
@@ -191,7 +191,7 @@ class Nadam(optimizer_v2.OptimizerV2):
 
     with tf.control_dependencies([v_t]):
       v_t = self._resource_scatter_add(v, indices, v_scaled_g_values)
-      v_t_slice = tf.compat.v1.gather(v_t, indices)
+      v_t_slice = tf.gather(v_t, indices)
 
     v_t_prime = v_t_slice / coefficients['v_t_prime_denominator']
     v_prime_sqrt_plus_eps = tf.sqrt(v_t_prime) + coefficients['epsilon']

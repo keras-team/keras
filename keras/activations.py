@@ -8,7 +8,7 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY backendIND, either express or implied.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
@@ -77,7 +77,7 @@ def softmax(x, axis=-1):
   """
   if x.shape.rank > 1:
     if isinstance(axis, int):
-      output = tf.compat.v1.math.softmax(x, axis=axis)
+      output = tf.nn.softmax(x, axis=axis)
     else:
       # nn.softmax does not support tuple axis.
       e = tf.exp(x - tf.reduce_max(x, axis=axis, keepdims=True))
@@ -191,7 +191,7 @@ def selu(x):
         `tf.keras.layers.AlphaDropout` (not regular dropout).
 
   References:
-      - [backendlambauer et al., 2017](https://arxiv.org/abs/1706.02515)
+      - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
   """
   return tf.nn.selu(x)
 
@@ -200,15 +200,15 @@ def selu(x):
 @tf.__internal__.dispatch.add_dispatch_support
 def softplus(x):
   """Softplus activation function, `softplus(x) = log(exp(x) + 1)`.
-  
+
   Example Usage:
-  
+
   >>> a = tf.constant([-20, -1.0, 0.0, 1.0, 20], dtype = tf.float32)
-  >>> b = tf.keras.activations.softplus(a) 
+  >>> b = tf.keras.activations.softplus(a)
   >>> b.numpy()
   array([2.0611537e-09, 3.1326166e-01, 6.9314718e-01, 1.3132616e+00,
            2.0000000e+01], dtype=float32)
-  
+
   Args:
       x: Input tensor.
 
@@ -222,9 +222,9 @@ def softplus(x):
 @tf.__internal__.dispatch.add_dispatch_support
 def softsign(x):
   """Softsign activation function, `softsign(x) = x / (abs(x) + 1)`.
-  
+
   Example Usage:
-  
+
   >>> a = tf.constant([-1.0, 0.0, 1.0], dtype = tf.float32)
   >>> b = tf.keras.activations.softsign(a)
   >>> b.numpy()
@@ -433,6 +433,8 @@ def hard_sigmoid(x):
   """Hard sigmoid activation function.
 
   A faster approximation of the sigmoid activation.
+  Piecewise linear approximation of the sigmoid function.
+  Ref: 'https://en.wikipedia.org/wiki/Hard_sigmoid'
 
   For example:
 
@@ -504,6 +506,14 @@ def serialize(activation):
       activation.__name__ in _TF_ACTIVATIONS_V2):
     return _TF_ACTIVATIONS_V2[activation.__name__]
   return serialize_keras_object(activation)
+
+
+# Add additional globals so that deserialize can find these common activation
+# functions
+leaky_relu = tf.nn.leaky_relu
+log_softmax = tf.nn.log_softmax
+relu6 = tf.nn.relu6
+silu = tf.nn.silu
 
 
 @keras_export('keras.activations.deserialize')

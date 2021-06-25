@@ -170,7 +170,7 @@ tf_class {
   }
   member_method {
     name: "add_weight"
-    argspec: "args=[\'self\', \'name\', \'shape\', \'dtype\', \'initializer\', \'regularizer\', \'trainable\', \'constraint\', \'use_resource\', \'synchronization\', \'aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'VariableSynchronization.AUTO\', \'VariableAggregation.NONE\'], "
+    argspec: "args=[\'self\', \'name\', \'shape\', \'dtype\', \'initializer\', \'regularizer\', \'trainable\', \'constraint\', \'use_resource\', \'synchronization\', \'aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'VariableSynchronization.AUTO\', \'VariableAggregationV2.NONE\'], "
   }
   member_method {
     name: "apply"
@@ -211,6 +211,10 @@ tf_class {
   member_method {
     name: "evaluate_generator"
     argspec: "args=[\'self\', \'generator\', \'steps\', \'callbacks\', \'max_queue_size\', \'workers\', \'use_multiprocessing\', \'verbose\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'10\', \'1\', \'False\', \'0\'], "
+  }
+  member_method {
+    name: "finalize_state"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "fit"
@@ -274,15 +278,15 @@ tf_class {
   }
   member_method {
     name: "make_predict_function"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'force\'], varargs=None, keywords=None, defaults=[\'False\'], "
   }
   member_method {
     name: "make_test_function"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'force\'], varargs=None, keywords=None, defaults=[\'False\'], "
   }
   member_method {
     name: "make_train_function"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'force\'], varargs=None, keywords=None, defaults=[\'False\'], "
   }
   member_method {
     name: "predict"
@@ -311,6 +315,10 @@ tf_class {
   member_method {
     name: "save"
     argspec: "args=[\'self\', \'filepath\', \'overwrite\', \'include_optimizer\', \'save_format\', \'signatures\', \'options\', \'save_traces\'], varargs=None, keywords=None, defaults=[\'True\', \'True\', \'None\', \'None\', \'None\', \'True\'], "
+  }
+  member_method {
+    name: "save_spec"
+    argspec: "args=[\'self\', \'dynamic_batch\'], varargs=None, keywords=None, defaults=[\'True\'], "
   }
   member_method {
     name: "save_weights"

@@ -140,13 +140,13 @@ class DistributeKplTestUtils(tf.test.TestCase):
 
     @tf.function
     def serve_fn(raw_features):
-      raw_features = tf.compat.v1.expand_dims(raw_features, axis=0)
+      raw_features = tf.expand_dims(raw_features, axis=0)
       transformed_features = model.feature_mapper(raw_features)
       outputs = model(transformed_features)
-      outputs = tf.compat.v1.squeeze(outputs, axis=0)
+      outputs = tf.squeeze(outputs, axis=0)
       outputs = tf.cast(tf.greater(outputs, 0.5), tf.int64)
       decoded_outputs = model.label_inverse_lookup_layer(outputs)
-      return tf.compat.v1.squeeze(decoded_outputs, axis=0)
+      return tf.squeeze(decoded_outputs, axis=0)
 
     model.feature_mapper = feature_mapper
     model.label_inverse_lookup_layer = label_inverse_lookup_layer
@@ -163,8 +163,8 @@ class DistributeKplTestUtils(tf.test.TestCase):
                                                label_inverse_lookup_layer)
 
     saved_model_dir = tempfile.mkdtemp(dir=self.get_temp_dir())
-    tf.saved_model.save(
-        model, saved_model_dir, signatures={"serving_default": serving_fn})
+    model.save(saved_model_dir, save_format="tf",
+               signatures={"serving_default": serving_fn})
 
     # Test the saved_model.
     loaded_serving_fn = keras.saving.save.load_model(

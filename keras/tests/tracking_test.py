@@ -24,7 +24,7 @@ from keras import keras_parameterized
 from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
-from keras.layers import normalization
+from keras.layers.normalization import batch_normalization_v1
 from tensorflow.python.training.tracking import data_structures
 from tensorflow.python.training.tracking import util
 
@@ -49,7 +49,7 @@ class HasList(training.Model):
         tf.__internal__.tracking.wrap(
             list([core.Dense(11)]) + [core.Dense(12)]))
     self.layers_with_updates = tf.__internal__.tracking.wrap(
-        [normalization.BatchNormalization()])
+        [batch_normalization_v1.BatchNormalization()])
 
   def call(self, x):
     aggregation = 0.
@@ -236,9 +236,9 @@ class HasMapping(training.Model):
         [core.Dense(5),
          core.Dense(6, kernel_regularizer=tf.reduce_sum)])
     self.layer_dict["norm"].append(
-        normalization.BatchNormalization())
+        batch_normalization_v1.BatchNormalization())
     self.layer_dict["norm"].append(
-        normalization.BatchNormalization())
+        batch_normalization_v1.BatchNormalization())
 
   def call(self, x):
     aggregation = 0.
@@ -387,7 +387,7 @@ class HasTuple(training.Model):
     self.layer_list = (
         core.Dense(3), core.Dense(4),
         core.Dense(5, kernel_regularizer=tf.reduce_sum))
-    self.layers_with_updates = (normalization.BatchNormalization(),)
+    self.layers_with_updates = (batch_normalization_v1.BatchNormalization(),)
 
   def call(self, x):
     aggregation = 0.

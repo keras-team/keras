@@ -44,7 +44,7 @@ def _get_end_to_end_test_cases():
           "kwargs": {
               "max_tokens": None,
           },
-          "expected_output": [[2], [3], [4], [5], [5], [4], [2], [1]],
+          "expected_output": [[1], [2], [3], [4], [4], [3], [1], [0]],
           "input_dtype":
               tf.string
       },
@@ -124,7 +124,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
-    expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
+    expected_output = [[1, 2, 3, 4], [4, 3, 1, 0]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.string)
     layer = string_lookup.StringLookup(vocabulary=vocab_data)
@@ -140,19 +140,57 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.string)
-    layer = string_lookup.StringLookup(vocabulary=vocab_data)
+    layer = string_lookup.StringLookup(vocabulary=vocab_data, mask_token="")
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_data = model.predict(input_array)
     self.assertAllEqual(expected_output, output_data)
 
+  def test_int_output_no_oov(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+    valid_input = np.array([["earth", "wind", "and", "fire"],
+                            ["fire", "and", "earth", ""]])
+    invalid_input = np.array([["earth", "wind", "and", "michigan"],
+                              ["fire", "and", "earth", "michigan"]])
+    expected_output = [[1, 2, 3, 4], [4, 3, 1, 0]]
+
+    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    layer = string_lookup.StringLookup(
+        vocabulary=vocab_data, mask_token="", num_oov_indices=0)
+    int_data = layer(input_data)
+    model = keras.Model(inputs=input_data, outputs=int_data)
+    output_data = model.predict(valid_input)
+    self.assertAllEqual(expected_output, output_data)
+    with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                                "found OOV values.*michigan"):
+      _ = model.predict(invalid_input)
+
   def test_no_vocab(self):
-    with self.assertRaisesRegex(
-        ValueError, "You must set the layer's vocabulary"):
-      layer = string_lookup.StringLookup()
+    with self.assertRaisesRegex(RuntimeError,
+                                "you must set the layer's vocabulary"):
+      layer = string_lookup.StringLookup(output_mode="binary")
       layer([["a"]])
 
-  def test_binary_output(self):
+  def test_one_hot_output(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+    input_array = np.array(["earth", "wind", "and", "fire", "michigan"])
+    expected_output = [
+        [0, 1, 0, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0],
+    ]
+
+    input_data = keras.Input(shape=(1,), dtype=tf.string)
+    layer = string_lookup.StringLookup(
+        vocabulary=vocab_data, output_mode="one_hot")
+    res = layer(input_data)
+    model = keras.Model(inputs=input_data, outputs=res)
+    output_data = model.predict(input_array)
+    self.assertAllEqual(expected_output, output_data)
+
+  def test_multi_hot_output(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
@@ -160,7 +198,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
 
     input_data = keras.Input(shape=(None,), dtype=tf.string)
     layer = string_lookup.StringLookup(
-        vocabulary=vocab_data, output_mode="binary")
+        vocabulary=vocab_data, output_mode="multi_hot")
     res = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=res)
     output_data = model.predict(input_array)
@@ -185,13 +223,13 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
 
     input_data = keras.Input(shape=(None,), dtype=tf.string)
     layer = string_lookup.StringLookup(
-        vocabulary=vocab_data, output_mode="binary", sparse=True)
+        vocabulary=vocab_data, output_mode="multi_hot", sparse=True)
     res = layer(input_data)
     self.assertTrue(res.__class__.__name__, "SparseKerasTensor")
 
   def test_get_vocab_returns_str(self):
     vocab_data = ["earth", "wind", "and", "fire"]
-    expected_vocab = ["", "[UNK]", "earth", "wind", "and", "fire"]
+    expected_vocab = ["[UNK]", "earth", "wind", "and", "fire"]
     layer = string_lookup.StringLookup(vocabulary=vocab_data)
     layer_vocab = layer.get_vocabulary()
     self.assertAllEqual(expected_vocab, layer_vocab)
@@ -209,7 +247,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
 
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
-    expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
+    expected_output = [[1, 2, 3, 4], [4, 3, 1, 0]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.string)
     layer = string_lookup.StringLookup(vocabulary=vocab_path)
@@ -224,7 +262,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
 
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
-    expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
+    expected_output = [[1, 2, 3, 4], [4, 3, 1, 0]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.string)
     layer = string_lookup.StringLookup()
@@ -254,7 +292,8 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
                                 ["fire", "and", "earth", ""]])
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64)
-    layer = string_lookup.StringLookup(vocabulary=vocab_data, invert=True)
+    layer = string_lookup.StringLookup(
+        vocabulary=vocab_data, invert=True, mask_token="")
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_data = model.predict(input_array)
@@ -262,7 +301,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
 
   def test_inverse_layer_from_file(self):
     vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = np.array([[2, 3, 4, 5], [5, 4, 2, 1]])
+    input_array = np.array([[1, 2, 3, 4], [4, 3, 1, 0]])
     expected_output = np.array([["earth", "wind", "and", "fire"],
                                 ["fire", "and", "earth", "[UNK]"]])
     vocab_path = self._write_to_temp_file("vocab_file", vocab_data)
@@ -274,7 +313,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
     output_data = model.predict(input_array)
     self.assertAllEqual(expected_output, output_data)
 
-  def test_inverse_layer_from_file_with_non_default_msk(self):
+  def test_inverse_layer_from_file_with_mask(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([[2, 3, 4, 5], [5, 4, 2, 0]])
     expected_output = np.array([["earth", "wind", "and", "fire"],
@@ -329,7 +368,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
     input_array = tf.ragged.constant([["earth", "wind", "fire"],
                                                ["fire", "and", "earth",
                                                 "ohio"]])
-    expected_output = [[3, 4, 6], [6, 5, 3, 2]]
+    expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.string, ragged=True)
     layer = string_lookup.StringLookup(num_oov_indices=2)
@@ -339,6 +378,16 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
     output_data = model.predict(input_array)
     self.assertAllEqual(expected_output, output_data)
 
+  def test_tensor_vocab(self):
+    vocab_data = ["[UNK]", "wind", "and", "fire"]
+    vocab_tensor = tf.constant(vocab_data)
+    layer = string_lookup.StringLookup(vocabulary=vocab_tensor)
+    returned_vocab = layer.get_vocabulary()
+    self.assertAllEqual(vocab_data, returned_vocab)
+    self.assertAllEqual(layer.vocabulary_size(), 4)
+    fn = tf.function(lambda: layer.set_vocabulary(vocab_tensor))
+    with self.assertRaisesRegex(RuntimeError, "Cannot set a tensor vocabulary"):
+      fn()
 
 if __name__ == "__main__":
   tf.test.main()

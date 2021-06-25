@@ -33,7 +33,7 @@ BATCH_SIZE = 32
 
 def rotate(inputs):
   """rotate image."""
-  inputs_shape = tf.compat.v1.shape(inputs)
+  inputs_shape = tf.shape(inputs)
   batch_size = inputs_shape[0]
   img_hd = tf.cast(inputs_shape[1], tf.float32)
   img_wd = tf.cast(inputs_shape[2], tf.float32)
@@ -47,7 +47,7 @@ def rotate(inputs):
 
 def zoom(inputs):
   """zoom image."""
-  inputs_shape = tf.compat.v1.shape(inputs)
+  inputs_shape = tf.shape(inputs)
   batch_size = inputs_shape[0]
   img_hd = tf.cast(inputs_shape[1], tf.float32)
   img_wd = tf.cast(inputs_shape[2], tf.float32)

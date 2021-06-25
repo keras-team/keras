@@ -98,7 +98,7 @@ def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
     # Try creating dir if not exist
     dirpath = os.path.dirname(filepath)
     if not os.path.exists(dirpath):
-      tf.compat.v1.gfile.MakeDirs(dirpath)
+      tf.io.gfile.makedirs(dirpath)
 
     f = h5py.File(filepath, mode='w')
     opened_new_file = True
@@ -322,7 +322,7 @@ def preprocess_weights_for_loading(layer,
     weights = convert_nested_bidirectional(weights)
   if layer.__class__.__name__ == 'TimeDistributed':
     weights = convert_nested_time_distributed(weights)
-  elif layer.__class__.__name__ in ['Model', 'Sequential']:
+  elif layer.__class__.__name__ in ['Model', 'Sequential', 'Functional']:
     weights = convert_nested_model(weights)
 
   if original_keras_version == '1':

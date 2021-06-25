@@ -16,6 +16,8 @@
 
 import tensorflow.compat.v2 as tf
 
+import os
+
 from absl.testing import parameterized
 
 import numpy as np
@@ -34,7 +36,7 @@ class DiscretizationTest(keras_parameterized.TestCase,
   def test_bucketize_with_explicit_buckets_integer(self):
     input_array = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
 
-    expected_output = [[0, 1, 3, 1], [0, 3, 2, 0]]
+    expected_output = [[0, 2, 3, 1], [1, 3, 2, 1]]
     expected_output_shape = [None, 4]
 
     input_data = keras.Input(shape=(4,))
@@ -79,7 +81,7 @@ class DiscretizationTest(keras_parameterized.TestCase,
     input_array = tf.ragged.constant([[-1.5, 1.0, 3.4, .5],
                                                [0.0, 3.0, 1.3]])
 
-    expected_output = [[0, 1, 3, 1], [0, 3, 2]]
+    expected_output = [[0, 2, 3, 1], [1, 3, 2]]
     expected_output_shape = [None, None]
 
     input_data = keras.Input(shape=(None,), ragged=True)
@@ -121,7 +123,7 @@ class DiscretizationTest(keras_parameterized.TestCase,
     self.assertAllEqual(expected_output, output_dataset.values)
 
   def test_output_shape(self):
-    input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.string)
+    input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.int64)
     layer = discretization.Discretization(bin_boundaries=[-.5, 0.5, 1.5])
     output = layer(input_data)
     self.assertAllEqual(output.shape.as_list(), [16, 4])
@@ -147,7 +149,7 @@ class DiscretizationAdaptTest(keras_parameterized.TestCase,
           "adapt_data": np.array([[1.], [2.], [3.], [4.], [5.]]),
           "test_data": np.array([[1.], [2.], [3.]]),
           "use_dataset": True,
-          "expected": np.array([[0], [1], [2]]),
+          "expected": np.array([[1], [2], [3]]),
           "num_bins": 5,
           "epsilon": 0.01
       }, {
@@ -156,7 +158,7 @@ class DiscretizationAdaptTest(keras_parameterized.TestCase,
                                   [5., 10.]]),
           "test_data": np.array([[1., 10.], [2., 6.], [3., 8.]]),
           "use_dataset": True,
-          "expected": np.array([[0, 4], [0, 2], [1, 3]]),
+          "expected": np.array([[0, 4], [1, 3], [1, 4]]),
           "num_bins": 5,
           "epsilon": 0.01
       }, {
@@ -164,7 +166,7 @@ class DiscretizationAdaptTest(keras_parameterized.TestCase,
           "adapt_data": np.array([3., 2., 1., 5., 4.]),
           "test_data": np.array([1., 2., 3.]),
           "use_dataset": True,
-          "expected": np.array([0, 1, 2]),
+          "expected": np.array([1, 2, 3]),
           "num_bins": 5,
           "epsilon": 0.01
       }, {
@@ -190,7 +192,7 @@ class DiscretizationAdaptTest(keras_parameterized.TestCase,
           "adapt_data": np.arange(300),
           "test_data": np.arange(300),
           "use_dataset": True,
-          "expected": np.concatenate([np.zeros(137), np.ones(163)]),
+          "expected": np.concatenate([np.zeros(136), np.ones(164)]),
           "num_bins": 2,
           "epsilon": 0.1
       }])
@@ -216,43 +218,111 @@ class DiscretizationAdaptTest(keras_parameterized.TestCase,
     output_data = model.predict(test_data)
     self.assertAllClose(expected, output_data)
 
-  def test_merge_state(self):
-    data = np.arange(300)
-    partial_ds_1 = tf.data.Dataset.from_tensor_slices(data[:100])
-    partial_ds_2 = tf.data.Dataset.from_tensor_slices(data[100:200])
-    partial_ds_3 = tf.data.Dataset.from_tensor_slices(data[200:])
-    full_ds = partial_ds_1.concatenate(partial_ds_2).concatenate(partial_ds_3)
+  def test_multiple_adapts(self):
+    first_adapt = [[1], [2], [3]]
+    second_adapt = [[4], [5], [6]]
+    predict_input = [[2], [2]]
+    expected_first_output = [[2], [2]]
+    expected_second_output = [[0], [0]]
 
-    # Use a higher epsilon to avoid any discrepencies from the quantile
-    # approximation.
-    full_layer = discretization.Discretization(num_bins=3, epsilon=0.001)
-    full_layer.adapt(full_ds.batch(2))
+    inputs = keras.Input(shape=(1,), dtype=tf.int32)
+    layer = discretization.Discretization(num_bins=3)
+    layer.adapt(first_adapt)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
 
-    partial_layer_1 = discretization.Discretization(num_bins=3, epsilon=0.001)
-    partial_layer_1.adapt(partial_ds_1.batch(2))
-    partial_layer_2 = discretization.Discretization(num_bins=3, epsilon=0.001)
-    partial_layer_2.adapt(partial_ds_2.batch(2))
-    partial_layer_3 = discretization.Discretization(num_bins=3, epsilon=0.001)
-    partial_layer_3.adapt(partial_ds_3.batch(2))
-    partial_layer_1.merge_state([partial_layer_2, partial_layer_3])
-    merged_layer = partial_layer_1
+    actual_output = model.predict(predict_input)
+    self.assertAllClose(actual_output, expected_first_output)
 
-    data = np.arange(300)
-    self.assertAllClose(full_layer(data), merged_layer(data))
+    # Re-adapt the layer on new inputs.
+    layer.adapt(second_adapt)
+    # Re-compile the model.
+    model.compile()
+    # `predict` should now use the new model state.
+    actual_output = model.predict(predict_input)
+    self.assertAllClose(actual_output, expected_second_output)
 
-  def test_merge_with_stateless_layers_fails(self):
-    layer1 = discretization.Discretization(num_bins=2, name="layer1")
-    layer1.adapt([1, 2, 3])
-    layer2 = discretization.Discretization(bin_boundaries=[0, 1], name="layer2")
-    with self.assertRaisesRegex(ValueError, "Cannot merge.*layer2"):
-      layer1.merge_state([layer2])
+  def test_saved_model_tf(self):
+    input_data = [[1], [2], [3]]
+    predict_data = [[0.5], [1.5], [2.5]]
+    expected_output = [[0], [1], [2]]
 
-  def test_merge_with_unadapted_layers_fails(self):
-    layer1 = discretization.Discretization(num_bins=2, name="layer1")
-    layer1.adapt([1, 2, 3])
-    layer2 = discretization.Discretization(num_bins=2, name="layer2")
-    with self.assertRaisesRegex(ValueError, "Cannot merge.*layer2"):
-      layer1.merge_state([layer2])
+    inputs = keras.Input(shape=(1,), dtype=tf.float32)
+    layer = discretization.Discretization(num_bins=3)
+    layer.adapt(input_data)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    output_data = model.predict(predict_data)
+    self.assertAllClose(output_data, expected_output)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), "tf_saved_model")
+    tf.saved_model.save(model, output_path)
+    loaded_model = tf.saved_model.load(output_path)
+    f = loaded_model.signatures["serving_default"]
+
+    # Ensure that the loaded model is unique (so that the save/load is real)
+    self.assertIsNot(model, loaded_model)
+
+    # Validate correctness of the new model.
+    new_output_data = f(tf.constant(predict_data))["discretization"]
+    self.assertAllClose(new_output_data, expected_output)
+
+  def test_saved_model_keras(self):
+    input_data = [[1], [2], [3]]
+    predict_data = [[0.5], [1.5], [2.5]]
+    expected_output = [[0], [1], [2]]
+
+    cls = discretization.Discretization
+    inputs = keras.Input(shape=(1,), dtype=tf.float32)
+    layer = cls(num_bins=3)
+    layer.adapt(input_data)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    output_data = model.predict(predict_data)
+    self.assertAllClose(output_data, expected_output)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
+    model.save(output_path, save_format="tf")
+    loaded_model = keras.models.load_model(
+        output_path, custom_objects={"Discretization": cls})
+
+    # Ensure that the loaded model is unique (so that the save/load is real)
+    self.assertIsNot(model, loaded_model)
+
+    # Validate correctness of the new model.
+    new_output_data = loaded_model.predict(predict_data)
+    self.assertAllClose(new_output_data, expected_output)
+
+  def test_saved_weights_keras(self):
+    input_data = [[1], [2], [3]]
+    predict_data = [[0.5], [1.5], [2.5]]
+    expected_output = [[0], [1], [2]]
+
+    cls = discretization.Discretization
+    inputs = keras.Input(shape=(1,), dtype=tf.float32)
+    layer = cls(num_bins=3)
+    layer.adapt(input_data)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    output_data = model.predict(predict_data)
+    self.assertAllClose(output_data, expected_output)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_weights")
+    model.save_weights(output_path, save_format="tf")
+    new_model = keras.Model.from_config(
+        model.get_config(), custom_objects={"Discretization": cls})
+    new_model.load_weights(output_path)
+
+    # Validate correctness of the new model.
+    new_output_data = new_model.predict(predict_data)
+    self.assertAllClose(new_output_data, expected_output)
+
 
 if __name__ == "__main__":
   tf.test.main()

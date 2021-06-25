@@ -114,7 +114,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
     # Make sure registering a new class with same name will fail.
     with self.assertRaisesRegex(ValueError, '.*has already been registered.*'):
       @keras.utils.generic_utils.register_keras_serializable()  # pylint: disable=function-redefined
-      class TestClass(object):
+      class TestClass(object):  # pylint: disable=function-redefined
 
         def __init__(self, value):
           self._value = value

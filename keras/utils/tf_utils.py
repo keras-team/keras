@@ -24,6 +24,7 @@ from keras import backend as K
 from keras.engine import keras_tensor
 from keras.utils import object_identity
 from keras.utils import tf_contextlib
+from tensorflow.python.util.tf_export import keras_export
 
 
 def is_tensor_or_tensor_list(v):
@@ -320,12 +321,13 @@ def is_symbolic_tensor(tensor):
     return False
 
 
+@keras_export('keras.__internal__.utils.register_symbolic_tensor_type', v1=[])
 def register_symbolic_tensor_type(cls):
   """Allows users to specify types regarded as symbolic `Tensor`s.
 
   Used in conjunction with `tf.register_tensor_conversion_function`, calling
-  `tf.keras.utils.register_symbolic_tensor_type(cls)` allows non-`Tensor`
-  objects to be plumbed through Keras layers.
+  `tf.keras.__internal__.utils.register_symbolic_tensor_type(cls)`
+  allows non-`Tensor` objects to be plumbed through Keras layers.
 
   Example:
 
@@ -340,7 +342,7 @@ def register_symbolic_tensor_type(cls):
   tf.register_tensor_conversion_function(
       Foo, lambda x, *args, **kwargs: x.value())
 
-  tf.keras.utils.register_symbolic_tensor_type(Foo)
+  tf.keras.__internal__.utils.register_symbolic_tensor_type(Foo)
 
   # User-land.
   layer = tf.keras.layers.Lambda(lambda input_: Foo(input_))
@@ -373,6 +375,13 @@ def is_ragged(tensor):
   return isinstance(
       tensor,
       (tf.RaggedTensor, tf.compat.v1.ragged.RaggedTensorValue))
+
+
+def is_sparse(tensor):
+  """Returns true if `tensor` is a sparse tensor or sparse tensor value."""
+  return isinstance(
+      tensor,
+      (tf.SparseTensor, tf.compat.v1.SparseTensorValue))
 
 
 def is_tensor_or_variable(x):

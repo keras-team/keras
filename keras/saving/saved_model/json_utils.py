@@ -23,7 +23,7 @@ input if the given shape is a tuple.
 
 import tensorflow.compat.v2 as tf
 
-import collections.abc as collections_abc
+import collections
 import enum
 import json
 import numpy as np
@@ -34,7 +34,7 @@ from tensorflow.python.framework import type_spec
 class Encoder(json.JSONEncoder):
   """JSON encoder and decoder that handles TensorShapes and tuples."""
 
-  def default(self, obj):
+  def default(self, obj):  # pylint: disable=method-hidden
     """Encodes objects for types that aren't handled by the default encoder."""
     if isinstance(obj, tf.TensorShape):
       items = obj.as_list() if obj.rank is not None else None
@@ -117,7 +117,7 @@ def get_json_type(obj):
   if isinstance(obj, tf.DType):
     return obj.name
 
-  if isinstance(obj, collections_abc.Mapping):
+  if isinstance(obj, collections.abc.Mapping):
     return dict(obj)
 
   if obj is Ellipsis:

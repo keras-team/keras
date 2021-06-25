@@ -46,14 +46,13 @@ py_library(
         ":merge",
         ":multi_head_attention",
         ":noise",
-        ":normalization",
-        ":normalization_v2",
         ":pooling",
         ":recurrent",
         ":recurrent_v2",
         ":rnn_cell_wrapper_v2",
         ":wrappers",
         "//keras/feature_column",
+        "//keras/layers/normalization",
         "//keras/layers/preprocessing",
         "//keras/premade",
         "//keras/utils:tf_utils",
@@ -69,9 +68,9 @@ py_library(
         "//keras:backend",
         "//keras:base_layer",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
         "//keras/engine:input_spec",
+        "//keras/initializers",
         "//keras/utils:tf_utils",
     ],
 )
@@ -87,9 +86,9 @@ py_library(
         "//keras:backend",
         "//keras:base_layer",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
         "//keras/engine:input_spec",
+        "//keras/initializers",
         "//keras/utils:engine_utils",
         "//keras/utils:tf_utils",
     ],
@@ -107,9 +106,9 @@ py_library(
         "//keras:backend",
         "//keras:base_layer",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
         "//keras/engine:input_spec",
+        "//keras/initializers",
         "//keras/utils:engine_utils",
         "//keras/utils:generic_utils",
         "//keras/utils:tf_utils",
@@ -127,11 +126,11 @@ py_library(
         "//keras:backend",
         "//keras:base_layer",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:losses",
         "//keras:regularizers",
         "//keras/engine:input_spec",
         "//keras/engine:keras_tensor",
+        "//keras/initializers",
         "//keras/utils:engine_utils",
         "//keras/utils:generic_utils",
         "//keras/utils:tf_utils",
@@ -148,9 +147,9 @@ py_library(
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
         "//keras/engine:input_spec",
+        "//keras/initializers",
     ],
 )
 
@@ -175,8 +174,8 @@ py_library(
         "//keras:activations",
         "//keras:base_layer",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
+        "//keras/initializers",
     ],
 )
 
@@ -189,8 +188,8 @@ py_library(
         "//keras:activations",
         "//keras:base_layer",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
+        "//keras/initializers",
     ],
 )
 
@@ -202,9 +201,9 @@ py_library(
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
         "//keras/engine:base_layer",
+        "//keras/initializers",
         "//keras/utils:tf_utils",
     ],
 )
@@ -217,8 +216,8 @@ py_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:base_layer",
-        "//keras:initializers",
         "//keras/engine:input_spec",
+        "//keras/initializers",
     ],
 )
 
@@ -233,9 +232,9 @@ py_library(
         "//keras:backend",
         "//keras:base_layer",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
         "//keras/engine:input_spec",
+        "//keras/initializers",
         "//keras/utils:engine_utils",
         "//keras/utils:tf_utils",
     ],
@@ -267,33 +266,6 @@ py_library(
 )
 
 py_library(
-    name = "normalization",
-    srcs = ["normalization.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:base_layer",
-        "//keras:constraints",
-        "//keras:initializers",
-        "//keras:regularizers",
-        "//keras/engine:base_layer_utils",
-        "//keras/engine:input_spec",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "normalization_v2",
-    srcs = ["normalization_v2.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":normalization",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-py_library(
     name = "pooling",
     srcs = ["pooling.py"],
     srcs_version = "PY3",
@@ -317,9 +289,9 @@ py_library(
         "//keras:backend",
         "//keras:base_layer",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
         "//keras/engine:input_spec",
+        "//keras/initializers",
         "//keras/utils:generic_utils",
         "//keras/utils:tf_utils",
     ],
@@ -592,24 +564,6 @@ tf_py_test(
     ],
 )
 
-cuda_py_test(
-    name = "normalization_test",
-    size = "medium",
-    srcs = ["normalization_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "notsan",
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
-    ],
-)
-
 tf_py_test(
     name = "simplernn_test",
     size = "medium",
@@ -767,7 +721,7 @@ tf_py_test(
         "//keras",
         "//keras:backend",
         "//keras:combinations",
-        "//keras:initializers",
+        "//keras/initializers",
     ],
 )
 

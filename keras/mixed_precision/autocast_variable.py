@@ -17,7 +17,6 @@
 import tensorflow.compat.v2 as tf
 
 import threading
-from tensorflow.python.distribute import ps_values as ps_distribute_values
 from keras.distribute import distributed_training_utils
 
 
@@ -449,7 +448,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     return pow(o, self.read_value())
 
   def __neg__(self):
-    return -self.read_value()
+    return -self.read_value()  # pylint: disable=invalid-unary-operand-type
 
   def __abs__(self):
     return abs(self.read_value())
@@ -505,8 +504,7 @@ def create_autocast_variable(variable):
   Returns:
     An AutoCastVariable that wraps the variable.
   """
-  if ((not distributed_training_utils.is_distributed_variable(variable)) and
-      not isinstance(variable, ps_distribute_values.AggregatingVariable)):
+  if not distributed_training_utils.is_distributed_variable(variable):
     return AutoCastVariable(variable)
 
   class AutoCastDistributedVariable(AutoCastVariable, variable.__class__):
@@ -517,11 +515,6 @@ def create_autocast_variable(variable):
     """
 
     def __repr__(self):
-      if issubclass(ps_distribute_values.AggregatingVariable,
-                    variable.__class__):
-        # AggregatingVariable's __repr__ simply calls super.__repr__. So we do
-        # the same here for consistency, which calls AutoCastVariable.__repr__.
-        return super(AutoCastDistributedVariable, self).__repr__()
 
       # pylint: disable=missing-format-attribute
       return ('<AutoCastDistributedVariable dtype={v.dtype.name} '

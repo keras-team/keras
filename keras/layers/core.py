@@ -107,7 +107,7 @@ class Masking(Layer):
         tf.not_equal(inputs, self.mask_value), axis=-1, keepdims=True)
     outputs = inputs * tf.cast(boolean_mask, inputs.dtype)
     # Compute the mask and outputs simultaneously.
-    outputs._keras_mask = tf.compat.v1.squeeze(boolean_mask, axis=-1)  # pylint: disable=protected-access
+    outputs._keras_mask = tf.squeeze(boolean_mask, axis=-1)  # pylint: disable=protected-access
     return outputs
 
   def compute_output_shape(self, input_shape):
@@ -173,6 +173,9 @@ class Dropout(Layer):
 
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
     super(Dropout, self).__init__(**kwargs)
+    if isinstance(rate, (int, float)) and not 0 <= rate <= 1:
+      raise ValueError(f'Invalid value {rate} received for '
+                       f'`rate`, expected a value between 0 and 1.')
     self.rate = rate
     if isinstance(rate, (int, float)) and not rate:
       keras_temporary_dropout_rate.get_cell().set(True)
@@ -189,7 +192,7 @@ class Dropout(Layer):
     if self.noise_shape is None:
       return None
 
-    concrete_inputs_shape = tf.compat.v1.shape(inputs)
+    concrete_inputs_shape = tf.shape(inputs)
     noise_shape = []
     for i, value in enumerate(self.noise_shape):
       noise_shape.append(concrete_inputs_shape[i] if value is None else value)
@@ -200,7 +203,7 @@ class Dropout(Layer):
       training = K.learning_phase()
 
     def dropped_inputs():
-      return tf.compat.v1.nn.dropout(
+      return tf.nn.dropout(
           inputs,
           noise_shape=self._get_noise_shape(inputs),
           seed=self.seed,
@@ -260,7 +263,7 @@ class SpatialDropout1D(Dropout):
     self.input_spec = InputSpec(ndim=3)
 
   def _get_noise_shape(self, inputs):
-    input_shape = tf.compat.v1.shape(inputs)
+    input_shape = tf.shape(inputs)
     noise_shape = (input_shape[0], 1, input_shape[2])
     return noise_shape
 
@@ -317,7 +320,7 @@ class SpatialDropout2D(Dropout):
     self.input_spec = InputSpec(ndim=4)
 
   def _get_noise_shape(self, inputs):
-    input_shape = tf.compat.v1.shape(inputs)
+    input_shape = tf.shape(inputs)
     if self.data_format == 'channels_first':
       return (input_shape[0], input_shape[1], 1, 1)
     elif self.data_format == 'channels_last':
@@ -375,7 +378,7 @@ class SpatialDropout3D(Dropout):
     self.input_spec = InputSpec(ndim=5)
 
   def _get_noise_shape(self, inputs):
-    input_shape = tf.compat.v1.shape(inputs)
+    input_shape = tf.shape(inputs)
     if self.data_format == 'channels_first':
       return (input_shape[0], input_shape[1], 1, 1, 1)
     elif self.data_format == 'channels_last':
@@ -529,7 +532,7 @@ class Reshape(Layer):
 
   def call(self, inputs):
     result = tf.reshape(
-        inputs, (tf.compat.v1.shape(inputs)[0],) + self.target_shape)
+        inputs, (tf.shape(inputs)[0],) + self.target_shape)
     if not tf.executing_eagerly():
       # Set the static shape for the result since it might lost during array_ops
       # reshape, eg, some `None` dim in the result could be inferred.
@@ -592,7 +595,7 @@ class Permute(Layer):
     return tf.TensorShape(output_shape)
 
   def call(self, inputs):
-    return tf.compat.v1.transpose(inputs, perm=(0,) + self.dims)
+    return tf.transpose(inputs, perm=(0,) + self.dims)
 
   def get_config(self):
     config = {'dims': self.dims}
@@ -645,7 +648,7 @@ class Flatten(Layer):
         permutation = [0]
         permutation.extend(range(2, rank))
         permutation.append(1)
-        inputs = tf.compat.v1.transpose(inputs, perm=permutation)
+        inputs = tf.transpose(inputs, perm=permutation)
 
     if tf.executing_eagerly():
       # Full static shape is guaranteed to be available.
@@ -717,6 +720,8 @@ class RepeatVector(Layer):
   def __init__(self, n, **kwargs):
     super(RepeatVector, self).__init__(**kwargs)
     self.n = n
+    if not isinstance(n, int):
+      raise TypeError(f'Expected an integer value for `n`, got {type(n)}.')
     self.input_spec = InputSpec(ndim=2)
 
   def compute_output_shape(self, input_shape):
@@ -1072,7 +1077,7 @@ class Dense(Layer):
 
   Note: If the input to the layer has a rank greater than 2, then `Dense`
   computes the dot product between the `inputs` and the `kernel` along the
-  last axis of the `inputs` and axis 1 of the `kernel` (using `tf.tensordot`).
+  last axis of the `inputs` and axis 0 of the `kernel` (using `tf.tensordot`).
   For example, if input has dimensions `(batch_size, d0, d1)`,
   then we create a `kernel` with shape `(d1, units)`, and the `kernel` operates
   along axis 2 of the `input`, on every sub-tensor of shape `(1, 1, d1)`
@@ -1143,6 +1148,9 @@ class Dense(Layer):
         activity_regularizer=activity_regularizer, **kwargs)
 
     self.units = int(units) if not isinstance(units, int) else units
+    if self.units < 0:
+      raise ValueError(f'Received an invalid value for `units`, expected '
+                       f'a positive integer, got {units}.')
     self.activation = activations.get(activation)
     self.use_bias = use_bias
     self.kernel_initializer = initializers.get(kernel_initializer)
@@ -1554,9 +1562,12 @@ class TFSlicingOpDispatcher(tf.__internal__.dispatch.OpDispatcher):
     else:
       return self.NOT_SUPPORTED
 
-for slicing_op in [tf.__operators__.getitem,  # pylint: disable=protected-access
-                   tf.compat.v1.boolean_mask,
-                   tf.boolean_mask]:
+for slicing_op in [
+    tf.__operators__.getitem,  # pylint: disable=protected-access
+    tf.compat.v1.boolean_mask,
+    tf.boolean_mask,
+    tf.__operators__.ragged_getitem
+]:
   TFSlicingOpDispatcher(slicing_op).register(slicing_op)
 
 

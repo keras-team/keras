@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 
 import functools
 import numpy as np
+from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from tensorflow.python.util.tf_export import keras_export
 
@@ -26,14 +27,15 @@ from tensorflow.python.util.tf_export import keras_export
 _DEFAULT_SALT_KEY = [0xDECAFCAFFE, 0xDECAFCAFFE]
 
 
-@keras_export('keras.layers.experimental.preprocessing.Hashing')
-class Hashing(base_preprocessing_layer.PreprocessingLayer):
+@keras_export('keras.layers.Hashing',
+              'keras.layers.experimental.preprocessing.Hashing')
+class Hashing(base_layer.Layer):
   """Implements categorical feature hashing, also known as "hashing trick".
 
   This layer transforms single or multiple categorical inputs to hashed output.
   It converts a sequence of int or string to a sequence of int. The stable hash
-  function uses tensorflow::ops::Fingerprint to produce universal output that
-  is consistent across platforms.
+  function uses `tensorflow::ops::Fingerprint` to produce the same output
+  consistently across all platforms.
 
   This layer uses [FarmHash64](https://github.com/google/farmhash) by default,
   which provides a consistent hashed output across different platforms and is
@@ -45,9 +47,9 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
   [SipHash64](https://github.com/google/highwayhash) hash function, with
   the `salt` value serving as additional input to the hash function.
 
-  Example (FarmHash64):
+  **Example (FarmHash64)**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3)
+  >>> layer = tf.keras.layers.Hashing(num_bins=3)
   >>> inp = [['A'], ['B'], ['C'], ['D'], ['E']]
   >>> layer(inp)
   <tf.Tensor: shape=(5, 1), dtype=int64, numpy=
@@ -57,10 +59,9 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
            [1],
            [2]])>
 
-  Example (FarmHash64) with a mask value:
+  **Example (FarmHash64) with a mask value**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3,
-  ...    mask_value='')
+  >>> layer = tf.keras.layers.Hashing(num_bins=3, mask_value='')
   >>> inp = [['A'], ['B'], [''], ['C'], ['D']]
   >>> layer(inp)
   <tf.Tensor: shape=(5, 1), dtype=int64, numpy=
@@ -70,10 +71,9 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
            [2],
            [2]])>
 
-  Example (SipHash64):
+  **Example (SipHash64)**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3,
-  ...    salt=[133, 137])
+  >>> layer = tf.keras.layers.Hashing(num_bins=3, salt=[133, 137])
   >>> inp = [['A'], ['B'], ['C'], ['D'], ['E']]
   >>> layer(inp)
   <tf.Tensor: shape=(5, 1), dtype=int64, numpy=
@@ -83,10 +83,9 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
            [0],
            [2]])>
 
-  Example (Siphash64 with a single integer, same as `salt=[133, 133]`
+  **Example (Siphash64 with a single integer, same as `salt=[133, 133]`)**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3,
-  ...    salt=133)
+  >>> layer = tf.keras.layers.Hashing(num_bins=3, salt=133)
   >>> inp = [['A'], ['B'], ['C'], ['D'], ['E']]
   >>> layer(inp)
   <tf.Tensor: shape=(5, 1), dtype=int64, numpy=
@@ -95,8 +94,6 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
            [2],
            [1],
            [0]])>
-
-  Reference: [SipHash with salt](https://www.131002.net/siphash/siphash.pdf)
 
   Args:
     num_bins: Number of hash bins. Note that this includes the `mask_value` bin,
@@ -113,13 +110,18 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
       tuple/list of 2 unsigned integer numbers, see reference paper for details.
     **kwargs: Keyword arguments to construct a layer.
 
-  Input shape: A single or list of string, int32 or int64 `Tensor`,
-    `SparseTensor` or `RaggedTensor` of shape `[batch_size, ...,]`
+  Input shape:
+    A single or list of string, int32 or int64 `Tensor`,
+    `SparseTensor` or `RaggedTensor` of shape `(batch_size, ...,)`
 
-  Output shape: An int64 `Tensor`, `SparseTensor` or `RaggedTensor` of shape
-    `[batch_size, ...]`. If any input is `RaggedTensor` then output is
+  Output shape:
+    An int64 `Tensor`, `SparseTensor` or `RaggedTensor` of shape
+    `(batch_size, ...)`. If any input is `RaggedTensor` then output is
     `RaggedTensor`, otherwise if any input is `SparseTensor` then output is
     `SparseTensor`, otherwise the output is `Tensor`.
+
+  Reference:
+    - [SipHash with salt](https://www.131002.net/siphash/siphash.pdf)
 
   """
 
@@ -142,22 +144,13 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
     else:
       self.salt = _DEFAULT_SALT_KEY
 
-  def _preprocess_single_input(self, inp):
+  def _preprocess_input(self, inp):
     if isinstance(inp, (list, tuple, np.ndarray)):
       inp = tf.convert_to_tensor(inp)
     return inp
 
-  def _preprocess_inputs(self, inputs):
-    if isinstance(inputs, (tuple, list)):
-      # If any of them is tensor or ndarray, then treat as list
-      if any(
-          tf.is_tensor(inp) or isinstance(inp, np.ndarray)
-          for inp in inputs):
-        return [self._preprocess_single_input(inp) for inp in inputs]
-    return self._preprocess_single_input(inputs)
-
   def call(self, inputs):
-    inputs = self._preprocess_inputs(inputs)
+    inputs = self._preprocess_input(inputs)
     if isinstance(inputs, tf.SparseTensor):
       return tf.SparseTensor(
           indices=inputs.indices,
@@ -179,8 +172,8 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
       values = tf.as_string(values)
     values = str_to_hash_bucket(values, num_available_bins, name='hash')
     if mask is not None:
-      values = tf.add(values, tf.compat.v1.ones_like(values))
-      values = tf.compat.v1.where(mask, tf.compat.v1.zeros_like(values), values)
+      values = tf.add(values, tf.ones_like(values))
+      values = tf.where(mask, tf.zeros_like(values), values)
     return values
 
   def _get_string_to_hash_bucket_fn(self):

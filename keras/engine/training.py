@@ -129,6 +129,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   model = tf.keras.Model(inputs=inputs, outputs=outputs)
   ```
 
+  Note: Only dicts, lists, and tuples of input tensors are supported. Nested
+  inputs are not supported (e.g. lists of list or dicts of dict).
+
   2 - By subclassing the `Model` class: in that case, you should define your
   layers in `__init__` and you should implement the model's forward pass
   in `call`.
@@ -283,6 +286,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # Fault-tolerance handler. Set in `ModelCheckpoint`.
     self._training_state = None
     self._saved_model_inputs_spec = None
+    self._saved_model_arg_spec = None
     self._trackable_saver = saver_with_op_caching(self)
 
     self._steps_per_execution = None
@@ -306,15 +310,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       return
 
     if all(
-        isinstance(v, (base_layer.Layer,
-                       tf.__internal__.tracking.TrackableDataStructure)) or
+        isinstance(v, (base_layer.Layer, tf.Variable)) or
         base_layer_utils.has_weights(v) for v in tf.nest.flatten(value)):
       try:
         self._base_model_initialized
       except AttributeError:
         raise RuntimeError(
             'It looks like you are subclassing `Model` and you '
-            'forgot to call `super(YourClass, self).__init__()`.'
+            'forgot to call `super().__init__()`.'
             ' Always start with this line.')
 
     super(Model, self).__setattr__(name, value)
@@ -435,7 +438,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     i.e. `model(inputs)`, which relies on the underlying `call` method.
 
     Args:
-        inputs: A tensor or list of tensors.
+        inputs: Input tensor, or dict/list/tuple of input tensors.
         training: Boolean or boolean scalar tensor, indicating whether to run
           the `Network` in training mode or inference mode.
         mask: A mask or list of masks. A mask can be
@@ -459,23 +462,38 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               **kwargs):
     """Configures the model for training.
 
+    Example:
+
+    ```python
+    model.compile(optimizer=tf.keras.optimizer.Adam(learning_rate=1e-3),
+                  loss=tf.keras.losses.BinaryCrossentropy(),
+                  metrics=[tf.keras.metrics.BinaryAccuracy(),
+                           tf.keras.metrics.FalseNegatives()])
+    ```
+
     Args:
         optimizer: String (name of optimizer) or optimizer instance. See
           `tf.keras.optimizers`.
-        loss: String (name of objective function), objective function or
-          `tf.keras.losses.Loss` instance. See `tf.keras.losses`. An objective
+        loss: Loss function. Maybe be a string (name of loss function), or
+          a `tf.keras.losses.Loss` instance. See `tf.keras.losses`. A loss
           function is any callable with the signature `loss = fn(y_true,
-          y_pred)`, where y_true = ground truth values with shape =
-          `[batch_size, d0, .. dN]`, except sparse loss functions such as sparse
-          categorical crossentropy where shape = `[batch_size, d0, .. dN-1]`.
-          y_pred = predicted values with shape = `[batch_size, d0, .. dN]`. It
-          returns a weighted loss float tensor. If a custom `Loss` instance is
-          used and reduction is set to NONE, return value has the shape
-          [batch_size, d0, .. dN-1] ie. per-sample or per-timestep loss values;
-          otherwise, it is a scalar. If the model has multiple outputs, you can
-          use a different loss on each output by passing a dictionary or a list
-          of losses. The loss value that will be minimized by the model will
-          then be the sum of all individual losses.
+          y_pred)`, where `y_true` are the ground truth values, and
+          `y_pred` are the model's predictions.
+          `y_true` should have shape
+          `(batch_size, d0, .. dN)` (except in the case of
+          sparse loss functions such as
+          sparse categorical crossentropy which expects integer arrays of shape
+          `(batch_size, d0, .. dN-1)`).
+          `y_pred` should have shape `(batch_size, d0, .. dN)`.
+          The loss function should return a float tensor.
+          If a custom `Loss` instance is
+          used and reduction is set to `None`, return value has shape
+          `(batch_size, d0, .. dN-1)` i.e. per-sample or per-timestep loss
+          values; otherwise, it is a scalar. If the model has multiple outputs,
+          you can use a different loss on each output by passing a dictionary
+          or a list of losses. The loss value that will be minimized by the
+          model will then be the sum of all individual losses, unless
+          `loss_weights` is specified.
         metrics: List of metrics to be evaluated by the model during training
           and testing. Each of this can be a string (name of a built-in
           function), function or a `tf.keras.metrics.Metric` instance. See
@@ -483,16 +501,16 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           function is any callable with the signature `result = fn(y_true,
           y_pred)`. To specify different metrics for different outputs of a
           multi-output model, you could also pass a dictionary, such as
-            `metrics={'output_a': 'accuracy', 'output_b': ['accuracy', 'mse']}`.
-              You can also pass a list (len = len(outputs)) of lists of metrics
-              such as `metrics=[['accuracy'], ['accuracy', 'mse']]` or
-              `metrics=['accuracy', ['accuracy', 'mse']]`. When you pass the
-              strings 'accuracy' or 'acc', we convert this to one of
-              `tf.keras.metrics.BinaryAccuracy`,
-              `tf.keras.metrics.CategoricalAccuracy`,
-              `tf.keras.metrics.SparseCategoricalAccuracy` based on the loss
-              function used and the model output shape. We do a similar
-              conversion for the strings 'crossentropy' and 'ce' as well.
+          `metrics={'output_a': 'accuracy', 'output_b': ['accuracy', 'mse']}`.
+          You can also pass a list to specify a metric or a list of metrics
+          for each output, such as `metrics=[['accuracy'], ['accuracy', 'mse']]`
+          or `metrics=['accuracy', ['accuracy', 'mse']]`. When you pass the
+          strings 'accuracy' or 'acc', we convert this to one of
+          `tf.keras.metrics.BinaryAccuracy`,
+          `tf.keras.metrics.CategoricalAccuracy`,
+          `tf.keras.metrics.SparseCategoricalAccuracy` based on the loss
+          function used and the model output shape. We do a similar
+          conversion for the strings 'crossentropy' and 'ce' as well.
         loss_weights: Optional list or dictionary specifying scalar coefficients
           (Python floats) to weight the loss contributions of different model
           outputs. The loss value that will be minimized by the model will then
@@ -502,7 +520,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               outputs. If a dict, it is expected to map output names (strings)
               to scalar coefficients.
         weighted_metrics: List of metrics to be evaluated and weighted by
-          sample_weight or class_weight during training and testing.
+          `sample_weight` or `class_weight` during training and testing.
         run_eagerly: Bool. Defaults to `False`. If `True`, this `Model`'s
           logic will not be wrapped in a `tf.function`. Recommended to leave
           this as `None` unless your `Model` cannot be run inside a
@@ -587,6 +605,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self.train_function = None
     self.test_function = None
     self.predict_function = None
+    # Used to cache the `tf.function`'ed `train_function` to be logged in
+    # TensorBoard, since the original `train_function` is not necessarily
+    # a `tf.function` (e.g., with ParameterServerStrategy, the `train_function`
+    # is a scheduling of the actual training function to a remote worker).
+    self.train_tf_function = None
 
     # Used to cache `trainable` attr of `Layer`s for `fit`.
     self._compiled_trainable_state = self._get_trainable_state()
@@ -782,7 +805,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return_metrics[metric.name] = result
     return return_metrics
 
-  def make_train_function(self):
+  def make_train_function(self, force=False):
     """Creates a function that executes one step of training.
 
     This method can be overridden to support custom training logic.
@@ -794,7 +817,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     This function is cached the first time `Model.fit` or
     `Model.train_on_batch` is called. The cache is cleared whenever
-    `Model.compile` is called.
+    `Model.compile` is called. You can skip the cache and generate again the
+    function with `force=True`.
+
+    Args:
+      force: Whether to regenerate the train function and skip the cached
+        function if available.
 
     Returns:
       Function. The function created by this method should accept a
@@ -802,7 +830,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       be passed to `tf.keras.Callbacks.on_train_batch_end`, such as
       `{'loss': 0.2, 'accuracy': 0.7}`.
     """
-    if self.train_function is not None:
+    if self.train_function is not None and not force:
       return self.train_function
 
     def step_function(model, iterator):
@@ -822,7 +850,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       write_scalar_summaries(outputs, step=model._train_counter)  # pylint: disable=protected-access
       return outputs
 
-    if self._steps_per_execution.numpy().item() == 1:
+    if (self._steps_per_execution is None or
+        self._steps_per_execution.numpy().item() == 1):
 
       def train_function(iterator):
         """Runs a training execution with one step."""
@@ -839,6 +868,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     if not self.run_eagerly:
       train_function = tf.function(
           train_function, experimental_relax_shapes=True)
+      self.train_tf_function = train_function
 
     self.train_function = train_function
 
@@ -996,9 +1026,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             `tf.data` dataset, and 'steps_per_epoch'
             is None, the epoch will run until the input dataset is exhausted.
             When passing an infinitely repeating dataset, you must specify the
-            `steps_per_epoch` argument. This argument is not supported with
-            array inputs. `steps_per_epoch=None` is not supported when using
-            `tf.distribute.experimental.ParameterServerStrategy`.
+            `steps_per_epoch` argument. If `steps_per_epoch=-1` the training
+            will run indefinitely with an infinitely repeating dataset.
+            This argument is not supported with array inputs.
+            When using `tf.distribute.experimental.ParameterServerStrategy`:
+              * `steps_per_epoch=None` is not supported.
         validation_steps: Only relevant if `validation_data` is provided and
             is a `tf.data` dataset. Total number of steps (batches of
             samples) to draw before stopping when performing validation
@@ -1252,7 +1284,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return_metrics[metric.name] = result
     return return_metrics
 
-  def make_test_function(self):
+  def make_test_function(self, force=False):
     """Creates a function that executes one step of evaluation.
 
     This method can be overridden to support custom evaluation logic.
@@ -1264,14 +1296,19 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     This function is cached the first time `Model.evaluate` or
     `Model.test_on_batch` is called. The cache is cleared whenever
-    `Model.compile` is called.
+    `Model.compile` is called. You can skip the cache and generate again the
+    function with `force=True`.
+
+    Args:
+      force: Whether to regenerate the test function and skip the cached
+        function if available.
 
     Returns:
       Function. The function created by this method should accept a
       `tf.data.Iterator`, and return a `dict` containing values that will
       be passed to `tf.keras.Callbacks.on_test_batch_end`.
     """
-    if self.test_function is not None:
+    if self.test_function is not None and not force:
       return self.test_function
 
     def step_function(model, iterator):
@@ -1290,7 +1327,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           outputs, self.distribute_strategy, reduction='first')
       return outputs
 
-    if self._steps_per_execution.numpy().item() == 1:
+    if (self._steps_per_execution is None or
+        self._steps_per_execution.numpy().item() == 1):
 
       def test_function(iterator):
         """Runs an evaluation execution with one step."""
@@ -1309,6 +1347,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           test_function, experimental_relax_shapes=True)
 
     self.test_function = test_function
+
+    if self._cluster_coordinator:
+      self.test_function = lambda iterator: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
+          test_function, args=(iterator,))
+
     return self.test_function
 
   def evaluate(self,
@@ -1415,8 +1458,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       raise TypeError('Invalid keyword arguments: %s' % (kwargs,))
 
     if self.distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
-      raise NotImplementedError('`model.evaluate` is not yet supported with '
-                                '`ParameterServerStrategy`.')
+      self._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+          self.distribute_strategy)
 
     with self.distribute_strategy.scope():
       # Use cached evaluation data only when it's called in `Model.fit`
@@ -1498,7 +1541,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     x, _, _ = data_adapter.unpack_x_y_sample_weight(data)
     return self(x, training=False)
 
-  def make_predict_function(self):
+  def make_predict_function(self, force=False):
     """Creates a function that executes one step of inference.
 
     This method can be overridden to support custom inference logic.
@@ -1510,13 +1553,18 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     This function is cached the first time `Model.predict` or
     `Model.predict_on_batch` is called. The cache is cleared whenever
-    `Model.compile` is called.
+    `Model.compile` is called. You can skip the cache and generate again the
+    function with `force=True`.
+
+    Args:
+      force: Whether to regenerate the predict function and skip the cached
+        function if available.
 
     Returns:
       Function. The function created by this method should accept a
       `tf.data.Iterator`, and return the outputs of the `Model`.
     """
-    if self.predict_function is not None:
+    if self.predict_function is not None and not force:
       return self.predict_function
 
     def step_function(model, iterator):
@@ -1628,9 +1676,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     `Model.fit` and `Model.evaluate`, so inputs must be unambiguous for all
     three methods.
 
-    `Model.predict` is not yet supported with
-    `tf.distribute.experimental.ParameterServerStrategy`.
-
     Returns:
         Numpy array(s) of predictions.
 
@@ -1646,9 +1691,19 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._check_call_args('predict')
     _disallow_inside_tf_function('predict')
 
+    # TODO(yashkatariya): Cache model on the coordinator for faster prediction.
+    # If running under PSS, then swap it with OneDeviceStrategy so that
+    # execution will run on the coordinator.
+    original_pss_strategy = None
     if self.distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
-      raise NotImplementedError('`model.predict` is not yet supported with '
-                                '`ParameterServerStrategy`.')
+      original_pss_strategy = self.distribute_strategy
+      self._distribution_strategy = None
+
+    # Cluster coordinator is set by `.fit()` and `.evaluate()` which is not
+    # needed in `.predict()` because all the predictions happen on the
+    # coordinator/locally.
+    if self._cluster_coordinator:
+      self._cluster_coordinator = None
 
     outputs = None
     with self.distribute_strategy.scope():
@@ -1716,6 +1771,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         raise ValueError('Expect x to be a non-empty array or dataset.')
       callbacks.on_predict_end()
     all_outputs = tf.__internal__.nest.map_structure_up_to(batch_outputs, concat, outputs)
+
+    # If originally PSS strategy was used, then replace it back since predict
+    # is running under `OneDeviceStrategy` after the swap and once its done
+    # we need to replace it back to PSS again.
+    if original_pss_strategy is not None:
+      self._distribution_strategy = original_pss_strategy
+
     return tf_utils.sync_to_numpy_or_python_type(all_outputs)
 
   def reset_metrics(self):
@@ -1890,6 +1952,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       outputs = self.predict_function(iterator)
     return tf_utils.sync_to_numpy_or_python_type(outputs)
 
+  @doc_controls.do_not_generate_docs
   def fit_generator(self,
                     generator,
                     steps_per_epoch=None,
@@ -1930,6 +1993,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         shuffle=shuffle,
         initial_epoch=initial_epoch)
 
+  @doc_controls.do_not_generate_docs
   def evaluate_generator(self,
                          generator,
                          steps=None,
@@ -1958,6 +2022,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         verbose=verbose,
         callbacks=callbacks)
 
+  @doc_controls.do_not_generate_docs
   def predict_generator(self,
                         generator,
                         steps=None,
@@ -2280,24 +2345,30 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # streaming restore for any variables created in the future.
         tf.__internal__.tracking.streaming_restore(status=status, session=session)
       status.assert_nontrivial_match()
-      return status
-    if h5py is None:
-      raise ImportError(
-          '`load_weights` requires h5py when loading weights from HDF5.')
-    if not self._is_graph_network and not self.built:
-      raise ValueError(
-          'Unable to load weights saved in HDF5 format into a subclassed '
-          'Model which has not created its variables yet. Call the Model '
-          'first, then load the weights.')
-    self._assert_weights_created()
-    with h5py.File(filepath, 'r') as f:
-      if 'layer_names' not in f.attrs and 'model_weights' in f:
-        f = f['model_weights']
-      if by_name:
-        hdf5_format.load_weights_from_hdf5_group_by_name(
-            f, self.layers, skip_mismatch=skip_mismatch)
-      else:
-        hdf5_format.load_weights_from_hdf5_group(f, self.layers)
+    else:
+      status = None
+      if h5py is None:
+        raise ImportError(
+            '`load_weights` requires h5py when loading weights from HDF5.')
+      if not self._is_graph_network and not self.built:
+        raise ValueError(
+            'Unable to load weights saved in HDF5 format into a subclassed '
+            'Model which has not created its variables yet. Call the Model '
+            'first, then load the weights.')
+      self._assert_weights_created()
+      with h5py.File(filepath, 'r') as f:
+        if 'layer_names' not in f.attrs and 'model_weights' in f:
+          f = f['model_weights']
+        if by_name:
+          hdf5_format.load_weights_from_hdf5_group_by_name(
+              f, self.layers, skip_mismatch=skip_mismatch)
+        else:
+          hdf5_format.load_weights_from_hdf5_group(f, self.layers)
+
+    # Perform any layer defined finalization of the layer state.
+    for layer in self.layers:
+      layer.finalize_state()
+    return status
 
   def _updated_config(self):
     """Util shared between different serialization methods.
@@ -2499,28 +2570,81 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     raise ValueError('Provide either a layer name or layer index.')
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
-  def _set_save_spec(self, inputs):
+  def _set_save_spec(self, inputs, args=None, kwargs=None):
+    """Defines the save spec so that serialization is able to trace model call.
+
+    The TensorSpecs of the call function `inputs`, `args`, and `kwargs` are
+    saved into a tuple of `([inputs] + args, kwargs)`. The input `TensorSpec`
+    names are updated to match the built `input_names`.
+
+    The specs can be retrieved with the `save_spec` property.
+
+    Args:
+      inputs: possibly nested inputs passed into the call function.
+      args: a list of positional arguments passed into call.
+      kwargs: a dictionary of keyword arguments passed into call.
+    """
     if self._saved_model_inputs_spec is not None:
       return  # Already set.
+    args = args or []
+    kwargs = kwargs or {}
 
     input_names = self.input_names
     if not input_names:
       input_names = compile_utils.create_pseudo_input_names(inputs)
 
     flat_inputs = tf.nest.flatten(inputs)
-    specs = []
+    inputs_spec = []
     for name, tensor in zip(input_names, flat_inputs):
-      specs.append(
+      inputs_spec.append(
           tf_utils.get_tensor_spec(tensor, dynamic_batch=False, name=name))
-    specs = tf.nest.pack_sequence_as(inputs, specs)
-
-    self._saved_model_inputs_spec = specs
+    inputs_spec = tf.nest.pack_sequence_as(inputs, inputs_spec)
+    super(Model, self)._set_save_spec(inputs_spec, args, kwargs)
 
     # Store the input shapes
     if (self.__class__.__name__ == 'Sequential' and
         self._build_input_shape is None):
       self._build_input_shape = tf.nest.map_structure(
-          lambda x: None if x is None else x.shape, specs)
+          lambda x: None if x is None else x.shape, inputs_spec)
+
+  def save_spec(self, dynamic_batch=True):
+    """Returns the `tf.TensorSpec` of call inputs as a tuple `(args, kwargs)`.
+
+    This value is automatically defined after calling the model for the first
+    time. Afterwards, you can use it when exporting the model for serving:
+
+    ```python
+    model = tf.keras.Model(...)
+
+    @tf.function
+    def serve(*args, **kwargs):
+      outputs = model(*args, **kwargs)
+      # Apply postprocessing steps, or add additional outputs.
+      ...
+      return outputs
+
+    # arg_specs is `[tf.TensorSpec(...), ...]`. kwarg_specs, in this example, is
+    # an empty dict since functional models do not use keyword arguments.
+    arg_specs, kwarg_specs = model.save_spec()
+
+    model.save(path, signatures={
+      'serving_default': serve.get_concrete_function(*arg_specs, **kwarg_specs)
+    })
+    ```
+
+    Args:
+      dynamic_batch: Whether to set the batch sizes of all the returned
+        `tf.TensorSpec` to `None`. (Note that when defining functional or
+        Sequential models with `tf.keras.Input([...], batch_size=X)`, the
+        batch size will always be preserved). Defaults to `True`.
+    Returns:
+      If the model inputs are defined, returns a tuple `(args, kwargs)`. All
+      elements in `args` and `kwargs` are `tf.TensorSpec`.
+      If the model inputs are not defined, returns `None`.
+      The model inputs are automatically set when calling the model,
+      `model.fit`, `model.evaluate` or `model.predict`.
+    """
+    return self._get_save_spec(dynamic_batch, inputs_only=False)
 
   def _assert_weights_created(self):
     """Asserts that all the weights for the model have been created.
@@ -2681,21 +2805,20 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     train_function = self.train_function
     test_function = self.test_function
     predict_function = self.predict_function
+    train_tf_function = self.train_tf_function
     self.train_function = None
     self.test_function = None
     self.predict_function = None
+    self.train_tf_function = None
     functions = super(
         Model, self)._list_functions_for_serialization(serialization_cache)
     self.train_function = train_function
     self.test_function = test_function
     self.predict_function = predict_function
+    self.train_tf_function = train_tf_function
     return functions
 
   def _should_eval(self, epoch, validation_freq):
-    if self._cluster_coordinator:
-      raise NotImplementedError(
-          'Evaluation in `model.fit` with '
-          '`ParameterServerStrategy` is not yet supported.')
     epoch = epoch + 1  # one-index the user-facing epoch.
     if isinstance(validation_freq, int):
       return epoch % validation_freq == 0
@@ -2824,7 +2947,7 @@ def _multi_worker_concat(v, strategy):
   # v might not have the same shape on different replicas
   if _is_per_replica_instance(v):
     shapes = tf.concat([
-        tf.expand_dims(tf.compat.v1.shape(single_value)[0], axis=0)
+        tf.expand_dims(tf.shape(single_value)[0], axis=0)
         for single_value in v.values
     ],
                               axis=0)
@@ -2832,7 +2955,7 @@ def _multi_worker_concat(v, strategy):
   else:
     # v is a tensor. This may happen when, say, we have 2x1 multi-worker.
     all_shapes = strategy.gather(
-        tf.expand_dims(tf.compat.v1.shape(v)[0], axis=0), axis=0)
+        tf.expand_dims(tf.shape(v)[0], axis=0), axis=0)
 
   replicas = tf.split(
       replicas,

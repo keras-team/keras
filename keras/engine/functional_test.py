@@ -727,7 +727,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
         return inputs
 
       def compute_mask(self, inputs, mask=None):
-        return tf.compat.v1.ones_like(inputs)
+        return tf.ones_like(inputs)
 
     if tf.executing_eagerly():
       a = tf.constant([2] * 32)
@@ -736,7 +736,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
       b = MaskedLayer().apply(a)
       self.assertTrue(hasattr(b, '_keras_mask'))
       self.assertAllEqual(
-          self.evaluate(tf.compat.v1.ones_like(mask)),
+          self.evaluate(tf.ones_like(mask)),
           self.evaluate(getattr(b, '_keras_mask')))
       self.assertAllEqual(self.evaluate(a * mask), self.evaluate(b))
     else:
@@ -2435,6 +2435,7 @@ class InputsOutputsErrorTest(keras_parameterized.TestCase):
 class FunctionalSubclassModel(training_lib.Model):
 
   def __init__(self, *args, **kwargs):
+    self.foo = {'foo': 'bar'}  # Make sure users can assign dict attributes
     my_input = input_layer_lib.Input(shape=(16,))
     dense = layers.Dense(32, activation='relu')
     output = dense(my_input)

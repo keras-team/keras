@@ -19,19 +19,27 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 
 import keras
+from keras import backend
 from keras import keras_parameterized
-from keras.distribute.strategy_combinations import all_strategies
+from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import text_vectorization
 
 
 @tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=["eager"]))
+    tf.__internal__.test.combinations.combine(
+        strategy=strategy_combinations.all_strategies +
+        strategy_combinations.multi_worker_mirrored_strategies,
+        mode=["eager"]))
 class TextVectorizationDistributionTest(
     keras_parameterized.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
-  def test_distribution_strategy_output(self, distribution):
+  def test_distribution_strategy_output(self, strategy):
+    # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
+    if backend.is_tpu_strategy(strategy):
+      self.skipTest("This test needs MLIR bridge on TPU.")
+
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
@@ -42,7 +50,7 @@ class TextVectorizationDistributionTest(
 
     tf.config.set_soft_device_placement(True)
 
-    with distribution.scope():
+    with strategy.scope():
       input_data = keras.Input(shape=(None,), dtype=tf.string)
       layer = text_vectorization.TextVectorization(
           max_tokens=None,
@@ -56,7 +64,11 @@ class TextVectorizationDistributionTest(
     output_dataset = model.predict(input_dataset)
     self.assertAllEqual(expected_output, output_dataset)
 
-  def test_distribution_strategy_output_with_adapt(self, distribution):
+  def test_distribution_strategy_output_with_adapt(self, strategy):
+    # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
+    if backend.is_tpu_strategy(strategy):
+      self.skipTest("This test needs MLIR bridge on TPU.")
+
     vocab_data = [[
         "earth", "earth", "earth", "earth", "wind", "wind", "wind", "and",
         "and", "fire"
@@ -71,7 +83,7 @@ class TextVectorizationDistributionTest(
 
     tf.config.set_soft_device_placement(True)
 
-    with distribution.scope():
+    with strategy.scope():
       input_data = keras.Input(shape=(None,), dtype=tf.string)
       layer = text_vectorization.TextVectorization(
           max_tokens=None,
@@ -84,5 +96,7 @@ class TextVectorizationDistributionTest(
 
     output_dataset = model.predict(input_dataset)
     self.assertAllEqual(expected_output, output_dataset)
+
 if __name__ == "__main__":
-  tf.test.main()
+  tf.compat.v1.enable_v2_behavior()
+  tf.__internal__.distribute.multi_process_runner.test_main()

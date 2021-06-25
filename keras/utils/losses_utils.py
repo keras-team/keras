@@ -32,10 +32,21 @@ class ReductionV2(object):
      used with `tf.distribute.Strategy`, outside of built-in training loops such
      as `tf.keras` `compile` and `fit`, we expect reduction value to be
      `SUM` or `NONE`. Using `AUTO` in that case will raise an error.
-  * `NONE`: Weighted losses with one dimension reduced (axis=-1, or axis
-     specified by loss function). When this reduction type used with built-in
-     Keras training loops like `fit`/`evaluate`, the unreduced vector loss is
-     passed to the optimizer but the reported loss will be a scalar value.
+  * `NONE`: No **additional** reduction is applied to the output of the wrapped
+     loss function. When non-scalar losses are returned to Keras functions like
+     `fit`/`evaluate`, the unreduced vector loss is passed to the optimizer
+     but the reported loss will be a scalar value.
+
+     Caution: **Verify the shape of the outputs when using** `Reduction.NONE`.
+     The builtin loss functions wrapped by the loss classes reduce
+     one dimension (`axis=-1`, or `axis` if specified by loss function).
+     `Reduction.NONE` just means that no **additional** reduction is applied by
+     the class wrapper. For categorical losses with an example input shape of
+     `[batch, W, H, n_classes]` the `n_classes` dimension is reduced. For
+     pointwise losses your must include a dummy axis so that `[batch, W, H, 1]`
+     is reduced to `[batch, W, H]`. Without the dummy axis `[batch, W, H]`
+     will be incorrectly reduced to `[batch, W]`.
+
   * `SUM`: Scalar sum of weighted losses.
   * `SUM_OVER_BATCH_SIZE`: Scalar `SUM` divided by number of elements in losses.
      This reduction type is not supported when used with
@@ -112,25 +123,25 @@ def remove_squeezable_dimensions(
       rank_diff = predictions_rank - labels_rank
       if (rank_diff == expected_rank_diff + 1 and
           predictions_shape.dims[-1].is_compatible_with(1)):
-        predictions = tf.compat.v1.squeeze(predictions, [-1])
+        predictions = tf.squeeze(predictions, [-1])
       elif (rank_diff == expected_rank_diff - 1 and
             labels_shape.dims[-1].is_compatible_with(1)):
-        labels = tf.compat.v1.squeeze(labels, [-1])
+        labels = tf.squeeze(labels, [-1])
       return labels, predictions
 
     # Use dynamic rank.
     rank_diff = tf.rank(predictions) - tf.rank(labels)
     if (predictions_rank is None) or (
         predictions_shape.dims[-1].is_compatible_with(1)):
-      predictions = tf.compat.v1.cond(
+      predictions = tf.cond(
           tf.equal(expected_rank_diff + 1, rank_diff),
-          lambda: tf.compat.v1.squeeze(predictions, [-1]),
+          lambda: tf.squeeze(predictions, [-1]),
           lambda: predictions)
     if (labels_rank is None) or (
         labels_shape.dims[-1].is_compatible_with(1)):
-      labels = tf.compat.v1.cond(
+      labels = tf.cond(
           tf.equal(expected_rank_diff - 1, rank_diff),
-          lambda: tf.compat.v1.squeeze(labels, [-1]),
+          lambda: tf.squeeze(labels, [-1]),
           lambda: labels)
     return labels, predictions
 
@@ -179,10 +190,10 @@ def squeeze_or_expand_dimensions(y_pred, y_true=None, sample_weight=None):
       rank_diff = tf.rank(y_pred) - tf.rank(y_true)
       squeeze_dims = lambda: remove_squeezable_dimensions(  # pylint: disable=g-long-lambda
           y_true, y_pred)
-      is_last_dim_1 = tf.equal(1, tf.compat.v1.shape(y_pred)[-1])
-      maybe_squeeze_dims = lambda: tf.compat.v1.cond(  # pylint: disable=g-long-lambda
+      is_last_dim_1 = tf.equal(1, tf.shape(y_pred)[-1])
+      maybe_squeeze_dims = lambda: tf.cond(  # pylint: disable=g-long-lambda
           is_last_dim_1, squeeze_dims, lambda: (y_true, y_pred))
-      y_true, y_pred = tf.compat.v1.cond(
+      y_true, y_pred = tf.cond(
           tf.equal(1, rank_diff), maybe_squeeze_dims, squeeze_dims)
 
   if sample_weight is None:
@@ -196,29 +207,29 @@ def squeeze_or_expand_dimensions(y_pred, y_true=None, sample_weight=None):
   if (y_pred_rank is not None) and (weights_rank is not None):
     # Use static rank.
     if weights_rank - y_pred_rank == 1:
-      sample_weight = tf.compat.v1.squeeze(sample_weight, [-1])
+      sample_weight = tf.squeeze(sample_weight, [-1])
     elif y_pred_rank - weights_rank == 1:
-      sample_weight = tf.compat.v1.expand_dims(sample_weight, [-1])
+      sample_weight = tf.expand_dims(sample_weight, [-1])
     return y_pred, y_true, sample_weight
 
   # Use dynamic rank.
   weights_rank_tensor = tf.rank(sample_weight)
   rank_diff = weights_rank_tensor - tf.rank(y_pred)
-  maybe_squeeze_weights = lambda: tf.compat.v1.squeeze(sample_weight, [-1])
+  maybe_squeeze_weights = lambda: tf.squeeze(sample_weight, [-1])
 
   def _maybe_expand_weights():
-    expand_weights = lambda: tf.compat.v1.expand_dims(sample_weight, [-1])
-    return tf.compat.v1.cond(
+    expand_weights = lambda: tf.expand_dims(sample_weight, [-1])
+    return tf.cond(
         tf.equal(rank_diff, -1), expand_weights, lambda: sample_weight)
 
   def _maybe_adjust_weights():
-    return tf.compat.v1.cond(
+    return tf.cond(
         tf.equal(rank_diff, 1), maybe_squeeze_weights,
         _maybe_expand_weights)
 
   # squeeze or expand last dim of `sample_weight` if its rank differs by 1
   # from the new rank of `y_pred`.
-  sample_weight = tf.compat.v1.cond(
+  sample_weight = tf.cond(
       tf.equal(weights_rank_tensor, 0), lambda: sample_weight,
       _maybe_adjust_weights)
   return y_pred, y_true, sample_weight
@@ -242,7 +253,7 @@ def _safe_mean(losses, num_present):
 def _num_elements(losses):
   """Computes the number of elements in `losses` tensor."""
   with backend.name_scope('num_elements') as scope:
-    return tf.cast(tf.compat.v1.size(losses, name=scope), dtype=losses.dtype)
+    return tf.cast(tf.size(losses, name=scope), dtype=losses.dtype)
 
 
 def reduce_weighted_loss(weighted_losses,
@@ -257,6 +268,7 @@ def reduce_weighted_loss(weighted_losses,
   return loss
 
 
+@keras_export('keras.__internal__.losses.compute_weighted_loss', v1=[])
 def compute_weighted_loss(losses,
                           sample_weight=None,
                           reduction=ReductionV2.SUM_OVER_BATCH_SIZE,

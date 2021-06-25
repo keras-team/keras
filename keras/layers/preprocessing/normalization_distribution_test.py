@@ -20,7 +20,7 @@ import numpy as np
 
 import keras
 from keras import keras_parameterized
-from keras.distribute.strategy_combinations import all_strategies
+from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import normalization
 from keras.layers.preprocessing import preprocessing_test_utils
 
@@ -92,12 +92,14 @@ def _get_layer_computation_test_cases():
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.times(
-        tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=["eager"]),
-        _get_layer_computation_test_cases()))
+        tf.__internal__.test.combinations.combine(
+            strategy=strategy_combinations.all_strategies +
+            strategy_combinations.multi_worker_mirrored_strategies,
+            mode=["eager"]), _get_layer_computation_test_cases()))
 class NormalizationTest(keras_parameterized.TestCase,
                         preprocessing_test_utils.PreprocessingLayerTest):
 
-  def test_layer_computation(self, distribution, adapt_data, axis, test_data,
+  def test_layer_computation(self, strategy, adapt_data, axis, test_data,
                              use_dataset, expected):
     input_shape = tuple([None for _ in range(test_data.ndim - 1)])
     if use_dataset:
@@ -107,7 +109,7 @@ class NormalizationTest(keras_parameterized.TestCase,
       test_data = tf.data.Dataset.from_tensor_slices(test_data).batch(
           test_data.shape[0] // 2)
 
-    with distribution.scope():
+    with strategy.scope():
       input_data = keras.Input(shape=input_shape)
       layer = normalization.Normalization(axis=axis)
       layer.adapt(adapt_data)
@@ -118,4 +120,5 @@ class NormalizationTest(keras_parameterized.TestCase,
 
 
 if __name__ == "__main__":
-  tf.test.main()
+  tf.compat.v1.enable_v2_behavior()
+  tf.__internal__.distribute.multi_process_runner.test_main()

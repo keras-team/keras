@@ -154,7 +154,7 @@ tf_class {
   }
   member_method {
     name: "add_weight"
-    argspec: "args=[\'self\', \'name\', \'shape\', \'aggregation\', \'synchronization\', \'initializer\', \'dtype\'], varargs=None, keywords=None, defaults=[\'()\', \'VariableAggregation.SUM\', \'VariableSynchronization.ON_READ\', \'None\', \'None\'], "
+    argspec: "args=[\'self\', \'name\', \'shape\', \'aggregation\', \'synchronization\', \'initializer\', \'dtype\'], varargs=None, keywords=None, defaults=[\'()\', \'VariableAggregationV2.SUM\', \'VariableSynchronization.ON_READ\', \'None\', \'None\'], "
   }
   member_method {
     name: "apply"
@@ -182,6 +182,10 @@ tf_class {
   }
   member_method {
     name: "count_params"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "finalize_state"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {

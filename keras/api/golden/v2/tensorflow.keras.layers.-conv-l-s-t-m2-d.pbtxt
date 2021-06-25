@@ -1,7 +1,8 @@
 path: "tensorflow.keras.layers.ConvLSTM2D"
 tf_class {
   is_instance: "<class \'keras.layers.convolutional_recurrent.ConvLSTM2D\'>"
-  is_instance: "<class \'keras.layers.convolutional_recurrent.ConvRNN2D\'>"
+  is_instance: "<class \'keras.layers.convolutional_recurrent.ConvLSTM\'>"
+  is_instance: "<class \'keras.layers.convolutional_recurrent.ConvRNN\'>"
   is_instance: "<class \'keras.layers.recurrent.RNN\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
@@ -239,7 +240,7 @@ tf_class {
   }
   member_method {
     name: "add_weight"
-    argspec: "args=[\'self\', \'name\', \'shape\', \'dtype\', \'initializer\', \'regularizer\', \'trainable\', \'constraint\', \'use_resource\', \'synchronization\', \'aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'VariableSynchronization.AUTO\', \'VariableAggregation.NONE\'], "
+    argspec: "args=[\'self\', \'name\', \'shape\', \'dtype\', \'initializer\', \'regularizer\', \'trainable\', \'constraint\', \'use_resource\', \'synchronization\', \'aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'VariableSynchronization.AUTO\', \'VariableAggregationV2.NONE\'], "
   }
   member_method {
     name: "apply"
@@ -267,6 +268,10 @@ tf_class {
   }
   member_method {
     name: "count_params"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "finalize_state"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {

@@ -152,6 +152,10 @@ class LocallyConnected1D(Layer):
     self.implementation = implementation
     self.input_spec = InputSpec(ndim=3)
 
+  @property
+  def _use_input_spec_as_call_signature(self):
+    return False
+
   @tf_utils.shape_type_conversion
   def build(self, input_shape):
     if self.data_format == 'channels_first':
@@ -455,6 +459,10 @@ class LocallyConnected2D(Layer):
     self.implementation = implementation
     self.input_spec = InputSpec(ndim=4)
 
+  @property
+  def _use_input_spec_as_call_signature(self):
+    return False
+
   @tf_utils.shape_type_conversion
   def build(self, input_shape):
     if self.data_format == 'channels_last':
@@ -733,7 +741,7 @@ def local_conv_matmul(inputs, kernel, kernel_mask, output_shape):
   kernel = kernel_mask * kernel
   kernel = make_2d(kernel, split_dim=backend.ndim(kernel) // 2)
 
-  output_flat = tf.compat.v1.sparse_matmul(inputs_flat, kernel, b_is_sparse=True)
+  output_flat = tf.matmul(inputs_flat, kernel, b_is_sparse=True)
   output = backend.reshape(output_flat, [
       backend.shape(output_flat)[0],
   ] + output_shape.as_list()[1:])
@@ -796,7 +804,7 @@ def make_2d(tensor, split_dim):
     Tensor of shape
     `(d0 * ... * d(split_dim-1), d(split_dim) * ... * d(N-1))`.
   """
-  shape = tf.compat.v1.shape(tensor)
+  shape = tf.shape(tensor)
   in_dims = shape[:split_dim]
   out_dims = shape[split_dim:]
 

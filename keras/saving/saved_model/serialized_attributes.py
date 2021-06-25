@@ -191,7 +191,9 @@ class SerializedAttributes(object):
       if key in function_dict:
         if (function_dict[key] is not None and  # Not all functions are required
             not isinstance(function_dict[key],
-                           (tf.__internal__.function.Function, save_impl.LayerCall))):
+                           (tf.__internal__.function.Function,
+                            tf.types.experimental.ConcreteFunction,
+                            save_impl.LayerCall))):
           raise ValueError(
               'Function dictionary contained a non-function object: {} (for key'
               ' {})'.format(function_dict[key], key))
