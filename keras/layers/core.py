@@ -1200,6 +1200,11 @@ class Dense(Layer):
     if inputs.dtype.base_dtype != self._compute_dtype_object.base_dtype:
       inputs = tf.cast(inputs, dtype=self._compute_dtype_object)
 
+    if isinstance(inputs, tf.RaggedTensor) and inputs.shape[-1] is not None:
+      # In case we encounter a RaggedTensor with a fixed last dimension (last
+      # dimension not ragged), we can map the call method to the flat values.
+      return tf.ragged.map_flat_values(self.call, inputs)
+
     rank = inputs.shape.rank
     if rank == 2 or rank is None:
       # We use embedding_lookup_sparse as a more efficient matmul operation for
