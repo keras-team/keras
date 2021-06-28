@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests dense attention layers."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -151,10 +147,10 @@ class BaseDenseAttentionTest(tf.test.TestCase, parameterized.TestCase):
 
     # Expected Tensor of shape `[batch_size, tq, tv]`.
     expected_scores_shape = [batch_size, tq, tv]
-    self.assertAllEqual(expected_scores_shape, tf.compat.v1.shape(actual_scores))
+    self.assertAllEqual(expected_scores_shape, tf.shape(actual_scores))
     # Expected Tensor of shape `[batch_size, tq, dim]`.
     expected_shape = [batch_size, tq, dim]
-    self.assertAllEqual(expected_shape, tf.compat.v1.shape(actual))
+    self.assertAllEqual(expected_shape, tf.shape(actual))
 
   def test_serialization(self):
     # Test serialization with causal
@@ -252,7 +248,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     actual = attention_layer([q, v], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]
-    self.assertAllEqual(expected_shape, tf.compat.v1.shape(actual))
+    self.assertAllEqual(expected_shape, tf.shape(actual))
 
   def test_shape_with_key(self):
     # Query tensor of shape [1, 2, 4]
@@ -271,7 +267,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     actual = attention_layer([q, v, k], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]
-    self.assertAllEqual(expected_shape, tf.compat.v1.shape(actual))
+    self.assertAllEqual(expected_shape, tf.shape(actual))
 
   def test_multi_dim(self):
     # Query tensor of shape [1, 1, 1]
@@ -594,7 +590,7 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
     actual = attention_layer([q, v], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]
-    self.assertAllEqual(expected_shape, tf.compat.v1.shape(actual))
+    self.assertAllEqual(expected_shape, tf.shape(actual))
 
   def test_shape_no_scale(self):
     # Query tensor of shape [1, 2, 4]
@@ -609,7 +605,7 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
     actual = attention_layer([q, v], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]
-    self.assertAllEqual(expected_shape, tf.compat.v1.shape(actual))
+    self.assertAllEqual(expected_shape, tf.shape(actual))
 
   def test_shape_with_key(self):
     # Query tensor of shape [1, 2, 4]
@@ -628,7 +624,7 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
     actual = attention_layer([q, v, k], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]
-    self.assertAllEqual(expected_shape, tf.compat.v1.shape(actual))
+    self.assertAllEqual(expected_shape, tf.shape(actual))
 
   def test_multi_dim(self):
     # Query tensor of shape [1, 1, 1]

@@ -9,10 +9,8 @@ package(
         "//keras:__subpackages__",
         "//third_party/tensorflow/python/distribute:__pkg__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
-
-exports_files(["LICENSE"])
 
 filegroup(
     name = "all_py_srcs",
@@ -30,24 +28,11 @@ py_library(
         "hdf5_format.py",
         "model_config.py",
         "save.py",
-        "saved_model/base_serialization.py",
-        "saved_model/constants.py",
-        "saved_model/json_utils.py",
-        "saved_model/layer_serialization.py",
-        "saved_model/load.py",
-        "saved_model/metric_serialization.py",
-        "saved_model/model_serialization.py",
-        "saved_model/network_serialization.py",
-        "saved_model/save.py",
-        "saved_model/save_impl.py",
-        "saved_model/serialized_attributes.py",
-        "saved_model/utils.py",
         "saved_model_experimental.py",
         "saving_utils.py",
     ],
     srcs_version = "PY3",
     deps = [
-        ":load_context",
         "//:expect_h5py_installed",
         "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
@@ -57,20 +42,13 @@ py_library(
         "//keras:regularizers",
         "//keras/engine:input_spec",
         "//keras/mixed_precision:autocast_variable",
-        "//keras/protobuf:saved_metadata_proto_py",
+        "//keras/protobuf:saved_metadata_proto_py_pb2",
+        "//keras/saving/saved_model",
+        "//keras/saving/utils_v1",
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
         "//keras/utils:mode_keys",
     ],
-)
-
-py_library(
-    name = "load_context",
-    srcs = [
-        "saved_model/load_context.py",
-    ],
-    srcs_version = "PY3",
-    deps = [],
 )
 
 tf_py_test(
@@ -157,27 +135,6 @@ tf_py_test(
 )
 
 tf_py_test(
-    name = "saved_model_test",
-    size = "medium",
-    srcs = ["saved_model/saved_model_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "no_oss",  # TODO(b/175911576)
-        "no_rocm",
-        "no_windows",
-        "notap",  # TODO(b/175911576)
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
-    ],
-)
-
-tf_py_test(
     name = "saving_utils_test",
     size = "medium",
     srcs = ["saving_utils_test.py"],
@@ -189,35 +146,5 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:combinations",
-    ],
-)
-
-tf_py_test(
-    name = "revive_test",
-    size = "medium",
-    srcs = ["saved_model/revive_test.py"],
-    python_version = "PY3",
-    shard_count = 8,
-    tags = [
-        "no_windows",  # b/158005583
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-    ],
-)
-
-tf_py_test(
-    name = "json_utils_test",
-    size = "small",
-    srcs = ["saved_model/json_utils_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":saving",
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
     ],
 )

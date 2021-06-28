@@ -12,18 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Utility functions for control flow.
 
 This file is copied from tensorflow/python/ops/control_flow_util.py.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
-from tensorflow.python.framework import smart_cond as smart_module
+import tensorflow.compat.v2 as tf
 
 
 def InXlaContext(graph):
@@ -106,9 +100,9 @@ def smart_cond(pred, true_fn=None, false_fn=None, name=None):  # pylint: disable
     TypeError: If `true_fn` or `false_fn` is not callable.
   """
   if isinstance(pred, tf.Variable):
-    return tf.compat.v1.cond(
+    return tf.cond(
         pred, true_fn=true_fn, false_fn=false_fn, name=name)
-  return smart_module.smart_cond(
+  return tf.__internal__.smart_cond.smart_cond(
       pred, true_fn=true_fn, false_fn=false_fn, name=name)
 
 

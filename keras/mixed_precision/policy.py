@@ -13,22 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Policy class for mixed precision training."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import contextlib
-
-import six
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
 from keras.mixed_precision import loss_scale as keras_loss_scale_module
 from keras.utils import generic_utils
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.training.experimental import mixed_precision_global_state
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -70,8 +64,9 @@ class Policy(object):
 
   In the example above, passing `dtype='float32'` to the layer is equivalent to
   passing `dtype=tf.keras.mixed_precision.Policy('float32')`. In general,
-  passing a dtype to a layer is equivalent to passing the corresponding policy,
-  so it is never necessary to explicitly construct a `Policy` object.
+  passing a dtype policy name to a layer is equivalent to passing the
+  corresponding policy, so it is never necessary to explicitly construct a
+  `Policy` object.
 
   Note: `Model.compile` will automatically wrap an optimizer with a
   `tf.keras.mixed_precision.LossScaleOptimizer` if you use the `'mixed_float16'`
@@ -145,8 +140,7 @@ class Policy(object):
   ...     # With mixed precision, self.kernel will be casted to float16
   ...     return tf.linalg.matmul(inputs, self.kernel)
   ...
-  >>> dtype_policy = tf.keras.mixed_precision.Policy('mixed_float16')
-  >>> layer = SimpleDense(dtype=dtype_policy)
+  >>> layer = SimpleDense(dtype='mixed_float16')
   >>> y = layer(tf.ones((10, 10)))
   >>> y.dtype
   tf.float16
@@ -178,9 +172,7 @@ class Policy(object):
   ...     # occur when adding `inputs` to `rand`.
   ...     rand = tf.random.normal(shape=inputs.shape, dtype=inputs.dtype)
   ...     return inputs + rand
-
-  >>> dtype_policy = tf.keras.mixed_precision.Policy('mixed_float16')
-  >>> layer = AddRandom(dtype=dtype_policy)
+  >>> layer = AddRandom(dtype='mixed_float16')
   >>> y = layer(x)
   >>> y.dtype
   tf.float16
@@ -195,7 +187,7 @@ class Policy(object):
     if isinstance(name, tf.DType):
       raise TypeError("'name' must be a string, not a DType. "
                       "Instead, pass DType.name. Got: %s" % (name.name,))
-    elif not isinstance(name, six.string_types):
+    elif not isinstance(name, str):
       raise TypeError("'name' must be a string, but got: %s" % (name,))
     self._name = name
     self._compute_dtype, self._variable_dtype = self._parse_name(name)
@@ -247,8 +239,7 @@ class Policy(object):
       error = ("Cannot convert value %s to a mixed precision Policy. "
                "Valid policies include 'mixed_float16', 'mixed_bfloat16', "
                "and the name of any dtype such as 'float32'." % (name,))
-      # six.raise_from suppresses the original TypeError from being raised
-      six.raise_from(ValueError(error), None)
+      raise ValueError(error)
     return dtype, dtype
 
   @property
@@ -371,10 +362,11 @@ class PolicyV1(Policy):
     else:
       self._using_default_loss_scale = False
     if loss_scale and self._compute_dtype not in (None, 'float16'):
-      tf_logging.warn('Creating a Policy with a loss scale is only useful for '
-                      'float16 policies. You passed loss_scale=%r for policy '
-                      '%s. Consider not passing any loss_scale instead.' %
-                      (loss_scale, name))
+      tf_logging.warning(
+          'Creating a Policy with a loss scale is only useful for '
+          'float16 policies. You passed loss_scale=%r for policy '
+          '%s. Consider not passing any loss_scale instead.' %
+          (loss_scale, name))
     self._loss_scale = keras_loss_scale_module.get(loss_scale)
 
   @property
@@ -451,12 +443,12 @@ def global_policy():
 
 
 def _check_if_mixed_precision_graph_rewrite_is_enabled(policy):
-  if mixed_precision_global_state.mixed_precision_graph_rewrite_is_enabled:
+  if tf.__internal__.train.is_mixed_precision_graph_rewrite_enabled():
     raise ValueError(
         'The global dtype policy cannot be set to "{policy.name}", because the '
         'mixed precision graph rewrite has already been enabled.\n'
         'At most, one of the following can be called:\n\n'
-        '  1. tf.train.experimental.enable_mixed_precision_graph_rewrite() '
+        '  1. tf.compat.v1.train.enable_mixed_precision_graph_rewrite() '
         '(You called this first)\n'
         '  2. tf.keras.mixed_precision.experimental.set_policy() with a mixed '
         'precision policy (You called this second)\n\n'
@@ -522,7 +514,7 @@ def set_policy(policy):
                      '"mixed_float16", but got policy: %s'
                      % (policy.name,))
   _global_policy = policy
-  mixed_precision_global_state.using_mixed_precision_policy = is_mixed_policy
+  tf.__internal__.train.set_using_mixed_precision_policy(is_mixed_policy)
 
 
 # TODO(reedwm): Make this thread local

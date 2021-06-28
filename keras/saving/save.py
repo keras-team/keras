@@ -14,13 +14,7 @@
 # ==============================================================================
 """Keras model saving code."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
-
-import six
+import tensorflow.compat.v2 as tf
 from keras.saving import hdf5_format
 from keras.saving import saving_utils
 from keras.saving.saved_model import load as saved_model_load
@@ -28,8 +22,6 @@ from keras.saving.saved_model import load_context
 from keras.saving.saved_model import save as saved_model_save
 from keras.utils import generic_utils
 from keras.utils.io_utils import path_to_string
-from tensorflow.python.saved_model import loader_impl
-from tensorflow.python.util import keras_deps
 from tensorflow.python.util.tf_export import keras_export
 
 # pylint: disable=g-import-not-at-top
@@ -132,6 +124,11 @@ def save_model(model,
 
   filepath = path_to_string(filepath)
 
+  # If the user has not already called fit or built the underlying metrics, we
+  # should do that before saving to ensure the metric names have all
+  # appropriate name transformations applied.
+  saving_utils.try_build_compiled_arguments(model)
+
   if (save_format == 'h5' or
       (h5py is not None and isinstance(filepath, h5py.File)) or
       saving_utils.is_hdf5_filepath(filepath)):
@@ -148,8 +145,9 @@ def save_model(model,
     hdf5_format.save_model_to_hdf5(
         model, filepath, overwrite, include_optimizer)
   else:
-    saved_model_save.save(model, filepath, overwrite, include_optimizer,
-                          signatures, options, save_traces)
+    with generic_utils.SharedObjectSavingScope():
+      saved_model_save.save(model, filepath, overwrite, include_optimizer,
+                            signatures, options, save_traces)
 
 
 @keras_export('keras.models.load_model')
@@ -194,17 +192,17 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):  # py
       ImportError: if loading from an hdf5 file and h5py is not available.
       IOError: In case of an invalid savefile.
   """
-  with generic_utils.CustomObjectScope(custom_objects or {}):
-    with load_context.load_context(options):
-      if (h5py is not None and
-          (isinstance(filepath, h5py.File) or h5py.is_hdf5(filepath))):
-        return hdf5_format.load_model_from_hdf5(filepath, custom_objects,
-                                                compile)
+  with generic_utils.SharedObjectLoadingScope():
+    with generic_utils.CustomObjectScope(custom_objects or {}):
+      with load_context.load_context(options):
+        if (h5py is not None and
+            (isinstance(filepath, h5py.File) or h5py.is_hdf5(filepath))):
+          return hdf5_format.load_model_from_hdf5(filepath, custom_objects,
+                                                  compile)
 
-      filepath = path_to_string(filepath)
-      if isinstance(filepath, six.string_types):
-        loader_impl.parse_saved_model(filepath)
-        return saved_model_load.load(filepath, compile, options)
+        filepath = path_to_string(filepath)
+        if isinstance(filepath, str):
+          return saved_model_load.load(filepath, compile, options)
 
   raise IOError(
       'Unable to load model. Filepath is not an hdf5 file (or h5py is not '
@@ -212,4 +210,4 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):  # py
 
 # Inject the load_model function to keras_deps to remove the dependency
 # from TFLite to Keras.
-keras_deps.register_load_model_function(load_model)
+tf.__internal__.register_load_model_function(load_model)

@@ -9,7 +9,7 @@ package(
         "//keras:__subpackages__",
         "//third_party/tensorflow:__subpackages__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(
@@ -19,10 +19,23 @@ filegroup(
 )
 
 py_library(
+    name = "layers",
+    srcs = ["__init__.py"],
+    deps = [
+        ":convolutional",
+        ":core",
+        ":layers_base",
+        ":normalization",
+        ":pooling",
+    ],
+)
+
+py_library(
     name = "layers_base",
     srcs = [
         "__init__.py",
         "base.py",
+        "variable_scope_shim.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -62,7 +75,7 @@ py_library(
     deps = [
         ":layers_base",
         "//:expect_tensorflow_installed",
-        "//keras/layers:normalization",
+        "//keras/layers/normalization",
     ],
 )
 
@@ -142,5 +155,22 @@ cuda_py_test(
         ":convolutional",
         ":normalization",
         "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "variable_scope_shim_test",
+    size = "small",
+    srcs = ["variable_scope_shim_test.py"],
+    main = "variable_scope_shim_test.py",
+    python_version = "PY3",
+    tags = ["no_windows"],
+    deps = [
+        ":core",
+        ":layers_base",
+        "//:expect_tensorflow_installed",
+        "//keras:combinations",
+        "//keras/engine:base_layer",
+        "//keras/engine:input_spec",
     ],
 )

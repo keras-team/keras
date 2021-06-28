@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-import tensorflow as tf
 """Strategy combinations for combinations.combine()."""
+
+import tensorflow.compat.v2 as tf
 
 
 multidevice_strategies = [
@@ -49,11 +49,21 @@ strategies_minus_tpu = [
 multi_worker_mirrored_strategies = [
     tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
     tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
-    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
+    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu
 ]
 
 tpu_strategies = [
     tf.__internal__.distribute.combinations.tpu_strategy,
+]
+
+parameter_server_strategies_single_worker = [
+    tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_cpu,
+    tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_1gpu,
+]
+
+parameter_server_strategies_multi_worker = [
+    tf.__internal__.distribute.combinations.parameter_server_strategy_3worker_2ps_cpu,
+    tf.__internal__.distribute.combinations.parameter_server_strategy_3worker_2ps_1gpu,
 ]
 
 all_strategies = strategies_minus_tpu + tpu_strategies

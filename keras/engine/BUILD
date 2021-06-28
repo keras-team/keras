@@ -14,7 +14,7 @@ package(
         "//third_party/tensorflow/python:__pkg__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(
@@ -51,7 +51,7 @@ py_library(
         ":keras_tensor",
         ":node",
         "//:expect_h5py_installed",
-        "//:expect_six_installed",
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
         "//keras:activations",
@@ -59,12 +59,13 @@ py_library(
         "//keras:callbacks",
         "//keras:callbacks_v1",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:losses",
         "//keras:metrics",
         "//keras:optimizers",
         "//keras:regularizers",
         "//keras/distribute",
+        "//keras/distribute:distribute_coordinator_utils",
+        "//keras/initializers",
         "//keras/mixed_precision:autocast_variable",
         "//keras/mixed_precision:loss_scale_optimizer",
         "//keras/mixed_precision:policy",
@@ -101,10 +102,9 @@ py_library(
         ":input_spec",
         ":node",
         "//:expect_numpy_installed",
-        "//:expect_six_installed",
         "//keras:backend",
         "//keras:constraints",
-        "//keras:initializers",
+        "//keras/initializers",
         # TODO(keras-team): Fix the cyclar deps between layer and metrics.
         # "//keras:metrics",
         "//keras:regularizers",
@@ -127,6 +127,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/utils:dataset_creator",
         "//keras/utils:engine_utils",
         "//keras/utils:tf_utils",
     ],
@@ -137,7 +138,6 @@ py_library(
     srcs = ["input_spec.py"],
     srcs_version = "PY3",
     deps = [
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
     ],
@@ -148,7 +148,6 @@ py_library(
     srcs = ["keras_tensor.py"],
     srcs_version = "PY3",
     deps = [
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras/utils:object_identity",
     ],
@@ -158,7 +157,6 @@ py_library(
     name = "base_preprocessing_layer",
     srcs = [
         "base_preprocessing_layer.py",
-        "base_preprocessing_layer_v1.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -386,7 +384,6 @@ tf_py_test(
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/layers",
@@ -526,9 +523,9 @@ tf_py_test(
         "//keras",
         "//keras:backend",
         "//keras:combinations",
-        "//keras:initializers",
         "//keras:models",
         "//keras:testing_utils",
+        "//keras/initializers",
         "//keras/layers",
         "//keras/utils:layer_utils",
         "//keras/utils:tf_utils",
@@ -566,6 +563,7 @@ tf_py_test(
         ":base_layer",
         ":engine",
         "//:expect_numpy_installed",
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:backend",

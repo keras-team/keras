@@ -13,26 +13,19 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
-"""A `Network` is way to compose layers: the topological form of a `Model`.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""A `Network` is way to compose layers: the topological form of a `Model`."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 import copy
 import itertools
 import warnings
-
-from six.moves import zip  # pylint: disable=redefined-builtin
 from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import input_layer as input_layer_module
 from keras.engine import input_spec
-from keras.engine import keras_tensor
 from keras.engine import node as node_module
 from keras.engine import training as training_lib
 from keras.engine import training_utils
@@ -41,7 +34,6 @@ from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.tools.docs import doc_controls
 
 
@@ -102,7 +94,7 @@ class Functional(training_lib.Model):
       training_lib.Model._TF_MODULE_IGNORED_PROPERTIES
   ))
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, inputs, outputs, name=None, trainable=True,
                **kwargs):
     # This is used by the Model class, since we have some logic to swap the
@@ -116,7 +108,7 @@ class Functional(training_lib.Model):
     super(Functional, self).__init__(name=name, trainable=trainable)
     self._init_graph_network(inputs, outputs)
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _init_graph_network(self, inputs, outputs):
     base_layer.keras_api_gauge.get_cell('Functional').set(True)
     # This method is needed for Sequential to reinitialize graph network when
@@ -147,7 +139,7 @@ class Functional(training_lib.Model):
     else:
       self._enable_dict_to_input_mapping = False
 
-    if not keras_tensor.keras_tensors_enabled():
+    if not tf.compat.v1.executing_eagerly_outside_functions():
       if any(not hasattr(tensor, '_keras_history') for tensor in self.outputs):
         base_layer_utils.create_keras_history(self._nested_outputs)
 
@@ -368,7 +360,7 @@ class Functional(training_lib.Model):
   @property
   def _checkpoint_dependencies(self):
     dependencies = [
-        trackable.TrackableReference(name=name, ref=layer)
+        tf.__internal__.tracking.TrackableReference(name=name, ref=layer)
         for name, layer in self._layer_checkpoint_dependencies.items()]
     dependencies.extend(super(Functional, self)._checkpoint_dependencies)
     return dependencies
@@ -666,12 +658,13 @@ class Functional(training_lib.Model):
     Raises:
         ValueError: In case of improperly formatted config dict.
     """
-    input_tensors, output_tensors, created_layers = reconstruct_from_config(
-        config, custom_objects)
-    model = cls(inputs=input_tensors, outputs=output_tensors,
-                name=config.get('name'))
-    connect_ancillary_layers(model, created_layers)
-    return model
+    with generic_utils.SharedObjectLoadingScope():
+      input_tensors, output_tensors, created_layers = reconstruct_from_config(
+          config, custom_objects)
+      model = cls(inputs=input_tensors, outputs=output_tensors,
+                  name=config.get('name'))
+      connect_ancillary_layers(model, created_layers)
+      return model
 
   def _validate_graph_inputs_and_outputs(self):
     """Validates the inputs and outputs of a Graph Network."""
@@ -870,12 +863,12 @@ class Functional(training_lib.Model):
   def _trackable_saved_model_saver(self):
     return network_serialization.NetworkSavedModelSaver(self)
 
-  def _get_save_spec(self, dynamic_batch=True):
+  def _get_save_spec(self, dynamic_batch=True, inputs_only=True):
     if getattr(self, '_has_explicit_input_shape', True):
       # Functional models and Sequential models that have an explicit input
       # shape should use the batch size set by the input layer.
       dynamic_batch = False
-    return super(Functional, self)._get_save_spec(dynamic_batch)
+    return super(Functional, self)._get_save_spec(dynamic_batch, inputs_only)
 
 
 def _make_node_key(layer_name, node_index):
@@ -1076,7 +1069,7 @@ def _map_subgraph_network(inputs, outputs):
   Returns:
     A tuple of List{Node] and List[Layer].
   """
-  if not keras_tensor.keras_tensors_enabled():
+  if not tf.compat.v1.executing_eagerly_outside_functions():
     base_layer_utils.create_keras_history(outputs)
   # Keep only nodes and layers in the topology between inputs and outputs.
   _, nodes_by_depth, layers, _ = _map_graph_network(inputs, outputs)
@@ -1341,21 +1334,23 @@ def get_network_config(network, serialize_layer_fn=None):
         node_conversion_map[node_key] = kept_nodes
         kept_nodes += 1
   layer_configs = []
-  for layer in network.layers:  # From the earliest layers on.
-    filtered_inbound_nodes = []
-    for original_node_index, node in enumerate(layer._inbound_nodes):
-      node_key = _make_node_key(layer.name, original_node_index)
-      if node_key in network._network_nodes and not node.is_input:
-        # The node is relevant to the model:
-        # add to filtered_inbound_nodes.
-        node_data = node.serialize(_make_node_key, node_conversion_map)
-        filtered_inbound_nodes.append(node_data)
 
-    layer_config = serialize_layer_fn(layer)
-    layer_config['name'] = layer.name
-    layer_config['inbound_nodes'] = filtered_inbound_nodes
-    layer_configs.append(layer_config)
-  config['layers'] = layer_configs
+  with generic_utils.SharedObjectSavingScope():
+    for layer in network.layers:  # From the earliest layers on.
+      filtered_inbound_nodes = []
+      for original_node_index, node in enumerate(layer._inbound_nodes):
+        node_key = _make_node_key(layer.name, original_node_index)
+        if node_key in network._network_nodes and not node.is_input:
+          # The node is relevant to the model:
+          # add to filtered_inbound_nodes.
+          node_data = node.serialize(_make_node_key, node_conversion_map)
+          filtered_inbound_nodes.append(node_data)
+
+      layer_config = serialize_layer_fn(layer)
+      layer_config['name'] = layer.name
+      layer_config['inbound_nodes'] = filtered_inbound_nodes
+      layer_configs.append(layer_config)
+    config['layers'] = layer_configs
 
   # Gather info about inputs and outputs.
   model_inputs = []

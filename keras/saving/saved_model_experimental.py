@@ -13,29 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 """Deprecated experimental Keras SavedModel implementation."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import os
 import warnings
-
-import six
-from keras import backend as K
+from keras import backend
 from keras import optimizer_v1
 from keras.optimizer_v2 import optimizer_v2
 from keras.saving import model_config
 from keras.saving import saving_utils
+from keras.saving import utils_v1 as model_utils
 from keras.utils import mode_keys
 from keras.utils.generic_utils import LazyLoader
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.saved_model import builder as saved_model_builder
-from tensorflow.python.saved_model import constants
-from tensorflow.python.saved_model import model_utils
-from tensorflow.python.saved_model import utils_impl as saved_model_utils
-from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.util.tf_export import keras_export
 
 # To avoid circular dependencies between keras/engine and keras/saving,
@@ -52,6 +43,10 @@ sequential = LazyLoader(
     "sequential", globals(),
     "keras.engine.sequential")
 # pylint:enable=g-inconsistent-quotes
+
+
+# File name for json format of SavedModel.
+SAVED_MODEL_FILENAME_JSON = 'saved_model.json'
 
 
 @keras_export(v1=['keras.experimental.export_saved_model'])
@@ -143,16 +138,16 @@ def _export_model_json(model, saved_model_path):
   """Saves model configuration as a json string under assets folder."""
   model_json = model.to_json()
   model_json_filepath = os.path.join(
-      saved_model_utils.get_or_create_assets_dir(saved_model_path),
-      tf.compat.as_text(constants.SAVED_MODEL_FILENAME_JSON))
+      _get_or_create_assets_dir(saved_model_path),
+      tf.compat.as_text(SAVED_MODEL_FILENAME_JSON))
   with tf.io.gfile.GFile(model_json_filepath, 'w') as f:
     f.write(model_json)
 
 
 def _export_model_variables(model, saved_model_path):
   """Saves model weights in checkpoint format under variables folder."""
-  saved_model_utils.get_or_create_variables_dir(saved_model_path)
-  checkpoint_prefix = saved_model_utils.get_variables_path(saved_model_path)
+  _get_or_create_variables_dir(saved_model_path)
+  checkpoint_prefix = _get_variables_path(saved_model_path)
   model.save_weights(checkpoint_prefix, save_format='tf', overwrite=True)
   return checkpoint_prefix
 
@@ -176,7 +171,7 @@ def _save_v1_format(model, path, custom_objects, as_text, input_signature):
           'Subclassed models can only be exported for serving. Please set '
           'argument serving_only=True.')
 
-  builder = saved_model_builder._SavedModelBuilder(path)  # pylint: disable=protected-access
+  builder = tf.__internal__.saved_model.SavedModelBuilder(path)  # pylint: disable=protected-access
 
   # Manually save variables to export them in an object-based checkpoint. This
   # skips the `builder.add_meta_graph_and_variables()` step, which saves a
@@ -217,12 +212,12 @@ def _save_v1_format(model, path, custom_objects, as_text, input_signature):
 
 def _get_var_list(model):
   """Returns list of all checkpointed saveable objects in the model."""
-  var_list, _, _ = graph_view.ObjectGraphView(model).serialize_object_graph()
+  var_list, _, _ = tf.__internal__.tracking.ObjectGraphView(model).serialize_object_graph()
   return var_list
 
 
 def create_placeholder(spec):
-  return K.placeholder(shape=spec.shape, dtype=spec.dtype, name=spec.name)
+  return backend.placeholder(shape=spec.shape, dtype=spec.dtype, name=spec.name)
 
 
 def _export_mode(
@@ -252,7 +247,7 @@ def _export_mode(
         'Model does not have an optimizer. Cannot export mode %s' % mode)
 
   model_graph = tf.compat.v1.get_default_graph()
-  with tf.Graph().as_default() as g, K.learning_phase_scope(
+  with tf.Graph().as_default() as g, backend.learning_phase_scope(
       mode == mode_keys.ModeKeys.TRAIN):
 
     if input_signature is None:
@@ -337,7 +332,7 @@ def _create_signature_def_map(model, mode):
   local_vars = set(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.LOCAL_VARIABLES))
   vars_to_add = set()
   if metrics is not None:
-    for key, value in six.iteritems(metrics):
+    for key, value in metrics.items():
       if isinstance(value, metrics_lib.Metric):
         vars_to_add.update(value.variables)
         # Convert Metric instances to (value_tensor, update_op) tuple.
@@ -409,7 +404,7 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
   model_json_filepath = os.path.join(
       tf.compat.as_bytes(saved_model_path),
       tf.compat.as_bytes(tf.saved_model.ASSETS_DIRECTORY),
-      tf.compat.as_bytes(constants.SAVED_MODEL_FILENAME_JSON))
+      tf.compat.as_bytes(SAVED_MODEL_FILENAME_JSON))
   with tf.io.gfile.GFile(model_json_filepath, 'r') as f:
     model_json = f.read()
   model = model_config.model_from_json(
@@ -422,3 +417,43 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
       tf.compat.as_text(tf.saved_model.VARIABLES_FILENAME))
   model.load_weights(checkpoint_prefix)
   return model
+
+
+#### Directory / path helpers
+
+
+def _get_or_create_variables_dir(export_dir):
+  """Return variables sub-directory, or create one if it doesn't exist."""
+  variables_dir = _get_variables_dir(export_dir)
+  tf.io.gfile.makedirs(variables_dir)
+  return variables_dir
+
+
+def _get_variables_dir(export_dir):
+  """Return variables sub-directory in the SavedModel."""
+  return os.path.join(
+      tf.compat.as_text(export_dir),
+      tf.compat.as_text(tf.saved_model.VARIABLES_DIRECTORY))
+
+
+def _get_variables_path(export_dir):
+  """Return the variables path, used as the prefix for checkpoint files."""
+  return os.path.join(
+      tf.compat.as_text(_get_variables_dir(export_dir)),
+      tf.compat.as_text(tf.saved_model.VARIABLES_FILENAME))
+
+
+def _get_or_create_assets_dir(export_dir):
+  """Return assets sub-directory, or create one if it doesn't exist."""
+  assets_destination_dir = _get_assets_dir(export_dir)
+
+  tf.io.gfile.makedirs(assets_destination_dir)
+
+  return assets_destination_dir
+
+
+def _get_assets_dir(export_dir):
+  """Return path to asset directory in the SavedModel."""
+  return os.path.join(
+      tf.compat.as_text(export_dir),
+      tf.compat.as_text(tf.saved_model.ASSETS_DIRECTORY))

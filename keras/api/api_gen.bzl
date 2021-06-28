@@ -89,7 +89,11 @@ def gen_api_init_files(
         compat_init_template_flags += (
             " --compat_init_template=$(location %s)" % compat_init_template
         )
-    packages_to_ignore = ""
+
+    # The Keras package within tf project is accessible via both paths below
+    # Disable them for now so that we don't get SymbolExposedTwiceError
+    # from create_python_api.py
+    packages_to_ignore = ["tensorflow.python.keras", "tensorflow.keras"]
     native.genrule(
         name = name,
         outs = all_output_files,
@@ -99,7 +103,7 @@ def gen_api_init_files(
             " --apiname=" + api_name + " --apiversion=" + str(api_version) +
             compat_api_version_flags + " " + compat_init_template_flags +
             " --packages=" + ",".join(packages) +
-            " --packages_to_ignore=" + packages_to_ignore +
+            " --packages_to_ignore=" + ",".join(packages_to_ignore) +
             " --output_package=" + output_package + " $(OUTS)"
         ),
         srcs = srcs,

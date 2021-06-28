@@ -12,29 +12,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Keras initializers for TF 1.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Keras initializers for TF 1."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
+
+_v1_zeros_initializer = tf.compat.v1.zeros_initializer
+_v1_ones_initializer = tf.compat.v1.ones_initializer
+_v1_constant_initializer = tf.compat.v1.constant_initializer
+_v1_variance_scaling_initializer = tf.compat.v1.variance_scaling_initializer
+_v1_orthogonal_initializer = tf.compat.v1.orthogonal_initializer
+_v1_identity = tf.compat.v1.initializers.identity
+_v1_glorot_uniform_initializer = tf.compat.v1.glorot_uniform_initializer
+_v1_glorot_normal_initializer = tf.compat.v1.glorot_normal_initializer
+
 keras_export(v1=['keras.initializers.Zeros', 'keras.initializers.zeros'], allow_multiple_exports=True)(
-    tf.compat.v1.zeros_initializer)
+    _v1_zeros_initializer)
 keras_export(v1=['keras.initializers.Ones', 'keras.initializers.ones'], allow_multiple_exports=True)(
-    tf.compat.v1.ones_initializer)
+    _v1_ones_initializer)
 keras_export(v1=['keras.initializers.Constant', 'keras.initializers.constant'], allow_multiple_exports=True)(
-    tf.compat.v1.constant_initializer)
+    _v1_constant_initializer)
 keras_export(v1=['keras.initializers.VarianceScaling'], allow_multiple_exports=True)(
-    tf.compat.v1.variance_scaling_initializer)
+    _v1_variance_scaling_initializer)
 keras_export(v1=['keras.initializers.Orthogonal',
-                 'keras.initializers.orthogonal'], allow_multiple_exports=True)(tf.compat.v1.orthogonal_initializer)
+                 'keras.initializers.orthogonal'], allow_multiple_exports=True)(_v1_orthogonal_initializer)
 keras_export(v1=['keras.initializers.Identity',
-                 'keras.initializers.identity'], allow_multiple_exports=True)(tf.compat.v1.initializers.identity)
-keras_export(v1=['keras.initializers.glorot_uniform'], allow_multiple_exports=True)(tf.compat.v1.glorot_uniform_initializer)
-keras_export(v1=['keras.initializers.glorot_normal'], allow_multiple_exports=True)(tf.compat.v1.glorot_normal_initializer)
+                 'keras.initializers.identity'], allow_multiple_exports=True)(_v1_identity)
+keras_export(v1=['keras.initializers.glorot_uniform'], allow_multiple_exports=True)(
+    _v1_glorot_uniform_initializer)
+keras_export(v1=['keras.initializers.glorot_normal'], allow_multiple_exports=True)(
+    _v1_glorot_normal_initializer)
 
 
 @keras_export(v1=['keras.initializers.RandomNormal',

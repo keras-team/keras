@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for V2 LSTM layer."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import copy
 import os
@@ -240,10 +236,10 @@ class LSTMV2Test(keras_parameterized.TestCase):
     targets = np.random.random((num_samples, units))
     model.train_on_batch([inputs] + initial_state, targets)
 
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   def test_return_state(self):
-    if tf.test.is_built_with_rocm():
-      self.skipTest('Skipping the test as ROCm MIOpen does not '
-                    'support padded input yet.')
     num_states = 2
     timesteps = 3
     embedding_dim = 4
@@ -310,11 +306,11 @@ class LSTMV2Test(keras_parameterized.TestCase):
     targets = np.random.random((num_samples, units))
     model.train_on_batch([main_inputs] + initial_state, targets)
 
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   @testing_utils.run_v2_only
   def test_lstm_v2_feature_parity_with_canonical_lstm(self):
-    if tf.test.is_built_with_rocm():
-      self.skipTest('Skipping the test as ROCm MIOpen does not '
-                    'support padded input yet.')
     input_shape = 10
     rnn_state_size = 8
     timestep = 4
@@ -358,10 +354,10 @@ class LSTMV2Test(keras_parameterized.TestCase):
     self.assertAllClose(y_2, y_4, rtol=1e-5, atol=2e-5)
 
   @parameterized.named_parameters(('v0', 0), ('v1', 1), ('v2', 2))
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   def test_implementation_mode_LSTM(self, implementation_mode):
-    if tf.test.is_built_with_rocm():
-      self.skipTest('Skipping the test as ROCm MIOpen does not '
-                    'support padded input yet.')
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
@@ -403,10 +399,10 @@ class LSTMV2Test(keras_parameterized.TestCase):
         optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01))
     model.fit(inputs, targets, epochs=1, batch_size=2, verbose=1)
 
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   def test_masking_with_stacking_LSTM(self):
-    if tf.test.is_built_with_rocm():
-      self.skipTest('Skipping the test as ROCm MIOpen does not '
-                    'support padded input yet.')
     inputs = np.random.random((2, 3, 4))
     targets = np.abs(np.random.random((2, 3, 5)))
     targets /= targets.sum(axis=-1, keepdims=True)
@@ -444,10 +440,10 @@ class LSTMV2Test(keras_parameterized.TestCase):
                         go_backwards=go_backwards)
       if time_major:
         converted_input = keras.layers.Lambda(
-            lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(inputs)
+            lambda t: tf.transpose(t, [1, 0, 2]))(inputs)
         outputs = layer(converted_input)
         outputs = keras.layers.Lambda(
-            lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(outputs)
+            lambda t: tf.transpose(t, [1, 0, 2]))(outputs)
       else:
         outputs = layer(inputs)
       return keras.models.Model(inputs, outputs)
@@ -578,11 +574,11 @@ class LSTMV2Test(keras_parameterized.TestCase):
         },
         input_shape=(num_samples, timesteps, embedding_dim))
 
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm MIOpen does not support float64 yet.')
   @testing_utils.run_v2_only
   def test_float64_LSTM(self):
-    if tf.test.is_built_with_rocm():
-      self.skipTest('Skipping the test as ROCm MIOpen does not '
-                    'support float64 yet.')
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
@@ -618,10 +614,10 @@ class LSTMV2Test(keras_parameterized.TestCase):
     else:
       self.assertEqual(len(layer.get_losses_for(x)), 1)
 
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   def test_statefulness_LSTM(self):
-    if tf.test.is_built_with_rocm():
-      self.skipTest('Skipping the test as ROCm MIOpen does not '
-                    'support padded input yet.')
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
@@ -753,12 +749,11 @@ class LSTMV2Test(keras_parameterized.TestCase):
     model.evaluate(x, y)
     model.predict(x)
 
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   @testing_utils.run_v2_only
   def test_explicit_device_with_go_backward_and_mask(self):
-    if tf.test.is_built_with_rocm():
-      self.skipTest('Skipping the test as ROCm MIOpen does not '
-                    'support padded input yet.')
-
     batch_size = 8
     timestep = 7
     masksteps = 5
@@ -904,16 +899,15 @@ class LSTMGraphRewriteTest(keras_parameterized.TestCase):
     # TF model does not work with scalar model output, specially during
     # aggregation.
     runtime = keras.layers.Lambda(
-        lambda x: tf.compat.v1.expand_dims(x, axis=-1))(runtime)
+        lambda x: tf.expand_dims(x, axis=-1))(runtime)
     model = keras.models.Model(inputs=inputs, outputs=[outputs, runtime])
     self._test_runtime_with_model(model)
 
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   @testing_utils.run_v2_only
   def test_LSTM_runtime_with_mask(self):
-    if tf.test.is_built_with_rocm():
-      self.skipTest('Skipping the test as ROCm MIOpen does not '
-                    'support padded input yet.')
-
     # Masking will affect which backend is selected based on whether the mask
     # is strictly right padded.
     layer = rnn.LSTM(self.rnn_state_size, return_runtime=True)
@@ -927,7 +921,7 @@ class LSTMGraphRewriteTest(keras_parameterized.TestCase):
     # TF model does not work with scalar model output, specially during
     # aggregation.
     runtime = keras.layers.Lambda(
-        lambda x: tf.compat.v1.expand_dims(x, axis=-1))(runtime)
+        lambda x: tf.expand_dims(x, axis=-1))(runtime)
     model = keras.models.Model(inputs=inputs, outputs=[outputs, runtime])
 
     (x_train, y_train), _ = testing_utils.get_test_data(
@@ -982,7 +976,7 @@ class LSTMGraphRewriteTest(keras_parameterized.TestCase):
     a = tf.constant(0)
     b = tf.constant(1)
     # Will always run the lstm layer.
-    outputs, runtime = tf.compat.v1.cond(
+    outputs, runtime = tf.cond(
         tf.less(a, b),
         lambda: layer(inputs),
         lambda: (zeros, dummy_runtime))
@@ -991,7 +985,7 @@ class LSTMGraphRewriteTest(keras_parameterized.TestCase):
     # TF model does not work with scalar model output, specially during
     # aggregation.
     runtime = keras.layers.Lambda(
-        lambda x: tf.compat.v1.expand_dims(x, axis=-1))(runtime)
+        lambda x: tf.expand_dims(x, axis=-1))(runtime)
     model = keras.models.Model(inputs=inputs, outputs=[outputs, runtime])
     self._test_runtime_with_model(model)
 

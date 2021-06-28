@@ -13,18 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for AutoCastVariable."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import os
 import threading
 
 from absl.testing import parameterized
 import numpy as np
-from tensorflow.python.distribute import test_util
 from keras.mixed_precision import autocast_variable
 from keras.optimizer_v2 import adadelta
 from keras.optimizer_v2 import adagrad
@@ -42,14 +38,33 @@ maybe_distribute = tf.__internal__.test.combinations.combine(distribution=[
 
 
 def get_var(val, dtype, name=None):
-  return tf.compat.v1.Variable(val, use_resource=True, dtype=dtype, name=name)
+  return tf.Variable(val, dtype=dtype, name=name)
+
+
+def set_cpu_logical_devices_to_at_least(num):
+  """Create cpu logical devices of at least a given number."""
+  physical_devices = tf.config.list_physical_devices('CPU')
+  if not physical_devices:
+    raise RuntimeError('No CPU found')
+  if len(physical_devices) >= num:
+    return
+  # By default each physical device corresponds to one logical device. We create
+  # multiple logical devices for the last physical device so that we have `num`
+  # logical devices.
+  num = num - len(physical_devices) + 1
+  logical_devices = []
+  for _ in range(num):
+    logical_devices.append(tf.config.LogicalDeviceConfiguration())
+  # Create logical devices from the last device since sometimes the first GPU
+  # is the primary graphic card and may have less memory available.
+  tf.config.set_logical_device_configuration(physical_devices[-1], logical_devices)
 
 
 @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['graph', 'eager']))
 class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
-    test_util.set_logical_devices_to_at_least('CPU', 3)
+    set_cpu_logical_devices_to_at_least(3)
     super(AutoCastVariableTest, self).setUp()
 
   @tf.__internal__.distribute.combinations.generate(maybe_distribute)
@@ -131,10 +146,10 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
     # underlying variable.
     with self.test_session(), distribution.scope():
       for read_dtype in (tf.float32, tf.float16):
-        if tf.distribute.has_strategy():
+        if tf.distribute.has_strategy() and not tf.executing_eagerly():
           # MirroredVariable.assign will (incorrectly) return a Mirrored value
-          # instead of a MirroredVariable. So we cannot properly wrap it in an
-          # AutoCastVariable.
+          # instead of a MirroredVariable in graph mode.
+          # So we cannot properly wrap it in an AutoCastVariable.
           evaluate = self.evaluate
         else:
 
@@ -351,9 +366,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
       # mode. Variable.assign(...).op is None in Eager mode and an op in Graph
       # mode or a tf.function. We test this is also true of AutoCastVariable.
       if tf.executing_eagerly():
-        with self.assertRaisesRegex(
-            AttributeError,
-            'Tensor.op is meaningless when eager execution is enabled'):
+        with self.assertRaises(AttributeError):
           x.op  # pylint: disable=pointless-statement
         self.assertIsNone(x.assign(1.0).op)
         self.assertIsNone(x.assign_add(1.0).op)

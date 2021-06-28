@@ -12,18 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Built-in regularizers.
-"""
-# pylint: disable=invalid-name
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Built-in regularizers."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
+# pylint: disable=invalid-name
 
 import math
-
-import six
 
 from keras import backend
 from keras.utils.generic_utils import deserialize_keras_object
@@ -376,7 +370,7 @@ def get(identifier):
     return None
   if isinstance(identifier, dict):
     return deserialize(identifier)
-  elif isinstance(identifier, six.string_types):
+  elif isinstance(identifier, str):
     return deserialize(str(identifier))
   elif callable(identifier):
     return identifier

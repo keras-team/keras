@@ -14,11 +14,7 @@
 # ==============================================================================
 """Optimizer utilities."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 
 
@@ -33,14 +29,15 @@ def all_reduce_sum_gradients(grads_and_vars):
   """
   grads_and_vars = list(grads_and_vars)
   filtered_grads_and_vars = filter_empty_gradients(grads_and_vars)
-  # We switch to a cross-replica context since there is a bug which causes
-  # IndexedSlices to be converted to dense tensors when all-reduced in a
-  # replica context.
-  # TODO(b/150507409): Do not switch to a cross-replica context once the bug
-  # is fixed.
   if filtered_grads_and_vars:
-    reduced = tf.distribute.get_replica_context().merge_call(
-        _all_reduce_sum_fn, args=(filtered_grads_and_vars,))
+    if strategy_supports_no_merge_call():
+      grads = [pair[0] for pair in filtered_grads_and_vars]
+      reduced = tf.distribute.get_strategy().extended._replica_ctx_all_reduce(  # pylint: disable=protected-access
+          tf.distribute.ReduceOp.SUM, grads)
+    else:
+      # TODO(b/183257003): Remove this branch
+      reduced = tf.distribute.get_replica_context().merge_call(
+          _all_reduce_sum_fn, args=(filtered_grads_and_vars,))
   else:
     reduced = []
   # Copy 'reduced' but add None gradients back in
@@ -147,3 +144,11 @@ def make_gradient_clipvalue_fn(clipvalue):
 def _all_reduce_sum_fn(distribution, grads_and_vars):
   return distribution.extended.batch_reduce_to(tf.distribute.ReduceOp.SUM,
                                                grads_and_vars)
+
+
+def strategy_supports_no_merge_call():
+  """Returns if the current Strategy can operate in pure replica context."""
+  if not tf.distribute.has_strategy():
+    return True
+  strategy = tf.distribute.get_strategy()
+  return not strategy.extended._use_merge_call()  # pylint: disable=protected-access

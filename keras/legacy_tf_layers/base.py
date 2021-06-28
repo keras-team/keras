@@ -12,22 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # =============================================================================
+# pylint: disable=g-classes-have-attributes
 """Contains the base Layer class, from which all layers inherit."""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import copy
-import functools
 import warnings
 from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
+from keras.legacy_tf_layers import variable_scope_shim
 from keras.mixed_precision import policy
 from keras.utils import tf_contextlib
-from keras.utils import tf_inspect
+from tensorflow.python.ops import variable_scope as vs
+from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export
 
 # Avoid breaking users who directly import this symbol from this file.
@@ -37,6 +39,8 @@ InputSpec = base_layer.InputSpec  # pylint: disable=invalid-name
 _KERAS_STYLE_SCOPE = False
 
 
+@keras_export(
+    v1=['keras.__internal__.legacy.layers.experimental.keras_style_scope'])
 @tf_export(v1=['layers.experimental.keras_style_scope'])
 @tf_contextlib.contextmanager
 def keras_style_scope():
@@ -106,6 +110,8 @@ def keras_style_scope():
     _KERAS_STYLE_SCOPE = stack
 
 
+@keras_export(
+    v1=['keras.__internal__.legacy.layers.experimental.set_keras_style'])
 @tf_export(v1=['layers.experimental.set_keras_style'])
 def set_keras_style():
   """Use Keras-style variable management.
@@ -149,6 +155,7 @@ def _is_in_keras_style_scope():
   return _KERAS_STYLE_SCOPE
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.Layer'])
 @tf_export(v1=['layers.Layer'])
 class Layer(base_layer.Layer):
   """Base layer class.
@@ -294,7 +301,7 @@ class Layer(base_layer.Layer):
           new_losses,
           tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
 
-  def _name_scope(self):
+  def _name_scope(self):  # pylint: disable=method-hidden
     """Determines op naming for the Layer."""
     if self._keras_style:
       return super(Layer, self)._name_scope()
@@ -438,7 +445,7 @@ class Layer(base_layer.Layer):
     with tf.compat.v1.variable_scope(
         self._scope, reuse=reuse, auxiliary_name_scope=False) as scope:
       self._current_scope = scope
-      with backend.name_scope(self._name_scope()):
+      with backend.name_scope(self._name_scope()):  # pylint: disable=not-callable
         use_resource = (use_resource or
                         self._use_resource_variables or
                         scope.use_resource)
@@ -462,6 +469,13 @@ class Layer(base_layer.Layer):
           if (tf.compat.v1.executing_eagerly_outside_functions()
               or _should_add_regularizer(variable, existing_variables)):
             self._handle_weight_regularization(name, variable, regularizer)
+            var_store = vs._get_default_variable_store()  # pylint: disable=protected-access
+            # When the shim to get variable scope working in TF2 is used,
+            # We need to explicitly make the shim track the regularization
+            # losses as the collections will not be accessible.
+            if isinstance(var_store,
+                          variable_scope_shim._EagerVariableStore):  # pylint: disable=protected-access
+              var_store.add_regularizer(variable, regularizer)
 
         if init_graph is not None:
           # Handle edge case where a custom getter has overridden `trainable`.
@@ -518,7 +532,7 @@ class Layer(base_layer.Layer):
       try:
         # Some classes which inherit from Layer do not use its constructor, so
         # rather than initializing to None we check for an AttributeError.
-        scope_context_manager = self._always_reuse_variable_scope
+        scope_context_manager = self._always_reuse_variable_scope  # pylint: disable=access-member-before-definition
       except AttributeError:
         scope_context_manager = None
 
@@ -544,7 +558,7 @@ class Layer(base_layer.Layer):
       try:
         call_has_scope_arg = self._call_has_scope_arg
       except AttributeError:
-        self._call_fn_args = fn_args(self.call)
+        self._call_fn_args = variable_scope_shim.fn_args(self.call)
         self._call_has_scope_arg = 'scope' in self._call_fn_args
         call_has_scope_arg = self._call_has_scope_arg
       if call_has_scope_arg:
@@ -577,7 +591,7 @@ class Layer(base_layer.Layer):
 
   def __setattr__(self, value, name):
     # By-pass the automatic dependency tracking performed by the parent Layer.
-    super(tf.__internal__.tracking.Trackable, self).__setattr__(value, name)
+    super(tf.__internal__.tracking.Trackable, self).__setattr__(value, name)  # pylint: disable=bad-super-call
 
   @property
   def _is_legacy_layer(self):
@@ -598,35 +612,3 @@ def _add_elements_to_collection(elements, collection_list):
     for element in elements:
       if id(element) not in collection_set:
         collection.append(element)
-
-
-def fn_args(fn):
-  """Get argument names for function-like object.
-
-  Args:
-    fn: Function, or function-like object (e.g., result of `functools.partial`).
-
-  Returns:
-    `tuple` of string argument names.
-
-  Raises:
-    ValueError: if partial function has positionally bound arguments
-  """
-  if isinstance(fn, functools.partial):
-    args = fn_args(fn.func)
-    args = [a for a in args[len(fn.args):] if a not in (fn.keywords or [])]
-  else:
-    if hasattr(fn, '__call__') and tf_inspect.ismethod(fn.__call__):
-      fn = fn.__call__
-    args = tf_inspect.getfullargspec(fn).args
-    if is_bound_method(fn) and args:
-      # If it's a bound method, it may or may not have a self/cls first
-      # argument; for example, self could be captured in *args.
-      # If it does have a positional argument, it is self/cls.
-      args.pop(0)
-  return tuple(args)
-
-
-def is_bound_method(fn):
-  _, fn = tf.__internal__.decorator.unwrap(fn)
-  return tf_inspect.ismethod(fn) and (fn.__self__ is not None)

@@ -23,20 +23,9 @@ import fnmatch
 import os
 
 PIP_EXCLUDED_FILES = frozenset([
-    'keras/combinations.py',
     'keras/api/create_python_api_wrapper.py',
     'keras/applications/efficientnet_weight_update_util.py',
-    'keras/distribute/keras_correctness_test_base.py',
-    'keras/distribute/model_collection_base.py',
-    'keras/distribute/model_combinations.py',
-    'keras/distribute/multi_worker_testing_utils.py',
-    'keras/distribute/optimizer_combinations.py',
-    'keras/distribute/saved_model_test_base.py',
-    'keras/distribute/simple_models.py',
-    'keras/distribute/strategy_combinations.py',
     'keras/distribute/tpu_strategy_test_utils.py',
-    'keras/distribute/test_example.py',
-    'keras/mixed_precision/test_util.py',
     'keras/tools/pip_package/setup.py',
     'keras/tools/pip_package/create_pip_helper.py',
 ])

@@ -13,11 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Test for allowing TF ops to work with Keras Functional API."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import time
 
@@ -73,7 +70,7 @@ def _multiple_ops_in_middle():
 
 def _shape_op_inference():
   inputs = keras.Input(shape=(10,))
-  x = tf.compat.v1.shape(inputs)
+  x = tf.shape(inputs)
   x = tf.ones(x)
   assert x.shape.as_list() == [None, 10]
   outputs = keras.layers.Dense(10)(x)
@@ -82,7 +79,7 @@ def _shape_op_inference():
 
 def _shape_op_known_batch_size():
   inputs = keras.Input(batch_size=2, shape=(10,))
-  x = tf.compat.v1.shape(inputs)
+  x = tf.shape(inputs)
   x = tf.ones(x)
   assert x.shape.as_list() == [2, 10]
   outputs = keras.layers.Dense(10)(x)
@@ -97,7 +94,7 @@ def _shape_op_known_batch_size():
 
 def _shape_op_slice_and_range():
   inputs = keras.Input(shape=(10,))
-  batch_size = tf.compat.v1.shape(inputs)[0]
+  batch_size = tf.shape(inputs)[0]
   x = tf.range(batch_size * 2)
   assert x.shape.as_list() == [None]
   x = tf.reshape(x, (batch_size, 2))
@@ -108,7 +105,7 @@ def _shape_op_slice_and_range():
 
 def _shape_op_slice_and_range_known_dim():
   inputs = keras.Input(batch_size=2, shape=(10,))
-  batch_size = tf.compat.v1.shape(inputs)[0]
+  batch_size = tf.shape(inputs)[0]
   x = tf.range(batch_size * 3)
   assert x.shape.as_list() == [6]
   x = tf.reshape(x, (batch_size, 3))
@@ -128,7 +125,7 @@ def _int32_manipulation_too_big_for_shape():
   # won't crash when manipulating int32 tensors that are too large
   # to represent shapes.
   inputs = keras.Input(batch_size=2, shape=(10,))
-  batch_size = tf.compat.v1.shape(inputs)[0]
+  batch_size = tf.shape(inputs)[0]
   num_features = 3 * 1024 * 16
   x = tf.range(batch_size * num_features, dtype='int32')
   assert x.shape.as_list() == [inputs.shape[0] * num_features]
@@ -149,7 +146,7 @@ def _int32_manipulation_at_max_shape_dims_limit():
   # won't crash when manipulating int32 tensors that are at the limit
   # of the max tensor size Keras can try inferring values for.
   inputs = keras.Input(batch_size=2, shape=(10,))
-  batch_size = tf.compat.v1.shape(inputs)[0]
+  batch_size = tf.shape(inputs)[0]
   num_features = int(keras_tensor._MAX_TENSOR_RANK / int(inputs.shape[0]))
   x = tf.range(batch_size * num_features, dtype='int32')
   assert x.shape.as_list() == [keras_tensor._MAX_TENSOR_RANK]
@@ -157,7 +154,7 @@ def _int32_manipulation_at_max_shape_dims_limit():
   # Verify that a value was actually inferred for a tensor that *might*
   # represent the shape, bying checking that a value in
   # the range appears in the printed inferred value
-  if keras_tensor.keras_tensors_enabled():
+  if tf.compat.v1.executing_eagerly_outside_functions():
     assert str(keras_tensor._MAX_TENSOR_RANK - 1) in str(x)
 
   x = tf.reshape(x, (batch_size, num_features))
@@ -413,7 +410,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     expected = tf.stack([
         tf.range(8)[::step] for _ in range(batch_size)])
 
-    if keras_tensor.keras_tensors_enabled():
+    if tf.compat.v1.executing_eagerly_outside_functions():
       self.assertIn('tf.__operators__.getitem', (
           x.name for x in model.layers))
       self.assertNotIn('tf.strided_slice', (
@@ -447,7 +444,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     args = tf.constant(stop, shape=(batch_size,))
     expected = x[:stop]
 
-    if keras_tensor.keras_tensors_enabled():
+    if tf.compat.v1.executing_eagerly_outside_functions():
       self.assertIn('tf.__operators__.getitem', (
           x.name for x in model.layers))
       # TODO(b/161925288): Fix the dispatch triggering then uncomment:
@@ -481,7 +478,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     args = tf.constant(index, shape=(batch_size,))
     expected = x[index]
 
-    if keras_tensor.keras_tensors_enabled():
+    if tf.compat.v1.executing_eagerly_outside_functions():
       self.assertIn('tf.__operators__.getitem', (
           x.name for x in model.layers))
       # TODO(b/161925288): Fix the bug then uncomment:
@@ -518,7 +515,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     args = [x, tf.constant(stop, shape=(batch_size,))]
     expected = x[:stop]
 
-    if keras_tensor.keras_tensors_enabled():
+    if tf.compat.v1.executing_eagerly_outside_functions():
       self.assertIn('tf.__operators__.getitem', (
           x.name for x in model.layers))
       self.assertNotIn('tf.strided_slice', (
@@ -555,7 +552,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     expected = tf.stack([
         tf.range(8)[:stop] for _ in range(batch_size)])
 
-    if keras_tensor.keras_tensors_enabled():
+    if tf.compat.v1.executing_eagerly_outside_functions():
       self.assertIn('tf.__operators__.getitem', (
           x.name for x in model.layers))
       self.assertNotIn('tf.strided_slice', (
@@ -605,7 +602,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
         tf.range(8)[start:stop:step]
         for _ in range(4)]) for _ in range(batch_size)])
 
-    if keras_tensor.keras_tensors_enabled():
+    if tf.compat.v1.executing_eagerly_outside_functions():
       self.assertIn('tf.__operators__.getitem', (
           x.name for x in model.layers))
       self.assertNotIn('tf.strided_slice', (
@@ -742,7 +739,7 @@ class InputInEagerTest(keras_parameterized.TestCase):
   def test_size(self):
     x = keras.Input(shape=(3,))
     self.assertAllEqual(x.get_shape().as_list(), [None, 3])
-    sz = tf.compat.v1.size(x)
+    sz = tf.size(x)
 
     # This is now a graph tensor, and should be able to continue in graphland
     self.assertIn('Size', sz.name)

@@ -13,9 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """Benchmark for Keras text vectorization preprocessing layer's adapt method."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow as tf
 
@@ -35,11 +32,11 @@ def reduce_fn(state, values):
   # If this is the first iteration, we pick the first value to be 'k',
   # which helps with precision - we assume that k is close to an average
   # value and calculate mean and variance with respect to that.
-  k = tf.compat.v1.cond(tf.equal(n, 0), lambda: values[0], lambda: k)
+  k = tf.cond(tf.equal(n, 0), lambda: values[0], lambda: k)
 
   sum_v = tf.reduce_sum(values, axis=0)
   sum_v2 = tf.reduce_sum(tf.square(values), axis=0)
-  ones = tf.compat.v1.ones_like(values, dtype=tf.int32)
+  ones = tf.ones_like(values, dtype=tf.int32)
   batch_size = tf.reduce_sum(ones, axis=0)
   batch_size_f = tf.cast(batch_size, tf.float32)
 
@@ -65,7 +62,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
     for _ in range(num_repeats):
       ds = tf.data.Dataset.range(num_elements)
       ds = ds.map(
-          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.float32), -1))
+          lambda x: tf.expand_dims(tf.cast(x, tf.float32), -1))
       ds = ds.batch(batch_size)
 
       starts.append(time.time())
@@ -93,7 +90,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
     for _ in range(num_repeats):
       ds = tf.data.Dataset.range(num_elements)
       ds = ds.map(
-          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.float32), -1))
+          lambda x: tf.expand_dims(tf.cast(x, tf.float32), -1))
       ds = ds.batch(batch_size)
 
       starts.append(time.time())

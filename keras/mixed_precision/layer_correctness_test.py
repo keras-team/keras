@@ -13,11 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Tests various Layer subclasses have correct outputs with mixed precision."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -33,12 +30,14 @@ from keras.layers import embeddings
 from keras.layers import local
 from keras.layers import merge
 from keras.layers import noise
-from keras.layers import normalization
-from keras.layers import normalization_v2
 from keras.layers import pooling
 from keras.layers import recurrent
 from keras.layers import recurrent_v2
 from keras.layers import wrappers
+from keras.layers.normalization import batch_normalization
+from keras.layers.normalization import layer_normalization
+from keras.layers.preprocessing import image_preprocessing
+from keras.layers.preprocessing import normalization
 from keras.mixed_precision import policy
 
 
@@ -46,6 +45,19 @@ def create_mirrored_strategy():
   # The test creates two virtual CPUs, and we use both of them to test with
   # multiple devices.
   return tf.distribute.MirroredStrategy(['cpu:0', 'cpu:1'])
+
+
+def _create_normalization_layer_with_adapt():
+  layer = normalization.Normalization()
+  layer.adapt(np.random.normal(size=(10, 4)))
+  return layer
+
+
+def _create_normalization_layer_without_adapt():
+  return normalization.Normalization(
+      mean=np.random.normal(size=(4,)),
+      variance=np.random.uniform(0.5, 2., size=(4,))
+  )
 
 
 class LayerCorrectnessTest(keras_parameterized.TestCase):
@@ -117,11 +129,11 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
       ('GaussianNoise', lambda: noise.GaussianNoise(0.5), (2, 2)),
       ('GaussianDropout', lambda: noise.GaussianDropout(0.5), (2, 2)),
       ('AlphaDropout', lambda: noise.AlphaDropout(0.5), (2, 2)),
-      ('BatchNormalization', normalization_v2.BatchNormalization,
+      ('BatchNormalization', batch_normalization.BatchNormalization,
        (2, 2), 1e-2, 1e-2),
-      ('LayerNormalization', normalization.LayerNormalization, (2, 2)),
+      ('LayerNormalization', layer_normalization.LayerNormalization, (2, 2)),
       ('LayerNormalizationUnfused',
-       lambda: normalization.LayerNormalization(axis=1), (2, 2, 2)),
+       lambda: layer_normalization.LayerNormalization(axis=1), (2, 2, 2)),
       ('MaxPooling2D', pooling.MaxPooling2D, (2, 2, 2, 1)),
       ('AveragePooling2D', pooling.AveragePooling2D, (2, 2, 2, 1)),
       ('GlobalMaxPooling2D', pooling.GlobalMaxPooling2D, (2, 2, 2, 1)),
@@ -143,6 +155,13 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
        lambda: dense_attention.AdditiveAttention(causal=True), [(2, 3, 4),
                                                                 (2, 3, 4),
                                                                 (2, 3, 4)]),
+      ('NormalizationAdapt', _create_normalization_layer_with_adapt, (4, 4)),
+      ('NormalizationNoAdapt', _create_normalization_layer_without_adapt,
+       (4, 4)),
+      ('Resizing', lambda: image_preprocessing.Resizing(3, 3), (2, 5, 5, 1)),
+      ('Rescaling', lambda: image_preprocessing.Rescaling(2., 1.), (6, 6)),
+      ('CenterCrop', lambda: image_preprocessing.CenterCrop(3, 3),
+       (2, 5, 5, 1))
   )
   def test_layer(self, f32_layer_fn, input_shape, rtol=2e-3, atol=2e-3,
                  input_data=None):

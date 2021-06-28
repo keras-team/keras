@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for layer wrappers."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import copy
 
@@ -738,12 +734,12 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
     # Switch to time-major.
     if time_major:
-      inputs = tf.compat.v1.transpose(inputs, [1, 0, 2])
-      mask = tf.compat.v1.transpose(mask, [1, 0])
+      inputs = tf.transpose(inputs, [1, 0, 2])
+      mask = tf.transpose(mask, [1, 0])
 
     keras_outputs = layer(inputs, mask=mask)
     if time_major:
-      keras_outputs = tf.compat.v1.transpose(keras_outputs, [1, 0, 2])
+      keras_outputs = tf.transpose(keras_outputs, [1, 0, 2])
 
     # expect the first element in batch has 1 step and second element in batch
     # has 2 steps.
@@ -1022,13 +1018,10 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
           input_layer.compute_output_shape([None, 2, 4]).as_list(),
           [None, 2, 16])
 
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   def test_Bidirectional_last_output_with_masking(self):
-    if tf.test.is_built_with_rocm():
-      # testcase uses input and/or output sequences which require padding
-      # leading to the following error on ROCm platform
-      # ROCm MIOpen only supports packed input output
-      # Skip this subtest for now
-      self.skipTest('Test not supported on the ROCm platform')
     rnn = keras.layers.LSTM
     samples = 2
     dim = 5
@@ -1055,13 +1048,10 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose(y[0], np.concatenate([y[1], y[3]], axis=1))
 
   @parameterized.parameters([keras.layers.LSTM, keras.layers.GRU])
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   def test_Bidirectional_sequence_output_with_masking(self, rnn):
-    if tf.test.is_built_with_rocm():
-      # testcase uses input and/or output sequences which require padding
-      # leading to the following error on ROCm platform
-      # ROCm MIOpen only supports packed input output
-      # Skip this subtest for now
-      self.skipTest('Test not supported on the ROCm platform')
     samples = 2
     dim = 5
     timesteps = 3
@@ -1263,10 +1253,10 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         batch_size=10)
 
   @parameterized.parameters(['ave', 'concat', 'mul'])
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Skipping as ROCm RNN does not support ragged tensors yet.')
   def test_Bidirectional_ragged_input(self, merge_mode):
-    if tf.test.is_built_with_rocm():
-      # ragged tenors are not supported in ROCM RNN implementation
-      self.skipTest('Test not supported on the ROCm platform')
     np.random.seed(100)
     rnn = keras.layers.LSTM
     units = 3
@@ -1311,6 +1301,18 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
       y_merged = convert_ragged_tensor_value(y_merged)
       self.assertAllClose(y_merged.flat_values, y_expected.flat_values)
+
+  def test_Bidirectional_nested_state_reuse(self):
+    if not tf.executing_eagerly():
+      self.skipTest('Only test eager mode.')
+    x = tf.random.normal([4, 8, 16])
+    layer = keras.layers.Bidirectional(
+        keras.layers.RNN([keras.layers.LSTMCell(5),
+                          keras.layers.LSTMCell(5)],
+                         return_sequences=True,
+                         return_state=True))
+    y = layer(x)
+    self.assertAllClose(layer([x] + y[1:]), layer(x, initial_state=y[1:]))
 
   def test_full_input_spec(self):
     # See https://github.com/tensorflow/tensorflow/issues/38403

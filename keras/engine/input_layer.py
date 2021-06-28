@@ -13,13 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
-"""Input layer code (`Input` and `InputLayer`).
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Input layer code (`Input` and `InputLayer`)."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.distribute import distributed_training_utils
 from keras.engine import base_layer
@@ -128,8 +124,12 @@ class InputLayer(base_layer.Layer):
         raise ValueError('Only provide the input_shape OR '
                          'batch_input_shape argument to '
                          'InputLayer, not both at the same time.')
-      batch_size = batch_input_shape[0]
-      input_shape = batch_input_shape[1:]
+      # Set the input shape and batch size from the batch_input_shape.
+      # Note that batch_input_shape can be None (unknown rank) or [] (scalar),
+      # in which case the batch size must be None.
+      if batch_input_shape:
+        batch_size = batch_input_shape[0]
+        input_shape = batch_input_shape[1:]
     if kwargs:
       raise ValueError('Unrecognized keyword arguments:', kwargs.keys())
 
@@ -172,7 +172,7 @@ class InputLayer(base_layer.Layer):
       ]
       for arg_name, arg in args_that_must_be_none:
         _assert_other_arg_none(arg_name, arg)
-      if not keras_tensor.keras_tensors_enabled():
+      if not tf.compat.v1.executing_eagerly_outside_functions():
         raise ValueError('Creating Keras inputs from a type_spec is only '
                          'supported when eager execution is enabled.')
       input_tensor = keras_tensor.keras_tensor_from_type_spec(type_spec)
@@ -203,7 +203,7 @@ class InputLayer(base_layer.Layer):
       self.is_placeholder = True
       self._batch_input_shape = batch_input_shape
     else:
-      if keras_tensor.keras_tensors_enabled():
+      if tf.compat.v1.executing_eagerly_outside_functions():
         if not isinstance(input_tensor, keras_tensor.KerasTensor):
           input_tensor = keras_tensor.keras_tensor_from_tensor(input_tensor)
       else:

@@ -5,7 +5,6 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 # buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
-load("@org_keras//keras:keras.bzl", "tpu_py_test")
 load("@org_keras//keras:keras.bzl", "distribute_py_test")
 
 package(
@@ -13,7 +12,7 @@ package(
         "//keras:__subpackages__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(
@@ -47,7 +46,6 @@ py_library(
     name = "discretization",
     srcs = [
         "discretization.py",
-        "discretization_v1.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -97,6 +95,7 @@ py_library(
         "//keras:backend",
         "//keras/engine",
         "//keras/engine:input_spec",
+        "//keras/preprocessing:image",
         "//keras/utils:control_flow_util",
     ],
 )
@@ -105,14 +104,13 @@ py_library(
     name = "index_lookup",
     srcs = [
         "index_lookup.py",
-        "index_lookup_v1.py",
     ],
     srcs_version = "PY3",
     deps = [
         ":category_encoding",
-        ":table_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras:backend",
         "//keras/engine",
     ],
 )
@@ -121,7 +119,6 @@ py_library(
     name = "normalization",
     srcs = [
         "normalization.py",
-        "normalization_v1.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -136,28 +133,12 @@ py_library(
     name = "integer_lookup",
     srcs = [
         "integer_lookup.py",
-        "integer_lookup_v1.py",
     ],
     srcs_version = "PY3",
     deps = [
         ":index_lookup",
-        ":table_utils",
         "//:expect_tensorflow_installed",
         "//keras/engine",
-    ],
-)
-
-py_library(
-    name = "table_utils",
-    srcs = [
-        "table_utils.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras/utils:tf_utils",
     ],
 )
 
@@ -165,7 +146,6 @@ py_library(
     name = "text_vectorization",
     srcs = [
         "text_vectorization.py",
-        "text_vectorization_v1.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -184,7 +164,6 @@ py_library(
     name = "category_encoding",
     srcs = [
         "category_encoding.py",
-        "category_encoding_v1.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -213,12 +192,10 @@ py_library(
     name = "string_lookup",
     srcs = [
         "string_lookup.py",
-        "string_lookup_v1.py",
     ],
     srcs_version = "PY3",
     deps = [
         ":index_lookup",
-        ":table_utils",
         "//:expect_tensorflow_installed",
         "//keras/engine",
     ],
@@ -250,7 +227,6 @@ py_library(
 
 cuda_py_test(
     name = "category_crossing_test",
-    size = "medium",
     srcs = ["category_crossing_test.py"],
     python_version = "PY3",
     shard_count = 4,
@@ -269,7 +245,6 @@ cuda_py_test(
 
 tf_py_test(
     name = "category_encoding_test",
-    size = "medium",
     srcs = ["category_encoding_test.py"],
     python_version = "PY3",
     deps = [
@@ -290,6 +265,8 @@ distribute_py_test(
     python_version = "PY3",
     tags = [
         "multi_and_single_gpu",
+        "no_oss",  # b/189866692
+        "noguitar",  # b/190034522
         "nomultivm",  # TODO(b/170502145)
     ],
     tpu_tags = [
@@ -330,11 +307,15 @@ distribute_py_test(
     srcs = ["image_preprocessing_distribution_test.py"],
     main = "image_preprocessing_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
     ],
-    tpu_tags = ["no_oss"],
+    tpu_tags = [
+        "no_oss",
+        "noguitar",  # TODO(b/183957207)
+    ],
     deps = [
         ":image_preprocessing",
         ":preprocessing_test_utils",
@@ -346,7 +327,6 @@ distribute_py_test(
 
 tf_py_test(
     name = "discretization_test",
-    size = "small",
     srcs = ["discretization_test.py"],
     python_version = "PY3",
     shard_count = 4,
@@ -367,6 +347,8 @@ distribute_py_test(
     python_version = "PY3",
     tags = [
         "multi_and_single_gpu",
+        "no_oss",  # TODO(b/189956080)
+        "noguitar",  # b/190034522
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
@@ -380,7 +362,6 @@ distribute_py_test(
 
 cuda_py_test(
     name = "hashing_test",
-    size = "medium",
     srcs = ["hashing_test.py"],
     python_version = "PY3",
     shard_count = 4,
@@ -394,13 +375,16 @@ cuda_py_test(
     ],
 )
 
-tpu_py_test(
+distribute_py_test(
     name = "hashing_distribution_test",
     srcs = ["hashing_distribution_test.py"],
     disable_mlir_bridge = False,
     main = "hashing_distribution_test.py",
     python_version = "PY3",
-    tags = ["multi_and_single_gpu"],
+    tags = [
+        "multi_and_single_gpu",
+        "nomultivm",  # TODO(b/170502145)
+    ],
     deps = [
         ":hashing",
         "//:expect_tensorflow_installed",
@@ -411,9 +395,10 @@ tpu_py_test(
 
 tf_py_test(
     name = "index_lookup_test",
-    size = "medium",
     srcs = ["index_lookup_test.py"],
     python_version = "PY3",
+    shard_count = 4,
+    tags = ["noasan"],  # TODO(b/183961255)
     deps = [
         ":index_lookup",
         ":preprocessing_test_utils",
@@ -424,13 +409,17 @@ tf_py_test(
     ],
 )
 
-tpu_py_test(
+distribute_py_test(
     name = "index_lookup_distribution_test",
     srcs = ["index_lookup_distribution_test.py"],
     disable_mlir_bridge = False,
     main = "index_lookup_distribution_test.py",
     python_version = "PY3",
-    tags = ["no_oss"],
+    tags = [
+        "multi_and_single_gpu",
+        "nomultivm",  # TODO(b/170502145)
+    ],
+    tpu_tags = ["no_oss"],
     deps = [
         ":index_lookup",
         "//:expect_tensorflow_installed",
@@ -441,10 +430,12 @@ tpu_py_test(
 
 cuda_py_test(
     name = "image_preprocessing_test",
-    size = "medium",
     srcs = ["image_preprocessing_test.py"],
     python_version = "PY3",
     shard_count = 4,
+    tags = [
+        "no_windows",  # TODO(b/184424727): Re-enable this.
+    ],
     deps = [
         ":image_preprocessing",
         "//:expect_absl_installed",
@@ -459,9 +450,9 @@ cuda_py_test(
 
 tf_py_test(
     name = "normalization_test",
-    size = "small",
     srcs = ["normalization_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "broken",  # b/170974360
         "noasan",  # TODO(b/337374867) fails with -fsanitize=null
@@ -477,9 +468,9 @@ tf_py_test(
 
 tf_py_test(
     name = "integer_lookup_test",
-    size = "medium",
     srcs = ["integer_lookup_test.py"],
     python_version = "PY3",
+    tags = ["noasan"],  # TODO(b/183961255)
     deps = [
         ":integer_lookup",
         ":preprocessing_test_utils",
@@ -509,21 +500,7 @@ distribute_py_test(
 )
 
 tf_py_test(
-    name = "table_utils_test",
-    srcs = ["table_utils_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":table_utils",
-        "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras/utils:generic_utils",
-    ],
-)
-
-tf_py_test(
     name = "text_vectorization_test",
-    size = "medium",
     srcs = ["text_vectorization_test.py"],
     python_version = "PY3",
     shard_count = 4,
@@ -562,6 +539,7 @@ tf_py_test(
     name = "reduction_test",
     srcs = ["reduction_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     tags = ["notsan"],  # TODO(b/170783154)
     deps = [
         ":reduction",
@@ -573,7 +551,6 @@ tf_py_test(
 
 tf_py_test(
     name = "string_lookup_test",
-    size = "medium",
     srcs = ["string_lookup_test.py"],
     python_version = "PY3",
     tags = [

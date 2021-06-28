@@ -13,17 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """Correctness tests for tf.keras using DistributionStrategy."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import functools
-
 from absl.testing import parameterized
 import numpy as np
-import six
+
 import keras
 from keras.distribute import distributed_training_utils
 from keras.distribute.strategy_combinations import all_strategies
@@ -163,7 +159,7 @@ def get_data_size(data):
   if isinstance(data, (list, tuple)):
     return len(data[0])
 
-  return len(six.next(six.itervalues(data)))
+  return len(data.values())
 
 
 def get_shapes(data):
@@ -309,7 +305,7 @@ def compare_results(results_with_ds,
     default_tolerance = 1e-3
     relaxed_tolerance = 1e-3
   else:
-    default_tolerance = 1e-5
+    default_tolerance = 4e-5
     relaxed_tolerance = 1e-4
 
   def _get_compare_result_tolerance(key):

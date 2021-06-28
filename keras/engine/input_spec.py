@@ -13,20 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
+# pylint: disable=g-classes-have-attributes
 """Contains the InputSpec class."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
-
-from six.moves import zip  # pylint: disable=redefined-builtin
+import tensorflow.compat.v2 as tf
 from keras import backend
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export
 
 
-@keras_export('keras.layers.InputSpec')
+@keras_export('keras.layers.InputSpec',
+              v1=['keras.layers.InputSpec',
+                  'keras.__internal__.legacy.layers.InputSpec'])
 @tf_export(v1=['layers.InputSpec'])
 class InputSpec(object):
   """Specifies the rank, dtype and shape of every input to a layer.

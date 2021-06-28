@@ -13,16 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for object-based saving which use tf.train.* optimizers."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import functools
 import os
-
-import six
 from tensorflow.python.eager import context
 from tensorflow.python.framework import test_util
 from keras import combinations
@@ -30,7 +25,6 @@ from keras import keras_parameterized
 from keras import testing_utils
 from keras.engine import training
 from keras.layers import core
-from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.training.tracking import util as trackable_utils
 
 
@@ -87,7 +81,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
       self.evaluate(trackable_utils.gather_initializers(
           root_trackable))
       self.evaluate(train_op)
-    named_variables, serialized_graph, _ = graph_view.ObjectGraphView(
+    named_variables, serialized_graph, _ = tf.__internal__.tracking.ObjectGraphView(
         root_trackable).serialize_object_graph()
     expected_checkpoint_names = (
         # Created in the root node, so no prefix.
@@ -112,8 +106,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
     expected_checkpoint_names = [
         name + suffix for name in expected_checkpoint_names]
     named_variables = {v.name: v for v in named_variables}
-    six.assertCountEqual(self, expected_checkpoint_names,
-                         named_variables.keys())
+    self.assertEqual(len(expected_checkpoint_names),
+                     len(named_variables.keys()))
     # Check that we've mapped to the right variable objects (not exhaustive)
     self.assertEqual(
         "global_step",
@@ -621,8 +615,8 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
         self._set_sentinels(root)
         with self.assertRaises(AssertionError):
           self._check_sentinels(root)
-        object_saver = trackable_utils.TrackableSaver(
-            graph_view.ObjectGraphView(root))
+        object_saver = tf.__internal__.tracking.TrackableSaver(
+            tf.__internal__.tracking.ObjectGraphView(root))
         self._set_sentinels(root)
         status = object_saver.restore(save_path)
         if tf.executing_eagerly():

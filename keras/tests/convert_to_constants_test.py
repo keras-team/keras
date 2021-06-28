@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for convert_to_constants.py."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import os
 
@@ -163,7 +159,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
           tf.TensorSpec(shape=(20), dtype=tf.int32)
       ])
       def func(self, x):
-        return tf.compat.v1.gather(self.shared_weights, x)
+        return tf.gather(self.shared_weights, x)
 
     model = EmbeddingModel()
     root, output_func = self._freezeModel(model.func)

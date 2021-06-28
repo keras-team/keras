@@ -12,24 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
 
 import os
 
+import tensorflow.compat.v2 as tf
+
 from absl.testing import parameterized
 import numpy
-import six
 from keras import combinations
 from keras import keras_parameterized
 from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
-from keras.layers import normalization
-from tensorflow.python.training.tracking import base
+from keras.layers.normalization import batch_normalization_v1
 from tensorflow.python.training.tracking import data_structures
 from tensorflow.python.training.tracking import util
 
@@ -38,7 +33,7 @@ class HasList(training.Model):
 
   def __init__(self):
     super(HasList, self).__init__()
-    self.layer_list = data_structures.List([core.Dense(3)])
+    self.layer_list = tf.__internal__.tracking.wrap([core.Dense(3)])
     self.layer_list.append(core.Dense(4))
     self.layer_list.extend(
         [core.Dense(5),
@@ -48,13 +43,13 @@ class HasList(training.Model):
         core.Dense(8)
     ]
     self.layer_list += (
-        data_structures.List([core.Dense(9)]) + data_structures.List(
-            [core.Dense(10)]))
+        tf.__internal__.tracking.wrap([core.Dense(9)]) +
+        tf.__internal__.tracking.wrap([core.Dense(10)]))
     self.layer_list.extend(
-        data_structures.List(
+        tf.__internal__.tracking.wrap(
             list([core.Dense(11)]) + [core.Dense(12)]))
-    self.layers_with_updates = data_structures.List(
-        (normalization.BatchNormalization(),))
+    self.layers_with_updates = tf.__internal__.tracking.wrap(
+        [batch_normalization_v1.BatchNormalization()])
 
   def call(self, x):
     aggregation = 0.
@@ -75,10 +70,9 @@ class ListTests(keras_parameterized.TestCase):
       self.assertAllEqual([32, 12], output.shape)
       self.assertEqual(11, len(model.layers))
       self.assertEqual(10, len(model.layer_list.layers))
-      six.assertCountEqual(
-          self,
-          model.layers,
-          model.layer_list.layers + model.layers_with_updates)
+      self.assertEqual(
+          len(model.layers),
+          len(model.layer_list.layers + model.layers_with_updates))
       for index in range(10):
         self.assertEqual(3 + index, model.layer_list.layers[index].units)
       self.assertEqual(2, len(model._checkpoint_dependencies))
@@ -225,7 +219,7 @@ class ListWrapperTest(tf.test.TestCase):
 
   def testLayerCollectionWithExternalMutation(self):
     l = []
-    l_wrapper = data_structures.ListWrapper(l)
+    l_wrapper = tf.__internal__.tracking.wrap(l)
     layer = core.Dense(1)
     l.append(layer)
     self.assertEqual([layer], l_wrapper.layers)
@@ -235,16 +229,16 @@ class HasMapping(training.Model):
 
   def __init__(self):
     super(HasMapping, self).__init__()
-    self.layer_dict = data_structures.Mapping(output=core.Dense(7))
-    self.layer_dict["norm"] = data_structures.List()
-    self.layer_dict["dense"] = data_structures.List()
+    self.layer_dict = tf.__internal__.tracking.wrap(dict(output=core.Dense(7)))
+    self.layer_dict["norm"] = tf.__internal__.tracking.wrap([])
+    self.layer_dict["dense"] = tf.__internal__.tracking.wrap([])
     self.layer_dict["dense"].extend(
         [core.Dense(5),
          core.Dense(6, kernel_regularizer=tf.reduce_sum)])
     self.layer_dict["norm"].append(
-        normalization.BatchNormalization())
+        batch_normalization_v1.BatchNormalization())
     self.layer_dict["norm"].append(
-        normalization.BatchNormalization())
+        batch_normalization_v1.BatchNormalization())
 
   def call(self, x):
     aggregation = 0.
@@ -263,7 +257,7 @@ class MappingTests(keras_parameterized.TestCase):
       output = model(tf.ones([32, 2]))
       self.assertAllEqual([32, 7], output.shape.as_list())
       self.assertEqual(5, len(model.layers))
-      six.assertCountEqual(self, model.layers, model.layer_dict.layers)
+      self.assertEqual(len(model.layers), len(model.layer_dict.layers))
       self.assertEqual(1, len(model._checkpoint_dependencies))
       self.assertIs(model.layer_dict, model._checkpoint_dependencies[0].ref)
       self.evaluate([v.initializer for v in model.variables])
@@ -293,7 +287,7 @@ class MappingTests(keras_parameterized.TestCase):
   def testDictWrapperBadKeys(self):
     a = tf.Module()
     a.d = {}
-    a.d[1] = data_structures.List()
+    a.d[1] = tf.__internal__.tracking.wrap([])
     model = training.Model()
     model.sub = a
     save_path = os.path.join(self.get_temp_dir(), "ckpt")
@@ -393,7 +387,7 @@ class HasTuple(training.Model):
     self.layer_list = (
         core.Dense(3), core.Dense(4),
         core.Dense(5, kernel_regularizer=tf.reduce_sum))
-    self.layers_with_updates = (normalization.BatchNormalization(),)
+    self.layers_with_updates = (batch_normalization_v1.BatchNormalization(),)
 
   def call(self, x):
     aggregation = 0.
@@ -414,10 +408,9 @@ class TupleTests(keras_parameterized.TestCase):
       self.assertAllEqual([32, 5], output.shape.as_list())
       self.assertLen(model.layers, 4)
       self.assertLen(model.layer_list.layers, 3)
-      six.assertCountEqual(
-          self,
-          model.layers,
-          tuple(model.layer_list.layers) + model.layers_with_updates)
+      self.assertEqual(
+          len(model.layers),
+          len(tuple(model.layer_list.layers) + model.layers_with_updates))
       self.assertEqual(3, model.layer_list.layers[0].units)
       self.assertEqual(4, model.layer_list.layers[1].units)
       self.assertEqual(5, model.layer_list.layers[2].units)
@@ -550,7 +543,7 @@ class InterfaceTests(keras_parameterized.TestCase):
 
     class NoDependencyModel(training.Model):
 
-      @base.no_automatic_dependency_tracking
+      @tf.__internal__.tracking.no_automatic_dependency_tracking
       def __init__(self):
         super(NoDependencyModel, self).__init__()
         self.a = []
@@ -571,10 +564,9 @@ class InterfaceTests(keras_parameterized.TestCase):
     self.assertIn(b, a_deps)
     self.assertIn(c, a_deps)
     self.assertIs(b, a.attribute["b"])
-    six.assertCountEqual(
-        self,
-        ["b", "c"],
-        [dep.name for dep in a.attribute._checkpoint_dependencies])
+    self.assertEqual(
+        len(["b", "c"]),
+        len([dep.name for dep in a.attribute._checkpoint_dependencies]))
     self.assertEqual([b, c], a.layers)
     self.assertEqual([b, c], a.attribute.layers)
     self.assertEqual([c], a.attribute["c"].layers)

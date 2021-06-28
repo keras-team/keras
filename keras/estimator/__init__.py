@@ -14,18 +14,15 @@
 # ==============================================================================
 """Keras estimator API."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import tensorflow.compat.v2 as tf
 
-from tensorflow.python.eager import monitoring
 from tensorflow.python.util.tf_export import keras_export
 
 # Keras has undeclared dependency on tensorflow/estimator:estimator_py.
 # As long as you depend //third_party/py/tensorflow:tensorflow target
 # everything will work as normal.
 
-_model_to_estimator_usage_gauge = monitoring.BoolGauge(
+_model_to_estimator_usage_gauge = tf.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/model_to_estimator',
     'Whether tf.keras.estimator.model_to_estimator() is called.', 'version')
 
@@ -163,7 +160,7 @@ def model_to_estimator(
   """
 
   try:
-    from tensorflow_estimator.python.estimator import keras as keras_lib  # pylint: disable=g-import-not-at-top
+    from tensorflow_estimator.python.estimator import keras_lib  # pylint: disable=g-import-not-at-top
   except ImportError:
     raise NotImplementedError(
         'tf.keras.estimator.model_to_estimator function not available in your '
@@ -351,7 +348,7 @@ def model_to_estimator_v2(keras_model=None,
   """
 
   try:
-    from tensorflow_estimator.python.estimator import keras as keras_lib  # pylint: disable=g-import-not-at-top
+    from tensorflow_estimator.python.estimator import keras_lib  # pylint: disable=g-import-not-at-top
   except ImportError:
     raise NotImplementedError(
         'tf.keras.estimator.model_to_estimator function not available in your '
@@ -367,4 +364,4 @@ def model_to_estimator_v2(keras_model=None,
       use_v2_estimator=True,
       metric_names_map=metric_names_map,
       export_outputs=export_outputs)
-# LINT.ThenChange(//tensorflow_estimator/python/estimator/keras.py)
+# LINT.ThenChange(//tensorflow_estimator/python/estimator/keras_lib.py)

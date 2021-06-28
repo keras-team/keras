@@ -12,16 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Recurrent layers backed by cuDNN.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Recurrent layers backed by cuDNN."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
-from keras import backend as K
+from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
@@ -103,7 +99,7 @@ class _CuDNNRNN(RNN):
 
     if self.go_backwards:
       # Reverse time axis.
-      inputs = K.reverse(inputs, 1)
+      inputs = backend.reverse(inputs, 1)
     output, states = self._process_batch(inputs, initial_state)
 
     if self.stateful:
@@ -268,9 +264,9 @@ class CuDNNGRU(_CuDNNRNN):
 
   def _process_batch(self, inputs, initial_state):
     if not self.time_major:
-      inputs = tf.compat.v1.transpose(inputs, perm=(1, 0, 2))
+      inputs = tf.transpose(inputs, perm=(1, 0, 2))
     input_h = initial_state[0]
-    input_h = tf.compat.v1.expand_dims(input_h, axis=0)
+    input_h = tf.expand_dims(input_h, axis=0)
 
     params = recurrent_v2._canonical_to_params(    # pylint: disable=protected-access
         weights=[
@@ -308,7 +304,7 @@ class CuDNNGRU(_CuDNNRNN):
       if self.time_major:
         output = outputs
       else:
-        output = tf.compat.v1.transpose(outputs, perm=(1, 0, 2))
+        output = tf.transpose(outputs, perm=(1, 0, 2))
     else:
       output = outputs[-1]
     return output, [h]
@@ -464,11 +460,11 @@ class CuDNNLSTM(_CuDNNRNN):
 
   def _process_batch(self, inputs, initial_state):
     if not self.time_major:
-      inputs = tf.compat.v1.transpose(inputs, perm=(1, 0, 2))
+      inputs = tf.transpose(inputs, perm=(1, 0, 2))
     input_h = initial_state[0]
     input_c = initial_state[1]
-    input_h = tf.compat.v1.expand_dims(input_h, axis=0)
-    input_c = tf.compat.v1.expand_dims(input_c, axis=0)
+    input_h = tf.expand_dims(input_h, axis=0)
+    input_c = tf.expand_dims(input_c, axis=0)
 
     params = recurrent_v2._canonical_to_params(    # pylint: disable=protected-access
         weights=[
@@ -510,7 +506,7 @@ class CuDNNLSTM(_CuDNNRNN):
       if self.time_major:
         output = outputs
       else:
-        output = tf.compat.v1.transpose(outputs, perm=(1, 0, 2))
+        output = tf.transpose(outputs, perm=(1, 0, 2))
     else:
       output = outputs[-1]
     return output, [h, c]

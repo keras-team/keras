@@ -1,14 +1,13 @@
 """Keras common starlark macros."""
 
-load("@org_tensorflow//tensorflow:tensorflow.bzl", _py_test = "py_test")
-
 # Macro to run Keras py_tests against pip installation.
-def py_test(deps = [], **kwargs):
+def py_test(deps = [], data = [], kernels = [], **kwargs):
     native.py_test(
         deps = select({
             "//conditions:default": deps,
-            "//third_party/py/keras:no_keras_py_deps": [],
+            "//keras:no_keras_py_deps": [],
         }),
+        data = data + kernels,
         **kwargs
     )
 
@@ -35,8 +34,8 @@ def tf_py_test(
         tfrt_enabled_internal = False,
         **kwargs):
     kwargs.setdefault("python_version", "PY3")
-    kwargs.setdefault("srcs_version", "PY2AND3")
-    _py_test(
+    kwargs.setdefault("srcs_version", "PY3")
+    py_test(
         name = name,
         size = size,
         srcs = srcs,

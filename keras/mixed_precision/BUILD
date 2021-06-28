@@ -26,10 +26,8 @@ package(
         "//keras:__subpackages__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
-
-exports_files(["LICENSE"])
 
 filegroup(
     name = "all_py_srcs",
@@ -129,6 +127,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/distribute",
     ],
 )
 
@@ -223,15 +222,33 @@ py_library(
 )
 
 cuda_py_test(
-    name = "keras_test",
+    name = "layer_test",
     size = "medium",
-    srcs = ["keras_test.py"],
+    srcs = ["layer_test.py"],
+    python_version = "PY3",
+    tags = [
+        "no_pip",
+        "no_windows",  # b/139083295: bfloat16 tests fail on Windows
+    ],
+    deps = [
+        ":test_util",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras:combinations",
+    ],
+)
+
+cuda_py_test(
+    name = "model_test",
+    size = "medium",
+    srcs = ["model_test.py"],
     data = [
         "//keras/mixed_precision/testdata:lso_ckpt_tf2.2",
         "//keras/mixed_precision/testdata:lso_savedmodel_tf2.2",
     ],
     python_version = "PY3",
-    shard_count = 10,
+    shard_count = 5,
     tags = [
         "no_pip",
         "no_windows",  # b/139083295: bfloat16 tests fail on Windows
@@ -251,7 +268,9 @@ cuda_py_test(
     srcs = ["layer_correctness_test.py"],
     python_version = "PY3",
     shard_count = 10,
-    tags = ["no_rocm"],
+    tags = [
+        "no_rocm",
+    ],
     deps = [
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",

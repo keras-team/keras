@@ -13,16 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities used by convolution layers."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import itertools
 
 import numpy as np
-from six.moves import range  # pylint: disable=redefined-builtin
 from keras import backend
 
 
@@ -492,11 +488,11 @@ def squeeze_batch_dims(inp, op, inner_rank):
 
     inner_shape = shape[-inner_rank:]
     if not inner_shape.is_fully_defined():
-      inner_shape = tf.compat.v1.shape(inp)[-inner_rank:]
+      inner_shape = tf.shape(inp)[-inner_rank:]
 
     batch_shape = shape[:-inner_rank]
     if not batch_shape.is_fully_defined():
-      batch_shape = tf.compat.v1.shape(inp)[:-inner_rank]
+      batch_shape = tf.shape(inp)[:-inner_rank]
 
     if isinstance(inner_shape, tf.TensorShape):
       inp_reshaped = tf.reshape(inp, [-1] + inner_shape.as_list())
@@ -508,7 +504,7 @@ def squeeze_batch_dims(inp, op, inner_rank):
 
     out_inner_shape = out_reshaped.shape[-inner_rank:]
     if not out_inner_shape.is_fully_defined():
-      out_inner_shape = tf.compat.v1.shape(out_reshaped)[-inner_rank:]
+      out_inner_shape = tf.shape(out_reshaped)[-inner_rank:]
 
     out = tf.reshape(
         out_reshaped, tf.concat((batch_shape, out_inner_shape), axis=-1))

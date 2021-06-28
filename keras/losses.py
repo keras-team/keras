@@ -12,31 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+# pylint: disable=g-classes-have-attributes
 """Built-in loss functions."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import abc
-
-import six
-
-from tensorflow.python.autograph.core import ag_ctx
-from tensorflow.python.autograph.impl import api as autograph
-from tensorflow.python.framework import smart_cond
-from keras import backend as K
+import functools
+from keras import backend
 from keras.utils import losses_utils
 from keras.utils import tf_utils
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
+from tensorflow.python.ops.ragged import ragged_map_ops
+from tensorflow.python.ops.ragged import ragged_util
+from tensorflow.python.util import dispatch
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
 
 @keras_export('keras.losses.Loss')
-class Loss(object):
+class Loss:
   """Loss base class.
 
   To be implemented by subclasses:
@@ -63,6 +59,7 @@ class Loss(object):
   details on this.
 
   You can implement 'SUM_OVER_BATCH_SIZE' using global batch size like:
+
   ```python
   with strategy.scope():
     loss_obj = tf.keras.losses.CategoricalCrossentropy(
@@ -77,7 +74,7 @@ class Loss(object):
     """Initializes `Loss` class.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -86,7 +83,7 @@ class Loss(object):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op.
+      name: Optional name for the instance.
     """
     losses_utils.ReductionV2.validate(reduction)
     self.reduction = reduction
@@ -136,11 +133,11 @@ class Loss(object):
     # accepted in scope name.
     graph_ctx = tf_utils.graph_context_for_symbolic_tensors(
         y_true, y_pred, sample_weight)
-    with K.name_scope(self._name_scope), graph_ctx:
+    with backend.name_scope(self._name_scope), graph_ctx:
       if tf.executing_eagerly():
         call_fn = self.call
       else:
-        call_fn = autograph.tf_convert(self.call, ag_ctx.control_status_ctx())
+        call_fn = tf.__internal__.autograph.tf_convert(self.call, tf.__internal__.autograph.control_status_ctx())
       losses = call_fn(y_true, y_pred)
       return losses_utils.compute_weighted_loss(
           losses, sample_weight, reduction=self._get_reduction())
@@ -215,7 +212,7 @@ class LossFunctionWrapper(Loss):
     Args:
       fn: The loss function to wrap, with signature `fn(y_true, y_pred,
         **kwargs)`.
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -224,10 +221,10 @@ class LossFunctionWrapper(Loss):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: (Optional) name for the loss.
+      name: Optional name for the instance.
       **kwargs: The keyword arguments that are passed on to `fn`.
     """
-    super(LossFunctionWrapper, self).__init__(reduction=reduction, name=name)
+    super().__init__(reduction=reduction, name=name)
     self.fn = fn
     self._fn_kwargs = kwargs
 
@@ -243,14 +240,15 @@ class LossFunctionWrapper(Loss):
     """
     if tf.is_tensor(y_pred) and tf.is_tensor(y_true):
       y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(y_pred, y_true)
-    ag_fn = autograph.tf_convert(self.fn, ag_ctx.control_status_ctx())
+
+    ag_fn = tf.__internal__.autograph.tf_convert(self.fn, tf.__internal__.autograph.control_status_ctx())
     return ag_fn(y_true, y_pred, **self._fn_kwargs)
 
   def get_config(self):
     config = {}
-    for k, v in six.iteritems(self._fn_kwargs):
-      config[k] = K.eval(v) if tf_utils.is_tensor_or_variable(v) else v
-    base_config = super(LossFunctionWrapper, self).get_config()
+    for k, v in self._fn_kwargs.items():
+      config[k] = backend.eval(v) if tf_utils.is_tensor_or_variable(v) else v
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -298,7 +296,7 @@ class MeanSquaredError(LossFunctionWrapper):
     """Initializes `MeanSquaredError` instance.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -307,10 +305,9 @@ class MeanSquaredError(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to 'mean_squared_error'.
+      name: Optional name for the instance. Defaults to 'mean_squared_error'.
     """
-    super(MeanSquaredError, self).__init__(
-        mean_squared_error, name=name, reduction=reduction)
+    super().__init__(mean_squared_error, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.MeanAbsoluteError')
@@ -357,7 +354,7 @@ class MeanAbsoluteError(LossFunctionWrapper):
     """Initializes `MeanAbsoluteError` instance.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -366,10 +363,9 @@ class MeanAbsoluteError(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to 'mean_absolute_error'.
+      name: Optional name for the instance. Defaults to 'mean_absolute_error'.
     """
-    super(MeanAbsoluteError, self).__init__(
-        mean_absolute_error, name=name, reduction=reduction)
+    super().__init__(mean_absolute_error, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.MeanAbsolutePercentageError')
@@ -417,7 +413,7 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
     """Initializes `MeanAbsolutePercentageError` instance.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -426,10 +422,10 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to
+      name: Optional name for the instance. Defaults to
         'mean_absolute_percentage_error'.
     """
-    super(MeanAbsolutePercentageError, self).__init__(
+    super().__init__(
         mean_absolute_percentage_error, name=name, reduction=reduction)
 
 
@@ -478,7 +474,7 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
     """Initializes `MeanSquaredLogarithmicError` instance.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -487,10 +483,10 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to
+      name: Optional name for the instance. Defaults to
         'mean_squared_logarithmic_error'.
     """
-    super(MeanSquaredLogarithmicError, self).__init__(
+    super().__init__(
         mean_squared_logarithmic_error, name=name, reduction=reduction)
 
 
@@ -561,6 +557,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
   def __init__(self,
                from_logits=False,
                label_smoothing=0,
+               axis=-1,
                reduction=losses_utils.ReductionV2.AUTO,
                name='binary_crossentropy'):
     """Initializes `BinaryCrossentropy` instance.
@@ -569,12 +566,13 @@ class BinaryCrossentropy(LossFunctionWrapper):
       from_logits: Whether to interpret `y_pred` as a tensor of
         [logit](https://en.wikipedia.org/wiki/Logit) values. By default, we
           assume that `y_pred` contains probabilities (i.e., values in [0, 1]).
-          **Note - Using from_logits=True may be more numerically stable.
       label_smoothing: Float in [0, 1]. When 0, no smoothing occurs. When > 0,
         we compute the loss between the predicted labels and a smoothed version
         of the true labels, where the smoothing squeezes the labels towards 0.5.
         Larger values of `label_smoothing` correspond to heavier smoothing.
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      axis: The axis along which to compute crossentropy (the features axis).
+        Defaults to -1.
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -583,14 +581,15 @@ class BinaryCrossentropy(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: (Optional) Name for the op. Defaults to 'binary_crossentropy'.
+      name: Name for the op. Defaults to 'binary_crossentropy'.
     """
-    super(BinaryCrossentropy, self).__init__(
+    super().__init__(
         binary_crossentropy,
         name=name,
         reduction=reduction,
         from_logits=from_logits,
-        label_smoothing=label_smoothing)
+        label_smoothing=label_smoothing,
+        axis=axis)
     self.from_logits = from_logits
 
 
@@ -642,6 +641,7 @@ class CategoricalCrossentropy(LossFunctionWrapper):
   def __init__(self,
                from_logits=False,
                label_smoothing=0,
+               axis=-1,
                reduction=losses_utils.ReductionV2.AUTO,
                name='categorical_crossentropy'):
     """Initializes `CategoricalCrossentropy` instance.
@@ -649,12 +649,13 @@ class CategoricalCrossentropy(LossFunctionWrapper):
     Args:
       from_logits: Whether `y_pred` is expected to be a logits tensor. By
         default, we assume that `y_pred` encodes a probability distribution.
-        **Note - Using from_logits=True is more numerically stable.**
       label_smoothing: Float in [0, 1]. When > 0, label values are smoothed,
         meaning the confidence on label values are relaxed. For example, if
-        `0.1`, use `0.1 / num_classes` for non-target labels and 
+        `0.1`, use `0.1 / num_classes` for non-target labels and
         `0.9 + 0.1 / num_classes` for target labels.
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      axis: The axis along which to compute crossentropy (the features axis).
+        Defaults to -1.
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -663,14 +664,16 @@ class CategoricalCrossentropy(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to 'categorical_crossentropy'.
+      name: Optional name for the instance.
+        Defaults to 'categorical_crossentropy'.
     """
-    super(CategoricalCrossentropy, self).__init__(
+    super().__init__(
         categorical_crossentropy,
         name=name,
         reduction=reduction,
         from_logits=from_logits,
-        label_smoothing=label_smoothing)
+        label_smoothing=label_smoothing,
+        axis=axis)
 
 
 @keras_export('keras.losses.SparseCategoricalCrossentropy')
@@ -730,8 +733,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
     Args:
       from_logits: Whether `y_pred` is expected to be a logits tensor. By
         default, we assume that `y_pred` encodes a probability distribution.
-        **Note - Using from_logits=True may be more numerically stable.
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -740,10 +742,10 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to
+      name: Optional name for the instance. Defaults to
         'sparse_categorical_crossentropy'.
     """
-    super(SparseCategoricalCrossentropy, self).__init__(
+    super().__init__(
         sparse_categorical_crossentropy,
         name=name,
         reduction=reduction,
@@ -795,7 +797,7 @@ class Hinge(LossFunctionWrapper):
     """Initializes `Hinge` instance.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -804,9 +806,9 @@ class Hinge(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to 'hinge'.
+      name: Optional name for the instance. Defaults to 'hinge'.
     """
-    super(Hinge, self).__init__(hinge, name=name, reduction=reduction)
+    super().__init__(hinge, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.SquaredHinge')
@@ -856,7 +858,7 @@ class SquaredHinge(LossFunctionWrapper):
     """Initializes `SquaredHinge` instance.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -865,10 +867,9 @@ class SquaredHinge(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to 'squared_hinge'.
+      name: Optional name for the instance. Defaults to 'squared_hinge'.
     """
-    super(SquaredHinge, self).__init__(
-        squared_hinge, name=name, reduction=reduction)
+    super().__init__(squared_hinge, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.CategoricalHinge')
@@ -916,7 +917,7 @@ class CategoricalHinge(LossFunctionWrapper):
     """Initializes `CategoricalHinge` instance.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -925,10 +926,9 @@ class CategoricalHinge(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to 'categorical_hinge'.
+      name: Optional name for the instance. Defaults to 'categorical_hinge'.
     """
-    super(CategoricalHinge, self).__init__(
-        categorical_hinge, name=name, reduction=reduction)
+    super().__init__(categorical_hinge, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.Poisson')
@@ -973,7 +973,7 @@ class Poisson(LossFunctionWrapper):
     """Initializes `Poisson` instance.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -982,9 +982,9 @@ class Poisson(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to 'poisson'.
+      name: Optional name for the instance. Defaults to 'poisson'.
     """
-    super(Poisson, self).__init__(poisson, name=name, reduction=reduction)
+    super().__init__(poisson, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.LogCosh')
@@ -1030,7 +1030,7 @@ class LogCosh(LossFunctionWrapper):
     """Initializes `LogCosh` instance.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -1039,9 +1039,9 @@ class LogCosh(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to 'log_cosh'.
+      name: Optional name for the instance. Defaults to 'log_cosh'.
     """
-    super(LogCosh, self).__init__(log_cosh, name=name, reduction=reduction)
+    super().__init__(log_cosh, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.KLDivergence')
@@ -1090,7 +1090,7 @@ class KLDivergence(LossFunctionWrapper):
     """Initializes `KLDivergence` instance.
 
     Args:
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -1099,10 +1099,9 @@ class KLDivergence(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to 'kl_divergence'.
+      name: Optional name for the instance. Defaults to 'kl_divergence'.
     """
-    super(KLDivergence, self).__init__(
-        kl_divergence, name=name, reduction=reduction)
+    super().__init__(kl_divergence, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.Huber')
@@ -1158,7 +1157,7 @@ class Huber(LossFunctionWrapper):
     Args:
       delta: A float, the point where the Huber loss function changes from a
         quadratic to linear.
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+      reduction: Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
         this defaults to `SUM_OVER_BATCH_SIZE`. When used with
@@ -1167,10 +1166,9 @@ class Huber(LossFunctionWrapper):
         will raise an error. Please see this custom training [tutorial](
           https://www.tensorflow.org/tutorials/distribute/custom_training) for
             more details.
-      name: Optional name for the op. Defaults to 'huber_loss'.
+      name: Optional name for the instance. Defaults to 'huber_loss'.
     """
-    super(Huber, self).__init__(
-        huber, name=name, reduction=reduction, delta=delta)
+    super().__init__(huber, name=name, reduction=reduction, delta=delta)
 
 
 @keras_export('keras.metrics.mean_squared_error', 'keras.metrics.mse',
@@ -1203,7 +1201,105 @@ def mean_squared_error(y_true, y_pred):
   """
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
-  return K.mean(tf.math.squared_difference(y_pred, y_true), axis=-1)
+  return backend.mean(tf.math.squared_difference(y_pred, y_true), axis=-1)
+
+
+def _ragged_tensor_apply_loss(loss_fn, y_true, y_pred, y_pred_extra_dim=False):
+  """Apply a loss function on a per batch basis.
+
+  Args:
+    loss_fn: The loss function
+    y_true: truth values (RaggedTensor)
+    y_pred: predicted values (RaggedTensor)
+    y_pred_extra_dim: whether y_pred has an additional dimension compared to
+      y_true
+
+  Returns:
+    Loss-function result. A dense tensor if the output has a single dimension
+    (per-batch loss value); a ragged tensor otherwise.
+  """
+
+  def rt_is_equiv_dense(rt):
+    """Returns true if this RaggedTensor has the same row_lenghts across
+
+       all ragged dimensions and thus can be converted to a dense tensor
+       without loss of information.
+
+    Args:
+      rt: RaggedTensor.
+    """
+    return tf.reduce_all([
+        tf.equal(
+            tf.math.reduce_variance(tf.cast(row_lens, backend.floatx())),
+            tf.constant([0.])) for row_lens in rt.nested_row_lengths()
+    ])
+
+  def _convert_to_dense(inputs):
+    return tuple(
+        rt.to_tensor() if isinstance(rt, tf.RaggedTensor) else rt
+        for rt in inputs)
+
+  def _call_loss(inputs, ragged_output):
+    """ Adapt the result to ragged or dense tensor according to the expected
+
+        output type. This is done so that all the return values of the map
+        operation have the same type.
+    """
+    r = loss_fn(*inputs)
+    if ragged_output and not isinstance(r, tf.RaggedTensor):
+      r = tf.RaggedTensor.from_tensor(r)
+    elif not ragged_output and isinstance(r, tf.RaggedTensor):
+      r = r.to_tensor()
+    return r
+
+  def _wrapper(inputs, ragged_output):
+    _, y_pred = inputs
+    if isinstance(y_pred, tf.RaggedTensor):
+      return tf.cond(
+          rt_is_equiv_dense(y_pred),
+          lambda: _call_loss(_convert_to_dense(inputs), ragged_output),
+          lambda: _call_loss(inputs, ragged_output))
+
+    return loss_fn(*inputs)
+
+  if not isinstance(y_true, tf.RaggedTensor):
+    return loss_fn(y_true, y_pred.to_tensor())
+
+  lshape = y_pred.shape.as_list()[1:-1]
+  if len(lshape) > 0:
+    spec = tf.RaggedTensorSpec(shape=lshape, dtype=y_pred.dtype)
+  else:
+    spec = tf.TensorSpec(shape=[], dtype=y_pred.dtype)
+
+  nested_splits_list = [rt.nested_row_splits for rt in (y_true, y_pred)]
+  if y_pred_extra_dim:
+    # The last dimension of a categorical prediction may be ragged or not.
+    rdims = [len(slist) for slist in nested_splits_list]
+    if rdims[0] == rdims[1] - 1:
+      nested_splits_list[1] = nested_splits_list[1][:-1]
+
+  map_fn = functools.partial(_wrapper, ragged_output=len(lshape) > 1)
+
+  assertion_list = ragged_util.assert_splits_match(nested_splits_list)
+  with tf.control_dependencies(assertion_list):
+    return ragged_map_ops.map_fn(map_fn, elems=(y_true, y_pred), dtype=spec)
+
+
+@dispatch.dispatch_for_types(mean_squared_error, tf.RaggedTensor)
+def _ragged_tensor_mse(y_true, y_pred):
+  """Implements support for handling RaggedTensors.
+
+  Args:
+    y_true: RaggedTensor truth values. shape = `[batch_size, d0, .. dN]`.
+    y_pred: RaggedTensor predicted values. shape = `[batch_size, d0, .. dN]`.
+
+  Returns:
+    Mean squared error values. shape = `[batch_size, d0, .. dN-1]`.
+    When the number of dimensions of the batch feature vector [d0, .. dN] is
+    greater than one the return value is a RaggedTensor. Otherwise a Dense
+    tensor with dimensions [batch_size] is returned.
+  """
+  return _ragged_tensor_apply_loss(mean_squared_error, y_true, y_pred)
 
 
 @keras_export('keras.metrics.mean_absolute_error', 'keras.metrics.mae',
@@ -1233,7 +1329,13 @@ def mean_absolute_error(y_true, y_pred):
   """
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
-  return K.mean(tf.abs(y_pred - y_true), axis=-1)
+  return backend.mean(tf.abs(y_pred - y_true), axis=-1)
+
+
+@dispatch.dispatch_for_types(mean_absolute_error, tf.RaggedTensor)
+def _ragged_tensor_mae(y_true, y_pred):
+  """RaggedTensor adapter for mean_absolute_error."""
+  return _ragged_tensor_apply_loss(mean_absolute_error, y_true, y_pred)
 
 
 @keras_export('keras.metrics.mean_absolute_percentage_error',
@@ -1267,8 +1369,17 @@ def mean_absolute_percentage_error(y_true, y_pred):
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   diff = tf.abs(
-      (y_true - y_pred) / K.maximum(tf.abs(y_true), K.epsilon()))
-  return 100. * K.mean(diff, axis=-1)
+      (y_true - y_pred) / backend.maximum(tf.abs(y_true),
+                                          backend.epsilon()))
+  return 100. * backend.mean(diff, axis=-1)
+
+
+@dispatch.dispatch_for_types(mean_absolute_percentage_error,
+                             tf.RaggedTensor)
+def _ragged_tensor_mape(y_true, y_pred):
+  """Support RaggedTensors."""
+  return _ragged_tensor_apply_loss(mean_absolute_percentage_error, y_true,
+                                   y_pred)
 
 
 @keras_export('keras.metrics.mean_squared_logarithmic_error',
@@ -1303,9 +1414,18 @@ def mean_squared_logarithmic_error(y_true, y_pred):
   """
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
-  first_log = tf.math.log(K.maximum(y_pred, K.epsilon()) + 1.)
-  second_log = tf.math.log(K.maximum(y_true, K.epsilon()) + 1.)
-  return K.mean(tf.math.squared_difference(first_log, second_log), axis=-1)
+  first_log = tf.math.log(backend.maximum(y_pred, backend.epsilon()) + 1.)
+  second_log = tf.math.log(backend.maximum(y_true, backend.epsilon()) + 1.)
+  return backend.mean(
+      tf.math.squared_difference(first_log, second_log), axis=-1)
+
+
+@dispatch.dispatch_for_types(mean_squared_logarithmic_error,
+                             tf.RaggedTensor)
+def _ragged_tensor_msle(y_true, y_pred):
+  """Implements support for handling RaggedTensors."""
+  return _ragged_tensor_apply_loss(mean_squared_logarithmic_error, y_true,
+                                   y_pred)
 
 
 def _maybe_convert_labels(y_true):
@@ -1318,7 +1438,7 @@ def _maybe_convert_labels(y_true):
     # Convert the binary labels to -1 or 1.
     return 2. * y_true - 1.
 
-  updated_y_true = smart_cond.smart_cond(is_binary, _convert_binary_labels,
+  updated_y_true = tf.__internal__.smart_cond.smart_cond(is_binary, _convert_binary_labels,
                                          lambda: y_true)
   return updated_y_true
 
@@ -1352,7 +1472,7 @@ def squared_hinge(y_true, y_pred):
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   y_true = _maybe_convert_labels(y_true)
-  return K.mean(
+  return backend.mean(
       tf.square(tf.maximum(1. - y_true * y_pred, 0.)), axis=-1)
 
 
@@ -1385,7 +1505,7 @@ def hinge(y_true, y_pred):
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   y_true = _maybe_convert_labels(y_true)
-  return K.mean(tf.maximum(1. - y_true * y_pred, 0.), axis=-1)
+  return backend.mean(tf.maximum(1. - y_true * y_pred, 0.), axis=-1)
 
 
 @keras_export('keras.losses.categorical_hinge')
@@ -1397,7 +1517,7 @@ def categorical_hinge(y_true, y_pred):
   where `neg=maximum((1-y_true)*y_pred) and pos=sum(y_true*y_pred)`
 
   Standalone usage:
-  
+
   >>> y_true = np.random.randint(0, 3, size=(2,))
   >>> y_true = tf.keras.utils.to_categorical(y_true, num_classes=3)
   >>> y_pred = np.random.random(size=(2, 3))
@@ -1406,7 +1526,7 @@ def categorical_hinge(y_true, y_pred):
   >>> pos = np.sum(y_true * y_pred, axis=-1)
   >>> neg = np.amax((1. - y_true) * y_pred, axis=-1)
   >>> assert np.array_equal(loss.numpy(), np.maximum(0., neg - pos + 1.))
-  
+
   Args:
     y_true: The ground truth values. `y_true` values are expected to be
     either `{-1, +1}` or `{0, 1}` (i.e. a one-hot-encoded tensor).
@@ -1432,7 +1552,7 @@ def huber(y_true, y_pred, delta=1.0):
 
   ```
   loss = 0.5 * x^2                  if |x| <= d
-  loss = 0.5 * d^2 + d * (|x| - d)  if |x| > d
+  loss = d * |x| - 0.5 * d^2        if |x| > d
   ```
   where d is `delta`. See: https://en.wikipedia.org/wiki/Huber_loss
 
@@ -1445,16 +1565,15 @@ def huber(y_true, y_pred, delta=1.0):
   Returns:
     Tensor with one scalar loss entry per sample.
   """
-  y_pred = tf.cast(y_pred, dtype=K.floatx())
-  y_true = tf.cast(y_true, dtype=K.floatx())
-  delta = tf.cast(delta, dtype=K.floatx())
+  y_pred = tf.cast(y_pred, dtype=backend.floatx())
+  y_true = tf.cast(y_true, dtype=backend.floatx())
+  delta = tf.cast(delta, dtype=backend.floatx())
   error = tf.subtract(y_pred, y_true)
   abs_error = tf.abs(error)
   half = tf.convert_to_tensor(0.5, dtype=abs_error.dtype)
-  return K.mean(
-      tf.where(
-          abs_error <= delta, half * tf.pow(error, 2),
-          half * tf.pow(delta, 2) + delta * (abs_error - delta)),
+  return backend.mean(
+      tf.where(abs_error <= delta, half * tf.square(error),
+                         delta * abs_error - half * tf.square(delta)),
       axis=-1)
 
 
@@ -1492,9 +1611,10 @@ def log_cosh(y_true, y_pred):
   y_true = tf.cast(y_true, y_pred.dtype)
 
   def _logcosh(x):
-    return x + tf.math.softplus(-2. * x) - tf.cast(tf.math.log(2.), x.dtype)
+    return x + tf.math.softplus(-2. * x) - tf.cast(
+        tf.math.log(2.), x.dtype)
 
-  return K.mean(_logcosh(y_pred - y_true), axis=-1)
+  return backend.mean(_logcosh(y_pred - y_true), axis=-1)
 
 
 @keras_export('keras.metrics.categorical_crossentropy',
@@ -1503,7 +1623,8 @@ def log_cosh(y_true, y_pred):
 def categorical_crossentropy(y_true,
                              y_pred,
                              from_logits=False,
-                             label_smoothing=0):
+                             label_smoothing=0,
+                             axis=-1):
   """Computes the categorical crossentropy loss.
 
   Standalone usage:
@@ -1523,6 +1644,8 @@ def categorical_crossentropy(y_true,
     label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
       example, if `0.1`, use `0.1 / num_classes` for non-target labels
       and `0.9 + 0.1 / num_classes` for target labels.
+    axis: Defaults to -1. The dimension along which the entropy is
+      computed.
 
   Returns:
     Categorical crossentropy loss value.
@@ -1530,15 +1653,58 @@ def categorical_crossentropy(y_true,
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(
-      label_smoothing, dtype=K.floatx())
+      label_smoothing, dtype=backend.floatx())
 
   def _smooth_labels():
-    num_classes = tf.cast(tf.compat.v1.shape(y_true)[-1], y_pred.dtype)
+    num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
     return y_true * (1.0 - label_smoothing) + (label_smoothing / num_classes)
 
-  y_true = smart_cond.smart_cond(label_smoothing, _smooth_labels,
+  y_true = tf.__internal__.smart_cond.smart_cond(label_smoothing, _smooth_labels,
                                  lambda: y_true)
-  return K.categorical_crossentropy(y_true, y_pred, from_logits=from_logits)
+
+  return backend.categorical_crossentropy(
+      y_true, y_pred, from_logits=from_logits, axis=axis)
+
+
+@dispatch.dispatch_for_types(categorical_crossentropy,
+                             tf.RaggedTensor)
+def _ragged_tensor_categorical_crossentropy(y_true,
+                                            y_pred,
+                                            from_logits=False,
+                                            label_smoothing=0,
+                                            axis=-1):
+  """Implements support for handling RaggedTensors.
+
+  Args:
+    y_true: Tensor of one-hot true targets.
+    y_pred: Tensor of predicted targets.
+    from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
+      we assume that `y_pred` encodes a probability distribution.
+    label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
+      example, if `0.1`, use `0.1 / num_classes` for non-target labels
+      and `0.9 + 0.1 / num_classes` for target labels.
+    axis: The axis along which to compute crossentropy (the features axis).
+        Defaults to -1.
+
+  Returns:
+    Categorical crossentropy loss value.
+
+  Expected shape: (batch, sequence_len, n_classes) with sequence_len
+  being variable per batch.
+  Return shape: (batch, sequence_len).
+
+  When used by CategoricalCrossentropy() with the default reduction
+  (SUM_OVER_BATCH_SIZE), the reduction averages the loss over the
+  number of elements independent of the batch. E.g. if the RaggedTensor
+  has 2 batches with [2, 1] values respectivly the resulting loss is
+  the sum of the individual loss values divided by 3.
+  """
+  fn = functools.partial(
+      categorical_crossentropy,
+      from_logits=from_logits,
+      label_smoothing=label_smoothing,
+      axis=axis)
+  return _ragged_tensor_apply_loss(fn, y_true, y_pred)
 
 
 @keras_export('keras.metrics.sparse_categorical_crossentropy',
@@ -1561,7 +1727,7 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
     y_pred: The predicted values.
     from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
       we assume that `y_pred` encodes a probability distribution.
-    axis: (Optional) Defaults to -1. The dimension along which the entropy is
+    axis: Defaults to -1. The dimension along which the entropy is
       computed.
 
   Returns:
@@ -1569,14 +1735,41 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
   """
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
-  return K.sparse_categorical_crossentropy(
+  return backend.sparse_categorical_crossentropy(
       y_true, y_pred, from_logits=from_logits, axis=axis)
+
+
+@dispatch.dispatch_for_types(sparse_categorical_crossentropy,
+                             tf.RaggedTensor)
+def _ragged_tensor_sparse_categorical_crossentropy(y_true,
+                                                   y_pred,
+                                                   from_logits=False,
+                                                   axis=-1):
+  """ Implements support for handling RaggedTensors.
+
+      Expected y_pred shape: (batch, sequence_len, n_classes) with sequence_len
+      being variable per batch.
+      Return shape: (batch, sequence_len).
+
+      When used by SparseCategoricalCrossentropy() with the default reduction
+      (SUM_OVER_BATCH_SIZE), the reduction averages the loss over the
+      number of elements independent of the batch. E.g. if the RaggedTensor
+      has 2 batches with [2, 1] values respectively, the resulting loss is
+      the sum of the individual loss values divided by 3.
+  """
+  fn = functools.partial(
+      sparse_categorical_crossentropy, from_logits=from_logits, axis=axis)
+  return _ragged_tensor_apply_loss(fn, y_true, y_pred, y_pred_extra_dim=True)
 
 
 @keras_export('keras.metrics.binary_crossentropy',
               'keras.losses.binary_crossentropy')
 @tf.__internal__.dispatch.add_dispatch_support
-def binary_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0):
+def binary_crossentropy(y_true,
+                        y_pred,
+                        from_logits=False,
+                        label_smoothing=0,
+                        axis=-1):
   """Computes the binary crossentropy loss.
 
   Standalone usage:
@@ -1593,9 +1786,10 @@ def binary_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0):
     y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
     from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
       we assume that `y_pred` encodes a probability distribution.
-    label_smoothing: Float in [0, 1]. If > `0` then smooth the labels by 
+    label_smoothing: Float in [0, 1]. If > `0` then smooth the labels by
       squeezing them towards 0.5 That is, using `1. - 0.5 * label_smoothing`
       for the target class and `0.5 * label_smoothing` for the non-target class.
+    axis: The axis along which the mean is computed. Defaults to -1.
 
   Returns:
     Binary crossentropy loss value. shape = `[batch_size, d0, .. dN-1]`.
@@ -1603,15 +1797,54 @@ def binary_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0):
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(
-      label_smoothing, dtype=K.floatx())
+      label_smoothing, dtype=backend.floatx())
 
   def _smooth_labels():
     return y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
 
-  y_true = smart_cond.smart_cond(label_smoothing, _smooth_labels,
+  y_true = tf.__internal__.smart_cond.smart_cond(label_smoothing, _smooth_labels,
                                  lambda: y_true)
-  return K.mean(
-      K.binary_crossentropy(y_true, y_pred, from_logits=from_logits), axis=-1)
+
+  return backend.mean(
+      backend.binary_crossentropy(y_true, y_pred, from_logits=from_logits),
+      axis=axis)
+
+
+@dispatch.dispatch_for_types(binary_crossentropy, tf.RaggedTensor)
+def _ragged_tensor_binary_crossentropy(y_true,
+                                       y_pred,
+                                       from_logits=False,
+                                       label_smoothing=0,
+                                       axis=-1):
+  """Implements support for handling RaggedTensors.
+
+  Args:
+    y_true: Tensor of one-hot true targets.
+    y_pred: Tensor of predicted targets.
+    from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
+      we assume that `y_pred` encodes a probability distribution.
+    label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
+      example, if `0.1`, use `0.1 / num_classes` for non-target labels
+      and `0.9 + 0.1 / num_classes` for target labels.
+    axis: Axis along which to compute crossentropy.
+
+  Returns:
+    Binary crossentropy loss value.
+
+  Expected shape: (batch, sequence_len) with sequence_len being variable
+  per batch.
+  Return shape: (batch,); returns the per batch mean of the loss values.
+
+  When used by BinaryCrossentropy() with the default reduction
+  (SUM_OVER_BATCH_SIZE), the reduction averages the per batch losses over
+  the number of batches.
+  """
+  fn = functools.partial(
+      binary_crossentropy,
+      from_logits=from_logits,
+      label_smoothing=label_smoothing,
+      axis=axis)
+  return _ragged_tensor_apply_loss(fn, y_true, y_pred)
 
 
 @keras_export('keras.metrics.kl_divergence',
@@ -1650,8 +1883,8 @@ def kl_divergence(y_true, y_pred):
   """
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
-  y_true = K.clip(y_true, K.epsilon(), 1)
-  y_pred = K.clip(y_pred, K.epsilon(), 1)
+  y_true = backend.clip(y_true, backend.epsilon(), 1)
+  y_pred = backend.clip(y_pred, backend.epsilon(), 1)
   return tf.reduce_sum(y_true * tf.math.log(y_true / y_pred), axis=-1)
 
 
@@ -1686,7 +1919,8 @@ def poisson(y_true, y_pred):
   """
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
-  return K.mean(y_pred - y_true * tf.math.log(y_pred + K.epsilon()), axis=-1)
+  return backend.mean(
+      y_pred - y_true * tf.math.log(y_pred + backend.epsilon()), axis=-1)
 
 
 @keras_export(
@@ -1729,8 +1963,8 @@ def cosine_similarity(y_true, y_pred, axis=-1):
   Returns:
     Cosine similarity tensor.
   """
-  y_true = tf.compat.v1.linalg.l2_normalize(y_true, axis=axis)
-  y_pred = tf.compat.v1.linalg.l2_normalize(y_pred, axis=axis)
+  y_true = tf.linalg.l2_normalize(y_true, axis=axis)
+  y_pred = tf.linalg.l2_normalize(y_pred, axis=axis)
   return -tf.reduce_sum(y_true * y_pred, axis=axis)
 
 
@@ -1754,8 +1988,8 @@ class CosineSimilarity(LossFunctionWrapper):
   >>> y_pred = [[1., 0.], [1., 1.]]
   >>> # Using 'auto'/'sum_over_batch_size' reduction type.
   >>> cosine_loss = tf.keras.losses.CosineSimilarity(axis=1)
-  >>> # l2_norm(y_true) = [[0., 1.], [1./1.414], 1./1.414]]]
-  >>> # l2_norm(y_pred) = [[1., 0.], [1./1.414], 1./1.414]]]
+  >>> # l2_norm(y_true) = [[0., 1.], [1./1.414, 1./1.414]]
+  >>> # l2_norm(y_pred) = [[1., 0.], [1./1.414, 1./1.414]]
   >>> # l2_norm(y_true) . l2_norm(y_pred) = [[0., 0.], [0.5, 0.5]]
   >>> # loss = mean(sum(l2_norm(y_true) . l2_norm(y_pred), axis=1))
   >>> #       = -((0. + 0.) +  (0.5 + 0.5)) / 2
@@ -1785,9 +2019,9 @@ class CosineSimilarity(LossFunctionWrapper):
   ```
 
   Args:
-    axis: (Optional) Defaults to -1. The dimension along which the cosine
-      similarity is computed.
-    reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to loss.
+    axis: The axis along which the cosine similarity is computed
+      (the features axis). Defaults to -1.
+    reduction: Type of `tf.keras.losses.Reduction` to apply to loss.
       Default value is `AUTO`. `AUTO` indicates that the reduction option will
       be determined by the usage context. For almost all cases this defaults to
       `SUM_OVER_BATCH_SIZE`. When used with `tf.distribute.Strategy`, outside of
@@ -1796,14 +2030,14 @@ class CosineSimilarity(LossFunctionWrapper):
       custom training [tutorial]
       (https://www.tensorflow.org/tutorials/distribute/custom_training) for more
         details.
-    name: Optional name for the op.
+    name: Optional name for the instance.
   """
 
   def __init__(self,
                axis=-1,
                reduction=losses_utils.ReductionV2.AUTO,
                name='cosine_similarity'):
-    super(CosineSimilarity, self).__init__(
+    super().__init__(
         cosine_similarity, reduction=reduction, name=name, axis=axis)
 
 
@@ -1872,7 +2106,7 @@ def get(identifier):
   <class 'function'>
   >>> loss = tf.keras.losses.get("CategoricalCrossentropy")
   >>> type(loss)
-  <class '...tensorflow.python.keras.losses.CategoricalCrossentropy'>
+  <class '...keras.losses.CategoricalCrossentropy'>
 
   You can also specify `config` of the loss to this function by passing dict
   containing `class_name` and `config` as an identifier. Also note that the
@@ -1882,12 +2116,12 @@ def get(identifier):
   ...               "config": {"from_logits": True}}
   >>> loss = tf.keras.losses.get(identifier)
   >>> type(loss)
-  <class '...tensorflow.python.keras.losses.CategoricalCrossentropy'>
+  <class '...keras.losses.CategoricalCrossentropy'>
 
   Args:
     identifier: A loss identifier. One of None or string name of a loss
       function/class or loss configuration dictionary or a loss function or a
-      loss class instance
+      loss class instance.
 
   Returns:
     A Keras loss as a `function`/ `Loss` class instance.
@@ -1897,16 +2131,15 @@ def get(identifier):
   """
   if identifier is None:
     return None
-  if isinstance(identifier, six.string_types):
+  if isinstance(identifier, str):
     identifier = str(identifier)
     return deserialize(identifier)
   if isinstance(identifier, dict):
     return deserialize(identifier)
-  elif callable(identifier):
+  if callable(identifier):
     return identifier
-  else:
-    raise ValueError(
-        'Could not interpret loss function identifier: {}'.format(identifier))
+  raise ValueError(
+      f'Could not interpret loss function identifier: {identifier}')
 
 
 LABEL_DTYPES_FOR_LOSSES = {

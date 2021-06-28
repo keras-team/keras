@@ -6,7 +6,7 @@ package(
         "//keras:__subpackages__",
         "//third_party/tensorflow:__subpackages__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(
@@ -23,8 +23,8 @@ py_library(
         ":rnn_cell_wrapper_impl",
         "//:expect_tensorflow_installed",
         "//keras:activations",
-        "//keras:initializers",
         "//keras/engine:input_spec",
+        "//keras/initializers",
         "//keras/legacy_tf_layers:layers_base",
         "//keras/saving",
         "//keras/utils:tf_utils",

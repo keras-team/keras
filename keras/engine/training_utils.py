@@ -13,11 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Training-related utilities."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 from keras.utils import generic_utils
@@ -101,7 +98,7 @@ def handle_partial_sample_weights(outputs, sample_weights, sample_weight_modes,
     if sw is None:
       as_numpy = isinstance(outputs[i], np.ndarray)
       output = outputs[i]
-      output_shape = output.shape if as_numpy else tf.compat.v1.shape(output)
+      output_shape = output.shape if as_numpy else tf.shape(output)
 
       is_temporal = (
           sample_weight_modes is not None and

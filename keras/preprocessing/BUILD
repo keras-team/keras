@@ -7,7 +7,7 @@ package(
     default_visibility = [
         "//keras:__subpackages__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(
@@ -45,7 +45,6 @@ py_library(
         "//:expect_scipy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
-        "//keras/layers/preprocessing:image_preprocessing",
         "//keras/utils:data_utils",
     ],
 )
@@ -96,6 +95,9 @@ tf_py_test(
     size = "medium",
     srcs = ["image_test.py"],
     python_version = "PY3",
+    tags = [
+        "no_oss",  # TODO(scottzhu): Fix for multiple export issue.
+    ],
     deps = [
         ":image",
         "//:expect_numpy_installed",

@@ -13,11 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for backend_config."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras import backend_config

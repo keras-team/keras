@@ -13,12 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities related to distributed training."""
-# pylint:disable=protected-access
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from keras import backend
 
 
@@ -58,3 +54,9 @@ def call_replica_local_fn(fn, *args, **kwargs):
     with strategy.scope():
       return strategy.extended.call_for_each_replica(fn, args, kwargs)
   return fn(*args, **kwargs)
+
+
+def is_distributed_variable(v):
+  """Returns whether `v` is a distributed variable."""
+  return (isinstance(v, tf.distribute.DistributedValues) and
+          isinstance(v, tf.Variable))

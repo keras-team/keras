@@ -13,11 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Training-related utilities."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import abc
 import atexit
@@ -28,10 +25,7 @@ import threading
 import time
 
 import numpy as np
-import six
-from six.moves import zip  # pylint: disable=redefined-builtin
-from tensorflow.python.framework import smart_cond
-from keras import backend as K
+from keras import backend
 from keras import callbacks as cbks
 from keras import losses
 from keras import metrics as metrics_module
@@ -52,8 +46,7 @@ def is_composite_or_composite_value(tensor):
        tf.compat.v1.ragged.RaggedTensorValue))
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Aggregator(object):
+class Aggregator(object, metaclass=abc.ABCMeta):
   """Abstract base class used to aggregate batch-level outputs of a loop.
 
   Attributes:
@@ -357,7 +350,7 @@ class SliceAggregator(Aggregator):
   def aggregate(self, batch_element, batch_start, batch_end):
     # Fail early.
     if self._errors:
-      six.reraise(type(self._errors[0]), self._errors[0])
+      raise self._errors[0]
 
     # In the special case of single batch inference, no copy is needed.
     if batch_end - batch_start == self.num_samples:
@@ -405,7 +398,7 @@ class SliceAggregator(Aggregator):
         raise ValueError('Timed out waiting for copy to complete.')
 
     if self._errors:
-      six.reraise(self._errors[0].__class__, self._errors[0])
+      raise self._errors[0]
 
 
 class OutputsAggregator(Aggregator):
@@ -826,6 +819,7 @@ def collect_per_output_metric_info(metrics,
                                    output_names,
                                    output_shapes,
                                    loss_fns,
+                                   from_serialized=False,
                                    is_weighted=False):
   """Maps metric names and functions to model outputs.
 
@@ -834,6 +828,8 @@ def collect_per_output_metric_info(metrics,
       output_names: a list of the names (strings) of model outputs.
       output_shapes: a list of the shapes (strings) of model outputs.
       loss_fns: a list of the loss functions corresponding to the model outputs.
+      from_serialized: whether the model the metrics are being sourced from is
+        being initialized from a serialized format.
       is_weighted: Boolean indicating whether the given metrics are weighted.
 
   Returns:
@@ -890,11 +886,16 @@ def collect_per_output_metric_info(metrics,
       metric_name = get_metric_name(metric, is_weighted)
       metric_fn = get_metric_function(
           metric, output_shape=output_shapes[i], loss_fn=loss_fns[i])
+      metric_fn._from_serialized = from_serialized  # pylint: disable=protected-access
 
       # If the metric function is not stateful, we create a stateful version.
       if not isinstance(metric_fn, metrics_module.Metric):
         metric_fn = metrics_module.MeanMetricWrapper(
             metric_fn, name=metric_name)
+        # If the metric is being revived from something stateless, such as a
+        # string (e.g. "accuracy"), we may need to later reapply transformations
+        # such as renaming.
+        metric_fn._from_serialized = False  # pylint: disable=protected-access
       metrics_dict[metric_name] = metric_fn
     per_output_metrics.append(metrics_dict)
 
@@ -1009,19 +1010,20 @@ def standardize_weights(y,
       weight_vector[:] = np.nan
       weight_vector[keys] = values
 
-      y_classes = smart_cond.smart_cond(
-          len(y.shape.as_list()) == 2 and K.shape(y)[1] > 1,
-          lambda: K.argmax(y, axis=1),
-          lambda: tf.cast(K.reshape(y, (-1,)), tf.int64))
+      y_classes = tf.__internal__.smart_cond.smart_cond(
+          len(y.shape.as_list()) == 2 and backend.shape(y)[1] > 1,
+          lambda: backend.argmax(y, axis=1),
+          lambda: tf.cast(backend.reshape(y, (-1,)), tf.int64))
       class_sample_weight = tf.compat.v1.gather(weight_vector, y_classes)
       tf.debugging.check_numerics(
           class_sample_weight,
           'Invalid classes or class weights detected. NaN values indicate that '
           'an appropriate class weight could not be determined.')
-      class_sample_weight = tf.cast(class_sample_weight, K.floatx())
+      class_sample_weight = tf.cast(class_sample_weight, backend.floatx())
       if sample_weight is not None:
         sample_weight = tf.cast(
-            tf.convert_to_tensor(sample_weight), K.floatx())
+            tf.convert_to_tensor(sample_weight),
+            backend.floatx())
     else:
       y_classes = y
       if len(y.shape) == 2:
@@ -1071,7 +1073,7 @@ def has_tensors(ls):
     return any(
         tf.is_tensor(v) and
         not isinstance(v, tf.RaggedTensor)
-        for _, v in six.iteritems(ls))
+        for _, v in ls.items())
   return tf.is_tensor(ls) and not isinstance(
       ls, tf.RaggedTensor)
 
@@ -1088,7 +1090,7 @@ def get_metric_name(metric, weighted=False):
   """
   if tf.__internal__.tf2.enabled():
     # We keep the string that the user has set in compile as the metric name.
-    if isinstance(metric, six.string_types):
+    if isinstance(metric, str):
       return metric
 
     metric = metrics_module.get(metric)
@@ -1332,7 +1334,7 @@ def check_steps_argument(input_data, steps, steps_name):
 def cast_single_tensor(x, dtype=None):
   if isinstance(x, np.ndarray):
     x = tf.convert_to_tensor(x)
-  dtype = dtype or K.floatx()
+  dtype = dtype or backend.floatx()
   if x.dtype.is_floating:
     return tf.cast(x, dtype=dtype)
   return x
@@ -1463,7 +1465,7 @@ def prepare_loss_functions(loss, output_names):
             'this was done on purpose. The fit and evaluate APIs will not be '
             'expecting any data to be passed to {0}.'.format(name))
       loss_functions.append(get_loss_function(loss.get(name, None)))
-  elif isinstance(loss, six.string_types):
+  elif isinstance(loss, str):
     loss_functions = [get_loss_function(loss) for _ in output_names]
   elif isinstance(loss, collections.abc.Sequence):
     if len(loss) != len(output_names):
@@ -1537,7 +1539,7 @@ def get_dataset_graph_def(dataset):
   if tf.executing_eagerly():
     graph_def_str = dataset._as_serialized_graph().numpy()
   else:
-    graph_def_str = K.get_value(dataset._as_serialized_graph())
+    graph_def_str = backend.get_value(dataset._as_serialized_graph())
   return tf.compat.v1.GraphDef().FromString(graph_def_str)
 
 
@@ -1583,7 +1585,7 @@ def get_iterator(dataset):
 def initialize_iterator(iterator):
   if not tf.executing_eagerly():
     init_op = iterator.initializer
-    K.get_session((init_op,)).run(init_op)
+    backend.get_session((init_op,)).run(init_op)
 
 
 def extract_tensors_from_dataset(dataset):
@@ -1667,7 +1669,7 @@ def infer_steps_for_dataset(model,
     # steps_per_epoch due to the possible inbalanced sharding between workers.
     return None
 
-  size = K.get_value(tf.data.experimental.cardinality(dataset))
+  size = backend.get_value(tf.data.experimental.cardinality(dataset))
   if size == tf.data.experimental.INFINITE_CARDINALITY and steps is None:
     raise ValueError('When passing an infinitely repeating dataset, you '
                      'must specify the `%s` argument.' % (steps_name,))
@@ -1745,13 +1747,13 @@ class ModelInputs(object):
           shape = (None, 1)
         dtype = tf.as_dtype(v.dtype)
         if dtype.is_floating:
-          dtype = K.floatx()
-        v = K.placeholder(shape=shape, name=k, dtype=dtype)
+          dtype = backend.floatx()
+        v = backend.placeholder(shape=shape, name=k, dtype=dtype)
       elif isinstance(v, tf.TensorSpec):
         shape = (None,) + tuple(v.shape.as_list()[1:])
         if shape == (None,):
           shape = (None, 1)
-        v = K.placeholder(shape=shape, name=k, dtype=v.dtype)
+        v = backend.placeholder(shape=shape, name=k, dtype=v.dtype)
 
       self._flattened_inputs[i] = v
 

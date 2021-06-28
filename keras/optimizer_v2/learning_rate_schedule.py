@@ -13,11 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Various learning rate decay functions."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import abc
 import math
@@ -27,12 +24,46 @@ from tensorflow.python.util.tf_export import keras_export
 
 @keras_export("keras.optimizers.schedules.LearningRateSchedule")
 class LearningRateSchedule(object):
-  """A serializable learning rate decay schedule.
+  """The learning rate schedule base class.
 
-  `LearningRateSchedule`s can be passed in as the learning rate of optimizers in
-  `tf.keras.optimizers`. They can be serialized and deserialized using
-  `tf.keras.optimizers.schedules.serialize` and
-  `tf.keras.optimizers.schedules.deserialize`.
+  You can use a learning rate schedule to modulate how the learning rate
+  of your optimizer changes over time.
+
+  Several built-in learning rate schedules are available, such as
+  `tf.keras.optimizers.schedules.ExponentialDecay` or
+  `tf.keras.optimizers.schedules.PiecewiseConstantDecay`:
+
+  ```python
+  lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+      initial_learning_rate=1e-2,
+      decay_steps=10000,
+      decay_rate=0.9)
+  optimizer = keras.optimizers.SGD(learning_rate=lr_schedule)
+  ```
+
+  A `LearningRateSchedule` instance can be passed in as the `learning_rate`
+  argument of any optimizer.
+
+  To implement your own schedule object, you should implement the `__call__`
+  method, which takes a `step` argument (scalar integer tensor, the
+  current training step count).
+  Like for any other Keras object, you can also optionally
+  make your object serializable by implementing the `get_config`
+  and `from_config` methods.
+
+  Example:
+
+  ```python
+  class MyLRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+
+    def __init__(self, initial_learning_rate):
+      self.initial_learning_rate = initial_learning_rate
+
+    def __call__(self, step):
+       return self.initial_learning_rate / (step + 1)
+
+  optimizer = tf.keras.optimizers.SGD(learning_rate=MyLRSchedule(0.1))
+  ```
   """
 
   @abc.abstractmethod
@@ -253,7 +284,7 @@ class PiecewiseConstantDecay(LearningRateSchedule):
       # The default isn't needed here because our conditions are mutually
       # exclusive and exhaustive, but tf.case requires it.
       default = lambda: values[0]
-      return tf.compat.v1.case(pred_fn_pairs, default, exclusive=True)
+      return tf.case(pred_fn_pairs, default, exclusive=True)
 
   def get_config(self):
     return {
@@ -380,9 +411,9 @@ class PolynomialDecay(LearningRateSchedule):
       if self.cycle:
         # Find the first multiple of decay_steps that is bigger than
         # global_step. If global_step is zero set the multiplier to 1
-        multiplier = tf.compat.v1.cond(
-            tf.equal(global_step_recomp, 0), lambda: 1.0,
-            lambda: tf.math.ceil(global_step_recomp / self.decay_steps))
+        multiplier = tf.where(
+            tf.equal(global_step_recomp, 0), 1.0,
+            tf.math.ceil(global_step_recomp / self.decay_steps))
         decay_steps_recomp = tf.multiply(decay_steps_recomp, multiplier)
       else:
         # Make sure that the global_step used is not bigger than decay_steps.
@@ -711,7 +742,7 @@ class CosineDecayRestarts(LearningRateSchedule):
 
         return i_restart, completed_fraction
 
-      i_restart, completed_fraction = tf.compat.v1.cond(
+      i_restart, completed_fraction = tf.cond(
           tf.equal(t_mul, 1.0),
           lambda: compute_step(completed_fraction, geometric=False),
           lambda: compute_step(completed_fraction, geometric=True))
@@ -992,11 +1023,57 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
 
 @keras_export("keras.optimizers.schedules.serialize")
 def serialize(learning_rate_schedule):
+  """Serializes a `LearningRateSchedule` into a JSON-compatible representation.
+
+  Args:
+    learning_rate_schedule: The `LearningRateSchedule` object to serialize.
+
+  Returns:
+    A JSON-serializable dict representing the object's config.
+
+  Example:
+
+  >>> lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+  ...   0.1, decay_steps=100000, decay_rate=0.96, staircase=True)
+  >>> tf.keras.optimizers.schedules.serialize(lr_schedule)
+  {'class_name': 'ExponentialDecay',
+   'config': {'decay_rate': 0.96,
+      'decay_steps': 100000,
+      'initial_learning_rate': 0.1,
+      'name': None,
+      'staircase': True}}
+  """
   return generic_utils.serialize_keras_object(learning_rate_schedule)
 
 
 @keras_export("keras.optimizers.schedules.deserialize")
 def deserialize(config, custom_objects=None):
+  """Instantiates a `LearningRateSchedule` object from a serialized form.
+
+  Args:
+    config: The serialized form of the `LearningRateSchedule`.
+      Dictionary of the form {'class_name': str, 'config': dict}.
+    custom_objects: A dictionary mapping class names (or function names) of
+      custom (non-Keras) objects to class/functions.
+
+  Returns:
+    A `LearningRateSchedule` object.
+
+  Example:
+
+  ```python
+  # Configuration for PolynomialDecay
+  config = {
+    'class_name': 'PolynomialDecay',
+    'config': {'cycle': False,
+      'decay_steps': 10000,
+      'end_learning_rate': 0.01,
+      'initial_learning_rate': 0.1,
+      'name': None,
+      'power': 0.5}}
+  lr_schedule = tf.keras.optimizers.schedules.deserialize(config)
+  ```
+  """
   return generic_utils.deserialize_keras_object(
       config,
       module_objects=globals(),

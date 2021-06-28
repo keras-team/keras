@@ -14,10 +14,6 @@
 # ==============================================================================
 """Classes and functions implementing to Model SavedModel serialization."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from keras.saving import saving_utils
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import layer_serialization
@@ -36,7 +32,10 @@ class ModelSavedModelSaver(layer_serialization.LayerSavedModelSaver):
     # Network stateful property is dependent on the child layers.
     metadata.pop('stateful')
     metadata['is_graph_network'] = self.obj._is_graph_network  # pylint: disable=protected-access
-    metadata['save_spec'] = self.obj._get_save_spec(dynamic_batch=False)  # pylint: disable=protected-access
+    spec = self.obj.save_spec(dynamic_batch=False)
+    metadata['full_save_spec'] = spec
+    # save_spec is saved for forward compatibility on older TF versions.
+    metadata['save_spec'] = None if spec is None else spec[0][0]
 
     metadata.update(
         saving_utils.model_metadata(

@@ -14,14 +14,9 @@
 # ==============================================================================
 """Tests for trackable object SavedModel save."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import os
-import sys
 from tensorflow.python.framework import test_util
 from keras.layers import core
 from keras.optimizer_v2 import adam
@@ -57,10 +52,6 @@ class MemoryTests(tf.test.TestCase):
     x = tf.constant([[3., 4.]])
     y = tf.constant([2.])
     self._model.call(x, y)
-    if sys.version_info[0] < 3:
-      # TODO(allenl): debug reference cycles in Python 2.x
-      self.skipTest("This test only works in Python 3+. Reference cycles are "
-                    "created in older Python versions.")
     save_dir = os.path.join(self.get_temp_dir(), "saved_model")
     tf.saved_model.save(self._model, save_dir, self._model.call)
 

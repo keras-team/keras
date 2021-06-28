@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for timeseries."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 from keras.preprocessing import timeseries

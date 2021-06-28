@@ -14,11 +14,7 @@
 # ==============================================================================
 """Test multi-worker Keras."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 import copy
@@ -32,14 +28,16 @@ from absl.testing import parameterized
 
 # pylint: disable=g-direct-tensorflow-import
 import keras
-from tensorflow.python.distribute import distribute_coordinator as dc
-from tensorflow.python.distribute import multi_worker_test_base as test_base
 from keras import backend
 from keras import callbacks
 from keras import metrics as metrics_module
 from keras import models
 from keras import optimizer_v1
 from keras.distribute import multi_worker_testing_utils
+from keras.optimizer_v2 import rmsprop
+from keras.utils import kpl_test_utils
+
+# pylint: disable=g-direct-tensorflow-import
 
 
 def _clone_and_build_model(model, strategy):
@@ -120,7 +118,7 @@ class MultiWorkerVerificationCallback(callbacks.Callback):
     self._num_worker = num_worker
     self._task_dict = {
         key: collections.defaultdict(lambda: collections.defaultdict(int))
-        for key in ['ps', 'worker']
+        for key in ['ps', 'worker', 'chief']
     }
     self._lock = threading.Lock()
     self._is_between_graph = None
@@ -168,76 +166,114 @@ class MultiWorkerVerificationCallback(callbacks.Callback):
     else:
       # If in-graph, only the first worker calls callback methods.
       worker_call_count = {0: method_count_dict}
+    chief_call_count = {0: method_count_dict}
+    task_config = json.loads(os.environ['TF_CONFIG'])['task']['type']
     test_case.assertDictEqual(
         self._task_dict,
         {
             # PS' callback is not supposed to be called.
             'ps': {},
-            # Each of the Worker should be called num_epoch of times.
-            'worker': worker_call_count
+            # Worker or chief should only be called on worker/chief.
+            'worker': worker_call_count if task_config == 'worker' else {},
+            'chief': chief_call_count if task_config == 'chief' else {}
         })
 
 
-class KerasMultiWorkerTestIndependentWorker(test_base.IndependentWorkerTestBase,
+class KerasMultiWorkerTestIndependentWorker(tf.test.TestCase,
                                             parameterized.TestCase):
 
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.combine(
-          mode=['graph'],
-          strategy_cls=[
-              tf.distribute.MultiWorkerMirroredStrategy,
-          ],
-          required_gpus=[0, 1]))
-  def testSimpleModelIndependentWorkerSync(self, strategy_cls):
-    num_workers = 2
-    num_epoch = 2
-
-    cluster_spec = tf.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=num_workers)
-    self._barrier = dc._Barrier(2)
-
-    # The verification callback will be shared by multiple threads.
+          mode=['eager'],
+          strategy=[
+              tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
+              tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+          ]))
+  def testSimpleModelIndependentWorkerSync(self, strategy):
     verification_callback = MultiWorkerVerificationCallback(
-        num_epoch=num_epoch, num_worker=num_workers)
+        num_epoch=2,
+        num_worker=len(
+            json.loads(os.environ['TF_CONFIG'])['cluster']['worker']))
+    verification_callback.is_between_graph = \
+        strategy.extended.experimental_between_graph
+    batch_size = 64
+    steps = 2
+    train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(
+        batch_size, steps)
+    with strategy.scope():
+      model = multi_worker_testing_utils.get_mnist_model((28, 28, 1))
+    orig_loss, _ = model.evaluate(train_ds, steps=steps)
+    history = model.fit(
+        x=train_ds,
+        epochs=2,
+        steps_per_epoch=steps,
+        callbacks=[verification_callback])
+    self.assertIsInstance(history, keras.callbacks.History)
+    trained_loss, _ = model.evaluate(train_ds, steps=steps)
+    self.assertLess(trained_loss, orig_loss)
 
-    def _independent_worker_fn(*args, **kwargs):  # pylint: disable=unused-argument
-      """Simulates an Independent Worker inside of a thread."""
-      with tf.compat.v1.test.mock.patch.object(dc, '_run_std_server',
-                                  self._make_mock_run_std_server()):
-        strategy = strategy_cls()
-        verification_callback.is_between_graph = \
-            strategy.extended.experimental_between_graph
-        batch_size = 64
-        steps = 2
-        train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(
-            batch_size, steps)
-        with strategy.scope():
-          model = multi_worker_testing_utils.get_mnist_model((28, 28, 1))
-        orig_loss, _ = model.evaluate(train_ds, steps=steps)
-        callbacks_for_fit = tf.nest.flatten(
-            kwargs.get('verification_callback', []))
-        history = model.fit(
-            x=train_ds,
-            epochs=num_epoch,
-            steps_per_epoch=steps,
-            callbacks=callbacks_for_fit)
-        self.assertIsInstance(history, keras.callbacks.History)
-        trained_loss, _ = model.evaluate(train_ds, steps=steps)
-        self.assertLess(trained_loss, orig_loss)
-
-    threads = self.run_multiple_tasks_in_threads(
-        _independent_worker_fn,
-        cluster_spec,
-        verification_callback=verification_callback)
-
-    threads_to_join = []
-    strategy = strategy_cls()
-    if strategy.extended.experimental_between_graph:
-      for ts in threads.values():
-        threads_to_join.extend(ts)
-    else:
-      threads_to_join = [threads['worker'][0]]
-    self.join_independent_workers(threads_to_join)
     verification_callback.verify(self)
+
+
+class KPLMultiWorkerTest(tf.test.TestCase,
+                         parameterized.TestCase):
+
+  @tf.__internal__.distribute.combinations.generate(
+      tf.__internal__.test.combinations.combine(
+          mode=['eager'],
+          use_adapt=[False],  # TODO(b/180742437): Add tests for using adapt.
+          strategy=[
+              tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+              # TODO(b/183956672): Re-enable
+              # strategy_combinations.multi_worker_mirrored_2x2_gpu,
+          ]))
+  def testTrainAndServeWithKPL(self, use_adapt, strategy):
+    test_utils_obj = kpl_test_utils.DistributeKplTestUtils()
+    with strategy.scope():
+      feature_mapper, label_mapper = test_utils_obj.define_kpls_for_training(
+          use_adapt)
+      model = test_utils_obj.define_model()
+      optimizer = rmsprop.RMSprop(learning_rate=0.1)
+      accuracy = keras.metrics.Accuracy()
+
+      def dataset_fn(_):
+        return test_utils_obj.dataset_fn(feature_mapper, label_mapper)
+
+      @tf.function
+      def train_step(iterator):
+        """The step function for one training step."""
+
+        def step_fn(inputs):
+          """The computation to run on each worker."""
+          features, labels = inputs
+          with tf.GradientTape() as tape:
+            pred = model(features, training=True)
+            loss = keras.losses.binary_crossentropy(labels, pred)
+            loss = tf.nn.compute_average_loss(loss)
+          grads = tape.gradient(loss, model.trainable_variables)
+          optimizer.apply_gradients(list(zip(grads, model.trainable_variables)))
+
+          actual_pred = tf.cast(tf.greater(pred, 0.5), tf.int64)
+          accuracy.update_state(labels, actual_pred)
+
+        strategy.run(step_fn, args=(next(iterator),))
+
+      distributed_dataset = strategy.distribute_datasets_from_function(
+          dataset_fn)
+      distributed_iterator = iter(distributed_dataset)
+      num_epochs = 4
+      num_steps = 7
+      for _ in range(num_epochs):
+        accuracy.reset_state()
+        for _ in range(num_steps):
+          train_step(distributed_iterator)
+
+      self.assertGreater(accuracy.result().numpy(), 0.5)
+      self.assertEqual(optimizer.iterations.numpy(), num_epochs * num_steps)
+
+    # Test save/load/serving the trained model.
+    test_utils_obj.test_save_load_serving_model(
+        model, feature_mapper, test_utils_obj.define_reverse_lookup_layer())
 
 
 if __name__ == '__main__':
@@ -245,4 +281,4 @@ if __name__ == '__main__':
   # by `init_restore_or_wait_for_variables`.
   backend.manual_variable_initialization(True)
   with tf.compat.v1.test.mock.patch.object(sys, 'exit', os._exit):
-    tf.test.main()
+    tf.__internal__.distribute.multi_process_runner.test_main()

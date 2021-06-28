@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for Keras composite tensor support."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 
@@ -81,8 +77,8 @@ class ToSparse(Layer):
 
   def call(self, inputs):
     indices = tf.where(tf.not_equal(inputs, 0))
-    values = tf.compat.v1.gather_nd(inputs, indices)
-    shape = tf.compat.v1.shape(inputs, out_type=tf.int64)
+    values = tf.gather_nd(inputs, indices)
+    shape = tf.shape(inputs, out_type=tf.int64)
     return tf.SparseTensor(indices, values, dense_shape=shape)
 
 

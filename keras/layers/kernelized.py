@@ -15,14 +15,9 @@
 # pylint: disable=g-classes-have-attributes
 """Keras layers that implement explicit (approximate) kernel feature maps."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
-import six
 from keras import initializers
 from keras.engine import base_layer
 from keras.engine import input_spec
@@ -153,7 +148,7 @@ class RandomFourierFeatures(base_layer.Layer):
       raise ValueError(
           '`output_dim` should be a positive integer. Given: {}.'.format(
               output_dim))
-    if isinstance(kernel_initializer, six.string_types):
+    if isinstance(kernel_initializer, str):
       if kernel_initializer.lower() not in _SUPPORTED_RBF_KERNEL_TYPES:
         raise ValueError(
             'Unsupported kernel type: \'{}\'. Supported kernel types: {}.'
@@ -231,7 +226,7 @@ class RandomFourierFeatures(base_layer.Layer):
 
   def get_config(self):
     kernel_initializer = self.kernel_initializer
-    if not isinstance(kernel_initializer, six.string_types):
+    if not isinstance(kernel_initializer, str):
       kernel_initializer = initializers.serialize(kernel_initializer)
     config = {
         'output_dim': self.output_dim,
@@ -250,7 +245,7 @@ def _get_random_features_initializer(initializer, shape):
     return loc + scale * np.tan(np.pi * (probs - 0.5))
 
   random_features_initializer = initializer
-  if isinstance(initializer, six.string_types):
+  if isinstance(initializer, str):
     if initializer.lower() == 'gaussian':
       random_features_initializer = tf.compat.v1.random_normal_initializer(
           stddev=1.0)
@@ -266,7 +261,7 @@ def _get_random_features_initializer(initializer, shape):
 
 
 def _get_default_scale(initializer, input_dim):
-  if (isinstance(initializer, six.string_types) and
+  if (isinstance(initializer, str) and
       initializer.lower() == 'gaussian'):
     return np.sqrt(input_dim / 2.0)
   return 1.0

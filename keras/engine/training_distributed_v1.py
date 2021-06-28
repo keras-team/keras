@@ -12,21 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Part of the Keras training engine related to distributed training.
-"""
-# pylint: disable=protected-access
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Part of the Keras training engine related to distributed training."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
+# pylint: disable=protected-access
 
 import numpy as np
-
-from tensorflow.python.distribute import distribute_coordinator as dc
 from tensorflow.python.distribute import input_lib
-from keras import backend as K
+from keras import backend
 from keras import callbacks as cbks
+from keras.distribute import distribute_coordinator_utils as dc
 from keras.distribute import distributed_training_utils_v1 as dist_utils
 from keras.engine import partial_batch_padding_handler as padding_util
 from keras.engine import training_arrays_v1
@@ -90,7 +85,7 @@ def _make_train_step_fn(model, mode, strategy, output_labels):
                                                   grouped_outputs,
                                                   grouped_updates,
                                                   grouped_session_args)
-    combined_fn = K.function(
+    combined_fn = backend.function(
         all_inputs,
         all_outputs,
         updates=all_updates,
@@ -160,7 +155,7 @@ def experimental_tpu_fit_loop(model,
   current_strategy = model._distribution_strategy
   iteration_value = min(steps_per_epoch,
                         current_strategy.extended.steps_per_run)
-  steps_per_run = K.variable(
+  steps_per_run = backend.variable(
       value=iteration_value,
       dtype='int32',
       name='steps_per_run')
@@ -230,10 +225,10 @@ def experimental_tpu_fit_loop(model,
       batch_logs = {'batch': step_index, 'size': 1, 'num_steps': step_count}
       callbacks._call_batch_hook(mode, 'begin', step_index, batch_logs)
       if prev_step_count is None or step_count != prev_step_count:
-        K.get_session().run(steps_per_run.assign(step_count))
+        backend.get_session().run(steps_per_run.assign(step_count))
         prev_step_count = step_count
       try:
-        _, outputs = K.batch_get_value([train_op, output_tensors])
+        _, outputs = backend.batch_get_value([train_op, output_tensors])
       except tf.errors.OutOfRangeError:
         logging.warning('Your dataset iterator ran out of data; '
                         'interrupting training. Make sure that your dataset '
@@ -377,7 +372,7 @@ def experimental_tpu_test_loop(model,
     batch_logs = {'batch': current_step, 'size': 1}
     callbacks._call_batch_hook(mode, 'begin', current_step, batch_logs)
     try:
-      _, batch_outs = K.batch_get_value([test_op, output_tensors])
+      _, batch_outs = backend.batch_get_value([test_op, output_tensors])
     except tf.errors.OutOfRangeError:
       warning_msg = (
           'Make sure that your dataset can generate at least '
@@ -524,7 +519,7 @@ def experimental_tpu_predict_loop(model,
     callbacks._call_batch_hook(mode, 'begin', current_step, batch_logs)
     try:
       predict_ops = tf.group(output_tensors)
-      _, batch_outs = K.batch_get_value([predict_ops, output_tensors])
+      _, batch_outs = backend.batch_get_value([predict_ops, output_tensors])
 
     except tf.errors.OutOfRangeError:
       warning_msg = (
@@ -644,7 +639,7 @@ class DistributionSingleWorkerTrainingLoop(training_utils_v1.TrainingLoop):
       raise ValueError('validation_split argument is not supported with '
                        'distribution strategies.')
 
-    if K.is_tpu_strategy(model._distribution_strategy):
+    if backend.is_tpu_strategy(model._distribution_strategy):
       steps_per_epoch = training_utils_v1.infer_steps_for_dataset(
           model, dataset, steps_per_epoch, epochs, steps_name='steps_per_epoch')
       if steps_per_epoch is None:
@@ -701,7 +696,7 @@ class DistributionSingleWorkerTrainingLoop(training_utils_v1.TrainingLoop):
         batch_size=batch_size,
         allow_partial_batch=True)
 
-    if K.is_tpu_strategy(model._distribution_strategy):
+    if backend.is_tpu_strategy(model._distribution_strategy):
       steps = training_utils_v1.infer_steps_for_dataset(
           model, dataset, steps, steps_name='steps')
       if steps is None:
@@ -738,7 +733,7 @@ class DistributionSingleWorkerTrainingLoop(training_utils_v1.TrainingLoop):
         x,
         batch_size=batch_size,
         allow_partial_batch=True)
-    if K.is_tpu_strategy(model._distribution_strategy):
+    if backend.is_tpu_strategy(model._distribution_strategy):
       steps = training_utils_v1.infer_steps_for_dataset(
           model, dataset, steps, steps_name='steps')
       if steps is None:
@@ -769,8 +764,7 @@ def _train_with_multi_worker(method):
 
     return dc.run_distribute_coordinator(
         _worker_fn,
-        model._distribution_strategy,
-        mode='independent_worker')
+        model._distribution_strategy)
 
   return wrapper
 

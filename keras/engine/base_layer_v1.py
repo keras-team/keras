@@ -14,11 +14,8 @@
 # ==============================================================================
 # pylint: disable=protected-access
 """Contains the base Layer class, from which all layers inherit."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 import functools
@@ -27,11 +24,6 @@ import threading
 import warnings
 
 import numpy as np
-import six
-from six.moves import zip  # pylint: disable=redefined-builtin
-
-from tensorflow.python.autograph.core import ag_ctx
-from tensorflow.python.autograph.impl import api as autograph
 from keras import backend
 from keras import constraints
 from keras import initializers
@@ -52,8 +44,6 @@ from keras.utils import tf_utils
 from keras.utils.generic_utils import to_snake_case  # pylint: disable=unused-import
 from keras.utils.tf_utils import is_tensor_or_tensor_list  # pylint: disable=unused-import
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.training.tracking import base as trackable
-from tensorflow.python.training.tracking import data_structures
 from tensorflow.tools.docs import doc_controls
 
 
@@ -133,7 +123,7 @@ class Layer(base_layer.Layer):
       tf.Module._TF_MODULE_IGNORED_PROPERTIES
   ))
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, trainable=True, name=None, dtype=None, dynamic=False,
                **kwargs):
     self._instrument_layer_creation()
@@ -248,7 +238,7 @@ class Layer(base_layer.Layer):
     # a list with one element.
     self._preserve_input_structure_in_config = False
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   @generic_utils.default
   def build(self, input_shape):
     """Creates the variables of the layer (optional, for subclass implementers).
@@ -294,7 +284,10 @@ class Layer(base_layer.Layer):
     Returns:
       The TrackableWeightHandler used to track this object.
     """
-    handler = base_layer_utils.TrackableWeightHandler(trackable_object)
+    if isinstance(trackable_object, base_layer_utils.TrackableWeightHandler):
+      handler = trackable_object
+    else:
+      handler = base_layer_utils.TrackableWeightHandler(trackable_object)
     if trainable:
       self._trainable_weights.append(handler)
     else:
@@ -361,6 +354,7 @@ class Layer(base_layer.Layer):
       if kwarg not in ['getter', 'collections', 'experimental_autocast',
                        'caching_device']:
         raise TypeError('Unknown keyword argument:', kwarg)
+    has_custom_getter = 'getter' in kwargs
     getter = kwargs.pop('getter', base_layer_utils.make_variable)
     collections_arg = kwargs.pop('collections', None)
     # 'experimental_autocast' can be set to False by the caller to indicate an
@@ -402,7 +396,10 @@ class Layer(base_layer.Layer):
       elif dtype.is_integer or dtype.is_unsigned or dtype.is_bool:
         initializer = tf.compat.v1.zeros_initializer()
       # NOTES:Do we need to support for handling DT_STRING and DT_COMPLEX here?
-      else:
+      elif not has_custom_getter:
+        # When `getter` is specified, it's possibly fine for `initializer` to be
+        # None since it's up to the custom `getter` to raise error in case it
+        # indeed needs `initializer`.
         raise ValueError('An initializer for variable %s of type %s is required'
                          ' for layer %s' % (name, dtype.base_dtype, self.name))
 
@@ -418,8 +415,9 @@ class Layer(base_layer.Layer):
       # disable it if it is specified.
       # TODO(b/142020079): Reenable it once the bug is fixed.
       if caching_device is not None:
-        tf_logging.warn('`caching_device` does not work with mixed precision '
-                        'API. Ignoring user specified `caching_device`.')
+        tf_logging.warning(
+            '`caching_device` does not work with mixed precision API. Ignoring '
+            'user specified `caching_device`.')
         caching_device = None
 
     variable = self._add_variable_with_custom_getter(
@@ -552,12 +550,11 @@ class Layer(base_layer.Layer):
           try:
             outputs = self(inputs, training=False)
           except TypeError as e:
-            six.raise_from(
-                NotImplementedError(
-                    'We could not automatically infer the static shape of the '
-                    'layer\'s output. Please implement the '
-                    '`compute_output_shape` method on your layer (%s).' %
-                    self.__class__.__name__), e)
+            raise NotImplementedError(
+                'We could not automatically infer the static shape of the '
+                'layer\'s output. Please implement the '
+                '`compute_output_shape` method on your layer (%s).' %
+                self.__class__.__name__) from e
       return tf.nest.map_structure(lambda t: t.shape, outputs)
     raise NotImplementedError
 
@@ -739,12 +736,10 @@ class Layer(base_layer.Layer):
       if build_graph:
         # Symbolic execution on symbolic tensors. We will attempt to build
         # the corresponding TF subgraph inside `backend.get_graph()`
-        # TODO(reedwm): We should assert input compatibility after the inputs
-        # are casted, not before.
         input_spec.assert_input_compatibility(self.input_spec, inputs,
                                               self.name)
         graph = backend.get_graph()
-        with graph.as_default(), backend.name_scope(self._name_scope()):
+        with graph.as_default(), backend.name_scope(self._name_scope()):  # pylint: disable=not-callable
           # Build layer if applicable (if the `build` method has been
           # overridden).
           self._maybe_build(inputs)
@@ -758,8 +753,8 @@ class Layer(base_layer.Layer):
           # enclosing tf.function, if any.
           if (base_layer_utils.is_subclassed(self) and
               not base_layer_utils.from_saved_model(self)):
-            call_fn = autograph.tf_convert(
-                self.call, ag_ctx.control_status_ctx())
+            call_fn = tf.__internal__.autograph.tf_convert(
+                self.call, tf.__internal__.autograph.control_status_ctx())
           else:
             call_fn = self.call
 
@@ -804,10 +799,11 @@ class Layer(base_layer.Layer):
             # TODO(b/120997007): This should be done in Eager as well, but
             # causes garbage collection issues because of the placeholders
             # created on the default Keras graph.
+            self._set_save_spec(inputs, args, kwargs)
             self._set_inputs(inputs, outputs)
       else:
         # Eager execution on data tensors.
-        with backend.name_scope(self._name_scope()):
+        with backend.name_scope(self._name_scope()):  # pylint: disable=not-callable
           self._maybe_build(inputs)
           cast_inputs = self._maybe_cast_inputs(inputs)
           with autocast_variable.enable_auto_cast_variables(
@@ -885,7 +881,7 @@ class Layer(base_layer.Layer):
   @input_spec.setter
   # Must be decorated to prevent tracking, since the input_spec can be nested
   # InputSpec objects.
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def input_spec(self, value):
     for v in tf.nest.flatten(value):
       if v is not None and not isinstance(v, base_layer.InputSpec):
@@ -1278,11 +1274,12 @@ class Layer(base_layer.Layer):
         weight_index += num_tensors
       else:
         weight = weights[weight_index]
+        weight_shape = weight.shape if hasattr(weight, 'shape') else ()
         ref_shape = param.shape
-        if not ref_shape.is_compatible_with(weight.shape):
+        if not ref_shape.is_compatible_with(weight_shape):
           raise ValueError(
               'Layer weight shape %s not compatible with provided weight '
-              'shape %s' % (ref_shape, weight.shape))
+              'shape %s' % (ref_shape, weight_shape))
         weight_value_tuples.append((param, weight))
         weight_index += 1
 
@@ -1717,7 +1714,7 @@ class Layer(base_layer.Layer):
     return self._inbound_nodes_value
 
   @_inbound_nodes.setter
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _inbound_nodes(self, value):
     self._inbound_nodes_value = value
 
@@ -1726,7 +1723,7 @@ class Layer(base_layer.Layer):
     return self._outbound_nodes_value
 
   @_outbound_nodes.setter
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _outbound_nodes(self, value):
     self._outbound_nodes_value = value
 
@@ -1736,6 +1733,11 @@ class Layer(base_layer.Layer):
       self._dtype_policy = dtype
     elif isinstance(dtype, dict):
       self._dtype_policy = policy.deserialize(dtype)
+    elif isinstance(dtype, str) and dtype in ('mixed_float16',
+                                              'mixed_bfloat16'):
+      # The isinstance check is required since np.dtype raises an error if
+      # compared to a non-dtype string.
+      self._dtype_policy = policy.Policy(dtype)
     elif dtype:
       self._dtype_policy = policy.Policy(tf.as_dtype(dtype).name)
     else:
@@ -1822,7 +1824,7 @@ class Layer(base_layer.Layer):
     value = tf.as_dtype(value).name
     self._set_dtype_policy(policy.Policy(value))
 
-  def _name_scope(self):
+  def _name_scope(self):  # pylint: disable=method-hidden
     return self.name
 
   def _init_set_name(self, name, zero_based=True):
@@ -2113,7 +2115,7 @@ class Layer(base_layer.Layer):
                                  object_identity.ObjectIdentityDictionary())
     return self._obj_reference_counts_dict
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _maybe_create_attribute(self, name, default_value):
     """Create the attribute with the default value if it hasn't been created.
 
@@ -2134,8 +2136,10 @@ class Layer(base_layer.Layer):
     # For any super.__delattr__() call, we will directly use the implementation
     # in Trackable and skip the behavior in AutoTrackable. The Layer was
     # originally use Trackable as base class, the change of using Module as base
-    # class forced us to have AutoTrackable in the class hierarchy. Skipping
-    # the __delattr__ and __setattr__ in AutoTrackable will keep the status quo.
+    # class forced us to have AutoTrackable in the class hierarchy.
+    #
+    # TODO(b/180760306) Keeping the status quo of skipping _delattr__ and
+    # __setattr__ in AutoTrackable may be unsustainable.
     existing_value = getattr(self, name, None)
 
     # If this value is replacing an existing object assigned to an attribute, we
@@ -2143,7 +2147,7 @@ class Layer(base_layer.Layer):
     # other attributes referencing it.
     reference_counts = self._obj_reference_counts
     if existing_value not in reference_counts:
-      super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
+      super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)  # pylint: disable=bad-super-call
       return
 
     reference_count = reference_counts[existing_value]
@@ -2151,24 +2155,24 @@ class Layer(base_layer.Layer):
       # There are other remaining references. We can't remove this object from
       # _layers etc.
       reference_counts[existing_value] = reference_count - 1
-      super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
+      super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)  # pylint: disable=bad-super-call
       return
     else:
       # This is the last remaining reference.
       del reference_counts[existing_value]
 
-    super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
+    super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)  # pylint: disable=bad-super-call
 
     if (isinstance(existing_value, Layer)
         or base_layer_utils.has_weights(existing_value)):
-      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
+      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(  # pylint: disable=bad-super-call
           '_self_tracked_trackables',
           [l for l in self._self_tracked_trackables if l is not existing_value])
     if isinstance(existing_value, tf.Variable):
-      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
+      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(  # pylint: disable=bad-super-call
           '_trainable_weights',
           [w for w in self._trainable_weights if w is not existing_value])
-      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
+      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(  # pylint: disable=bad-super-call
           '_non_trainable_weights',
           [w for w in self._non_trainable_weights if w is not existing_value])
 
@@ -2178,7 +2182,7 @@ class Layer(base_layer.Layer):
         # Exclude @property.setters from tracking
         hasattr(self.__class__, name)):
       try:
-        super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)
+        super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)  # pylint: disable=bad-super-call
       except AttributeError:
         raise AttributeError(
             ('Can\'t set the attribute "{}", likely because it conflicts with '
@@ -2187,7 +2191,7 @@ class Layer(base_layer.Layer):
       return
 
     # Keep track of trackable objects, for the needs of `Network.save_weights`.
-    value = data_structures.sticky_attribute_assignment(
+    value = tf.__internal__.tracking.sticky_attribute_assignment(
         trackable=self, value=value, name=name)
 
     reference_counts = self._obj_reference_counts
@@ -2243,9 +2247,9 @@ class Layer(base_layer.Layer):
 
       backend.track_variable(val)
 
-    # Skip the auto trackable from tf.Module to keep status quo. See the comment
-    # at __delattr__.
-    super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)
+    # TODO(b/180760306) Skip the auto trackable from tf.Module to keep status
+    # quo. See the comment at __delattr__.
+    super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)  # pylint: disable=bad-super-call
 
   # This is a hack so that the is_layer (within
   # training/trackable/layer_utils.py) check doesn't get the weights attr.
@@ -2253,15 +2257,19 @@ class Layer(base_layer.Layer):
   def _is_layer(self):
     return True
 
-  def _init_call_fn_args(self):
+  def _init_call_fn_args(self, expects_training_arg=None):
     # Clear cached call function arguments.
     self.__class__._call_full_argspec.fget.cache.pop(self, None)
     self.__class__._call_fn_args.fget.cache.pop(self, None)
     self.__class__._call_accepts_kwargs.fget.cache.pop(self, None)
 
     call_fn_args = self._call_fn_args
-    self._expects_training_arg = ('training' in call_fn_args or
-                                  self._call_accepts_kwargs)
+    if expects_training_arg is None:
+      self._expects_training_arg = ('training' in call_fn_args or
+                                    self._call_accepts_kwargs)
+    else:
+      # Use value encoded into the metadata when loading from the SavedModel.
+      self._expects_training_arg = expects_training_arg
     self._expects_mask_arg = ('mask' in call_fn_args or
                               self._call_accepts_kwargs)
 

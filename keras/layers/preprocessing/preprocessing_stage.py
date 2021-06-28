@@ -13,12 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 """Preprocessing stage."""
-# pylint: disable=g-classes-have-attributes
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
+# pylint: disable=g-classes-have-attributes
 
 import numpy as np
 from keras.engine import base_preprocessing_layer
@@ -171,9 +168,8 @@ class FunctionalPreprocessingStage(functional.Functional,
     """
     if not isinstance(data, tf.data.Dataset):
       data = self._flatten_to_reference_inputs(data)
-      if any([
-          not isinstance(datum, (np.ndarray, tf.__internal__.EagerTensor)) for datum in data
-      ]):
+      if any(not isinstance(datum, (np.ndarray, tf.__internal__.EagerTensor))
+             for datum in data):
         raise ValueError(
             '`adapt()` requires a batched Dataset, a list of EagerTensors '
             'or Numpy arrays as input, got {}'.format(type(data)))
@@ -227,7 +223,7 @@ class FunctionalPreprocessingStage(functional.Functional,
         args, kwargs = node.map_arguments(ds_dict)
         args = tf.data.Dataset.zip(tf.__internal__.nest.list_to_tuple(*args))
 
-        if hasattr(node.layer, 'adapt'):
+        if node.layer.stateful and hasattr(node.layer, 'adapt'):
           node.layer.adapt(args, reset_state=reset_state)
 
         map_fn = build_map_fn(node, args, kwargs)

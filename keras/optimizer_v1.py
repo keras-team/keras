@@ -18,14 +18,9 @@
 
 For more examples see the base class `tf.compat.v1.keras.optimizers.Optimizer`.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
-
-from six.moves import zip  # pylint: disable=redefined-builtin
-from keras import backend as K
+import tensorflow.compat.v2 as tf
+from keras import backend
 
 
 class Optimizer(object):
@@ -88,13 +83,13 @@ class Optimizer(object):
         ValueError: In case any gradient cannot be computed (e.g. if gradient
           function not implemented).
     """
-    grads = K.gradients(loss, params)
+    grads = backend.gradients(loss, params)
     if any(g is None for g in grads):
       raise ValueError('An operation has `None` for gradient. '
                        'Please make sure that all of your ops have a '
                        'gradient defined (i.e. are differentiable). '
                        'Common ops without gradient: '
-                       'K.argmax, K.round, K.eval.')
+                       'backend.argmax, backend.round, backend.eval.')
     if hasattr(self, 'clipnorm'):
       grads = [tf.clip_by_norm(g, self.clipnorm) for g in grads]
     if hasattr(self, 'clipvalue'):
@@ -125,14 +120,14 @@ class Optimizer(object):
                        ') does not match the number of weights '
                        'of the optimizer (' + str(len(params)) + ')')
     weight_value_tuples = []
-    param_values = K.batch_get_value(params)
+    param_values = backend.batch_get_value(params)
     for pv, p, w in zip(param_values, params, weights):
       if pv.shape != w.shape:
         raise ValueError('Optimizer weight shape ' + str(pv.shape) +
                          ' not compatible with '
                          'provided weight shape ' + str(w.shape))
       weight_value_tuples.append((p, w))
-    K.batch_set_value(weight_value_tuples)
+    backend.batch_set_value(weight_value_tuples)
 
   def get_weights(self):
     """Returns the current value of the weights of the optimizer.
@@ -140,7 +135,7 @@ class Optimizer(object):
     Returns:
         A list of numpy arrays.
     """
-    return K.batch_get_value(self.weights)
+    return backend.batch_get_value(self.weights)
 
   def get_config(self):
     config = {}
@@ -171,17 +166,17 @@ class SGD(Optimizer):
 
   def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False, **kwargs):
     super(SGD, self).__init__(**kwargs)
-    with K.name_scope(self.__class__.__name__):
-      self.iterations = K.variable(0, dtype='int64', name='iterations')
-      self.lr = K.variable(lr, name='lr')
-      self.momentum = K.variable(momentum, name='momentum')
-      self.decay = K.variable(decay, name='decay')
+    with backend.name_scope(self.__class__.__name__):
+      self.iterations = backend.variable(0, dtype='int64', name='iterations')
+      self.lr = backend.variable(lr, name='lr')
+      self.momentum = backend.variable(momentum, name='momentum')
+      self.decay = backend.variable(decay, name='decay')
     self.initial_decay = decay
     self.nesterov = nesterov
 
   def _create_all_weights(self, params):
-    shapes = [K.int_shape(p) for p in params]
-    moments = [K.zeros(shape) for shape in shapes]
+    shapes = [backend.int_shape(p) for p in params]
+    moments = [backend.zeros(shape) for shape in shapes]
     self.weights = [self.iterations] + moments
     return moments
 
@@ -194,7 +189,8 @@ class SGD(Optimizer):
       lr = lr * (  # pylint: disable=g-no-augmented-assignment
           1. /
           (1. +
-           self.decay * tf.cast(self.iterations, K.dtype(self.decay))))
+           self.decay * tf.cast(self.iterations,
+                                      backend.dtype(self.decay))))
     # momentum
     moments = self._create_all_weights(params)
     for p, g, m in zip(params, grads, moments):
@@ -215,9 +211,9 @@ class SGD(Optimizer):
 
   def get_config(self):
     config = {
-        'lr': float(K.get_value(self.lr)),
-        'momentum': float(K.get_value(self.momentum)),
-        'decay': float(K.get_value(self.decay)),
+        'lr': float(backend.get_value(self.lr)),
+        'momentum': float(backend.get_value(self.momentum)),
+        'decay': float(backend.get_value(self.decay)),
         'nesterov': self.nesterov
     }
     base_config = super(SGD, self).get_config()
@@ -232,26 +228,29 @@ class RMSprop(Optimizer):
   (except the learning rate, which can be freely tuned).
 
   Args:
-      lr: float >= 0. Learning rate.
-      rho: float >= 0.
-      epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
-      decay: float >= 0. Learning rate decay over each update.
+    lr: float >= 0. Learning rate.
+    rho: float >= 0.
+    epsilon: float >= 0. Fuzz factor.
+      If `None`, defaults to `backend.epsilon()`.
+    decay: float >= 0. Learning rate decay over each update.
   """
 
   def __init__(self, lr=0.001, rho=0.9, epsilon=None, decay=0., **kwargs):
     super(RMSprop, self).__init__(**kwargs)
-    with K.name_scope(self.__class__.__name__):
-      self.lr = K.variable(lr, name='lr')
-      self.rho = K.variable(rho, name='rho')
-      self.decay = K.variable(decay, name='decay')
-      self.iterations = K.variable(0, dtype='int64', name='iterations')
+    with backend.name_scope(self.__class__.__name__):
+      self.lr = backend.variable(lr, name='lr')
+      self.rho = backend.variable(rho, name='rho')
+      self.decay = backend.variable(decay, name='decay')
+      self.iterations = backend.variable(0, dtype='int64', name='iterations')
     if epsilon is None:
-      epsilon = K.epsilon()
+      epsilon = backend.epsilon()
     self.epsilon = epsilon
     self.initial_decay = decay
 
   def _create_all_weights(self, params):
-    accumulators = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+    accumulators = [
+        backend.zeros(backend.int_shape(p), dtype=backend.dtype(p))
+        for p in params]
     self.weights = accumulators
     return accumulators
 
@@ -265,13 +264,14 @@ class RMSprop(Optimizer):
       lr = lr * (  # pylint: disable=g-no-augmented-assignment
           1. /
           (1. +
-           self.decay * tf.cast(self.iterations, K.dtype(self.decay))))
+           self.decay * tf.cast(self.iterations,
+                                      backend.dtype(self.decay))))
 
     for p, g, a in zip(params, grads, accumulators):
       # update accumulator
       new_a = self.rho * a + (1. - self.rho) * tf.square(g)
       self.updates.append(tf.compat.v1.assign(a, new_a))
-      new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
+      new_p = p - lr * g / (backend.sqrt(new_a) + self.epsilon)
 
       # Apply constraints.
       if getattr(p, 'constraint', None) is not None:
@@ -282,9 +282,9 @@ class RMSprop(Optimizer):
 
   def get_config(self):
     config = {
-        'lr': float(K.get_value(self.lr)),
-        'rho': float(K.get_value(self.rho)),
-        'decay': float(K.get_value(self.decay)),
+        'lr': float(backend.get_value(self.lr)),
+        'rho': float(backend.get_value(self.rho)),
+        'decay': float(backend.get_value(self.decay)),
         'epsilon': self.epsilon
     }
     base_config = super(RMSprop, self).get_config()
@@ -304,7 +304,7 @@ class Adagrad(Optimizer):
 
   # Arguments
       lr: float >= 0. Initial learning rate.
-      epsilon: float >= 0. If `None`, defaults to `K.epsilon()`.
+      epsilon: float >= 0. If `None`, defaults to `backend.epsilon()`.
       decay: float >= 0. Learning rate decay over each update.
 
   # References
@@ -314,18 +314,18 @@ class Adagrad(Optimizer):
 
   def __init__(self, lr=0.01, epsilon=None, decay=0., **kwargs):
     super(Adagrad, self).__init__(**kwargs)
-    with K.name_scope(self.__class__.__name__):
-      self.lr = K.variable(lr, name='lr')
-      self.decay = K.variable(decay, name='decay')
-      self.iterations = K.variable(0, dtype='int64', name='iterations')
+    with backend.name_scope(self.__class__.__name__):
+      self.lr = backend.variable(lr, name='lr')
+      self.decay = backend.variable(decay, name='decay')
+      self.iterations = backend.variable(0, dtype='int64', name='iterations')
     if epsilon is None:
-      epsilon = K.epsilon()
+      epsilon = backend.epsilon()
     self.epsilon = epsilon
     self.initial_decay = decay
 
   def _create_all_weights(self, params):
-    shapes = [K.int_shape(p) for p in params]
-    accumulators = [K.zeros(shape) for shape in shapes]
+    shapes = [backend.int_shape(p) for p in params]
+    accumulators = [backend.zeros(shape) for shape in shapes]
     self.weights = accumulators
     return accumulators
 
@@ -340,12 +340,13 @@ class Adagrad(Optimizer):
       lr = lr * (  # pylint: disable=g-no-augmented-assignment
           1. /
           (1. +
-           self.decay * tf.cast(self.iterations, K.dtype(self.decay))))
+           self.decay * tf.cast(self.iterations,
+                                      backend.dtype(self.decay))))
 
     for p, g, a in zip(params, grads, accumulators):
       new_a = a + tf.square(g)  # update accumulator
       self.updates.append(tf.compat.v1.assign(a, new_a))
-      new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
+      new_p = p - lr * g / (backend.sqrt(new_a) + self.epsilon)
 
       # Apply constraints.
       if getattr(p, 'constraint', None) is not None:
@@ -356,8 +357,8 @@ class Adagrad(Optimizer):
 
   def get_config(self):
     config = {
-        'lr': float(K.get_value(self.lr)),
-        'decay': float(K.get_value(self.decay)),
+        'lr': float(backend.get_value(self.lr)),
+        'decay': float(backend.get_value(self.decay)),
         'epsilon': self.epsilon
     }
     base_config = super(Adagrad, self).get_config()
@@ -378,35 +379,36 @@ class Adadelta(Optimizer):
   It is recommended to leave the parameters of this optimizer
   at their default values.
 
-  # Arguments
-      lr: float >= 0. Initial learning rate, defaults to 1.
-          It is recommended to leave it at the default value.
-      rho: float >= 0. Adadelta decay factor, corresponding to fraction of
-          gradient to keep at each time step.
-      epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
-      decay: float >= 0. Initial learning rate decay.
+  Arguments:
+    lr: float >= 0. Initial learning rate, defaults to 1.
+        It is recommended to leave it at the default value.
+    rho: float >= 0. Adadelta decay factor, corresponding to fraction of
+        gradient to keep at each time step.
+    epsilon: float >= 0. Fuzz factor.
+      If `None`, defaults to `backend.epsilon()`.
+    decay: float >= 0. Initial learning rate decay.
 
-  # References
+  References:
       - [Adadelta - an adaptive learning rate
       method](http://arxiv.org/abs/1212.5701)
   """
 
   def __init__(self, lr=1.0, rho=0.95, epsilon=None, decay=0., **kwargs):
     super(Adadelta, self).__init__(**kwargs)
-    with K.name_scope(self.__class__.__name__):
-      self.lr = K.variable(lr, name='lr')
-      self.decay = K.variable(decay, name='decay')
-      self.iterations = K.variable(0, dtype='int64', name='iterations')
+    with backend.name_scope(self.__class__.__name__):
+      self.lr = backend.variable(lr, name='lr')
+      self.decay = backend.variable(decay, name='decay')
+      self.iterations = backend.variable(0, dtype='int64', name='iterations')
     if epsilon is None:
-      epsilon = K.epsilon()
+      epsilon = backend.epsilon()
     self.rho = rho
     self.epsilon = epsilon
     self.initial_decay = decay
 
   def _create_all_weights(self, params):
-    shapes = [K.int_shape(p) for p in params]
-    accumulators = [K.zeros(shape) for shape in shapes]
-    delta_accumulators = [K.zeros(shape) for shape in shapes]
+    shapes = [backend.int_shape(p) for p in params]
+    accumulators = [backend.zeros(shape) for shape in shapes]
+    delta_accumulators = [backend.zeros(shape) for shape in shapes]
     self.weights = accumulators + delta_accumulators
     return accumulators, delta_accumulators
 
@@ -420,7 +422,8 @@ class Adadelta(Optimizer):
       lr = lr * (  # pylint: disable=g-no-augmented-assignment
           1. /
           (1. +
-           self.decay * tf.cast(self.iterations, K.dtype(self.decay))))
+           self.decay * tf.cast(self.iterations,
+                                      backend.dtype(self.decay))))
 
     for p, g, a, d_a in zip(params, grads, accumulators, delta_accumulators):
       # update accumulator
@@ -428,7 +431,8 @@ class Adadelta(Optimizer):
       self.updates.append(tf.compat.v1.assign(a, new_a))
 
       # use the new accumulator and the *old* delta_accumulator
-      update = g * K.sqrt(d_a + self.epsilon) / K.sqrt(new_a + self.epsilon)
+      update = g * backend.sqrt(d_a + self.epsilon) / backend.sqrt(
+          new_a + self.epsilon)
       new_p = p - lr * update
 
       # Apply constraints.
@@ -444,9 +448,9 @@ class Adadelta(Optimizer):
 
   def get_config(self):
     config = {
-        'lr': float(K.get_value(self.lr)),
+        'lr': float(backend.get_value(self.lr)),
         'rho': self.rho,
-        'decay': float(K.get_value(self.decay)),
+        'decay': float(backend.get_value(self.decay)),
         'epsilon': self.epsilon
     }
     base_config = super(Adadelta, self).get_config()
@@ -459,13 +463,14 @@ class Adam(Optimizer):
   Default parameters follow those provided in the original paper.
 
   Args:
-      lr: float >= 0. Learning rate.
-      beta_1: float, 0 < beta < 1. Generally close to 1.
-      beta_2: float, 0 < beta < 1. Generally close to 1.
-      epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
-      decay: float >= 0. Learning rate decay over each update.
-      amsgrad: boolean. Whether to apply the AMSGrad variant of this algorithm
-        from the paper "On the Convergence of Adam and Beyond".
+    lr: float >= 0. Learning rate.
+    beta_1: float, 0 < beta < 1. Generally close to 1.
+    beta_2: float, 0 < beta < 1. Generally close to 1.
+    epsilon: float >= 0. Fuzz factor.
+      If `None`, defaults to `backend.epsilon()`.
+    decay: float >= 0. Learning rate decay over each update.
+    amsgrad: boolean. Whether to apply the AMSGrad variant of this algorithm
+      from the paper "On the Convergence of Adam and Beyond".
   """
 
   def __init__(self,
@@ -477,25 +482,31 @@ class Adam(Optimizer):
                amsgrad=False,
                **kwargs):
     super(Adam, self).__init__(**kwargs)
-    with K.name_scope(self.__class__.__name__):
-      self.iterations = K.variable(0, dtype='int64', name='iterations')
-      self.lr = K.variable(lr, name='lr')
-      self.beta_1 = K.variable(beta_1, name='beta_1')
-      self.beta_2 = K.variable(beta_2, name='beta_2')
-      self.decay = K.variable(decay, name='decay')
+    with backend.name_scope(self.__class__.__name__):
+      self.iterations = backend.variable(0, dtype='int64', name='iterations')
+      self.lr = backend.variable(lr, name='lr')
+      self.beta_1 = backend.variable(beta_1, name='beta_1')
+      self.beta_2 = backend.variable(beta_2, name='beta_2')
+      self.decay = backend.variable(decay, name='decay')
     if epsilon is None:
-      epsilon = K.epsilon()
+      epsilon = backend.epsilon()
     self.epsilon = epsilon
     self.initial_decay = decay
     self.amsgrad = amsgrad
 
   def _create_all_weights(self, params):
-    ms = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
-    vs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+    ms = [
+        backend.zeros(backend.int_shape(p), dtype=backend.dtype(p))
+        for p in params]
+    vs = [
+        backend.zeros(backend.int_shape(p), dtype=backend.dtype(p))
+        for p in params]
     if self.amsgrad:
-      vhats = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+      vhats = [
+          backend.zeros(backend.int_shape(p), dtype=backend.dtype(p))
+          for p in params]
     else:
-      vhats = [K.zeros(1) for _ in params]
+      vhats = [backend.zeros(1) for _ in params]
     self.weights = [self.iterations] + ms + vs + vhats
     return ms, vs, vhats
 
@@ -508,12 +519,13 @@ class Adam(Optimizer):
       lr = lr * (  # pylint: disable=g-no-augmented-assignment
           1. /
           (1. +
-           self.decay * tf.cast(self.iterations, K.dtype(self.decay))))
+           self.decay * tf.cast(self.iterations,
+                                      backend.dtype(self.decay))))
 
     with tf.control_dependencies([tf.compat.v1.assign_add(self.iterations, 1)]):
-      t = tf.cast(self.iterations, K.floatx())
+      t = tf.cast(self.iterations, backend.floatx())
     lr_t = lr * (
-        K.sqrt(1. - tf.pow(self.beta_2, t)) /
+        backend.sqrt(1. - tf.pow(self.beta_2, t)) /
         (1. - tf.pow(self.beta_1, t)))
 
     ms, vs, vhats = self._create_all_weights(params)
@@ -522,10 +534,10 @@ class Adam(Optimizer):
       v_t = (self.beta_2 * v) + (1. - self.beta_2) * tf.square(g)
       if self.amsgrad:
         vhat_t = tf.maximum(vhat, v_t)
-        p_t = p - lr_t * m_t / (K.sqrt(vhat_t) + self.epsilon)
+        p_t = p - lr_t * m_t / (backend.sqrt(vhat_t) + self.epsilon)
         self.updates.append(tf.compat.v1.assign(vhat, vhat_t))
       else:
-        p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
+        p_t = p - lr_t * m_t / (backend.sqrt(v_t) + self.epsilon)
 
       self.updates.append(tf.compat.v1.assign(m, m_t))
       self.updates.append(tf.compat.v1.assign(v, v_t))
@@ -540,10 +552,10 @@ class Adam(Optimizer):
 
   def get_config(self):
     config = {
-        'lr': float(K.get_value(self.lr)),
-        'beta_1': float(K.get_value(self.beta_1)),
-        'beta_2': float(K.get_value(self.beta_2)),
-        'decay': float(K.get_value(self.decay)),
+        'lr': float(backend.get_value(self.lr)),
+        'beta_1': float(backend.get_value(self.beta_1)),
+        'beta_2': float(backend.get_value(self.beta_2)),
+        'decay': float(backend.get_value(self.decay)),
         'epsilon': self.epsilon,
         'amsgrad': self.amsgrad
     }
@@ -558,10 +570,11 @@ class Adamax(Optimizer):
   Default parameters follow those provided in the paper.
 
   Args:
-      lr: float >= 0. Learning rate.
-      beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
-      epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
-      decay: float >= 0. Learning rate decay over each update.
+    lr: float >= 0. Learning rate.
+    beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
+    epsilon: float >= 0. Fuzz factor.
+      If `None`, defaults to `backend.epsilon()`.
+    decay: float >= 0. Learning rate decay over each update.
   """
 
   def __init__(self,
@@ -572,24 +585,24 @@ class Adamax(Optimizer):
                decay=0.,
                **kwargs):
     super(Adamax, self).__init__(**kwargs)
-    with K.name_scope(self.__class__.__name__):
-      self.iterations = K.variable(0, dtype='int64', name='iterations')
-      self.lr = K.variable(lr, name='lr')
-      self.beta_1 = K.variable(beta_1, name='beta_1')
-      self.beta_2 = K.variable(beta_2, name='beta_2')
-      self.decay = K.variable(decay, name='decay')
+    with backend.name_scope(self.__class__.__name__):
+      self.iterations = backend.variable(0, dtype='int64', name='iterations')
+      self.lr = backend.variable(lr, name='lr')
+      self.beta_1 = backend.variable(beta_1, name='beta_1')
+      self.beta_2 = backend.variable(beta_2, name='beta_2')
+      self.decay = backend.variable(decay, name='decay')
     if epsilon is None:
-      epsilon = K.epsilon()
+      epsilon = backend.epsilon()
     self.epsilon = epsilon
     self.initial_decay = decay
 
   def _create_all_weights(self, params):
 
-    shapes = [K.int_shape(p) for p in params]
+    shapes = [backend.int_shape(p) for p in params]
     # zero init of 1st moment
-    ms = [K.zeros(shape) for shape in shapes]
+    ms = [backend.zeros(shape) for shape in shapes]
     # zero init of exponentially weighted infinity norm
-    us = [K.zeros(shape) for shape in shapes]
+    us = [backend.zeros(shape) for shape in shapes]
     self.weights = [self.iterations] + ms + us
     return ms, us
 
@@ -602,10 +615,11 @@ class Adamax(Optimizer):
       lr = lr * (  # pylint: disable=g-no-augmented-assignment
           1. /
           (1. +
-           self.decay * tf.cast(self.iterations, K.dtype(self.decay))))
+           self.decay * tf.cast(self.iterations,
+                                      backend.dtype(self.decay))))
 
     with tf.control_dependencies([tf.compat.v1.assign_add(self.iterations, 1)]):
-      t = tf.cast(self.iterations, K.floatx())
+      t = tf.cast(self.iterations, backend.floatx())
     lr_t = lr / (1. - tf.pow(self.beta_1, t))
 
     ms, us = self._create_all_weights(params)
@@ -629,10 +643,10 @@ class Adamax(Optimizer):
 
   def get_config(self):
     config = {
-        'lr': float(K.get_value(self.lr)),
-        'beta_1': float(K.get_value(self.beta_1)),
-        'beta_2': float(K.get_value(self.beta_2)),
-        'decay': float(K.get_value(self.decay)),
+        'lr': float(backend.get_value(self.lr)),
+        'beta_1': float(backend.get_value(self.beta_1)),
+        'beta_2': float(backend.get_value(self.beta_2)),
+        'decay': float(backend.get_value(self.decay)),
         'epsilon': self.epsilon
     }
     base_config = super(Adamax, self).get_config()
@@ -650,9 +664,10 @@ class Nadam(Optimizer):
   at their default values.
 
   Args:
-      lr: float >= 0. Learning rate.
-      beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
-      epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
+    lr: float >= 0. Learning rate.
+    beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
+    epsilon: float >= 0. Fuzz factor.
+      If `None`, defaults to `backend.epsilon()`.
   """
 
   def __init__(self,
@@ -663,21 +678,21 @@ class Nadam(Optimizer):
                schedule_decay=0.004,
                **kwargs):
     super(Nadam, self).__init__(**kwargs)
-    with K.name_scope(self.__class__.__name__):
-      self.iterations = K.variable(0, dtype='int64', name='iterations')
-      self.m_schedule = K.variable(1., name='m_schedule')
-      self.lr = K.variable(lr, name='lr')
-      self.beta_1 = K.variable(beta_1, name='beta_1')
-      self.beta_2 = K.variable(beta_2, name='beta_2')
+    with backend.name_scope(self.__class__.__name__):
+      self.iterations = backend.variable(0, dtype='int64', name='iterations')
+      self.m_schedule = backend.variable(1., name='m_schedule')
+      self.lr = backend.variable(lr, name='lr')
+      self.beta_1 = backend.variable(beta_1, name='beta_1')
+      self.beta_2 = backend.variable(beta_2, name='beta_2')
     if epsilon is None:
-      epsilon = K.epsilon()
+      epsilon = backend.epsilon()
     self.epsilon = epsilon
     self.schedule_decay = schedule_decay
 
   def _create_all_weights(self, params):
-    shapes = [K.int_shape(p) for p in params]
-    ms = [K.zeros(shape) for shape in shapes]
-    vs = [K.zeros(shape) for shape in shapes]
+    shapes = [backend.int_shape(p) for p in params]
+    ms = [backend.zeros(shape) for shape in shapes]
+    vs = [backend.zeros(shape) for shape in shapes]
 
     self.weights = [self.iterations, self.m_schedule] + ms + vs
     return ms, vs
@@ -687,15 +702,16 @@ class Nadam(Optimizer):
     self.updates = []
 
     with tf.control_dependencies([tf.compat.v1.assign_add(self.iterations, 1)]):
-      t = tf.cast(self.iterations, K.floatx())
+      t = tf.cast(self.iterations, backend.floatx())
 
     # Due to the recommendations in [2], i.e. warming momentum schedule
     momentum_cache_t = self.beta_1 * (
         1. - 0.5 *
-        (tf.pow(K.cast_to_floatx(0.96), t * self.schedule_decay)))
+        (tf.pow(backend.cast_to_floatx(0.96), t * self.schedule_decay)))
     momentum_cache_t_1 = self.beta_1 * (
         1. - 0.5 *
-        (tf.pow(K.cast_to_floatx(0.96), (t + 1) * self.schedule_decay)))
+        (tf.pow(backend.cast_to_floatx(0.96),
+                      (t + 1) * self.schedule_decay)))
     m_schedule_new = self.m_schedule * momentum_cache_t
     m_schedule_next = self.m_schedule * momentum_cache_t * momentum_cache_t_1
     self.updates.append((self.m_schedule, m_schedule_new))
@@ -715,7 +731,7 @@ class Nadam(Optimizer):
       self.updates.append(tf.compat.v1.assign(m, m_t))
       self.updates.append(tf.compat.v1.assign(v, v_t))
 
-      p_t = p - self.lr * m_t_bar / (K.sqrt(v_t_prime) + self.epsilon)
+      p_t = p - self.lr * m_t_bar / (backend.sqrt(v_t_prime) + self.epsilon)
       new_p = p_t
 
       # Apply constraints.
@@ -727,9 +743,9 @@ class Nadam(Optimizer):
 
   def get_config(self):
     config = {
-        'lr': float(K.get_value(self.lr)),
-        'beta_1': float(K.get_value(self.beta_1)),
-        'beta_2': float(K.get_value(self.beta_2)),
+        'lr': float(backend.get_value(self.lr)),
+        'beta_1': float(backend.get_value(self.beta_1)),
+        'beta_2': float(backend.get_value(self.beta_2)),
         'epsilon': self.epsilon,
         'schedule_decay': self.schedule_decay
     }
@@ -744,8 +760,8 @@ class TFOptimizer(Optimizer, tf.__internal__.tracking.Trackable):
     self.optimizer = optimizer
     self._track_trackable(optimizer, name='optimizer')
     if iterations is None:
-      with K.name_scope(self.__class__.__name__):
-        self.iterations = K.variable(0, dtype='int64', name='iterations')
+      with backend.name_scope(self.__class__.__name__):
+        self.iterations = backend.variable(0, dtype='int64', name='iterations')
     else:
       self.iterations = iterations
     self._track_trackable(self.iterations, name='global_step')

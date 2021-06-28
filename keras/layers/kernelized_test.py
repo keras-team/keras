@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for kernelized.py."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import functools
 import math
@@ -27,7 +23,6 @@ import shutil
 
 from absl.testing import parameterized
 import numpy as np
-import six
 from tensorflow.python.framework import test_util
 from keras import backend as keras_backend
 from keras import combinations
@@ -219,7 +214,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         name='random_fourier_features',
     )
     expected_initializer = initializer
-    if not isinstance(initializer, six.string_types):
+    if not isinstance(initializer, str):
       expected_initializer = initializers.serialize(initializer)
 
     expected_dtype = (

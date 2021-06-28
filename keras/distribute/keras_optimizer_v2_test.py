@@ -14,14 +14,11 @@
 # ==============================================================================
 """Tests that show that DistributionStrategy works with optimizer v2."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
+
 import keras
 from keras.optimizer_v2 import adam
 from keras.optimizer_v2 import gradient_descent
@@ -45,7 +42,7 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
   def testKerasOptimizerWithUnequalInput(self, distribution):
     with distribution.scope():
       var = tf.Variable(
-          2.0, name='var', aggregation=tf.compat.v1.VariableAggregation.SUM)
+          2.0, name='var', aggregation=tf.VariableAggregation.SUM)
       optimizer = adam.Adam(learning_rate=0.01, beta_1=0.2, beta_2=0.2)
       all_vars = []
 

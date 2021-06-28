@@ -13,19 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
-"""Utilities related to layer/model functionality.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Utilities related to layer/model functionality."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import functools
 import weakref
 
 import numpy as np
-import six
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -79,8 +74,7 @@ def validate_string_arg(input_data,
     return
   elif allow_callables and callable(input_data):
     return
-  elif isinstance(input_data,
-                  six.string_types) and input_data in allowable_strings:
+  elif isinstance(input_data, str) and input_data in allowable_strings:
     return
   else:
     allowed_args = '`None`, ' if allow_none else ''
@@ -101,6 +95,8 @@ def count_params(weights):
       The total number of scalars composing the weights
   """
   unique_weights = {id(w): w for w in weights}.values()
+  # Ignore TrackableWeightHandlers, which will not have a shape defined.
+  unique_weights = [w for w in unique_weights if hasattr(w, 'shape')]
   weight_shapes = [w.shape.as_list() for w in unique_weights]
   standardized_weight_shapes = [
       [0 if w_i is None else w_i for w_i in w] for w in weight_shapes
