@@ -25,7 +25,6 @@ from keras import keras_parameterized
 from keras import testing_utils
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import string_lookup
-from keras.utils.generic_utils import CustomObjectScope
 
 
 def _get_end_to_end_test_cases():
@@ -93,16 +92,15 @@ class StringLookupLayerTest(keras_parameterized.TestCase,
       vocab_data = tf.data.Dataset.from_tensor_slices(vocab_data).batch(
           input_shape[0])
 
-    with CustomObjectScope({"StringLookup": cls}):
-      output_data = testing_utils.layer_test(
-          cls,
-          kwargs=kwargs,
-          input_shape=input_shape,
-          input_data=input_data,
-          input_dtype=input_dtype,
-          expected_output_dtype=expected_output_dtype,
-          validate_training=False,
-          adapt_data=vocab_data)
+    output_data = testing_utils.layer_test(
+        cls,
+        kwargs=kwargs,
+        input_shape=input_shape,
+        input_data=input_data,
+        input_dtype=input_dtype,
+        expected_output_dtype=expected_output_dtype,
+        validate_training=False,
+        adapt_data=vocab_data)
     self.assertAllClose(expected_output, output_data)
 
 

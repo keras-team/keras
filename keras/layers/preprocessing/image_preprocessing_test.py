@@ -14,17 +14,17 @@
 # ==============================================================================
 """Tests for image preprocessing layers."""
 
-import tensorflow.compat.v2 as tf
-
 import functools
 from absl.testing import parameterized
-import numpy as np
-from tensorflow.python.distribute.mirrored_strategy import MirroredStrategy
+
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.engine import sequential
 from keras.layers.preprocessing import image_preprocessing
-from keras.utils.generic_utils import CustomObjectScope
+import numpy as np
+import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.distribute.mirrored_strategy import MirroredStrategy
 from tensorflow.python.ops import gen_stateful_random_ops
 from tensorflow.python.ops import gen_stateless_random_ops_v2
 from tensorflow.python.ops import stateless_random_ops
@@ -65,8 +65,7 @@ class ResizingTest(keras_parameterized.TestCase):
       'crop_to_aspect_ratio': True,
   }, 3, 2))
   def test_down_sampling(self, kwargs, expected_height, expected_width):
-    with CustomObjectScope({'Resizing': image_preprocessing.Resizing}):
-      self._run_test(kwargs, expected_height, expected_width)
+    self._run_test(kwargs, expected_height, expected_width)
 
   @parameterized.named_parameters(('up_sample_bilinear_10_by_12', {
       'interpolation': 'bilinear'
@@ -85,8 +84,7 @@ class ResizingTest(keras_parameterized.TestCase):
       'crop_to_aspect_ratio': True,
   }, 12, 14))
   def test_up_sampling(self, kwargs, expected_height, expected_width):
-    with CustomObjectScope({'Resizing': image_preprocessing.Resizing}):
-      self._run_test(kwargs, expected_height, expected_width)
+    self._run_test(kwargs, expected_height, expected_width)
 
   def test_down_sampling_numeric(self):
     for dtype in (np.int64, np.float32):
@@ -126,8 +124,7 @@ class ResizingTest(keras_parameterized.TestCase):
       'interpolation': 'bilinear'
   }, 10, 4))
   def test_reshaping(self, kwargs, expected_height, expected_width):
-    with CustomObjectScope({'Resizing': image_preprocessing.Resizing}):
-      self._run_test(kwargs, expected_height, expected_width)
+    self._run_test(kwargs, expected_height, expected_width)
 
   def test_invalid_interpolation(self):
     with self.assertRaises(NotImplementedError):
@@ -236,20 +233,17 @@ class CenterCropTest(keras_parameterized.TestCase):
   @parameterized.named_parameters(('center_crop_3_by_4', 3, 4),
                                   ('center_crop_3_by_2', 3, 2))
   def test_center_crop_aligned(self, expected_height, expected_width):
-    with CustomObjectScope({'CenterCrop': image_preprocessing.CenterCrop}):
-      self._run_test(expected_height, expected_width)
+    self._run_test(expected_height, expected_width)
 
   @parameterized.named_parameters(('center_crop_4_by_5', 4, 5),
                                   ('center_crop_4_by_3', 4, 3))
   def test_center_crop_mis_aligned(self, expected_height, expected_width):
-    with CustomObjectScope({'CenterCrop': image_preprocessing.CenterCrop}):
-      self._run_test(expected_height, expected_width)
+    self._run_test(expected_height, expected_width)
 
   @parameterized.named_parameters(('center_crop_4_by_6', 4, 6),
                                   ('center_crop_3_by_2', 3, 2))
   def test_center_crop_half_mis_aligned(self, expected_height, expected_width):
-    with CustomObjectScope({'CenterCrop': image_preprocessing.CenterCrop}):
-      self._run_test(expected_height, expected_width)
+    self._run_test(expected_height, expected_width)
 
   @parameterized.named_parameters(('center_crop_5_by_12', 5, 12),
                                   ('center_crop_10_by_8', 10, 8),
@@ -307,8 +301,7 @@ class RandomCropTest(keras_parameterized.TestCase):
     # is enabled.
     with self.assertRaises(
         (tf.errors.InvalidArgumentError, tf.errors.InternalError)):
-      with CustomObjectScope({'RandomCrop': image_preprocessing.RandomCrop}):
-        self._run_test(expected_height, expected_width)
+      self._run_test(expected_height, expected_width)
 
   def test_training_with_mock(self):
     np.random.seed(1337)
@@ -331,8 +324,7 @@ class RandomCropTest(keras_parameterized.TestCase):
   @parameterized.named_parameters(('random_crop_4_by_6', 4, 6),
                                   ('random_crop_3_by_2', 3, 2))
   def test_random_crop_output_shape(self, expected_height, expected_width):
-    with CustomObjectScope({'RandomCrop': image_preprocessing.RandomCrop}):
-      self._run_test(expected_height, expected_width)
+    self._run_test(expected_height, expected_width)
 
   def test_random_crop_full_height(self):
     self._run_test(5, 2)
@@ -465,53 +457,48 @@ class RandomFlipTest(keras_parameterized.TestCase):
       ('random_flip_vertical', 'vertical'),
       ('random_flip_both', 'horizontal_and_vertical'))
   def test_random_flip(self, mode):
-    with CustomObjectScope({'RandomFlip': image_preprocessing.RandomFlip}):
-      self._run_test(mode)
+    self._run_test(mode)
 
   def test_random_flip_horizontal_half(self):
-    with CustomObjectScope({'RandomFlip': image_preprocessing.RandomFlip}):
-      np.random.seed(1337)
-      mock_random = [1, 0]
-      mock_random = np.reshape(mock_random, [2, 1, 1, 1])
-      input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
-      expected_output = input_images.copy()
-      expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=1)
-      self._run_test('horizontal', expected_output, mock_random)
+    np.random.seed(1337)
+    mock_random = [1, 0]
+    mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+    input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
+    expected_output = input_images.copy()
+    expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=1)
+    self._run_test('horizontal', expected_output, mock_random)
 
   def test_random_flip_vertical_half(self):
-    with CustomObjectScope({'RandomFlip': image_preprocessing.RandomFlip}):
-      np.random.seed(1337)
-      mock_random = [1, 0]
-      mock_random = np.reshape(mock_random, [2, 1, 1, 1])
-      input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
-      expected_output = input_images.copy()
-      expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=0)
-      self._run_test('vertical', expected_output, mock_random)
+    np.random.seed(1337)
+    mock_random = [1, 0]
+    mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+    input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
+    expected_output = input_images.copy()
+    expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=0)
+    self._run_test('vertical', expected_output, mock_random)
 
   def test_random_flip_inference(self):
-    with CustomObjectScope({'RandomFlip': image_preprocessing.RandomFlip}):
-      input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
-      expected_output = input_images
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomFlip()
-        actual_output = layer(input_images, training=0)
-        self.assertAllClose(expected_output, actual_output)
+    input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
+    expected_output = input_images
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomFlip()
+      actual_output = layer(input_images, training=0)
+      self.assertAllClose(expected_output, actual_output)
 
   def test_random_flip_default(self):
-    with CustomObjectScope({'RandomFlip': image_preprocessing.RandomFlip}):
-      input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
-      expected_output = np.flip(np.flip(input_images, axis=1), axis=2)
-      mock_random = [1, 1]
-      mock_random = np.reshape(mock_random, [2, 1, 1, 1])
-      with tf.compat.v1.test.mock.patch.object(
-          stateless_random_ops,
-          'stateless_random_uniform',
-          return_value=mock_random,
-      ):
-        with self.cached_session():
-          layer = image_preprocessing.RandomFlip()
-          actual_output = layer(input_images, training=1)
-          self.assertAllClose(expected_output, actual_output)
+    input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
+    expected_output = np.flip(np.flip(input_images, axis=1), axis=2)
+    mock_random = [1, 1]
+    mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+    with tf.compat.v1.test.mock.patch.object(
+        stateless_random_ops,
+        'stateless_random_uniform',
+        return_value=mock_random,
+    ):
+      with self.cached_session():
+        layer = image_preprocessing.RandomFlip()
+        actual_output = layer(input_images, training=1)
+        self.assertAllClose(expected_output, actual_output)
 
   @testing_utils.run_v2_only
   def test_config_with_custom_name(self):
@@ -521,19 +508,18 @@ class RandomFlipTest(keras_parameterized.TestCase):
     self.assertEqual(layer_1.name, layer.name)
 
   def test_random_flip_unbatched_image(self):
-    with CustomObjectScope({'RandomFlip': image_preprocessing.RandomFlip}):
-      input_image = np.random.random((4, 4, 1)).astype(np.float32)
-      expected_output = np.flip(input_image, axis=0)
-      # mock_random = np.reshape([0.], [1, 1, 1])
-      with tf.compat.v1.test.mock.patch.object(
-          stateless_random_ops,
-          'stateless_random_uniform',
-          return_value=0.,
-      ):
-        with self.cached_session():
-          layer = image_preprocessing.RandomFlip('vertical')
-          actual_output = layer(input_image, training=1)
-          self.assertAllClose(expected_output, actual_output)
+    input_image = np.random.random((4, 4, 1)).astype(np.float32)
+    expected_output = np.flip(input_image, axis=0)
+    # mock_random = np.reshape([0.], [1, 1, 1])
+    with tf.compat.v1.test.mock.patch.object(
+        stateless_random_ops,
+        'stateless_random_uniform',
+        return_value=0.,
+    ):
+      with self.cached_session():
+        layer = image_preprocessing.RandomFlip('vertical')
+        actual_output = layer(input_image, training=1)
+        self.assertAllClose(expected_output, actual_output)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -569,37 +555,29 @@ class RandomContrastTest(keras_parameterized.TestCase):
                                   ('random_contrast_5_by_2', 0.5, 0.2),
                                   ('random_contrast_10_by_10', 1.0, 1.0))
   def test_random_contrast(self, lower, upper):
-    with CustomObjectScope(
-        {'RandomContrast': image_preprocessing.RandomContrast}):
-      self._run_test(lower, upper)
+    self._run_test(lower, upper)
 
   @parameterized.named_parameters(('random_contrast_amplitude_2', 0.2),
                                   ('random_contrast_amplitude_5', 0.5))
   def test_random_contrast_amplitude(self, amplitude):
-    with CustomObjectScope(
-        {'RandomContrast': image_preprocessing.RandomContrast}):
-      input_images = np.random.random((2, 5, 8, 3))
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomContrast(amplitude)
-        layer(input_images)
+    input_images = np.random.random((2, 5, 8, 3))
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomContrast(amplitude)
+      layer(input_images)
 
   def test_random_contrast_inference(self):
-    with CustomObjectScope(
-        {'RandomContrast': image_preprocessing.RandomContrast}):
-      input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
-      expected_output = input_images
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomContrast((0.1, 0.2))
-        actual_output = layer(input_images, training=False)
-        self.assertAllClose(expected_output, actual_output)
+    input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
+    expected_output = input_images
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomContrast((0.1, 0.2))
+      actual_output = layer(input_images, training=False)
+      self.assertAllClose(expected_output, actual_output)
 
   def test_random_contrast_int_dtype(self):
-    with CustomObjectScope(
-        {'RandomContrast': image_preprocessing.RandomContrast}):
-      input_images = np.random.randint(low=0, high=255, size=(2, 5, 8, 3))
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomContrast((0.1, 0.2))
-        layer(input_images)
+    input_images = np.random.randint(low=0, high=255, size=(2, 5, 8, 3))
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomContrast((0.1, 0.2))
+      layer(input_images)
 
   def test_random_contrast_invalid_bounds(self):
     with self.assertRaises(ValueError):
@@ -791,14 +769,12 @@ class RandomTranslationTest(keras_parameterized.TestCase):
         self.assertAllEqual(expected_output, output_image)
 
   def test_random_translation_inference(self):
-    with CustomObjectScope(
-        {'RandomTranslation': image_preprocessing.RandomTranslation}):
-      input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
-      expected_output = input_images
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomTranslation(.5, .5)
-        actual_output = layer(input_images, training=0)
-        self.assertAllClose(expected_output, actual_output)
+    input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
+    expected_output = input_images
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomTranslation(.5, .5)
+      actual_output = layer(input_images, training=0)
+      self.assertAllClose(expected_output, actual_output)
 
   @testing_utils.run_v2_only
   def test_config_with_custom_name(self):
@@ -1213,14 +1189,12 @@ class RandomRotationTest(keras_parameterized.TestCase):
     self._run_test(factor)
 
   def test_random_rotation_inference(self):
-    with CustomObjectScope(
-        {'RandomTranslation': image_preprocessing.RandomRotation}):
-      input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
-      expected_output = input_images
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomRotation(.5)
-        actual_output = layer(input_images, training=0)
-        self.assertAllClose(expected_output, actual_output)
+    input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
+    expected_output = input_images
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomRotation(.5)
+      actual_output = layer(input_images, training=0)
+      self.assertAllClose(expected_output, actual_output)
 
   def test_distribution_strategy(self):
     """Tests that RandomRotation can be created within distribution strategies."""
@@ -1340,13 +1314,12 @@ class RandomZoomTest(keras_parameterized.TestCase):
         self.assertAllEqual(expected_output, output_image)
 
   def test_random_zoom_inference(self):
-    with CustomObjectScope({'RandomZoom': image_preprocessing.RandomZoom}):
-      input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
-      expected_output = input_images
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomZoom(.5, .5)
-        actual_output = layer(input_images, training=0)
-        self.assertAllClose(expected_output, actual_output)
+    input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
+    expected_output = input_images
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomZoom(.5, .5)
+      actual_output = layer(input_images, training=0)
+      self.assertAllClose(expected_output, actual_output)
 
   @testing_utils.run_v2_only
   def test_config_with_custom_name(self):
@@ -1451,13 +1424,12 @@ class RandomHeightTest(keras_parameterized.TestCase):
       image_preprocessing.RandomHeight((-1.5, .4))
 
   def test_random_height_inference(self):
-    with CustomObjectScope({'RandomHeight': image_preprocessing.RandomHeight}):
-      input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
-      expected_output = input_images
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomHeight(.5)
-        actual_output = layer(input_images, training=0)
-        self.assertAllClose(expected_output, actual_output)
+    input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
+    expected_output = input_images
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomHeight(.5)
+      actual_output = layer(input_images, training=0)
+      self.assertAllClose(expected_output, actual_output)
 
   @testing_utils.run_v2_only
   def test_config_with_custom_name(self):
@@ -1560,13 +1532,12 @@ class RandomWidthTest(keras_parameterized.TestCase):
       image_preprocessing.RandomWidth((-1.5, .4))
 
   def test_random_width_inference(self):
-    with CustomObjectScope({'RandomWidth': image_preprocessing.RandomWidth}):
-      input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
-      expected_output = input_images
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomWidth(.5)
-        actual_output = layer(input_images, training=0)
-        self.assertAllClose(expected_output, actual_output)
+    input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
+    expected_output = input_images
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomWidth(.5)
+      actual_output = layer(input_images, training=0)
+      self.assertAllClose(expected_output, actual_output)
 
   @testing_utils.run_v2_only
   def test_config_with_custom_name(self):
