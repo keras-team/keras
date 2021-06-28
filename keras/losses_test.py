@@ -1083,6 +1083,27 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
     loss = cce_obj(y_true, logits, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 0.1934, 3)
 
+  def test_ragged_tensors_ragged_sample_weights(self):
+    cce_obj = losses.CategoricalCrossentropy()
+    y_true = tf.ragged.constant([[[1, 0, 0], [0, 1, 0]], [[0, 0, 1]]])
+    y_pred = tf.ragged.constant(
+        [[[.9, .05, .05], [.05, .89, .06]], [[.05, .01, .94]]],
+        dtype=tf.float32)
+    # batch losses [[0.1054, 0.1165], [0.0619]]
+    # Use independent weights for each batch element
+    sample_weight = tf.ragged.constant([[1.2, 3.4], [5.6]], dtype=tf.float32)
+    loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+    # sum([0.1054*1.2, 0.1165*3.4, 0.0619*5.6])/3
+    self.assertAlmostEqual(self.evaluate(loss), 0.2897, 3)
+
+    # Test with logits.
+    logits = tf.ragged.constant([[[8., 1., 1.], [0., 9., 1.]], [[2., 3., 5.]]])
+    cce_obj = losses.CategoricalCrossentropy(from_logits=True)
+    # batch losses [[0.0018, 0.0004], [0.1698]]
+    # sum([0.0018*1.2, 0.0004*3.4, 0.1698*5.6]) / 3
+    loss = cce_obj(y_true, logits, sample_weight=sample_weight)
+    self.assertAlmostEqual(self.evaluate(loss), 0.3181, 3)
+
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
 class SparseCategoricalCrossentropyTest(tf.test.TestCase):
