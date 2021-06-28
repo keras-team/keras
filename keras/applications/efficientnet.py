@@ -164,6 +164,10 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
   `tf.keras.applications.efficientnet.preprocess_input` is actually a
   pass-through function. EfficientNet models expect their inputs to be float
   tensors of pixels with values in the [0-255] range.
+  At the same time, preprocessing as a part of the model (i.e. `Rescaling`
+  layer) can be disabled by setting `include_preprocessing` argument to False.
+  With preprocessing disabled EfficientNet models expect their inputs to be
+  float tensors of pixels with values in the [-1, 1] range.
 
   Args:
     include_top: Whether to include the fully-connected
@@ -220,7 +224,8 @@ def EfficientNet(
     input_shape=None,
     pooling=None,
     classes=1000,
-    classifier_activation='softmax'):
+    classifier_activation='softmax',
+    include_preprocessing=True):
   """Instantiates the EfficientNet architecture using given scaling coefficients.
 
   Args:
@@ -261,6 +266,8 @@ def EfficientNet(
     classifier_activation: A `str` or callable. The activation function to use
         on the "top" layer. Ignored unless `include_top=True`. Set
         `classifier_activation=None` to return the logits of the "top" layer.
+    include_preprocessing: Boolean, whether to include the preprocessing
+      layer (`Rescaling`) at the bottom of the network. Defaults to `True`.
 
   Returns:
     A `keras.Model` instance.
@@ -318,8 +325,8 @@ def EfficientNet(
 
   # Build stem
   x = img_input
-  x = layers.Rescaling(1. / 255.)(x)
-  x = layers.Normalization(axis=bn_axis)(x)
+  if include_preprocessing:
+    x = layers.Rescaling(scale=1. / 127.5, offset=-1.)(x)
 
   x = layers.ZeroPadding2D(
       padding=imagenet_utils.correct_pad(x, 3),
@@ -532,6 +539,7 @@ def EfficientNetB0(include_top=True,
                    pooling=None,
                    classes=1000,
                    classifier_activation='softmax',
+                   include_preprocessing=True,
                    **kwargs):
   return EfficientNet(
       1.0,
@@ -546,6 +554,7 @@ def EfficientNetB0(include_top=True,
       pooling=pooling,
       classes=classes,
       classifier_activation=classifier_activation,
+      include_preprocessing=include_preprocessing,
       **kwargs)
 
 
@@ -558,6 +567,7 @@ def EfficientNetB1(include_top=True,
                    pooling=None,
                    classes=1000,
                    classifier_activation='softmax',
+                   include_preprocessing=True,
                    **kwargs):
   return EfficientNet(
       1.0,
@@ -572,6 +582,7 @@ def EfficientNetB1(include_top=True,
       pooling=pooling,
       classes=classes,
       classifier_activation=classifier_activation,
+      include_preprocessing=include_preprocessing,
       **kwargs)
 
 
@@ -584,6 +595,7 @@ def EfficientNetB2(include_top=True,
                    pooling=None,
                    classes=1000,
                    classifier_activation='softmax',
+                   include_preprocessing=True,
                    **kwargs):
   return EfficientNet(
       1.1,
@@ -598,6 +610,7 @@ def EfficientNetB2(include_top=True,
       pooling=pooling,
       classes=classes,
       classifier_activation=classifier_activation,
+      include_preprocessing=include_preprocessing,
       **kwargs)
 
 
@@ -610,6 +623,7 @@ def EfficientNetB3(include_top=True,
                    pooling=None,
                    classes=1000,
                    classifier_activation='softmax',
+                   include_preprocessing=True,
                    **kwargs):
   return EfficientNet(
       1.2,
@@ -624,6 +638,7 @@ def EfficientNetB3(include_top=True,
       pooling=pooling,
       classes=classes,
       classifier_activation=classifier_activation,
+      include_preprocessing=include_preprocessing,
       **kwargs)
 
 
@@ -636,6 +651,7 @@ def EfficientNetB4(include_top=True,
                    pooling=None,
                    classes=1000,
                    classifier_activation='softmax',
+                   include_preprocessing=True,
                    **kwargs):
   return EfficientNet(
       1.4,
@@ -650,6 +666,7 @@ def EfficientNetB4(include_top=True,
       pooling=pooling,
       classes=classes,
       classifier_activation=classifier_activation,
+      include_preprocessing=include_preprocessing,
       **kwargs)
 
 
@@ -662,6 +679,7 @@ def EfficientNetB5(include_top=True,
                    pooling=None,
                    classes=1000,
                    classifier_activation='softmax',
+                   include_preprocessing=True,
                    **kwargs):
   return EfficientNet(
       1.6,
@@ -676,6 +694,7 @@ def EfficientNetB5(include_top=True,
       pooling=pooling,
       classes=classes,
       classifier_activation=classifier_activation,
+      include_preprocessing=include_preprocessing,
       **kwargs)
 
 
@@ -688,6 +707,7 @@ def EfficientNetB6(include_top=True,
                    pooling=None,
                    classes=1000,
                    classifier_activation='softmax',
+                   include_preprocessing=True,
                    **kwargs):
   return EfficientNet(
       1.8,
@@ -702,6 +722,7 @@ def EfficientNetB6(include_top=True,
       pooling=pooling,
       classes=classes,
       classifier_activation=classifier_activation,
+      include_preprocessing=include_preprocessing,
       **kwargs)
 
 
@@ -714,6 +735,7 @@ def EfficientNetB7(include_top=True,
                    pooling=None,
                    classes=1000,
                    classifier_activation='softmax',
+                   include_preprocessing=True,
                    **kwargs):
   return EfficientNet(
       2.0,
@@ -728,6 +750,7 @@ def EfficientNetB7(include_top=True,
       pooling=pooling,
       classes=classes,
       classifier_activation=classifier_activation,
+      include_preprocessing=include_preprocessing,
       **kwargs)
 
 
