@@ -17,11 +17,7 @@
 See also: lstm_test.py, gru_test.py, simplernn_test.py.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 
@@ -34,6 +30,7 @@ from keras import testing_utils
 from keras.engine import base_layer_utils
 from keras.layers import recurrent as rnn_v1
 from keras.layers import recurrent_v2 as rnn_v2
+from keras.layers.legacy_rnn import rnn_cell_impl
 from keras.utils import generic_utils
 from tensorflow.python.training.tracking import util as trackable_util
 
@@ -276,7 +273,7 @@ class RNNTest(keras_parameterized.TestCase):
     # Test basic case.
     x = keras.Input((time_step, embedding_dim))
     time_major_x = keras.layers.Lambda(
-        lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(x)
+        lambda t: tf.transpose(t, [1, 0, 2]))(x)
     layer = keras.layers.SimpleRNN(
         units, time_major=True, return_sequences=True)
     self.assertEqual(
@@ -286,7 +283,7 @@ class RNNTest(keras_parameterized.TestCase):
     y = layer(time_major_x)
     self.assertEqual(layer.output_shape, (time_step, None, units))
 
-    y = keras.layers.Lambda(lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(y)
+    y = keras.layers.Lambda(lambda t: tf.transpose(t, [1, 0, 2]))(y)
 
     model = keras.models.Model(x, y)
     model.compile(
@@ -300,14 +297,14 @@ class RNNTest(keras_parameterized.TestCase):
     # Test stacking.
     x = keras.Input((time_step, embedding_dim))
     time_major_x = keras.layers.Lambda(
-        lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(x)
+        lambda t: tf.transpose(t, [1, 0, 2]))(x)
     cell_units = [10, 8, 6]
     cells = [keras.layers.SimpleRNNCell(cell_units[i]) for i in range(3)]
     layer = keras.layers.RNN(cells, time_major=True, return_sequences=True)
     y = layer(time_major_x)
     self.assertEqual(layer.output_shape, (time_step, None, cell_units[-1]))
 
-    y = keras.layers.Lambda(lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(y)
+    y = keras.layers.Lambda(lambda t: tf.transpose(t, [1, 0, 2]))(y)
     model = keras.models.Model(x, y)
     model.compile(
         optimizer='rmsprop',
@@ -320,11 +317,11 @@ class RNNTest(keras_parameterized.TestCase):
     # Test masking.
     x = keras.Input((time_step, embedding_dim))
     time_major = keras.layers.Lambda(
-        lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(x)
+        lambda t: tf.transpose(t, [1, 0, 2]))(x)
     mask = keras.layers.Masking()(time_major)
     rnn = keras.layers.SimpleRNN(
         units, time_major=True, return_sequences=True)(mask)
-    y = keras.layers.Lambda(lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(rnn)
+    y = keras.layers.Lambda(lambda t: tf.transpose(t, [1, 0, 2]))(rnn)
     model = keras.models.Model(x, y)
     model.compile(
         optimizer='rmsprop',
@@ -352,12 +349,12 @@ class RNNTest(keras_parameterized.TestCase):
     y_np_1 = model.predict(x_np)
 
     time_major = keras.layers.Lambda(
-        lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(x)
+        lambda t: tf.transpose(t, [1, 0, 2]))(x)
     rnn_2 = keras.layers.SimpleRNN(
         units, time_major=True, return_sequences=True)
     y_2 = rnn_2(time_major)
     y_2 = keras.layers.Lambda(
-        lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(y_2)
+        lambda t: tf.transpose(t, [1, 0, 2]))(y_2)
 
     model_2 = keras.models.Model(x, y_2)
     rnn_2.set_weights(rnn_1.get_weights())
@@ -594,9 +591,9 @@ class RNNTest(keras_parameterized.TestCase):
     _ = layer(x)
 
     update_1 = tf.compat.v1.assign_add(cells[0].kernel,
-                                    x[0, 0, 0] * cells[0].kernel)
+                                       x[0, 0, 0] * cells[0].kernel)
     update_2 = tf.compat.v1.assign_add(cells[0].kernel,
-                                    tf.compat.v1.ones_like(cells[0].kernel))
+                                       tf.ones_like(cells[0].kernel))
     # TODO(b/128682878): Remove when RNNCells are __call__'d.
     with base_layer_utils.call_context().enter(layer, x, True, None):
       cells[0].add_update(update_1, inputs=x)
@@ -1046,7 +1043,7 @@ class RNNTest(keras_parameterized.TestCase):
       self.assertEqual(initial_state.shape.as_list(), [None, 5])
       self.assertEqual(initial_state.dtype, inputs.dtype)
 
-      batch = tf.compat.v1.shape(inputs)[0]
+      batch = tf.shape(inputs)[0]
       dtype = inputs.dtype
       initial_state = cell.get_initial_state(None, batch, dtype)
       self.assertEqual(initial_state.shape.as_list(), [None, 5])
@@ -1280,7 +1277,7 @@ class RNNTest(keras_parameterized.TestCase):
         recurrent_activation='sigmoid',
         implementation=2)
     tf_lstm_cell_output = _run_cell(
-        tf.compat.v1.nn.rnn_cell.LSTMCell,
+        rnn_cell_impl.LSTMCell,
         use_peepholes=True,
         initializer=tf.compat.v1.ones_initializer)
     self.assertNotAllClose(first_implementation_output, no_peephole_output)
@@ -1670,6 +1667,40 @@ class RNNTest(keras_parameterized.TestCase):
         output_dense, lengths=row_lengths)
     self.assertAllClose(output_ragged, output_dense)
 
+    # Check if return sequences and go_backwards outputs are correct
+    np.random.seed(100)
+    returning_rnn_layer = layer(4, go_backwards=True, return_sequences=True)
+
+    x_ragged = keras.Input(shape=(None, 5), ragged=True)
+    y_ragged = returning_rnn_layer(x_ragged)
+    model = keras.models.Model(x_ragged, y_ragged)
+    output_ragged = model.predict(ragged_data, steps=1)
+    self.assertAllClose(output_ragged.ragged_rank, ragged_data.ragged_rank)
+    self.assertAllClose(output_ragged.row_splits, ragged_data.row_splits)
+
+    x_dense = keras.Input(shape=(3, 5))
+    masking = keras.layers.Masking()(x_dense)
+    y_dense = returning_rnn_layer(masking)
+    model_2 = keras.models.Model(x_dense, y_dense)
+    dense_data = ragged_data.to_tensor()
+    output_dense = model_2.predict(dense_data, steps=1)
+
+    # Note that the raw output for dense and ragged input when go_backward=True
+    # will be different. Consider following input
+    # [[a, b, 0], [c, 0, 0], [d, e, f]] where 0s are masked value.
+    # The dense output will be [[0, b, a], [0, 0, c], [f, e, d]] since it will
+    # process the whole sequence from the end.
+    # While ragged output will be [[b, a], [c], [f, e, d]] since it just ignore
+    # the 0s. And if we densify the ragged output, it will by default inserting
+    # 0s to the end (rather than from the beginning), which make the output to
+    # be [[b, a, 0], [c, 0, 0], [f, e, d]]. With this, we need to verify that
+    # reverse(ragged_output.to_tensor()) == reverse(dense_output)
+    output_dense = keras.backend.reverse(output_dense, [1])
+    output_dense = tf.RaggedTensor.from_tensor(
+        output_dense, lengths=row_lengths)
+
+    self.assertAllClose(keras.backend.reverse(output_ragged, [1]), output_dense)
+
   def test_stateless_rnn_cell(self):
 
     class StatelessCell(keras.layers.Layer):
@@ -1803,7 +1834,7 @@ class Minimal2DRNNCell(keras.layers.Layer):
   def call(self, inputs, states):
     prev_output = states[0]
     h = tf.einsum('bij,ijkl->bkl', inputs, self.kernel)
-    h += tf.compat.v1.expand_dims(self.bias, axis=0)
+    h += tf.expand_dims(self.bias, axis=0)
     output = h + tf.einsum('bij,ijkl->bkl', prev_output,
                                          self.recurring_kernel)
     return output, [output]

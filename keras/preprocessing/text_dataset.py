@@ -13,18 +13,17 @@
 # limitations under the License.
 # ==============================================================================
 """Keras text dataset generation utilities."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 from keras.preprocessing import dataset_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.preprocessing.text_dataset_from_directory', v1=[])
+@keras_export('keras.utils.text_dataset_from_directory',
+              'keras.preprocessing.text_dataset_from_directory',
+              v1=[])
 def text_dataset_from_directory(directory,
                                 labels='inferred',
                                 label_mode='int',
@@ -166,7 +165,7 @@ def text_dataset_from_directory(directory,
   if shuffle:
     # Shuffle locally at each iteration
     dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-  dataset = dataset.batch(batch_size)
+  dataset = dataset.prefetch(tf.data.AUTOTUNE).batch(batch_size)
   # Users may need to reference `class_names`.
   dataset.class_names = class_names
   return dataset

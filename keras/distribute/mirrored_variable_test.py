@@ -14,37 +14,39 @@
 # ==============================================================================
 """Test MirroredVariable in MirroredStrategy and MultiWorkerMirroredStrategy."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
-from tensorflow.python.distribute import combinations as ds_combinations
-from tensorflow.python.distribute import distribute_utils
+import tensorflow.compat.v2 as tf
+from keras.distribute import distributed_training_utils
 from keras.layers import core
 
 
 def _mimic_two_cpus():
-  cpus = tf.config.list_physical_devices("CPU")
+  try:
+    cpus = tf.config.list_physical_devices("CPU")
+  except tf.errors.NotFoundError:
+    # Testing device not available. Skip the test.
+    return False
 
   tf.config.set_logical_device_configuration(cpus[0], [
       tf.config.LogicalDeviceConfiguration(),
       tf.config.LogicalDeviceConfiguration(),
   ])
+  return True
+
+
+def get_strategy_with_mimicing_cpus():
+  if not _mimic_two_cpus():
+    return None
+  return (tf.distribute.MultiWorkerMirroredStrategy
+          ._from_local_devices(("/device:CPU:0", "/device:CPU:1")))
 
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
-        distribution=[
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-            ds_combinations.NamedDistribution(
-                "Collective2CPUs",
-                # pylint: disable=g-long-lambda
-                lambda: tf.distribute.
-                MultiWorkerMirroredStrategy._from_local_devices((
-                    "/device:CPU:0", "/device:CPU:1")),
-                required_gpus=0)
-        ],
+        distribution=list(
+            filter(None.__ne__, [
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                get_strategy_with_mimicing_cpus()
+            ])),
         mode=["graph", "eager"]))
 class MirroredVariableCreationTest(tf.test.TestCase):
   """Base class that tests mirrored variable creator.
@@ -62,6 +64,14 @@ class MirroredVariableCreationTest(tf.test.TestCase):
         if i == j:
           continue
         self.assertIsNot(objs[i], objs[j])
+
+  def _is_mirrored(self, val):
+    if distributed_training_utils.is_distributed_variable(val):
+      if val._policy:  # pylint: disable=protected-access
+        return val._policy._is_mirrored()  # pylint: disable=protected-access
+    # Since `Mirrored` is a private symbol in tf.distribute, we're checking
+    # with `DistributedValues` as an approximation.
+    return isinstance(val, tf.distribute.DistributedValues)
 
   def testWithLayers(self, distribution):
 
@@ -90,9 +100,9 @@ class MirroredVariableCreationTest(tf.test.TestCase):
       result = distribution.extended.call_for_each_replica(
           model_fn, args=(features,))
       for kernel, bias in result:
-        self.assertTrue(distribute_utils.is_mirrored(kernel))
+        self.assertTrue(self._is_mirrored(kernel))
         self.assertAllDifferent(distribution.experimental_local_results(kernel))
-        self.assertTrue(distribute_utils.is_mirrored(bias))
+        self.assertTrue(self._is_mirrored(bias))
         self.assertAllDifferent(distribution.experimental_local_results(kernel))
 
 

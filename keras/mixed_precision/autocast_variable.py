@@ -13,17 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Contains AutoCastVariable, a variable which automatically casts itself."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import threading
-
-from tensorflow.python.distribute import ps_values as ps_distribute_values
-from tensorflow.python.distribute import values as distribute_values
-from tensorflow.python.types import core
+from keras.distribute import distributed_training_utils
 
 
 # _autocast_dtype.dtype is the dtype AutoCastVariables should be cast to, or
@@ -44,7 +38,7 @@ def numpy_text(tensor, is_repr=False):
   return text
 
 
-class AutoCastVariable(tf.Variable, core.Tensor):
+class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
   """Variable that will cast itself to a different dtype in applicable contexts.
 
   This class wraps a floating-point `tf.Variable`. It emulates the variable
@@ -454,7 +448,7 @@ class AutoCastVariable(tf.Variable, core.Tensor):
     return pow(o, self.read_value())
 
   def __neg__(self):
-    return -self.read_value()
+    return -self.read_value()  # pylint: disable=invalid-unary-operand-type
 
   def __abs__(self):
     return abs(self.read_value())
@@ -510,8 +504,7 @@ def create_autocast_variable(variable):
   Returns:
     An AutoCastVariable that wraps the variable.
   """
-  if not isinstance(variable, (distribute_values.DistributedVariable,
-                               ps_distribute_values.AggregatingVariable)):
+  if not distributed_training_utils.is_distributed_variable(variable):
     return AutoCastVariable(variable)
 
   class AutoCastDistributedVariable(AutoCastVariable, variable.__class__):
@@ -522,11 +515,6 @@ def create_autocast_variable(variable):
     """
 
     def __repr__(self):
-      if issubclass(ps_distribute_values.AggregatingVariable,
-                    variable.__class__):
-        # AggregatingVariable's __repr__ simply calls super.__repr__. So we do
-        # the same here for consistency, which calls AutoCastVariable.__repr__.
-        return super(AutoCastDistributedVariable, self).__repr__()
 
       # pylint: disable=missing-format-attribute
       return ('<AutoCastDistributedVariable dtype={v.dtype.name} '

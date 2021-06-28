@@ -13,19 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Built-in activation functions."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
-import six
-
-from keras import backend as K
+from keras import backend
+from keras.layers import advanced_activations
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
 from tensorflow.python.util.tf_export import keras_export
-from keras.layers import advanced_activations
 
 # b/123041942
 # In TF 2.x, if the `tf.nn.softmax` is used as an activation function in Keras
@@ -33,7 +28,6 @@ from keras.layers import advanced_activations
 # internal method name is returned in serialization. This results in errors in
 # model exporting and loading as Keras can't find any activation function with
 # the name of `softmax_v2`.
-
 # This dict maps the activation function name from its v2 version to its
 # canonical name.
 _TF_ACTIVATIONS_V2 = {
@@ -44,7 +38,7 @@ _TF_ACTIVATIONS_V2 = {
 @keras_export('keras.activations.softmax')
 @tf.__internal__.dispatch.add_dispatch_support
 def softmax(x, axis=-1):
-  """Softmax converts a real vector to a vector of categorical probabilities.
+  """Softmax converts a vector of values to a probability distribution.
 
   The elements of the output vector are in range (0, 1) and sum to 1.
 
@@ -61,23 +55,34 @@ def softmax(x, axis=-1):
   The input values in are the log-odds of the resulting probability.
 
   Args:
-      x : Input tensor.
-      axis: Integer, axis along which the softmax normalization is applied.
+    x : Input tensor.
+    axis: Integer, axis along which the softmax normalization is applied.
 
   Returns:
-      Tensor, output of softmax transformation (all values are non-negative
-        and sum to 1).
+    Tensor, output of softmax transformation (all values are non-negative
+      and sum to 1).
 
-  Raises:
-      ValueError: In case `dim(x) == 1`.
+  Examples:
+
+  **Example 1: standalone usage**
+
+  >>> inputs = tf.random.normal(shape=(32, 10))
+  >>> outputs = tf.keras.activations.softmax(inputs)
+  >>> tf.reduce_sum(outputs[0, :])  # Each sample in the batch now sums to 1
+  <tf.Tensor: shape=(), dtype=float32, numpy=1.0000001>
+
+  **Example 2: usage in a `Dense` layer**
+
+  >>> layer = tf.keras.layers.Dense(32, activation=tf.keras.activations.softmax)
   """
-  rank = x.shape.rank
-  if rank == 2:
-    output = tf.compat.v1.math.softmax(x)
-  elif rank > 2:
-    e = tf.exp(x - tf.reduce_max(x, axis=axis, keepdims=True))
-    s = tf.reduce_sum(e, axis=axis, keepdims=True)
-    output = e / s
+  if x.shape.rank > 1:
+    if isinstance(axis, int):
+      output = tf.nn.softmax(x, axis=axis)
+    else:
+      # nn.softmax does not support tuple axis.
+      e = tf.exp(x - tf.reduce_max(x, axis=axis, keepdims=True))
+      s = tf.reduce_sum(e, axis=axis, keepdims=True)
+      output = e / s
   else:
     raise ValueError('Cannot apply softmax to a tensor that is 1D. '
                      'Received input: %s' % (x,))
@@ -134,7 +139,7 @@ def elu(x, alpha=1.0):
       [Fast and Accurate Deep Network Learning by Exponential Linear Units
       (ELUs) (Clevert et al, 2016)](https://arxiv.org/abs/1511.07289)
   """
-  return K.elu(x, alpha)
+  return backend.elu(x, alpha)
 
 
 @keras_export('keras.activations.selu')
@@ -195,15 +200,15 @@ def selu(x):
 @tf.__internal__.dispatch.add_dispatch_support
 def softplus(x):
   """Softplus activation function, `softplus(x) = log(exp(x) + 1)`.
-  
+
   Example Usage:
-  
+
   >>> a = tf.constant([-20, -1.0, 0.0, 1.0, 20], dtype = tf.float32)
-  >>> b = tf.keras.activations.softplus(a) 
+  >>> b = tf.keras.activations.softplus(a)
   >>> b.numpy()
   array([2.0611537e-09, 3.1326166e-01, 6.9314718e-01, 1.3132616e+00,
            2.0000000e+01], dtype=float32)
-  
+
   Args:
       x: Input tensor.
 
@@ -217,9 +222,9 @@ def softplus(x):
 @tf.__internal__.dispatch.add_dispatch_support
 def softsign(x):
   """Softsign activation function, `softsign(x) = x / (abs(x) + 1)`.
-  
+
   Example Usage:
-  
+
   >>> a = tf.constant([-1.0, 0.0, 1.0], dtype = tf.float32)
   >>> b = tf.keras.activations.softsign(a)
   >>> b.numpy()
@@ -303,7 +308,7 @@ def relu(x, alpha=0., max_value=None, threshold=0):
       transformed by the relu activation function.
       Tensor will be of the same shape and dtype of input `x`.
   """
-  return K.relu(x, alpha=alpha, max_value=max_value, threshold=threshold)
+  return backend.relu(x, alpha=alpha, max_value=max_value, threshold=threshold)
 
 
 @keras_export('keras.activations.gelu', v1=[])
@@ -428,6 +433,8 @@ def hard_sigmoid(x):
   """Hard sigmoid activation function.
 
   A faster approximation of the sigmoid activation.
+  Piecewise linear approximation of the sigmoid function.
+  Ref: 'https://en.wikipedia.org/wiki/Hard_sigmoid'
 
   For example:
 
@@ -446,7 +453,7 @@ def hard_sigmoid(x):
       - `if x > 2.5: return 1`
       - `if -2.5 <= x <= 2.5: return 0.2 * x + 0.5`
   """
-  return K.hard_sigmoid(x)
+  return backend.hard_sigmoid(x)
 
 
 @keras_export('keras.activations.linear')
@@ -499,6 +506,14 @@ def serialize(activation):
       activation.__name__ in _TF_ACTIVATIONS_V2):
     return _TF_ACTIVATIONS_V2[activation.__name__]
   return serialize_keras_object(activation)
+
+
+# Add additional globals so that deserialize can find these common activation
+# functions
+leaky_relu = tf.nn.leaky_relu
+log_softmax = tf.nn.log_softmax
+relu6 = tf.nn.relu6
+silu = tf.nn.silu
 
 
 @keras_export('keras.activations.deserialize')
@@ -576,7 +591,7 @@ def get(identifier):
   """
   if identifier is None:
     return linear
-  if isinstance(identifier, six.string_types):
+  if isinstance(identifier, str):
     identifier = str(identifier)
     return deserialize(identifier)
   elif isinstance(identifier, dict):

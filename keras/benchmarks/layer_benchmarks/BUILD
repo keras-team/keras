@@ -5,7 +5,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     default_visibility = ["//visibility:public"],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(
@@ -64,6 +64,7 @@ tf_py_test(
     deps = [
         ":layer_benchmarks_test_base",
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/benchmarks:benchmark_util",
     ],
 )

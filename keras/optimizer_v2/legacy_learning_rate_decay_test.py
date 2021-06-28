@@ -12,13 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Functional test for learning rate decay."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import math
 from keras import combinations
@@ -58,7 +54,7 @@ class LRDecayTest(keras_parameterized.TestCase):
       self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
   def testVariables(self):
-    step = tf.compat.v1.Variable(1)
+    step = tf.Variable(1)
 
     decayed_lr = tf.compat.v1.train.exponential_decay(
         .1, step, 3, 0.96, staircase=True)

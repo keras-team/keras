@@ -12,13 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for keras.layers.preprocessing.normalization."""
+"""Distribution tests for keras.layers.preprocessing.category_encoding."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 
@@ -29,12 +25,12 @@ from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import preprocessing_test_utils
 
 
-def batch_wrapper(dataset, batch_size, distribution, repeat=None):
+def batch_wrapper(dataset, batch_size, strategy, repeat=None):
   if repeat:
     dataset = dataset.repeat(repeat)
   # TPUs currently require fully defined input shapes, drop_remainder ensures
   # the input will have fully defined shapes.
-  if isinstance(distribution,
+  if isinstance(strategy,
                 (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
     return dataset.batch(batch_size, drop_remainder=True)
   else:
@@ -44,28 +40,29 @@ def batch_wrapper(dataset, batch_size, distribution, repeat=None):
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         # (b/156783625): Outside compilation failed for eager mode only.
-        distribution=strategy_combinations.strategies_minus_tpu,
+        strategy=strategy_combinations.strategies_minus_tpu +
+        strategy_combinations.multi_worker_mirrored_strategies,
         mode=["eager", "graph"]))
 class CategoryEncodingDistributionTest(
     keras_parameterized.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
-  def test_distribution(self, distribution):
+  def test_strategy(self, strategy):
     input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
     inp_dataset = tf.data.Dataset.from_tensor_slices(input_array)
-    inp_dataset = batch_wrapper(inp_dataset, 2, distribution)
+    inp_dataset = batch_wrapper(inp_dataset, 2, strategy)
 
     # pyformat: disable
     expected_output = [[0, 1, 1, 1, 0, 0],
                        [1, 1, 0, 1, 0, 0]]
     # pyformat: enable
-    max_tokens = 6
+    num_tokens = 6
     tf.config.set_soft_device_placement(True)
 
-    with distribution.scope():
+    with strategy.scope():
       input_data = keras.Input(shape=(4,), dtype=tf.int32)
       layer = category_encoding.CategoryEncoding(
-          max_tokens=max_tokens, output_mode=category_encoding.BINARY)
+          num_tokens=num_tokens, output_mode=category_encoding.MULTI_HOT)
       int_data = layer(input_data)
       model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(inp_dataset)
@@ -73,4 +70,5 @@ class CategoryEncodingDistributionTest(
 
 
 if __name__ == "__main__":
-  tf.test.main()
+  tf.compat.v1.enable_v2_behavior()
+  tf.__internal__.distribute.multi_process_runner.test_main()

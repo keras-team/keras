@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests the device compatibility check."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import re
 
@@ -41,7 +37,7 @@ class DeviceCompatibilityCheckTest(tf.test.TestCase):
 
   def _test_compat_check(self, device_attr_list, should_warn, expected_regex,
                          policy_name='mixed_float16'):
-    with tf.compat.v1.test.mock.patch.object(tf_logging, 'warn') as mock_warn, \
+    with tf.compat.v1.test.mock.patch.object(tf_logging, 'warning') as mock_warn, \
          tf.compat.v1.test.mock.patch.object(tf_logging, 'info') as mock_info:
       device_compatibility_check._log_device_compatibility_check(
           policy_name, device_attr_list)

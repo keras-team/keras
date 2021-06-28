@@ -13,11 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Contains private utilities used mainly by the base Layer class."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import functools
 import threading
@@ -25,7 +22,6 @@ from keras import backend
 from keras.utils import control_flow_util
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
-from tensorflow.python.util import keras_deps
 from tensorflow.python.util.tf_export import keras_export
 
 _call_context = threading.local()
@@ -50,7 +46,7 @@ def make_variable(name,
                   use_resource=None,
                   collections=None,
                   synchronization=tf.VariableSynchronization.AUTO,
-                  aggregation=tf.compat.v1.VariableAggregation.NONE,
+                  aggregation=tf.VariableAggregation.NONE,
                   partitioner=None):  # pylint: disable=unused-argument
   """Temporary util to create a variable (relies on `variable_scope.variable`).
 
@@ -109,12 +105,15 @@ def make_variable(name,
       initializer = initializer()
     init_val = functools.partial(initializer, shape, dtype=dtype)
     variable_dtype = dtype.base_dtype
+
+  variable_shape = tf.TensorShape(shape)
+
   if use_resource is None:
     use_resource = True
-
-  # TODO(apassos,rohanj) figure out how to remove collections from here so we
-  # can remove the V1.
-  variable_shape = tf.TensorShape(shape)
+  # In theory, in `use_resource` is True and `collections` is empty
+  # (that is to say, in TF2), we can use tf.Variable.
+  # However, this breaks legacy (Estimator) checkpoints
+  # because it changes variable names. Remove this when V1 is fully deprecated.
   return tf.compat.v1.Variable(
       initial_value=init_val,
       name=name,
@@ -204,6 +203,9 @@ def _create_keras_history_helper(tensors, processed_ops, created_layers):
     have been wrapped in `TensorFlowOpLayer` instances. Second element is
     a list of the `TensorFlowOpLayer` instances created.
   """
+  if tf.compat.v1.executing_eagerly_outside_functions():
+    raise ValueError(
+        '`create_keras_history` should only be called if eager is disabled!')
   # Import of `base_layer` needed in order to create `TensorFlowOpLayer`.
   # Cannot be imported at top because of circular dependencies.
   # TODO(omalleyt): Resolve circular dependency.
@@ -246,10 +248,7 @@ def _create_keras_history_helper(tensors, processed_ops, created_layers):
             constants[i] = op_input
           else:
             with tf.init_scope():
-              if tf.compat.v1.executing_eagerly_outside_functions():
-                constants[i] = backend.eval_in_eager_or_function(op_input)
-              else:
-                constants[i] = backend.function([], op_input)([])
+              constants[i] = backend.function([], op_input)([])
       layer_inputs = unnest_if_single_tensor(layer_inputs)
       processed_ops, created_layers = _create_keras_history_helper(
           layer_inputs, processed_ops, created_layers)
@@ -421,7 +420,7 @@ def call_context():
 
 # Inject the call_context function to keras_deps to remove the dependency
 # from TFLite to Keras.
-keras_deps.register_call_context_function(call_context)
+tf.__internal__.register_call_context_function(call_context)
 
 
 class CallContext(object):
@@ -790,35 +789,46 @@ class TrackableWeightHandler(object):
 
     # TODO(b/141682913): Figure out why this is private and fix it.
     saveables = trackable._gather_saveables_for_checkpoint().values()  # pylint: disable=protected-access
-    if len(saveables) != 1:
-      raise ValueError('Only Trackables with one Saveable are supported.')
-    saveable = list(saveables)[0]
+    # 'Saveables' won't exist when we're passed a legacy TF1 table like
+    # a StaticHashTable.
+    if not saveables:
+      self._num_tensors = 0
+      self._setter = lambda weights: None
+      self._getter = lambda: []
 
-    if tf.compat.v1.executing_eagerly_outside_functions():
-      # If we're in eager mode, we need to defer calling the Trackable's
-      # saveable() callable until data export time.
-      # However, it is safe to call the saveable as many times as we want, so
-      # we will call it now to figure out how many tensors this Trackable will
-      # produce.
-      self._saveable = saveable
-      self._num_tensors = len(self._saveable().specs)
-      self._setter = lambda weights: self._saveable().restore(weights, None)
-      self._getter = lambda: [spec.tensor for spec in self._saveable().specs]
+    elif len(saveables) == 1:
+      saveable = list(saveables)[0]
+
+      if tf.compat.v1.executing_eagerly_outside_functions():
+        # If we're in eager mode, we need to defer calling the Trackable's
+        # saveable() callable until data export time.
+        # However, it is safe to call the saveable as many times as we want, so
+        # we will call it now to figure out how many tensors this Trackable will
+        # produce.
+        self._saveable = saveable
+        self._num_tensors = len(self._saveable().specs)
+        self._setter = lambda weights: self._saveable().restore(weights, None)
+        self._getter = lambda: [spec.tensor for spec in self._saveable().specs]
+      else:
+        # If we're in Graph mode, we need to evaluate the Saveable only once and
+        # cache the resulting restore graph. Failing to do this will result in
+        # new assignment ops being added to the graph each time set_weights() is
+        # called.
+        self._placeholder_tensors = []
+        self._saveable = saveable()
+        self._num_tensors = len(self._saveable.specs)
+        for spec in self._saveable.specs:
+          tensor = spec.tensor
+          self._placeholder_tensors.append(
+              tf.compat.v1.placeholder(tensor.dtype, tensor.shape))
+        self._assign_op = self._saveable.restore(self._placeholder_tensors,
+                                                 None)
+        self._setter = self._set_weights_v1
+        self._getter = lambda: [spec.tensor for spec in self._saveable.specs]
     else:
-      # If we're in Graph mode, we need to evaluate the Saveable only once and
-      # cache the resulting restore graph. Failing to do this will result in
-      # new assignment ops being added to the graph each time set_weights() is
-      # called.
-      self._placeholder_tensors = []
-      self._saveable = saveable()
-      self._num_tensors = len(self._saveable.specs)
-      for spec in self._saveable.specs:
-        tensor = spec.tensor
-        self._placeholder_tensors.append(
-            tf.compat.v1.placeholder(tensor.dtype, tensor.shape))
-      self._assign_op = self._saveable.restore(self._placeholder_tensors, None)
-      self._setter = self._set_weights_v1
-      self._getter = lambda: [spec.tensor for spec in self._saveable.specs]
+      raise ValueError('Only Trackables with one Saveable are supported. '
+                       'The Trackable %s has %d Saveables.' %
+                       (trackable, len(saveables)))
 
   @property
   def num_tensors(self):

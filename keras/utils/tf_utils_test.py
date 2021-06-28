@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for Keras TF utils."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 
@@ -195,6 +191,23 @@ class TestIsRagged(tf.test.TestCase):
   def test_is_ragged_return_false_for_list(self):
     tensor = [1., 2., 3.]
     self.assertFalse(tf_utils.is_ragged(tensor))
+
+
+class TestIsSparse(tf.test.TestCase):
+
+  def test_is_sparse_return_true_for_sparse_tensor(self):
+    tensor = tf.SparseTensor(
+        indices=[[0, 0], [1, 2]], values=[1, 2], dense_shape=[3, 4])
+    self.assertTrue(tf_utils.is_sparse(tensor))
+
+  def test_is_sparse_return_true_for_sparse_tensor_value(self):
+    tensor = tf.compat.v1.SparseTensorValue(
+        indices=[[0, 0], [1, 2]], values=[1, 2], dense_shape=[3, 4])
+    self.assertTrue(tf_utils.is_sparse(tensor))
+
+  def test_is_sparse_return_false_for_list(self):
+    tensor = [1., 2., 3.]
+    self.assertFalse(tf_utils.is_sparse(tensor))
 
 
 class TestIsExtensionType(tf.test.TestCase):

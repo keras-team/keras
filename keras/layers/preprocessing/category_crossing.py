@@ -13,22 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 """Keras category crossing preprocessing layers."""
-# pylint: disable=g-classes-have-attributes
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
+# pylint: disable=g-classes-have-attributes
 
 import itertools
 import numpy as np
+from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.utils import tf_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.layers.experimental.preprocessing.CategoryCrossing')
-class CategoryCrossing(base_preprocessing_layer.PreprocessingLayer):
+class CategoryCrossing(base_layer.Layer):
   """Category crossing layer.
 
   This layer concatenates multiple categorical inputs into a single categorical
@@ -136,7 +134,7 @@ class CategoryCrossing(base_preprocessing_layer.PreprocessingLayer):
     if isinstance(inp, (list, tuple, np.ndarray)):
       inp = tf.convert_to_tensor(inp)
     if inp.shape.rank == 1:
-      inp = tf.compat.v1.expand_dims(inp, axis=-1)
+      inp = tf.expand_dims(inp, axis=-1)
     return inp
 
   def call(self, inputs):

@@ -18,13 +18,9 @@
 These tests ensure that a model revived from a combination of config and
 SavedModel have the expected structure.
 """
+
+import tensorflow.compat.v2 as tf
 # TODO(kathywu): Move relevant tests from saved_model_test to
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
 
 import shutil
 
@@ -71,10 +67,10 @@ class SparseDense(keras.layers.Dense):
 
   def call(self, inputs):
     input_shape = tf.stack(
-        (tf.reduce_prod(tf.compat.v1.shape(inputs)[:-1]),
+        (tf.reduce_prod(tf.shape(inputs)[:-1]),
          self.kernel.shape[0]))
     output_shape = tf.concat(
-        (tf.compat.v1.shape(inputs)[:-1], [self.kernel.shape[1]]), -1)
+        (tf.shape(inputs)[:-1], [self.kernel.shape[1]]), -1)
     x = tf.sparse.reshape(inputs, input_shape)
     return tf.reshape(
         self.activation(
@@ -170,6 +166,14 @@ class CustomNetworkWithConfigName(CustomNetworkWithConfig):
     self._config_dict['name'] = self.name
 
 
+class UnregisteredCustomSequentialModel(keras.Sequential):
+  # This class is *not* registered in the CustomObjectScope.
+
+  def __init__(self, **kwargs):
+    super(UnregisteredCustomSequentialModel, self).__init__(**kwargs)
+    self.add(keras.layers.InputLayer(input_shape=(2, 3)))
+
+
 class ReviveTestBase(keras_parameterized.TestCase):
 
   def setUp(self):
@@ -196,7 +200,7 @@ class ReviveTestBase(keras_parameterized.TestCase):
                         self.evaluate(revived.weights))
     input_arr = tf.constant(
         np.random.random((2, 2, 3)).astype(np.float32))
-    if isinstance(revived._saved_model_inputs_spec,
+    if isinstance(revived.save_spec()[0][0],
                   tf.SparseTensorSpec):
       input_arr = tf.sparse.from_dense(input_arr)
 
@@ -309,6 +313,14 @@ class TestModelRevive(ReviveTestBase):
     # Run data through the Model to create save spec and weights.
     x = tf.sparse.from_dense(np.ones((10, 2, 3), dtype=np.float32))
     model.predict(x, batch_size=10)
+    model.save(self.path, save_format='tf')
+    revived = keras_load.load(self.path)
+    self._assert_revived_correctness(model, revived)
+
+  def test_revive_unregistered_sequential(self):
+    model = UnregisteredCustomSequentialModel()
+    x = np.random.random((2, 2, 3)).astype(np.float32)
+    model(x)
     model.save(self.path, save_format='tf')
     revived = keras_load.load(self.path)
     self._assert_revived_correctness(model, revived)

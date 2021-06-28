@@ -12,29 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for keras.layers.preprocessing.normalization."""
+"""Distribution tests for keras.layers.preprocessing.normalization."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 
 import keras
 from keras import keras_parameterized
-from keras.distribute.strategy_combinations import all_strategies
+from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import normalization
-from keras.layers.preprocessing import normalization_v1
 from keras.layers.preprocessing import preprocessing_test_utils
-
-
-def get_layer_class():
-  if tf.executing_eagerly():
-    return normalization.Normalization
-  else:
-    return normalization_v1.Normalization
 
 
 def _get_layer_computation_test_cases():
@@ -105,12 +93,13 @@ def _get_layer_computation_test_cases():
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.times(
         tf.__internal__.test.combinations.combine(
-            distribution=all_strategies,
-            mode=["eager", "graph"]), _get_layer_computation_test_cases()))
+            strategy=strategy_combinations.all_strategies +
+            strategy_combinations.multi_worker_mirrored_strategies,
+            mode=["eager"]), _get_layer_computation_test_cases()))
 class NormalizationTest(keras_parameterized.TestCase,
                         preprocessing_test_utils.PreprocessingLayerTest):
 
-  def test_layer_computation(self, distribution, adapt_data, axis, test_data,
+  def test_layer_computation(self, strategy, adapt_data, axis, test_data,
                              use_dataset, expected):
     input_shape = tuple([None for _ in range(test_data.ndim - 1)])
     if use_dataset:
@@ -120,9 +109,9 @@ class NormalizationTest(keras_parameterized.TestCase,
       test_data = tf.data.Dataset.from_tensor_slices(test_data).batch(
           test_data.shape[0] // 2)
 
-    with distribution.scope():
+    with strategy.scope():
       input_data = keras.Input(shape=input_shape)
-      layer = get_layer_class()(axis=axis)
+      layer = normalization.Normalization(axis=axis)
       layer.adapt(adapt_data)
       output = layer(input_data)
       model = keras.Model(input_data, output)
@@ -131,4 +120,5 @@ class NormalizationTest(keras_parameterized.TestCase,
 
 
 if __name__ == "__main__":
-  tf.test.main()
+  tf.compat.v1.enable_v2_behavior()
+  tf.__internal__.distribute.multi_process_runner.test_main()

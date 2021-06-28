@@ -13,19 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities for multi-gpu training."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
-from keras import backend as K
+import tensorflow.compat.v2 as tf
+from keras import backend
 from keras.engine.training import Model
 from keras.layers.core import Lambda
 from keras.layers.merge import concatenate
 
 
 def _get_available_devices():
-  return [x.name for x in K.get_session().list_devices()]
+  return [x.name for x in backend.get_session().list_devices()]
 
 
 def _normalize_device_name(name):
@@ -187,7 +184,7 @@ def multi_gpu_model(model, gpus, cpu_merge=True, cpu_relocation=False):
     Returns:
       Slice `i` of `data`.
     """
-    shape = tf.compat.v1.shape(data)
+    shape = tf.shape(data)
     batch_size = shape[:1]
     input_shape = shape[1:]
     step = batch_size // parts
@@ -203,7 +200,7 @@ def multi_gpu_model(model, gpus, cpu_merge=True, cpu_relocation=False):
   # Relocate the model definition under CPU device scope if needed
   if cpu_relocation:
     from keras.models import clone_model  # pylint: disable=g-import-not-at-top
-    with tf.compat.v1.device('/cpu:0'):
+    with tf.device('/cpu:0'):
       model = clone_model(model)
 
   all_outputs = [[] for _ in range(len(model.outputs))]
@@ -211,8 +208,8 @@ def multi_gpu_model(model, gpus, cpu_merge=True, cpu_relocation=False):
   # Place a copy of the model on each GPU,
   # each getting a slice of the inputs.
   for i, gpu_id in enumerate(target_gpu_ids):
-    with tf.compat.v1.device('/gpu:%d' % gpu_id):
-      with K.name_scope('replica_%d' % gpu_id):
+    with tf.device('/gpu:%d' % gpu_id):
+      with backend.name_scope('replica_%d' % gpu_id):
         inputs = []
         # Retrieve a slice of the input.
         for x in model.inputs:
@@ -253,7 +250,7 @@ def multi_gpu_model(model, gpus, cpu_merge=True, cpu_relocation=False):
     output_names.append(n)
 
   # Merge outputs under expected scope.
-  with tf.compat.v1.device('/cpu:0' if cpu_merge else '/gpu:%d' % target_gpu_ids[0]):
+  with tf.device('/cpu:0' if cpu_merge else '/gpu:%d' % target_gpu_ids[0]):
     merged = []
     for name, outputs in zip(output_names, all_outputs):
       merged.append(concatenate(outputs, axis=0, name=name))

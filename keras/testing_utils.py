@@ -14,11 +14,7 @@
 # ==============================================================================
 """Utilities for unit-testing Keras."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 import contextlib
@@ -32,7 +28,6 @@ from keras import backend
 from keras import layers
 from keras import models
 from keras.engine import base_layer_utils
-from keras.engine import keras_tensor
 from keras.optimizer_v2 import adadelta as adadelta_v2
 from keras.optimizer_v2 import adagrad as adagrad_v2
 from keras.optimizer_v2 import adam as adam_v2
@@ -353,29 +348,6 @@ def run_eagerly_scope(value):
     _thread_local_data.run_eagerly = previous_value
 
 
-@tf_contextlib.contextmanager
-def use_keras_tensors_scope(value):
-  """Provides a scope within which we use KerasTensors in the func. API or not.
-
-  The boolean gets restored to its original value upon exiting the scope.
-
-  Args:
-     value: Bool specifying if we should build functional models
-      using KerasTensors in the active test.
-     Should be True or False.
-
-  Yields:
-    The provided value.
-  """
-  previous_value = keras_tensor._KERAS_TENSORS_ENABLED  # pylint: disable=protected-access
-  try:
-    keras_tensor._KERAS_TENSORS_ENABLED = value  # pylint: disable=protected-access
-    yield value
-  finally:
-    # Restore KerasTensor usage to initial value.
-    keras_tensor._KERAS_TENSORS_ENABLED = previous_value  # pylint: disable=protected-access
-
-
 def should_run_eagerly():
   """Returns whether the models we are testing should be run eagerly."""
   if _thread_local_data.run_eagerly is None:
@@ -462,8 +434,13 @@ def get_small_functional_mlp(num_hidden, num_classes, input_dim):
 class SmallSubclassMLP(models.Model):
   """A subclass model based small MLP."""
 
-  def __init__(self, num_hidden, num_classes, use_bn=False, use_dp=False):
-    super(SmallSubclassMLP, self).__init__(name='test_model')
+  def __init__(self,
+               num_hidden,
+               num_classes,
+               use_bn=False,
+               use_dp=False,
+               **kwargs):
+    super(SmallSubclassMLP, self).__init__(name='test_model', **kwargs)
     self.use_bn = use_bn
     self.use_dp = use_dp
 
@@ -588,7 +565,8 @@ def get_model_from_layers(model_layers,
                           input_dtype=None,
                           name=None,
                           input_ragged=None,
-                          input_sparse=None):
+                          input_sparse=None,
+                          model_type=None):
   """Builds a model from a sequence of layers.
 
   Args:
@@ -598,12 +576,14 @@ def get_model_from_layers(model_layers,
     name: Name for the model.
     input_ragged: Boolean, whether the input data is a ragged tensor.
     input_sparse: Boolean, whether the input data is a sparse tensor.
+    model_type: One of "subclass", "subclass_custom_build", "sequential", or
+      "functional". When None, defaults to `get_model_type`.
 
   Returns:
     A Keras model.
   """
-
-  model_type = get_model_type()
+  if model_type is None:
+    model_type = get_model_type()
   if model_type == 'subclass':
     inputs = None
     if input_ragged or input_sparse:
@@ -948,7 +928,7 @@ def device(should_use_gpu):
     dev = '/device:GPU:0'
   else:
     dev = '/device:CPU:0'
-  with tf.compat.v1.device(dev):
+  with tf.device(dev):
     yield
 
 

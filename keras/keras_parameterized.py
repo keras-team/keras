@@ -14,13 +14,9 @@
 # ==============================================================================
 """Utilities for unit-testing Keras."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import tensorflow.compat.v2 as tf
 
-import tensorflow as tf
-
-import collections.abc as collections_abc
+import collections
 import functools
 import itertools
 import unittest
@@ -417,7 +413,7 @@ def run_all_keras_modes(test_or_class=None,
 def _v1_session_test(f, test_or_class, config, *args, **kwargs):
   with tf.compat.v1.get_default_graph().as_default():
     with testing_utils.run_eagerly_scope(False):
-      with test_or_class.test_session(use_gpu=True, config=config):
+      with test_or_class.test_session(config=config):
         f(test_or_class, *args, **kwargs)
 
 
@@ -457,7 +453,7 @@ def _test_or_class_decorator(test_or_class, single_method_decorator):
     The decorated result.
   """
   def _decorate_test_or_class(obj):
-    if isinstance(obj, collections_abc.Iterable):
+    if isinstance(obj, collections.abc.Iterable):
       return itertools.chain.from_iterable(
           single_method_decorator(method) for method in obj)
     if isinstance(obj, type):

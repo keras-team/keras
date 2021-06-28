@@ -13,11 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for Keras backend."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import gc
 import warnings
@@ -33,7 +30,7 @@ from keras import backend
 from keras import combinations
 from keras.engine import input_layer
 from keras.layers import advanced_activations
-from keras.layers import normalization
+from keras.layers.normalization import batch_normalization_v1
 from keras.utils import tf_inspect
 
 
@@ -157,7 +154,7 @@ class BackendUtilsTest(tf.test.TestCase):
       # Test running with a learning-phase-consuming layer
       with backend.learning_phase_scope(0):
         x = input_layer.Input((3,))
-        y = normalization.BatchNormalization()(x)
+        y = batch_normalization_v1.BatchNormalization()(x)
         if not tf.executing_eagerly():
           self.evaluate(tf.compat.v1.global_variables_initializer())
           sess.run(y, feed_dict={x: np.random.random((2, 3))})
@@ -599,6 +596,12 @@ class BackendShapeOpsTest(tf.test.TestCase):
     x = backend.variable(np.ones((1, 3, 2, 2)))
     y = backend.resize_images(x, height_factor, width_factor, data_format)
     self.assertEqual(y.shape.as_list(), [1, 3, 4, 4])
+
+    # Use with a dynamic axis:
+    if not tf.executing_eagerly():
+      x = backend.placeholder(shape=(1, 3, None, None))
+      y = backend.resize_images(x, height_factor, width_factor, data_format)
+      self.assertEqual(y.shape.as_list(), [1, 3, None, None])
 
     # Invalid use:
     with self.assertRaises(ValueError):
@@ -1528,7 +1531,7 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
     # 3D NHC case
     val = np.random.random((10, 5, 3))
     x = backend.variable(val)
-    mean, var = tf.compat.v1.nn.moments(x, (0, 1), None, None, False)
+    mean, var = tf.nn.moments(x, (0, 1), None, None, False)
     normed = backend.batch_normalization(
         x, mean, var, beta, gamma, axis=-1, epsilon=1e-3)
     self.assertEqual(normed.shape.as_list(), [10, 5, 3])
@@ -1536,7 +1539,7 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
     # 4D NHWC case
     val = np.random.random((10, 5, 5, 3))
     x = backend.variable(val)
-    mean, var = tf.compat.v1.nn.moments(x, (0, 1, 2), None, None, False)
+    mean, var = tf.nn.moments(x, (0, 1, 2), None, None, False)
     normed = backend.batch_normalization(
         x, mean, var, beta, gamma, axis=-1, epsilon=1e-3)
     self.assertEqual(normed.shape.as_list(), [10, 5, 5, 3])
@@ -1546,7 +1549,7 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
       # Eager CPU kernel for NCHW does not exist.
       val = np.random.random((10, 3, 5, 5))
       x = backend.variable(val)
-      mean, var = tf.compat.v1.nn.moments(x, (0, 2, 3), None, None, False)
+      mean, var = tf.nn.moments(x, (0, 2, 3), None, None, False)
       normed = backend.batch_normalization(
           x, mean, var, beta, gamma, axis=1, epsilon=1e-3)
       self.assertEqual(normed.shape.as_list(), [10, 3, 5, 5])

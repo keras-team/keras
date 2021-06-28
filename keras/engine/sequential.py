@@ -13,16 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
-"""Home of the `Sequential` model.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Home of the `Sequential` model."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import copy
-import warnings
 from keras import layers as layer_module
 from keras.engine import base_layer
 from keras.engine import functional
@@ -34,7 +29,6 @@ from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -101,7 +95,7 @@ class Sequential(functional.Functional):
   ```
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, layers=None, name=None):
     """Creates a `Sequential` model instance.
 
@@ -151,7 +145,7 @@ class Sequential(functional.Functional):
       return layers[1:]
     return layers[:]
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def add(self, layer):
     """Adds a layer instance on top of the layer stack.
 
@@ -173,10 +167,6 @@ class Sequential(functional.Functional):
       origin_layer = layer._keras_history[0]
       if isinstance(origin_layer, input_layer.InputLayer):
         layer = origin_layer
-        logging.warning(
-            'Please add `keras.layers.InputLayer` instead of `keras.Input` to '
-            'Sequential model. `keras.Input` is intended to be used by '
-            'Functional model.')
 
     if isinstance(layer, tf.Module):
       if not isinstance(layer, base_layer.Layer):
@@ -239,7 +229,7 @@ class Sequential(functional.Functional):
 
     self._layer_call_argspecs[layer] = tf_inspect.getfullargspec(layer.call)
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def pop(self):
     """Removes the last layer in the model.
 
@@ -264,7 +254,7 @@ class Sequential(functional.Functional):
       self._init_graph_network(self.inputs, self.outputs)
       self.built = True
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _build_graph_network_for_inferred_shape(self,
                                               input_shape,
                                               input_dtype=None):
@@ -359,7 +349,7 @@ class Sequential(functional.Functional):
     # If applicable, update the static input shape of the model.
     if not self._has_explicit_input_shape:
       if not tf.is_tensor(inputs) and not isinstance(
-          inputs, tf.experimental.numpy.ndarray):
+          inputs, tf.Tensor):
         # This is a Sequential with mutiple inputs. This is technically an
         # invalid use case of Sequential, but we tolerate it for backwards
         # compatibility.
@@ -409,62 +399,8 @@ class Sequential(functional.Functional):
     # TODO(omalleyt): b/123540974 This function is not really safe to call
     # by itself because it will duplicate any updates and losses in graph
     # mode by `call`ing the Layers again.
-    outputs = self.call(inputs, mask=mask)
+    outputs = self.call(inputs, mask=mask)  # pylint: disable=unexpected-keyword-arg
     return getattr(outputs, '_keras_mask', None)
-
-  def predict_proba(self, x, batch_size=32, verbose=0):
-    """Generates class probability predictions for the input samples.
-
-    The input samples are processed batch by batch.
-
-    Args:
-        x: input data, as a Numpy array or list of Numpy arrays
-            (if the model has multiple inputs).
-        batch_size: integer.
-        verbose: verbosity mode, 0 or 1.
-
-    Returns:
-        A Numpy array of probability predictions.
-    """
-    warnings.warn('`model.predict_proba()` is deprecated and '
-                  'will be removed after 2021-01-01. '
-                  'Please use `model.predict()` instead.')
-    preds = self.predict(x, batch_size, verbose)
-    if preds.min() < 0. or preds.max() > 1.:
-      logging.warning('Network returning invalid probability values. '
-                      'The last layer might not normalize predictions '
-                      'into probabilities '
-                      '(like softmax or sigmoid would).')
-    return preds
-
-  def predict_classes(self, x, batch_size=32, verbose=0):
-    """Generate class predictions for the input samples.
-
-    The input samples are processed batch by batch.
-
-    Args:
-        x: input data, as a Numpy array or list of Numpy arrays
-            (if the model has multiple inputs).
-        batch_size: integer.
-        verbose: verbosity mode, 0 or 1.
-
-    Returns:
-        A numpy array of class predictions.
-    """
-    warnings.warn('`model.predict_classes()` is deprecated and '
-                  'will be removed after 2021-01-01. '
-                  'Please use instead:'
-                  '* `np.argmax(model.predict(x), axis=-1)`, '
-                  '  if your model does multi-class classification '
-                  '  (e.g. if it uses a `softmax` last-layer activation).'
-                  '* `(model.predict(x) > 0.5).astype("int32")`, '
-                  '  if your model does binary classification '
-                  '  (e.g. if it uses a `sigmoid` last-layer activation).')
-    proba = self.predict(x, batch_size=batch_size, verbose=verbose)
-    if proba.shape[-1] > 1:
-      return proba.argmax(axis=-1)
-    else:
-      return (proba > 0.5).astype('int32')
 
   def get_config(self):
     layer_configs = []

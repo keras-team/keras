@@ -14,17 +14,13 @@
 # ==============================================================================
 """Tests for model.fit calls with a Dataset object passed as validation_data."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import tensorflow.compat.v2 as tf
 
-import tensorflow as tf
-
+import io
 import sys
 
 from absl.testing import parameterized
 import numpy as np
-import six
 
 import keras
 from tensorflow.python.framework import test_util
@@ -79,7 +75,7 @@ class PrintTrainingInfoTest(keras_parameterized.TestCase,
     val_dataset = tf.data.Dataset.from_tensors(
         ([1.], [1.])).repeat(50).batch(10)
 
-    mock_stdout = six.StringIO()
+    mock_stdout = io.StringIO()
     with tf.compat.v1.test.mock.patch.object(sys, "stdout", mock_stdout):
       model.fit(dataset, epochs=2, validation_data=val_dataset)
 
@@ -102,7 +98,7 @@ class PrintTrainingInfoTest(keras_parameterized.TestCase,
     else:
       val_data = None
 
-    mock_stdout = six.StringIO()
+    mock_stdout = io.StringIO()
     with tf.compat.v1.test.mock.patch.object(sys, "stdout", mock_stdout):
       model.fit(dataset, batch_size=10, epochs=2, validation_data=val_data)
 

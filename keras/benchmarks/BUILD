@@ -5,7 +5,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 package(
     default_visibility = ["//visibility:public"],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(
@@ -64,6 +64,7 @@ py_test(
         ":profiler_lib",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -78,6 +79,7 @@ cuda_py_test(
     deps = [
         ":profiler_lib",
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/utils:tf_inspect",
     ],
 )
@@ -89,6 +91,7 @@ cuda_py_test(
     deps = [
         ":profiler_lib",
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -100,6 +103,7 @@ py_library(
         ":distribution_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -111,117 +115,7 @@ py_test(
     deps = [
         ":benchmark_util",
         "//:expect_tensorflow_installed",
-    ],
-)
-
-cuda_py_test(
-    name = "bidirectional_lstm_benchmark_test",
-    srcs = ["keras_examples_benchmarks/bidirectional_lstm_benchmark_test.py"],
-    python_version = "PY3",
-    tags = COMMON_TAGS,
-    deps = [
-        ":benchmark_util",
-        ":profiler_lib",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-cuda_py_test(
-    name = "text_classification_transformer_benchmark_test",
-    srcs = ["keras_examples_benchmarks/text_classification_transformer_benchmark_test.py"],
-    python_version = "PY3",
-    tags = COMMON_TAGS,
-    deps = [
-        ":benchmark_util",
-        ":profiler_lib",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-cuda_py_test(
-    name = "antirectifier_benchmark_test",
-    srcs = ["keras_examples_benchmarks/antirectifier_benchmark_test.py"],
-    python_version = "PY3",
-    tags = COMMON_TAGS,
-    deps = [
-        ":benchmark_util",
-        ":profiler_lib",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-cuda_py_test(
-    name = "mnist_conv_benchmark_test",
-    srcs = ["keras_examples_benchmarks/mnist_conv_benchmark_test.py"],
-    python_version = "PY3",
-    tags = COMMON_TAGS,
-    deps = [
-        ":benchmark_util",
-        ":profiler_lib",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-cuda_py_test(
-    name = "mnist_hierarchical_rnn_benchmark_test",
-    srcs = ["keras_examples_benchmarks/mnist_hierarchical_rnn_benchmark_test.py"],
-    python_version = "PY3",
-    tags = COMMON_TAGS,
-    deps = [
-        ":benchmark_util",
-        ":profiler_lib",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-cuda_py_test(
-    name = "mnist_irnn_benchmark_test",
-    srcs = ["keras_examples_benchmarks/mnist_irnn_benchmark_test.py"],
-    python_version = "PY3",
-    tags = COMMON_TAGS,
-    deps = [
-        ":benchmark_util",
-        ":profiler_lib",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-cuda_py_test(
-    name = "reuters_mlp_benchmark_test",
-    srcs = ["keras_examples_benchmarks/reuters_mlp_benchmark_test.py"],
-    python_version = "PY3",
-    tags = COMMON_TAGS,
-    deps = [
-        ":benchmark_util",
-        ":profiler_lib",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-cuda_py_test(
-    name = "cifar10_cnn_benchmark_test",
-    srcs = ["keras_examples_benchmarks/cifar10_cnn_benchmark_test.py"],
-    python_version = "PY3",
-    tags = COMMON_TAGS,
-    deps = [
-        ":benchmark_util",
-        ":profiler_lib",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-cuda_py_test(
-    name = "mnist_conv_custom_training_benchmark_test",
-    srcs = ["keras_examples_benchmarks/mnist_conv_custom_training_benchmark_test.py"],
-    python_version = "PY3",
-    tags = COMMON_TAGS,
-    deps = [
-        ":benchmark_util",
-        ":distribution_util",
-        ":profiler_lib",
-        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -245,6 +139,7 @@ py_test(
         ":benchmark_util",
         ":profiler_lib",
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/optimizer_v2",
     ],
 )
@@ -262,4 +157,16 @@ py_binary(
     python_version = "PY3",
     tags = ["no_oss"],
     deps = ["//:expect_tensorflow_installed"],
+)
+
+py_test(
+    name = "metrics_memory_benchmark_test",
+    srcs = ["metrics_memory_benchmark_test.py"],
+    python_version = "PY3",
+    tags = COMMON_TAGS,
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+    ],
 )

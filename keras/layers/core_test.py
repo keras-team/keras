@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for Keras core layers."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import textwrap
 
@@ -40,8 +36,10 @@ class DropoutLayersTest(keras_parameterized.TestCase):
 
     testing_utils.layer_test(
         keras.layers.Dropout,
-        kwargs={'rate': 0.5,
-                'noise_shape': [3, 1]},
+        kwargs={
+            'rate': 0.5,
+            'noise_shape': [3, 1]
+        },
         input_shape=(3, 2))
 
   def test_dropout_supports_masking(self):
@@ -62,7 +60,10 @@ class DropoutLayersTest(keras_parameterized.TestCase):
 
     testing_utils.layer_test(
         keras.layers.SpatialDropout2D,
-        kwargs={'rate': 0.5, 'data_format': 'channels_first'},
+        kwargs={
+            'rate': 0.5,
+            'data_format': 'channels_first'
+        },
         input_shape=(2, 3, 4, 5))
 
   def test_spatial_dropout_3d(self):
@@ -73,7 +74,10 @@ class DropoutLayersTest(keras_parameterized.TestCase):
 
     testing_utils.layer_test(
         keras.layers.SpatialDropout3D,
-        kwargs={'rate': 0.5, 'data_format': 'channels_first'},
+        kwargs={
+            'rate': 0.5,
+            'data_format': 'channels_first'
+        },
         input_shape=(2, 3, 4, 4, 5))
 
   def test_dropout_partial_noise_shape(self):
@@ -113,10 +117,7 @@ class LambdaLayerTest(keras_parameterized.TestCase):
 
     ld = keras.layers.Lambda(f)
     config = ld.get_config()
-    ld = keras.layers.deserialize({
-        'class_name': 'Lambda',
-        'config': config
-    })
+    ld = keras.layers.deserialize({'class_name': 'Lambda', 'config': config})
     self.assertEqual(ld.function(3), 4)
 
     # test with lambda
@@ -139,6 +140,7 @@ class LambdaLayerTest(keras_parameterized.TestCase):
     self.assertEqual((1, 1), l.get_config()['output_shape'])
 
   def test_lambda_output_shape_function(self):
+
     def get_output_shape(input_shape):
       return 1 * input_shape
 
@@ -156,7 +158,8 @@ class LambdaLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual((10, 20), output_shape)
     output_signature = l.compute_output_signature([
         tf.TensorSpec(dtype=tf.float64, shape=(10, 10)),
-        tf.TensorSpec(dtype=tf.float64, shape=(10, 20))])
+        tf.TensorSpec(dtype=tf.float64, shape=(10, 20))
+    ])
     self.assertAllEqual((10, 20), output_signature.shape)
     self.assertAllEqual(tf.float64, output_signature.dtype)
 
@@ -202,16 +205,11 @@ class LambdaLayerTest(keras_parameterized.TestCase):
   def test_lambda_config_serialization(self):
     # Test serialization with output_shape and output_shape_type
     layer = keras.layers.Lambda(
-        lambda x: x + 1,
-        output_shape=(1, 1),
-        mask=lambda i, m: m)
+        lambda x: x + 1, output_shape=(1, 1), mask=lambda i, m: m)
     layer(keras.backend.variable(np.ones((1, 1))))
     config = layer.get_config()
 
-    layer = keras.layers.deserialize({
-        'class_name': 'Lambda',
-        'config': config
-    })
+    layer = keras.layers.deserialize({'class_name': 'Lambda', 'config': config})
     self.assertAllEqual(layer.function(1), 2)
     self.assertAllEqual(layer._output_shape, (1, 1))
     self.assertAllEqual(layer.mask(1, True), True)
@@ -261,6 +259,7 @@ class LambdaLayerTest(keras_parameterized.TestCase):
 
     def add_one(inputs):
       return inputs + 1.0
+
     layer = keras.layers.Lambda(add_one)
 
     ragged_input = tf.ragged.constant([[1.0], [2.0, 3.0]])
@@ -281,6 +280,7 @@ class TestStatefulLambda(keras_parameterized.TestCase):
   @keras_parameterized.run_with_all_model_types
   def test_lambda_with_variable_in_model(self):
     v = tf.Variable(1., trainable=True)
+
     def lambda_fn(x, v):
       return x * v
 
@@ -305,17 +305,18 @@ class TestStatefulLambda(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes
   @keras_parameterized.run_with_all_model_types
   def test_creation_inside_lambda(self):
+
     def lambda_fn(x):
       scale = tf.Variable(1., trainable=True, name='scale')
       shift = tf.Variable(1., trainable=True, name='shift')
       return x * scale + shift
 
-    expected_error = textwrap.dedent(r'''
+    expected_error = textwrap.dedent(r"""
     (    )?The following Variables were created within a Lambda layer \(shift_and_scale\)
     (    )?but are not tracked by said layer:
     (    )?  <tf.Variable \'.*shift_and_scale/scale:0\'.+
     (    )?  <tf.Variable \'.*shift_and_scale/shift:0\'.+
-    (    )?The layer cannot safely ensure proper Variable reuse.+''')
+    (    )?The layer cannot safely ensure proper Variable reuse.+""")
 
     with self.assertRaisesRegex(ValueError, expected_error):
       layer = keras.layers.Lambda(lambda_fn, name='shift_and_scale')
@@ -326,14 +327,15 @@ class TestStatefulLambda(keras_parameterized.TestCase):
   @keras_parameterized.run_with_all_model_types
   def test_transitive_variable_creation(self):
     dense = keras.layers.Dense(1, use_bias=False, kernel_initializer='ones')
+
     def bad_lambda_fn(x):
       return dense(x + 1)  # Dense layer is built on first call
 
-    expected_error = textwrap.dedent(r'''
+    expected_error = textwrap.dedent(r"""
     (    )?The following Variables were created within a Lambda layer \(bias_dense\)
     (    )?but are not tracked by said layer:
     (    )?  <tf.Variable \'.*bias_dense/dense/kernel:0\'.+
-    (    )?The layer cannot safely ensure proper Variable reuse.+''')
+    (    )?The layer cannot safely ensure proper Variable reuse.+""")
 
     with self.assertRaisesRegex(ValueError, expected_error):
       layer = keras.layers.Lambda(bad_lambda_fn, name='bias_dense')
@@ -344,18 +346,21 @@ class TestStatefulLambda(keras_parameterized.TestCase):
   @keras_parameterized.run_with_all_model_types
   def test_warns_on_variable_capture(self):
     v = tf.Variable(1., trainable=True)
+
     def lambda_fn(x):
       return x * v
 
-    expected_warning = textwrap.dedent(r'''
+    expected_warning = textwrap.dedent(r"""
     (    )?The following Variables were used a Lambda layer\'s call \(lambda\), but
     (    )?are not present in its tracked objects:
     (    )?  <tf.Variable \'.*Variable:0\'.+
-    (    )?It is possible that this is intended behavior.+''')
+    (    )?It is possible that this is intended behavior.+""")
 
     layer = keras.layers.Lambda(lambda_fn)
+
     def patched_warn(msg):
       raise ValueError(msg)
+
     layer._warn = patched_warn
 
     with self.assertRaisesRegex(ValueError, expected_warning):
@@ -444,13 +449,15 @@ class CoreLayersTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, r'Invalid permutation .*dims.*'):
       testing_utils.layer_test(
           keras.layers.Permute,
-          kwargs={'dims': (0, 1, 2)}, input_shape=(3, 2, 4))
+          kwargs={'dims': (0, 1, 2)},
+          input_shape=(3, 2, 4))
 
   def test_permute_errors_on_invalid_set_of_dims_indices(self):
     with self.assertRaisesRegex(ValueError, r'Invalid permutation .*dims.*'):
       testing_utils.layer_test(
           keras.layers.Permute,
-          kwargs={'dims': (1, 4, 2)}, input_shape=(3, 2, 4))
+          kwargs={'dims': (1, 4, 2)},
+          input_shape=(3, 2, 4))
 
   def test_flatten(self):
     testing_utils.layer_test(
@@ -467,8 +474,7 @@ class CoreLayersTest(keras_parameterized.TestCase):
     self.assertAllClose(outputs, target_outputs)
 
   def test_flatten_scalar_channels(self):
-    testing_utils.layer_test(
-        keras.layers.Flatten, kwargs={}, input_shape=(3,))
+    testing_utils.layer_test(keras.layers.Flatten, kwargs={}, input_shape=(3,))
 
     # Test channels_first
     inputs = np.random.random((10,)).astype('float32')
@@ -496,16 +502,56 @@ class CoreLayersTest(keras_parameterized.TestCase):
     testing_utils.layer_test(
         keras.layers.Dense, kwargs={'units': 3}, input_shape=(3, 4, 5, 2))
 
+  def test_dense_output(self):
+    dense_inputs = tf.convert_to_tensor(
+        np.random.uniform(size=(10, 10)).astype('f'))
+    # Create some sparse data where multiple rows and columns are missing.
+    sparse_inputs = tf.SparseTensor(
+        indices=np.random.randint(low=0, high=10, size=(5, 2)),
+        values=np.random.uniform(size=(5,)).astype('f'),
+        dense_shape=[10, 10])
+    sparse_inputs = tf.sparse.reorder(sparse_inputs)
+    # Create some ragged data.
+    ragged_inputs = tf.RaggedTensor.from_row_splits(
+        np.random.uniform(size=(10, 10)).astype('f'),
+        row_splits=[0, 4, 6, 6, 9, 10])
+
+    layer = keras.layers.Dense(
+        5,
+        kernel_initializer=keras.initializers.RandomUniform(),
+        bias_initializer=keras.initializers.RandomUniform(),
+        dtype='float32')
+    dense_outputs = layer(dense_inputs)
+    sparse_outpus = layer(sparse_inputs)
+    ragged_outputs = layer(ragged_inputs)
+
+    expected_dense = tf.add(
+        tf.matmul(dense_inputs, keras.backend.get_value(layer.kernel)),
+        keras.backend.get_value(layer.bias))
+    expected_sparse = tf.add(
+        tf.matmul(
+            tf.sparse.to_dense(sparse_inputs),
+            keras.backend.get_value(layer.kernel)),
+        keras.backend.get_value(layer.bias))
+    expected_ragged_values = tf.add(
+        tf.matmul(ragged_inputs.flat_values,
+                  keras.backend.get_value(layer.kernel)),
+        keras.backend.get_value(layer.bias))
+    expected_ragged = tf.RaggedTensor.from_row_splits(
+        expected_ragged_values, row_splits=[0, 4, 6, 6, 9, 10])
+
+    self.assertAllClose(dense_outputs, expected_dense)
+    self.assertAllClose(sparse_outpus, expected_sparse)
+    self.assertAllClose(ragged_outputs, expected_ragged)
+
   def test_dense_dtype(self):
-    inputs = tf.convert_to_tensor(
-        np.random.randint(low=0, high=7, size=(2, 2)))
+    inputs = tf.convert_to_tensor(np.random.randint(low=0, high=7, size=(2, 2)))
     layer = keras.layers.Dense(5, dtype='float32')
     outputs = layer(inputs)
     self.assertEqual(outputs.dtype, 'float32')
 
   def test_dense_with_policy(self):
-    inputs = tf.convert_to_tensor(
-        np.random.randint(low=0, high=7, size=(2, 2)))
+    inputs = tf.convert_to_tensor(np.random.randint(low=0, high=7, size=(2, 2)))
     layer = keras.layers.Dense(5, dtype=policy.Policy('mixed_float16'))
     outputs = layer(inputs)
     output_signature = layer.compute_output_signature(
@@ -556,6 +602,7 @@ class CoreLayersTest(keras_parameterized.TestCase):
 class TFOpLambdaTest(keras_parameterized.TestCase):
 
   def test_non_tf_symbol(self):
+
     def dummy_func(a, b):
       return a + b
 

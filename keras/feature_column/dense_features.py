@@ -18,9 +18,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import json
+import tensorflow.compat.v2 as tf
 
-from tensorflow.python.feature_column import feature_column_v2 as fc
+import json
 from keras import backend
 from keras.feature_column import base_feature_layer as kfc
 from keras.saving.saved_model import json_utils
@@ -95,7 +95,7 @@ class DenseFeatures(kfc._BaseFeaturesLayer):  # pylint: disable=protected-access
         trainable=trainable,
         name=name,
         partitioner=partitioner,
-        expected_column_type=fc.DenseColumn,
+        expected_column_type=tf.__internal__.feature_column.DenseColumn,
         **kwargs)
 
   @property
@@ -157,7 +157,7 @@ class DenseFeatures(kfc._BaseFeaturesLayer):  # pylint: disable=protected-access
     if not isinstance(features, dict):
       raise ValueError('We expected a dictionary here. Instead we got: ',
                        features)
-    transformation_cache = fc.FeatureTransformationCache(features)
+    transformation_cache = tf.__internal__.feature_column.FeatureTransformationCache(features)
     output_tensors = []
     for column in self._feature_columns:
       with backend.name_scope(column.name):

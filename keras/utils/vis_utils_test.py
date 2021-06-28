@@ -14,17 +14,16 @@
 # ==============================================================================
 """Tests for Keras Vis utils."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import tensorflow.compat.v2 as tf
 
-import tensorflow as tf
+from absl.testing import parameterized
 
 import keras
+from keras.applications import efficientnet
 from keras.utils import vis_utils
 
 
-class ModelToDotFormatTest(tf.test.TestCase):
+class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_plot_model_cnn(self):
     model = keras.Sequential()
@@ -105,6 +104,90 @@ class ModelToDotFormatTest(tf.test.TestCase):
       tf.io.gfile.remove(dot_img_file)
     except ImportError:
       pass
+
+  @parameterized.parameters(
+      {'layer_range': ['block1a_project_conv', 'block1a_activation']},
+      {'layer_range': ['block1a_activation', 'block1a_project_conv']},
+      {'layer_range': [r'block*', 'block2a_se_excite']},
+      {'layer_range': [r'block\da_activation', r'block\da_project_bn']})
+  def test_dot_layer_range(self, layer_range):
+    model = efficientnet.EfficientNetB0(weights=None)
+    layer_ids_from_model = get_layer_ids_from_model(model, layer_range)
+    try:
+      dot = vis_utils.model_to_dot(model, layer_range=layer_range)
+      dot_edges = dot.get_edges()
+      layer_ids_from_dot = get_layer_ids_from_dot(dot_edges)
+      self.assertAllEqual(
+          sorted(layer_ids_from_model), sorted(layer_ids_from_dot))
+    except ImportError:
+      pass
+
+  @parameterized.parameters(
+      {'layer_range': ['block1a_project_conv', 'block1a_activation']},
+      {'layer_range': ['block1a_activation', 'block1a_project_conv']},
+      {'layer_range': [r'block*', 'block2a_se_excite']},
+      {'layer_range': [r'block\da_activation', r'block\da_project_bn']})
+  def test_plot_layer_range(self, layer_range):
+    model = efficientnet.EfficientNetB0(weights=None)
+    effnet_subplot = 'model_effnet.png'
+    try:
+      vis_utils.plot_model(
+          model, to_file=effnet_subplot, layer_range=layer_range)
+      self.assertTrue(tf.io.gfile.exists(effnet_subplot))
+    except ImportError:
+      pass
+    finally:
+      if tf.io.gfile.exists(effnet_subplot):
+        tf.io.gfile.remove(effnet_subplot)
+
+  @parameterized.parameters(
+      {'layer_range': ['block1a_se_squeeze', 'block2a_project_conv']},
+      {'layer_range': [r'block\da_se_reshape', r'block*']})
+  def test_layer_range_assertion_fail(self, layer_range):
+    model = efficientnet.EfficientNetB0(weights=None)
+    try:
+      with self.assertRaises(AssertionError):
+        vis_utils.model_to_dot(model, layer_range=layer_range)
+      with self.assertRaises(AssertionError):
+        vis_utils.plot_model(model, layer_range=layer_range)
+    except ImportError:
+      pass
+
+  @parameterized.parameters(
+      {'layer_range': ['block1a_activation']},
+      {'layer_range': []},
+      {'layer_range': ['input', 'block1a_activation', 'block1a_project_conv']},
+      {'layer_range': [9, 'block1a_activation']},
+      {'layer_range': [29, 9]},
+      {'layer_range': ['block8a_se_reshape', 'block*']})
+  def test_layer_range_value_fail(self, layer_range):
+    model = efficientnet.EfficientNetB0(weights=None)
+    try:
+      with self.assertRaises(ValueError):
+        vis_utils.model_to_dot(model, layer_range=layer_range)
+      with self.assertRaises(ValueError):
+        vis_utils.plot_model(model, layer_range=layer_range)
+    except ImportError:
+      pass
+
+
+def get_layer_ids_from_model(model, layer_range):
+  layer_range = vis_utils.get_layer_index_bound_by_layer_name(
+      model, layer_range)
+  layer_ids_from_model = []
+  for i, layer in enumerate(model.layers):
+    if i >= layer_range[0] and i <= layer_range[1]:
+      layer_ids_from_model.append(str(id(layer)))
+  return layer_ids_from_model
+
+
+def get_layer_ids_from_dot(dot_edges):
+  layer_ids_from_dot = []
+  for edge in dot_edges:
+    for pt in edge.obj_dict['points']:
+      if pt not in layer_ids_from_dot:
+        layer_ids_from_dot.append(pt)
+  return layer_ids_from_dot
 
 
 if __name__ == '__main__':

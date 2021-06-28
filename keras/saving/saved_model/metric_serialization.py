@@ -14,14 +14,11 @@
 # ==============================================================================
 """Classes and functions implementing Metrics SavedModel serialization."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import tensorflow.compat.v2 as tf
 
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import layer_serialization
 from keras.utils import generic_utils
-from tensorflow.python.training.tracking import data_structures
 
 
 class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):
@@ -36,12 +33,12 @@ class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):
         class_name=generic_utils.get_registered_name(type(self.obj)),
         name=self.obj.name,
         dtype=self.obj.dtype)
-    metadata.update(layer_serialization.get_config(self.obj))
+    metadata.update(layer_serialization.get_serialized(self.obj))
     if self.obj._build_input_shape is not None:  # pylint: disable=protected-access
       metadata['build_input_shape'] = self.obj._build_input_shape  # pylint: disable=protected-access
     return metadata
 
   def _get_serialized_attributes_internal(self, unused_serialization_cache):
-    return (dict(variables=data_structures.ListWrapper(self.obj.variables)),
+    return (dict(variables=tf.__internal__.tracking.wrap(self.obj.variables)),
             dict())  # TODO(b/135550038): save functions to enable saving
                      # custom metrics.

@@ -6,8 +6,10 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 package(
     default_visibility = [
         ":__subpackages__",
+        "//third_party/py/tensorflow:__subpackages__",
+        "//third_party/tensorflow_estimator:__subpackages__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 exports_files(["LICENSE"])
@@ -20,30 +22,37 @@ filegroup(
     ],
 )
 
+config_setting(
+    name = "no_keras_py_deps",
+    define_values = {"no_keras_py_deps": "true"},
+    visibility = ["//visibility:public"],
+)
+
 py_library(
     name = "keras",
     srcs = [
         "__init__.py",
-        "estimator/__init__.py",
         "keras_parameterized.py",
     ],
     srcs_version = "PY3",
     deps = [
         ":backend",
         ":engine",
-        # TODO(scottzhu): Stop exporting the test_utils after removing all
-        # callers that using it.
-        ":testing_utils",
+        ":testing_utils",  # TODO(scottzhu): Stop exporting the test_utils after removing all the callers.
         "//:expect_h5py_installed",
         "//:expect_numpy_installed",
         "//:expect_pydot_installed",
         "//:expect_scipy_installed",
+        "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
         "//keras/applications",
         "//keras/datasets",
         "//keras/distribute",
+        "//keras/estimator",
         "//keras/feature_column",
         "//keras/layers",
+        "//keras/layers/legacy_rnn:rnn_cell_impl",
+        "//keras/legacy_tf_layers:layers",
         "//keras/mixed_precision:mixed_precision_experimental",
         "//keras/optimizer_v2",
         "//keras/premade",
@@ -51,7 +60,6 @@ py_library(
         "//keras/saving",
         "//keras/utils",
         "//keras/wrappers",
-        "//:expect_tensorflow_installed",
     ],
 )
 
@@ -63,6 +71,7 @@ py_library(
         ":backend_config",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras/distribute:distribute_coordinator_utils",
         "//keras/engine:keras_tensor",
         "//keras/utils:control_flow_util",
         "//keras/utils:object_identity",
@@ -124,10 +133,11 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//keras/distribute:distributed_file_utils",
         "//keras/distribute:worker_training_state",
-        "//keras/protobuf:projector_config_proto_py",
+        "//keras/protobuf:projector_config_proto_py_pb2",
         "//keras/utils:engine_utils",
         "//keras/utils:mode_keys",
     ],
@@ -153,6 +163,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//keras/utils:engine_utils",
     ],
@@ -167,22 +178,6 @@ py_library(
     deps = [
         ":backend",
         "//keras/utils:engine_utils",
-    ],
-)
-
-py_library(
-    name = "initializers",
-    srcs = [
-        "initializers/__init__.py",
-        "initializers/initializers_v1.py",
-        "initializers/initializers_v2.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        ":backend",
-        "//:expect_tensorflow_installed",
-        "//keras/utils:generic_utils",
-        "//keras/utils:tf_inspect",
     ],
 )
 
@@ -209,7 +204,6 @@ py_library(
         ":backend",
         ":losses",
         "//:expect_numpy_installed",
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras/distribute",
         "//keras/engine:base_layer",
@@ -265,7 +259,7 @@ py_library(
     ],
 )
 
-# Internally six.moves.urllib.request.urlretrieve library requires Google
+# Internally urllib.request.urlretrieve library requires Google
 # SSL context to be provided to work in python 3. This isn't needed in OSS.
 # copybara:uncomment_begin(google-only)
 # py_library(
@@ -340,22 +334,6 @@ tf_py_test(
 )
 
 tf_py_test(
-    name = "initializers_test",
-    size = "small",
-    srcs = ["initializers_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":backend",
-        ":combinations",
-        ":initializers",
-        ":models",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/engine",
-    ],
-)
-
-tf_py_test(
     name = "regularizers_test",
     size = "medium",
     srcs = ["regularizers_test.py"],
@@ -387,6 +365,9 @@ tf_py_test(
     size = "small",
     srcs = ["losses_test.py"],
     python_version = "PY3",
+    tags = [
+        "noasan",  # b/186128525
+    ],
     deps = [
         ":backend",
         ":combinations",
@@ -468,13 +449,14 @@ tf_py_test(
     shard_count = 6,
     tags = [
         "no_oss",
+        "no_tfrt",  # TODO(b/179690526)
         "notsan",
     ],
     deps = [
         ":keras",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
-        "//:expect_six_installed",
+        "//:expect_tensorflow_installed",
     ],
 )
 
@@ -566,18 +548,6 @@ tf_py_test(
 #     python_version = "PY3",
 #     deps = [
 #         ":url_utils",
-#         "//:expect_tensorflow_installed",
-#         "//testing/pymocks:matchers",
-#     ],
-# )
-#
-# tf_py_test(
-#     name = "gfile_utils_test",
-#     size = "small",
-#     srcs = ["google_utils/gfile_utils_test.py"],
-#     python_version = "PY3",
-#     deps = [
-#         ":keras",
 #         "//:expect_tensorflow_installed",
 #         "//testing/pymocks:matchers",
 #     ],

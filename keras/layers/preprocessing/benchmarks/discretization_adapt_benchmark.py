@@ -13,9 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """Benchmark for Keras discretization preprocessing layer's adapt method."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow as tf
 
@@ -55,7 +52,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
     for _ in range(num_repeats):
       ds = tf.data.Dataset.range(num_elements)
       ds = ds.map(
-          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.float32), -1))
+          lambda x: tf.expand_dims(tf.cast(x, tf.float32), -1))
       ds = ds.batch(batch_size)
 
       starts.append(time.time())
@@ -82,7 +79,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
     for _ in range(num_repeats):
       ds = tf.data.Dataset.range(num_elements)
       ds = ds.map(
-          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.float32), -1))
+          lambda x: tf.expand_dims(tf.cast(x, tf.float32), -1))
       ds = ds.batch(batch_size)
 
       starts.append(time.time())

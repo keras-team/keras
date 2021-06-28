@@ -13,13 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for stateful tf.keras LSTM models using DistributionStrategy."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
+
 import keras
 from keras.distribute import keras_correctness_test_base
 from keras.optimizer_v2 import gradient_descent as gradient_descent_keras

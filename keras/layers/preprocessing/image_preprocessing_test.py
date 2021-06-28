@@ -14,12 +14,9 @@
 # ==============================================================================
 """Tests for image preprocessing layers."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import tensorflow.compat.v2 as tf
 
-import tensorflow as tf
-
+import functools
 from absl.testing import parameterized
 import numpy as np
 from tensorflow.python.distribute.mirrored_strategy import MirroredStrategy
@@ -30,7 +27,6 @@ from keras.layers.preprocessing import image_preprocessing
 from keras.utils.generic_utils import CustomObjectScope
 from tensorflow.python.ops import gen_stateful_random_ops
 from tensorflow.python.ops import gen_stateless_random_ops_v2
-from tensorflow.python.ops import random_ops
 from tensorflow.python.ops import stateless_random_ops
 
 
@@ -64,6 +60,9 @@ class ResizingTest(keras_parameterized.TestCase):
       'interpolation': 'area'
   }, 2, 2), ('down_sample_area_3_by_2', {
       'interpolation': 'area'
+  }, 3, 2), ('down_sample_crop_to_aspect_ratio_3_by_2', {
+      'interpolation': 'bilinear',
+      'crop_to_aspect_ratio': True,
   }, 3, 2))
   def test_down_sampling(self, kwargs, expected_height, expected_width):
     with CustomObjectScope({'Resizing': image_preprocessing.Resizing}):
@@ -81,7 +80,10 @@ class ResizingTest(keras_parameterized.TestCase):
       'interpolation': 'area'
   }, 10, 12), ('up_sample_area_12_by_12', {
       'interpolation': 'area'
-  }, 12, 12))
+  }, 12, 12), ('up_sample_crop_to_aspect_ratio_12_by_14', {
+      'interpolation': 'bilinear',
+      'crop_to_aspect_ratio': True,
+  }, 12, 14))
   def test_up_sampling(self, kwargs, expected_height, expected_width):
     with CustomObjectScope({'Resizing': image_preprocessing.Resizing}):
       self._run_test(kwargs, expected_height, expected_width)
@@ -136,6 +138,65 @@ class ResizingTest(keras_parameterized.TestCase):
     config = layer.get_config()
     layer_1 = image_preprocessing.Resizing.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
+
+  def test_crop_to_aspect_ratio(self):
+    with testing_utils.use_gpu():
+      input_image = np.reshape(np.arange(0, 16), (1, 4, 4, 1)).astype('float32')
+      layer = image_preprocessing.Resizing(4, 2, crop_to_aspect_ratio=True)
+      output_image = layer(input_image)
+      expected_output = np.asarray([
+          [1, 2],
+          [5, 6],
+          [9, 10],
+          [13, 14],
+      ]).astype('float32')
+      expected_output = np.reshape(expected_output, (1, 4, 2, 1))
+      self.assertAllEqual(expected_output, output_image)
+
+  def test_unbatched_image(self):
+    with testing_utils.use_gpu():
+      input_image = np.reshape(np.arange(0, 16), (4, 4, 1)).astype('float32')
+      layer = image_preprocessing.Resizing(2, 2, interpolation='nearest')
+      output_image = layer(input_image)
+      expected_output = np.asarray([
+          [5, 7],
+          [13, 15],
+      ]).astype('float32')
+      expected_output = np.reshape(expected_output, (2, 2, 1))
+      self.assertAllEqual(expected_output, output_image)
+
+  @parameterized.named_parameters(
+      ('batch_crop_to_aspect_ratio', True, True),
+      ('batch_dont_crop_to_aspect_ratio', False, True),
+      ('single_sample_crop_to_aspect_ratio', True, False),
+      ('single_sample_dont_crop_to_aspect_ratio', False, False),
+  )
+  def test_static_shape_inference(self, crop_to_aspect_ratio, batch):
+    channels = 3
+    input_height = 8
+    input_width = 8
+    target_height = 4
+    target_width = 6
+    layer = image_preprocessing.Resizing(
+        target_height, target_width, crop_to_aspect_ratio=crop_to_aspect_ratio)
+    unit_test = self
+
+    @tf.function
+    def tf_function(img):
+      unit_test.assertListEqual([input_height, input_width, channels],
+                                img.shape.as_list()[-3:])
+      img = layer(img)
+      unit_test.assertListEqual([target_height, target_width, channels],
+                                img.shape.as_list()[-3:])
+      return img
+
+    with testing_utils.use_gpu():
+      if batch:
+        input_shape = (2, input_height, input_width, channels)
+      else:
+        input_shape = (input_height, input_width, channels)
+      img_data = np.random.random(size=input_shape).astype('float32')
+      tf_function(img_data)
 
 
 def get_numpy_center_crop(images, expected_height, expected_width):
@@ -194,8 +255,11 @@ class CenterCropTest(keras_parameterized.TestCase):
                                   ('center_crop_10_by_8', 10, 8),
                                   ('center_crop_10_by_12', 10, 12))
   def test_invalid_center_crop(self, expected_height, expected_width):
-    with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
-                                r'assertion failed'):
+    # InternelError is raised by tf.function MLIR lowering pass when TFRT
+    # is enabled.
+    with self.assertRaisesRegex(
+        (tf.errors.InvalidArgumentError, tf.errors.InternalError),
+        r'assertion failed|error: \'tf.Slice\' op'):
       self._run_test(expected_height, expected_width)
 
   def test_config_with_custom_name(self):
@@ -203,6 +267,18 @@ class CenterCropTest(keras_parameterized.TestCase):
     config = layer.get_config()
     layer_1 = image_preprocessing.CenterCrop.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
+
+  def test_unbatched_image(self):
+    with testing_utils.use_gpu():
+      input_image = np.reshape(np.arange(0, 16), (4, 4, 1)).astype('float32')
+      layer = image_preprocessing.CenterCrop(2, 2)
+      output_image = layer(input_image)
+      expected_output = np.asarray([
+          [5, 6],
+          [9, 10],
+      ]).astype('float32')
+      expected_output = np.reshape(expected_output, (2, 2, 1))
+      self.assertAllEqual(expected_output, output_image)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -227,7 +303,10 @@ class RandomCropTest(keras_parameterized.TestCase):
                                   ('random_crop_10_by_8', 10, 8),
                                   ('random_crop_10_by_12', 10, 12))
   def test_invalid_random_crop(self, expected_height, expected_width):
-    with self.assertRaises(tf.errors.InvalidArgumentError):
+    # InternelError is raised by tf.function MLIR lowering pass when TFRT
+    # is enabled.
+    with self.assertRaises(
+        (tf.errors.InvalidArgumentError, tf.errors.InternalError)):
       with CustomObjectScope({'RandomCrop': image_preprocessing.RandomCrop}):
         self._run_test(expected_height, expected_width)
 
@@ -298,6 +377,19 @@ class RandomCropTest(keras_parameterized.TestCase):
     layer_1 = image_preprocessing.RandomCrop.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
 
+  def test_unbatched_image(self):
+    np.random.seed(1337)
+    inp = np.random.random((16, 16, 3))
+    mock_offset = [2, 2, 0]
+    with tf.compat.v1.test.mock.patch.object(
+        stateless_random_ops,
+        'stateless_random_uniform',
+        return_value=mock_offset):
+      with testing_utils.use_gpu():
+        layer = image_preprocessing.RandomCrop(8, 8)
+        actual_output = layer(inp, training=1)
+        self.assertAllClose(inp[2:10, 2:10, :], actual_output)
+
 
 class RescalingTest(keras_parameterized.TestCase):
 
@@ -331,6 +423,13 @@ class RescalingTest(keras_parameterized.TestCase):
     layer_1 = image_preprocessing.Rescaling.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
 
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_unbatched_image(self):
+    layer = image_preprocessing.Rescaling(scale=1. / 127.5, offset=-1)
+    inputs = tf.random.uniform((4, 5, 3))
+    outputs = layer(inputs)
+    self.assertAllClose(outputs.numpy(), inputs.numpy() * (1. / 127.5) - 1)
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class RandomFlipTest(keras_parameterized.TestCase):
@@ -352,7 +451,10 @@ class RandomFlipTest(keras_parameterized.TestCase):
       if mode == 'vertical' or mode == 'horizontal_and_vertical':
         expected_output = np.flip(expected_output, axis=1)
     with tf.compat.v1.test.mock.patch.object(
-        random_ops, 'random_uniform', return_value=mock_random):
+        stateless_random_ops,
+        'stateless_random_uniform',
+        return_value=mock_random,
+    ):
       with testing_utils.use_gpu():
         layer = image_preprocessing.RandomFlip(mode)
         actual_output = layer(inp, training=1)
@@ -402,8 +504,11 @@ class RandomFlipTest(keras_parameterized.TestCase):
       mock_random = [1, 1]
       mock_random = np.reshape(mock_random, [2, 1, 1, 1])
       with tf.compat.v1.test.mock.patch.object(
-          random_ops, 'random_uniform', return_value=mock_random):
-        with self.cached_session(use_gpu=True):
+          stateless_random_ops,
+          'stateless_random_uniform',
+          return_value=mock_random,
+      ):
+        with self.cached_session():
           layer = image_preprocessing.RandomFlip()
           actual_output = layer(input_images, training=1)
           self.assertAllClose(expected_output, actual_output)
@@ -414,6 +519,21 @@ class RandomFlipTest(keras_parameterized.TestCase):
     config = layer.get_config()
     layer_1 = image_preprocessing.RandomFlip.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
+
+  def test_random_flip_unbatched_image(self):
+    with CustomObjectScope({'RandomFlip': image_preprocessing.RandomFlip}):
+      input_image = np.random.random((4, 4, 1)).astype(np.float32)
+      expected_output = np.flip(input_image, axis=0)
+      # mock_random = np.reshape([0.], [1, 1, 1])
+      with tf.compat.v1.test.mock.patch.object(
+          stateless_random_ops,
+          'stateless_random_uniform',
+          return_value=0.,
+      ):
+        with self.cached_session():
+          layer = image_preprocessing.RandomFlip('vertical')
+          actual_output = layer(input_image, training=1)
+          self.assertAllClose(expected_output, actual_output)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -435,7 +555,10 @@ class RandomContrastTest(keras_parameterized.TestCase):
       inp_mean = np.mean(inp_mean, axis=2, keepdims=True)
       expected_output = (inp - inp_mean) * mock_random + inp_mean
     with tf.compat.v1.test.mock.patch.object(
-        random_ops, 'random_uniform', return_value=mock_random):
+        stateless_random_ops,
+        'stateless_random_uniform',
+        return_value=mock_random,
+    ):
       with testing_utils.use_gpu():
         layer = image_preprocessing.RandomContrast((lower, upper))
         actual_output = layer(inp, training=True)
@@ -443,7 +566,8 @@ class RandomContrastTest(keras_parameterized.TestCase):
 
   @parameterized.named_parameters(('random_contrast_2_by_5', 0.2, 0.5),
                                   ('random_contrast_2_by_13', 0.2, 1.3),
-                                  ('random_contrast_5_by_2', 0.5, 0.2))
+                                  ('random_contrast_5_by_2', 0.5, 0.2),
+                                  ('random_contrast_10_by_10', 1.0, 1.0))
   def test_random_contrast(self, lower, upper):
     with CustomObjectScope(
         {'RandomContrast': image_preprocessing.RandomContrast}):
@@ -494,6 +618,23 @@ class RandomContrastTest(keras_parameterized.TestCase):
     layer_1 = image_preprocessing.RandomContrast.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
 
+  def test_unbatched_image(self):
+    np.random.seed(1337)
+    mock_random = 0.2
+    inp = np.random.random((4, 4, 1))
+    inp_mean = np.mean(inp, axis=0, keepdims=True)
+    inp_mean = np.mean(inp_mean, axis=1, keepdims=True)
+    expected_output = (inp - inp_mean) * mock_random + inp_mean
+    with tf.compat.v1.test.mock.patch.object(
+        stateless_random_ops,
+        'stateless_random_uniform',
+        return_value=mock_random,
+    ):
+      with testing_utils.use_gpu():
+        layer = image_preprocessing.RandomContrast((0.2, 0.5))
+        actual_output = layer(inp, training=True)
+        self.assertAllClose(expected_output, actual_output)
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class RandomTranslationTest(keras_parameterized.TestCase):
@@ -526,15 +667,13 @@ class RandomTranslationTest(keras_parameterized.TestCase):
         layer = image_preprocessing.RandomTranslation(
             height_factor=(-.2, -.2), width_factor=0.)
         output_image = layer(input_image)
-        # pyformat: disable
         expected_output = np.asarray([
             [5, 6, 7, 8, 9],
             [10, 11, 12, 13, 14],
             [15, 16, 17, 18, 19],
             [20, 21, 22, 23, 24],
-            [20, 21, 22, 23, 24]
+            [20, 21, 22, 23, 24],
         ]).astype(dtype)
-        # pyformat: enable
         expected_output = np.reshape(expected_output, (1, 5, 5, 1))
         self.assertAllEqual(expected_output, output_image)
 
@@ -546,15 +685,13 @@ class RandomTranslationTest(keras_parameterized.TestCase):
         layer = image_preprocessing.RandomTranslation(
             height_factor=(-.2, -.2), width_factor=0., fill_mode='constant')
         output_image = layer(input_image)
-        # pyformat: disable
         expected_output = np.asarray([
             [5, 6, 7, 8, 9],
             [10, 11, 12, 13, 14],
             [15, 16, 17, 18, 19],
             [20, 21, 22, 23, 24],
-            [0, 0, 0, 0, 0]
+            [0, 0, 0, 0, 0],
         ]).astype(dtype)
-        # pyformat: enable
         expected_output = np.reshape(expected_output, (1, 5, 5, 1))
         self.assertAllEqual(expected_output, output_image)
 
@@ -566,15 +703,13 @@ class RandomTranslationTest(keras_parameterized.TestCase):
         layer = image_preprocessing.RandomTranslation(
             height_factor=(.2, .2), width_factor=0.)
         output_image = layer(input_image)
-        # pyformat: disable
         expected_output = np.asarray([
             [0, 1, 2, 3, 4],
             [0, 1, 2, 3, 4],
             [5, 6, 7, 8, 9],
             [10, 11, 12, 13, 14],
-            [15, 16, 17, 18, 19]
+            [15, 16, 17, 18, 19],
         ]).astype(dtype)
-        # pyformat: enable
         expected_output = np.reshape(expected_output, (1, 5, 5, 1))
         self.assertAllEqual(expected_output, output_image)
 
@@ -609,15 +744,13 @@ class RandomTranslationTest(keras_parameterized.TestCase):
         layer = image_preprocessing.RandomTranslation(
             height_factor=(.2, .2), width_factor=0., fill_mode='constant')
         output_image = layer(input_image)
-        # pyformat: disable
         expected_output = np.asarray([
             [0, 0, 0, 0, 0],
             [0, 1, 2, 3, 4],
             [5, 6, 7, 8, 9],
             [10, 11, 12, 13, 14],
-            [15, 16, 17, 18, 19]
+            [15, 16, 17, 18, 19],
         ]).astype(dtype)
-        # pyformat: enable
         expected_output = np.reshape(expected_output, (1, 5, 5, 1))
         self.assertAllEqual(expected_output, output_image)
 
@@ -629,15 +762,13 @@ class RandomTranslationTest(keras_parameterized.TestCase):
         layer = image_preprocessing.RandomTranslation(
             height_factor=0., width_factor=(-.2, -.2))
         output_image = layer(input_image)
-        # pyformat: disable
         expected_output = np.asarray([
             [1, 2, 3, 4, 4],
             [6, 7, 8, 9, 9],
             [11, 12, 13, 14, 14],
             [16, 17, 18, 19, 19],
-            [21, 22, 23, 24, 24]
+            [21, 22, 23, 24, 24],
         ]).astype(dtype)
-        # pyformat: enable
         expected_output = np.reshape(expected_output, (1, 5, 5, 1))
         self.assertAllEqual(expected_output, output_image)
 
@@ -649,15 +780,13 @@ class RandomTranslationTest(keras_parameterized.TestCase):
         layer = image_preprocessing.RandomTranslation(
             height_factor=0., width_factor=(-.2, -.2), fill_mode='constant')
         output_image = layer(input_image)
-        # pyformat: disable
         expected_output = np.asarray([
             [1, 2, 3, 4, 0],
             [6, 7, 8, 9, 0],
             [11, 12, 13, 14, 0],
             [16, 17, 18, 19, 0],
-            [21, 22, 23, 24, 0]
+            [21, 22, 23, 24, 0],
         ]).astype(dtype)
-        # pyformat: enable
         expected_output = np.reshape(expected_output, (1, 5, 5, 1))
         self.assertAllEqual(expected_output, output_image)
 
@@ -678,6 +807,23 @@ class RandomTranslationTest(keras_parameterized.TestCase):
     layer_1 = image_preprocessing.RandomTranslation.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
 
+  def test_unbatched_image(self):
+    with testing_utils.use_gpu():
+      input_image = np.reshape(np.arange(0, 25), (5, 5, 1)).astype(np.int64)
+      # Shifting by -.2 * 5 = 1 pixel.
+      layer = image_preprocessing.RandomTranslation(
+          height_factor=(-.2, -.2), width_factor=0.)
+      output_image = layer(input_image)
+      expected_output = np.asarray([
+          [5, 6, 7, 8, 9],
+          [10, 11, 12, 13, 14],
+          [15, 16, 17, 18, 19],
+          [20, 21, 22, 23, 24],
+          [20, 21, 22, 23, 24],
+      ]).astype(np.int64)
+      expected_output = np.reshape(expected_output, (5, 5, 1))
+      self.assertAllEqual(expected_output, output_image)
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class RandomTransformTest(keras_parameterized.TestCase):
@@ -689,7 +835,7 @@ class RandomTransformTest(keras_parameterized.TestCase):
                                       fill_value=0.0,
                                       interpolation='bilinear'):
     inp = np.arange(15).reshape((1, 5, 3, 1)).astype(np.float32)
-    with self.cached_session(use_gpu=True):
+    with self.cached_session():
       output = image_preprocessing.transform(
           inp,
           transform_matrix,
@@ -1077,8 +1223,7 @@ class RandomRotationTest(keras_parameterized.TestCase):
         self.assertAllClose(expected_output, actual_output)
 
   def test_distribution_strategy(self):
-    """Tests that RandomRotation can be created within distribution strategies.
-    """
+    """Tests that RandomRotation can be created within distribution strategies."""
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     with testing_utils.use_gpu():
       strat = MirroredStrategy(devices=['cpu', 'gpu'])
@@ -1094,6 +1239,22 @@ class RandomRotationTest(keras_parameterized.TestCase):
     config = layer.get_config()
     layer_1 = image_preprocessing.RandomRotation.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
+
+  def test_unbatched_image(self):
+    with testing_utils.use_gpu():
+      input_image = np.reshape(np.arange(0, 25), (5, 5, 1)).astype(np.float32)
+      # 180 rotation.
+      layer = image_preprocessing.RandomRotation(factor=(0.5, 0.5))
+      output_image = layer(input_image)
+      expected_output = np.asarray([
+          [24, 23, 22, 21, 20],
+          [19, 18, 17, 16, 15],
+          [14, 13, 12, 11, 10],
+          [9, 8, 7, 6, 5],
+          [4, 3, 2, 1, 0],
+      ]).astype(np.float32)
+      expected_output = np.reshape(expected_output, (5, 5, 1))
+      self.assertAllClose(expected_output, output_image)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -1132,15 +1293,13 @@ class RandomZoomTest(keras_parameterized.TestCase):
         layer = image_preprocessing.RandomZoom((-.5, -.5), (-.5, -.5),
                                                interpolation='nearest')
         output_image = layer(np.expand_dims(input_image, axis=0))
-        # pyformat: disable
         expected_output = np.asarray([
             [6, 7, 7, 8, 8],
             [11, 12, 12, 13, 13],
             [11, 12, 12, 13, 13],
             [16, 17, 17, 18, 18],
-            [16, 17, 17, 18, 18]
+            [16, 17, 17, 18, 18],
         ]).astype(dtype)
-        # pyformat: enable
         expected_output = np.reshape(expected_output, (1, 5, 5, 1))
         self.assertAllEqual(expected_output, output_image)
 
@@ -1152,15 +1311,13 @@ class RandomZoomTest(keras_parameterized.TestCase):
                                                fill_mode='constant',
                                                interpolation='nearest')
         output_image = layer(np.expand_dims(input_image, axis=0))
-        # pyformat: disable
         expected_output = np.asarray([
             [0, 0, 0, 0, 0],
             [0, 5, 7, 9, 0],
             [0, 10, 12, 14, 0],
             [0, 20, 22, 24, 0],
-            [0, 0, 0, 0, 0]
+            [0, 0, 0, 0, 0],
         ]).astype(dtype)
-        # pyformat: enable
         expected_output = np.reshape(expected_output, (1, 5, 5, 1))
         self.assertAllEqual(expected_output, output_image)
 
@@ -1172,15 +1329,13 @@ class RandomZoomTest(keras_parameterized.TestCase):
                                                fill_mode='constant',
                                                interpolation='nearest')
         output_image = layer(np.expand_dims(input_image, axis=0))
-        # pyformat: disable
         expected_output = np.asarray([
             [0, 0, 0, 0, 0],
             [0, 6, 7, 9, 0],
             [0, 11, 12, 14, 0],
             [0, 21, 22, 24, 0],
-            [0, 0, 0, 0, 0]
+            [0, 0, 0, 0, 0],
         ]).astype(dtype)
-        # pyformat: enable
         expected_output = np.reshape(expected_output, (1, 5, 5, 1))
         self.assertAllEqual(expected_output, output_image)
 
@@ -1199,6 +1354,22 @@ class RandomZoomTest(keras_parameterized.TestCase):
     config = layer.get_config()
     layer_1 = image_preprocessing.RandomZoom.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
+
+  def test_unbatched_image(self):
+    with testing_utils.use_gpu():
+      input_image = np.reshape(np.arange(0, 25), (5, 5, 1)).astype(np.int64)
+      layer = image_preprocessing.RandomZoom((-.5, -.5), (-.5, -.5),
+                                             interpolation='nearest')
+      output_image = layer(input_image)
+      expected_output = np.asarray([
+          [6, 7, 7, 8, 8],
+          [11, 12, 12, 13, 13],
+          [11, 12, 12, 13, 13],
+          [16, 17, 17, 18, 18],
+          [16, 17, 17, 18, 18],
+      ]).astype(np.int64)
+      expected_output = np.reshape(expected_output, (5, 5, 1))
+      self.assertAllEqual(expected_output, output_image)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -1295,6 +1466,21 @@ class RandomHeightTest(keras_parameterized.TestCase):
     layer_1 = image_preprocessing.RandomHeight.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
 
+  def test_unbatched_image(self):
+    # need (maxval - minval) * rnd + minval = 0.6
+    mock_factor = 0
+    with tf.compat.v1.test.mock.patch.object(
+        gen_stateful_random_ops, 'stateful_uniform', return_value=mock_factor):
+      with tf.compat.v1.test.mock.patch.object(
+          gen_stateless_random_ops_v2,
+          'stateless_random_uniform_v2',
+          return_value=mock_factor):
+        with testing_utils.use_gpu():
+          img = np.random.random((5, 8, 3))
+          layer = image_preprocessing.RandomHeight(.4)
+          img_out = layer(img, training=True)
+          self.assertEqual(img_out.shape[0], 3)
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class RandomWidthTest(keras_parameterized.TestCase):
@@ -1389,6 +1575,21 @@ class RandomWidthTest(keras_parameterized.TestCase):
     layer_1 = image_preprocessing.RandomWidth.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
 
+  def test_unbatched_image(self):
+    # need (maxval - minval) * rnd + minval = 0.6
+    mock_factor = 0
+    with tf.compat.v1.test.mock.patch.object(
+        gen_stateful_random_ops, 'stateful_uniform', return_value=mock_factor):
+      with tf.compat.v1.test.mock.patch.object(
+          gen_stateless_random_ops_v2,
+          'stateless_random_uniform_v2',
+          return_value=mock_factor):
+        with testing_utils.use_gpu():
+          img = np.random.random((8, 5, 3))
+          layer = image_preprocessing.RandomWidth(.4)
+          img_out = layer(img, training=True)
+          self.assertEqual(img_out.shape[1], 3)
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class LearningPhaseTest(keras_parameterized.TestCase):
@@ -1421,6 +1622,36 @@ class LearningPhaseTest(keras_parameterized.TestCase):
 
     out = seq(img, training=False)
     self.assertEqual(tuple(int(i) for i in out.shape[1:]), shape)
+
+
+@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+class DeterminismTest(keras_parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      ('random_flip', image_preprocessing.RandomFlip),
+      ('random_contrast',
+       functools.partial(image_preprocessing.RandomContrast, factor=1.)),
+      ('random_crop',
+       functools.partial(image_preprocessing.RandomCrop, height=2, width=2)),
+      ('random_translation',
+       functools.partial(image_preprocessing.RandomTranslation, 0.3, 0.2)),
+      ('random_rotation',
+       functools.partial(image_preprocessing.RandomRotation, 0.5)),
+      ('random_zoom', functools.partial(image_preprocessing.RandomZoom, 0.2)),
+      ('random_height', functools.partial(image_preprocessing.RandomHeight,
+                                          0.4)),
+      ('random_width', functools.partial(image_preprocessing.RandomWidth, 0.3)),
+  )
+  def test_seed_constructor_arg(self, layer_cls):
+    input_image = np.random.random((2, 5, 8, 3)).astype(np.float32)
+
+    layer1 = layer_cls(seed=0.)
+    layer2 = layer_cls(seed=0.)
+    layer1_output = layer1(input_image)
+    layer2_output = layer2(input_image)
+
+    self.assertAllClose(layer1_output.numpy().tolist(),
+                        layer2_output.numpy().tolist())
 
 
 if __name__ == '__main__':

@@ -13,7 +13,7 @@ package(
         "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(
@@ -31,20 +31,18 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":distribute_coordinator_utils",
         ":sidecar_evaluator",
         "//:expect_tensorflow_installed",
-        "//keras:activations",
         "//keras:backend",
         "//keras:callbacks",
         "//keras:callbacks_v1",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:losses",
         "//keras:optimizers",
         "//keras:regularizers",
-        "//keras/mixed_precision:autocast_variable",
+        "//keras/initializers",
         "//keras/mixed_precision:policy",
-        "//keras/saving",
         "//keras/utils:engine_utils",
         "//keras/utils:mode_keys",
     ],
@@ -54,6 +52,7 @@ py_library(
     name = "distribute_test_lib_pip",
     srcs_version = "PY3",
     deps = [
+        ":dataset_creator_model_fit_test_base",
         ":distribute_strategy_test_lib",
         ":keras_correctness_test_lib",
         ":keras_test_lib",
@@ -202,7 +201,6 @@ distribute_py_test(
     main = "custom_training_loop_metrics_test.py",
     tags = [
         "multi_and_single_gpu",
-        "no_rocm",
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
@@ -221,7 +219,6 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # times out
-        "no_rocm",
         "nomultivm",  # TODO(b/170502145)
         "notsan",  # TODO(b/170954243)
     ],
@@ -262,6 +259,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":multi_worker_testing_utils",
         ":optimizer_combinations",
         ":strategy_combinations",
         "//:expect_absl_installed",
@@ -299,11 +297,13 @@ distribute_py_test(
     shard_count = 20,
     tags = [
         "multi_and_single_gpu",
+        "no_cuda_asan",  # TODO(b/182391774)
+        "no_oss",  # TODO(b/191770103)
         "no_rocm",  # times out on ROCm
         "no_windows_gpu",
-        "noasan",  # TODO(b/170902997)
         "noguitar",  # TODO(b/172354344)
         "nomultivm",  # TODO(b/170502145)
+        "notpu",  # b/188061768
         "notsan",
     ],
     tpu_tags = [
@@ -369,9 +369,9 @@ distribute_py_test(
         "no_oss",  # TODO(b/173021094)
         "no_rocm",  # times out on ROCm
         "no_windows_gpu",
-        "noasan",  # TODO(b/178803051)
         "nogpu",  # TODO(b/170905292)
         "nomultivm",  # TODO(b/170502145)
+        "notap",  # TODO(b/178803051): flaky
         "notsan",
     ],
     deps = [
@@ -469,7 +469,7 @@ distribute_py_test(
     shard_count = 31,
     tags = [
         "multi_and_single_gpu",
-        "no_rocm",
+        "no_rocm",  # Would require size large, but that effectively disables the test for presubmits.
         "no_windows_gpu",
         "noasan",  # TODO(b/337374867) fails with -fsanitize=null
         "nomultivm",  # TODO(b/170502145)
@@ -530,7 +530,6 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # times out
-        "no_rocm",
         "no_windows_gpu",
         "nomultivm",  # TODO(b/170502145)
         "notsan",
@@ -605,6 +604,7 @@ cuda_py_test(
         "//:expect_tensorflow_installed",
         "//keras/engine",
         "//keras/layers:core",
+        "//keras/utils:kpl_test_utils",
     ],
 )
 
@@ -643,6 +643,7 @@ cuda_py_test(
         "//keras:engine",
         "//keras:optimizers",
         "//keras/optimizer_v2",
+        "//keras/utils:kpl_test_utils",
     ],
 )
 
@@ -651,6 +652,9 @@ tf_py_test(
     srcs = ["multi_worker_callback_tf2_test.py"],
     python_version = "PY3",
     shard_count = 5,
+    tags = [
+        "no_windows",  # TODO(b/184424727): Re-enable this.
+    ],
     deps = [
         ":distributed_file_utils",
         "//:expect_portpicker_installed",
@@ -691,6 +695,7 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # times out
+        "no_rocm",
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
@@ -708,6 +713,7 @@ distribute_py_test(
     shard_count = 7,
     tags = [
         "multi_and_single_gpu",
+        "no_rocm",
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
@@ -717,15 +723,86 @@ distribute_py_test(
     ],
 )
 
-tf_py_test(
-    name = "parameter_server_training_test",
-    srcs = ["parameter_server_training_test.py"],
+distribute_py_test(
+    name = "sharded_variable_test",
+    srcs = ["sharded_variable_test.py"],
+    python_version = "PY3",
+    shard_count = 2,
+    tags = [
+        "multi_and_single_gpu",
+        "no_rocm",
+        "nomultivm",  # TODO(b/170502145)
+    ],
+    deps = [
+        ":multi_worker_testing_utils",
+        "//:expect_tensorflow_installed",
+        "//keras/engine:base_layer",
+    ],
+)
+
+distribute_py_test(
+    name = "parameter_server_evaluation_test",
+    srcs = ["parameter_server_evaluation_test.py"],
     python_version = "PY3",
     shard_count = 1,
+    tags = [
+        "multi_and_single_gpu",
+        "no_cuda_asan",  # TODO(b/186361027)
+        "no_oss",  # TODO(b/186248973)
+        "no_tfrt",
+        "nomultivm",  # TODO(b/170502145)
+        "notpu",
+    ],
     deps = [
-        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/utils:dataset_creator",
+    ],
+)
+
+distribute_py_test(
+    name = "dataset_creator_model_fit_test",
+    srcs = ["dataset_creator_model_fit_test.py"],
+    disable_mlir_bridge = True,  # TODO(b/170352626)
+    full_precision = True,
+    main = "dataset_creator_model_fit_test.py",
+    shard_count = 50,
+    tags = [
+        "multi_gpu",
+        "no_oss",  # TODO(b/183640564): Reenable
+        "no_rocm",
+        "nomultivm",  # TODO(b/170502145)
+        "notsan",  # TODO(b/184542721)
+    ],
+    deps = [
+        ":dataset_creator_model_fit_test_base",
+        ":strategy_combinations",
+        "//:expect_portpicker_installed",
+        "//:expect_tensorflow_installed",
+        "//keras:callbacks",
+    ],
+)
+
+distribute_py_test(
+    name = "dataset_creator_model_fit_ps_only_test",
+    size = "small",
+    srcs = ["dataset_creator_model_fit_ps_only_test.py"],
+    disable_mlir_bridge = True,  # TODO(b/170352626)
+    full_precision = True,
+    main = "dataset_creator_model_fit_ps_only_test.py",
+    shard_count = 21,
+    tags = [
+        "multi_gpu",
+        "no_oss",  # TODO(b/183640564): Reenable
+        "no_rocm",
+        "nomultivm",  # TODO(b/170502145)
+        "notsan",  # TODO(b/184542721)
+    ],
+    deps = [
+        ":dataset_creator_model_fit_test_base",
+        ":strategy_combinations",
+        "//:expect_tensorflow_installed",
+        "//keras:callbacks",
     ],
 )
 
@@ -756,6 +833,7 @@ py_library(
     srcs = ["sidecar_evaluator.py"],
     srcs_version = "PY3",
     deps = [
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -767,19 +845,9 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":sidecar_evaluator",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-    ],
-)
-
-tf_py_test(
-    name = "sharded_variable_test",
-    size = "small",
-    srcs = ["sharded_variable_test.py"],
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:metrics",
-        "//keras/engine:base_layer",
     ],
 )
 
@@ -798,5 +866,34 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "distribute_coordinator_utils",
+    srcs = [
+        "distribute_coordinator_utils.py",
+    ],
+    srcs_version = "PY3",
+    deps = ["//:expect_tensorflow_installed"],
+)
+
+py_library(
+    name = "dataset_creator_model_fit_test_base",
+    srcs = [
+        "dataset_creator_model_fit_test_base.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":multi_worker_testing_utils",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras:callbacks",
+        "//keras/engine",
+        "//keras/layers:core",
+        "//keras/layers/preprocessing:string_lookup",
+        "//keras/optimizer_v2",
+        "//keras/utils:dataset_creator",
     ],
 )

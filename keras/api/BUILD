@@ -6,8 +6,8 @@ load("//keras/api:api_init_files.bzl", "KERAS_API_INIT_FILES", "KERAS_API_INIT_F
 
 package(
     default_visibility = [
-        "//:expect_tensorflow_installed",
-        "//keras",
+        "//keras:__subpackages__",
+        "//third_party/py/tensorflow:__subpackages__",
     ],
     licenses = ["notice"],  # Apache 2.0 License
 )
@@ -54,7 +54,10 @@ keras_packages = [
     "keras.engine.sequential",
     "keras.engine.training",
     "keras.estimator",
+    "keras.feature_column.dense_features",
+    "keras.feature_column.dense_features_v2",
     "keras.feature_column.sequence_feature_column",
+    # Placeholder for internal API
     "keras.initializers",
     "keras.initializers.initializers_v1",
     "keras.initializers.initializers_v2",
@@ -66,16 +69,23 @@ keras_packages = [
     "keras.layers.dense_attention",
     "keras.layers.embeddings",
     "keras.layers.local",
+    "keras.layers.legacy_rnn.rnn_cell_impl",
     "keras.layers.merge",
     "keras.layers.noise",
-    "keras.layers.normalization",
-    "keras.layers.normalization_v2",
+    "keras.layers.normalization.batch_normalization",
+    "keras.layers.normalization.batch_normalization_v1",
+    "keras.layers.normalization.layer_normalization",
     "keras.layers.preprocessing",
     "keras.layers.pooling",
     "keras.layers.recurrent",
     "keras.layers.recurrent_v2",
     "keras.layers.serialization",
     "keras.layers.wrappers",
+    "keras.legacy_tf_layers.base",
+    "keras.legacy_tf_layers.convolutional",
+    "keras.legacy_tf_layers.core",
+    "keras.legacy_tf_layers.normalization",
+    "keras.legacy_tf_layers.pooling",
     "keras.losses",
     "keras.metrics",
     "keras.mixed_precision.get_layer_policy",
@@ -109,9 +119,25 @@ keras_packages = [
     "keras.utils.losses_utils",
     "keras.utils.multi_gpu_utils",
     "keras.utils.np_utils",
+    "keras.utils.tf_utils",
     "keras.utils.vis_utils",
     "keras.wrappers.scikit_learn",
 ]
+
+# The target used by PIP package which need to generate API init files during OSS build.
+py_library(
+    name = "keras_api",
+    srcs = [
+        ":keras_python_api_gen",
+        ":keras_python_api_gen_compat_v1",
+        ":keras_python_api_gen_compat_v2",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
 
 gen_api_init_files(
     name = "keras_python_api_gen",

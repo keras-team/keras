@@ -14,11 +14,7 @@
 # ==============================================================================
 """Functional tests for Ftrl operations."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 from keras.optimizer_v2 import ftrl
@@ -29,7 +25,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def doTestFtrlwithoutRegularization(self, use_resource=False):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         if use_resource:
           var0 = tf.Variable([0.0, 0.0], dtype=dtype)
           var1 = tf.Variable([0.0, 0.0], dtype=dtype)
@@ -69,7 +65,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testFtrlwithoutRegularization2(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([4.0, 3.0], dtype=dtype)
         grads0 = tf.constant([0.1, 0.2], dtype=dtype)
@@ -99,7 +95,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testMinimizeSparseResourceVariable(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32, tf.float64]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
         x = tf.constant([[4.0], [5.0]], dtype=dtype)
 
@@ -121,7 +117,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testFtrlWithL1(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([4.0, 3.0], dtype=dtype)
         grads0 = tf.constant([0.1, 0.2], dtype=dtype)
@@ -151,7 +147,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testFtrlWithBeta(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([4.0, 3.0], dtype=dtype)
         grads0 = tf.constant([0.1, 0.2], dtype=dtype)
@@ -177,7 +173,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testFtrlWithL2_Beta(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([4.0, 3.0], dtype=dtype)
         grads0 = tf.constant([0.1, 0.2], dtype=dtype)
@@ -208,7 +204,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testFtrlWithL1_L2(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([4.0, 3.0], dtype=dtype)
         grads0 = tf.constant([0.1, 0.2], dtype=dtype)
@@ -245,7 +241,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
     """
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([4.0, 3.0], dtype=dtype)
         grads0 = tf.constant([0.1, 0.2], dtype=dtype)
@@ -278,7 +274,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
     """Tests the new FTRL op with support for l2 shrinkage on sparse grads."""
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         var0 = tf.Variable([[1.0], [2.0]], dtype=dtype)
         var1 = tf.Variable([[4.0], [3.0]], dtype=dtype)
         grads0 = tf.IndexedSlices(
@@ -313,7 +309,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
     """Verifies that l2 shrinkage in FTRL does not change lr schedule."""
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True) as sess:
+      with tf.Graph().as_default(), self.cached_session() as sess:
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([1.0, 2.0], dtype=dtype)
         grads0 = tf.constant([0.1, 0.2], dtype=dtype)
@@ -396,7 +392,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testEquivAdagradwithoutRegularization(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         val0, val1 = self.applyOptimizer(
             ftrl.Ftrl(
                 3.0,
@@ -407,7 +403,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
                 l2_regularization_strength=0.0),
             dtype)
 
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         val2, val3 = self.applyOptimizer(
             tf.compat.v1.train.AdagradOptimizer(3.0, initial_accumulator_value=0.1), dtype)
 
@@ -441,7 +437,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testEquivSparseGradientDescentwithoutRegularization(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         val0, val1 = self.applyOptimizer(
             ftrl.Ftrl(
                 3.0,
@@ -453,7 +449,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
             dtype,
             is_sparse=True)
 
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         val2, val3 = self.applyOptimizer(
             tf.compat.v1.train.GradientDescentOptimizer(3.0),
             dtype,
@@ -465,7 +461,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testEquivGradientDescentwithoutRegularization(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32]:
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         val0, val1 = self.applyOptimizer(
             ftrl.Ftrl(
                 3.0,
@@ -476,7 +472,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
                 l2_regularization_strength=0.0),
             dtype)
 
-      with tf.Graph().as_default(), self.cached_session(use_gpu=True):
+      with tf.Graph().as_default(), self.cached_session():
         val2, val3 = self.applyOptimizer(
             tf.compat.v1.train.GradientDescentOptimizer(3.0), dtype)
 

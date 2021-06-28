@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for custom training loops that involves advanced optimizer usage."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 from tensorflow.python.distribute import values
@@ -48,13 +44,21 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       v = tf.Variable([0., 0.])
       optimizer = gradient_descent.SGD(0.1)
 
+    class PerReplica(values.DistributedValues):
+      """Holds a map from replica to unsynchronized values."""
+
+      @property
+      def values(self):
+        """Returns the per replica values."""
+        return self._values
+
     @tf.function
     def optimize():
-      grads = values.PerReplica([
-          tf.convert_to_tensor([1., 1.]),
-          tf.convert_to_tensor([2., 2.]),
-      ])
-
+      with tf.device(distribution.extended.worker_devices[0]):
+        v1 = tf.convert_to_tensor([1., 1.])
+      with tf.device(distribution.extended.worker_devices[1]):
+        v2 = tf.convert_to_tensor([2., 2.])
+      grads = PerReplica([v1, v2])
       def step_fn(grads):
         optimizer.apply_gradients(
             [(grads, v)],

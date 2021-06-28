@@ -1,6 +1,6 @@
 package(
     default_visibility = ["//keras:__subpackages__"],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(
@@ -13,7 +13,4 @@ py_library(
     name = "types",
     srcs = ["types.py"],
     srcs_version = "PY3",
-    deps = [
-        "//:expect_six_installed",
-    ],
 )

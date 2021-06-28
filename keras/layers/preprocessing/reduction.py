@@ -13,13 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 """Keras reduction layer."""
+
+import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
 
 from keras.engine.base_layer import Layer
 from tensorflow.python.platform import tf_logging as logging
@@ -85,7 +81,7 @@ class Reduction(Layer):
     # TODO(momernick): Add checks for this and a decent error message if the
     # weight shape isn't compatible.
     if weights.shape.rank + 1 == inputs.shape.rank:
-      weights = tf.compat.v1.expand_dims(weights, -1)
+      weights = tf.expand_dims(weights, -1)
 
     weighted_inputs = tf.multiply(inputs, weights)
 

@@ -14,33 +14,10 @@
 # ==============================================================================
 """Keras Input Tensor used to track functional API Topology."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from keras.utils import object_identity
 
 # pylint: disable=g-classes-have-attributes
-
-_KERAS_TENSORS_ENABLED = True
-
-
-def enable_keras_tensors():
-  """Enable using KerasTensors in Keras's functional API."""
-  global _KERAS_TENSORS_ENABLED
-  _KERAS_TENSORS_ENABLED = True
-
-
-def disable_keras_tensors():
-  """Disable using KerasTensors in Keras's functional API."""
-  global _KERAS_TENSORS_ENABLED
-  _KERAS_TENSORS_ENABLED = False
-
-
-def keras_tensors_enabled():
-  """Return a bool specifying if KerasTensors are enabled."""
-  return _KERAS_TENSORS_ENABLED and tf.compat.v1.executing_eagerly_outside_functions()
 
 
 # Tensorflow tensors have a maximum rank of 254
@@ -211,7 +188,7 @@ class KerasTensor(object):
       # allows us to specify partially-unspecified shape values.
       #
       # See the comment on value extraction inside `from_tensor` for more info.
-      inferred_value = tf.compat.v1.shape(
+      inferred_value = tf.shape(
           tf.compat.v1.placeholder(
               shape=self._inferred_value, dtype=tf.int32))
       if self.type_spec.shape.rank == 0:
@@ -475,6 +452,10 @@ class RaggedKerasTensor(KerasTensor):
   def ragged_rank(self):
     return self.type_spec.ragged_rank
 
+# Overload slicing
+RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__getitem__')  # pylint: disable=protected-access
+
+# Overload math ops
 RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__add__')  # pylint: disable=protected-access
 RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__radd__')  # pylint: disable=protected-access
 RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__mul__')  # pylint: disable=protected-access
@@ -558,8 +539,6 @@ class _KerasTensorIterator(object):
     result = self._tensor[self._index]
     self._index += 1
     return result
-
-  next = __next__  # python2.x compatibility.
 
 
 # Specify the mappings of tensor class to KerasTensor class.

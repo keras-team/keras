@@ -14,11 +14,7 @@
 # ==============================================================================
 """Keras layers API."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from tensorflow.python import tf2
 
@@ -45,41 +41,14 @@ from keras.layers.preprocessing.image_preprocessing import Resizing
 from keras.layers.preprocessing.image_preprocessing import Rescaling
 
 # Preprocessing layers.
-if tf.__internal__.tf2.enabled():
-  from keras.layers.preprocessing.category_encoding import CategoryEncoding
-  from keras.layers.preprocessing.category_encoding_v1 import CategoryEncoding as CategoryEncodingV1
-  CategoryEncodingV2 = CategoryEncoding
-  from keras.layers.preprocessing.integer_lookup import IntegerLookup
-  from keras.layers.preprocessing.integer_lookup_v1 import IntegerLookup as IntegerLookupV1
-  IntegerLookupV2 = IntegerLookup
-  from keras.layers.preprocessing.normalization import Normalization
-  from keras.layers.preprocessing.normalization_v1 import Normalization as NormalizationV1
-  NormalizationV2 = Normalization
-  from keras.layers.preprocessing.string_lookup import StringLookup
-  from keras.layers.preprocessing.string_lookup_v1 import StringLookup as StringLookupV1
-  StringLookupV2 = StringLookup
-  from keras.layers.preprocessing.text_vectorization import TextVectorization
-  from keras.layers.preprocessing.text_vectorization_v1 import TextVectorization as TextVectorizationV1
-  TextVectorizationV2 = TextVectorization
-else:
-  from keras.layers.preprocessing.integer_lookup_v1 import IntegerLookup
-  from keras.layers.preprocessing.integer_lookup import IntegerLookup as IntegerLookupV2
-  IntegerLookupV1 = IntegerLookup
-  from keras.layers.preprocessing.category_encoding_v1 import CategoryEncoding
-  from keras.layers.preprocessing.category_encoding import CategoryEncoding as CategoryEncodingV2
-  CategoryEncodingV1 = CategoryEncoding
-  from keras.layers.preprocessing.normalization_v1 import Normalization
-  from keras.layers.preprocessing.normalization import Normalization as NormalizationV2
-  NormalizationV1 = Normalization
-  from keras.layers.preprocessing.string_lookup_v1 import StringLookup
-  from keras.layers.preprocessing.string_lookup import StringLookup as StringLookupV2
-  StringLookupV1 = StringLookup
-  from keras.layers.preprocessing.text_vectorization_v1 import TextVectorization
-  from keras.layers.preprocessing.text_vectorization import TextVectorization as TextVectorizationV2
-  TextVectorizationV1 = TextVectorization
 from keras.layers.preprocessing.category_crossing import CategoryCrossing
+from keras.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.layers.preprocessing.discretization import Discretization
 from keras.layers.preprocessing.hashing import Hashing
+from keras.layers.preprocessing.integer_lookup import IntegerLookup
+from keras.layers.preprocessing.normalization import Normalization
+from keras.layers.preprocessing.string_lookup import StringLookup
+from keras.layers.preprocessing.text_vectorization import TextVectorization
 
 # Advanced activations.
 from keras.layers.advanced_activations import LeakyReLU
@@ -176,16 +145,16 @@ from keras.layers.noise import GaussianNoise
 from keras.layers.noise import GaussianDropout
 
 # Normalization layers.
-from keras.layers.normalization import LayerNormalization
-from keras.layers.normalization_v2 import SyncBatchNormalization
+from keras.layers.normalization.layer_normalization import LayerNormalization
+from keras.layers.normalization.batch_normalization import SyncBatchNormalization
 
 if tf.__internal__.tf2.enabled():
-  from keras.layers.normalization_v2 import BatchNormalization
-  from keras.layers.normalization import BatchNormalization as BatchNormalizationV1
+  from keras.layers.normalization.batch_normalization import BatchNormalization
+  from keras.layers.normalization.batch_normalization_v1 import BatchNormalization as BatchNormalizationV1
   BatchNormalizationV2 = BatchNormalization
 else:
-  from keras.layers.normalization import BatchNormalization
-  from keras.layers.normalization_v2 import BatchNormalization as BatchNormalizationV2
+  from keras.layers.normalization.batch_normalization_v1 import BatchNormalization
+  from keras.layers.normalization.batch_normalization import BatchNormalization as BatchNormalizationV2
   BatchNormalizationV1 = BatchNormalization
 
 # Kernelized layers.
@@ -255,7 +224,9 @@ else:
   LSTMCellV1 = LSTMCell
 
 # Convolutional-recurrent layers.
+from keras.layers.convolutional_recurrent import ConvLSTM1D
 from keras.layers.convolutional_recurrent import ConvLSTM2D
+from keras.layers.convolutional_recurrent import ConvLSTM3D
 
 # CuDNN recurrent layers.
 from keras.layers.cudnn_recurrent import CuDNNLSTM
@@ -293,7 +264,3 @@ class VersionAwareLayers(object):
     if name in serialization.LOCAL.ALL_OBJECTS:
       return serialization.LOCAL.ALL_OBJECTS[name]
     return super(VersionAwareLayers, self).__getattr__(name)
-
-del absolute_import
-del division
-del print_function

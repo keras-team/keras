@@ -12,13 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Core Keras layers.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Core Keras layers."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import copy
 import functools
@@ -29,7 +25,6 @@ import types as python_types
 import warnings
 
 import numpy as np
-from tensorflow.python.eager import monitoring
 from keras import activations
 from keras import backend as K
 from keras import constraints
@@ -38,21 +33,19 @@ from keras import regularizers
 from keras.engine import keras_tensor
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
-from keras.layers.ops import core as core_ops
 from keras.utils import control_flow_util
 from keras.utils import conv_utils
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import get_canonical_name_for_symbol
 from tensorflow.python.util.tf_export import get_symbol_from_name
 from tensorflow.python.util.tf_export import keras_export
 
 # TODO(b/168039935): track dropout rate to decide whether/how to make a
 # dropout rate fastpath.
-keras_temporary_dropout_rate = monitoring.BoolGauge(
+keras_temporary_dropout_rate = tf.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/dropout/temp_rate_is_zero',
     'Temporarily record if Keras dropout layer was created w/'
     'constant rate = 0')
@@ -114,7 +107,7 @@ class Masking(Layer):
         tf.not_equal(inputs, self.mask_value), axis=-1, keepdims=True)
     outputs = inputs * tf.cast(boolean_mask, inputs.dtype)
     # Compute the mask and outputs simultaneously.
-    outputs._keras_mask = tf.compat.v1.squeeze(boolean_mask, axis=-1)  # pylint: disable=protected-access
+    outputs._keras_mask = tf.squeeze(boolean_mask, axis=-1)  # pylint: disable=protected-access
     return outputs
 
   def compute_output_shape(self, input_shape):
@@ -180,6 +173,9 @@ class Dropout(Layer):
 
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
     super(Dropout, self).__init__(**kwargs)
+    if isinstance(rate, (int, float)) and not 0 <= rate <= 1:
+      raise ValueError(f'Invalid value {rate} received for '
+                       f'`rate`, expected a value between 0 and 1.')
     self.rate = rate
     if isinstance(rate, (int, float)) and not rate:
       keras_temporary_dropout_rate.get_cell().set(True)
@@ -196,7 +192,7 @@ class Dropout(Layer):
     if self.noise_shape is None:
       return None
 
-    concrete_inputs_shape = tf.compat.v1.shape(inputs)
+    concrete_inputs_shape = tf.shape(inputs)
     noise_shape = []
     for i, value in enumerate(self.noise_shape):
       noise_shape.append(concrete_inputs_shape[i] if value is None else value)
@@ -207,7 +203,7 @@ class Dropout(Layer):
       training = K.learning_phase()
 
     def dropped_inputs():
-      return tf.compat.v1.nn.dropout(
+      return tf.nn.dropout(
           inputs,
           noise_shape=self._get_noise_shape(inputs),
           seed=self.seed,
@@ -267,7 +263,7 @@ class SpatialDropout1D(Dropout):
     self.input_spec = InputSpec(ndim=3)
 
   def _get_noise_shape(self, inputs):
-    input_shape = tf.compat.v1.shape(inputs)
+    input_shape = tf.shape(inputs)
     noise_shape = (input_shape[0], 1, input_shape[2])
     return noise_shape
 
@@ -324,7 +320,7 @@ class SpatialDropout2D(Dropout):
     self.input_spec = InputSpec(ndim=4)
 
   def _get_noise_shape(self, inputs):
-    input_shape = tf.compat.v1.shape(inputs)
+    input_shape = tf.shape(inputs)
     if self.data_format == 'channels_first':
       return (input_shape[0], input_shape[1], 1, 1)
     elif self.data_format == 'channels_last':
@@ -382,7 +378,7 @@ class SpatialDropout3D(Dropout):
     self.input_spec = InputSpec(ndim=5)
 
   def _get_noise_shape(self, inputs):
-    input_shape = tf.compat.v1.shape(inputs)
+    input_shape = tf.shape(inputs)
     if self.data_format == 'channels_first':
       return (input_shape[0], input_shape[1], 1, 1, 1)
     elif self.data_format == 'channels_last':
@@ -536,7 +532,7 @@ class Reshape(Layer):
 
   def call(self, inputs):
     result = tf.reshape(
-        inputs, (tf.compat.v1.shape(inputs)[0],) + self.target_shape)
+        inputs, (tf.shape(inputs)[0],) + self.target_shape)
     if not tf.executing_eagerly():
       # Set the static shape for the result since it might lost during array_ops
       # reshape, eg, some `None` dim in the result could be inferred.
@@ -599,7 +595,7 @@ class Permute(Layer):
     return tf.TensorShape(output_shape)
 
   def call(self, inputs):
-    return tf.compat.v1.transpose(inputs, perm=(0,) + self.dims)
+    return tf.transpose(inputs, perm=(0,) + self.dims)
 
   def get_config(self):
     config = {'dims': self.dims}
@@ -652,7 +648,7 @@ class Flatten(Layer):
         permutation = [0]
         permutation.extend(range(2, rank))
         permutation.append(1)
-        inputs = tf.compat.v1.transpose(inputs, perm=permutation)
+        inputs = tf.transpose(inputs, perm=permutation)
 
     if tf.executing_eagerly():
       # Full static shape is guaranteed to be available.
@@ -724,6 +720,8 @@ class RepeatVector(Layer):
   def __init__(self, n, **kwargs):
     super(RepeatVector, self).__init__(**kwargs)
     self.n = n
+    if not isinstance(n, int):
+      raise TypeError(f'Expected an integer value for `n`, got {type(n)}.')
     self.input_spec = InputSpec(ndim=2)
 
   def compute_output_shape(self, input_shape):
@@ -743,12 +741,14 @@ class RepeatVector(Layer):
 class Lambda(Layer):
   """Wraps arbitrary expressions as a `Layer` object.
 
-  The `Lambda` layer exists so that arbitrary TensorFlow functions
-  can be used when constructing `Sequential` and Functional API
-  models. `Lambda` layers are best suited for simple operations or
-  quick experimentation. For more advanced use cases, follow
+  The `Lambda` layer exists so that arbitrary expressions can be used
+  as a `Layer` when constructing `Sequential`
+  and Functional API models. `Lambda` layers are best suited for simple
+  operations or quick experimentation. For more advanced use cases, follow
   [this guide](https://www.tensorflow.org/guide/keras/custom_layers_and_models)
   for subclassing `tf.keras.layers.Layer`.
+
+  WARNING: `tf.keras.layers.Lambda` layers have (de)serialization limitations!
 
   The main reason to subclass `tf.keras.layers.Layer` instead of using a
   `Lambda` layer is saving and inspecting a Model. `Lambda` layers
@@ -835,7 +835,7 @@ class Lambda(Layer):
     Specified by `output_shape` argument
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, function, output_shape=None, mask=None, arguments=None,
                **kwargs):
     super(Lambda, self).__init__(**kwargs)
@@ -949,7 +949,7 @@ class Lambda(Layer):
   def _warn(self, msg):
     # This method will be overridden in a unit test to raise an error, because
     # self.assertWarns is not universally implemented.
-    return tf_logging.warn(msg)
+    return tf_logging.warning(msg)
 
   def compute_mask(self, inputs, mask=None):
     if callable(self.mask):
@@ -1072,11 +1072,12 @@ class Dense(Layer):
   where `activation` is the element-wise activation function
   passed as the `activation` argument, `kernel` is a weights matrix
   created by the layer, and `bias` is a bias vector created by the layer
-  (only applicable if `use_bias` is `True`).
+  (only applicable if `use_bias` is `True`). These are all attributes of
+  `Dense`.
 
   Note: If the input to the layer has a rank greater than 2, then `Dense`
   computes the dot product between the `inputs` and the `kernel` along the
-  last axis of the `inputs` and axis 1 of the `kernel` (using `tf.tensordot`).
+  last axis of the `inputs` and axis 0 of the `kernel` (using `tf.tensordot`).
   For example, if input has dimensions `(batch_size, d0, d1)`,
   then we create a `kernel` with shape `(d1, units)`, and the `kernel` operates
   along axis 2 of the `input`, on every sub-tensor of shape `(1, 1, d1)`
@@ -1085,6 +1086,9 @@ class Dense(Layer):
 
   Besides, layer attributes cannot be modified after the layer has been called
   once (except the `trainable` attribute).
+  When a popular kwarg `input_shape` is passed, then keras will create
+  an input layer to insert before the current layer. This can be treated
+  equivalent to explicitly defining an `InputLayer`.
 
   Example:
 
@@ -1144,6 +1148,9 @@ class Dense(Layer):
         activity_regularizer=activity_regularizer, **kwargs)
 
     self.units = int(units) if not isinstance(units, int) else units
+    if self.units < 0:
+      raise ValueError(f'Received an invalid value for `units`, expected '
+                       f'a positive integer, got {units}.')
     self.activation = activations.get(activation)
     self.use_bias = use_bias
     self.kernel_initializer = initializers.get(kernel_initializer)
@@ -1190,12 +1197,56 @@ class Dense(Layer):
     self.built = True
 
   def call(self, inputs):
-    return core_ops.dense(
-        inputs,
-        self.kernel,
-        self.bias,
-        self.activation,
-        dtype=self._compute_dtype_object)
+    if inputs.dtype.base_dtype != self._compute_dtype_object.base_dtype:
+      inputs = tf.cast(inputs, dtype=self._compute_dtype_object)
+
+    if isinstance(inputs, tf.RaggedTensor) and inputs.shape[-1] is not None:
+      # In case we encounter a RaggedTensor with a fixed last dimension (last
+      # dimension not ragged), we can map the call method to the flat values.
+      return tf.ragged.map_flat_values(self.call, inputs)
+
+    rank = inputs.shape.rank
+    if rank == 2 or rank is None:
+      # We use embedding_lookup_sparse as a more efficient matmul operation for
+      # large sparse input tensors. The op will result in a sparse gradient, as
+      # opposed to sparse_ops.sparse_tensor_dense_matmul which results in dense
+      # gradients. This can lead to sigfinicant speedups, see b/171762937.
+      if isinstance(inputs, tf.SparseTensor):
+        # We need to fill empty rows, as the op assumes at least one id per row.
+        inputs, _ = tf.sparse.fill_empty_rows(inputs, 0)
+        # We need to do some munging of our input to use the embedding lookup as
+        # a matrix multiply. We split our input matrix into separate ids and
+        # weights tensors. The values of the ids tensor should be the column
+        # indices of our input matrix and the values of the weights tensor
+        # can continue to the actual matrix weights.
+        # The column arrangement of ids and weights
+        # will be summed over and does not matter. See the documentation for
+        # sparse_ops.sparse_tensor_dense_matmul a more detailed explanation
+        # of the inputs to both ops.
+        ids = tf.SparseTensor(
+            indices=inputs.indices,
+            values=inputs.indices[:, 1],
+            dense_shape=inputs.dense_shape)
+        weights = inputs
+        outputs = tf.nn.embedding_lookup_sparse(
+            self.kernel, ids, weights, combiner='sum')
+      else:
+        outputs = tf.raw_ops.MatMul(a=inputs, b=self.kernel)
+    # Broadcast kernel to inputs.
+    else:
+      outputs = tf.tensordot(inputs, self.kernel, [[rank - 1], [0]])
+      # Reshape the output back to the original ndim of the input.
+      if not tf.executing_eagerly():
+        shape = inputs.shape.as_list()
+        output_shape = shape[:-1] + [self.kernel.shape[-1]]
+        outputs.set_shape(output_shape)
+
+    if self.use_bias:
+      outputs = tf.nn.bias_add(outputs, self.bias)
+
+    if self.activation is not None:
+      outputs = self.activation(outputs)
+    return outputs
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape)
@@ -1203,32 +1254,23 @@ class Dense(Layer):
     if tf.compat.dimension_value(input_shape[-1]) is None:
       raise ValueError(
           'The innermost dimension of input_shape must be defined, but saw: %s'
-          % input_shape)
+          % (input_shape,))
     return input_shape[:-1].concatenate(self.units)
 
   def get_config(self):
     config = super(Dense, self).get_config()
     config.update({
-        'units':
-            self.units,
-        'activation':
-            activations.serialize(self.activation),
-        'use_bias':
-            self.use_bias,
-        'kernel_initializer':
-            initializers.serialize(self.kernel_initializer),
-        'bias_initializer':
-            initializers.serialize(self.bias_initializer),
-        'kernel_regularizer':
-            regularizers.serialize(self.kernel_regularizer),
-        'bias_regularizer':
-            regularizers.serialize(self.bias_regularizer),
+        'units': self.units,
+        'activation': activations.serialize(self.activation),
+        'use_bias': self.use_bias,
+        'kernel_initializer': initializers.serialize(self.kernel_initializer),
+        'bias_initializer': initializers.serialize(self.bias_initializer),
+        'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+        'bias_regularizer': regularizers.serialize(self.bias_regularizer),
         'activity_regularizer':
             regularizers.serialize(self.activity_regularizer),
-        'kernel_constraint':
-            constraints.serialize(self.kernel_constraint),
-        'bias_constraint':
-            constraints.serialize(self.bias_constraint)
+        'kernel_constraint': constraints.serialize(self.kernel_constraint),
+        'bias_constraint': constraints.serialize(self.bias_constraint)
     })
     return config
 
@@ -1282,7 +1324,7 @@ class TFOpLambda(Layer):
   out = x * tf_variable
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, function, **kwargs):
     self.function = function
     self.symbol = (
@@ -1391,7 +1433,7 @@ class TFOpLambda(Layer):
   def _warn(self, msg):
     # This method will be overridden in a unit test to raise an error, because
     # self.assertWarns is not universally implemented.
-    return tf_logging.warn(msg)
+    return tf_logging.warning(msg)
 
   def get_config(self):
     if not self.symbol:
@@ -1468,7 +1510,7 @@ class SlicingOpLambda(TFOpLambda):
   out = x * tf_variable
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, function, **kwargs):
     super(SlicingOpLambda, self).__init__(function, **kwargs)
 
@@ -1525,9 +1567,12 @@ class TFSlicingOpDispatcher(tf.__internal__.dispatch.OpDispatcher):
     else:
       return self.NOT_SUPPORTED
 
-for slicing_op in [tf.__operators__.getitem,  # pylint: disable=protected-access
-                   tf.compat.v1.boolean_mask,
-                   tf.boolean_mask]:
+for slicing_op in [
+    tf.__operators__.getitem,  # pylint: disable=protected-access
+    tf.compat.v1.boolean_mask,
+    tf.boolean_mask,
+    tf.__operators__.ragged_getitem
+]:
   TFSlicingOpDispatcher(slicing_op).register(slicing_op)
 
 
@@ -1546,7 +1591,7 @@ class InstanceProperty(Layer):
   out = x.flat_values
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, attr_name, **kwargs):
     self.attr_name = attr_name
 
@@ -1693,7 +1738,7 @@ class ClassMethod(Layer):
   out = tf.RaggedTensor.from_row_splits(x, y)
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, cls_ref, method_name, **kwargs):
     self.cls_ref = cls_ref
     self.method_name = method_name

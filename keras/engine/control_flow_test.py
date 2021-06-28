@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for dynamic control flow behavior with Keras."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -45,7 +41,7 @@ class ControlFlowLayer2(base_layer.Layer):
 
   def call(self, inputs):
     samples = tf.TensorArray(
-        dtype=tf.float32, size=tf.compat.v1.shape(inputs)[0])
+        dtype=tf.float32, size=tf.shape(inputs)[0])
     i = 0
     for sample in inputs:
       samples = samples.write(i, tf.square(sample))

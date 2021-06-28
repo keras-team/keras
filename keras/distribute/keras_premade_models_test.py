@@ -13,11 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for keras premade models using tf.distribute.Strategy."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -37,6 +34,7 @@ def strategy_combinations_eager_data_fn():
           tf.__internal__.distribute.combinations.one_device_strategy_gpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+          tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
           tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
           tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
           tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,

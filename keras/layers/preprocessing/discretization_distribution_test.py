@@ -12,13 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for keras.layers.preprocessing.normalization."""
+"""Distribution tests for keras.layers.preprocessing.discretization."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 
@@ -31,23 +27,24 @@ from keras.layers.preprocessing import preprocessing_test_utils
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
-        distribution=strategy_combinations.strategies_minus_tpu,
+        strategy=strategy_combinations.all_strategies +
+        strategy_combinations.multi_worker_mirrored_strategies,
         mode=["eager", "graph"]))
 class DiscretizationDistributionTest(
     keras_parameterized.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
-  def test_distribution(self, distribution):
+  def test_distribution(self, strategy):
     input_array = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
 
-    expected_output = [[0, 1, 3, 1], [0, 3, 2, 0]]
+    expected_output = [[0, 2, 3, 1], [1, 3, 2, 1]]
     expected_output_shape = [None, 4]
 
     tf.config.set_soft_device_placement(True)
 
-    with distribution.scope():
+    with strategy.scope():
       input_data = keras.Input(shape=(4,))
-      layer = discretization.Discretization(bins=[0., 1., 2.])
+      layer = discretization.Discretization(bin_boundaries=[0., 1., 2.])
       bucket_data = layer(input_data)
       self.assertAllEqual(expected_output_shape, bucket_data.shape.as_list())
 
@@ -57,4 +54,5 @@ class DiscretizationDistributionTest(
 
 
 if __name__ == "__main__":
-  tf.test.main()
+  tf.compat.v1.enable_v2_behavior()
+  tf.__internal__.distribute.multi_process_runner.test_main()

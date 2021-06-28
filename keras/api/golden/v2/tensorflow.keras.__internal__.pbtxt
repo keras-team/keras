@@ -1,0 +1,23 @@
+path: "tensorflow.keras.__internal__"
+tf_module {
+  member {
+    name: "backend"
+    mtype: "<type \'module\'>"
+  }
+  member {
+    name: "losses"
+    mtype: "<type \'module\'>"
+  }
+  member {
+    name: "models"
+    mtype: "<type \'module\'>"
+  }
+  member {
+    name: "utils"
+    mtype: "<type \'module\'>"
+  }
+  member_method {
+    name: "apply_name_scope_on_model_declaration"
+    argspec: "args=[\'enable\'], varargs=None, keywords=None, defaults=None"
+  }
+}

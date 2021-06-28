@@ -14,23 +14,11 @@
 # ==============================================================================
 """Tests for automatic outside compilation for TF 2.0/Keras."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
-
+import collections
 import os
 
 from absl import flags
-import numpy as np
-
-from tensorboard.plugins.histogram import summary_v2 as histogram_summary_v2
-from tensorboard.plugins.image import summary_v2 as image_summary_v2
-from tensorboard.plugins.scalar import summary_v2 as scalar_summary_v2
-from tensorflow.python.eager.context import set_soft_device_placement
 from keras import callbacks
-from keras import initializers
 from keras.distribute import distribute_strategy_test
 from keras.engine import base_layer
 from keras.engine import sequential as sequential_model_lib
@@ -38,6 +26,13 @@ from keras.engine import training
 from keras.layers import convolutional as conv_layer_lib
 from keras.layers import core as layer_lib
 from keras.layers import pooling as pool_layer_lib
+import numpy as np
+import tensorflow.compat.v2 as tf
+
+from tensorboard.plugins.histogram import summary_v2 as histogram_summary_v2
+from tensorboard.plugins.image import summary_v2 as image_summary_v2
+from tensorboard.plugins.scalar import summary_v2 as scalar_summary_v2
+from tensorflow.python.eager.context import set_soft_device_placement
 
 NUM_CLASSES = 4
 
@@ -159,16 +154,21 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
     set_soft_device_placement(True)
     self.summary_dir = self.get_temp_dir()
 
-  def validate_recorded_sumary_file(self, event_files, summary_dict,
-                                    expected_count):
+  def validate_recorded_sumary_file(self, event_files, expected_event_counts):
+    event_counts = collections.defaultdict(int)
     for event_file in event_files:
       for e in tf.compat.v1.train.summary_iterator(event_file):
         for v in e.summary.value:
-          if v.tag in summary_dict:
-            summary_dict[v.tag] += 1
+          event_counts[v.tag] += 1
 
-    for key in summary_dict:
-      self.assertEqual(summary_dict[key], expected_count)
+    event_counts = dict(event_counts)  # Avoid defaultdict type in repr below.
+    actual_event_counts = {
+        k: v for k, v in event_counts.items() if k in expected_event_counts
+    }
+    self.assertEqual(
+        expected_event_counts,
+        actual_event_counts,
+        msg='expected counts not found; all event counts: %r' % event_counts)
 
   def testV2SummaryWithKerasSequentialModel(self):
     strategy = get_tpu_strategy()
@@ -186,19 +186,17 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
           epochs=1,
           callbacks=[tensorboard_callback])
 
-      events_count_dictionary = {
-          'sequential/layer_for_histogram_summary/custom_histogram_summary_v2':
-              0,
-          'sequential/layer_for_image_summary/custom_image_summary_v2':
-              0,
-      }
-
       event_files = tf.io.gfile.glob(
           os.path.join(self.summary_dir, 'train', 'event*'))
       # Since total of 10 steps are ran and summary ops should be invoked
-      # every 2 batches, we should see total of 5 event logs.
-      self.validate_recorded_sumary_file(event_files, events_count_dictionary,
-                                         5)
+      # every 2 batches, we should see total of 5 event logs for each summary.
+      expected_event_counts = {
+          'sequential/layer_for_histogram_summary/custom_histogram_summary_v2':
+              5,
+          'sequential/layer_for_image_summary/custom_image_summary_v2':
+              5,
+      }
+      self.validate_recorded_sumary_file(event_files, expected_event_counts)
 
   def testV2SummaryWithKerasSubclassedModel(self):
     strategy = get_tpu_strategy()
@@ -218,19 +216,17 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
 
       event_files = tf.io.gfile.glob(
           os.path.join(self.summary_dir, 'train', 'event*'))
-      events_count_dictionary = {
+      # Since total of 10 steps are ran and summary ops should be invoked
+      # every 2 batches, we should see total of 5 event logs for each summary.
+      expected_event_counts = {
           ('custom_model/layer_for_scalar_summary/'
            'custom_scalar_summary_v2'):
-              0,
+              5,
           ('custom_model/layer_for_histogram_summary/'
            'custom_histogram_summary_v2'):
-              0
+              5
       }
-
-      # Since total of 10 steps are ran and summary ops should be invoked
-      # every 2 batches, we should see total of 5 event logs.
-      self.validate_recorded_sumary_file(event_files, events_count_dictionary,
-                                         5)
+      self.validate_recorded_sumary_file(event_files, expected_event_counts)
 
   def testSummaryWithCustomTrainingLoop(self):
     strategy = get_tpu_strategy()
@@ -266,11 +262,10 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
 
     event_files = tf.io.gfile.glob(
         os.path.join(self.summary_dir, 'event*'))
-    events_count_dictionary = {
-        ('logits'): 0,
+    expected_event_counts = {
+        'logits': 1,
     }
-    self.validate_recorded_sumary_file(event_files, events_count_dictionary,
-                                       1)
+    self.validate_recorded_sumary_file(event_files, expected_event_counts)
 
 
 if __name__ == '__main__':

@@ -13,21 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Version 2 of class Optimizer."""
+
+import tensorflow.compat.v2 as tf
 # pylint: disable=g-bad-name
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
 
 import abc
 import contextlib
 import functools
-
-import six
-from tensorflow.python.distribute import values as ds_values
-from tensorflow.python.eager import monitoring
+import warnings
 from keras import backend
 from keras import initializers
 from keras.engine import base_layer_utils
@@ -37,12 +30,10 @@ from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
-from tensorflow.python.saved_model import revived_types
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 
-keras_optimizers_gauge = monitoring.BoolGauge(
+keras_optimizers_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/oss-keras/optimizers", "keras optimizer usage", "method")
 
 _DEFAULT_VALID_DTYPES = frozenset([
@@ -67,7 +58,7 @@ def _deduplicate_indexed_slices(values, indices):
   unique_indices, new_index_positions = tf.unique(indices)
   summed_values = tf.math.unsorted_segment_sum(
       values, new_index_positions,
-      tf.compat.v1.shape(unique_indices)[0])
+      tf.shape(unique_indices)[0])
   return (summed_values, unique_indices)
 
 
@@ -96,13 +87,12 @@ def name_scope_only_in_function_or_graph(name):
     `name_scope*` context manager.
   """
   if not tf.executing_eagerly():
-    return tf.compat.v1.name_scope(name)
+    return tf.name_scope(name)
   else:
     return NullContextmanager()
 
 
-@six.add_metaclass(abc.ABCMeta)
-@keras_export("keras.optimizers.Optimizer")
+@keras_export("keras.optimizers.Optimizer", metaclass=abc.ABCMeta)
 class OptimizerV2(tf.__internal__.tracking.Trackable):
   """Base class for Keras optimizers.
 
@@ -361,6 +351,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       # checks that all keyword arguments are non-negative.
       if kwargs[k] is not None and kwargs[k] < 0:
         raise ValueError("Expected {} >= 0, received: {}".format(k, kwargs[k]))
+      if k == "lr":
+        warnings.warn(
+            "The `lr` argument is deprecated, use `learning_rate` instead.")
 
     self._use_locking = True
     self._init_set_name(name)
@@ -466,7 +459,18 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     return grads_and_vars
 
   def _aggregate_gradients(self, grads_and_vars):
-    """Called in `apply_gradients` to aggregate gradients across devices."""
+    """Called in `apply_gradients` to aggregate gradients across devices.
+
+    Note that user subclasses may override this, so the interface should not be
+    changed.
+
+    Args:
+      grads_and_vars: List of (gradient, variable) pairs.
+
+    Returns:
+      A list of (aggregrated_gradient, variable) pairs. By default, this calls
+      `self.gradient_aggregator`.
+    """
     return self.gradient_aggregator(grads_and_vars)
 
   def _transform_gradients(self, grads_and_vars):
@@ -651,12 +655,16 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         grads_and_vars = self._aggregate_gradients(grads_and_vars)
       grads_and_vars = self._transform_gradients(grads_and_vars)
 
-      return tf.distribute.get_replica_context().merge_call(
-          functools.partial(self._distributed_apply, apply_state=apply_state),
-          args=(grads_and_vars,),
-          kwargs={
-              "name": name,
-          })
+      if optimizer_utils.strategy_supports_no_merge_call():
+        return self._distributed_apply(strategy, grads_and_vars, name,
+                                       apply_state)
+      else:
+        return tf.distribute.get_replica_context().merge_call(
+            functools.partial(self._distributed_apply, apply_state=apply_state),
+            args=(grads_and_vars,),
+            kwargs={
+                "name": name,
+            })
 
   def _distributed_apply(self, distribution, grads_and_vars, name, apply_state):
     """`apply_gradients` using a `DistributionStrategy`."""
@@ -689,22 +697,22 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     update_ops = []
     with name_scope_only_in_function_or_graph(name or self._name):
       for grad, var in grads_and_vars:
-        # TODO(crccw): It's not allowed to assign PerReplica value to
-        # MirroredVariable.  Remove this after we relax this restriction.
-        def _assume_mirrored(grad):
-          if isinstance(grad, ds_values.PerReplica):
-            return ds_values.Mirrored(grad.values)
-          return grad
-
-        grad = tf.nest.map_structure(_assume_mirrored, grad)
         # Colocate the update with variables to avoid unnecessary communication
         # delays. See b/136304694.
         with distribution.extended.colocate_vars_with(var):
           with name_scope_only_in_function_or_graph(
               "update" if eagerly_outside_functions else "update_" +
               var.op.name):
-            update_ops.extend(distribution.extended.update(
-                var, apply_grad_to_update_var, args=(grad,), group=False))
+            update_op = distribution.extended.update(
+                var, apply_grad_to_update_var, args=(grad,), group=False)
+            if tf.distribute.in_cross_replica_context():
+              # In cross-replica context, extended.update returns a list of
+              # update ops from all replicas (group=False).
+              update_ops.extend(update_op)
+            else:
+              # In replica context, extended.update return the single update op
+              # of current replica.
+              update_ops.append(update_op)
 
       any_symbolic = any(isinstance(i, tf.Operation) or
                          tf_utils.is_symbolic_tensor(i) for i in update_ops)
@@ -865,11 +873,11 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     slot_dict = self._slots.setdefault(var_key, {})
     weight = slot_dict.get(slot_name, None)
     if weight is None:
-      if isinstance(initializer, six.string_types) or callable(initializer):
+      if isinstance(initializer, str) or callable(initializer):
         initializer = initializers.get(initializer)
         if isinstance(
             initializer,
-            trackable.CheckpointInitialValueCallable) or (shape is not None):
+            tf.__internal__.tracking.CheckpointInitialValueCallable) or (shape is not None):
           slot_shape = shape
         else:
           slot_shape = var.shape
@@ -922,7 +930,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     apply_state = {}
     for var_device, var_dtype in keys:
       apply_state[(var_device, var_dtype)] = {}
-      with tf.compat.v1.device(var_device):
+      with tf.device(var_device):
         self._prepare_local(var_device, var_dtype, apply_state)
 
     return apply_state
@@ -956,7 +964,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
               shape=[],
               trainable=False,
               initializer=value,
-              aggregation=tf.compat.v1.VariableAggregation.ONLY_FIRST_REPLICA)
+              aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA)
     self._hypers_created = True
 
   @property
@@ -969,7 +977,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             shape=[],
             dtype=tf.int64,
             trainable=False,
-            aggregation=tf.compat.v1.VariableAggregation.ONLY_FIRST_REPLICA)
+            aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA)
       self._weights.append(self._iterations)
     return self._iterations
 
@@ -1145,11 +1153,11 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                  initializer="zeros",
                  trainable=None,
                  synchronization=tf.VariableSynchronization.AUTO,
-                 aggregation=tf.compat.v1.VariableAggregation.NONE):
+                 aggregation=tf.VariableAggregation.NONE):
 
     if dtype is None:
       dtype = tf.float32
-    if isinstance(initializer, six.string_types) or callable(initializer):
+    if isinstance(initializer, str) or callable(initializer):
       initializer = initializers.get(initializer)
 
     if synchronization == tf.VariableSynchronization.ON_READ:
@@ -1361,13 +1369,13 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         # variables.
         and (not tf.compat.v1.get_default_graph()._variable_creator_stack or  # pylint: disable=protected-access
              self._distribution_strategy)):
-      initializer = trackable.CheckpointInitialValueCallable(
+      initializer = tf.__internal__.tracking.CheckpointInitialValueCallable(
           checkpoint_position=slot_variable_position)
-      # Shape is unknown until we read the checkpoint value.
       slot_variable = self.add_slot(
           var=variable,
           initializer=initializer,
-          slot_name=slot_name)
+          slot_name=slot_name,
+          shape=slot_variable_position.value_shape())
       # Slot variables are not owned by any one object (because we don't want to
       # save the slot variable if the optimizer is saved without the non-slot
       # variable, or if the non-slot variable is saved without the optimizer;
@@ -1450,12 +1458,12 @@ class RestoredOptimizer(OptimizerV2):
         "supported. Please file a feature request if this limitation bothers "
         "you.")
 
-revived_types.register_revived_type(
-    "oss_optimizer",  # TODO(scottzhu): Change this back after repo split.
+tf.__internal__.saved_model.load.register_revived_type(
+    "optimizer",
     lambda obj: isinstance(obj, OptimizerV2),
-    versions=[revived_types.VersionedTypeRegistration(
+    versions=[tf.__internal__.saved_model.load.VersionedTypeRegistration(
         object_factory=lambda proto: RestoredOptimizer(),
-        version=1,
+        version=2,
         min_producer_version=1,
         min_consumer_version=1,
         setter=RestoredOptimizer._set_hyper  # pylint: disable=protected-access
