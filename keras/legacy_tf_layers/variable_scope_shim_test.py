@@ -248,6 +248,29 @@ class VariableScopeTest(tf.test.TestCase):
 
   @test_util.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
+  def testVarScopeGetOrCreateReuseIgnoreFalse(self):
+    with self.cached_session():
+
+      def test_value(value):
+        x = tf.constant(value)
+        with tf.compat.v1.variable_scope(
+            "testVarScopeGetOrCreateReuse_bar",
+            reuse=False):
+          _ = tf.compat.v1.assign(tf.compat.v1.get_variable("var", []), x)
+        # We need to ignore reuse=False in the shim, because the
+        # code is expected to get rerun each time the user calls the shim.
+        with tf.compat.v1.variable_scope(
+            "testVarScopeGetOrCreateReuse_bar",
+            reuse=False):
+          _ = tf.compat.v1.get_variable("var", [])
+        self.assertEqual(value, self.evaluate(x))
+
+      test_value(42.)  # Variable is created.
+      test_value(13.)  # Variable is reused hereafter.
+      test_value(17.)
+
+  @test_util.run_in_graph_and_eager_modes
+  @run_inside_wrap_function_in_eager_mode
   def testVarOpScope(self):
     with self.cached_session():
       with tf.name_scope("testVarOpScope1"):
@@ -749,75 +772,6 @@ class VariableScopeWithCustomGetterTest(tf.test.TestCase):
 
 
 class VariableScopeMultithreadedTest(tf.test.TestCase):
-
-  @test_util.run_in_graph_and_eager_modes
-  @run_inside_wrap_function_in_eager_mode
-  def testTwoThreadsDisjointScopeEntry(self):
-
-    def thread_fn(i, graph):
-      with graph.as_default():
-        with tf.compat.v1.variable_scope("foo"):
-          if i == 0:
-            v = tf.compat.v1.get_variable("v", [])
-            self.assertEqual("foo/v:0", v.name)
-          else:
-            # Any thread after the first one should fail to create variable
-            # with the same name.
-            with self.assertRaises(ValueError):
-              tf.compat.v1.get_variable("v", [])
-
-    graph = tf.compat.v1.get_default_graph()
-    threads = [
-        threading.Thread(target=thread_fn, args=(
-            i,
-            graph,
-        )) for i in range(2)
-    ]
-
-    threads[0].start()
-    # Allow thread 0 to finish before starting thread 1.
-    threads[0].join()
-    threads[1].start()
-    threads[1].join()
-
-  @test_util.run_in_graph_and_eager_modes
-  @run_inside_wrap_function_in_eager_mode
-  def testTwoThreadsNestedScopeEntry(self):
-
-    def thread_fn(i, graph, run_event, pause_event):
-      with graph.as_default():
-        with tf.compat.v1.variable_scope("foo"):
-          if i == 0:
-            v = tf.compat.v1.get_variable("v", [])
-            self.assertEqual("foo/v:0", v.name)
-          else:
-            # Any thread after the first one should fail to create variable
-            # with the same name.
-            with self.assertRaises(ValueError):
-              tf.compat.v1.get_variable("v", [])
-          pause_event.set()
-          run_event.wait()
-
-    graph = tf.compat.v1.get_default_graph()
-    run_events = [threading.Event() for _ in range(2)]
-    pause_events = [threading.Event() for _ in range(2)]
-    threads = [
-        threading.Thread(
-            target=thread_fn, args=(i, graph, run_events[i], pause_events[i]))
-        for i in range(2)
-    ]
-
-    # Start first thread.
-    threads[0].start()
-    pause_events[0].wait()
-    # Start next thread once the first thread has paused.
-    threads[1].start()
-    pause_events[1].wait()
-    # Resume both threads.
-    run_events[0].set()
-    run_events[1].set()
-    threads[0].join()
-    threads[1].join()
 
   @test_util.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
