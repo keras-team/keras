@@ -1607,7 +1607,7 @@ class TrainingTest(keras_parameterized.TestCase):
     outputs = layers_module.Dense(1)(inputs)
     model = MyModel(inputs, outputs)
     model.add_loss(tf.reduce_sum(outputs))
-    model.compile('sgd', 'mse')
+    model.compile('sgd')
     model.fit(x, batch_size=batch_size)
     model.evaluate(x, batch_size=batch_size)
     model.predict(x, batch_size=batch_size)
@@ -1703,6 +1703,31 @@ class TrainingTest(keras_parameterized.TestCase):
 
 
 class TestExceptionsAndWarnings(keras_parameterized.TestCase):
+
+  @keras_parameterized.run_all_keras_modes
+  @keras_parameterized.run_with_all_model_types
+  def test_fit_on_no_output(self):
+    inputs = layers_module.Input((3,))
+    outputs = layers_module.Dense(2)(inputs)
+    model = training_module.Model(inputs, outputs)
+    model.compile('rmsprop', 'mse')
+    x = np.zeros((32, 3))
+    with self.assertRaisesRegex(TypeError, 'Target value is missing..*'):
+      model.fit(x)
+
+  @keras_parameterized.run_all_keras_modes
+  @keras_parameterized.run_with_all_model_types
+  def test_fit_on_wrong_output_type(self):
+    inputs1 = layers_module.Input((3,), name='a')
+    inputs2 = layers_module.Input((3,), name='b')
+    x = layers_module.Concatenate()([inputs1, inputs2])
+    outputs = layers_module.Dense(2, name='c')(x)
+    model = training_module.Model([inputs1, inputs2], outputs)
+    model.compile('rmsprop', 'mse')
+    x = np.zeros((32, 3))
+    y = np.zeros((32, 2))
+    with self.assertRaisesRegex(TypeError, 'Target value is missing..*'):
+      model.fit({'a': x, 'b': x, 'c': y})
 
   @keras_parameterized.run_all_keras_modes
   def test_compile_warning_for_loss_missing_output(self):

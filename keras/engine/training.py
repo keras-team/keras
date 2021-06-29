@@ -782,6 +782,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       values of the `Model`'s metrics are returned. Example:
       `{'loss': 0.2, 'accuracy': 0.7}`.
 
+    Raises:
+      TypeError: In a situation where a model is compiled with loss and no
+      target is given.
+
     """
     # These are the only transformations `Model.fit` applies to user-input
     # data when a `tf.data.Dataset` is provided.
@@ -792,6 +796,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       y_pred = self(x, training=True)
       loss = self.compiled_loss(
           y, y_pred, sample_weight, regularization_losses=self.losses)
+    if self.loss and y is None:
+      raise TypeError(
+          'Target value is missing. Please ensure `y` value is set '
+          'in `Model.fit()` or `x` contains `data` and target value in `Model.fit()`.'
+      )
     # Run backwards pass.
     self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
     self.compiled_metrics.update_state(y, y_pred, sample_weight)
