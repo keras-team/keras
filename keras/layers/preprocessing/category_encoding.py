@@ -32,7 +32,8 @@ MULTI_HOT = "multi_hot"
 COUNT = "count"
 
 
-@keras_export("keras.layers.experimental.preprocessing.CategoryEncoding")
+@keras_export("keras.layers.CategoryEncoding",
+              "keras.layers.experimental.preprocessing.CategoryEncoding")
 class CategoryEncoding(base_layer.Layer):
   """Category encoding layer.
 
@@ -40,13 +41,13 @@ class CategoryEncoding(base_layer.Layer):
   when the total number of tokens are known in advance. It accepts integer
   values as inputs, and it outputs a dense representation of those
   inputs. For integer inputs where the total number of tokens is not known,
-  use instead `tf.keras.layers.experimental.preprocessing.IntegerLookup`.
+  use instead `tf.keras.layers.IntegerLookup`.
 
   Examples:
 
   **One-hot encoding data**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.CategoryEncoding(
+  >>> layer = tf.keras.layers.CategoryEncoding(
   ...           num_tokens=4, output_mode="one_hot")
   >>> layer([3, 2, 0, 1])
   <tf.Tensor: shape=(4, 4), dtype=float32, numpy=
@@ -57,7 +58,7 @@ class CategoryEncoding(base_layer.Layer):
 
   **Multi-hot encoding data**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.CategoryEncoding(
+  >>> layer = tf.keras.layers.CategoryEncoding(
   ...           num_tokens=4, output_mode="multi_hot")
   >>> layer([[0, 1], [0, 0], [1, 2], [3, 1]])
   <tf.Tensor: shape=(4, 4), dtype=float32, numpy=
@@ -68,7 +69,7 @@ class CategoryEncoding(base_layer.Layer):
 
   **Using weighted inputs in `"count"` mode**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.CategoryEncoding(
+  >>> layer = tf.keras.layers.CategoryEncoding(
   ...           num_tokens=4, output_mode="count")
   >>> count_weights = np.array([[.1, .2], [.1, .1], [.2, .3], [.4, .2]])
   >>> layer([[0, 1], [0, 0], [1, 2], [3, 1]], count_weights=count_weights)
@@ -179,7 +180,7 @@ class CategoryEncoding(base_layer.Layer):
       if tf_utils.is_sparse(inputs):
         return tf.sparse.expand_dims(inputs, axis)
       else:
-        return tf.compat.v1.expand_dims(inputs, axis)
+        return tf.expand_dims(inputs, axis)
 
     original_shape = inputs.shape
     # In all cases, we should uprank scalar input to a single sample.
@@ -241,7 +242,7 @@ def sparse_bincount(inputs, out_depth, binary_output, count_weights=None):
     output_shape = (out_depth,)
   else:
     result = tf.cast(result, backend.floatx())
-    batch_size = tf.compat.v1.shape(result)[0]
+    batch_size = tf.shape(result)[0]
     output_shape = (batch_size, out_depth)
   result = tf.SparseTensor(
       indices=result.indices,

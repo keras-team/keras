@@ -123,10 +123,10 @@ class BaseDenseAttention(Layer):
         scores -= 1.e9 * tf.cast(padding_mask, dtype=scores.dtype)
     if training is None:
       training = backend.learning_phase()
-    weights = tf.compat.v1.math.softmax(scores)
+    weights = tf.nn.softmax(scores)
 
     def dropped_weights():
-      return tf.compat.v1.nn.dropout(weights, rate=self.dropout)
+      return tf.nn.dropout(weights, rate=self.dropout)
 
     weights = control_flow_util.smart_cond(training, dropped_weights,
                                            lambda: tf.identity(weights))
@@ -147,15 +147,15 @@ class BaseDenseAttention(Layer):
     scores = self._calculate_scores(query=q, key=k)
     if v_mask is not None:
       # Mask of shape [batch_size, 1, Tv].
-      v_mask = tf.compat.v1.expand_dims(v_mask, axis=-2)
+      v_mask = tf.expand_dims(v_mask, axis=-2)
     if self.causal:
       # Creates a lower triangular mask, so position i cannot attend to
       # positions j>i. This prevents the flow of information from the future
       # into the past.
-      scores_shape = tf.compat.v1.shape(scores)
+      scores_shape = tf.shape(scores)
       # causal_mask_shape = [1, Tq, Tv].
       causal_mask_shape = tf.concat(
-          [tf.compat.v1.ones_like(scores_shape[:-2]), scores_shape[-2:]],
+          [tf.ones_like(scores_shape[:-2]), scores_shape[-2:]],
           axis=0)
       causal_mask = _lower_triangular_mask(causal_mask_shape)
     else:
@@ -165,7 +165,7 @@ class BaseDenseAttention(Layer):
         scores=scores, value=v, scores_mask=scores_mask, training=training)
     if q_mask is not None:
       # Mask of shape [batch_size, Tq, 1].
-      q_mask = tf.compat.v1.expand_dims(q_mask, axis=-1)
+      q_mask = tf.expand_dims(q_mask, axis=-1)
       result *= tf.cast(q_mask, dtype=result.dtype)
     if return_attention_scores:
       return result, attention_scores
@@ -322,7 +322,7 @@ class Attention(BaseDenseAttention):
       self.scale = self.add_weight(
           name='scale',
           shape=(),
-          initializer=tf.compat.v1.ones_initializer(),
+          initializer='ones',
           dtype=self.dtype,
           trainable=True)
     else:
@@ -357,10 +357,10 @@ class AdditiveAttention(BaseDenseAttention):
   shape `[batch_size, Tv, dim]` and `key` tensor of shape
   `[batch_size, Tv, dim]`. The calculation follows the steps:
 
-  1. Reshape `query` and `value` into shapes `[batch_size, Tq, 1, dim]`
+  1. Reshape `query` and `key` into shapes `[batch_size, Tq, 1, dim]`
      and `[batch_size, 1, Tv, dim]` respectively.
   2. Calculate scores with shape `[batch_size, Tq, Tv]` as a non-linear
-     sum: `scores = tf.reduce_sum(tf.tanh(query + value), axis=-1)`
+     sum: `scores = tf.reduce_sum(tf.tanh(query + key), axis=-1)`
   3. Use scores to calculate a distribution with shape
      `[batch_size, Tq, Tv]`: `distribution = tf.nn.softmax(scores)`.
   4. Use `distribution` to create a linear combination of `value` with
@@ -459,13 +459,12 @@ class AdditiveAttention(BaseDenseAttention):
   def build(self, input_shape):
     v_shape = tf.TensorShape(input_shape[1])
     dim = v_shape[-1]
-    if isinstance(dim, tf.compat.v1.Dimension):
-      dim = dim.value
+    dim = tf.compat.dimension_value(dim)
     if self.use_scale:
       self.scale = self.add_weight(
           name='scale',
           shape=[dim],
-          initializer=tf.compat.v1.glorot_uniform_initializer(),
+          initializer='glorot_uniform',
           dtype=self.dtype,
           trainable=True)
     else:
@@ -483,9 +482,9 @@ class AdditiveAttention(BaseDenseAttention):
     """
     # Reshape tensors to enable broadcasting.
     # Reshape into [batch_size, Tq, 1, dim].
-    q_reshaped = tf.compat.v1.expand_dims(query, axis=-2)
+    q_reshaped = tf.expand_dims(query, axis=-2)
     # Reshape into [batch_size, 1, Tv, dim].
-    k_reshaped = tf.compat.v1.expand_dims(key, axis=-3)
+    k_reshaped = tf.expand_dims(key, axis=-3)
     if self.use_scale:
       scale = self.scale
     else:

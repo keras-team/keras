@@ -2,7 +2,6 @@ path: "tensorflow.keras.layers.experimental.preprocessing.StringLookup"
 tf_class {
   is_instance: "<class \'keras.layers.preprocessing.string_lookup.StringLookup\'>"
   is_instance: "<class \'keras.layers.preprocessing.index_lookup.IndexLookup\'>"
-  is_instance: "<class \'keras.engine.base_preprocessing_layer.CombinerPreprocessingLayer\'>"
   is_instance: "<class \'keras.engine.base_preprocessing_layer.PreprocessingLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
@@ -99,10 +98,6 @@ tf_class {
     mtype: "<type \'property\'>"
   }
   member {
-    name: "streaming"
-    mtype: "<type \'property\'>"
-  }
-  member {
     name: "submodules"
     mtype: "<type \'property\'>"
   }
@@ -144,7 +139,7 @@ tf_class {
   }
   member_method {
     name: "adapt"
-    argspec: "args=[\'self\', \'data\', \'reset_state\'], varargs=None, keywords=None, defaults=[\'True\'], "
+    argspec: "args=[\'self\', \'data\', \'batch_size\', \'steps\'], varargs=None, keywords=None, defaults=[\'None\', \'None\'], "
   }
   member_method {
     name: "add_loss"
@@ -164,7 +159,7 @@ tf_class {
   }
   member_method {
     name: "add_weight"
-    argspec: "args=[\'self\', \'name\', \'shape\', \'dtype\', \'initializer\', \'regularizer\', \'trainable\', \'constraint\', \'use_resource\', \'synchronization\', \'aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'VariableSynchronization.AUTO\', \'VariableAggregation.NONE\'], "
+    argspec: "args=[\'self\', \'name\', \'shape\', \'dtype\', \'initializer\', \'regularizer\', \'trainable\', \'constraint\', \'use_resource\', \'synchronization\', \'aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'VariableSynchronization.AUTO\', \'VariableAggregationV2.NONE\'], "
   }
   member_method {
     name: "apply"
@@ -253,10 +248,6 @@ tf_class {
   member_method {
     name: "make_adapt_function"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
-  }
-  member_method {
-    name: "merge_state"
-    argspec: "args=[\'self\', \'layers\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "reset_state"

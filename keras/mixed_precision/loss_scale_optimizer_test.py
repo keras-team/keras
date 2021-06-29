@@ -310,7 +310,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         rep_id = (tf.distribute.get_replica_context()
                   .replica_id_in_sync_group)
         # The last element of last replica's gradient is NaN.
-        return tf.compat.v1.cond(
+        return tf.cond(
             tf.constant(rep_id == 0), lambda: var * 2.,
             lambda: var * tf.constant([1., float('NaN')]))
       run_fn = lambda: opt.minimize(loss, var_list=[var])

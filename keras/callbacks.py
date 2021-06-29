@@ -482,8 +482,8 @@ class CallbackList:
     """Calls the `on_train_begin` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -493,8 +493,8 @@ class CallbackList:
     """Calls the `on_train_end` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -515,8 +515,8 @@ class CallbackList:
     """Calls the `on_test_end` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -537,8 +537,8 @@ class CallbackList:
     """Calls the `on_predict_end` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -695,9 +695,8 @@ class Callback:
 
     Args:
         batch: Integer, index of batch within the current epoch.
-        logs: Dict, contains the return value of `model.train_step`. Typically,
-          the values of the `Model`'s metrics are returned.  Example:
-          `{'loss': 0.2, 'accuracy': 0.7}`.
+        logs: Dict. Currently no data is passed to this argument for this method
+          but that may change in the future.
     """
     # For backwards compatibility.
     self.on_batch_begin(batch, logs=logs)
@@ -736,9 +735,8 @@ class Callback:
 
     Args:
         batch: Integer, index of batch within the current epoch.
-        logs: Dict, contains the return value of `model.test_step`. Typically,
-          the values of the `Model`'s metrics are returned.  Example:
-          `{'loss': 0.2, 'accuracy': 0.7}`.
+        logs: Dict. Currently no data is passed to this argument for this method
+          but that may change in the future.
     """
 
   @doc_controls.for_subclass_implementers
@@ -773,9 +771,8 @@ class Callback:
 
     Args:
         batch: Integer, index of batch within the current epoch.
-        logs: Dict, contains the return value of `model.predict_step`,
-          it typically returns a dict with a key 'outputs' containing
-          the model's outputs.
+        logs: Dict. Currently no data is passed to this argument for this method
+          but that may change in the future.
     """
 
   @doc_controls.for_subclass_implementers
@@ -2004,7 +2001,7 @@ def keras_model_summary(name, data, step=None):
 
   with tf.summary.experimental.summary_scope(name, 'graph_keras_model',
                                     [data, step]) as (tag, _):
-    with tf.compat.v1.device('cpu:0'):
+    with tf.device('cpu:0'):
       tensor = tf.constant(json_string, dtype=tf.string)
     return tf.summary.write(
         tag=tag, tensor=tensor, step=step, metadata=summary_metadata)
@@ -2521,20 +2518,20 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   def _log_weight_as_image(self, weight, weight_name, epoch):
     """Logs a weight as a TensorBoard image."""
-    w_img = tf.compat.v1.squeeze(weight)
+    w_img = tf.squeeze(weight)
     shape = backend.int_shape(w_img)
     if len(shape) == 1:  # Bias case
       w_img = tf.reshape(w_img, [1, shape[0], 1, 1])
     elif len(shape) == 2:  # Dense layer kernel case
       if shape[0] > shape[1]:
-        w_img = tf.compat.v1.transpose(w_img)
+        w_img = tf.transpose(w_img)
         shape = backend.int_shape(w_img)
       w_img = tf.reshape(w_img, [1, shape[0], shape[1], 1])
     elif len(shape) == 3:  # ConvNet case
       if backend.image_data_format() == 'channels_last':
         # Switch to channels_first to display every kernel as a separate
         # image.
-        w_img = tf.compat.v1.transpose(w_img, perm=[2, 0, 1])
+        w_img = tf.transpose(w_img, perm=[2, 0, 1])
         shape = backend.int_shape(w_img)
       w_img = tf.reshape(w_img, [shape[0], shape[1], shape[2], 1])
 

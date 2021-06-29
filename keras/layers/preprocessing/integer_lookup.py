@@ -14,15 +14,20 @@
 # ==============================================================================
 """Keras string lookup preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+# pylint: disable=g-classes-have-attributes
+
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup
-from keras.layers.preprocessing import table_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.layers.experimental.preprocessing.IntegerLookup", v1=[])
+@keras_export(
+    "keras.layers.IntegerLookup",
+    "keras.layers.experimental.preprocessing.IntegerLookup",
+    v1=[])
 class IntegerLookup(index_lookup.IndexLookup):
   """Reindex integer inputs to be in a contiguous range, via a dict lookup.
 
@@ -70,10 +75,11 @@ class IntegerLookup(index_lookup.IndexLookup):
       If set to None, no mask term will be added. Defaults to None.
     oov_token: Only used when `invert` is True. The token to return for OOV
       indices. Defaults to -1.
-    vocabulary: An optional list of integer tokens, or a path to a text file
-      containing a vocabulary to load into this layer. The file should contain
-      one integer token per line. If the list or file contains the same token
-      multiple times, an error will be thrown.
+    vocabulary: Optional. Either an array of integers or a string path to a text
+      file. If passing an array, can pass a tuple, list, 1D numpy array, or 1D
+      tensor containing the integer vocbulary terms. If passing a file path, the
+      file should contain one line per term in the vocabulary. If this argument
+      is set, there is no need to `adapt` the layer.
     invert: Only valid when `output_mode` is `"int"`. If True, this layer will
       map indices to vocabulary items instead of mapping vocabulary items to
       indices. Default to False.
@@ -114,7 +120,7 @@ class IntegerLookup(index_lookup.IndexLookup):
 
   >>> vocab = [12, 36, 1138, 42]
   >>> data = tf.constant([[12, 1138, 42], [42, 1000, 36]])  # Note OOV tokens
-  >>> layer = IntegerLookup(vocabulary=vocab)
+  >>> layer = tf.keras.layers.IntegerLookup(vocabulary=vocab)
   >>> layer(data)
   <tf.Tensor: shape=(2, 3), dtype=int64, numpy=
   array([[1, 3, 4],
@@ -126,7 +132,7 @@ class IntegerLookup(index_lookup.IndexLookup):
   the dataset.
 
   >>> data = tf.constant([[12, 1138, 42], [42, 1000, 36]])
-  >>> layer = IntegerLookup()
+  >>> layer = tf.keras.layers.IntegerLookup()
   >>> layer.adapt(data)
   >>> layer.get_vocabulary()
   [-1, 42, 1138, 1000, 36, 12]
@@ -136,7 +142,7 @@ class IntegerLookup(index_lookup.IndexLookup):
   by inverse sort order.
 
   >>> data = tf.constant([[12, 1138, 42], [42, 1000, 36]])
-  >>> layer = IntegerLookup()
+  >>> layer = tf.keras.layers.IntegerLookup()
   >>> layer.adapt(data)
   >>> layer(data)
   <tf.Tensor: shape=(2, 3), dtype=int64, numpy=
@@ -153,7 +159,7 @@ class IntegerLookup(index_lookup.IndexLookup):
 
   >>> vocab = [12, 36, 1138, 42]
   >>> data = tf.constant([[12, 1138, 42], [37, 1000, 36]])
-  >>> layer = IntegerLookup(vocabulary=vocab, num_oov_indices=2)
+  >>> layer = tf.keras.layers.IntegerLookup(vocabulary=vocab, num_oov_indices=2)
   >>> layer(data)
   <tf.Tensor: shape=(2, 3), dtype=int64, numpy=
   array([[2, 4, 5],
@@ -171,7 +177,8 @@ class IntegerLookup(index_lookup.IndexLookup):
 
   >>> vocab = [12, 36, 1138, 42]
   >>> data = tf.constant([12, 36, 1138, 42, 7]) # Note OOV tokens
-  >>> layer = IntegerLookup(vocabulary=vocab, output_mode='one_hot')
+  >>> layer = tf.keras.layers.IntegerLookup(
+  ...     vocabulary=vocab, output_mode='one_hot')
   >>> layer(data)
   <tf.Tensor: shape=(5, 5), dtype=float32, numpy=
     array([[0., 1., 0., 0., 0.],
@@ -187,7 +194,8 @@ class IntegerLookup(index_lookup.IndexLookup):
 
   >>> vocab = [12, 36, 1138, 42]
   >>> data = tf.constant([[12, 1138, 42, 42], [42, 7, 36, 7]]) # Note OOV tokens
-  >>> layer = IntegerLookup(vocabulary=vocab, output_mode='multi_hot')
+  >>> layer = tf.keras.layers.IntegerLookup(
+  ...     vocabulary=vocab, output_mode='multi_hot')
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0., 1., 0., 1., 1.],
@@ -200,7 +208,8 @@ class IntegerLookup(index_lookup.IndexLookup):
 
   >>> vocab = [12, 36, 1138, 42]
   >>> data = tf.constant([[12, 1138, 42, 42], [42, 7, 36, 7]]) # Note OOV tokens
-  >>> layer = IntegerLookup(vocabulary=vocab, output_mode='count')
+  >>> layer = tf.keras.layers.IntegerLookup(
+  ...     vocabulary=vocab, output_mode='count')
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0., 1., 0., 1., 2.],
@@ -219,7 +228,7 @@ class IntegerLookup(index_lookup.IndexLookup):
   >>> vocab = [12, 36, 1138, 42]
   >>> idf_weights = [0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([[12, 1138, 42, 42], [42, 7, 36, 7]]) # Note OOV tokens
-  >>> layer = IntegerLookup(output_mode='tf_idf')
+  >>> layer = tf.keras.layers.IntegerLookup(output_mode='tf_idf')
   >>> layer.set_vocabulary(vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
@@ -232,7 +241,7 @@ class IntegerLookup(index_lookup.IndexLookup):
   >>> vocab = [-1, 12, 36, 1138, 42]
   >>> idf_weights = [0.9, 0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([[12, 1138, 42, 42], [42, 7, 36, 7]]) # Note OOV tokens
-  >>> layer = IntegerLookup(output_mode='tf_idf')
+  >>> layer = tf.keras.layers.IntegerLookup(output_mode='tf_idf')
   >>> layer.set_vocabulary(vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
@@ -251,7 +260,7 @@ class IntegerLookup(index_lookup.IndexLookup):
 
   >>> vocab = [12, 36, 1138, 42]
   >>> data = tf.constant([[1, 3, 4], [4, 0, 2]])
-  >>> layer = IntegerLookup(vocabulary=vocab, invert=True)
+  >>> layer = tf.keras.layers.IntegerLookup(vocabulary=vocab, invert=True)
   >>> layer(data)
   <tf.Tensor: shape=(2, 3), dtype=int64, numpy=
   array([[  12, 1138,   42],
@@ -267,8 +276,9 @@ class IntegerLookup(index_lookup.IndexLookup):
 
   >>> vocab = [12, 36, 1138, 42]
   >>> data = tf.constant([[12, 1138, 42], [42, 1000, 36]])
-  >>> layer = IntegerLookup(vocabulary=vocab)
-  >>> i_layer = IntegerLookup(vocabulary=layer.get_vocabulary(), invert=True)
+  >>> layer = tf.keras.layers.IntegerLookup(vocabulary=vocab)
+  >>> i_layer = tf.keras.layers.IntegerLookup(
+  ...     vocabulary=layer.get_vocabulary(), invert=True)
   >>> int_data = layer(data)
   >>> i_layer(int_data)
   <tf.Tensor: shape=(2, 3), dtype=int64, numpy=
@@ -332,6 +342,10 @@ class IntegerLookup(index_lookup.IndexLookup):
           "num_oov_indices must be greater than or equal to 0. You passed %s" %
           (num_oov_indices,))
 
+    # Make sure mask and oov are of the dtype we want.
+    mask_token = None if mask_token is None else np.int64(mask_token)
+    oov_token = None if oov_token is None else np.int64(oov_token)
+
     super(IntegerLookup, self).__init__(
         max_tokens=max_tokens,
         num_oov_indices=num_oov_indices,
@@ -344,18 +358,3 @@ class IntegerLookup(index_lookup.IndexLookup):
         pad_to_max_tokens=pad_to_max_tokens,
         **kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell("IntegerLookup").set(True)
-
-  def set_vocabulary(self, vocabulary, idf_weights=None):
-    if isinstance(vocabulary, str):
-      if self.output_mode == index_lookup.TF_IDF:
-        raise RuntimeError(
-            "Setting vocabulary directly from a file is not "
-            "supported in TF-IDF mode, since this layer cannot "
-            "read files containing TF-IDF weight data. Please "
-            "read the file using Python and set the vocabulary "
-            "and weights by passing lists or arrays to the "
-            "set_vocabulary function's `vocabulary` and `idf_weights` "
-            "args.")
-      vocabulary = table_utils.get_vocabulary_from_file(vocabulary)
-      vocabulary = [int(v) for v in vocabulary]
-    super().set_vocabulary(vocabulary, idf_weights=idf_weights)

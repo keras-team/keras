@@ -349,7 +349,7 @@ class TensorLikeDataAdapter(DataAdapter):
     ))
 
     def grab_batch(i, data):
-      return tf.nest.map_structure(lambda d: tf.compat.v1.gather(d, i, axis=0), data)
+      return tf.nest.map_structure(lambda d: tf.gather(d, i, axis=0), data)
 
     dataset = dataset.map(
         grab_batch, num_parallel_calls=tf.data.AUTOTUNE)

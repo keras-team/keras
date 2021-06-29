@@ -54,9 +54,9 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.function
     def optimize():
-      with tf.compat.v1.device(distribution.extended.worker_devices[0]):
+      with tf.device(distribution.extended.worker_devices[0]):
         v1 = tf.convert_to_tensor([1., 1.])
-      with tf.compat.v1.device(distribution.extended.worker_devices[1]):
+      with tf.device(distribution.extended.worker_devices[1]):
         v2 = tf.convert_to_tensor([2., 2.])
       grads = PerReplica([v1, v2])
       def step_fn(grads):

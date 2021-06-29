@@ -98,7 +98,7 @@ def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
     # Try creating dir if not exist
     dirpath = os.path.dirname(filepath)
     if not os.path.exists(dirpath):
-      tf.compat.v1.gfile.MakeDirs(dirpath)
+      tf.io.gfile.makedirs(dirpath)
 
     f = h5py.File(filepath, mode='w')
     opened_new_file = True

@@ -81,7 +81,7 @@ class Reduction(Layer):
     # TODO(momernick): Add checks for this and a decent error message if the
     # weight shape isn't compatible.
     if weights.shape.rank + 1 == inputs.shape.rank:
-      weights = tf.compat.v1.expand_dims(weights, -1)
+      weights = tf.expand_dims(weights, -1)
 
     weighted_inputs = tf.multiply(inputs, weights)
 

@@ -95,6 +95,8 @@ def count_params(weights):
       The total number of scalars composing the weights
   """
   unique_weights = {id(w): w for w in weights}.values()
+  # Ignore TrackableWeightHandlers, which will not have a shape defined.
+  unique_weights = [w for w in unique_weights if hasattr(w, 'shape')]
   weight_shapes = [w.shape.as_list() for w in unique_weights]
   standardized_weight_shapes = [
       [0 if w_i is None else w_i for w_i in w] for w in weight_shapes

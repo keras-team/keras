@@ -20,11 +20,13 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup
-from keras.layers.preprocessing import table_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.layers.experimental.preprocessing.StringLookup", v1=[])
+@keras_export(
+    "keras.layers.StringLookup",
+    "keras.layers.experimental.preprocessing.StringLookup",
+    v1=[])
 class StringLookup(index_lookup.IndexLookup):
   """Maps strings from a vocabulary to integer indices.
 
@@ -69,10 +71,11 @@ class StringLookup(index_lookup.IndexLookup):
       no mask term will be added. Defaults to `None`.
     oov_token: Only used when `invert` is True. The token to return for OOV
       indices. Defaults to `"[UNK]"`.
-    vocabulary: An optional list of tokens, or a path to a text file containing
-      a vocabulary to load into this layer. The file should contain one token
-      per line. If the list or file contains the same token multiple times, an
-      error will be thrown.
+    vocabulary: Optional. Either an array of strings or a string path to a text
+      file. If passing an array, can pass a tuple, list, 1D numpy array, or 1D
+      tensor containing the string vocbulary terms. If passing a file path, the
+      file should contain one line per term in the vocabulary. If this argument
+      is set, there is no need to `adapt` the layer.
     invert: Only valid when `output_mode` is `"int"`. If True, this layer will
       map indices to vocabulary items instead of mapping vocabulary items to
       indices. Default to False.
@@ -113,7 +116,7 @@ class StringLookup(index_lookup.IndexLookup):
 
   >>> vocab = ["a", "b", "c", "d"]
   >>> data = tf.constant([["a", "c", "d"], ["d", "z", "b"]])
-  >>> layer = StringLookup(vocabulary=vocab)
+  >>> layer = tf.keras.layers.StringLookup(vocabulary=vocab)
   >>> layer(data)
   <tf.Tensor: shape=(2, 3), dtype=int64, numpy=
   array([[1, 3, 4],
@@ -125,7 +128,7 @@ class StringLookup(index_lookup.IndexLookup):
   the dataset.
 
   >>> data = tf.constant([["a", "c", "d"], ["d", "z", "b"]])
-  >>> layer = StringLookup()
+  >>> layer = tf.keras.layers.StringLookup()
   >>> layer.adapt(data)
   >>> layer.get_vocabulary()
   ['[UNK]', 'd', 'z', 'c', 'b', 'a']
@@ -135,7 +138,7 @@ class StringLookup(index_lookup.IndexLookup):
   (`"d"`, which has 2 occurrences, is first) then by inverse sort order.
 
   >>> data = tf.constant([["a", "c", "d"], ["d", "z", "b"]])
-  >>> layer = StringLookup()
+  >>> layer = tf.keras.layers.StringLookup()
   >>> layer.adapt(data)
   >>> layer(data)
   <tf.Tensor: shape=(2, 3), dtype=int64, numpy=
@@ -151,7 +154,7 @@ class StringLookup(index_lookup.IndexLookup):
 
   >>> vocab = ["a", "b", "c", "d"]
   >>> data = tf.constant([["a", "c", "d"], ["m", "z", "b"]])
-  >>> layer = StringLookup(vocabulary=vocab, num_oov_indices=2)
+  >>> layer = tf.keras.layers.StringLookup(vocabulary=vocab, num_oov_indices=2)
   >>> layer(data)
   <tf.Tensor: shape=(2, 3), dtype=int64, numpy=
   array([[2, 4, 5],
@@ -169,7 +172,8 @@ class StringLookup(index_lookup.IndexLookup):
 
   >>> vocab = ["a", "b", "c", "d"]
   >>> data = tf.constant(["a", "b", "c", "d", "z"])
-  >>> layer = StringLookup(vocabulary=vocab, output_mode='one_hot')
+  >>> layer = tf.keras.layers.StringLookup(
+  ...     vocabulary=vocab, output_mode='one_hot')
   >>> layer(data)
   <tf.Tensor: shape=(5, 5), dtype=float32, numpy=
     array([[0., 1., 0., 0., 0.],
@@ -185,7 +189,8 @@ class StringLookup(index_lookup.IndexLookup):
 
   >>> vocab = ["a", "b", "c", "d"]
   >>> data = tf.constant([["a", "c", "d", "d"], ["d", "z", "b", "z"]])
-  >>> layer = StringLookup(vocabulary=vocab, output_mode='multi_hot')
+  >>> layer = tf.keras.layers.StringLookup(
+  ...     vocabulary=vocab, output_mode='multi_hot')
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0., 1., 0., 1., 1.],
@@ -198,7 +203,8 @@ class StringLookup(index_lookup.IndexLookup):
 
   >>> vocab = ["a", "b", "c", "d"]
   >>> data = tf.constant([["a", "c", "d", "d"], ["d", "z", "b", "z"]])
-  >>> layer = StringLookup(vocabulary=vocab, output_mode='count')
+  >>> layer = tf.keras.layers.StringLookup(
+  ...     vocabulary=vocab, output_mode='count')
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0., 1., 0., 1., 2.],
@@ -217,7 +223,7 @@ class StringLookup(index_lookup.IndexLookup):
   >>> vocab = ["a", "b", "c", "d"]
   >>> idf_weights = [0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([["a", "c", "d", "d"], ["d", "z", "b", "z"]])
-  >>> layer = StringLookup(output_mode="tf_idf")
+  >>> layer = tf.keras.layers.StringLookup(output_mode="tf_idf")
   >>> layer.set_vocabulary(vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
@@ -230,7 +236,7 @@ class StringLookup(index_lookup.IndexLookup):
   >>> vocab = ["[UNK]", "a", "b", "c", "d"]
   >>> idf_weights = [0.9, 0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([["a", "c", "d", "d"], ["d", "z", "b", "z"]])
-  >>> layer = StringLookup(output_mode="tf_idf")
+  >>> layer = tf.keras.layers.StringLookup(output_mode="tf_idf")
   >>> layer.set_vocabulary(vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
@@ -249,7 +255,7 @@ class StringLookup(index_lookup.IndexLookup):
 
   >>> vocab = ["a", "b", "c", "d"]
   >>> data = tf.constant([[1, 3, 4], [4, 0, 2]])
-  >>> layer = StringLookup(vocabulary=vocab, invert=True)
+  >>> layer = tf.keras.layers.StringLookup(vocabulary=vocab, invert=True)
   >>> layer(data)
   <tf.Tensor: shape=(2, 3), dtype=string, numpy=
   array([[b'a', b'c', b'd'],
@@ -265,8 +271,8 @@ class StringLookup(index_lookup.IndexLookup):
 
   >>> vocab = ["a", "b", "c", "d"]
   >>> data = tf.constant([["a", "c", "d"], ["d", "z", "b"]])
-  >>> layer = StringLookup(vocabulary=vocab)
-  >>> i_layer = StringLookup(vocabulary=vocab, invert=True)
+  >>> layer = tf.keras.layers.StringLookup(vocabulary=vocab)
+  >>> i_layer = tf.keras.layers.StringLookup(vocabulary=vocab, invert=True)
   >>> int_data = layer(data)
   >>> i_layer(int_data)
   <tf.Tensor: shape=(2, 3), dtype=string, numpy=
@@ -323,20 +329,6 @@ class StringLookup(index_lookup.IndexLookup):
     config = {"encoding": self.encoding}
     base_config = super(StringLookup, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
-
-  def set_vocabulary(self, vocabulary, idf_weights=None):
-    if isinstance(vocabulary, str):
-      if self.output_mode == index_lookup.TF_IDF:
-        raise RuntimeError("Setting vocabulary directly from a file is not "
-                           "supported in TF-IDF mode, since this layer cannot "
-                           "read files containing TF-IDF weight data. Please "
-                           "read the file using Python and set the vocabulary "
-                           "and weights by passing lists or arrays to the "
-                           "set_vocabulary function's `vocabulary` and "
-                           "`idf_weights` args.")
-      vocabulary = table_utils.get_vocabulary_from_file(vocabulary,
-                                                        self.encoding)
-    super().set_vocabulary(vocabulary, idf_weights=idf_weights)
 
   # Overriden methods from IndexLookup.
   def _tensor_vocab_to_numpy(self, vocabulary):

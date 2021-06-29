@@ -53,7 +53,8 @@ def check_fill_mode_and_interpolation(fill_mode, interpolation):
                               '`bilinear` are supported.'.format(interpolation))
 
 
-@keras_export('keras.layers.experimental.preprocessing.Resizing')
+@keras_export('keras.layers.Resizing',
+              'keras.layers.experimental.preprocessing.Resizing')
 class Resizing(base_layer.Layer):
   """Image resizing layer.
 
@@ -118,7 +119,8 @@ class Resizing(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.CenterCrop')
+@keras_export('keras.layers.CenterCrop',
+              'keras.layers.experimental.preprocessing.CenterCrop')
 class CenterCrop(base_layer.Layer):
   """Crop the central portion of the images to target height and width.
 
@@ -146,7 +148,7 @@ class CenterCrop(base_layer.Layer):
 
   def call(self, inputs):
     inputs = tf.convert_to_tensor(inputs)
-    inputs_shape = tf.compat.v1.shape(inputs)
+    inputs_shape = tf.shape(inputs)
     unbatched = inputs.shape.rank == 3
     img_hd = inputs_shape[H_AXIS]
     img_wd = inputs_shape[W_AXIS]
@@ -154,12 +156,12 @@ class CenterCrop(base_layer.Layer):
     img_wd_diff = img_wd - self.target_width
     checks = []
     checks.append(
-        tf.compat.v1.assert_non_negative(
+        tf.debugging.assert_non_negative(
             img_hd_diff,
             message='The crop height {} should not be greater than input '
             'height.'.format(self.target_height)))
     checks.append(
-        tf.compat.v1.assert_non_negative(
+        tf.debugging.assert_non_negative(
             img_wd_diff,
             message='The crop width {} should not be greater than input '
             'width.'.format(self.target_width)))
@@ -190,7 +192,8 @@ class CenterCrop(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomCrop')
+@keras_export('keras.layers.RandomCrop',
+              'keras.layers.experimental.preprocessing.RandomCrop')
 class RandomCrop(base_layer.Layer):
   """Randomly crop the images to target height and width.
 
@@ -232,7 +235,7 @@ class RandomCrop(base_layer.Layer):
 
     def random_cropped_inputs():
       """Cropped inputs with stateless random ops."""
-      shape = tf.compat.v1.shape(inputs)
+      shape = tf.shape(inputs)
       if unbatched:
         crop_size = tf.stack([self.height, self.width, shape[-1]])
       else:
@@ -243,7 +246,7 @@ class RandomCrop(base_layer.Layer):
       with tf.control_dependencies([check]):
         limit = shape - crop_size + 1
         offset = stateless_random_ops.stateless_random_uniform(
-            tf.compat.v1.shape(shape),
+            tf.shape(shape),
             dtype=crop_size.dtype,
             maxval=crop_size.dtype.max,
             seed=self._rng.make_seeds()[:, 0]) % limit
@@ -252,7 +255,7 @@ class RandomCrop(base_layer.Layer):
     # TODO(b/143885775): Share logic with Resize and CenterCrop.
     def resize_and_center_cropped_inputs():
       """Deterministically resize to shorter side and center crop."""
-      input_shape = tf.compat.v1.shape(inputs)
+      input_shape = tf.shape(inputs)
       input_height_t = input_shape[H_AXIS]
       input_width_t = input_shape[W_AXIS]
       ratio_cond = (input_height_t / input_width_t > (self.height / self.width))
@@ -308,7 +311,8 @@ class RandomCrop(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.Rescaling')
+@keras_export('keras.layers.Rescaling',
+              'keras.layers.experimental.preprocessing.Rescaling')
 class Rescaling(base_layer.Layer):
   """Multiply inputs by `scale` and adds `offset`.
 
@@ -362,7 +366,8 @@ VERTICAL = 'vertical'
 HORIZONTAL_AND_VERTICAL = 'horizontal_and_vertical'
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomFlip')
+@keras_export('keras.layers.RandomFlip',
+              'keras.layers.experimental.preprocessing.RandomFlip')
 class RandomFlip(base_layer.Layer):
   """Randomly flip each image horizontally and vertically.
 
@@ -442,7 +447,8 @@ class RandomFlip(base_layer.Layer):
 
 
 # TODO(tanzheny): Add examples, here and everywhere.
-@keras_export('keras.layers.experimental.preprocessing.RandomTranslation')
+@keras_export('keras.layers.RandomTranslation',
+              'keras.layers.experimental.preprocessing.RandomTranslation')
 class RandomTranslation(base_layer.Layer):
   """Randomly translate each image during training.
 
@@ -550,7 +556,7 @@ class RandomTranslation(base_layer.Layer):
 
     def random_translated_inputs():
       """Translated inputs with random ops."""
-      inputs_shape = tf.compat.v1.shape(inputs)
+      inputs_shape = tf.shape(inputs)
       batch_size = inputs_shape[0]
       img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
       img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
@@ -612,7 +618,7 @@ def get_translation_matrix(translations, name=None):
       to `transform`.
   """
   with backend.name_scope(name or 'translation_matrix'):
-    num_translations = tf.compat.v1.shape(translations)[0]
+    num_translations = tf.shape(translations)[0]
     # The translation matrix looks like:
     #     [[1 0 -dx]
     #      [0 1 -dy]
@@ -696,7 +702,7 @@ def transform(images,
   """
   with backend.name_scope(name or 'transform'):
     if output_shape is None:
-      output_shape = tf.compat.v1.shape(images)[1:3]
+      output_shape = tf.shape(images)[1:3]
       if not tf.executing_eagerly():
         output_shape_value = tf.get_static_value(output_shape)
         if output_shape_value is not None:
@@ -748,7 +754,7 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
     y_offset = ((image_height - 1) - (tf.sin(angles) *
                                       (image_width - 1) + tf.cos(angles) *
                                       (image_height - 1))) / 2.0
-    num_angles = tf.compat.v1.shape(angles)[0]
+    num_angles = tf.shape(angles)[0]
     return tf.concat(
         values=[
             tf.cos(angles)[:, None],
@@ -762,7 +768,8 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
         axis=1)
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomRotation')
+@keras_export('keras.layers.RandomRotation',
+              'keras.layers.experimental.preprocessing.RandomRotation')
 class RandomRotation(base_layer.Layer):
   """Randomly rotate each image.
 
@@ -845,7 +852,7 @@ class RandomRotation(base_layer.Layer):
 
     def random_rotated_inputs():
       """Rotated inputs with random ops."""
-      inputs_shape = tf.compat.v1.shape(inputs)
+      inputs_shape = tf.shape(inputs)
       batch_size = inputs_shape[0]
       img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
       img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
@@ -882,7 +889,8 @@ class RandomRotation(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomZoom')
+@keras_export('keras.layers.RandomZoom',
+              'keras.layers.experimental.preprocessing.RandomZoom')
 class RandomZoom(base_layer.Layer):
   """Randomly zoom each image during training.
 
@@ -921,7 +929,7 @@ class RandomZoom(base_layer.Layer):
   Example:
 
   >>> input_img = np.random.random((32, 224, 224, 3))
-  >>> layer = tf.keras.layers.experimental.preprocessing.RandomZoom(.5, .2)
+  >>> layer = tf.keras.layers.RandomZoom(.5, .2)
   >>> out_img = layer(input_img)
   >>> out_img.shape
   TensorShape([32, 224, 224, 3])
@@ -992,7 +1000,7 @@ class RandomZoom(base_layer.Layer):
 
     def random_zoomed_inputs():
       """Zoomed inputs with random ops."""
-      inputs_shape = tf.compat.v1.shape(inputs)
+      inputs_shape = tf.shape(inputs)
       batch_size = inputs_shape[0]
       img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
       img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
@@ -1060,7 +1068,7 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
        where `k = c0 x + c1 y + 1`.
   """
   with backend.name_scope(name or 'zoom_matrix'):
-    num_zooms = tf.compat.v1.shape(zooms)[0]
+    num_zooms = tf.shape(zooms)[0]
     # The zoom matrix looks like:
     #     [[zx 0 0]
     #      [0 zy 0]
@@ -1082,7 +1090,8 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
         axis=1)
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomContrast')
+@keras_export('keras.layers.RandomContrast',
+              'keras.layers.experimental.preprocessing.RandomContrast')
 class RandomContrast(base_layer.Layer):
   """Adjust the contrast of an image or images by a random factor.
 
@@ -1151,7 +1160,8 @@ class RandomContrast(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomHeight')
+@keras_export('keras.layers.RandomHeight',
+              'keras.layers.experimental.preprocessing.RandomHeight')
 class RandomHeight(base_layer.Layer):
   """Randomly vary the height of a batch of images during training.
 
@@ -1216,7 +1226,7 @@ class RandomHeight(base_layer.Layer):
 
     def random_height_inputs():
       """Inputs height-adjusted with random ops."""
-      inputs_shape = tf.compat.v1.shape(inputs)
+      inputs_shape = tf.shape(inputs)
       img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
       img_wd = inputs_shape[W_AXIS]
       height_factor = self._rng.uniform(
@@ -1250,7 +1260,8 @@ class RandomHeight(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomWidth')
+@keras_export('keras.layers.RandomWidth',
+              'keras.layers.experimental.preprocessing.RandomWidth')
 class RandomWidth(base_layer.Layer):
   """Randomly vary the width of a batch of images during training.
 
@@ -1314,7 +1325,7 @@ class RandomWidth(base_layer.Layer):
 
     def random_width_inputs():
       """Inputs width-adjusted with random ops."""
-      inputs_shape = tf.compat.v1.shape(inputs)
+      inputs_shape = tf.shape(inputs)
       img_hd = inputs_shape[H_AXIS]
       img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
       width_factor = self._rng.uniform(

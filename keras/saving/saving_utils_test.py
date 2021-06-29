@@ -104,8 +104,10 @@ class TraceModelCallTest(keras_parameterized.TestCase):
 
     model = testing_utils.get_multi_io_model(branch_a, branch_b)
 
-    input_a_np = np.random.random((10, input_dim)).astype(np.float32)
-    input_b_np = np.random.random((10, input_dim)).astype(np.float32)
+    input_a_ts = tf.constant(
+        np.random.random((10, input_dim)).astype(np.float32))
+    input_b_ts = tf.constant(
+        np.random.random((10, input_dim)).astype(np.float32))
 
     if testing_utils.get_model_type() == 'subclass':
       with self.assertRaisesRegex(ValueError, 'input shapes have not been set'):
@@ -122,8 +124,15 @@ class TraceModelCallTest(keras_parameterized.TestCase):
               epochs=2)
 
     fn = saving_utils.trace_model_call(model)
-    signature_outputs = fn([input_a_np, input_b_np])
-    outputs = model([input_a_np, input_b_np])
+    # tf.function requires that the input structures match when calling a
+    # ConcreteFunction. For some reason V1 models defines the inputs as a list,
+    # while V2 models sets the inputs as a tuple.
+    if (not tf.executing_eagerly() and
+        testing_utils.get_model_type() != 'functional'):
+      signature_outputs = fn([input_a_ts, input_b_ts])
+    else:
+      signature_outputs = fn((input_a_ts, input_b_ts))
+    outputs = model([input_a_ts, input_b_ts])
     if model.output_names:
       expected_outputs = {
           model.output_names[0]: outputs[0],
@@ -140,7 +149,7 @@ class TraceModelCallTest(keras_parameterized.TestCase):
     model_input = {'x': tf.constant([[1.]])}
     model.predict(model_input, steps=1)
     fn = saving_utils.trace_model_call(model)
-    self.assertAllClose({'output_1': [[1.]]}, fn({'x': [[1.]]}))
+    self.assertAllClose({'output_1': [[1.]]}, fn(model_input))
 
     columns = [
         tf.feature_column.numeric_column('x'),
@@ -151,8 +160,7 @@ class TraceModelCallTest(keras_parameterized.TestCase):
                    'y': tf.constant([[2.]])}
     model.predict(model_input, steps=1)
     fn = saving_utils.trace_model_call(model)
-    self.assertAllClose({'output_1': [[1., 2.]]},
-                        fn({'x': [[1.]], 'y': [[2.]]}))
+    self.assertAllClose({'output_1': [[1., 2.]]}, fn(model_input))
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_specify_input_signature(self):
@@ -222,7 +230,7 @@ class TraceModelCallTest(keras_parameterized.TestCase):
     train_step(x, y)
 
     fn = saving_utils.trace_model_call(model)
-    self.assertEqual(fn.input_signature[0].shape.as_list(),
+    self.assertEqual(fn.structured_input_signature[0][0].shape.as_list(),
                      tf.TensorShape([None, 5]).as_list())
 
 

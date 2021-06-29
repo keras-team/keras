@@ -118,7 +118,7 @@ def generate_keras_metadata(saved_nodes, node_paths):
           node_id=node_id,
           node_path=node_path,
           version=versions_pb2.VersionDef(
-              producer=1, min_consumer=1, bad_consumers=[]),
+              producer=2, min_consumer=1, bad_consumers=[]),
           identifier=node._object_identifier,  # pylint: disable=protected-access
           metadata=node._tracking_metadata)  # pylint: disable=protected-access
 

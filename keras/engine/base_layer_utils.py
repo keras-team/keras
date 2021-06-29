@@ -46,7 +46,7 @@ def make_variable(name,
                   use_resource=None,
                   collections=None,
                   synchronization=tf.VariableSynchronization.AUTO,
-                  aggregation=tf.compat.v1.VariableAggregation.NONE,
+                  aggregation=tf.VariableAggregation.NONE,
                   partitioner=None):  # pylint: disable=unused-argument
   """Temporary util to create a variable (relies on `variable_scope.variable`).
 
@@ -105,12 +105,15 @@ def make_variable(name,
       initializer = initializer()
     init_val = functools.partial(initializer, shape, dtype=dtype)
     variable_dtype = dtype.base_dtype
+
+  variable_shape = tf.TensorShape(shape)
+
   if use_resource is None:
     use_resource = True
-
-  # TODO(apassos,rohanj) figure out how to remove collections from here so we
-  # can remove the V1.
-  variable_shape = tf.TensorShape(shape)
+  # In theory, in `use_resource` is True and `collections` is empty
+  # (that is to say, in TF2), we can use tf.Variable.
+  # However, this breaks legacy (Estimator) checkpoints
+  # because it changes variable names. Remove this when V1 is fully deprecated.
   return tf.compat.v1.Variable(
       initial_value=init_val,
       name=name,
@@ -847,21 +850,6 @@ class TrackableWeightHandler(object):
     for idx, tensor in enumerate(weights):
       feed_dict[self._placeholder_tensors[idx]] = tensor
     backend.get_session().run(self._assign_op, feed_dict)
-
-
-class StaticTableHandler(TrackableWeightHandler):
-  """Wrapper for handling weight collection for static hash tables."""
-
-  def __init__(self, getter_lambda):  # pylint: disable=super-init-not-called
-    self._num_tensors = 2
-    self._getter = getter_lambda
-    self._distribute_strategy = tf.distribute.get_strategy()
-
-    def raise_error(_):
-      raise RuntimeError('This layer contains a static lookup table, which '
-                         'cannot be changed via set_weights().')
-
-    self._setter = raise_error
 
 
 def no_ragged_support(inputs, layer_name):

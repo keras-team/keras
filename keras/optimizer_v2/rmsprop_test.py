@@ -541,7 +541,7 @@ class SlotColocationTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.parameters([True, False])
   @test_util.run_gpu_only
   def testRunMinimizeOnGPUForCPUVariables(self, use_resource):
-    with tf.compat.v1.device("/device:CPU:0"):
+    with tf.device("/device:CPU:0"):
       if use_resource:
         var0 = tf.Variable([1.0, 2.0], dtype=tf.float32)
         var1 = tf.Variable([3.0, 4.0], dtype=tf.float32)
@@ -564,7 +564,7 @@ class SlotColocationTest(tf.test.TestCase, parameterized.TestCase):
     # Slot variables are created the first time optimizer is used on some
     # variable. This tests that slot variables will be colocated with the base
     # variable.
-    with tf.compat.v1.device("/device:GPU:0"):
+    with tf.device("/device:GPU:0"):
       # Note that for eager execution, minimize expects a function instead of a
       # Tensor.
       opt_op = opt.minimize(loss, [var0, var1])

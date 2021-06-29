@@ -24,7 +24,8 @@ from tensorflow.python.util.tf_export import keras_export
 # pylint: disable=g-classes-have-attributes
 
 
-@keras_export('keras.layers.experimental.preprocessing.Normalization')
+@keras_export('keras.layers.Normalization',
+              'keras.layers.experimental.preprocessing.Normalization')
 class Normalization(base_preprocessing_layer.PreprocessingLayer):
   """Feature-wise normalization of the data.
 
@@ -62,7 +63,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
   >>> adapt_data = np.array([1., 2., 3., 4., 5.], dtype='float32')
   >>> input_data = np.array([1., 2., 3.], dtype='float32')
-  >>> layer = Normalization(axis=None)
+  >>> layer = tf.keras.layers.Normalization(axis=None)
   >>> layer.adapt(adapt_data)
   >>> layer(input_data)
   <tf.Tensor: shape=(3,), dtype=float32, numpy=
@@ -75,7 +76,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   ...                        [0., 7., 4.],
   ...                        [2., 9., 6.]], dtype='float32')
   >>> input_data = np.array([[0., 7., 4.]], dtype='float32')
-  >>> layer = Normalization(axis=-1)
+  >>> layer = tf.keras.layers.Normalization(axis=-1)
   >>> layer.adapt(adapt_data)
   >>> layer(input_data)
   <tf.Tensor: shape=(1, 3), dtype=float32, numpy=
@@ -84,7 +85,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   Pass the mean and variance directly.
 
   >>> input_data = np.array([[1.], [2.], [3.]], dtype='float32')
-  >>> layer = Normalization(mean=3., variance=2.)
+  >>> layer = tf.keras.layers.Normalization(mean=3., variance=2.)
   >>> layer(input_data)
   <tf.Tensor: shape=(3, 1), dtype=float32, numpy=
   array([[-1.4142135 ],
@@ -93,7 +94,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   """
 
   def __init__(self, axis=-1, mean=None, variance=None, **kwargs):
-    super().__init__(streaming=True, **kwargs)
+    super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Normalization').set(True)
 
     # Standardize `axis` to a tuple.
@@ -162,19 +163,19 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
           name='mean',
           shape=mean_and_var_shape,
           dtype=self.dtype,
-          initializer=tf.compat.v1.zeros_initializer,
+          initializer='zeros',
           trainable=False)
       self.adapt_variance = self.add_weight(
           name='variance',
           shape=mean_and_var_shape,
           dtype=self.dtype,
-          initializer=tf.compat.v1.ones_initializer,
+          initializer='ones',
           trainable=False)
       self.count = self.add_weight(
           name='count',
           shape=(),
           dtype=tf.int64,
-          initializer=tf.compat.v1.zeros_initializer,
+          initializer='zeros',
           trainable=False)
       self.finalize_state()
     else:
@@ -200,9 +201,9 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     data = self._standardize_inputs(data)
     data = tf.cast(data, self.adapt_mean.dtype)
     batch_mean, batch_variance = tf.nn.moments(data, axes=self._reduce_axis)
-    batch_shape = tf.compat.v1.shape(data, out_type=self.count.dtype)
+    batch_shape = tf.shape(data, out_type=self.count.dtype)
     if self._reduce_axis:
-      batch_reduce_shape = tf.compat.v1.gather(batch_shape, self._reduce_axis)
+      batch_reduce_shape = tf.gather(batch_shape, self._reduce_axis)
       batch_count = tf.reduce_prod(batch_reduce_shape)
     else:
       batch_count = 1
@@ -228,9 +229,9 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     if self.input_mean is not None or not self.built:
       return
 
-    self.adapt_mean.assign(tf.compat.v1.zeros_like(self.adapt_mean))
-    self.adapt_variance.assign(tf.compat.v1.ones_like(self.adapt_variance))
-    self.count.assign(tf.compat.v1.zeros_like(self.count))
+    self.adapt_mean.assign(tf.zeros_like(self.adapt_mean))
+    self.adapt_variance.assign(tf.ones_like(self.adapt_variance))
+    self.count.assign(tf.zeros_like(self.count))
 
   def finalize_state(self):
     if self.input_mean is not None or not self.built:

@@ -46,13 +46,13 @@ def summarize(values, epsilon):
 
   values = tf.reshape(values, [-1])
   values = tf.sort(values)
-  elements = tf.cast(tf.compat.v1.size(values), tf.float32)
+  elements = tf.cast(tf.size(values), tf.float32)
   num_buckets = 1. / epsilon
   increment = tf.cast(elements / num_buckets, tf.int32)
   start = increment
   step = tf.maximum(increment, 1)
   boundaries = values[start::step]
-  weights = tf.compat.v1.ones_like(boundaries)
+  weights = tf.ones_like(boundaries)
   weights = weights * tf.cast(step, tf.float32)
   return tf.stack([boundaries, weights])
 
@@ -118,7 +118,8 @@ def get_bin_boundaries(summary, num_bins):
   return compress(summary, 1.0 / num_bins)[0, :-1]
 
 
-@keras_export("keras.layers.experimental.preprocessing.Discretization")
+@keras_export("keras.layers.Discretization",
+              "keras.layers.experimental.preprocessing.Discretization")
 class Discretization(base_preprocessing_layer.PreprocessingLayer):
   """Buckets data into discrete ranges.
 
@@ -148,8 +149,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
 
   Bucketize float values based on provided buckets.
   >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
-  >>> layer = tf.keras.layers.experimental.preprocessing.Discretization(
-  ...          bin_boundaries=[0., 1., 2.])
+  >>> layer = tf.keras.layers.Discretization(bin_boundaries=[0., 1., 2.])
   >>> layer(input)
   <tf.Tensor: shape=(2, 4), dtype=int32, numpy=
   array([[0, 2, 3, 1],
@@ -157,8 +157,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
 
   Bucketize float values based on a number of buckets to compute.
   >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
-  >>> layer = tf.keras.layers.experimental.preprocessing.Discretization(
-  ...          num_bins=4, epsilon=0.01)
+  >>> layer = tf.keras.layers.Discretization(num_bins=4, epsilon=0.01)
   >>> layer.adapt(input)
   >>> layer(input)
   <tf.Tensor: shape=(2, 4), dtype=int32, numpy=
@@ -181,7 +180,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
       elif bin_boundaries is None:
         bin_boundaries = kwargs["bins"]
       del kwargs["bins"]
-    super().__init__(streaming=True, **kwargs)
+    super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell("Discretization").set(
         True)
     if num_bins is not None and num_bins < 0:

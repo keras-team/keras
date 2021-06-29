@@ -70,7 +70,7 @@ def _multiple_ops_in_middle():
 
 def _shape_op_inference():
   inputs = keras.Input(shape=(10,))
-  x = tf.compat.v1.shape(inputs)
+  x = tf.shape(inputs)
   x = tf.ones(x)
   assert x.shape.as_list() == [None, 10]
   outputs = keras.layers.Dense(10)(x)
@@ -79,7 +79,7 @@ def _shape_op_inference():
 
 def _shape_op_known_batch_size():
   inputs = keras.Input(batch_size=2, shape=(10,))
-  x = tf.compat.v1.shape(inputs)
+  x = tf.shape(inputs)
   x = tf.ones(x)
   assert x.shape.as_list() == [2, 10]
   outputs = keras.layers.Dense(10)(x)
@@ -94,7 +94,7 @@ def _shape_op_known_batch_size():
 
 def _shape_op_slice_and_range():
   inputs = keras.Input(shape=(10,))
-  batch_size = tf.compat.v1.shape(inputs)[0]
+  batch_size = tf.shape(inputs)[0]
   x = tf.range(batch_size * 2)
   assert x.shape.as_list() == [None]
   x = tf.reshape(x, (batch_size, 2))
@@ -105,7 +105,7 @@ def _shape_op_slice_and_range():
 
 def _shape_op_slice_and_range_known_dim():
   inputs = keras.Input(batch_size=2, shape=(10,))
-  batch_size = tf.compat.v1.shape(inputs)[0]
+  batch_size = tf.shape(inputs)[0]
   x = tf.range(batch_size * 3)
   assert x.shape.as_list() == [6]
   x = tf.reshape(x, (batch_size, 3))
@@ -125,7 +125,7 @@ def _int32_manipulation_too_big_for_shape():
   # won't crash when manipulating int32 tensors that are too large
   # to represent shapes.
   inputs = keras.Input(batch_size=2, shape=(10,))
-  batch_size = tf.compat.v1.shape(inputs)[0]
+  batch_size = tf.shape(inputs)[0]
   num_features = 3 * 1024 * 16
   x = tf.range(batch_size * num_features, dtype='int32')
   assert x.shape.as_list() == [inputs.shape[0] * num_features]
@@ -146,7 +146,7 @@ def _int32_manipulation_at_max_shape_dims_limit():
   # won't crash when manipulating int32 tensors that are at the limit
   # of the max tensor size Keras can try inferring values for.
   inputs = keras.Input(batch_size=2, shape=(10,))
-  batch_size = tf.compat.v1.shape(inputs)[0]
+  batch_size = tf.shape(inputs)[0]
   num_features = int(keras_tensor._MAX_TENSOR_RANK / int(inputs.shape[0]))
   x = tf.range(batch_size * num_features, dtype='int32')
   assert x.shape.as_list() == [keras_tensor._MAX_TENSOR_RANK]
@@ -739,7 +739,7 @@ class InputInEagerTest(keras_parameterized.TestCase):
   def test_size(self):
     x = keras.Input(shape=(3,))
     self.assertAllEqual(x.get_shape().as_list(), [None, 3])
-    sz = tf.compat.v1.size(x)
+    sz = tf.size(x)
 
     # This is now a graph tensor, and should be able to continue in graphland
     self.assertIn('Size', sz.name)

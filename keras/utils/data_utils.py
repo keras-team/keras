@@ -24,6 +24,7 @@ import functools
 import hashlib
 import multiprocessing.dummy
 import os
+import pathlib
 import queue
 import random
 import shutil
@@ -34,6 +35,7 @@ import typing
 import urllib
 import weakref
 import zipfile
+from six.moves.urllib.parse import urlsplit
 
 import numpy as np
 from six.moves.urllib.request import urlopen
@@ -145,8 +147,8 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
 
 
 @keras_export('keras.utils.get_file')
-def get_file(fname,
-             origin,
+def get_file(fname=None,
+             origin=None,
              untar=False,
              md5_hash=None,
              file_hash=None,
@@ -177,7 +179,8 @@ def get_file(fname,
 
   Args:
       fname: Name of the file. If an absolute path `/path/to/file.txt` is
-          specified the file will be saved at that location.
+          specified the file will be saved at that location. If `None`, the
+          name of the file at `origin` will be used.
       origin: Original URL of the file.
       untar: Deprecated in favor of `extract` argument.
           boolean, whether the file should be decompressed
@@ -203,6 +206,10 @@ def get_file(fname,
   Returns:
       Path to the downloaded file
   """
+  if origin is None:
+    raise ValueError('Please specify the "origin" argument (URL of the file '
+                     'to download).')
+
   if cache_dir is None:
     cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
   if md5_hash is not None and file_hash is None:
@@ -215,8 +222,18 @@ def get_file(fname,
   _makedirs_exist_ok(datadir)
 
   fname = path_to_string(fname)
+  if not fname:
+    fname = os.path.basename(urlsplit(origin).path)
+    if not fname:
+      raise ValueError("Invalid origin '{}'".format(origin))
 
   if untar:
+    if fname.endswith('.tar.gz'):
+      fname = pathlib.Path(fname)
+      # The 2 `.with_suffix()` are because of `.tar.gz` as pathlib
+      # considers it as 2 suffixes.
+      fname = fname.with_suffix('').with_suffix('')
+      fname = str(fname)
     untar_fpath = os.path.join(datadir, fname)
     fpath = untar_fpath + '.tar.gz'
   else:

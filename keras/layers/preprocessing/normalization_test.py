@@ -27,7 +27,6 @@ from keras import keras_parameterized
 from keras import testing_utils
 from keras.layers.preprocessing import normalization
 from keras.layers.preprocessing import preprocessing_test_utils
-from keras.utils.generic_utils import CustomObjectScope
 
 
 def _get_layer_computation_test_cases():
@@ -192,14 +191,13 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
 
   def test_layer_api_compatibility(self):
     cls = normalization.Normalization
-    with CustomObjectScope({"Normalization": cls}):
-      output_data = testing_utils.layer_test(
-          cls,
-          kwargs={"axis": -1},
-          input_shape=(None, 3),
-          input_data=np.array([[3, 1, 2], [6, 5, 4]], dtype=np.float32),
-          validate_training=False,
-          adapt_data=np.array([[1, 2, 1], [2, 3, 4], [1, 2, 1], [2, 3, 4]]))
+    output_data = testing_utils.layer_test(
+        cls,
+        kwargs={"axis": -1},
+        input_shape=(None, 3),
+        input_data=np.array([[3, 1, 2], [6, 5, 4]], dtype=np.float32),
+        validate_training=False,
+        adapt_data=np.array([[1, 2, 1], [2, 3, 4], [1, 2, 1], [2, 3, 4]]))
     expected = np.array([[3., -3., -0.33333333], [9., 5., 1.]])
     self.assertAllClose(expected, output_data)
 

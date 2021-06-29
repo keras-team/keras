@@ -70,7 +70,7 @@ class PartialBatchPaddingHandler(object):
       missing_count = (self.padded_batch_size -
                        self.get_real_batch_size(batch))
       padding = backend.stack([[0, missing_count]] + [[0, 0]] * (rank - 1))
-      return tf.compat.v1.pad(batch, padding, 'constant')
+      return tf.pad(batch, padding, 'constant')
 
     if len(dataset_batch_elements) == 1:
       return _pad(dataset_batch_elements[0])
