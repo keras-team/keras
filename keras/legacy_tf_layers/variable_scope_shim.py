@@ -134,6 +134,9 @@ class _EagerVariableStore(object):
   interaction between `tf.function` `FuncGraph` internals, Keras
   Functional Models, and TPUStrategy variable initialization.
 
+  Also, it always acts as if reuse is set to either "TRUE" or
+  tf.compat.v1.AUTO_REUSE
+
   Attributes:
     vars: a dictionary with string names (same as passed in GetVar) as keys and
       the corresponding TensorFlow Variables as values.
@@ -171,9 +174,9 @@ class _EagerVariableStore(object):
     variable. Otherwise, we create a new one.
 
     Set `reuse` to `True` when you only want to reuse existing Variables.
-    Set `reuse` to `False` when you only want to create new Variables.
     Set `reuse` to None (the default) or tf.compat.v1.AUTO_REUSE when you want
     variables to be created if they don't exist or returned if they do.
+    In this shim, `reuse` of `False` will be treated as auto-reuse.
 
     If initializer is `None` (the default), the default initializer passed in
     the constructor is used. If that one is `None` too, we use a new
@@ -272,7 +275,7 @@ class _EagerVariableStore(object):
     # lifted from a function-building graph into the eager context (that's why
     # the following clause is not wrapped in an `init_scope`); lifted variables
     # are tracked by the graph's `VariableStore`.
-    if tf.executing_eagerly():
+    if not reuse:
       reuse = tf.compat.v1.AUTO_REUSE
 
     # If a *_ref type is passed in an error would be triggered further down the
@@ -437,12 +440,6 @@ class _EagerVariableStore(object):
 
     if name in self._vars:
       # Here we handle the case when returning an existing variable.
-      if reuse is False:  # pylint: disable=g-bool-id-comparison
-        err_msg = ("Variable %s already exists, disallowed."
-                   " Did you mean to set reuse=True or "
-                   "reuse=tf.AUTO_REUSE in VarScope?" % name)
-        # ResourceVariables don't have an op associated with so no traceback
-        raise ValueError(err_msg)
       found_var = self._vars[name]
       if not shape.is_compatible_with(found_var.get_shape()):
         raise ValueError("Trying to share variable %s, but specified shape %s"
