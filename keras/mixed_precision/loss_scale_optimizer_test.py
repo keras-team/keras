@@ -14,13 +14,10 @@
 # ==============================================================================
 """Tests for LossScaleOptimizer."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
 from absl.testing import parameterized
-import numpy as np
-from tensorflow.python.framework import test_util
+
 from keras import combinations
 from keras import optimizers
 from keras.mixed_precision import loss_scale_optimizer
@@ -28,6 +25,12 @@ from keras.mixed_precision import test_util as mp_test_util
 from keras.optimizer_v2 import adam
 from keras.optimizer_v2 import gradient_descent
 from keras.optimizer_v2 import optimizer_v2
+
+import numpy as np
+import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util
+from tensorflow.python.keras.optimizer_v2 import gradient_descent as legacy_sgd
 
 # Disable not-callable lint error, as the linter is unable to detect that
 # LossScale instances are callable.
@@ -1076,6 +1079,12 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         ValueError,
         '"inner_optimizer" is already wrapped by a LossScaleOptimizer.'):
       loss_scale_optimizer.LossScaleOptimizer(inner_opt)
+
+  def testErrorWhenWrappingLegacyKerasOptimizers(self):
+    sgd = legacy_sgd.SGD()
+    with self.assertRaisesRegex(
+        TypeError, 'not an instance of `tensorflow.python.keras.optimizers`'):
+      loss_scale_optimizer.LossScaleOptimizer(sgd)
 
 
 if __name__ == '__main__':
