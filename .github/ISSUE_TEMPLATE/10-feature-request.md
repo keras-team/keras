@@ -27,7 +27,7 @@ Describe the feature clearly here. Be sure to convey here why the requested feat
 **Will this change the current api? How?**
 
 
-**Who will benefit with this feature?**
+**Who will benefit from this feature?**
 
 
 **[Contributing](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md)**
