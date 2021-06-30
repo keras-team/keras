@@ -318,12 +318,10 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     layer = text_vectorization.TextVectorization()
     layer.adapt(vocab_data)
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [2, 3, 4, 5, 5, 4, 2, 1])
+    self.assertAllClose(out.numpy(), [2, 3, 4, 5, 5, 4, 2, 1])
     layer.set_vocabulary(["earth", "wind", "and", "fire"])
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [2, 3, 4, 5, 5, 4, 2, 1])
+    self.assertAllClose(out.numpy(), [2, 3, 4, 5, 5, 4, 2, 1])
 
   def test_scalar_input_int_mode_trim_to_len_limit(self):
     vocab_data = [
@@ -333,12 +331,10 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     layer = text_vectorization.TextVectorization(output_sequence_length=3)
     layer.adapt(vocab_data)
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [2, 3, 4])
+    self.assertAllClose(out.numpy(), [2, 3, 4])
     layer.set_vocabulary(["earth", "wind", "and", "fire"])
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [2, 3, 4])
+    self.assertAllClose(out.numpy(), [2, 3, 4])
 
   def test_scalar_input_int_pad_to_len_limit(self):
     vocab_data = [
@@ -348,12 +344,10 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     layer = text_vectorization.TextVectorization(output_sequence_length=10)
     layer.adapt(vocab_data)
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [2, 3, 4, 5, 5, 4, 2, 1, 0, 0])
+    self.assertAllClose(out.numpy(), [2, 3, 4, 5, 5, 4, 2, 1, 0, 0])
     layer.set_vocabulary(["earth", "wind", "and", "fire"])
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [2, 3, 4, 5, 5, 4, 2, 1, 0, 0])
+    self.assertAllClose(out.numpy(), [2, 3, 4, 5, 5, 4, 2, 1, 0, 0])
 
   def test_list_inputs_1d(self):
     vocab_data = ["two two two", "two three three", "three four four five"]
@@ -361,12 +355,10 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     layer = text_vectorization.TextVectorization()
     layer.adapt(vocab_data)
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
+    self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
     layer.set_vocabulary(["two", "three", "four", "five"])
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
+    self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
 
   def test_tensor_inputs(self):
     vocab_data = tf.constant(
@@ -375,12 +367,10 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     layer = text_vectorization.TextVectorization()
     layer.adapt(vocab_data)
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
+    self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
     layer.set_vocabulary(["two", "three", "four", "five"])
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
+    self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
 
   def test_list_inputs_2d(self):
     vocab_data = [
@@ -389,22 +379,30 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     layer = text_vectorization.TextVectorization()
     layer.adapt(vocab_data)
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
+    self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
     layer.set_vocabulary(["two", "three", "four", "five"])
     out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
+    self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
 
   def test_dataset_of_single_strings(self):
     vocab_data = ["two two two", "two three three", "three four four five"]
     input_data = ["two three", "four five"]
     vocab_ds = tf.data.Dataset.from_tensor_slices(vocab_data)  # unbatched
+    input_ds = tf.data.Dataset.from_tensor_slices(input_data)  # unbatched
     layer = text_vectorization.TextVectorization()
     layer.adapt(vocab_ds)
-    out = layer(input_data)
-    if tf.executing_eagerly():
-      self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
+    out = input_ds.map(layer)
+    self.assertAllClose(list(out.as_numpy_iterator()), [[2, 3], [4, 5]])
+
+  def test_dataset_of_single_strings_with_output_sequence(self):
+    vocab_data = ["two two two", "two three three", "three four four five"]
+    input_data = ["two three", "four five"]
+    vocab_ds = tf.data.Dataset.from_tensor_slices(vocab_data)  # unbatched
+    input_ds = tf.data.Dataset.from_tensor_slices(input_data)  # unbatched
+    layer = text_vectorization.TextVectorization(output_sequence_length=3)
+    layer.adapt(vocab_ds)
+    out = input_ds.map(layer)
+    self.assertAllClose(list(out.as_numpy_iterator()), [[2, 3, 0], [4, 5, 0]])
 
   @parameterized.named_parameters(
       {
