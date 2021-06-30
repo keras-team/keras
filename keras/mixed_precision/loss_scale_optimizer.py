@@ -14,14 +14,16 @@
 # ==============================================================================
 """Contains the loss scaling optimizer class."""
 
-import tensorflow.compat.v2 as tf
 from keras import backend
 from keras import optimizers
 from keras.mixed_precision import loss_scale as keras_loss_scale_module
 from keras.optimizer_v2 import optimizer_v2
 from keras.optimizer_v2 import utils as optimizer_utils
+
+import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2 as legacy_optimizer
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -498,8 +500,14 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
   def __init__(self, inner_optimizer, dynamic=True, initial_scale=None,
                dynamic_growth_steps=None):
     if not isinstance(inner_optimizer, optimizer_v2.OptimizerV2):
-      raise TypeError('"inner_optimizer" must be an instance of OptimizerV2, '
-                      'but got: %s' % inner_optimizer)
+      msg = ('"inner_optimizer" must be an instance of '
+             '`tf.keras.optimizers.Optimizer`, but got: %s. ' % inner_optimizer)
+      if isinstance(inner_optimizer, legacy_optimizer.OptimizerV2):
+        msg += ('Please make sure "inner_optimizer" is not an instance of '
+                '`tensorflow.python.keras.optimizers`, which is '
+                'the legacy keras code and will be removed in future release. '
+                'Please use the tf.keras public API instead.')
+      raise TypeError(msg)
     if not isinstance(dynamic, bool):
       # Catch errors if a user incorrectly passes a string or float to the
       # second argument argument, as this is commonly done for
