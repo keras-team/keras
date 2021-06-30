@@ -16,15 +16,15 @@ The form below must be filled out.
 Here's why we have that policy: Keras developers respond to issues. We want to focus on work that benefits the whole community, e.g., fixing bugs and adding features. Support only helps individuals. GitHub also notifies thousands of people when issues are filed. We want them to see you communicating an interesting problem, rather than being redirected to Stack Overflow.
 
 **System information**.  
-Have I written custom code (as opposed to using a stock example script provided in Keras):
-OS Platform and Distribution (e.g., Linux Ubuntu 16.04):
-TensorFlow installed from (source or binary):
-TensorFlow version (use command below):
-Python version:
-Bazel version (if compiling from source):
-GPU model and memory:
-Exact command to reproduce:
-You can collect some of this information using our environment capture script:
+Have I written custom code (as opposed to using a stock example script provided in Keras):   
+OS Platform and Distribution (e.g., Linux Ubuntu 16.04):   
+TensorFlow installed from (source or binary):   
+TensorFlow version (use command below):   
+Python version:   
+Bazel version (if compiling from source):   
+GPU model and memory:   
+Exact command to reproduce:   
+You can collect some of this information using our environment capture script:   
 
 https://github.com/tensorflow/tensorflow/tree/master/tools/tf_env_collect.sh
 
