@@ -5,9 +5,9 @@ labels: 'type:bug'
 
 ---
 
-Please go to Stack Overflow for help and support:
+Please go to TF Forum for help and support:
 
-https://stackoverflow.com/questions/tagged/keras
+https://discuss.tensorflow.org/tag/keras
 
 If you open a GitHub issue, here is our policy:
 
