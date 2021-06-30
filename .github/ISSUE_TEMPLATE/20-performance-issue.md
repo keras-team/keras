@@ -15,7 +15,7 @@ It must be a bug, a feature request, or a significant problem with the documenta
 The form below must be filled out.
 Here's why we have that policy: Keras developers respond to issues. We want to focus on work that benefits the whole community, e.g., fixing bugs and adding features. Support only helps individuals. GitHub also notifies thousands of people when issues are filed. We want them to see you communicating an interesting problem, rather than being redirected to Stack Overflow.
 
-System information
+**System information**.  
 Have I written custom code (as opposed to using a stock example script provided in Keras):
 OS Platform and Distribution (e.g., Linux Ubuntu 16.04):
 TensorFlow installed from (source or binary):
@@ -32,21 +32,21 @@ You can obtain the TensorFlow version with:
 
 python -c "import tensorflow as tf; print(tf.version.GIT_VERSION, tf.version.VERSION)"
 
-**Describe the problem
+**Describe the problem**.  
 Describe the problem clearly here. Be sure to convey here why it's a performance issue in Keras.
 
-**Describe the current behavior**
+**Describe the current behavior**.  
 
 
-**Describe the expected behavior**
+**Describe the expected behavior**.  
 
-**[Contributing](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md)**
+**[Contributing](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md)**.  
 
 - Do you want to contribute a PR? (yes/no):
 - If yes, please read [this page](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md) for instructions
 - Briefly describe your candidate solution(if contributing):
 
-**Standalone code to reproduce the issue**
+**Standalone code to reproduce the issue**.  
 Provide a reproducible test case that is the bare minimum necessary to generate
 the problem. If possible, please share a link to Colab/Jupyter/any notebook.
 
