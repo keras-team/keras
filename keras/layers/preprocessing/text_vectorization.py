@@ -335,10 +335,6 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
 
   def update_state(self, data):
-    if isinstance(data, (list, tuple, np.ndarray)):
-      data = tf.convert_to_tensor(data)
-    if data.shape.rank == 1:
-      data = tf.expand_dims(data, axis=-1)
     self._index_lookup_layer.update_state(self._preprocess(data))
 
   def finalize_state(self):
@@ -485,23 +481,29 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
       return inputs
 
     lookup_data = self._index_lookup_layer(inputs)
-    if self._output_mode == INT:
 
-      # Maybe trim the output (NOOP if self._output_sequence_length is None).
-      output_tensor = lookup_data[..., :self._output_sequence_length]
+    # For any non-int output, we can return directly from the underlying layer.
+    if self._output_mode is not INT:
+      return lookup_data
 
-      output_shape = output_tensor.shape.as_list()
-      output_shape[-1] = self._output_sequence_length
+    # If we have a ragged tensor, we can pad during the conversion to dense.
+    if tf_utils.is_ragged(lookup_data):
+      shape = lookup_data.shape.as_list()
+      # If output sequence length is None, to_tensor will pad the last dimension
+      # to the bounding shape of the ragged dimension.
+      shape[-1] = self._output_sequence_length
+      return lookup_data.to_tensor(default_value=0, shape=shape)
 
-      # If it is a ragged tensor, convert it to dense with correct shape.
-      if tf_utils.is_ragged(output_tensor):
-        return output_tensor.to_tensor(default_value=0, shape=output_shape)
+    # If we have a dense tensor, we need to pad/trim directly.
+    if self._output_sequence_length is not None:
+      # Maybe trim the output.
+      lookup_data = lookup_data[..., :self._output_sequence_length]
 
-      if self._output_sequence_length is None:
-        return output_tensor
-
-      padding, _ = tf.required_space_to_batch_paddings(
-          output_tensor.shape, output_shape)
-      return tf.pad(output_tensor, padding)
+      # Maybe pad the output. We need to be careful to use dynamic shape here as
+      # required_space_to_batch_paddings requires a fully known shape.
+      shape = tf.shape(lookup_data)
+      padded_shape = tf.concat((shape[:-1], [self._output_sequence_length]), 0)
+      padding, _ = tf.required_space_to_batch_paddings(shape, padded_shape)
+      return tf.pad(lookup_data, padding)
 
     return lookup_data
