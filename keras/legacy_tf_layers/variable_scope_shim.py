@@ -24,6 +24,8 @@ import functools
 from keras.engine import base_layer
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
+from keras.utils import layer_utils
+
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.platform import tf_logging as logging
 
@@ -697,17 +699,21 @@ class VariableScopeWrapperLayer(base_layer.Layer):
     checkpoints.
 
   Training Arg in `forward_pass`:
-    Keras will pass a `training` arg to this layer similarly to how it
-    passes `training` to other layers in TF2. See more details in the docs
+    Keras will pass a `training` arg to this layer if `forward_pass` contains
+    a `training` arg or a `**kwargs` varargs in its call signature,
+    similarly to how keras passes `training` to other layers in TF2 that have
+    similar signatures in their `call` implementations.
+    See more details in the docs
     on `tf.keras.layers.Layer` to understand what will be passed and when.
     Note: tf.compat.v1.layers are usually not called with `training=None`,
     so the training arg to `forward_pass` might not feed through to them
     unless you pass it to their calls explicitly.
 
   Call signature of the forward pass:
-    The semantics of the forward pass signature roughly match the standard
-    Keras layer `call` signature, except that a `training` arg will *always*
-    be passed, so your `forward_pass` must accept either.
+    The semantics of the forward pass signature match the standard
+    Keras layer `call` signature, including how Keras decides when
+    to pass in a `training` arg., and the semantics applied to
+    the first positional arg in the call signature.
 
   Limitations:
     * TF2 will not prune unused variable updates (or unused outputs). You may
@@ -729,6 +735,13 @@ class VariableScopeWrapperLayer(base_layer.Layer):
     # Relies on keras layers tracking Modules
     self.tracker = VariableAndLossTracker()
     # May need to inspect func to see if it should pass a `training` arg or not
+
+  @property
+  @layer_utils.cached_per_instance
+  def _call_full_argspec(self):
+    # Argspec inspection is expensive and the call spec is used often, so it
+    # makes sense to cache the result.
+    return tf_inspect.getfullargspec(self.forward_pass)
 
   def forward_pass(self, *args, **kwargs):
     raise NotImplementedError
