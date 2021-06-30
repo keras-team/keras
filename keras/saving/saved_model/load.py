@@ -1165,7 +1165,12 @@ def infer_inputs_from_restored_call_function(fn):
     if isinstance(x, tf.SparseTensorSpec):
       return tf.SparseTensorSpec(common_shape, x.dtype)
     elif isinstance(x, tf.RaggedTensorSpec):
-      return tf.RaggedTensorSpec(common_shape, x.dtype)
+      return tf.RaggedTensorSpec(
+          common_shape,
+          x.dtype,
+          ragged_rank=x.ragged_rank,
+          row_splits_dtype=x.row_splits_dtype,
+          flat_values_spec=x.flat_values_spec)
     return tf.TensorSpec(common_shape, x.dtype, x.name)
 
   spec = fn.concrete_functions[0].structured_input_signature
