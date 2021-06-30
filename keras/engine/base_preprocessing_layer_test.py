@@ -15,8 +15,6 @@
 """Tests for Keras' base preprocessing layer."""
 
 import os
-from absl.testing import parameterized
-
 
 import keras
 from keras import keras_parameterized
@@ -233,40 +231,6 @@ class PreprocessingLayerV1Test(keras_parameterized.TestCase):
       with self.assertRaisesRegex(RuntimeError,
                                   "`adapt` is only supported in tensorflow v2"):
         layer.adapt(input_dataset)
-
-
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class ConvertToListTest(keras_parameterized.TestCase):
-
-  # Note: We need the inputs to be lambdas below to avoid some strangeness with
-  # TF1.x graph mode - specifically, if the inputs are created outside the test
-  # function body, the graph inside the test body will not contain the tensors
-  # that were created in the parameters.
-  @parameterized.named_parameters(
-      {
-          "testcase_name": "ndarray",
-          "inputs": lambda: np.array([[1, 2, 3], [4, 5, 6]]),
-          "expected": [[1, 2, 3], [4, 5, 6]]
-      }, {
-          "testcase_name": "list",
-          "inputs": lambda: [[1, 2, 3], [4, 5, 6]],
-          "expected": [[1, 2, 3], [4, 5, 6]]
-      }, {
-          "testcase_name": "tensor",
-          "inputs": lambda: tf.constant([[1, 2, 3], [4, 5, 6]]),
-          "expected": [[1, 2, 3], [4, 5, 6]]
-      }, {
-          "testcase_name": "ragged_tensor",
-          "inputs": lambda: tf.ragged.constant([[1, 2, 3, 4], [4, 5, 6]]),
-          "expected": [[1, 2, 3, 4], [4, 5, 6]]
-      }, {
-          "testcase_name": "sparse_tensor",
-          "inputs": lambda: tf.sparse.from_dense([[1, 2, 0, 4], [4, 5, 6, 0]]),
-          "expected": [[1, 2, -1, 4], [4, 5, 6, -1]]
-      })
-  def test_conversion(self, inputs, expected):
-    values = base_preprocessing_layer.convert_to_list(inputs())
-    self.assertAllEqual(expected, values)
 
 
 if __name__ == "__main__":
