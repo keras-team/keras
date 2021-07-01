@@ -256,13 +256,7 @@ def MobileNet(input_shape=None,
   x = _depthwise_conv_block(x, 1024, alpha, depth_multiplier, block_id=13)
 
   if include_top:
-    if backend.image_data_format() == 'channels_first':
-      shape = (int(1024 * alpha), 1, 1)
-    else:
-      shape = (1, 1, int(1024 * alpha))
-
-    x = layers.GlobalAveragePooling2D()(x)
-    x = layers.Reshape(shape, name='reshape_1')(x)
+    x = layers.GlobalAveragePooling2D(keepdims=True)(x)
     x = layers.Dropout(dropout, name='dropout')(x)
     x = layers.Conv2D(classes, (1, 1), padding='same', name='conv_preds')(x)
     x = layers.Reshape((classes,), name='reshape_2')(x)
