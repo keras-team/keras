@@ -433,7 +433,6 @@ distribute_py_test(
     main = "keras_metrics_test.py",
     tags = [
         "multi_and_single_gpu",
-        "noguitar",  # TODO(b/192360489)
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
