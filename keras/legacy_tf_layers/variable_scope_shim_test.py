@@ -901,6 +901,37 @@ class TF1VariableScopeWrapperLayerTest(tf.test.TestCase, parameterized.TestCase)
     self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 200)
     self.assertAllEqual(tf.add_n(layer.losses), 6)
 
+  def test_training_arg(self):
+    # Test the shim when using `compat.v1` layers
+
+    class TrainingCheckLayer(variable_scope_shim.VariableScopeWrapperLayer):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def forward_pass(self, inputs, training=None):
+        if training:
+          out = core_layers.dense(inputs, self.units, name="dense_training")
+        else:
+          out = core_layers.dense(inputs, self.units, name="dense_no_training")
+        return out
+
+    layer = TrainingCheckLayer(10)
+    layer(tf.ones(shape=(5, 5)), training=True)
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct variables were made
+    self.assertEqual(weights.keys(),
+                     {"dense_training/bias:0", "dense_training/kernel:0"})
+
+    layer = TrainingCheckLayer(10)
+    layer(tf.ones(shape=(5, 5)))
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct variables were made
+    self.assertEqual(weights.keys(),
+                     {"dense_no_training/bias:0", "dense_no_training/kernel:0"})
 
 if __name__ == "__main__":
   tf.test.main()
