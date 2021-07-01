@@ -2259,16 +2259,16 @@ class DepthwiseConv2D(Conv2D):
   """Depthwise 2D convolution.
 
   Depthwise convolution is a type of convolution in which each input channel is
-  convolved with a different filter of depth 1 (called a depthwise kernel). You
+  convolved with a different filter (called a depthwise kernel). You
   can understand depthwise convolution as the first step in a depthwise
   separable convolution.
 
   It could be implemented via the following steps:
 	
   - Split the input into individual channels.
-  - Repeat each input channel `depth_multiplier` many times.
-  - Convolve each channel with an individual depthwise kernel.
-  - Stack the convolved outputs together (along the channels axis).
+  - Convolve each channel with an individual depthwise kernel having 1 input
+    and `depth_multiplier` many output channels.
+  - Concatenate the convolved outputs (along the channels axis).
 
   Unlike a regular 2D convolution, depthwise convolution does not mix
   information across different input channels.
@@ -2292,10 +2292,9 @@ class DepthwiseConv2D(Conv2D):
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
       to the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
-    depth_multiplier: The number of depthwise kernels that are applied to one
-      input channel.
-      The total number of depthwise convolution output channels per input
-      channel will be equal to `filters_in * depth_multiplier`.
+    depth_multiplier: The number of output channels for the depthwise kernels.
+      It can be understood as the amount of filters that are applied to
+      each input channel.
     data_format: A string,
       one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
