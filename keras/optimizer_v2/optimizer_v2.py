@@ -475,6 +475,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
   def _transform_gradients(self, grads_and_vars):
     """Called in `apply_gradients` after aggregation."""
+    print("478 _transform_gradients")
+    print("self.gradient_transformers", self.gradient_transformers)
     if self._clipvalue is not None:
       grads_and_vars = self._clipvalue_fn(grads_and_vars)
     if self._clipnorm is not None:
@@ -483,6 +485,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       grads_and_vars = self._global_clipnorm_fn(grads_and_vars)
 
     for fn in self.gradient_transformers:
+      print("486 _transform_gradients")
       grads_and_vars = fn(grads_and_vars)
     return grads_and_vars
 
@@ -619,6 +622,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       ValueError: If none of the variables have gradients.
       RuntimeError: If called in a cross-replica context.
     """
+    print("623 apply_gradients")
+
     grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
     var_list = [v for (_, v) in grads_and_vars]
 
@@ -650,6 +655,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             "ParameterServerStrategy and CentralStorageStrategy")
 
       apply_state = self._prepare(var_list)
+      print("656 experimental_aggregate_gradients",
+            experimental_aggregate_gradients)
       if experimental_aggregate_gradients:
         grads_and_vars = self._transform_unaggregated_gradients(grads_and_vars)
         grads_and_vars = self._aggregate_gradients(grads_and_vars)
