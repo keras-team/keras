@@ -179,8 +179,7 @@ class SidecarEvaluator(object):
     checkpoint = tf.train.Checkpoint(
         model=self.model, optimizer=optimizer_checkpoint)
 
-    for latest_checkpoint in tf.train.checkpoints_iterator(
-        self.checkpoint_dir):
+    for latest_checkpoint in tf.train.checkpoints_iterator(self.checkpoint_dir):
       try:
         # `expect_partial` because the checkpoint can have other `Trackable`s
         # such as `optimizer`.
@@ -238,10 +237,8 @@ class SidecarEvaluator(object):
               for name, value in return_metrics.items()
           ]))
 
-      # TODO(rchao): Make the max evaluation robust in case users save the
-      # checkpoints with epoch format {epoch:03d}.
       if (self.max_evaluations and
-          latest_checkpoint.endswith('-{}'.format(self.max_evaluations))):
+          (self.max_evaluations == int(latest_checkpoint.split('-')[-1]))):
         # Exit the loop because we have evaluated the final checkpoint file.
         logging.info('Last checkpoint evaluated. SidecarEvaluator stops.')
         return
