@@ -144,7 +144,14 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
       def __init__(self):
         super(MetricLayer, self).__init__(name="metric_layer")
         self.sum = metrics.Sum(name="sum")
-        self.sum_var = tf.Variable(1.0)
+        # Using aggregation for jit_compile results in failure. Thus only set
+        # aggregation for PS Strategy for multi-gpu tests.
+        if isinstance(distribution,
+                      tf.distribute.experimental.ParameterServerStrategy):
+          self.sum_var = tf.Variable(
+              1.0, aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA)
+        else:
+          self.sum_var = tf.Variable(1.0)
 
       def call(self, inputs):
         self.add_metric(self.sum(inputs))
