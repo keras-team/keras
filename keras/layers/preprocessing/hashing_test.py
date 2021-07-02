@@ -14,16 +14,17 @@
 # ==============================================================================
 """Tests for hashing layer."""
 
+import os
 from absl.testing import parameterized
 
-import tensorflow.compat.v2 as tf
-
-import numpy as np
+import keras
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.layers.preprocessing import hashing
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -193,8 +194,7 @@ class HashingTest(keras_parameterized.TestCase):
 
   def test_hash_ragged_int_input_farmhash(self):
     layer = hashing.Hashing(num_bins=3)
-    inp_data = tf.ragged.constant([[0, 1, 3, 4], [2, 1, 0]],
-                                           dtype=tf.int64)
+    inp_data = tf.ragged.constant([[0, 1, 3, 4], [2, 1, 0]], dtype=tf.int64)
     out_data = layer(inp_data)
     # Same hashed output as test_hash_sparse_input_farmhash
     expected_output = [[1, 0, 0, 2], [1, 0, 1]]
@@ -231,8 +231,7 @@ class HashingTest(keras_parameterized.TestCase):
 
   def test_hash_ragged_int_input_siphash(self):
     layer = hashing.Hashing(num_bins=3, salt=[133, 137])
-    inp_data = tf.ragged.constant([[0, 1, 3, 4], [2, 1, 0]],
-                                           dtype=tf.int64)
+    inp_data = tf.ragged.constant([[0, 1, 3, 4], [2, 1, 0]], dtype=tf.int64)
     out_data = layer(inp_data)
     # Same hashed output as test_hash_sparse_input_farmhash
     expected_output = [[1, 1, 0, 1], [2, 1, 1]]
@@ -269,6 +268,27 @@ class HashingTest(keras_parameterized.TestCase):
     config = layer.get_config()
     layer_1 = hashing.Hashing.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
+
+  def test_saved_model(self):
+    input_data = np.array(['omar', 'stringer', 'marlo', 'wire', 'skywalker'])
+
+    inputs = keras.Input(shape=(None,), dtype=tf.string)
+    outputs = hashing.Hashing(num_bins=100)(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    original_output_data = model(input_data)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), 'tf_keras_saved_model')
+    model.save(output_path, save_format='tf')
+    loaded_model = keras.models.load_model(output_path)
+
+    # Ensure that the loaded model is unique (so that the save/load is real)
+    self.assertIsNot(model, loaded_model)
+
+    # Validate correctness of the new model.
+    new_output_data = loaded_model(input_data)
+    self.assertAllClose(new_output_data, original_output_data)
 
   @parameterized.named_parameters(
       (

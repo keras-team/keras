@@ -23,9 +23,6 @@ from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from tensorflow.python.util.tf_export import keras_export
 
-# Default key from tf.sparse.cross_hashed
-_DEFAULT_SALT_KEY = [0xDECAFCAFFE, 0xDECAFCAFFE]
-
 
 @keras_export('keras.layers.Hashing',
               'keras.layers.experimental.preprocessing.Hashing')
@@ -128,11 +125,12 @@ class Hashing(base_layer.Layer):
   def __init__(self, num_bins, mask_value=None, salt=None, **kwargs):
     if num_bins is None or num_bins <= 0:
       raise ValueError('`num_bins` cannot be `None` or non-positive values.')
-    super(Hashing, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Hashing').set(True)
     self.num_bins = num_bins
     self.mask_value = mask_value
     self.strong_hash = True if salt is not None else False
+    self.salt = None
     if salt is not None:
       if isinstance(salt, (tuple, list)) and len(salt) == 2:
         self.salt = salt
@@ -141,16 +139,10 @@ class Hashing(base_layer.Layer):
       else:
         raise ValueError('`salt can only be a tuple of size 2 integers, or a '
                          'single integer, given {}'.format(salt))
-    else:
-      self.salt = _DEFAULT_SALT_KEY
-
-  def _preprocess_input(self, inp):
-    if isinstance(inp, (list, tuple, np.ndarray)):
-      inp = tf.convert_to_tensor(inp)
-    return inp
 
   def call(self, inputs):
-    inputs = self._preprocess_input(inputs)
+    if isinstance(inputs, (list, tuple, np.ndarray)):
+      inputs = tf.convert_to_tensor(inputs)
     if isinstance(inputs, tf.SparseTensor):
       return tf.SparseTensor(
           indices=inputs.indices,
@@ -199,10 +191,10 @@ class Hashing(base_layer.Layer):
       return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
 
   def get_config(self):
-    config = {
+    config = super().get_config()
+    config.update({
         'num_bins': self.num_bins,
         'salt': self.salt,
         'mask_value': self.mask_value,
-    }
-    base_config = super(Hashing, self).get_config()
-    return dict(list(base_config.items()) + list(config.items()))
+    })
+    return config
