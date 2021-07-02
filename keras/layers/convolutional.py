@@ -13,10 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 """Keras convolution layers and image transformation layers."""
-
+# pylint:disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 
-import functools
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -24,7 +23,6 @@ from keras import initializers
 from keras import regularizers
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
-# imports for backwards namespace compatibility
 # pylint: disable=unused-import
 from keras.layers.pooling import AveragePooling1D
 from keras.layers.pooling import AveragePooling2D
@@ -35,6 +33,7 @@ from keras.layers.pooling import MaxPooling3D
 # pylint: enable=unused-import
 from keras.utils import conv_utils
 from keras.utils import tf_utils
+
 from tensorflow.python.util.tf_export import keras_export
 # pylint: disable=g-classes-have-attributes
 
@@ -84,8 +83,8 @@ class Conv(Layer):
     activation: Activation function to use.
       If you don't specify anything, no activation is applied.
     use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel. If None, the 
-      default initializer (glorot_uniform) will be used. 
+    kernel_initializer: An initializer for the convolution kernel. If None, the
+      default initializer (glorot_uniform) will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer (zeros) will be used.
     kernel_regularizer: Optional regularizer for the convolution kernel.
@@ -157,7 +156,6 @@ class Conv(Layer):
     self.input_spec = InputSpec(min_ndim=self.rank + 2)
 
     self._validate_init()
-    self._is_causal = self.padding == 'causal'
     self._channels_first = self.data_format == 'channels_first'
     self._tf_data_format = conv_utils.convert_data_format(
         self.data_format, self.rank + 2)
@@ -214,39 +212,35 @@ class Conv(Layer):
     else:
       self.bias = None
     channel_axis = self._get_channel_axis()
-    self.input_spec = InputSpec(min_ndim=self.rank + 2,
-                                axes={channel_axis: input_channel})
-
-    # Convert Keras formats to TF native formats.
-    if self.padding == 'causal':
-      tf_padding = 'VALID'  # Causal padding handled in `call`.
-    elif isinstance(self.padding, str):
-      tf_padding = self.padding.upper()
-    else:
-      tf_padding = self.padding
-    tf_dilations = list(self.dilation_rate)
-    tf_strides = list(self.strides)
-
-    tf_op_name = self.__class__.__name__
-    if tf_op_name == 'Conv1D':
-      tf_op_name = 'conv1d'  # Backwards compat.
-
-    self._convolution_op = functools.partial(
-        tf.nn.convolution,
-        strides=tf_strides,
-        padding=tf_padding,
-        dilations=tf_dilations,
-        data_format=self._tf_data_format,
-        name=tf_op_name)
+    self.input_spec = InputSpec(
+        min_ndim=self.rank + 2, axes={channel_axis: input_channel})
     self.built = True
 
   def call(self, inputs):
     input_shape = inputs.shape
 
-    if self._is_causal:  # Apply causal padding to inputs for Conv1D.
+    # Convert Keras formats to TF native formats.
+    if self.padding == 'causal':
+      # Apply causal padding to inputs for Conv1D.
       inputs = tf.pad(inputs, self._compute_causal_padding(inputs))
+      tf_padding = 'VALID'  # Causal padding handled in `call`.
+    elif isinstance(self.padding, str):
+      tf_padding = self.padding.upper()
+    else:
+      tf_padding = self.padding
 
-    outputs = self._convolution_op(inputs, self.kernel)
+    tf_op_name = self.__class__.__name__
+    if tf_op_name == 'Conv1D':
+      tf_op_name = 'conv1d'  # Backwards compat.
+
+    outputs = tf.nn.convolution(
+        inputs,
+        self.kernel,
+        padding=tf_padding,
+        strides=list(self.strides),
+        dilations=list(self.dilation_rate),
+        data_format=self._tf_data_format,
+        name=tf_op_name)
 
     if self.use_bias:
       output_rank = outputs.shape.rank
@@ -610,9 +604,9 @@ class Conv2D(Conv):
     bias_initializer: Initializer for the bias vector (see
       `keras.initializers`). Defaults to 'zeros'.
     kernel_regularizer: Regularizer function applied to the `kernel` weights
-      matrix (see `keras.regularizers`). 
+      matrix (see `keras.regularizers`).
     bias_regularizer: Regularizer function applied to the bias vector (see
-      `keras.regularizers`). 
+      `keras.regularizers`).
     activity_regularizer: Regularizer function applied to the output of the
       layer (its "activation") (see `keras.regularizers`).
     kernel_constraint: Constraint function applied to the kernel matrix (see
@@ -1735,7 +1729,7 @@ class SeparableConv(Conv):
       see `keras.initializers`). If None, then the default initializer (
       'glorot_uniform') will be used.
     pointwise_initializer: An initializer for the pointwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer 
+      see `keras.initializers`). If None, then the default initializer
       ('glorot_uniform') will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer ('zeros') will be used (see `keras.initializers`).
@@ -1944,7 +1938,7 @@ class SeparableConv1D(SeparableConv):
       see `keras.initializers`). If None, then the default initializer (
       'glorot_uniform') will be used.
     pointwise_initializer: An initializer for the pointwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer 
+      see `keras.initializers`). If None, then the default initializer
       ('glorot_uniform') will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer ('zeros') will be used (see `keras.initializers`).
@@ -2106,7 +2100,7 @@ class SeparableConv2D(SeparableConv):
     strides: An integer or tuple/list of 2 integers,
       specifying the strides of the convolution along the height and width.
       Can be a single integer to specify the same value for
-      all spatial dimensions. Current implementation only supports equal 
+      all spatial dimensions. Current implementation only supports equal
       length strides in the row and column dimensions.
       Specifying any stride value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
@@ -2140,7 +2134,7 @@ class SeparableConv2D(SeparableConv):
       see `keras.initializers`). If None, then the default initializer (
       'glorot_uniform') will be used.
     pointwise_initializer: An initializer for the pointwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer 
+      see `keras.initializers`). If None, then the default initializer
       ('glorot_uniform') will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer ('zeros') will be used (see `keras.initializers`).
