@@ -151,18 +151,18 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
   >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
   >>> layer = tf.keras.layers.Discretization(bin_boundaries=[0., 1., 2.])
   >>> layer(input)
-  <tf.Tensor: shape=(2, 4), dtype=int32, numpy=
+  <tf.Tensor: shape=(2, 4), dtype=int64, numpy=
   array([[0, 2, 3, 1],
-         [1, 3, 2, 1]], dtype=int32)>
+         [1, 3, 2, 1]], dtype=int64)>
 
   Bucketize float values based on a number of buckets to compute.
   >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
   >>> layer = tf.keras.layers.Discretization(num_bins=4, epsilon=0.01)
   >>> layer.adapt(input)
   >>> layer(input)
-  <tf.Tensor: shape=(2, 4), dtype=int32, numpy=
+  <tf.Tensor: shape=(2, 4), dtype=int64, numpy=
   array([[0, 2, 3, 2],
-         [1, 3, 3, 1]], dtype=int32)>
+         [1, 3, 3, 1]], dtype=int64)>
   """
 
   def __init__(self,
@@ -263,8 +263,11 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
 
   def call(self, inputs):
     def bucketize(inputs):
-      return tf.raw_ops.Bucketize(
+      outputs = tf.raw_ops.Bucketize(
           input=inputs, boundaries=self.bin_boundaries)
+      # All other preprocessing layers use int64 for int output, so we conform
+      # here. Sadly the underlying op only supports int32, so we need to cast.
+      return tf.cast(outputs, tf.int64)
 
     if tf_utils.is_ragged(inputs):
       integer_buckets = tf.ragged.map_flat_values(bucketize, inputs)
