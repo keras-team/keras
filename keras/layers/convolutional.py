@@ -13,9 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 """Keras convolution layers and image transformation layers."""
-# pylint:disable=g-bad-import-order
+# pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 
+import functools
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -23,6 +24,7 @@ from keras import initializers
 from keras import regularizers
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
+# imports for backwards namespace compatibility
 # pylint: disable=unused-import
 from keras.layers.pooling import AveragePooling1D
 from keras.layers.pooling import AveragePooling2D
@@ -33,7 +35,6 @@ from keras.layers.pooling import MaxPooling3D
 # pylint: enable=unused-import
 from keras.utils import conv_utils
 from keras.utils import tf_utils
-
 from tensorflow.python.util.tf_export import keras_export
 # pylint: disable=g-classes-have-attributes
 
@@ -156,6 +157,7 @@ class Conv(Layer):
     self.input_spec = InputSpec(min_ndim=self.rank + 2)
 
     self._validate_init()
+    self._is_causal = self.padding == 'causal'
     self._channels_first = self.data_format == 'channels_first'
     self._tf_data_format = conv_utils.convert_data_format(
         self.data_format, self.rank + 2)
@@ -212,35 +214,39 @@ class Conv(Layer):
     else:
       self.bias = None
     channel_axis = self._get_channel_axis()
-    self.input_spec = InputSpec(
-        min_ndim=self.rank + 2, axes={channel_axis: input_channel})
-    self.built = True
-
-  def call(self, inputs):
-    input_shape = inputs.shape
+    self.input_spec = InputSpec(min_ndim=self.rank + 2,
+                                axes={channel_axis: input_channel})
 
     # Convert Keras formats to TF native formats.
     if self.padding == 'causal':
-      # Apply causal padding to inputs for Conv1D.
-      inputs = tf.pad(inputs, self._compute_causal_padding(inputs))
       tf_padding = 'VALID'  # Causal padding handled in `call`.
     elif isinstance(self.padding, str):
       tf_padding = self.padding.upper()
     else:
       tf_padding = self.padding
+    tf_dilations = list(self.dilation_rate)
+    tf_strides = list(self.strides)
 
     tf_op_name = self.__class__.__name__
     if tf_op_name == 'Conv1D':
       tf_op_name = 'conv1d'  # Backwards compat.
 
-    outputs = tf.nn.convolution(
-        inputs,
-        self.kernel,
+    self._convolution_op = functools.partial(
+        tf.nn.convolution,
+        strides=tf_strides,
         padding=tf_padding,
-        strides=list(self.strides),
-        dilations=list(self.dilation_rate),
+        dilations=tf_dilations,
         data_format=self._tf_data_format,
         name=tf_op_name)
+    self.built = True
+
+  def call(self, inputs):
+    input_shape = inputs.shape
+
+    if self._is_causal:  # Apply causal padding to inputs for Conv1D.
+      inputs = tf.pad(inputs, self._compute_causal_padding(inputs))
+
+    outputs = self._convolution_op(inputs, self.kernel)
 
     if self.use_bias:
       output_rank = outputs.shape.rank
