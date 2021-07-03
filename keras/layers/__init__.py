@@ -76,6 +76,7 @@ from keras.layers.convolutional import Convolution2DTranspose
 from keras.layers.convolutional import Convolution3DTranspose
 from keras.layers.convolutional import SeparableConvolution1D
 from keras.layers.convolutional import SeparableConvolution2D
+from keras.layers.convolutional import DepthwiseConv1D
 from keras.layers.convolutional import DepthwiseConv2D
 
 # Image processing layers.
