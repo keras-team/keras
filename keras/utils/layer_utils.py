@@ -175,14 +175,27 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
       relevant_nodes += v
 
   def print_row(fields, positions):
-    line = ''
-    for i in range(len(fields)):
-      if i > 0:
-        line = line[:-1] + ' '
-      line += str(fields[i])
-      line = line[:positions[i]]
-      line += ' ' * (positions[i] - len(line))
-    print_fn(line)
+    left_to_print = [str(x) for x in fields]
+    while any(left_to_print):
+      line = ''
+      for col in range(len(left_to_print)):
+        if col > 0:
+          start_pos = positions[col-1]
+        else:
+          start_pos = 0
+        end_pos = positions[col]
+        # Leave room for a space to delineate columns
+        # we don't need one if we are printing the last column
+        space = 1 if col != len(positions) - 1 else 0
+        delta = end_pos - start_pos - space
+        fit_into_line = left_to_print[col][:delta]
+        line += fit_into_line
+        line += ' ' if space else ''
+        left_to_print[col] = left_to_print[col][delta:]
+
+        # Pad out to the next position
+        line += ' ' * (positions[col] - len(line))
+      print_fn(line)
 
   print_fn('Model: "{}"'.format(model.name))
   print_fn('_' * line_length)
@@ -234,19 +247,11 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
 
     name = layer.name
     cls_name = layer.__class__.__name__
-    if not connections:
-      first_connection = ''
-    else:
-      first_connection = connections[0]
     fields = [
         name + ' (' + cls_name + ')', output_shape,
-        layer.count_params(), first_connection
+        layer.count_params(), connections
     ]
     print_row(fields, positions)
-    if len(connections) > 1:
-      for i in range(1, len(connections)):
-        fields = ['', '', '', connections[i]]
-        print_row(fields, positions)
 
   layers = model.layers
   for i in range(len(layers)):
