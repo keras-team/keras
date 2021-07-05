@@ -338,7 +338,11 @@ class Softmax(Layer):
 
       # Since we are adding it to the raw scores before the softmax, this is
       # effectively the same as removing these entirely.
-      inputs += adder
+      try:
+        inputs += adder
+      except ValueError:
+        raise ValueError('Cannot apply mask to the given input. Make sure '
+                         'that shapes of input and mask match.')
     if isinstance(self.axis, (tuple, list)):
       if len(self.axis) > 1:
         return tf.exp(inputs - tf.reduce_logsumexp(
