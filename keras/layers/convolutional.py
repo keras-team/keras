@@ -2267,7 +2267,7 @@ class DepthwiseConv2D(Conv2D):
 	
   - Split the input into individual channels.
   - Convolve each channel with an individual depthwise kernel having 1 input
-    and `depth_multiplier` many output channels.
+    and `depth_multiplier` output channels.
   - Concatenate the convolved outputs (along the channels axis).
 
   Unlike a regular 2D convolution, depthwise convolution does not mix
