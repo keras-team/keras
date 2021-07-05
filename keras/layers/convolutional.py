@@ -2295,6 +2295,8 @@ class DepthwiseConv2D(Conv2D):
     depth_multiplier: The number of output channels for the depthwise kernels.
       It can be understood as the amount of filters that are applied to
       each input channel.
+      The total number of depthwise convolution output
+      channels will be equal to `filters_in * depth_multiplier`.
     data_format: A string,
       one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
