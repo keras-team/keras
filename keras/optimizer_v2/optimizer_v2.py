@@ -34,7 +34,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 keras_optimizers_gauge = tf.__internal__.monitoring.BoolGauge(
-    "/tensorflow/api/oss-keras/optimizers", "keras optimizer usage", "method")
+    "/tensorflow/api/keras/optimizers", "keras optimizer usage", "method")
 
 _DEFAULT_VALID_DTYPES = frozenset([
     tf.float16, tf.bfloat16, tf.float32, tf.float64,
