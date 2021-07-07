@@ -445,24 +445,24 @@ class Conv1D(Conv):
       concatenation of all the `groups` results along the channel axis.
       Input channels and `filters` must both be divisible by `groups`.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    kernel_initializer: Initializer for the `kernel` weights matrix (
-      see `keras.initializers`). Defaults to 'glorot_uniform'.
-    bias_initializer: Initializer for the bias vector (
-      see `keras.initializers`). Defaults to 'zeros'.
+    kernel_initializer: Initializer for the `kernel` weights matrix
+      (see `keras.initializers`). Defaults to 'glorot_uniform'.
+    bias_initializer: Initializer for the bias vector
+      (see `keras.initializers`). Defaults to 'zeros'.
     kernel_regularizer: Regularizer function applied to
       the `kernel` weights matrix (see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
-      the output of the layer (its "activation") (
-      see `keras.regularizers`).
-    kernel_constraint: Constraint function applied to the kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+      the output of the layer (its "activation")
+      (see `keras.regularizers`).
+    kernel_constraint: Constraint function applied to the kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     3+D tensor with shape: `batch_shape + (steps, input_dim)`
@@ -868,23 +868,23 @@ class Conv1DTranspose(Conv1D):
       incompatible with specifying a stride value != 1.
       Also dilation rate larger than 1 is not currently supported.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    kernel_initializer: Initializer for the `kernel` weights matrix (
-      see `keras.initializers`). Defaults to 'glorot_uniform'.
-    bias_initializer: Initializer for the bias vector (
-      see `keras.initializers`). Defaults to 'zeros'.
+    kernel_initializer: Initializer for the `kernel` weights matrix
+      (see `keras.initializers`). Defaults to 'glorot_uniform'.
+    bias_initializer: Initializer for the bias vector
+      (see `keras.initializers`). Defaults to 'zeros'.
     kernel_regularizer: Regularizer function applied to
       the `kernel` weights matrix (see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
       the output of the layer (its "activation") (see `keras.regularizers`).
-    kernel_constraint: Constraint function applied to the kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+    kernel_constraint: Constraint function applied to the kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     3D tensor with shape:
@@ -1132,23 +1132,23 @@ class Conv2DTranspose(Conv2D):
       Currently, specifying any `dilation_rate` value != 1 is
       incompatible with specifying any stride value != 1.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    kernel_initializer: Initializer for the `kernel` weights matrix (
-      see `keras.initializers`). Defaults to 'glorot_uniform'.
-    bias_initializer: Initializer for the bias vector (
-      see `keras.initializers`). Defaults to 'zeros'.
+    kernel_initializer: Initializer for the `kernel` weights matrix
+      (see `keras.initializers`). Defaults to 'glorot_uniform'.
+    bias_initializer: Initializer for the bias vector
+      (see `keras.initializers`). Defaults to 'zeros'.
     kernel_regularizer: Regularizer function applied to
       the `kernel` weights matrix (see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
       the output of the layer (its "activation") (see `keras.regularizers`).
-    kernel_constraint: Constraint function applied to the kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+    kernel_constraint: Constraint function applied to the kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     4D tensor with shape:
@@ -1436,25 +1436,25 @@ class Conv3DTranspose(Conv3D):
       Currently, specifying any `dilation_rate` value != 1 is
       incompatible with specifying any stride value != 1.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    kernel_initializer: Initializer for the `kernel` weights matrix (
-      see `keras.initializers`). Defaults to 'glorot_uniform'.
-    bias_initializer: Initializer for the bias vector (
-      see `keras.initializers`). Defaults to 'zeros'.
+    kernel_initializer: Initializer for the `kernel` weights matrix
+      (see `keras.initializers`). Defaults to 'glorot_uniform'.
+    bias_initializer: Initializer for the bias vector
+      (see `keras.initializers`). Defaults to 'zeros'.
     kernel_regularizer: Regularizer function applied to
-      the `kernel` weights matrix (
-      see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+      the `kernel` weights matrix
+      (see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
-      the output of the layer (its "activation") (
-      see `keras.regularizers`).
-    kernel_constraint: Constraint function applied to the kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+      the output of the layer (its "activation")
+      (see `keras.regularizers`).
+    kernel_constraint: Constraint function applied to the kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     5D tensor with shape:
@@ -1728,14 +1728,14 @@ class SeparableConv(Conv):
       each input channel. The total number of depthwise convolution output
       channels will be equal to `num_filters_in * depth_multiplier`.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias.
-    depthwise_initializer: An initializer for the depthwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer (
+    depthwise_initializer: An initializer for the depthwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer (
       'glorot_uniform') will be used.
-    pointwise_initializer: An initializer for the pointwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer
+    pointwise_initializer: An initializer for the pointwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer
       ('glorot_uniform') will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer ('zeros') will be used (see `keras.initializers`).
@@ -1937,14 +1937,14 @@ class SeparableConv1D(SeparableConv):
       each input channel. The total number of depthwise convolution output
       channels will be equal to `num_filters_in * depth_multiplier`.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias.
-    depthwise_initializer: An initializer for the depthwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer (
+    depthwise_initializer: An initializer for the depthwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer (
       'glorot_uniform') will be used.
-    pointwise_initializer: An initializer for the pointwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer
+    pointwise_initializer: An initializer for the pointwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer
       ('glorot_uniform') will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer ('zeros') will be used (see `keras.initializers`).
@@ -1952,23 +1952,23 @@ class SeparableConv1D(SeparableConv):
       convolution kernel (see `keras.regularizers`).
     pointwise_regularizer: Optional regularizer for the pointwise
       convolution kernel (see `keras.regularizers`).
-    bias_regularizer: Optional regularizer for the bias vector (
-      see `keras.regularizers`).
-    activity_regularizer: Optional regularizer function for the output (
-      see `keras.regularizers`).
+    bias_regularizer: Optional regularizer for the bias vector
+      (see `keras.regularizers`).
+    activity_regularizer: Optional regularizer function for the output
+      (see `keras.regularizers`).
     depthwise_constraint: Optional projection function to be applied to the
       depthwise kernel after being updated by an `Optimizer` (e.g. used for
       norm constraints or value constraints for layer weights). The function
       must take as input the unprojected variable and must return the
       projected variable (which must have the same shape). Constraints are
-      not safe to use when doing asynchronous distributed training (
-      see `keras.constraints`).
+      not safe to use when doing asynchronous distributed training
+      (see `keras.constraints`).
     pointwise_constraint: Optional projection function to be applied to the
-      pointwise kernel after being updated by an `Optimizer` (
-      see `keras.constraints`).
+      pointwise kernel after being updated by an `Optimizer`
+      (see `keras.constraints`).
     bias_constraint: Optional projection function to be applied to the
-      bias after being updated by an `Optimizer` (
-      see `keras.constraints`).
+      bias after being updated by an `Optimizer`
+      (see `keras.constraints`).
     trainable: Boolean, if `True` the weights of this layer will be marked as
       trainable (and listed in `layer.trainable_weights`).
 
@@ -2133,14 +2133,14 @@ class SeparableConv2D(SeparableConv):
       The total number of depthwise convolution output
       channels will be equal to `filters_in * depth_multiplier`.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    depthwise_initializer: An initializer for the depthwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer (
+    depthwise_initializer: An initializer for the depthwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer (
       'glorot_uniform') will be used.
-    pointwise_initializer: An initializer for the pointwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer
+    pointwise_initializer: An initializer for the pointwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer
       ('glorot_uniform') will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer ('zeros') will be used (see `keras.initializers`).
@@ -2148,19 +2148,19 @@ class SeparableConv2D(SeparableConv):
       the depthwise kernel matrix (see `keras.regularizers`).
     pointwise_regularizer: Regularizer function applied to
       the pointwise kernel matrix (see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
-      the output of the layer (its "activation") (
-      see `keras.regularizers`).
+      the output of the layer (its "activation")
+      (see `keras.regularizers`).
     depthwise_constraint: Constraint function applied to
-      the depthwise kernel matrix (
-      see `keras.constraints`).
+      the depthwise kernel matrix
+      (see `keras.constraints`).
     pointwise_constraint: Constraint function applied to
-      the pointwise kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+      the pointwise kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     4D tensor with shape:
@@ -2258,22 +2258,24 @@ class SeparableConv2D(SeparableConv):
 class DepthwiseConv2D(Conv2D):
   """Depthwise 2D convolution.
 
-  Depthwise convolution is a type of convolution in which a single convolutional
-  filter is apply to each input channel (i.e. in a depthwise way).
-  You can understand depthwise convolution as being
-  the first step in a depthwise separable convolution.
+  Depthwise convolution is a type of convolution in which each input channel is
+  convolved with a different kernel (called a depthwise kernel). You
+  can understand depthwise convolution as the first step in a depthwise
+  separable convolution.
 
   It is implemented via the following steps:
 
   - Split the input into individual channels.
-  - Convolve each input with the layer's kernel (called a depthwise kernel).
-  - Stack the convolved outputs together (along the channels axis).
+  - Convolve each channel with an individual depthwise kernel with
+    `depth_multiplier` output channels.
+  - Concatenate the convolved outputs along the channels axis.
 
   Unlike a regular 2D convolution, depthwise convolution does not mix
   information across different input channels.
 
-  The `depth_multiplier` argument controls how many
-  output channels are generated per input channel in the depthwise step.
+  The `depth_multiplier` argument determines how many filter are applied to one
+  input channel. As such, it controls the amount of output channels that are
+  generated per input channel in the depthwise step.
 
   Args:
     kernel_size: An integer or tuple/list of 2 integers, specifying the
@@ -2290,8 +2292,9 @@ class DepthwiseConv2D(Conv2D):
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
       to the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
-    depth_multiplier: The number of depthwise convolution output channels
-      for each input channel.
+    depth_multiplier: The number of output channels for the depthwise kernels.
+      It can be understood as the amount of filters that are applied to
+      each input channel.
       The total number of depthwise convolution output
       channels will be equal to `filters_in * depth_multiplier`.
     data_format: A string,
@@ -2309,27 +2312,27 @@ class DepthwiseConv2D(Conv2D):
       Currently, specifying any `dilation_rate` value != 1 is
       incompatible with specifying any `strides` value != 1.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    depthwise_initializer: Initializer for the depthwise kernel matrix (
-      see `keras.initializers`). If None, the default initializer (
+    depthwise_initializer: Initializer for the depthwise kernel matrix
+      (see `keras.initializers`). If None, the default initializer (
       'glorot_uniform') will be used.
-    bias_initializer: Initializer for the bias vector (
-      see `keras.initializers`). If None, the default initializer (
-      'zeros') will bs used.
+    bias_initializer: Initializer for the bias vector
+      (see `keras.initializers`). If None, the default initializer (
+      'zeros') will be used.
     depthwise_regularizer: Regularizer function applied to
       the depthwise kernel matrix (see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
-      the output of the layer (its 'activation') (
-      see `keras.regularizers`).
+      the output of the layer (its 'activation')
+      (see `keras.regularizers`).
     depthwise_constraint: Constraint function applied to
-      the depthwise kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+      the depthwise kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     4D tensor with shape:
