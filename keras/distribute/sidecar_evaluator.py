@@ -77,7 +77,7 @@ class SidecarEvaluator(object):
       name="eval_metrics"))
   data = tf.data.Dataset.from_tensor_slices(...)
 
-  SidecarEvaluator(
+  tf.keras.experimental.SidecarEvaluator(
       model=model,
       data=data,
       checkpoint_dir='/tmp/checkpoint_dir',  # dir for training-saved checkpoint
