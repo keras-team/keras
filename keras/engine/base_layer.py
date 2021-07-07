@@ -68,14 +68,14 @@ _TF_OP_LAYER_NAME_PREFIX = 'tf_op_layer_'
 _AUTOCAST_TYPES = (tf.Tensor, tf.SparseTensor,
                    tf.RaggedTensor)
 
-keras_layers_gauge = tf.__internal__.monitoring.BoolGauge('/tensorflow/api/oss-keras/layers',
-                                          'keras layers usage', 'method')
+keras_layers_gauge = tf.__internal__.monitoring.BoolGauge(
+    '/tensorflow/api/keras/layers', 'keras layers usage', 'method')
 keras_models_gauge = tf.__internal__.monitoring.BoolGauge(
-    '/tensorflow/api/oss-keras/models', 'keras model usage', 'method')
-keras_api_gauge = tf.__internal__.monitoring.BoolGauge('/tensorflow/api/oss-keras',
-                                       'keras api usage', 'method')
+    '/tensorflow/api/keras/models', 'keras model usage', 'method')
+keras_api_gauge = tf.__internal__.monitoring.BoolGauge(
+    '/tensorflow/api/keras', 'keras api usage', 'method')
 keras_premade_model_gauge = tf.__internal__.monitoring.BoolGauge(
-    '/tensorflow/api/oss-keras/premade_models', 'premade keras model usage', 'type')
+    '/tensorflow/api/keras/premade_models', 'premade keras model usage', 'type')
 
 _is_name_scope_on_model_declaration_enabled = False
 
