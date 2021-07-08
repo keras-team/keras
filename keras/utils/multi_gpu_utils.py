@@ -17,7 +17,7 @@
 import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.engine.training import Model
-from keras.layers.core import Lambda
+from keras.layers.core.lambda_layer import Lambda
 from keras.layers.merge import concatenate
 
 
@@ -52,17 +52,15 @@ def multi_gpu_model(model, gpus, cpu_merge=True, cpu_relocation=False):
   for the time being.
 
   Args:
-      model: A Keras model instance. To avoid OOM errors,
-          this model could have been built on CPU, for instance
-          (see usage example below).
-      gpus: Integer >= 2, number of on GPUs on which to create
-          model replicas.
-      cpu_merge: A boolean value to identify whether to force
-          merging model weights under the scope of the CPU or not.
-      cpu_relocation: A boolean value to identify whether to
-          create the model's weights under the scope of the CPU.
-          If the model is not defined under any preceding device
-          scope, you can still rescue it by activating this option.
+      model: A Keras model instance. To avoid OOM errors, this model could have
+        been built on CPU, for instance (see usage example below).
+      gpus: Integer >= 2, number of on GPUs on which to create model replicas.
+      cpu_merge: A boolean value to identify whether to force merging model
+        weights under the scope of the CPU or not.
+      cpu_relocation: A boolean value to identify whether to create the model's
+        weights under the scope of the CPU. If the model is not defined under
+        any preceding device scope, you can still rescue it by activating this
+        option.
 
   Returns:
       A Keras `Model` instance which can be used just like the initial
@@ -170,8 +168,8 @@ def multi_gpu_model(model, gpus, cpu_merge=True, cpu_relocation=False):
       raise ValueError('To call `multi_gpu_model` with `gpus=%s`, '
                        'we expect the following devices to be available: %s. '
                        'However this machine only has: %s. '
-                       'Try reducing `gpus`.' % (gpus, target_devices,
-                                                 available_devices))
+                       'Try reducing `gpus`.' %
+                       (gpus, target_devices, available_devices))
 
   def get_slice(data, i, parts):
     """Slice an array into `parts` slices and return slice `i`.
