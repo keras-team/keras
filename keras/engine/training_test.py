@@ -51,6 +51,43 @@ class TrainingTest(keras_parameterized.TestCase):
 
   @keras_parameterized.run_all_keras_modes
   @keras_parameterized.run_with_all_model_types
+  def test_init_type_error(self):
+
+    class ModelWithTrainStepOverridden(training_module.Model):
+
+      @tf.function
+      def train_step(self, data):
+        return 0
+
+    class ModelWithTestStepOverridden(training_module.Model):
+
+      @tf.function
+      def test_step(self, data):
+        return 0
+
+    class ModelWithPredictStepOverridden(training_module.Model):
+
+      @tf.function
+      def predict_step(self, data):
+        return 0
+
+    inputs = layers_module.Input(shape=(1,), name='my_input')
+    outputs = layers_module.Dense(1)(inputs)
+    with self.assertRaisesRegex(
+        TypeError, 'Make sure method Model.train_step when overridden is not'
+        ' decorated with `@tf.function`.'):
+      ModelWithTrainStepOverridden(inputs, outputs)
+    with self.assertRaisesRegex(
+        TypeError, 'Make sure method Model.test_step when overridden is not'
+        ' decorated with `@tf.function`.'):
+      ModelWithTestStepOverridden(inputs, outputs)
+    with self.assertRaisesRegex(
+        TypeError, 'Make sure method Model.predict_step when overridden is not'
+        ' decorated with `@tf.function`.'):
+      ModelWithPredictStepOverridden(inputs, outputs)
+
+  @keras_parameterized.run_all_keras_modes
+  @keras_parameterized.run_with_all_model_types
   def test_model_instrumentation(self):
     layers = [
         layers_module.Dense(10, dtype=np.float64),
