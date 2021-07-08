@@ -14,14 +14,16 @@
 # ==============================================================================
 """Functional test for learning rate decay."""
 
-import tensorflow.compat.v2 as tf
-
 import math
 
 from absl.testing import parameterized
+
 from keras import combinations
 from keras.optimizer_v2 import gradient_descent
 from keras.optimizer_v2 import learning_rate_schedule
+import numpy as np
+
+import tensorflow.compat.v2 as tf
 
 
 def _maybe_serialized(lr_decay, serialize_and_deserialize):
@@ -357,6 +359,16 @@ class CosineDecayTestV2(tf.test.TestCase, parameterized.TestCase):
       expected = self.np_cosine_decay(step, num_training_steps, alpha)
       self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
 
+  def testFloat64InitLearningRate(self, serialize):
+    num_training_steps = 1000
+    initial_lr = np.float64(1.0)
+    for step in range(0, 1500, 250):
+      decayed_lr = learning_rate_schedule.CosineDecay(initial_lr,
+                                                      num_training_steps)
+      decayed_lr = _maybe_serialized(decayed_lr, serialize)
+      expected = self.np_cosine_decay(step, num_training_steps)
+      self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
+
 
 @combinations.generate(combinations.combine(serialize=[False, True],
                                             mode=["graph", "eager"]))
@@ -378,6 +390,16 @@ class CosineDecayRestartsTestV2(tf.test.TestCase,
   def testDecay(self, serialize):
     num_training_steps = 1000
     initial_lr = 1.0
+    for step in range(0, 1500, 250):
+      decayed_lr = learning_rate_schedule.CosineDecayRestarts(
+          initial_lr, num_training_steps)
+      decayed_lr = _maybe_serialized(decayed_lr, serialize)
+      expected = self.np_cosine_decay_restarts(step, num_training_steps)
+      self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
+
+  def testFloat64InitLearningRate(self, serialize):
+    num_training_steps = 1000
+    initial_lr = np.float64(1.0)
     for step in range(0, 1500, 250):
       decayed_lr = learning_rate_schedule.CosineDecayRestarts(
           initial_lr, num_training_steps)

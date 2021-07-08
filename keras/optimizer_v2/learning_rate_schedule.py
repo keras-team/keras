@@ -624,7 +624,7 @@ class CosineDecay(LearningRateSchedule):
       global_step_recomp = tf.minimum(global_step_recomp, decay_steps)
       completed_fraction = global_step_recomp / decay_steps
       cosine_decayed = 0.5 * (1.0 + tf.cos(
-          tf.constant(math.pi) * completed_fraction))
+          tf.constant(math.pi, dtype=dtype) * completed_fraction))
 
       decayed = (1 - self.alpha) * cosine_decayed + self.alpha
       return tf.multiply(initial_learning_rate, decayed)
@@ -749,7 +749,7 @@ class CosineDecayRestarts(LearningRateSchedule):
 
       m_fac = m_mul**i_restart
       cosine_decayed = 0.5 * m_fac * (1.0 + tf.cos(
-          tf.constant(math.pi) * completed_fraction))
+          tf.constant(math.pi, dtype=dtype) * completed_fraction))
       decayed = (1 - alpha) * cosine_decayed + alpha
 
       return tf.multiply(initial_learning_rate, decayed, name=name)
@@ -866,11 +866,11 @@ class LinearCosineDecay(LearningRateSchedule):
       completed_fraction = global_step_recomp / decay_steps
       fraction = 2.0 * num_periods * completed_fraction
       cosine_decayed = 0.5 * (
-          1.0 + tf.cos(tf.constant(math.pi) * fraction))
+          1.0 + tf.cos(tf.constant(math.pi, dtype=dtype) * fraction))
 
       linear_cosine_decayed = (alpha + linear_decayed) * cosine_decayed + beta
       return tf.multiply(initial_learning_rate, linear_cosine_decayed,
-                               name=name)
+                         name=name)
 
   def get_config(self):
     return {
@@ -1001,7 +1001,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
       completed_fraction = global_step_recomp / decay_steps
       fraction = 2.0 * num_periods * completed_fraction
       cosine_decayed = 0.5 * (
-          1.0 + tf.cos(tf.constant(math.pi) * fraction))
+          1.0 + tf.cos(tf.constant(math.pi, dtype=dtype) * fraction))
       noisy_linear_cosine_decayed = (
           (alpha + noisy_linear_decayed) * cosine_decayed + beta)
 
