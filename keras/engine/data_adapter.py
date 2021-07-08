@@ -34,7 +34,7 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
 keras_data_adapter_gauge = tf.__internal__.monitoring.BoolGauge(
-    "/tensorflow/api/oss-keras/data_adapters", "keras data adapter usage", "method")
+    "/tensorflow/api/keras/data_adapters", "keras data adapter usage", "method")
 
 
 class DataAdapter(object, metaclass=abc.ABCMeta):
