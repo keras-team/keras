@@ -1,6 +1,6 @@
 path: "tensorflow.keras.layers.Lambda"
 tf_class {
-  is_instance: "<class \'keras.layers.core.Lambda\'>"
+  is_instance: "<class \'keras.layers.core.lambda_layer.Lambda\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.tracking.AutoTrackable\'>"
