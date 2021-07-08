@@ -1,6 +1,6 @@
 path: "tensorflow.keras.layers.Flatten"
 tf_class {
-  is_instance: "<class \'keras.layers.core.Flatten\'>"
+  is_instance: "<class \'keras.layers.core.flatten.Flatten\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.tracking.AutoTrackable\'>"
