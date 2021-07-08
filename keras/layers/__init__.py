@@ -16,10 +16,11 @@
 
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-bad-import-order,g-direct-tensorflow-import,disable=g-import-not-at-top
 from tensorflow.python import tf2
 
 # Generic layers.
+# pylint: disable=g-bad-import-order
+# pylint: disable=g-import-not-at-top
 from keras.engine.input_layer import Input
 from keras.engine.input_layer import InputLayer
 from keras.engine.input_spec import InputSpec
@@ -90,24 +91,19 @@ from keras.layers.convolutional import Cropping2D
 from keras.layers.convolutional import Cropping3D
 
 # Core layers.
-from keras.layers.core.activation import Activation
-from keras.layers.core.activity_regularization import ActivityRegularization
-from keras.layers.core.dense import Dense
-from keras.layers.core.dropout import Dropout
-from keras.layers.core.flatten import Flatten
-from keras.layers.core.lambda_layer import Lambda
-from keras.layers.core.masking import Masking
-from keras.layers.core.permute import Permute
-from keras.layers.core.repeat_vector import RepeatVector
-from keras.layers.core.reshape import Reshape
-from keras.layers.core.spatial_dropout import SpatialDropout1D
-from keras.layers.core.spatial_dropout import SpatialDropout2D
-from keras.layers.core.spatial_dropout import SpatialDropout3D
-from keras.layers.core.tf_op_layer import ClassMethod
-from keras.layers.core.tf_op_layer import InstanceMethod
-from keras.layers.core.tf_op_layer import InstanceProperty
-from keras.layers.core.tf_op_layer import SlicingOpLambda
-from keras.layers.core.tf_op_layer import TFOpLambda
+from keras.layers.core import Masking
+from keras.layers.core import Dropout
+from keras.layers.core import SpatialDropout1D
+from keras.layers.core import SpatialDropout2D
+from keras.layers.core import SpatialDropout3D
+from keras.layers.core import Activation
+from keras.layers.core import Reshape
+from keras.layers.core import Permute
+from keras.layers.core import Flatten
+from keras.layers.core import RepeatVector
+from keras.layers.core import Lambda
+from keras.layers.core import Dense
+from keras.layers.core import ActivityRegularization
 
 # Dense Attention layers.
 from keras.layers.dense_attention import AdditiveAttention

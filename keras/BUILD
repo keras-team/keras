@@ -302,7 +302,7 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras/layers",
         "//keras/layers:advanced_activations",
-        "//keras/layers/core",
+        "//keras/layers:core",
     ],
 )
 

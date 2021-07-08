@@ -13,15 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for embedding layers."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
+import tensorflow.compat.v2 as tf
+
+import numpy as np
 
 import keras
 from keras import combinations
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.mixed_precision import policy
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 class EmbeddingTest(keras_parameterized.TestCase):

@@ -1,7 +1,7 @@
 path: "tensorflow.keras.layers.SpatialDropout1D"
 tf_class {
-  is_instance: "<class \'keras.layers.core.spatial_dropout.SpatialDropout1D\'>"
-  is_instance: "<class \'keras.layers.core.dropout.Dropout\'>"
+  is_instance: "<class \'keras.layers.core.SpatialDropout1D\'>"
+  is_instance: "<class \'keras.layers.core.Dropout\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.tracking.AutoTrackable\'>"

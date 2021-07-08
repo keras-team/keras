@@ -13,17 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for Keras core layers."""
-# pylint: disable=g-bad-import-order
+
 import tensorflow.compat.v2 as tf
 
 import textwrap
+
+import numpy as np
 
 import keras
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.layers import core
 from keras.mixed_precision import policy
-import numpy as np
 
 
 @keras_parameterized.run_all_keras_modes
@@ -378,7 +379,7 @@ class CoreLayersTest(keras_parameterized.TestCase):
     x = np.ones((10, 10))
     y = keras.layers.Masking(1.)(x)
     self.assertTrue(hasattr(y, '_keras_mask'))
-    self.assertIsNotNone(y._keras_mask)
+    self.assertTrue(y._keras_mask is not None)
     self.assertAllClose(self.evaluate(y._keras_mask), np.zeros((10,)))
 
   def test_compute_mask_with_positional_mask_arg(self):

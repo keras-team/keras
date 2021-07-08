@@ -603,7 +603,7 @@ cuda_py_test(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/engine",
-        "//keras/layers/core",
+        "//keras/layers:core",
         "//keras/utils:kpl_test_utils",
     ],
 )
@@ -619,7 +619,7 @@ cuda_py_test(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:metrics",
-        "//keras/layers/core",
+        "//keras/layers:core",
     ],
 )
 
@@ -891,7 +891,7 @@ py_library(
         "//keras",
         "//keras:callbacks",
         "//keras/engine",
-        "//keras/layers/core",
+        "//keras/layers:core",
         "//keras/layers/preprocessing:string_lookup",
         "//keras/optimizer_v2",
         "//keras/utils:dataset_creator",
