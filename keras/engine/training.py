@@ -146,6 +146,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       itertools.chain(('_train_counter', '_test_counter', '_predict_counter',
                        '_steps_per_execution'),
                       base_layer.Layer._TF_MODULE_IGNORED_PROPERTIES))  # pylint: disable=protected-access
+  _SCALAR_UPRANKING_ON = True
 
   def __new__(cls, *args, **kwargs):
     # Signature detection
