@@ -122,8 +122,8 @@ tf_py_test(
         ":sequence_feature_column",
         "//:expect_tensorflow_installed",
         "//keras:metrics",  # Import it here since base_layer didn't import it due to circular dependency.
+        "//keras/layers:core",
         "//keras/layers:merge",
         "//keras/layers:recurrent",
-        "//keras/layers/core",
     ],
 )

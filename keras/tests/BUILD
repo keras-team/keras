@@ -255,7 +255,7 @@ tf_py_test(
         "//keras",
         "//keras:metrics",
         "//keras/api:keras_api",
-        "//keras/layers/core",
+        "//keras/layers:core",
         "//keras/optimizer_v2",
     ],
 )
@@ -269,7 +269,7 @@ cuda_py_test(
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
         "//keras/engine",
-        "//keras/layers/core",
+        "//keras/layers:core",
     ],
 )
 
@@ -284,7 +284,7 @@ tf_py_test(
         "//keras:combinations",
         "//keras/api:keras_api",
         "//keras/engine",
-        "//keras/layers/core",
+        "//keras/layers:core",
     ],
 )
 
@@ -316,7 +316,7 @@ tf_py_test(
         "//keras:combinations",
         "//keras/api:keras_api",
         "//keras/engine",
-        "//keras/layers/core",
+        "//keras/layers:core",
         "//keras/layers/normalization",
     ],
 )
@@ -333,7 +333,7 @@ tf_py_test(
         "//keras:combinations",
         "//keras/api:keras_api",
         "//keras/engine",
-        "//keras/layers/core",
+        "//keras/layers:core",
         "//keras/optimizer_v2",
     ],
 )
@@ -351,7 +351,7 @@ tf_py_test(
         "//keras:combinations",
         "//keras/api:keras_api",
         "//keras/engine",
-        "//keras/layers/core",
+        "//keras/layers:core",
     ],
 )
 
