@@ -24,6 +24,14 @@ import keras
 from keras.utils import generic_utils
 
 
+class SnakeCaseTest(tf.test.TestCase):
+
+  def test_snake_case(self):
+    self.assertEqual(generic_utils.to_snake_case('SomeClass'), 'some_class')
+    self.assertEqual(generic_utils.to_snake_case('Conv2D'), 'conv2d')
+    self.assertEqual(generic_utils.to_snake_case('ConvLSTM2D'), 'conv_lstm2d')
+
+
 class HasArgTest(tf.test.TestCase):
 
   def test_has_arg(self):
