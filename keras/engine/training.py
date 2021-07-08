@@ -65,45 +65,6 @@ except ImportError:
 # pylint: enable=g-import-not-at-top
 
 
-def disable_multi_worker(method):
-  """Decorator that disallows multi-worker use of `method`."""
-
-  def _method_wrapper(self, *args, **kwargs):
-    if self._in_multi_worker_mode():  # pylint: disable=protected-access
-      raise ValueError('{} is not supported in multi-worker mode.'.format(
-          method.__name__))
-    return method(self, *args, **kwargs)
-
-  return tf.__internal__.decorator.make_decorator(
-      target=method, decorator_func=_method_wrapper)
-
-
-def inject_functional_model_class(cls):
-  """Inject `Functional` into the hierarchy of this class if needed."""
-  from keras.engine import functional  # pylint: disable=g-import-not-at-top
-  from keras.engine import training_v1  # pylint: disable=g-import-not-at-top
-  if cls == Model or cls == training_v1.Model:
-    return functional.Functional
-  # In case there is any multiple inheritance, we stop injecting the
-  # class if keras model is not in its class hierarchy.
-  if cls == object:
-    return object
-
-  cls.__bases__ = tuple(inject_functional_model_class(base)
-                        for base in cls.__bases__)
-  # Trigger any `__new__` class swapping that needed to happen on `Functional`
-  # but did not because functional was not in the class hierarchy.
-  cls.__new__(cls)
-
-  return cls
-
-
-def is_functional_model_init_params(args, kwargs):
-  return (len(args) == 2 or
-          len(args) == 1 and 'outputs' in kwargs or
-          'inputs' in kwargs and 'outputs' in kwargs)
-
-
 @keras_export('keras.Model', 'keras.models.Model')
 class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   """`Model` groups layers into an object with training and inference features.
@@ -133,8 +94,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   inputs are not supported (e.g. lists of list or dicts of dict).
 
   2 - By subclassing the `Model` class: in that case, you should define your
-  layers in `__init__` and you should implement the model's forward pass
-  in `call`.
+  layers in `__init__()` and you should implement the model's forward pass
+  in `call()`.
 
   ```python
   import tensorflow as tf
@@ -154,7 +115,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   ```
 
   If you subclass `Model`, you can optionally have
-  a `training` argument (boolean) in `call`, which you can use to specify
+  a `training` argument (boolean) in `call()`, which you can use to specify
   a different behavior in training and inference:
 
   ```python
@@ -335,15 +296,16 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     never throw unexpected errors in an unrelated workflow).
 
     Args:
-     input_shape: Single tuple, TensorShape, or list/dict of shapes, where
-         shapes are tuples, integers, or TensorShapes.
+     input_shape: Single tuple, `TensorShape` instance,
+       or list/dict of shapes, where shapes are tuples, integers, or
+       `TensorShape` instances.
 
     Raises:
       ValueError:
         1. In case of invalid user-provided data (not of type tuple,
-           list, TensorShape, or dict).
+           list, `TensorShape`, or dict).
         2. If the model requires call arguments that are agnostic
-           to the input shapes (positional or kwarg in call signature).
+           to the input shapes (positional or keyword arg in call signature).
         3. If not all layers were properly built.
         4. If float type inputs are not supported within the layers.
 
@@ -407,20 +369,21 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                   'Currently, you cannot build your model if it has '
                   'positional or keyword arguments that are not '
                   'inputs to the model, but are required for its '
-                  '`call` method. Instead, in order to instantiate '
-                  'and build your model, `call` your model on real '
+                  '`call()` method. Instead, in order to instantiate '
+                  'and build your model, `call()` your model on real '
                   'tensor data with all expected call arguments.')
         elif len(call_args) < 2:
           # Signature without `inputs`.
-          raise ValueError('You can only call `build` on a model if its `call` '
-                           'method accepts an `inputs` argument.')
+          raise ValueError(
+              'You can only call `build()` on a model if its `call()` '
+              'method accepts an `inputs` argument.')
         try:
           self.call(x, **kwargs)
         except (tf.errors.InvalidArgumentError, TypeError):
           raise ValueError('You cannot build your model by calling `build` '
                            'if your layers do not support float type inputs. '
                            'Instead, in order to instantiate and build your '
-                           'model, `call` your model on real tensor data (of '
+                           'model, call your model on real tensor data (of '
                            'the correct dtype).')
     super(Model, self).build(input_shape)
 
@@ -428,14 +391,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def call(self, inputs, training=None, mask=None):
     """Calls the model on new inputs.
 
-    In this case `call` just reapplies
+    In this case `call()` just reapplies
     all ops in the graph to the new inputs
     (e.g. build a new computational graph from the provided inputs).
 
     Note: This method should not be called directly. It is only meant to be
     overridden when subclassing `tf.keras.Model`.
-    To call a model on an input, always use the `__call__` method,
-    i.e. `model(inputs)`, which relies on the underlying `call` method.
+    To call a model on an input, always use the `__call__()` method,
+    i.e. `model(inputs)`, which relies on the underlying `call()` method.
 
     Args:
         inputs: Input tensor, or dict/list/tuple of input tensors.
@@ -449,7 +412,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         a list of tensors if there are more than one outputs.
     """
     raise NotImplementedError('When subclassing the `Model` class, you should '
-                              'implement a `call` method.')
+                              'implement a `call()` method.')
 
   def compile(self,
               optimizer='rmsprop',
@@ -538,10 +501,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           will only be called every `N` batches
           (i.e. before/after each `tf.function` execution).
         **kwargs: Arguments supported for backwards compatibility only.
-
-    Raises:
-        ValueError: In case of invalid arguments for
-            `optimizer`, `loss` or `metrics`.
     """
     base_layer.keras_api_gauge.get_cell('compile').set(True)
     with self.distribute_strategy.scope():
@@ -572,8 +531,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       # Initializes attrs that are reset each time `compile` is called.
       self._reset_compile_cache()
       self._is_compiled = True
-
-      self.loss = loss or {}  # Backwards compat.
+      self.loss = loss or {}
 
   def _get_optimizer(self, optimizer):
     """Wraps `optimizer` in `LossScaleOptimizer` if necessary."""
@@ -627,7 +585,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   @property
   def metrics(self):
-    """Returns the model's metrics added using `compile`, `add_metric` APIs.
+    """Returns the model's metrics added using `compile()`, `add_metric()` APIs.
 
     Note: Metrics passed to `compile()` are available only after a `keras.Model`
     has been trained/evaluated on actual data.
@@ -781,11 +739,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       `tf.keras.callbacks.CallbackList.on_train_batch_end`. Typically, the
       values of the `Model`'s metrics are returned. Example:
       `{'loss': 0.2, 'accuracy': 0.7}`.
-
-    Raises:
-      TypeError: In a situation where a model is compiled with loss and no
-      target is given.
-
     """
     # These are the only transformations `Model.fit` applies to user-input
     # data when a `tf.data.Dataset` is provided.
@@ -798,8 +751,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           y, y_pred, sample_weight, regularization_losses=self.losses)
     if self.loss and y is None:
       raise TypeError(
-          'Target value is missing. Please ensure `y` value is set '
-          'in `Model.fit()` or `x` contains `data` and target value in `Model.fit()`.'
+          'Target data is missing. Your model was compiled with a `loss` '
+          'argument and therefore expects target data to be passed in `fit()`.'
       )
     # Run backwards pass.
     self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
@@ -1454,8 +1407,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         the display labels for the scalar outputs.
 
     Raises:
-        RuntimeError: If `model.evaluate` is wrapped in `tf.function`.
-        ValueError: in case of invalid arguments.
+        RuntimeError: If `model.evaluate` is wrapped in a `tf.function`.
     """
     base_layer.keras_api_gauge.get_cell('evaluate').set(True)
     version_utils.disallow_legacy_graph('Model', 'evaluate')
@@ -1634,7 +1586,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     Computation is done in batches. This method is designed for performance in
     large scale inputs. For small amount of inputs that fit in one batch,
-    directly using `__call__` is recommended for faster execution, e.g.,
+    directly using `__call__()` is recommended for faster execution, e.g.,
     `model(x)`, or `model(x, training=False)` if you have layers such as
     `tf.keras.layers.BatchNormalization` that behaves differently during
     inference. Also, note the fact that test loss is not affected by
@@ -1661,7 +1613,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         steps: Total number of steps (batches of samples)
             before declaring the prediction round finished.
             Ignored with the default value of `None`. If x is a `tf.data`
-            dataset and `steps` is None, `predict` will
+            dataset and `steps` is None, `predict()` will
             run until the input dataset is exhausted.
         callbacks: List of `keras.callbacks.Callback` instances.
             List of callbacks to apply during prediction.
@@ -1689,7 +1641,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Numpy array(s) of predictions.
 
     Raises:
-        RuntimeError: If `model.predict` is wrapped in `tf.function`.
+        RuntimeError: If `model.predict` is wrapped in a `tf.function`.
         ValueError: In case of mismatch between the provided
             input data and the model's expectations,
             or in case a stateful model receives a number of samples
@@ -1855,8 +1807,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         the display labels for the scalar outputs.
 
     Raises:
-      RuntimeError: If `model.train_on_batch` is wrapped in `tf.function`.
-      ValueError: In case of invalid user-provided arguments.
+      RuntimeError: If `model.train_on_batch` is wrapped in a `tf.function`.
     """
     self._assert_compile_was_called()
     self._check_call_args('train_on_batch')
@@ -1915,8 +1866,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         the display labels for the scalar outputs.
 
     Raises:
-        RuntimeError: If `model.test_on_batch` is wrapped in `tf.function`.
-        ValueError: In case of invalid user-provided arguments.
+        RuntimeError: If `model.test_on_batch` is wrapped in a `tf.function`.
     """
     self._assert_compile_was_called()
     self._check_call_args('test_on_batch')
@@ -1949,9 +1899,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Numpy array(s) of predictions.
 
     Raises:
-        RuntimeError: If `model.predict_on_batch` is wrapped in `tf.function`.
-        ValueError: In case of mismatch between given number of inputs and
-          expectations of the model.
+        RuntimeError: If `model.predict_on_batch` is wrapped in a `tf.function`.
     """
     self._check_call_args('predict_on_batch')
     _disallow_inside_tf_function('predict_on_batch')
@@ -2202,9 +2150,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     is the `Checkpoint` even if the `Checkpoint` has a model attached. This
     means saving a `tf.keras.Model` using `save_weights` and loading into a
     `tf.train.Checkpoint` with a `Model` attached (or vice versa) will not match
-    the `Model`'s variables. See the [guide to training
-    checkpoints](https://www.tensorflow.org/guide/checkpoint) for details
-    on the TensorFlow format.
+    the `Model`'s variables. See the
+    [guide to training checkpoints](https://www.tensorflow.org/guide/checkpoint)
+    for details on the TensorFlow format.
 
     Args:
         filepath: String or PathLike, path to the file to save the weights to.
@@ -2220,9 +2168,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             options for saving weights.
 
     Raises:
-        ImportError: If h5py is not available when attempting to save in HDF5
+        ImportError: If `h5py` is not available when attempting to save in HDF5
             format.
-        ValueError: For invalid/unknown format arguments.
     """
     self._assert_weights_created()
     filepath = path_to_string(filepath)
@@ -2325,7 +2272,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         When loading weights in HDF5 format, returns `None`.
 
     Raises:
-        ImportError: If h5py is not available and the weight file is in HDF5
+        ImportError: If `h5py` is not available and the weight file is in HDF5
             format.
         ValueError: If `skip_mismatch` is set to `True` when `by_name` is
           `False`.
@@ -2451,7 +2398,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         A YAML string.
 
     Raises:
-        ImportError: if yaml module is not found.
+        ImportError: if the `yaml` module is not found.
     """
     if yaml is None:
       raise ImportError(
@@ -2554,9 +2501,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     Returns:
         A layer instance.
-
-    Raises:
-        ValueError: In case of invalid layer name or index.
     """
     # TODO(fchollet): We could build a dictionary based on layer names
     # since they are constant, but we have not done that yet.
@@ -2667,7 +2611,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     the user would just get an empty list, which is misleading.
 
     Raises:
-      ValueError: if the weights of the network has not yet been created.
+      ValueError: if the weights of the network have not yet been created.
     """
     if self.dynamic:
       return
@@ -2684,7 +2628,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                        self.name)
 
   def _check_call_args(self, method_name):
-    """Check that `call` has only one positional arg."""
+    """Check that `call()` has only one positional arg."""
     # Always allow first arg, regardless of arg name.
     fullargspec = self._call_full_argspec
     if fullargspec.defaults:
@@ -2699,11 +2643,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       extra_args = positional_args[2:]
       raise ValueError(
           'Models passed to `' + method_name + '` can only have `training` '
-          'and the first argument in `call` as positional arguments, '
+          'and the first argument in `call()` as positional arguments, '
           'found: ' + str(extra_args) + '.')
 
   def _validate_compile(self, optimizer, metrics, **kwargs):
-    """Performs validation checks for the default `compile`."""
+    """Performs validation checks for the default `compile()`."""
     if any(
         isinstance(opt, optimizer_v1.Optimizer)
         for opt in tf.nest.flatten(optimizer)):
@@ -2724,7 +2668,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           'target_tensors argument is not supported when executing eagerly.')
     invalid_kwargs = set(kwargs) - {'sample_weight_mode'}
     if invalid_kwargs:
-      raise TypeError('Invalid keyword argument(s) in `compile`: %s' %
+      raise TypeError('Invalid keyword argument(s) in `compile()`: %s' %
                       (invalid_kwargs,))
 
     # Model must be created and compiled with the same DistStrat.
@@ -3076,3 +3020,42 @@ def saver_with_op_caching(obj):
   return tf.__internal__.tracking.TrackableSaver(
       tf.__internal__.tracking.ObjectGraphView(
           weakref.ref(obj), saveables_cache=saveables_cache))
+
+
+def disable_multi_worker(method):
+  """Decorator that disallows multi-worker use of `method`."""
+
+  def _method_wrapper(self, *args, **kwargs):
+    if self._in_multi_worker_mode():  # pylint: disable=protected-access
+      raise ValueError('{} is not supported in multi-worker mode.'.format(
+          method.__name__))
+    return method(self, *args, **kwargs)
+
+  return tf.__internal__.decorator.make_decorator(
+      target=method, decorator_func=_method_wrapper)
+
+
+def inject_functional_model_class(cls):
+  """Inject `Functional` into the hierarchy of this class if needed."""
+  from keras.engine import functional  # pylint: disable=g-import-not-at-top
+  from keras.engine import training_v1  # pylint: disable=g-import-not-at-top
+  if cls == Model or cls == training_v1.Model:
+    return functional.Functional
+  # In case there is any multiple inheritance, we stop injecting the
+  # class if keras model is not in its class hierarchy.
+  if cls == object:
+    return object
+
+  cls.__bases__ = tuple(inject_functional_model_class(base)
+                        for base in cls.__bases__)
+  # Trigger any `__new__` class swapping that needed to happen on `Functional`
+  # but did not because functional was not in the class hierarchy.
+  cls.__new__(cls)
+
+  return cls
+
+
+def is_functional_model_init_params(args, kwargs):
+  return (len(args) == 2 or
+          len(args) == 1 and 'outputs' in kwargs or
+          'inputs' in kwargs and 'outputs' in kwargs)

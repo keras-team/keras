@@ -1712,7 +1712,7 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
     model = training_module.Model(inputs, outputs)
     model.compile('rmsprop', 'mse')
     x = np.zeros((32, 3))
-    with self.assertRaisesRegex(TypeError, 'Target value is missing..*'):
+    with self.assertRaisesRegex(TypeError, 'Target data is missing..*'):
       model.fit(x)
 
   @keras_parameterized.run_all_keras_modes
@@ -1726,7 +1726,7 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
     model.compile('rmsprop', 'mse')
     x = np.zeros((32, 3))
     y = np.zeros((32, 2))
-    with self.assertRaisesRegex(TypeError, 'Target value is missing..*'):
+    with self.assertRaisesRegex(TypeError, 'Target data is missing..*'):
       model.fit({'a': x, 'b': x, 'c': y})
 
   @keras_parameterized.run_all_keras_modes
