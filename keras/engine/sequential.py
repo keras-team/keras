@@ -118,8 +118,8 @@ class Sequential(functional.Functional):
     self._layer_call_argspecs = {}
     self._created_nodes = set()
     # Flag that indicate whether the sequential network topology has been
-    # created. It is false when there isn't any layer, or the layers doesn't
-    # have input shape.
+    # created. It is false when there isn't any layer, or the layers don't
+    # have an input shape.
     self._graph_initialized = False
 
     # Unfortunately some Sequential models using custom layers or FeatureColumn
@@ -445,8 +445,8 @@ class Sequential(functional.Functional):
   def input_spec(self):
     if hasattr(self, '_manual_input_spec'):
       return self._manual_input_spec
-    if self.layers and hasattr(self.layers[0], 'input_spec'):
-      return self.layers[0].input_spec
+    if self._has_explicit_input_shape:
+      return super().input_spec
     return None
 
   @input_spec.setter

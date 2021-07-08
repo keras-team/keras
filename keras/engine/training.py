@@ -148,7 +148,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       itertools.chain(('_train_counter', '_test_counter', '_predict_counter',
                        '_steps_per_execution'),
                       base_layer.Layer._TF_MODULE_IGNORED_PROPERTIES))  # pylint: disable=protected-access
-  _SCALAR_UPRANKING_ON = True
+  _SCALAR_UPRANKING_ON = False
 
   def __new__(cls, *args, **kwargs):
     # Signature detection
@@ -776,9 +776,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       values of the `Model`'s metrics are returned. Example:
       `{'loss': 0.2, 'accuracy': 0.7}`.
     """
-    # These are the only transformations `Model.fit` applies to user-input
-    # data when a `tf.data.Dataset` is provided.
-    data = data_adapter.expand_1d(data)
     x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
     # Run forward pass.
     with tf.GradientTape() as tape:
@@ -1265,7 +1262,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       `tf.keras.callbacks.CallbackList.on_train_batch_end`. Typically, the
       values of the `Model`'s metrics are returned.
     """
-    data = data_adapter.expand_1d(data)
     x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
 
     y_pred = self(x, training=False)
@@ -1536,7 +1532,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       The result of one inference step, typically the output of calling the
       `Model` on data.
     """
-    data = data_adapter.expand_1d(data)
     x, _, _ = data_adapter.unpack_x_y_sample_weight(data)
     return self(x, training=False)
 

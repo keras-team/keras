@@ -98,7 +98,8 @@ class WideDeepModel(keras_training.Model):
       dnn_output = self.dnn_model(dnn_inputs, training=training)
     else:
       dnn_output = self.dnn_model(dnn_inputs)
-    output = tf.nest.map_structure(lambda x, y: (x + y), linear_output, dnn_output)
+    output = tf.nest.map_structure(
+        lambda x, y: (x + y), linear_output, dnn_output)
     if self.activation:
       return tf.nest.map_structure(self.activation, output)
     return output
@@ -106,8 +107,6 @@ class WideDeepModel(keras_training.Model):
   # This does not support gradient scaling and LossScaleOptimizer.
   def train_step(self, data):
     x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
-    x, y, sample_weight = data_adapter.expand_1d((x, y, sample_weight))
-
     with tf.GradientTape() as tape:
       y_pred = self(x, training=True)
       loss = self.compiled_loss(
