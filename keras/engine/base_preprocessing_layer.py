@@ -27,7 +27,7 @@ from tensorflow.tools.docs import doc_controls
 
 
 keras_kpl_gauge = tf.__internal__.monitoring.BoolGauge(
-    '/tensorflow/api/oss-keras/layers/preprocessing',
+    '/tensorflow/api/keras/layers/preprocessing',
     'keras preprocessing layers usage', 'method')
 
 
