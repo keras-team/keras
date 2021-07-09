@@ -2490,6 +2490,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def layers(self):
     return list(self._flatten_layers(include_self=False, recursive=False))
 
+  @layers.setter
+  def layers(self, _):
+    raise AttributeError(
+        '`Model.layers` attribute is reserved and should not be used. '
+        'Please use another name.')
+
   def get_layer(self, name=None, index=None):
     """Retrieves a layer based on either its name (unique) or index.
 
