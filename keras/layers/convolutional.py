@@ -15,7 +15,7 @@
 """Keras convolution layers and image transformation layers."""
 # pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
-
+import sys
 import functools
 from keras import activations
 from keras import backend
@@ -36,6 +36,7 @@ from keras.layers.pooling import MaxPooling3D
 from keras.utils import conv_utils
 from keras.utils import tf_utils
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.ops import logging_ops
 # pylint: disable=g-classes-have-attributes
 
 
@@ -231,7 +232,7 @@ class Conv(Layer):
     if tf_op_name == 'Conv1D':
       tf_op_name = 'conv1d'  # Backwards compat.
 
-     # Check if output shapes are valid
+    # Check if output shapes are valid
     # They must not have 0 entries along any dimension
     # Check dimensions other than batch and channel, must be greater than 0
     if self._channels_first:
@@ -322,7 +323,8 @@ class Conv(Layer):
         self.padding,
         self.strides[idx],
         dilation=self.dilation_rate[idx])
-    if output_dimension is not None and output_dimension <= 0:
+    logging_ops.print_v2(output_dimension, output_stream=sys.stdout)
+    if (output_dimension is not None) and (output_dimension <= 0):
       raise ValueError('One of the dimensions in output tensor is less than or'
                        ' equal to zero. Please check the input shape. '
                        ' Recieved input: %s' % input_shape)

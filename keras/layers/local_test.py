@@ -16,6 +16,7 @@
 
 import tensorflow.compat.v2 as tf
 
+
 import os
 from absl.testing import parameterized
 import numpy as np
