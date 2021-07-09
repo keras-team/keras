@@ -36,7 +36,7 @@ from keras.layers.pooling import MaxPooling3D
 from keras.utils import conv_utils
 from keras.utils import tf_utils
 from tensorflow.python.util.tf_export import keras_export
-from tensorflow.python.ops import logging_ops
+
 # pylint: disable=g-classes-have-attributes
 
 
