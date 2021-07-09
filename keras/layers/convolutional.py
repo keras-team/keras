@@ -15,7 +15,7 @@
 """Keras convolution layers and image transformation layers."""
 # pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
-import sys
+
 import functools
 from keras import activations
 from keras import backend
