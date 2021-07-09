@@ -163,9 +163,9 @@ class Conv1DTest(keras_parameterized.TestCase):
 
 
 def test_conv1d_invalid_output_shapes(self):
-    kwargs = {'filters': 2, 'kernel_size': 10}
+    kwargs = {'filters': 2, 'kernel_size': 20}
     with self.assertRaises(ValueError):
-      layer = keras.layers.Conv1D(**kwargs)
+      layer = keras.layers.convolutional.Conv1D(**kwargs)
       layer.build((None, 5, 2))
 
 @keras_parameterized.run_all_keras_modes
@@ -300,9 +300,9 @@ class Conv2DTest(keras_parameterized.TestCase):
       keras.layers.Conv2D(**kwargs)
   
   def test_conv2d_invalid_output_shapes(self):
-    kwargs = {'filters': 2, 'kernel_size': 10}
+    kwargs = {'filters': 2, 'kernel_size': 20}
     with self.assertRaises(ValueError):
-      layer = keras.layers.Conv2D(**kwargs)
+      layer = keras.layers.convolutional.Conv2D(**kwargs)
       layer.build((None, 5, 5, 2))
 
 
@@ -441,9 +441,9 @@ class Conv3DTest(keras_parameterized.TestCase):
             input_data=input_data)
   
   def test_conv3d_invalid_output_shapes(self):
-    kwargs = {'filters': 2, 'kernel_size': 10}
+    kwargs = {'filters': 2, 'kernel_size': 20}
     with self.assertRaises(ValueError):
-      layer = keras.layers.Conv3D(**kwargs)
+      layer = keras.layers.convolutional.Conv3D(**kwargs)
       layer.build((None, 5, 5, 5, 2))
 
 

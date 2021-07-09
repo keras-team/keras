@@ -237,6 +237,7 @@ class Conv(Layer):
     # Check dimensions other than batch and channel, must be greater than 0
     if self._channels_first:
       for idx, dimension in enumerate(input_shape.as_list()[-self.rank:]):
+        
         self._check_invalid_dimension(dimension, idx, input_shape)
 
     else:
@@ -323,7 +324,7 @@ class Conv(Layer):
         self.padding,
         self.strides[idx],
         dilation=self.dilation_rate[idx])
-    logging_ops.print_v2(output_dimension, output_stream=sys.stdout)
+    
     if (output_dimension is not None) and (output_dimension <= 0):
       raise ValueError('One of the dimensions in output tensor is less than or'
                        ' equal to zero. Please check the input shape. '
