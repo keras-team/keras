@@ -14,13 +14,10 @@
 # ==============================================================================
 """Keras SavedModel deserialization."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import re
 import types
 
-from google.protobuf import message
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
@@ -35,7 +32,10 @@ from keras.saving.saved_model.serialized_attributes import CommonEndpoints
 from keras.utils import generic_utils
 from keras.utils import metrics_utils
 from keras.utils.generic_utils import LazyLoader
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow.compat.v1.logging as logging
+import tensorflow.compat.v2 as tf
+
+from google.protobuf import message
 
 # To avoid circular dependencies between keras/engine and keras/saving,
 # code in keras/saving must delay imports.
@@ -105,7 +105,8 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
 
   # Look for metadata file or parse the SavedModel
   metadata = saved_metadata_pb2.SavedMetadata()
-  meta_graph_def = tf.__internal__.saved_model.parse_saved_model(path).meta_graphs[0]
+  meta_graph_def = tf.__internal__.saved_model.parse_saved_model(
+      path).meta_graphs[0]
   object_graph_def = meta_graph_def.object_graph_def
   path_to_metadata_pb = os.path.join(path, constants.SAVED_METADATA_PATH)
   if tf.compat.v1.gfile.Exists(path_to_metadata_pb):
@@ -137,7 +138,8 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
   nodes_to_load = {'root': None}
   for node_id, loaded_node in keras_loader.loaded_nodes.items():
     nodes_to_load[keras_loader.get_path(node_id)] = loaded_node
-  loaded = tf.__internal__.saved_model.load_partial(path, nodes_to_load, options=options)
+  loaded = tf.__internal__.saved_model.load_partial(
+      path, nodes_to_load, options=options)
 
   # Finalize the loaded layers and remove the extra tracked dependencies.
   keras_loader.finalize_objects()
@@ -156,7 +158,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
           training_config), from_serialized=True)
       saving_utils.try_build_compiled_arguments(model)
       if isinstance(model.optimizer, optimizer_v2.OptimizerV2):
-        if (model.optimizer.get_slot_names()):
+        if model.optimizer.get_slot_names():
           logging.warning('Your optimizer uses slots. '
                           'Slots cannot be restored from saved_model, '
                           'as a result, your model is starting with  '
@@ -169,7 +171,8 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
   # Force variables and resources to initialize.
   if not tf.executing_eagerly():
     sess = backend.get_session()  # Variables are initialized by this call.
-    sess.run(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TABLE_INITIALIZERS))
+    sess.run(
+        tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TABLE_INITIALIZERS))
 
   return model
 
@@ -348,7 +351,8 @@ class KerasObjectLoader(object):
         continue
       if (child_proto.user_object.identifier in
           tf.__internal__.saved_model.load.registered_identifiers()):
-        setter = tf.__internal__.saved_model.load.get_setter(child_proto.user_object)
+        setter = tf.__internal__.saved_model.load.get_setter(
+            child_proto.user_object)
       elif obj_child._object_identifier in constants.KERAS_OBJECT_IDENTIFIERS:
         setter = _revive_setter
       else:
