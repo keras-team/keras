@@ -1108,7 +1108,7 @@ def to_list(x):
 
 
 def to_snake_case(name):
-  intermediate = re.sub('(.)([A-Z][a-z0-9]+)', r'\1_\2', name)
+  intermediate = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
   insecure = re.sub('([a-z])([A-Z])', r'\1_\2', intermediate).lower()
   # If the class is private the name starts with "_" which is not secure
   # for creating scopes. We prefix the name with "private" in this case.
