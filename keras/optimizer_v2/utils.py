@@ -73,7 +73,9 @@ def filter_empty_gradients(grads_and_vars):
                      ([v.name for _, v in grads_and_vars],))
   if vars_with_empty_grads:
     logging.warning(
-        ("Gradients do not exist for variables %s when minimizing the loss."),
+        ("Gradients do not exist for variables %s when minimizing the loss. "
+         "If you're using `model.compile()`, did you forget to provide a `loss`"
+         "argument?"),
         ([v.name for v in vars_with_empty_grads]))
   return filtered
 
