@@ -17,6 +17,8 @@
 """Built-in metrics."""
 
 import tensorflow.compat.v2 as tf
+from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import check_ops
 
 import abc
 import types
@@ -3490,6 +3492,10 @@ def categorical_accuracy(y_true, y_pred):
   Returns:
     Categorical accuracy values.
   """
+  # assert if predicted and true labels Tensors have the same shape
+  check_ops.assert_equal_v2(array_ops.shape_v2(y_pred),
+                            array_ops.shape_v2(y_true))
+
   return tf.cast(
       tf.equal(
           tf.compat.v1.argmax(y_true, axis=-1), tf.compat.v1.argmax(y_pred, axis=-1)),
