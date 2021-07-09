@@ -855,8 +855,6 @@ class Progbar(object):
     self._values = {}
     self._values_order = []
     self._start = time.time()
-    self._time_at_epoch_start = self._start
-    self._time_at_epoch_end = None
     self._last_update = 0
 
     self._time_after_first_step = None
@@ -901,8 +899,6 @@ class Progbar(object):
     self._seen_so_far = current
 
     now = time.time()
-    if current == self.target:
-      self._time_at_epoch_end = now
     info = ' - %.0fs' % (now - self._start)
     if self.verbose == 1:
       if now - self._last_update < self.interval and not finalize:
@@ -937,7 +933,12 @@ class Progbar(object):
       time_per_unit = self._estimate_step_duration(current, now)
 
       if self.target is None or finalize:
-        info += self._format_time(time_per_unit, self.unit_name)
+        if time_per_unit >= 1 or time_per_unit == 0:
+          info += ' %.0fs/%s' % (time_per_unit, self.unit_name)
+        elif time_per_unit >= 1e-3:
+          info += ' %.0fms/%s' % (time_per_unit * 1e3, self.unit_name)
+        else:
+          info += ' %.0fus/%s' % (time_per_unit * 1e6, self.unit_name)
       else:
         eta = time_per_unit * (self.target - current)
         if eta > 3600:
@@ -983,14 +984,8 @@ class Progbar(object):
             info += ' %.4f' % avg
           else:
             info += ' %.4e' % avg
-        if self._time_at_epoch_end:
-          time_per_epoch = self._time_at_epoch_end - self._time_at_epoch_start
-          avg_time_per_step = time_per_epoch / self.target
-          self._time_at_epoch_start = now
-          self._time_at_epoch_end = None
-          info += ' -' + self._format_time(time_per_epoch, 'epoch')
-          info += ' -' + self._format_time(avg_time_per_step, self.unit_name)
         info += '\n'
+
         sys.stdout.write(info)
         sys.stdout.flush()
 
@@ -998,26 +993,6 @@ class Progbar(object):
 
   def add(self, n, values=None):
     self.update(self._seen_so_far + n, values)
-
-  def _format_time(self, time_per_unit, unit_name):
-    """format a given duration to display to the user.
-
-    Given the duration, this function formats it in either milliseconds
-    or seconds and displays the unit (i.e. ms/step or s/epoch)
-    Args:
-      time_per_unit: the duration to display
-      unit_name: the name of the unit to display
-    Returns:
-      a string with the correctly formatted duration and units
-    """
-    formatted = ''
-    if time_per_unit >= 1 or time_per_unit == 0:
-      formatted += ' %.0fs/%s' % (time_per_unit, unit_name)
-    elif time_per_unit >= 1e-3:
-      formatted += ' %.0fms/%s' % (time_per_unit * 1e3, unit_name)
-    else:
-      formatted += ' %.0fus/%s' % (time_per_unit * 1e6, unit_name)
-    return formatted
 
   def _estimate_step_duration(self, current, now):
     """Estimate the duration of a single step.
