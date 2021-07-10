@@ -25,50 +25,62 @@ from keras import keras_parameterized
 from keras import testing_utils
 
 
-SERIALIZERS = (
-  ("copy", copy.copy),
-  ("deepcopy", copy.deepcopy),
-  *(
-    (f"pickle-{protocol}", lambda model: pickle.loads(pickle.dumps(model, protocol=protocol)))
-    for protocol in range(pickle.HIGHEST_PROTOCOL+1)
-  )
-)
-
 class TestPickleProtocol(keras_parameterized.TestCase):
   """Tests pickle protoocol support.
   """
 
   @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.parameterized.named_parameters(*SERIALIZERS)
-  def test_pickle_model_fitted(self, serializer):
-    """Fitted models should be copyable/picklable."""
+  @keras_parameterized.parameterized.named_parameters(
+    ("copy", copy.copy),
+    ("deepcopy", copy.deepcopy),
+    *(
+      (f"pickle_protocol_level_{protocol}", lambda model: pickle.loads(pickle.dumps(model, protocol=protocol)))
+      for protocol in range(pickle.HIGHEST_PROTOCOL+1)
+    )
+  )
+  def test_built_models(self, serializer):
+    """Built models should be copyable and picklable for all model types"""
 
-    # create model
+    model = testing_utils.get_small_mlp(
+      num_hidden=1, num_classes=2, input_dim=3
+    )
+    model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy')
+  
+    # train
+    x = np.random.random(size=(1000, 3))
+    y = np.random.randint(low=0, high=2, size=(1000,))
+    model.fit(x, y)  # builds model
+    y1 = model.predict(x)
+    # roundtrip with training
+    model = serializer(model)
+    y2 = model.predict(x)
+    # check that the predictions are the same
+    self.assertAllClose(y1, y2)
+    # and that we can continue training
+    model.fit(x, y)
+    y3 = model.predict(x)
+    # check that the predictions are the same
+    self.assertNotAllClose(y2, y3)
+
+
+  @keras_parameterized.run_with_all_model_types
+  @keras_parameterized.parameterized.named_parameters(
+    ("copy", copy.copy),
+    ("deepcopy", copy.deepcopy),
+  )
+  def test_unbuilt_models(self, serializer):
+    """Unbuilt models should be copyable and deepcopyable for all model types"""
+
     original_model = testing_utils.get_small_mlp(
       num_hidden=1, num_classes=2, input_dim=3
     )
-    original_model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy')
+    # roundtrip without compiling or training
+    model = serializer(original_model)
+    # compile
+    model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy')
+    # roundtrip compiled but not trained
+    model = serializer(model)
 
-    # train
-    x = np.random.random((1000, 3))
-    y = np.random.randint(low=0, high=2, size=(1000, ))
-    original_model.fit(x, y)
-    y1 = original_model.predict(x)
-    original_weights = original_model.get_weights()
-
-    # roundtrip and check that the predictions are the same
-    new_model = serializer(original_model)
-
-    y2 = new_model.predict(x)
-    self.assertAllClose(y1, y2)
-
-    # make sure we can keep training
-    new_model.fit(x, y)
-    new_weights = new_model.get_weights()
-    # the weights on the new model should have changed
-    self.assertNotAllClose(new_weights, original_weights)
-    # but the weights on the original model have not been touched
-    self.assertAllClose(original_weights, original_model.get_weights())
 
 if __name__ == '__main__':
   tf.test.main()
