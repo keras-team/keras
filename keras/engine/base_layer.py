@@ -1228,6 +1228,16 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
   @trainable.setter
   def trainable(self, value):
+    """Sets trainable attribute for the layer and its sublayers.
+
+    When this value is changed during training (e.g. with a
+    `tf.keras.callbacks.Callback`) you need to call the parent
+    `tf.keras.Model.make_train_function` with `force=True` in order to recompile
+    the training graph.
+
+    Args:
+      value: Boolean with the desired state for the layer's trainable attribute.
+    """
     for layer in self._flatten_layers():
       layer._trainable = value
 
