@@ -71,10 +71,8 @@ def serialize_model_as_bytecode(model):
         t = tarfile.TarInfo(dest_path)
         t.type = tarfile.DIRTYPE
         archive.addfile(t)
-        print("Adding ", dest_path)
       for filename in filenames:
         dest_path = os.path.join(root, filename)
-        print("Adding ", dest_path)
         with tf.io.gfile.GFile(dest_path, "rb") as f:
           info = tarfile.TarInfo(name=os.path.relpath(dest_path, temp_dir))
           info.size = f.size()
