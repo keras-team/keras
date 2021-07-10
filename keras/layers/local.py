@@ -245,7 +245,6 @@ class LocallyConnected1D(Layer):
       self.input_spec = InputSpec(ndim=3, axes={1: input_dim})
     else:
       self.input_spec = InputSpec(ndim=3, axes={-1: input_dim})
-    self.op_shape = self.compute_output_shape(input_shape)
     self.built = True
 
   @tf_utils.shape_type_conversion
@@ -271,12 +270,12 @@ class LocallyConnected1D(Layer):
 
     elif self.implementation == 2:
       output = local_conv_matmul(inputs, self.kernel, self.kernel_mask,
-                                 self.op_shape)
+                                 self.compute_output_shape(inputs.shape))
 
     elif self.implementation == 3:
       output = local_conv_sparse_matmul(inputs, self.kernel, self.kernel_idxs,
                                         self.kernel_shape,
-                                        self.op_shape)
+                                        self.compute_output_shape(inputs.shape))
 
     else:
       raise ValueError('Unrecognized implementation mode: %d.' %
@@ -556,7 +555,6 @@ class LocallyConnected2D(Layer):
       self.input_spec = InputSpec(ndim=4, axes={1: input_filter})
     else:
       self.input_spec = InputSpec(ndim=4, axes={-1: input_filter})
-    self.op_shape = self.compute_output_shape(input_shape)
     self.built = True
 
   @tf_utils.shape_type_conversion
@@ -587,12 +585,12 @@ class LocallyConnected2D(Layer):
 
     elif self.implementation == 2:
       output = local_conv_matmul(inputs, self.kernel, self.kernel_mask,
-                                 self.op_shape)
+                                 self.compute_output_shape(inputs.shape))
 
     elif self.implementation == 3:
       output = local_conv_sparse_matmul(inputs, self.kernel, self.kernel_idxs,
                                         self.kernel_shape,
-                                        self.op_shape)
+                                        self.compute_output_shape(inputs.shape))
 
     else:
       raise ValueError('Unrecognized implementation mode: %d.' %
@@ -743,7 +741,7 @@ def local_conv_matmul(inputs, kernel, kernel_mask, output_shape):
   kernel = kernel_mask * kernel
   kernel = make_2d(kernel, split_dim=backend.ndim(kernel) // 2)
 
-  output_flat = tf.linalg.matmul(inputs_flat, kernel, b_is_sparse=True)
+  output_flat = tf.matmul(inputs_flat, kernel, b_is_sparse=True)
   output = backend.reshape(output_flat, [
       backend.shape(output_flat)[0],
   ] + output_shape.as_list()[1:])

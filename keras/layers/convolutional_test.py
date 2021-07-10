@@ -164,7 +164,11 @@ class Conv1DTest(keras_parameterized.TestCase):
 
 def test_conv1d_invalid_output_shapes(self):
     kwargs = {'filters': 2, 'kernel_size': 20}
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(ValueError, r"""
+            One of the dimensions in output tensor is less than or
+             equal to zero. Please check the input shape.
+             Recieved shape:
+             """):
       layer = keras.layers.convolutional.Conv1D(**kwargs)
       layer.build((None, 5, 2))
 
