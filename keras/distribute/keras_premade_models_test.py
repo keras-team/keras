@@ -46,7 +46,7 @@ def strategy_combinations_eager_data_fn():
 
 
 def get_numpy():
-  inputs = np.random.uniform(low=-5, high=5, size=(64, 2)).astype(np.float32)
+  inputs = np.random.uniform(low=-5., high=5., size=(64, 2)).astype(np.float32)
   output = .3 * inputs[:, 0] + .2 * inputs[:, 1]
   return inputs, output
 
