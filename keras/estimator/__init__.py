@@ -46,7 +46,7 @@ def model_to_estimator(
 
   For usage example, please see:
   [Creating estimators from Keras Models](
-    https://www.tensorflow.org/guide/estimators#creating_estimators_from_keras_models).
+    https://www.tensorflow.org/guide/estimator#create_an_estimator_from_a_keras_model).
 
   Sample Weights:
   Estimators returned by `model_to_estimator` are configured so that they can
