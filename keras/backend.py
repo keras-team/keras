@@ -4667,7 +4667,7 @@ def in_test_phase(x, alt, training=None):
 @keras_export('keras.backend.relu')
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs
-def relu(x, alpha=0., max_value=None, threshold=0):
+def relu(x, alpha=0., max_value=None, threshold=.0):
   """Rectified linear unit.
 
   With default values, it returns element-wise `max(x, 0)`.
