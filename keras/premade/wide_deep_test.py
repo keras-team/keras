@@ -36,8 +36,8 @@ class WideDeepModelTest(keras_parameterized.TestCase):
     linear_model = linear.LinearModel(units=1)
     dnn_model = sequential.Sequential([core.Dense(units=1, input_dim=3)])
     wide_deep_model = wide_deep.WideDeepModel(linear_model, dnn_model)
-    linear_inp = np.random.uniform(low=-5, high=5, size=(64, 2))
-    dnn_inp = np.random.uniform(low=-5, high=5, size=(64, 3))
+    linear_inp = np.random.uniform(low=-5., high=5., size=(64, 2))
+    dnn_inp = np.random.uniform(low=-5., high=5., size=(64, 3))
     inputs = [linear_inp, dnn_inp]
     output = .3 * linear_inp[:, 0] + .2 * dnn_inp[:, 1]
     wide_deep_model.compile(
@@ -78,7 +78,7 @@ class WideDeepModelTest(keras_parameterized.TestCase):
     linear_model = linear.LinearModel(units=1)
     dnn_model = sequential.Sequential([core.Dense(units=1, input_dim=3)])
     wide_deep_model = wide_deep.WideDeepModel(linear_model, dnn_model)
-    inputs = np.random.uniform(low=-5, high=5, size=(64, 3))
+    inputs = np.random.uniform(low=-5., high=5., size=(64, 3))
     output = .3 * inputs[:, 0]
     wide_deep_model.compile(
         optimizer=['sgd', 'adam'],
@@ -115,8 +115,8 @@ class WideDeepModelTest(keras_parameterized.TestCase):
     linear_model = linear.LinearModel(units=1)
     dnn_model = sequential.Sequential([core.Dense(units=1, input_dim=3)])
     wide_deep_model = wide_deep.WideDeepModel(linear_model, dnn_model)
-    linear_inp = np.random.uniform(low=-5, high=5, size=(64, 2))
-    dnn_inp = np.random.uniform(low=-5, high=5, size=(64, 3))
+    linear_inp = np.random.uniform(low=-5., high=5., size=(64, 2))
+    dnn_inp = np.random.uniform(low=-5., high=5., size=(64, 3))
     inputs = [linear_inp, dnn_inp]
     output = .3 * linear_inp[:, 0] + .2 * dnn_inp[:, 1]
     wide_deep_model.compile(
@@ -139,9 +139,9 @@ class WideDeepModelTest(keras_parameterized.TestCase):
     model = training.Model(
         inputs=[linear_input, dnn_input, input_b],
         outputs=[wide_deep_output + output_b])
-    linear_input_np = np.random.uniform(low=-5, high=5, size=(64, 3))
-    dnn_input_np = np.random.uniform(low=-5, high=5, size=(64, 5))
-    input_b_np = np.random.uniform(low=-5, high=5, size=(64,))
+    linear_input_np = np.random.uniform(low=-5., high=5., size=(64, 3))
+    dnn_input_np = np.random.uniform(low=-5., high=5., size=(64, 5))
+    input_b_np = np.random.uniform(low=-5., high=5., size=(64,))
     output_np = linear_input_np[:, 0] + .2 * dnn_input_np[:, 1] + input_b_np
     model.compile(
         optimizer='sgd',
@@ -156,8 +156,8 @@ class WideDeepModelTest(keras_parameterized.TestCase):
     wide_deep_model = wide_deep.WideDeepModel(
         linear.LinearModel(units=1),
         sequential.Sequential([core.Dense(units=1, input_dim=3)]))
-    linear_inp = np.random.uniform(low=-5, high=5, size=(64, 2))
-    dnn_inp = np.random.uniform(low=-5, high=5, size=(64, 3))
+    linear_inp = np.random.uniform(low=-5., high=5., size=(64, 2))
+    dnn_inp = np.random.uniform(low=-5., high=5., size=(64, 3))
     inputs = [linear_inp, dnn_inp]
     output = .3 * linear_inp[:, 0] + .2 * dnn_inp[:, 1]
     linear_model.compile(

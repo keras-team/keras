@@ -60,8 +60,9 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
     for policy in ('float32', 'int8', 'mixed_bfloat16', '_infer'):
       self.assertEqual(repr(mp_policy.PolicyV1(policy)),
                        '<PolicyV1 "%s", loss_scale=None>' % policy)
-    self.assertEqual(repr(mp_policy.PolicyV1('float16', loss_scale=2)),
-                     '<PolicyV1 "float16", loss_scale=FixedLossScale(2.0)>')
+    self.assertEqual(
+        repr(mp_policy.PolicyV1('float16', loss_scale=2.)),
+        '<PolicyV1 "float16", loss_scale=FixedLossScale(2.0)>')
     self.assertStartsWith(
         repr(mp_policy.PolicyV1('mixed_float16')),
         '<PolicyV1 "mixed_float16", loss_scale=DynamicLossScale(')

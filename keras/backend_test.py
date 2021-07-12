@@ -312,7 +312,7 @@ class BackendVariableTest(tf.test.TestCase):
     self.assertAllClose(val, np.ones((3, 4)))
 
   def test_random_uniform_variable(self):
-    x = backend.random_uniform_variable((30, 20), low=1, high=2, seed=0)
+    x = backend.random_uniform_variable((30, 20), low=1., high=2., seed=0)
     val = backend.eval(x)
     self.assertAllClose(val.mean(), 1.5, atol=1e-1)
     self.assertAllClose(val.max(), 2., atol=1e-1)
@@ -505,17 +505,17 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(backend.eval(relu_op), [[-2, 0], [2, 7]])
 
     # max_value < some elements
-    relu_op = backend.relu(x, max_value=5)
+    relu_op = backend.relu(x, max_value=5.)
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [2, 5]])
 
     # nn.relu6 used
-    relu_op = backend.relu(x, max_value=6)
+    relu_op = backend.relu(x, max_value=6.)
     if not tf.executing_eagerly():
       self.assertTrue('Relu6' in relu_op.name)  # uses tf.nn.relu6
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [2, 6]])
 
     # max value > 6
-    relu_op = backend.relu(x, max_value=10)
+    relu_op = backend.relu(x, max_value=10.)
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [2, 7]])
 
     # max value is float
@@ -523,11 +523,11 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [2, 4.3]])
 
     # max value == 0
-    relu_op = backend.relu(x, max_value=0)
+    relu_op = backend.relu(x, max_value=0.)
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [0, 0]])
 
     # alpha and max_value
-    relu_op = backend.relu(x, alpha=0.25, max_value=3)
+    relu_op = backend.relu(x, alpha=0.25, max_value=3.)
     self.assertAllClose(backend.eval(relu_op), [[-1, 0], [2, 3]])
 
     # threshold
@@ -543,20 +543,20 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(backend.eval(relu_op), [[-4, 0], [2, 7]])
 
     # threshold and max_value
-    relu_op = backend.relu(x, threshold=3, max_value=5)
+    relu_op = backend.relu(x, threshold=3, max_value=5.)
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [0, 5]])
 
     # threshold and alpha
-    relu_op = backend.relu(x, alpha=0.25, threshold=4)
+    relu_op = backend.relu(x, alpha=0.25, threshold=4.)
     self.assertAllClose(backend.eval(relu_op), [[-2, -1], [-0.5, 7]])
 
     # threshold, alpha, and max_value
-    relu_op = backend.relu(x, alpha=0.25, threshold=4, max_value=5)
+    relu_op = backend.relu(x, alpha=0.25, threshold=4., max_value=5.)
     self.assertAllClose(backend.eval(relu_op), [[-2, -1], [-0.5, 5]])
 
     # Test case for GitHub issue 35430, with integer dtype
     x = input_layer.Input(shape=(), name='x', dtype='int64')
-    _ = advanced_activations.ReLU(max_value=100, dtype='int64')(x)
+    _ = advanced_activations.ReLU(max_value=100., dtype='int64')(x)
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
