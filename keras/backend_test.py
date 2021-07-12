@@ -319,10 +319,10 @@ class BackendVariableTest(tf.test.TestCase):
     self.assertAllClose(val.min(), 1., atol=1e-1)
 
   def test_random_normal_variable(self):
-    x = backend.random_normal_variable((30, 20), 1., .5, seed=0)
+    x = backend.random_normal_variable((30, 20), 1., 0.5, seed=0)
     val = backend.eval(x)
     self.assertAllClose(val.mean(), 1., atol=1e-1)
-    self.assertAllClose(val.std(), .5, atol=1e-1)
+    self.assertAllClose(val.std(), 0.5, atol=1e-1)
 
   def test_count_params(self):
     x = backend.zeros((4, 5))
@@ -523,7 +523,7 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [2, 4.3]])
 
     # max value == 0
-    relu_op = backend.relu(x, max_value=.0)
+    relu_op = backend.relu(x, max_value=0.)
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [0, 0]])
 
     # alpha and max_value
