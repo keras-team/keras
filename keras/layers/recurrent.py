@@ -152,6 +152,13 @@ class StackedRNNCells(Layer):
   def build(self, input_shape):
     if isinstance(input_shape, list):
       input_shape = input_shape[0]
+
+    def get_batch_input_shape(batch_size):
+      def _get_input_shape(dim):
+        shape = tf.TensorShape(dim).as_list()
+        return tuple([batch_size] + shape)
+      return _get_input_shape
+    
     for cell in self.cells:
       if isinstance(cell, Layer) and not cell.built:
         with backend.name_scope(cell.name):
@@ -163,8 +170,14 @@ class StackedRNNCells(Layer):
         output_dim = cell.state_size[0]
       else:
         output_dim = cell.state_size
-      input_shape = tuple([input_shape[0]] +
-                          tf.TensorShape(output_dim).as_list())
+      batch_size = tf.nest.flatten(input_shape)[0]
+      if tf.nest.is_nested(output_dim):
+        input_shape = tf.nest.map_structure(
+                          get_batch_input_shape(batch_size), output_dim)
+        input_shape = tuple(input_shape)
+      else:
+        input_shape = tuple([batch_size] +
+                        tf.TensorShape(output_dim).as_list())
     self.built = True
 
   def get_config(self):
@@ -547,6 +560,12 @@ class RNN(Layer):
       # remove the timestep from the input_shape
       return shape[1:] if self.time_major else (shape[0],) + shape[2:]
 
+    def get_state_spec(shape):
+      state_spec_shape = tf.TensorShape(shape).as_list()
+      # append batch dim
+      state_spec_shape = [None] + state_spec_shape
+      return InputSpec(shape=tuple(state_spec_shape))
+
     # Check whether the input shape contains any nested shapes. It could be
     # (tensor_shape(1, 2), tensor_shape(3, 4)) or (1, 2, 3) which is from numpy
     # inputs.
@@ -587,10 +606,15 @@ class RNN(Layer):
       # initial_state was passed in call, check compatibility
       self._validate_state_spec(state_size, self.state_spec)
     else:
-      self.state_spec = [
-          InputSpec(shape=[None] + tf.TensorShape(dim).as_list())
-          for dim in state_size
-      ]
+      if tf.nest.is_nested(state_size):
+        self.state_spec = tf.nest.map_structure(get_state_spec, state_size)
+      else:
+        self.state_spec = [
+            InputSpec(shape=[None] + tf.TensorShape(dim).as_list())
+            for dim in state_size
+        ]
+      # ensure the generated state_spec is correct.
+      self._validate_state_spec(state_size, self.state_spec)
     if self.stateful:
       self.reset_states()
     self.built = True
