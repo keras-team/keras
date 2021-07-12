@@ -1945,7 +1945,8 @@ def dot(x, y):
 
   If `x` is an N-D array and `y` is an M-D array (where M>=2), it is a sum
   product over the last axis of `x` and the second-to-last axis of `y`.
-  >>> x = tf.keras.backend.random_uniform_variable(shape=(2, 3), low=0, high=1)
+  >>> x = tf.keras.backend.random_uniform_variable(
+  ... shape=(2, 3), low=0., high=1.)
   >>> y = tf.keras.backend.ones((4, 3, 5))
   >>> xy = tf.keras.backend.dot(x, y)
   >>> tf.keras.backend.int_shape(xy)
@@ -4667,7 +4668,7 @@ def in_test_phase(x, alt, training=None):
 @keras_export('keras.backend.relu')
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs
-def relu(x, alpha=0., max_value=None, threshold=0):
+def relu(x, alpha=0., max_value=None, threshold=0.):
   """Rectified linear unit.
 
   With default values, it returns element-wise `max(x, 0)`.
