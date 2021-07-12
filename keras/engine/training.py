@@ -37,7 +37,7 @@ from keras.mixed_precision import policy
 from keras.saving import hdf5_format
 from keras.saving import save
 from keras.saving import saving_utils
-from keras.saving.pickle_utils import deserialize_model_from_bytecode, serialize_model_as_bytecode
+from keras.saving import pickle_utils
 from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import model_serialization
 from keras.utils import generic_utils
@@ -324,7 +324,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   def __reduce__(self):
     if self.built:
-      return (deserialize_model_from_bytecode, serialize_model_as_bytecode(self))
+      return (
+        pickle_utils.deserialize_model_from_bytecode,
+        pickle_utils.serialize_model_as_bytecode(self)
+      )
     else:
       # SavedModel (and hence serialize_model_as_bytecode) only support built models,
       # but if the model is not built,
@@ -337,7 +340,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   def __deepcopy__(self, memo):
     if self.built:
-      new = deserialize_model_from_bytecode(*serialize_model_as_bytecode(self))
+      new = pickle_utils.deserialize_model_from_bytecode(
+        *pickle_utils.serialize_model_as_bytecode(self)
+      )
       memo[id(self)] = new
     else:
       # See comment in __reduce__ for explanation 

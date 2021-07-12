@@ -22,16 +22,16 @@ import tarfile
 from io import BytesIO
 from uuid import uuid4
 
-from numpy import asarray
+import numpy
 
-from keras.saving.save import load_model
+from keras.saving import save as save_module
 
 
 def deserialize_model_from_bytecode(serialized_model):
   """Reconstruct a Model from the output of `serialize_model_as_bytecode`.
 
   Args:
-      serialized_model (np.array): return value from `serialize_model_as_bytecode`.
+      serialized_model: (np.array) return value from `serialize_model_as_bytecode`.
 
   Returns:
       keras.Model: Keras Model instance.
@@ -46,7 +46,7 @@ def deserialize_model_from_bytecode(serialized_model):
       if member.isfile():
         with tf.io.gfile.GFile(dest_path, "wb") as f:
           f.write(archive.extractfile(name).read())
-  model = load_model(temp_dir)
+  model = save_module.load_model(temp_dir)
   tf.io.gfile.rmtree(temp_dir)
   return model
 
@@ -55,7 +55,7 @@ def serialize_model_as_bytecode(model):
   """Convert a Keras Model into a bytecode representation for pickling.
 
   Args:
-      model (tf.keras.Model): Keras Model instance.
+      model: (tf.keras.Model) Keras Model instance.
 
   Returns:
       tuple: tuple of arguments that can be sent to
@@ -79,4 +79,4 @@ def serialize_model_as_bytecode(model):
           archive.addfile(tarinfo=info, fileobj=f)
   tf.io.gfile.rmtree(temp_dir)
   b.seek(0)
-  return (asarray(memoryview(b.read())), )
+  return (numpy.asarray(memoryview(b.read())), )
