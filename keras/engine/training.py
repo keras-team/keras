@@ -334,8 +334,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       # it _may_ be possible to serialize as a plain Python object,
       # as long as the constituent parts (layers, optimizers, losses, etc.)
       # can be serialized as plain Python objects.
-      # Thus we call up the MRO to get an implementation of __reduce__
-      # to try to pickle this Model as a plain Python object.
+      # Thus we call up the superclass hierarchy to get an implementation of
+      # __reduce__ that can pickle this Model as a plain Python object.
       return super(Model, self).__reduce__()
 
   def __deepcopy__(self, memo):
