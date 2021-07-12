@@ -272,7 +272,7 @@ def swish(x):
 
 @keras_export('keras.activations.relu')
 @tf.__internal__.dispatch.add_dispatch_support
-def relu(x, alpha=0., max_value=None, threshold=.0):
+def relu(x, alpha=0., max_value=None, threshold=0.):
   """Applies the rectified linear unit activation function.
 
   With default values, this returns the standard ReLU activation:
