@@ -15,11 +15,11 @@
 """Helper classes that list&validate all attributes to serialize to SavedModel.
 """
 
-import tensorflow.compat.v2 as tf
 from keras.saving.saved_model import constants
+from keras.saving.saved_model import order_preserving_set as ops
 from keras.saving.saved_model import save_impl
 from keras.utils.generic_utils import LazyLoader
-from tensorflow.python.training.tracking.tracking import AutoTrackable
+import tensorflow.compat.v2 as tf
 
 # TODO(b/134426265): Switch back to single-quotes to match the rest of the file
 # once the issue with copybara is fixed.
@@ -130,9 +130,14 @@ class SerializedAttributes(object):
         checkpointable_objects.extend(cls.all_checkpointable_objects)
         functions.extend(cls.all_functions)
 
+    # OrderPreservingSets are used here to guarantee serialization determinism
+    # of Keras objects.
     classdict = {
-        'all_checkpointable_objects': set(checkpointable_objects),
-        'all_functions': set(functions)}
+        'all_checkpointable_objects':
+            ops.OrderPreservingSet(checkpointable_objects),
+        'all_functions':
+            ops.OrderPreservingSet(functions),
+    }
     return type(name, (SerializedAttributes,), classdict)
 
   @staticmethod
@@ -153,7 +158,7 @@ class SerializedAttributes(object):
   def __init__(self):
     self._object_dict = {}
     self._function_dict = {}
-    self._keras_trackable = AutoTrackable()
+    self._keras_trackable = tf.__internal__.tracking.AutoTrackable()
 
   @property
   def functions(self):
@@ -309,4 +314,3 @@ class RNNAttributes(SerializedAttributes.with_attributes(
     All attributes from LayerAttributes (including CommonEndpoints)
     states: List of state variables
   """
-

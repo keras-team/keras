@@ -14,14 +14,13 @@
 # ==============================================================================
 """Classes and functions implementing Layer SavedModel serialization."""
 
-import tensorflow.compat.v2 as tf
-
 from keras.mixed_precision import policy
 from keras.saving.saved_model import base_serialization
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import save_impl
 from keras.saving.saved_model import serialized_attributes
 from keras.utils import generic_utils
+import tensorflow.compat.v2 as tf
 
 
 class LayerSavedModelSaver(base_serialization.SavedModelSaver):
