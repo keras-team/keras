@@ -286,7 +286,7 @@ def _preprocess_symbolic_input(x, data_format, mode):
   else:
     x = backend.bias_add(x, mean_tensor, data_format)
   if std is not None:
-    std_tensor = backend.constant(np.array(std))
+    std_tensor = backend.constant(np.array(std), dtype=backend.dtype(x))
     if data_format == 'channels_first':
       std_tensor = backend.reshape(std_tensor, (-1, 1, 1))
     x /= std_tensor
