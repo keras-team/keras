@@ -19,6 +19,7 @@
 import tensorflow.compat.v2 as tf
 
 import collections
+import functools
 import warnings
 
 import numpy as np
@@ -153,11 +154,9 @@ class StackedRNNCells(Layer):
     if isinstance(input_shape, list):
       input_shape = input_shape[0]
 
-    def get_batch_input_shape(batch_size):
-      def _get_input_shape(dim):
-        shape = tf.TensorShape(dim).as_list()
-        return tuple([batch_size] + shape)
-      return _get_input_shape
+    def get_batch_input_shape(batch_size, dim):
+      shape = tf.TensorShape(dim).as_list()
+      return tuple([batch_size] + shape)
     
     for cell in self.cells:
       if isinstance(cell, Layer) and not cell.built:
@@ -173,7 +172,8 @@ class StackedRNNCells(Layer):
       batch_size = tf.nest.flatten(input_shape)[0]
       if tf.nest.is_nested(output_dim):
         input_shape = tf.nest.map_structure(
-                          get_batch_input_shape(batch_size), output_dim)
+                        functools.partial(get_batch_input_shape, batch_size),
+                        output_dim)
         input_shape = tuple(input_shape)
       else:
         input_shape = tuple([batch_size] +
