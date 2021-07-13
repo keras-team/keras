@@ -701,19 +701,14 @@ class Functional(training_lib.Model):
                         'The tensor that caused the issue was: ' + str(x.name))
 
     # Check compatibility of batch sizes of Input Layers.
-    input_batch_sizes = [
+    input_batch_sizes = set([
         training_utils.get_static_batch_size(x._keras_history.layer)
-        for x in self.inputs
-    ]
-    consistent_batch_size = None
-    for batch_size in input_batch_sizes:
-      if batch_size is not None:
-        if (consistent_batch_size is not None and
-            batch_size != consistent_batch_size):
-          raise ValueError('The specified batch sizes of the Input Layers'
-                           ' are incompatible. Found batch sizes: {}'.format(
-                               input_batch_sizes))
-        consistent_batch_size = batch_size
+        for x in self.inputs])
+    input_batch_sizes.discard(None)
+    if len(input_batch_sizes) > 1:
+      logging.warning('Found incompatiable static batch sizes among all the '
+                      'inputs. Batch sizes: {}'.format(
+                          sorted(input_batch_sizes)))
 
     for x in self.outputs:
       if not hasattr(x, '_keras_history'):
