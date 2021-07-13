@@ -65,6 +65,7 @@ _CURRENT_SCRATCH_GRAPH = threading.local()
 # This is a thread local object that will hold the default internal TF session
 # used by Keras. It can be set manually via `set_session(sess)`.
 _SESSION = threading.local()
+_SESSION.session = None
 
 
 # A global dictionary mapping graph objects to an index of counters used
