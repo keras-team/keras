@@ -18,6 +18,7 @@
 import tensorflow.compat.v2 as tf
 
 import collections
+import contextlib
 import copy
 import functools
 import itertools
@@ -78,6 +79,39 @@ keras_premade_model_gauge = tf.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/keras/premade_models', 'premade keras model usage', 'type')
 
 _is_name_scope_on_model_declaration_enabled = False
+
+_name_scope_unnester_stack = threading.local()
+
+
+@contextlib.contextmanager
+def _name_scope_unnester(full_name_scope):
+  """Helper to get relative name scope from fully specified nested name scopes.
+
+  Args:
+    full_name_scope: full(absolute) name scope path.
+
+  Yields:
+    Relative name scope path from the parent `_name_scope_unnester` context
+    manager.
+
+  Example:
+  ```
+  with _name_scope_unnester('a') as name1:  # name1 == 'a'
+    with _name_scope_unnester('a/b') as name2:  # name2 == 'b'
+      with _name_scope_unnester('a/b/c') as name3:  # name3 == 'c'
+        pass
+  ```
+  """
+  if not getattr(_name_scope_unnester_stack, 'value', None):
+    _name_scope_unnester_stack.value = ['']
+
+  _name_scope_unnester_stack.value.append(full_name_scope)
+
+  try:
+    yield (_name_scope_unnester_stack.value[-1]
+           [len(_name_scope_unnester_stack.value[-2]):]).lstrip('/')
+  finally:
+    _name_scope_unnester_stack.value.pop()
 
 
 @keras_export('keras.layers.Layer')
@@ -433,7 +467,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     # Save outer name scope at layer declaration so that it is preserved at
     # the actual layer construction.
-    self._outer_name_scope = tf.get_current_name_scope()
+    self._name_scope_on_declaration = tf.get_current_name_scope()
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   @generic_utils.default
@@ -1018,32 +1052,45 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         training=training_mode):
 
       input_spec.assert_input_compatibility(self.input_spec, inputs, self.name)
-      if eager:
-        call_fn = self.call
-        name_scope = self._name
-      else:
-        name_scope = self._name_scope()  # Avoid autoincrementing.  # pylint: disable=not-callable
-        call_fn = self._autographed_call()
 
-      with tf.name_scope(name_scope):
-        if not self.built:
-          self._maybe_build(inputs)
+      with _name_scope_unnester(self._name_scope_on_declaration
+                               ) as relative_name_scope_on_declaration:
+        if eager:
+          call_fn = self.call
+          name_scope = self._name
+        else:
+          if _is_name_scope_on_model_declaration_enabled:
+            # To avoid `tf.name_scope` autoincrement, use absolute path.
+            current_name_scope = '/'.join(
+                filter(None, [
+                    tf.get_current_name_scope(),
+                    relative_name_scope_on_declaration
+                ])) + '/'
+            with tf.name_scope(current_name_scope):
+              name_scope = self._name_scope()  # Avoid autoincrementing.  # pylint: disable=not-callable
+          else:
+            name_scope = self._name_scope()  # Avoid autoincrementing.  # pylint: disable=not-callable
+          call_fn = self._autographed_call()
 
-        if self._autocast:
-          inputs = self._maybe_cast_inputs(inputs, input_list)
+        with tf.name_scope(name_scope):
+          if not self.built:
+            self._maybe_build(inputs)
 
-        with autocast_variable.enable_auto_cast_variables(
-            self._compute_dtype_object):
-          outputs = call_fn(inputs, *args, **kwargs)
+          if self._autocast:
+            inputs = self._maybe_cast_inputs(inputs, input_list)
 
-        if self._activity_regularizer:
-          self._handle_activity_regularization(inputs, outputs)
-        if self._supports_masking:
-          self._set_mask_metadata(inputs, outputs, input_masks, not eager)
-        if self._saved_model_inputs_spec is None:
-          self._set_save_spec(inputs, args, kwargs)
+          with autocast_variable.enable_auto_cast_variables(
+              self._compute_dtype_object):
+            outputs = call_fn(inputs, *args, **kwargs)
 
-        return outputs
+          if self._activity_regularizer:
+            self._handle_activity_regularization(inputs, outputs)
+          if self._supports_masking:
+            self._set_mask_metadata(inputs, outputs, input_masks, not eager)
+          if self._saved_model_inputs_spec is None:
+            self._set_save_spec(inputs, args, kwargs)
+
+          return outputs
 
   def _functional_construction_call(self, inputs, args, kwargs, input_list):
     call_context = base_layer_utils.call_context()
@@ -2409,8 +2456,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     if not tf.__internal__.tf2.enabled():
       return self.name
     name_scope = self.name
-    if _is_name_scope_on_model_declaration_enabled and self._outer_name_scope:
-      name_scope = self._outer_name_scope + '/' + name_scope
     current_name_scope = tf.__internal__.get_name_scope()
     if current_name_scope:
       name_scope = current_name_scope + '/' + name_scope
