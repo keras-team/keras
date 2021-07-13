@@ -462,6 +462,11 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertEqual(self.evaluate(layer.weights[0]), 1.)
     self.assertEqual(self.evaluate(layer.weights[1]), 2.)
 
+  def test_exception_if_trainable_not_boolean(self):
+    with self.assertRaises(TypeError) as e:
+      base_layer.Layer(trainable=0)
+      self.assertIn('Expect trainable to be a boolean', str(e))
+
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_layer_names(self):
     inputs = input_layer.Input(shape=[2])
@@ -912,7 +917,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     class MyLayer(base_layer.Layer):
 
       def __init__(self, **kwargs):
-        super(MyLayer, self).__init__(self, **kwargs)
+        super(MyLayer, self).__init__(**kwargs)
         self.my_modules = {}
         self.my_modules['a'] = MyModule()
 

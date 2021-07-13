@@ -325,6 +325,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Mutable properties
     # Indicates whether the layer's weights are updated during training
     # and whether the layer's updates are run during training.
+    if not isinstance(trainable, bool):
+      raise TypeError('Expect trainable to be a boolean, got ' + str(trainable))
     self._trainable = trainable
     # A stateful layer is a layer whose updates are run during inference too,
     # for instance stateful RNNs.

@@ -1005,7 +1005,6 @@ class SharedEmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
 class DenseFeaturesSerializationTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
-      ('default', None, None),
       ('trainable', True, 'trainable'),
       ('not_trainable', False, 'frozen'))
   def test_get_config(self, trainable, name):
@@ -1026,7 +1025,6 @@ class DenseFeaturesSerializationTest(tf.test.TestCase, parameterized.TestCase):
         config['feature_columns'][1]['class_name'], 'EmbeddingColumn')
 
   @parameterized.named_parameters(
-      ('default', None, None),
       ('trainable', True, 'trainable'),
       ('not_trainable', False, 'frozen'))
   def test_from_config(self, trainable, name):
