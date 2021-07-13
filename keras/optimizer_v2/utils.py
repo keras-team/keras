@@ -32,7 +32,7 @@ def all_reduce_sum_gradients(grads_and_vars):
   if filtered_grads_and_vars:
     if strategy_supports_no_merge_call():
       grads = [pair[0] for pair in filtered_grads_and_vars]
-      reduced = tf.distribute.get_strategy().extended._replica_ctx_all_reduce(  # pylint: disable=protected-access
+      reduced = tf.distribute.get_replica_context().all_reduce(
           tf.distribute.ReduceOp.SUM, grads)
     else:
       # TODO(b/183257003): Remove this branch
