@@ -18,11 +18,10 @@ TODO (kathywu): Move to layer_serialization.py. Some model-specific logic should
 go to model_serialization.py.
 """
 
-import tensorflow.compat.v2 as tf
-
 import functools
 import threading
 import weakref
+
 from keras import backend as K
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
@@ -37,7 +36,8 @@ from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils import version_utils
 from keras.utils.generic_utils import LazyLoader
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow.compat.v1.logging as logging
+import tensorflow.compat.v2 as tf
 
 
 # To avoid circular dependencies between keras/engine and keras/saving,
@@ -576,7 +576,8 @@ def layer_call_wrapper(call_collection, method, name):
   # Rename to `name`, since tf.function doesn't have a name argument. Without
   # this, all functions returned by this method will be named "call", which
   # would be a nightmare to debug.
-  fn = tf.__internal__.decorator.make_decorator(target=method, decorator_func=wrapper)
+  fn = tf.__internal__.decorator.make_decorator(
+      target=method, decorator_func=wrapper)
   fn.__name__ = name
   return fn
 
