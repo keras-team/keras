@@ -23,6 +23,7 @@ py_library(
         "__init__.py",
         "densenet.py",
         "efficientnet.py",
+        "efficientnet_v2.py",
         "imagenet_utils.py",
         "inception_resnet_v2.py",
         "inception_v3.py",

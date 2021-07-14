@@ -22,6 +22,7 @@ import numpy as np
 
 from keras.applications import densenet
 from keras.applications import efficientnet
+from keras.applications import efficientnet_v2
 from keras.applications import inception_resnet_v2
 from keras.applications import inception_v3
 from keras.applications import mobilenet
@@ -61,6 +62,11 @@ ARG_TO_MODEL = {
                       efficientnet.EfficientNetB2, efficientnet.EfficientNetB3,
                       efficientnet.EfficientNetB4, efficientnet.EfficientNetB5,
                       efficientnet.EfficientNetB6, efficientnet.EfficientNetB7]),
+    'efficientnet_v2': (efficientnet_v2,
+                        [efficientnet_v2.EfficientNetV2_B0, efficientnet_v2.EfficientNetV2_B1,
+                         efficientnet_v2.EfficientNetV2_B2, efficientnet_v2.EfficientNetV2_B3,
+                         efficientnet_v2.EfficientNetV2_S, efficientnet_v2.EfficientNetV2_M,
+                         efficientnet_v2.EfficientNetV2_L]),
     'regnet': (regnet,
                [regnet.RegNetX002, regnet.RegNetX004, regnet.RegNetX006, 
                 regnet.RegNetX008, regnet.RegNetX016, regnet.RegNetX032, 
