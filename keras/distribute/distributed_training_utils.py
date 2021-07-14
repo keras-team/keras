@@ -14,8 +14,12 @@
 # ==============================================================================
 """Utilities related to distributed training."""
 
-import tensorflow.compat.v2 as tf
+from absl import flags
 from keras import backend
+
+import tensorflow.compat.v2 as tf
+
+FLAGS = flags.FLAGS
 
 
 # TODO(b/118776054): Currently we support global batch size for TPUStrategy and
@@ -60,3 +64,46 @@ def is_distributed_variable(v):
   """Returns whether `v` is a distributed variable."""
   return (isinstance(v, tf.distribute.DistributedValues) and
           isinstance(v, tf.Variable))
+
+
+def get_strategy():
+  """Creates a `tf.distribute.Strategy` object from flags.
+
+  Example usage:
+
+  ```python
+  strategy = utils.get_strategy()
+  with strategy.scope():
+    model = tf.keras.Sequential([tf.keras.layers.Dense(10)])
+
+  model.compile(...)
+  train_ds, test_ds = ...
+  model.fit(train_ds, validation_data=test_ds, epochs=10)
+  ```
+
+  Returns:
+    `tf.distribute.Strategy` instance.
+  """
+  cls = FLAGS.keras_distribute_strategy_class
+  if cls == 'tpu':
+    tpu_addr = FLAGS.keras_distribute_strategy_tpu_addr
+    if not tpu_addr:
+      raise ValueError('Must set flag: keras_distribute_strategy_tpu_addr')
+    cluster_resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
+        tpu=tpu_addr)
+    tf.config.experimental_connect_to_cluster(cluster_resolver)
+    tf.tpu.experimental.initialize_tpu_system(cluster_resolver)
+    strategy = tf.distribute.experimental.TPUStrategy(cluster_resolver)
+  elif cls == 'multi_worker_mirrored':
+    strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
+  elif cls == 'mirrored':
+    strategy = tf.distribute.MirroredStrategy()
+  elif cls == 'parameter_server':
+    cluster_resolver = tf.distribute.cluster_resolver.TFConfigClusterResolver()
+    strategy = tf.distribute.experimental.ParameterServerStrategy(
+        cluster_resolver)
+  elif cls == 'one_device':
+    strategy = tf.distribute.OneDeviceStrategy('/gpu:0')
+  else:
+    raise ValueError('Unknown strategy: {}'.format(cls))
+  return strategy
