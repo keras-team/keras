@@ -1093,9 +1093,13 @@ class TrainingTest(keras_parameterized.TestCase):
     input1 = input_layer.Input(batch_size=2, shape=(10,))
     input2 = input_layer.Input(batch_size=3, shape=(10,))
     outputs = MyLayer()([input1, input2])
-    with self.assertRaisesRegex(ValueError,
-                                'specified batch sizes of the Input Layers'):
+    with tf.compat.v1.test.mock.patch.object(
+        logging, 'warning') as mock_warn:
       training_module.Model([input1, input2], outputs)
+      self.assertEqual(
+          mock_warn.call_args_list[0][0][0],
+          'Found incompatiable static batch sizes among all the inputs. '
+          'Batch sizes: [2, 3]')
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_calling_subclass_model_on_different_datasets(self):
