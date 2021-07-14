@@ -111,6 +111,7 @@ py_binary(
     srcs = ["create_test_saved_model.py"],
     python_version = "PY3",
     srcs_version = "PY3",
+    tags = ["no_oss"],
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:regularizers",
