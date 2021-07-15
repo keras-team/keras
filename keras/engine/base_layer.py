@@ -328,7 +328,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     if not (isinstance(trainable, bool) or
             (isinstance(trainable, (tf.Tensor, tf.Variable)) and
              trainable.dtype is tf.bool)):
-      raise TypeError(f'Expect trainable to be a boolean, got {trainable}.')
+      raise TypeError(
+          f'Expected trainable argument to be a boolean, but got: {trainable}')
     self._trainable = trainable
     # A stateful layer is a layer whose updates are run during inference too,
     # for instance stateful RNNs.
