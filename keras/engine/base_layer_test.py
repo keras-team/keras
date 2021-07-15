@@ -466,9 +466,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
     base_layer.Layer(trainable=True)
     base_layer.Layer(trainable=tf.constant(True))
     base_layer.Layer(trainable=tf.Variable(tf.constant(True)))
-    with self.assertRaises(TypeError) as e:
+    with self.assertRaisesRegex(TypeError, 'Expect trainable to be a boolean'):
       base_layer.Layer(trainable=0)
-      self.assertIn('Expect trainable to be a boolean', str(e))
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_layer_names(self):
