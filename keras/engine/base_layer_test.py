@@ -463,6 +463,9 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertEqual(self.evaluate(layer.weights[1]), 2.)
 
   def test_exception_if_trainable_not_boolean(self):
+    base_layer.Layer(trainable=True)
+    base_layer.Layer(trainable=tf.constant(True))
+    base_layer.Layer(trainable=tf.Variable(tf.constant(True)))
     with self.assertRaises(TypeError) as e:
       base_layer.Layer(trainable=0)
       self.assertIn('Expect trainable to be a boolean', str(e))
