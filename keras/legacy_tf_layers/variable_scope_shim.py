@@ -549,23 +549,18 @@ class _EagerVariableStore(object):
     return initializer, initializing_from_value
 
 
+# pylint: disable=not-context-manager
+# The linter doesn't pick up that `scope` is a context manager
 class VariableAndLossTracker(tf.Module):
   """Module that has a scope to capture vars/losses made by `get_variable`."""
 
   def __init__(self):
     self._var_store = _EagerVariableStore()  # pylint: disable=protected-access
-    self._variables = {}
-
-  def _variable_creator(self, next_creator, **kwargs):
-    var = next_creator(**kwargs)
-    self._variables[var.name] = var
-
-    return var
+    self._variables = self._var_store._vars  # pylint: disable=protected-access
 
   @tf_contextlib.contextmanager
   def scope(self):
-    with tf.variable_creator_scope(
-        self._variable_creator), vs.with_variable_store(self._var_store):
+    with vs.with_variable_store(self._var_store):
       yield
 
   def get_regularization_losses(self):
@@ -578,7 +573,48 @@ class VariableAndLossTracker(tf.Module):
     return losses
 
 
-class VariableScopeWrapperLayer(base_layer.Layer):
+class VariableScopeModule(tf.Module):
+  """Wrapper Module to capture `compat.v1.get_variable` and `compat.v1.layers`.
+
+  See go/tf2-migration-model-bookkeeping for background.
+
+  This shim layer allows using large sets of TF1 model-forward-pass code as a
+  tf.Module that works in TF2 with TF2 behaviors enabled. To use it,
+  override this class and put your TF1 model's forward pass inside your
+  implementation for `forward_pass`.
+
+  Limitations:
+    * TF2 will not prune unused variable updates (or unused outputs). You may
+      need to adjust your forward pass code to avoid computations or variable
+      updates that you don't intend to use. (E.g. by adding a flag to the
+      `forward_pass` call signature and branching on it).
+    * Avoid Nesting variable creation in `tf.function` inside of `forward_pass`
+      While the layer may safely be used from inside a `tf.function`, using
+      a function inside of `forward_pass` will break the variable scoping.
+    * TBD: Nesting keras layers/models or other `VariableScopeModule`s
+      directly in `forward_pass` may not work correctly just yet.
+      Support for this/instructions for how to do this is still being worked on.
+
+  Coming soon: A better guide, testing/verification guide.
+  """
+
+  def __init__(self, name=None):
+    super().__init__(name=name)
+    self._tracker = VariableAndLossTracker()
+
+  def forward_pass(self, *args, **kwargs):
+    raise NotImplementedError
+
+  def __call__(self, *args, **kwargs):
+    with self.name_scope:
+      with self._tracker.scope():
+        return self.forward_pass(*args, **kwargs)
+
+  def get_compat_v1_regularization_losses(self):
+    return self._tracker.get_regularization_losses()
+
+
+class VariableScopeLayer(base_layer.Layer):
   """Wrapper Layer to capture `compat.v1.get_variable` and `compat.v1.layers`.
 
   See go/tf2-migration-model-bookkeeping for background.
@@ -589,12 +625,12 @@ class VariableScopeWrapperLayer(base_layer.Layer):
   implementation for `forward_pass`.
 
   Below are some examples, and then more details on the functionality of this
-  shhim layer to wrap TF1 model forward passes.
+  shim layer to wrap TF1 model forward passes.
 
   Example of capturing tf.compat.v1.layer-based modeling code as a Keras layer:
 
   ```python
-  class WrappedDoubleDenseLayer(variable_scope_shim.VariableScopeWrapperLayer):
+  class WrappedDoubleDenseLayer(variable_scope_shim.VariableScopeLayer):
 
     def __init__(self, units, *args, **kwargs):
       super().__init__(*args, **kwargs)
@@ -631,7 +667,7 @@ class VariableScopeWrapperLayer(base_layer.Layer):
   scope:
 
   ```python
-  class WrappedDoubleDenseLayer(variable_scope_shim.VariableScopeWrapperLayer):
+  class WrappedDoubleDenseLayer(variable_scope_shim.VariableScopeLayer):
 
     def __init__(self, units, *args, **kwargs):
       super().__init__(*args, **kwargs)
@@ -723,7 +759,7 @@ class VariableScopeWrapperLayer(base_layer.Layer):
     * Avoid Nesting variable creation in tf.function inside of `forward_pass`
       While the layer may safetely be used from inside a `tf.function`, using
       a function inside of `forward_pass` will break the variable scoping.
-    * TBD: Nesting keras layers/models or other `VariableScopeWrapperLayer`s
+    * TBD: Nesting keras layers/models or other `VariableScopeLayer`s
       directly in `forward_pass` may not work correctly just yet.
       Support for this/instructions for how to do this is sill being worked on.
 
@@ -733,7 +769,7 @@ class VariableScopeWrapperLayer(base_layer.Layer):
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
     # Relies on keras layers tracking Modules
-    self.tracker = VariableAndLossTracker()
+    self._tracker = VariableAndLossTracker()
     # May need to inspect func to see if it should pass a `training` arg or not
 
   @property
@@ -747,13 +783,13 @@ class VariableScopeWrapperLayer(base_layer.Layer):
     raise NotImplementedError
 
   def call(self, *args, **kwargs):
-    with self.tracker.scope():
+    with self._tracker.scope():
       out = self.forward_pass(*args, **kwargs)
     if not self._eager_losses:
       # We have to record regularization losses in the call as if they
       # are activity losses.
       # So, don't double-count regularization losses if the layer is used
       # multiple times in a model
-      for loss in self.tracker.get_regularization_losses().values():
+      for loss in self._tracker.get_regularization_losses().values():
         self.add_loss(loss)
     return out
