@@ -37,6 +37,7 @@ from keras.mixed_precision import policy
 from keras.saving import hdf5_format
 from keras.saving import save
 from keras.saving import saving_utils
+from keras.saving import pickle_utils
 from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import model_serialization
 from keras.utils import generic_utils
@@ -284,6 +285,38 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     super(Model, self).__setattr__(name, value)
 
+  def __reduce__(self):
+    if self.built:
+      return (pickle_utils.deserialize_model_from_bytecode,
+              pickle_utils.serialize_model_as_bytecode(self))
+    else:
+      # SavedModel (and hence serialize_model_as_bytecode) only support
+      # built models, but if the model is not built,
+      # it may be possible to serialize as a plain Python object,
+      # as long as the constituent parts (layers, optimizers, losses, etc.)
+      # can be serialized as plain Python objects.
+      # Thus we call up the superclass hierarchy to get an implementation of
+      # __reduce__ that can pickle this Model as a plain Python object.
+      return super(Model, self).__reduce__()
+
+  def __deepcopy__(self, memo):
+    if self.built:
+      new = pickle_utils.deserialize_model_from_bytecode(
+          *pickle_utils.serialize_model_as_bytecode(self))
+      memo[id(self)] = new
+    else:
+      # See comment in __reduce__ for explanation
+      deserializer, serialized, *rest = super(Model, self).__reduce__()
+      new = deserializer(*serialized)
+      memo[id(self)] = new
+      if rest:
+        state = copy.deepcopy(rest[0], memo=memo)
+        new.__setstate__(state)
+    return new
+
+  def __copy__(self):
+    return self.__deepcopy__({})
+
   @generic_utils.default
   def build(self, input_shape):
     """Builds the model based on input shapes received.
@@ -297,9 +330,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     never throw unexpected errors in an unrelated workflow).
 
     Args:
-     input_shape: Single tuple, `TensorShape` instance,
-       or list/dict of shapes, where shapes are tuples, integers, or
-       `TensorShape` instances.
+     input_shape: Single tuple, `TensorShape` instance, or list/dict of shapes,
+       where shapes are tuples, integers, or `TensorShape` instances.
 
     Raises:
       ValueError:
