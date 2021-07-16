@@ -1983,7 +1983,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       def call(self, x):
         return x + self.v1 + self.v2
 
-    def custom_transform(grads_and_vars):
+    def custom_transform(optimizer, grads_and_vars):
       # Always set gradients to 1.
       return [(tf.ones_like(g), v) for g, v in grads_and_vars]
 

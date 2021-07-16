@@ -483,7 +483,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       grads_and_vars = self._global_clipnorm_fn(grads_and_vars)
 
     for fn in self.gradient_transformers:
-      grads_and_vars = fn(grads_and_vars)
+      grads_and_vars = fn(self, grads_and_vars)
     return grads_and_vars
 
   def minimize(self, loss, var_list, grad_loss=None, name=None, tape=None):
