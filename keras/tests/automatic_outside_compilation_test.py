@@ -32,7 +32,8 @@ import tensorflow.compat.v2 as tf
 from tensorboard.plugins.histogram import summary_v2 as histogram_summary_v2
 from tensorboard.plugins.image import summary_v2 as image_summary_v2
 from tensorboard.plugins.scalar import summary_v2 as scalar_summary_v2
-from tensorflow.python.eager.context import set_soft_device_placement
+from tensorflow.python.eager.context import set_soft_device_placement  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util  # pylint: disable=g-direct-tensorflow-import
 
 NUM_CLASSES = 4
 
@@ -90,7 +91,7 @@ class LayerForHistogramSummary(base_layer.Layer):
 class CustomModel(training.Model):
   """Custom model with summary ops in model call definition."""
 
-  def __init__(self, name=None):
+  def __init__(self, name=None, enable_histograms=True):
     super(CustomModel, self).__init__()
     self._my_layers = [
         layer_lib.Dense(
@@ -104,7 +105,10 @@ class CustomModel(training.Model):
             kernel_initializer=tf.compat.v1.glorot_normal_initializer(seed=0),
             use_bias=False),
     ]
-    self.histogram_summary_layer = LayerForHistogramSummary()
+    if enable_histograms:
+      self.histogram_summary_layer = LayerForHistogramSummary()
+    else:
+      self.histogram_summary_layer = base_layer.Layer()  # no-op pass through
     self.scalar_summary_layer = LayerForScalarSummary()
 
   def call(self, x):
@@ -123,7 +127,7 @@ def get_image_dataset():
   return dataset
 
 
-def mnist_model(input_shape):
+def mnist_model(input_shape, enable_histograms=True):
   """Creates a MNIST model."""
   model = sequential_model_lib.Sequential()
 
@@ -142,7 +146,8 @@ def mnist_model(input_shape):
   model.add(layer_lib.Dense(NUM_CLASSES, activation='softmax'))
 
   # Adding custom pass-through layer for summary recording.
-  model.add(LayerForHistogramSummary())
+  if enable_histograms:
+    model.add(LayerForHistogramSummary())
   return model
 
 
@@ -162,8 +167,9 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
           event_counts[v.tag] += 1
 
     event_counts = dict(event_counts)  # Avoid defaultdict type in repr below.
+    # Populate a count of 0 for tags that were expected but not found.
     actual_event_counts = {
-        k: v for k, v in event_counts.items() if k in expected_event_counts
+        tag: event_counts.get(tag, 0) for tag in expected_event_counts
     }
     self.assertEqual(
         expected_event_counts,
@@ -171,10 +177,15 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
         msg='expected counts not found; all event counts: %r' % event_counts)
 
   def testV2SummaryWithKerasSequentialModel(self):
+    # Histogram summaries require the MLIR bridge; see b/178826597#comment107.
+    # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove this
+    #   if histogram summaries are supported fully on non-MLIR bridge or
+    #   non-MLIR bridge is no longer run.
+    enable_histograms = test_util.is_mlir_bridge_enabled()
     strategy = get_tpu_strategy()
 
     with strategy.scope():
-      model = mnist_model((28, 28, 3))
+      model = mnist_model((28, 28, 3), enable_histograms=enable_histograms)
       model.compile('sgd', 'mse')
 
       dataset = get_image_dataset()
@@ -192,17 +203,21 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
       # every 2 batches, we should see total of 5 event logs for each summary.
       expected_event_counts = {
           'sequential/layer_for_histogram_summary/custom_histogram_summary_v2':
-              5,
+              5 if enable_histograms else 0,
           'sequential/layer_for_image_summary/custom_image_summary_v2':
               5,
       }
       self.validate_recorded_sumary_file(event_files, expected_event_counts)
 
   def testV2SummaryWithKerasSubclassedModel(self):
+    # Histogram summaries require the MLIR bridge; see b/178826597#comment107.
+    # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove this
+    #   if histogram summaries are supported fully on non-MLIR bridge or
+    #   non-MLIR bridge is no longer run.
+    enable_histograms = test_util.is_mlir_bridge_enabled()
     strategy = get_tpu_strategy()
-
     with strategy.scope():
-      model = CustomModel()
+      model = CustomModel(enable_histograms=enable_histograms)
       model.compile('sgd', 'mse')
 
       dataset = distribute_strategy_test.get_dataset(strategy)
@@ -224,7 +239,7 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
               5,
           ('custom_model/layer_for_histogram_summary/'
            'custom_histogram_summary_v2'):
-              5
+              5 if enable_histograms else 0,
       }
       self.validate_recorded_sumary_file(event_files, expected_event_counts)
 
