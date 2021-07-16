@@ -905,6 +905,36 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 200)
     self.assertAllEqual(tf.add_n(layer.losses), 6)
 
+  def test_shim_exporting(self):
+
+    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def forward_pass(self, inputs, training=None):
+        out = core_layers.dense(
+            inputs,
+            self.units,
+            name="dense_one",
+            kernel_initializer=tf.compat.v1.ones_initializer(),
+            kernel_regularizer="l2")
+        with tf.compat.v1.variable_scope("nested_scope"):
+          out = core_layers.dense(
+              out,
+              self.units,
+              name="dense_two",
+              kernel_initializer=tf.compat.v1.ones_initializer(),
+              kernel_regularizer="l2")
+        return out
+
+    layer = WrappedDenseLayer(10)
+    layer(tf.ones(shape=(5, 5)))
+
+    tmp_dir = self.get_temp_dir()
+    tf.saved_model.save(layer, tmp_dir)
+
   def test_module_get_variable(self):
     # Test the module shim when using `get_variable` (and regularizers) directly
 

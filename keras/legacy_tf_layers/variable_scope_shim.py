@@ -556,7 +556,12 @@ class VariableAndLossTracker(tf.Module):
 
   def __init__(self):
     self._var_store = _EagerVariableStore()  # pylint: disable=protected-access
-    self._variables = self._var_store._vars  # pylint: disable=protected-access
+    self._variables = {}
+
+    # Because this is a module, self._variables becomes a trackable dict
+    # object that supports restoration. We must make the var_store share
+    # this same trackable dict object.
+    self._var_store._vars = self._variables  # pylint: disable=protected-access
 
   @tf_contextlib.contextmanager
   def scope(self):
@@ -600,18 +605,18 @@ class VariableScopeModule(tf.Module):
 
   def __init__(self, name=None):
     super().__init__(name=name)
-    self._tracker = VariableAndLossTracker()
+    self._var_tracker = VariableAndLossTracker()
 
   def forward_pass(self, *args, **kwargs):
     raise NotImplementedError
 
   def __call__(self, *args, **kwargs):
     with self.name_scope:
-      with self._tracker.scope():
+      with self._var_tracker.scope():
         return self.forward_pass(*args, **kwargs)
 
   def get_compat_v1_regularization_losses(self):
-    return self._tracker.get_regularization_losses()
+    return self._var_tracker.get_regularization_losses()
 
 
 class VariableScopeLayer(base_layer.Layer):
@@ -769,7 +774,7 @@ class VariableScopeLayer(base_layer.Layer):
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
     # Relies on keras layers tracking Modules
-    self._tracker = VariableAndLossTracker()
+    self._var_tracker = VariableAndLossTracker()
     # May need to inspect func to see if it should pass a `training` arg or not
 
   @property
@@ -783,13 +788,13 @@ class VariableScopeLayer(base_layer.Layer):
     raise NotImplementedError
 
   def call(self, *args, **kwargs):
-    with self._tracker.scope():
+    with self._var_tracker.scope():
       out = self.forward_pass(*args, **kwargs)
     if not self._eager_losses:
       # We have to record regularization losses in the call as if they
       # are activity losses.
       # So, don't double-count regularization losses if the layer is used
       # multiple times in a model
-      for loss in self._tracker.get_regularization_losses().values():
+      for loss in self._var_tracker.get_regularization_losses().values():
         self.add_loss(loss)
     return out
