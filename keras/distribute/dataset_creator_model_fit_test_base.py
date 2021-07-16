@@ -118,7 +118,8 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
                  run_eagerly=False,
                  with_normalization_layer=False,
                  callbacks=None,
-                 use_lookup_layer=False):
+                 use_lookup_layer=False,
+                 use_dataset_creator=True):
     if callbacks is None:
       callbacks = []
 
@@ -130,11 +131,18 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
     callbacks += default_callbacks
 
     if x is None:
-      x = dataset_creator.DatasetCreator(self._get_dataset_fn(use_lookup_layer))
+      if use_dataset_creator:
+        x = dataset_creator.DatasetCreator(
+            self._get_dataset_fn(use_lookup_layer))
+      else:
+        x = self._get_dataset_fn(use_lookup_layer)(None)
 
     if validation_data is None:
-      validation_data = dataset_creator.DatasetCreator(
-          self._get_dataset_fn(use_lookup_layer))
+      if use_dataset_creator:
+        validation_data = dataset_creator.DatasetCreator(
+            self._get_dataset_fn(use_lookup_layer))
+      else:
+        validation_data = self._get_dataset_fn(use_lookup_layer)(None)
 
     model.fit(
         x,
@@ -157,7 +165,8 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
                       steps=10,
                       run_eagerly=False,
                       with_normalization_layer=False,
-                      callbacks=None):
+                      callbacks=None,
+                      use_dataset_creator=True):
     if callbacks is None:
       callbacks = []
 
@@ -177,7 +186,10 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
           (x, y)).shuffle(10).repeat().batch(8)
 
     if x is None:
-      x = dataset_creator.DatasetCreator(dataset_fn)
+      if use_dataset_creator:
+        x = dataset_creator.DatasetCreator(dataset_fn)
+      else:
+        x = dataset_fn(None)
 
     model.evaluate(
         x=x, y=y, steps=steps, callbacks=callbacks, batch_size=batch_size)

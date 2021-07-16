@@ -1329,7 +1329,8 @@ class _ClusterCoordinatorDataHandler(DataHandler):
   """A `DataHandler` that is compatible with `ClusterCoordinator`."""
 
   def __init__(self, x, y=None, **kwargs):
-    if not isinstance(x, dataset_creator.DatasetCreator):
+    if (not _is_distributed_dataset(x) and
+        not isinstance(x, (dataset_creator.DatasetCreator, tf.data.Dataset))):
       x = self._convert_to_dataset_creator(x, y, **kwargs)
 
     super().__init__(x=x, **kwargs)
@@ -1355,17 +1356,22 @@ class _ClusterCoordinatorDataHandler(DataHandler):
 
   def _configure_dataset_and_inferred_steps(self, strategy, x, steps_per_epoch,
                                             class_weight, distribute):
-    if not isinstance(x, dataset_creator.DatasetCreator):
-      raise TypeError("When using `ParameterServerStrategy`, `x` must be a "
-                      "`DatasetCreator`.")
+    if isinstance(x, dataset_creator.DatasetCreator):
 
-    def per_worker_dataset_fn():
+      def per_worker_dataset_fn():
 
-      return strategy.distribute_datasets_from_function(
-          x, options=x.input_options)
+        return strategy.distribute_datasets_from_function(
+            x, options=x.input_options)
 
-    self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
-        per_worker_dataset_fn)
+      self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
+          per_worker_dataset_fn)
+    else:
+      assert distribute
+      if not _is_distributed_dataset(x):
+        x = strategy.experimental_distribute_dataset(x)
+
+      self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
+          x)
 
     if steps_per_epoch == -1:
       self._inferred_steps = None
