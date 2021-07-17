@@ -33,12 +33,12 @@ class StringLookup(index_lookup.IndexLookup):
   This layer translates a set of arbitrary strings into an integer output via a
   table-based vocabulary lookup.
 
-  The vocabulary for the layer can be supplied on construction or learned via
-  `adapt()`. During `adapt()`, the layer will analyze a data set, determine the
-  frequency of individual strings tokens, and create a vocabulary from them. If
-  the vocabulary is capped in size, the most frequent tokens will be used to
-  create the vocabulary and all others will be treated as out-of-vocabulary
-  (OOV).
+  The vocabulary for the layer must be either supplied on construction or
+  learned via `adapt()`. During `adapt()`, the layer will analyze a data set,
+  determine the frequency of individual strings tokens, and create a vocabulary
+  from them. If the vocabulary is capped in size, the most frequent tokens will
+  be used to create the vocabulary and all others will be treated as
+  out-of-vocabulary (OOV).
 
   There are two possible output modes for the layer.
   When `output_mode` is `"int"`,
@@ -57,9 +57,11 @@ class StringLookup(index_lookup.IndexLookup):
   indices and instances of the mask token will be dropped.
 
   Args:
-    max_tokens: The maximum size of the vocabulary for this layer. If None,
-      there is no cap on the size of the vocabulary. Note that this size
-      includes the OOV and mask tokens. Default to None.
+    max_tokens: Maximum size of the vocabulary for this layer. This should only
+      be specified when adapting the vocabulary or when setting
+      `pad_to_max_tokens=True`. If None, there is no cap on the size of the
+      vocabulary. Note that this size includes the OOV and mask tokens. Defaults
+      to None.
     num_oov_indices: The number of out-of-vocabulary tokens to use. If this
       value is more than 1, OOV inputs are hashed to determine their OOV value.
       If this value is 0, OOV inputs will cause an error when calling the layer.

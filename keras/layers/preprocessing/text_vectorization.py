@@ -70,13 +70,13 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
   representation (one example = 1D tensor of float values representing data
   about the example's tokens).
 
-  If desired, the user can call this layer's `adapt()` method on a dataset.
-  When this layer is adapted, it will analyze the dataset, determine the
-  frequency of individual string values, and create a 'vocabulary' from them.
-  This vocabulary can have unlimited size or be capped, depending on the
-  configuration options for this layer; if there are more unique values in the
-  input than the maximum vocabulary size, the most frequent terms will be used
-  to create the vocabulary.
+  The vocabulary for the layer must be either supplied on construction or
+  learned via `adapt()`. When this layer is adapted, it will analyze the
+  dataset, determine the frequency of individual string values, and create a
+  vocabulary from them. This vocabulary can have unlimited size or be capped,
+  depending on the configuration options for this layer; if there are more
+  unique values in the input than the maximum vocabulary size, the most frequent
+  terms will be used to create the vocabulary.
 
   The processing of each example contains the following steps:
 
@@ -107,8 +107,9 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
      site natively compatible with `tf.strings.split()`.
 
   Args:
-    max_tokens: The maximum size of the vocabulary for this layer. If None,
-      there is no cap on the size of the vocabulary. Note that this vocabulary
+    max_tokens: Maximum size of the vocabulary for this layer. This should only
+      be specified when adapting a vocabulary or when setting
+      `pad_to_max_tokens=True`. Note that this vocabulary
       contains 1 OOV token, so the effective number of tokens is `(max_tokens -
       1 - (1 if output_mode == "int" else 0))`.
     standardize: Optional specification for standardization to apply to the
