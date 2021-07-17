@@ -2706,7 +2706,7 @@ class LSTM(RNN):
     recurrent_dropout: Float between 0 and 1.
       Fraction of the units to drop for
       the linear transformation of the recurrent state.
-    return_sequences: Boolean. Whether to return the last output.
+    return_sequences: Boolean. Whether to return the last output
       in the output sequence, or the full sequence.
     return_state: Boolean. Whether to return the last state
       in addition to the output.
