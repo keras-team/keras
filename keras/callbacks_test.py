@@ -1080,6 +1080,19 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     cb_list.on_predict_batch_end(logs)
     cb_list.on_predict_end(logs)
 
+  def test_verbose_2_logging(self):
+    data = np.random.random((100, 1))
+    labels = np.where(data > 0.5, 1, 0)
+    model = keras.models.Sequential((keras.layers.Dense(
+        1, input_dim=1, activation='relu'), keras.layers.Dense(
+            1, activation='sigmoid'),))
+    model.compile(
+        optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
+    expected_log = r'(.*- loss:.*- accuracy:.*epoch)+'
+    with self.captureWritesToStream(sys.stdout) as printed:
+      model.fit(data, labels, verbose=2, epochs=20)
+      self.assertRegex(printed.contents(), expected_log)
+
   def test_ProgbarLogger_verbose_2_nonblocking(self):
     # Should only cause a sync block on epoch end methods.
     callback = keras.callbacks.ProgbarLogger(count_mode='steps')
