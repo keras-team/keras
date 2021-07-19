@@ -801,6 +801,25 @@ class VariableScopeMultithreadedTest(tf.test.TestCase):
       thread.join()
 
 
+class CompatV1TemplateScaleByY(variable_scope_shim.VariableScopeLayer):
+
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+    def my_op(x, scalar_name):
+      var1 = tf.compat.v1.get_variable(
+          scalar_name,
+          shape=[],
+          regularizer=regularizers.L2(),
+          initializer=tf.compat.v1.constant_initializer(1.5))
+      return x * var1
+    self.scale_by_y = tf.compat.v1.make_template(
+        "scale_by_y", my_op, scalar_name="y")
+
+  def forward_pass(self, inputs):
+    with tf.compat.v1.variable_scope("foo"):
+      return self.scale_by_y(inputs)
+
+
 @combinations.generate(combinations.combine(mode=["eager"]))
 class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -1116,6 +1135,57 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
     out = layer(tf.ones(shape=(1, 3)))
     self.assertAllEqual(out, tf.ones(shape=(1, 5)) * 120)
     self.assertAllEqual(tf.add_n(layer.losses), 320)
+
+  def test_compat_v1_make_template_in_shim_eager(self):
+    # Test the shim when using `compat.v1.make_template`
+    # Verify it works correctly in eager
+    layer = CompatV1TemplateScaleByY()
+    for _ in range(3):
+      # Use multiple calls to verify that no new weights get created
+      self.assertAllEqual(layer(tf.ones(shape=(2, 3))),
+                          tf.constant(1.5, shape=(2, 3)))
+    self.assertAllEqual({var.name: var for var in layer.weights},
+                        {"foo/scale_by_y/y:0": 1.5})
+    self.assertAllEqual(tf.add_n(layer.losses),
+                        regularizers.L2()(layer.weights[0]))
+
+  def test_compat_v1_make_template_in_shim_tf_function(self):
+    # Test the shim when using `compat.v1.make_template`
+    # Verify it works correctly in a tf.function
+    # when made outside the function
+    layer = CompatV1TemplateScaleByY()
+
+    @tf.function
+    def foo(x):
+      return layer(x), tf.add_n(layer.losses)
+
+    for _ in range(3):
+      # Use multiple calls to verify that no new weights get created
+      out, loss = foo(tf.ones(shape=(2, 3)))
+      self.assertAllEqual(out, tf.constant(1.5, shape=(2, 3)))
+      self.assertAllEqual(loss, regularizers.L2()(layer.weights[0]))
+    self.assertAllEqual({var.name: var for var in layer.weights},
+                        {"foo/scale_by_y/y:0": 1.5})
+
+  def test_compat_v1_make_template_in_trace_in_shim(self):
+    # Test the shim when using `compat.v1.make_template`
+    # Verify it works correctly when the make_template/layer/shim
+    # is created on the first tf.function trace!
+    layers = {}
+    @tf.function
+    def bar(x):
+      if "layer" not in layers:
+        layers["layer"] = CompatV1TemplateScaleByY()
+      layer = layers["layer"]
+      return layer(x), tf.add_n(layer.losses)
+
+    for _ in range(3):
+      # Use multiple calls to verify that no new weights get created
+      out, loss = bar(tf.ones(shape=(2, 3)))
+      self.assertAllEqual(out, tf.constant(1.5, shape=(2, 3)))
+      self.assertAllEqual(loss, regularizers.L2()(layers["layer"].weights[0]))
+    self.assertAllEqual({var.name: var for var in layers["layer"].weights},
+                        {"foo/scale_by_y/y:0": 1.5})
 
   def test_only_track_get_variable(self):
     # Test the shim does not try tracking or reusing variables
