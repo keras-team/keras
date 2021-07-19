@@ -722,9 +722,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         # context. (eager updates execute immediately)
         with backend._current_graph(update_ops).as_default():  # pylint: disable=protected-access
           with tf.control_dependencies([tf.group(update_ops)]):
-            return self._iterations.assign_add(1, read_value=False)
+            return self.iterations.assign_add(1, read_value=False)
 
-      return self._iterations.assign_add(1)
+      return self.iterations.assign_add(1)
 
   def get_gradients(self, loss, params):
     """Returns gradients of `loss` with respect to `params`.
