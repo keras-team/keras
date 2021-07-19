@@ -485,6 +485,14 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "VariableScopeLayer"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "VariableScopeModule"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "Wrapper"
     mtype: "<type \'type\'>"
   }

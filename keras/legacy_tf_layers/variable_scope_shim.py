@@ -14,6 +14,9 @@
 # =============================================================================
 # pylint: disable=g-classes-have-attributes
 """Contains a shim to allow using TF1 get_variable code in TF2."""
+
+# pylint: disable=g-direct-tensorflow-import
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -28,6 +31,7 @@ from keras.utils import layer_utils
 
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 def as_shape(shape):
@@ -578,6 +582,7 @@ class VariableAndLossTracker(tf.Module):
     return losses
 
 
+@keras_export(v1=["keras.layers.VariableScopeModule"])
 class VariableScopeModule(tf.Module):
   """Wrapper Module to capture `compat.v1.get_variable` and `compat.v1.layers`.
 
@@ -746,6 +751,7 @@ class VariableScopeModule(tf.Module):
     return self._var_tracker.get_regularization_losses()
 
 
+@keras_export(v1=["keras.layers.VariableScopeLayer"])
 class VariableScopeLayer(base_layer.Layer):
   """Wrapper Layer to capture `compat.v1.get_variable` and `compat.v1.layers`.
 
