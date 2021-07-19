@@ -1204,7 +1204,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       stopper = keras.callbacks.EarlyStopping(monitor='acc',
                                               baseline=baseline)
       hist = model.fit(data, labels, callbacks=[stopper], verbose=0, epochs=20)
-      assert len(hist.epoch) == 1
+      assert len(hist.epoch) == 2
 
       patience = 3
       stopper = keras.callbacks.EarlyStopping(monitor='acc',
