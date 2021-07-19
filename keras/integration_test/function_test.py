@@ -61,7 +61,7 @@ class ModelWithOptimizer(tf.keras.Model):
 
 class FunctionTest(tf.test.TestCase):
 
-  def testFunctionRelaxationLosesInnerDimWithKerasLayer(self):
+  def DISABLED_test_FunctionRelaxationLosesInnerDimWithKerasLayer(self):
     layer = tf.keras.layers.Dense(1)
     fn = tf.function(experimental_relax_shapes=True)(layer)
 
@@ -81,7 +81,7 @@ class FunctionTest(tf.test.TestCase):
                                   r'Matrix size-incompatible'):
         fn(tf.ones((3, 4)))
 
-  def testDefunKerasModelCall(self):
+  def DISABLED_test_DefunKerasModelCall(self):
     model = MiniModel()
     model.call = tf.function(model.call)
 
@@ -95,7 +95,7 @@ class FunctionTest(tf.test.TestCase):
     # `Function` --(instancemethod on `MiniModel`)--> `MiniModel`
     del model.call
 
-  def testDecoratedMethod(self):
+  def DISABLED_test_DecoratedMethod(self):
     m = DefunnedMiniModel()
     instance_call_one = m.call(tf.ones([1, 2]), training=True)
     instance_call_two = m.call(
@@ -104,7 +104,7 @@ class FunctionTest(tf.test.TestCase):
     self.assertAllEqual(instance_call_one, instance_call_two)
     self.assertAllEqual(instance_call_one, class_call)
 
-  def testDecoratedMethodUniqueFunctionPerInstance(self):
+  def DISABLED_test_DecoratedMethodUniqueFunctionPerInstance(self):
     m = DefunnedMiniModel()
     n = DefunnedMiniModel()
 
@@ -122,7 +122,7 @@ class FunctionTest(tf.test.TestCase):
     self.assertEqual(n_method_one, n_method_two)
     self.assertNotEqual(m.call, n.call)
 
-  def testDecoratedMethodGetConcreteFunction(self):
+  def DISABLED_test_DecoratedMethodGetConcreteFunction(self):
     m = DefunnedMiniModel()
     instance_call_one = m.call.get_concrete_function(
         tf.ones([1, 2]), training=False)
@@ -137,7 +137,7 @@ class FunctionTest(tf.test.TestCase):
     DefunnedMiniModel.call.get_concrete_function(
         m, inputs=tf.ones([1, 2]), training=True)
 
-  def testDecoratedMethodVariableCleanup(self):
+  def DISABLED_test_DecoratedMethodVariableCleanup(self):
     m = DefunnedMiniModel()
     m(tf.ones([1, 2]))  # pylint:disable=not-callable
     variable_refs = list({v.ref() for v in m.variables})
@@ -152,7 +152,7 @@ class FunctionTest(tf.test.TestCase):
     self.assertEqual(sys.getrefcount(variable_refs[0].deref()), 2)
     self.assertEqual(sys.getrefcount(variable_refs[1].deref()), 2)
 
-  def testStandardTrainingLoopInFunction(self):
+  def DISABLED_test_StandardTrainingLoopInFunction(self):
     layer = tf.keras.layers.Dense(2)
     dataset = (
         tf.data.Dataset.from_tensors((tf.ones([784]), tf.ones([], tf.int32)))
@@ -175,7 +175,7 @@ class FunctionTest(tf.test.TestCase):
 
     train()
 
-  def testEarlyStoppingTrainingLoopInFunction(self):
+  def DISABLED_test_EarlyStoppingTrainingLoopInFunction(self):
     layer = tf.keras.layers.Dense(2)
     dataset = (
         tf.data.Dataset.from_tensors((tf.ones([784]), tf.ones([], tf.int32)))
@@ -200,16 +200,42 @@ class FunctionTest(tf.test.TestCase):
 
     train()
 
-  def test_optimizer(self):
+  def DISABLED_test__optimizer(self):
     x = tf.constant([[3., 4.]])
     y = tf.constant([2.])
     model = ModelWithOptimizer()
     model(x, y)  # pylint:disable=not-callable
 
+  # pylint: disable=g-wrong-blank-lines
+  def test_that_fails_eager_add(self):
+    x = tf.zeros((2, 3))
+    y = tf.zeros((2, 4))
+    _ = x + y
+
+  def test_that_fails_tfn_add(self):
+    @tf.function
+    def fn():
+      x = tf.zeros((2, 3))
+      y = tf.zeros((2, 4))
+      return x + y
+    fn()
+
+  def test_that_fails_tfn_div(self):
+    @tf.function
+    def fn(x):
+      return x / 0.
+    fn(0.5)
+
+  def test_that_fails_eager_div(self):
+    _ = tf.convert_to_tensor(0.5) / 0.
+
+  def test_that_fails_var(self):
+    _ = tf.Variable()
+
 
 class AutomaticControlDependenciesTest(tf.test.TestCase):
 
-  def testVariableInitializersCanBeLifted(self):
+  def DISABLED_test_VariableInitializersCanBeLifted(self):
     # The initializer is a stateful op, but using it inside a function should
     # *not* create additional dependencies.  That's what we're testing.
     layer = tf.keras.layers.Dense(1, kernel_initializer='glorot_uniform')
