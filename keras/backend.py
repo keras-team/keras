@@ -65,6 +65,7 @@ _CURRENT_SCRATCH_GRAPH = threading.local()
 # This is a thread local object that will hold the default internal TF session
 # used by Keras. It can be set manually via `set_session(sess)`.
 _SESSION = threading.local()
+_SESSION.session = None
 
 
 # A global dictionary mapping graph objects to an index of counters used
@@ -267,7 +268,9 @@ def clear_session():
   _GRAPH.graph = None
   tf.compat.v1.reset_default_graph()
   reset_uids()
-  _SESSION.session = None
+  if _SESSION.session is not None:
+    _SESSION.session.close()
+    _SESSION.session = None
   graph = get_graph()
   with graph.as_default():
     _DUMMY_EAGER_GRAPH.learning_phase_is_set = False
