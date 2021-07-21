@@ -234,6 +234,42 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
         cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
         args=(self, saving_filepath))
 
+  @tf.__internal__.distribute.combinations.generate(
+      tf.__internal__.test.combinations.combine(mode=['eager']))
+  def test_profiler_saves_on_both_chief_and_non_chief(self, mode):
+
+    def proc_profiler_saves_on_both_chief_and_non_chief(test_obj):
+      model, _, train_ds, steps = _model_setup(test_obj, file_format='')
+      num_epoch = 2
+
+      task_config = get_tf_config_task()
+      saving_filepath = os.path.join(
+          test_obj.get_temp_dir(),
+          'logfile_%s_%d' % (task_config['type'], task_config['index']))
+
+      # The saving_filepath shouldn't exist at the beginning (as it's unique).
+      test_obj.assertFalse(tf.io.gfile.exists(saving_filepath))
+
+      model.fit(
+          x=train_ds,
+          epochs=num_epoch,
+          steps_per_epoch=steps,
+          callbacks=[
+              callbacks.TensorBoard(
+                  log_dir=saving_filepath, profile_batch=[2, 4])
+          ])
+
+      # Profiler dir should be created on both chief and non-chief node
+      profiler_dir_path = os.path.join(saving_filepath, 'plugins', 'profile')
+      test_obj.assertTrue(tf.io.gfile.exists(profiler_dir_path))
+
+    tf.__internal__.distribute.multi_process_runner.run(
+        proc_profiler_saves_on_both_chief_and_non_chief,
+        cluster_spec=
+        tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+            num_workers=2),
+        args=(self,))
+
   @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['eager']))
   def test_tensorboard_saves_on_chief_but_not_otherwise(self, mode):
 
@@ -257,7 +293,10 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
           x=train_ds,
           epochs=num_epoch,
           steps_per_epoch=steps,
-          callbacks=[callbacks.TensorBoard(log_dir=saving_filepath)])
+          # disabling profiler by setting profile_batch to zero
+          callbacks=[
+              callbacks.TensorBoard(log_dir=saving_filepath, profile_batch=0)
+          ])
 
       # If it's chief, the summaries should be saved in the filepath; if not,
       # the directory should be empty (although created). Using
