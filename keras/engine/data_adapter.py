@@ -33,6 +33,11 @@ from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
+try:
+  import pandas as pd  # pylint: disable=g-import-not-at-top
+except ImportError:
+  pd = None
+
 keras_data_adapter_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/keras/data_adapters", "keras data adapter usage", "method")
 
@@ -1009,7 +1014,8 @@ def _process_tensorlike(inputs):
 
   (1) Converts `Numpy` arrays to `Tensor`s.
   (2) Converts `Scipy` sparse matrices to `SparseTensor`s.
-  (2) Converts `list`s to `tuple`s (for `tf.data` support).
+  (3) Converts `pandas.Series` to `Tensor`s
+  (4) Converts `list`s to `tuple`s (for `tf.data` support).
 
   Args:
     inputs: Structure of `Tensor`s, `NumPy` arrays, or tensor-like.
@@ -1018,7 +1024,10 @@ def _process_tensorlike(inputs):
     Structure of `Tensor`s or tensor-like.
   """
 
-  def _convert_numpy_and_scipy(x):
+  def _convert_single_tensor(x):
+    if _is_pandas_series(x):
+      x = np.expand_dims(x.to_numpy(), axis=-1)
+
     if isinstance(x, np.ndarray):
       dtype = None
       if issubclass(x.dtype.type, np.floating):
@@ -1028,7 +1037,7 @@ def _process_tensorlike(inputs):
       return _scipy_sparse_to_sparse_tensor(x)
     return x
 
-  inputs = tf.nest.map_structure(_convert_numpy_and_scipy, inputs)
+  inputs = tf.nest.map_structure(_convert_single_tensor, inputs)
   return tf.__internal__.nest.list_to_tuple(inputs)
 
 
@@ -1656,12 +1665,10 @@ def _check_data_cardinality(data):
 
 
 def _get_tensor_types():
-  try:
-    import pandas as pd  # pylint: disable=g-import-not-at-top
-
-    return (tf.Tensor, np.ndarray, pd.Series, pd.DataFrame)
-  except ImportError:
+  if pd is None:
     return (tf.Tensor, np.ndarray)
+  else:
+    return (tf.Tensor, np.ndarray, pd.Series, pd.DataFrame)
 
 
 def _is_scipy_sparse(x):
@@ -1671,6 +1678,13 @@ def _is_scipy_sparse(x):
     return issparse(x)
   except ImportError:
     return False
+
+
+def _is_pandas_series(x):
+  if pd is None:
+    return False
+  else:
+    return isinstance(x, pd.Series)
 
 
 def _scipy_sparse_to_sparse_tensor(t):
