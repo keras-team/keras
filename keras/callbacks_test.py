@@ -2204,7 +2204,7 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         callbacks=[tb_cbk])
 
     events_file_run_basenames = set()
-    for (dirpath, _, filenames) in os.walk(self.logdir):
+    for (dirpath, _, filenames) in os.walk(self.train_dir):
       if any(fn.startswith('events.out.') for fn in filenames):
         events_file_run_basenames.add(os.path.basename(dirpath))
     self.assertEqual(events_file_run_basenames, {'train'})
@@ -2639,7 +2639,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_1'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_outerProfiler(self):
     """Runs a profiler session that interferes with the one from the callback.
@@ -2692,7 +2692,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_2'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_profileBatchRangeSingle(self):
     model = self._get_seq_model()
@@ -2716,7 +2716,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_2'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_profileBatchRangeTwice(self):
     model = self._get_seq_model()
@@ -2741,7 +2741,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
         epochs=10,
         validation_data=(x, y),
         callbacks=[tb_cbk])
-    self.assertEqual(2, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(2, self._count_trace_file(logdir=self.logdir))
 
   # Test case that replicates a Github issue.
   # https://github.com/tensorflow/tensorflow/issues/37543
@@ -2794,7 +2794,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_3'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_profileInvalidBatchRange(self):
     with self.assertRaises(ValueError):
