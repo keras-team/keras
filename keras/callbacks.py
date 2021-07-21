@@ -2452,7 +2452,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   def _start_trace(self):
     tf.summary.trace_on(graph=True, profiler=False)
-    self._start_profiler(logdir=self._train_dir)
+    self._start_profiler(logdir=self.log_dir)
     self._is_tracing = True
 
   def _stop_trace(self, batch=None):
