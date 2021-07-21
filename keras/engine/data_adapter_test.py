@@ -183,6 +183,7 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
 
     model_1.compile(optimizer='rmsprop', loss='mse')
     model_2.compile(optimizer='rmsprop', loss='mse')
+    model_3.compile(optimizer='rmsprop', loss='mse')
 
     input_a_np = np.random.random((10, 3))
     input_b_np = np.random.random((10, 3))
@@ -191,11 +192,14 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
 
     output_a_df = pd.DataFrame(np.random.random((10, 4)))
     output_b_df = pd.DataFrame(np.random.random((10, 3)))
+    output_c_series = pd.DataFrame(np.random.random((10, 4)))[0]
 
     model_1.fit(input_a_df,
                 output_a_df)
     model_2.fit([input_a_df, input_b_df],
                 [output_a_df, output_b_df])
+    model_3.fit(input_a_df[[0]],
+                output_c_series)
     model_1.fit([input_a_df],
                 [output_a_df])
     model_1.fit({'input_a': input_a_df},
@@ -207,6 +211,8 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
                      output_a_df)
     model_2.evaluate([input_a_df, input_b_df],
                      [output_a_df, output_b_df])
+    model_3.evaluate(input_a_df[[0]],
+                     output_c_series)
     model_1.evaluate([input_a_df],
                      [output_a_df])
     model_1.evaluate({'input_a': input_a_df},
