@@ -183,7 +183,7 @@ def _clone_functional_model(model, input_tensors=None, layer_fn=_clone_layer):
         newly_created_input_layer = input_tensor._keras_history.layer
         new_input_layers[original_input_layer] = newly_created_input_layer
       else:
-        new_input_layers[original_input_layer] = original_input_layer
+        new_input_layers[original_input_layer] = input_tensor._keras_history.layer
 
   if not callable(layer_fn):
     raise ValueError('Expected `layer_fn` argument to be a callable.')

@@ -121,11 +121,14 @@ class TestModelCloning(keras_parameterized.TestCase):
       self.assertGreaterEqual(len(new_model.updates), 2)
 
     # On top of new tensor  -- clone model should always have an InputLayer.
-    input_a = keras.Input(shape=(4,))
+    input_a = keras.Input(shape=(4,), name="a")
     new_model = clone_fn(model, input_tensors=input_a)
     self.assertIsInstance(
         list(new_model._flatten_layers(include_self=False, recursive=False))[0],
         keras.layers.InputLayer)
+    # The new models inputs should have the properties of the new input tensor
+    self.assertEqual(new_model.input_names[0], input_a.name)
+    self.assertEqual(new_model.inputs[0].shape, input_a.shape)
     self.assertTrue(new_model._is_graph_network)
 
     # On top of new, non-Keras tensor  -- clone model should always have an
@@ -183,8 +186,9 @@ class TestModelCloning(keras_parameterized.TestCase):
     # On top of new tensors
     input_a = keras.Input(shape=(4,), name='a')
     input_b = keras.Input(shape=(4,), name='b')
+    new_input_tensors = [input_a, input_b]
     new_model = keras.models.clone_model(
-        model, input_tensors=[input_a, input_b])
+        model, input_tensors=new_input_tensors)
     if not tf.compat.v1.executing_eagerly_outside_functions():
       self.assertLen(new_model.updates, 2)
     new_model.compile(
@@ -192,6 +196,9 @@ class TestModelCloning(keras_parameterized.TestCase):
         'mse',
         run_eagerly=testing_utils.should_run_eagerly())
     new_model.train_on_batch([val_a, val_b], val_out)
+
+    # New model should use provided input tensors
+    self.assertListEqual(new_model.inputs, new_input_tensors)
 
     # On top of new, non-Keras tensors
     if not tf.executing_eagerly():
