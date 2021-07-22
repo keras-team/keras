@@ -59,7 +59,13 @@ class DatasetCreator(object):
   with strategy.scope():
     model = tf.keras.Sequential([tf.keras.layers.Dense(10)])
   model.compile(tf.keras.optimizers.SGD(), loss="mse")
-  ...
+
+  def dataset_fn(input_context):
+    ...
+
+  input_options = ...
+  model.fit(tf.keras.utils.experimental.DatasetCreator(
+      dataset_fn, input_options=input_options), epochs=10, steps_per_epoch=10)
   ```
 
   Note: When using `DatasetCreator`, `steps_per_epoch` argument in `Model.fit`
