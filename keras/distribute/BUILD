@@ -446,6 +446,7 @@ distribute_py_test(
 distribute_py_test(
     name = "keras_models_test",
     srcs = ["keras_models_test.py"],
+    disable_tfrt = False,
     main = "keras_models_test.py",
     tags = [
         "multi_and_single_gpu",
@@ -658,9 +659,9 @@ tf_py_test(
     ],
     deps = [
         ":distributed_file_utils",
+        ":multi_worker_testing_utils",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
-        "//keras/distribute:multi_worker_testing_utils",
     ],
 )
 
@@ -765,6 +766,7 @@ distribute_py_test(
     name = "dataset_creator_model_fit_test",
     srcs = ["dataset_creator_model_fit_test.py"],
     disable_mlir_bridge = True,  # TODO(b/170352626)
+    disable_tfrt = True,  # TODO(b/195081590)
     full_precision = True,
     main = "dataset_creator_model_fit_test.py",
     shard_count = 50,
