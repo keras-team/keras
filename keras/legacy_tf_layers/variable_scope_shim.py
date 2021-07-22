@@ -22,12 +22,12 @@ import tensorflow.compat.v2 as tf
 
 import functools
 from keras.engine import base_layer
-from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 from keras.utils import layer_utils
 
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
 
 
 def as_shape(shape):
@@ -126,7 +126,7 @@ def validate_synchronization_aggregation_trainable(
   return synchronization, aggregation, trainable
 
 
-class _EagerVariableStore(object):
+class _EagerVariableStore(tf.Module):
   """TF2-compatible VariableStore that avoids collections & tracks regularizers.
 
   New variable names and new variables can be created; all stored
@@ -143,8 +143,6 @@ class _EagerVariableStore(object):
     vars: a dictionary with string names (same as passed in GetVar) as keys and
       the corresponding TensorFlow Variables as values.
   """
-
-  __slots__ = ["_vars", "_regularizers", "_store_eager_variables"]
 
   def __init__(self):
     """Create a variable store."""
@@ -549,61 +547,36 @@ class _EagerVariableStore(object):
     return initializer, initializing_from_value
 
 
-# pylint: disable=not-context-manager
-# The linter doesn't pick up that `scope` is a context manager
-class VariableAndLossTracker(tf.Module):
-  """Module that has a scope to capture vars/losses made by `get_variable`."""
+@keras_export(v1=["keras.utils.track_tf1_style_variables"])
+def track_tf1_style_variables(method):
+  """Wrap layer & module methods in this decorator to capture tf1-style weights.
 
-  def __init__(self):
-    self._var_store = _EagerVariableStore()  # pylint: disable=protected-access
-    self._variables = {}
+  Decorating a `tf.keras.Layer`'s  or `tf.Module`'s methods with this
+  decorator will cause the layer/module to track weights created/used
+  via `tf.compat.v1.get_variable` (and by extension `tf.compat.v1.layers`)
+  inside the decorated method.
 
-    # Because this is a module, self._variables becomes a trackable dict
-    # object that supports restoration. We must make the var_store share
-    # this same trackable dict object.
-    self._var_store._vars = self._variables  # pylint: disable=protected-access
+  In addition to tracking the weights themselves under the standard
+  `layer.variable`/`module.variable`/etc. properties, if the method belongs
+  to a `tf.keras.Layer` then any regularization losses specified via the
+  `get_variable` or `tf.compat.v1.layers` regularizer arguments will get
+  tracked by the layer under the standard `layer.losses` property.
 
-  @tf_contextlib.contextmanager
-  def scope(self):
-    with vs.with_variable_store(self._var_store):
-      yield
+  This tracking enables using large classes of TF1-style model-forward-pass
+  code inside of Keras layers or `tf.Modules` in TF2 with TF2 behaviors enabled.
 
-  def get_regularization_losses(self):
-    # TODO(kaftan): Consider adding a regex scope like the collection access.
-    # But, < 40-50 usages of get_regularization_loss(es) with `scope`
-    # & possible to do manually?
-    losses = {}
-    for var_name, regularizer in self._var_store._regularizers.items():  # pylint: disable=protected-access
-      losses[var_name] = regularizer()
-    return losses
-
-
-class VariableScopeModule(tf.Module):
-  """Wrapper Module to capture `compat.v1.get_variable` and `compat.v1.layers`.
-
-  This shim module allows using large sets of TF1 model-forward-pass code as a
-  tf.Module that works in TF2 with TF2 behaviors enabled. To use it,
-  override this class and put your TF1 model's forward pass inside your
-  implementation for `forward_pass`. You can then call this module directly
-  to run your TF1 code with working variable reuse.
-
-  Caution: Unless `tf.compat.v1.VariableScopeLayer` does not work for your code
-  because of Keras layers' call signature semantics around the first argument,
-  and you need a lower-level solution, we recommend using
-  `tf.compat.v1.VariableScopeLayer` instead. `VariableScopeModule` can be used
-  if you cannot adopt Keras layers to your use case.
-
-  Example of capturing tf.compat.v1.layer-based modeling code as a tf.Module:
+  Example of capturing tf.compat.v1.layer-based modeling code as a Keras layer:
 
   ```python
-  class WrappedDoubleDenseModule(variable_scope_shim.VariableScopeModule):
+  class WrappedDoubleDenseLayer(tf.keras.layers.Layer):
 
     def __init__(self, units, *args, **kwargs):
       super().__init__(*args, **kwargs)
       self.units = units
 
-    def forward_pass(self, inputs):
-      with variable_scope.variable_scope("double_dense_layer"):
+    @tf.compat.v1.keras.utils.track_tf1_style_variables
+    def call(self, inputs):
+      with tf.compat.v1.variable_scope("double_dense_layer"):
         out = tf.compat.v1.layers.dense(
             inputs, self.units, name="dense_one",
             kernel_initializer=tf.compat.v1.random_normal_initializer,
@@ -614,37 +587,35 @@ class VariableScopeModule(tf.Module):
             kernel_regularizer="l2")
       return out
 
-  # Create a layer that can be used as a callable Module
-  layer = WrappedDoubleDenseModule(10)
+  # Create a layer that can be used as a standard keras layer
+  layer = WrappedDoubleDenseLayer(10)
 
   # call the layer on inputs
   layer(...)
 
-  # Variables created/used within `forward_pass` will be tracked
-  layer.variables
+  # Variables created/used within the scope will be tracked by the layer
+  layer.weights
   layer.trainable_variables
 
-  # Regularization losses created by `tf.compat.v1.get_variable` or by
-  # `tf.compat.v1.layers` will be tracked as well. Note: all other
-  # regularization losses must be tracked manually if using modules. If you
-  # would like fully-automated regularization loss tracking, use
-  # `tf.compat.v1.VariableScopeLayer` instead.
-  reg_losses = layer.get_compat_v1_regularization_losses()
+  # Regularization losses will be captured in layer.losses after a call,
+  # just like any other Keras layer
+  reg_losses = layer.losses
   ```
 
   Example of capturing tf.compat.v1.get_variable-based modeling code as
-  a tf.Module:
+  a Keras layer:
 
   ```python
-  class WrappedDoubleDenseModule(variable_scope_shim.VariableScopeModule):
+  class WrappedDoubleDenseLayer(tf.keras.layers.Layer):
 
     def __init__(self, units, *args, **kwargs):
       super().__init__(*args, **kwargs)
       self.units = units
 
-    def forward_pass(self, inputs):
+    @tf.compat.v1.keras.utils.track_tf1_style_variables
+    def call(self, inputs):
       out = inputs
-      with variable_scope.variable_scope("double_dense_layer"):
+      with tf.compat.v1.variable_scope("double_dense_layer"):
         with tf.compat.v1.variable_scope("dense_one"):
           # The weights are created with a `regularizer`,
           # so the layer should track their regularization losses
@@ -673,77 +644,115 @@ class VariableScopeModule(tf.Module):
           out = tf.compat.v1.nn.bias_add(out, bias)
       return out
 
-  # Create a module that can be used as a callable Module
-  layer = WrappedDoubleDenseModule(10)
+  # Create a layer that can be used as a standard keras layer
+  layer = WrappedDoubleDenseLayer(10)
 
-  # call the module on inputs
+  # call the layer on inputs
   layer(...)
 
-  # Variables created/used within the scope will be tracked by the module
-  layer.variables
+  # Variables created/used within the scope will be tracked by the layer
+  layer.weights
   layer.trainable_variables
 
-  # Regularization losses created by `tf.compat.v1.get_variable` or by
-  # `tf.compat.v1.layers` will be tracked as well. Note: all other
-  # regularization losses must be tracked manually if using modules. If you
-  # would like fully-automated regularization loss tracking, use
-  # `tf.compat.v1.VariableScopeLayer` instead.
-  reg_losses = layer.get_compat_v1_regularization_losses()
+  # Regularization losses will be captured in layer.losses after a call,
+  # just like any other Keras layer
+  reg_losses = layer.losses
   ```
+
+  Regularization losses:
+    Any regularizers specified in the `get_variable` calls or `compat.v1.layer`
+    creations will get captured if they occur in your decorated method
+    and the method belongs to a `tf.keras.Layer`/`tf.keras.Module`.
+    Regularization losses
+    are accessible in `layer.losses` after a call just like in a standard
+    Keras layer, and will be captured by any model that includes this layer.
+    Regularization losses attached to Keras layers/models set as attributes
+    of your layer will also get captured in the standard Keras regularization
+    loss tracking.
+
+    (While Modules have no `losses` property, no-arg callables to compute
+     the regularization losses may be tracked as dict values in a private
+     `module._tf1_style_var_store._regularizers` property, but only for
+     `tf.compat.v1.layers` and `get_variable` weights and not for any other
+     nested Keras layers/tf.Modules)
+
+  Variable scope / variable reuse:
+    variable-scope based reuse in your decorated method will be respected,
+    and work like variable-scope based reuse in TF1.
+
+  Variable Names/Pre-trained checkpoint loading:
+    Variable naming from get_variable and `compat.v1.layer` layers will match
+    the TF1 names, so you should be able to re-use your old name-based
+    checkpoints. Variable naming for Keras layers/models or for variables
+    created by `tf.Variable` may change when going to eager execution.
+
+  Training Arg if you decorate `layer.call`:
+    Keras will pass a `training` arg to this layer if `call` contains
+    a `training` arg or a `**kwargs` varargs in its call signature,
+    similarly to how keras passes `training` to other layers in TF2 that have
+    similar signatures in their `call` implementations.
+    See more details in the docs
+    on `tf.keras.layers.Layer` to understand what will be passed and when.
+    Note: tf.compat.v1.layers are usually not called with `training=None`,
+    so the training arg to `forward_pass` might not feed through to them
+    unless you pass it to their calls explicitly.
 
   Caveats:
     * TF2 will not prune unused variable updates (or unused outputs). You may
       need to adjust your forward pass code to avoid computations or variable
-      updates that you don't intend to use. (E.g. by adding a flag to the
-      `forward_pass` call signature and branching on it).
-    * Avoid Nesting variable creation in tf.function inside of `forward_pass`
-      While the layer may safely be used from inside a `tf.function`, using
-      a function inside of `forward_pass` will break the variable scoping.
-    * If you would like to nest modules or other
-      `VariableScopeModules`s directly in `forward_pass`, you need to
-      assign them as properties of your VariableScopeModule so that
-      object-oriented weights will activate in for them.
+      updates that you don't intend to use.
+    * Avoid Nesting variable creation in tf.function inside of
+      methods decorated with `track_tf1_style_variables`
+      While the method may safely be used from inside a `tf.function`, using
+      a function inside of a decorated method may break the variable scoping.
+    * This decorator only adds implicit tracking for legacy tf1-style
+      get_variable / compat.v1.layers usage.
+      If you would like to use nested Keras layers/models
+      inside the decorated method, you need to
+      assign them as attributes of your layer so that Keras/Module's standard
+      object-oriented weights (and loss tracking for layers) will kick in.
       See the intro to modules, layers, and models
       [guide](https://www.tensorflow.org/guide/intro_to_modules) for more info
-      on this explicit recursive weight tracking.
-      Only weights made by `tf.compat.v1.get_variable` calls and
-      `tf.compat.v1.layers` will get implicitly tracked by your
-      VariableScopeModule without being assigned as properties. Note: if these
-      modules have their own regularization losses you must track them
-      manually.
+
+  Args:
+    method: The method to decorate. This should belong to a custom tf.Module,
+    tf.keras.layers.Layer, or tf.keras.Model.
+
+  Returns:
+    The decorated method.
   """
 
-  def __init__(self, name=None):
-    super().__init__(name=name)
-    self._var_tracker = VariableAndLossTracker()
+  def _method_wrapper(self, *args, **kwargs):
+    var_store = getattr(self, "_tf1_style_var_store", None)
+    if not var_store:
+      if not isinstance(self, tf.Module):
+        # Raise an error if you incorrectly decorate a method
+        # that is not a method of a Module, Layer, or Model:
+        raise ValueError(
+            "`@tf.compat.v1.keras.utils.track_tf1_layers_and_variables` must "
+            "be applied to a method of a subclassed `tf.Module`, "
+            "`tf.keras.layers.Layer`, or `tf.keras.Model` and which takes "
+            "`self` as the first argument. But, the first argument passed "
+            "to the decorated method was {}, which does not "
+            "extend Module, Layer, or Model.".format(self))
+      var_store = _EagerVariableStore()
+      self._tf1_style_var_store = var_store  # pylint: disable=protected-access
 
-  def forward_pass(self, *args, **kwargs):
-    """Implement this method. It should include your model forward pass."""
-    raise NotImplementedError
+    existing_regularized_variables = set(var_store._regularizers.keys())  # pylint: disable=protected-access
+    with vs.with_variable_store(var_store):
+      out = method(self, *args, **kwargs)
 
-  def __call__(self, *args, **kwargs):
-    with self.name_scope:
-      with self._var_tracker.scope():
-        return self.forward_pass(*args, **kwargs)
+    # If this is a layer method, add the regularization losses
+    # to the layer for any newly-created regularized variables
+    if isinstance(self, base_layer.Layer):
+      for var_name, regularizer in var_store._regularizers.items():  # pylint: disable=protected-access
+        if var_name not in existing_regularized_variables:
+          self.add_loss(regularizer)
 
-  def get_compat_v1_regularization_losses(self):
-    """Dict w/ regularization losses from `get_variable` and `compat.v1.layers`.
+    return out
 
-    VariableScopeModule is able to track regularization losses from
-    `tf.compat.v1.get_variable` calls and `compat.v1.layers` that are used
-    within the `forward_pass`. All other regularization losses (such as
-    those belonging to Keras layers or nested VariableScopeModules)
-    must be tracked via your own manual mechanism as is standard for tf.Modules.
-    If you would like more comprehensive regularization loss tracking, use
-    `VariableScopeModule` instead.
-
-    Returns:
-      A dict of the form { variable_name : regularization_loss } for any
-      regularization losses specified for variables created and used by
-      `tf.compat.v1.get_variable` (with the regularizer argument passed)
-      or `tf.compat.v1.layers` within `forward_pass`.
-    """
-    return self._var_tracker.get_regularization_losses()
+  return tf.__internal__.decorator.make_decorator(
+      target=method, decorator_func=_method_wrapper)
 
 
 class VariableScopeLayer(base_layer.Layer):
@@ -903,12 +912,6 @@ class VariableScopeLayer(base_layer.Layer):
       [guide](https://www.tensorflow.org/guide/intro_to_modules) for more info
   """
 
-  def __init__(self, **kwargs):
-    super().__init__(**kwargs)
-    # Relies on keras layers tracking Modules
-    self._var_tracker = VariableAndLossTracker()
-    # May need to inspect func to see if it should pass a `training` arg or not
-
   @property
   @layer_utils.cached_per_instance
   def _call_full_argspec(self):
@@ -920,14 +923,6 @@ class VariableScopeLayer(base_layer.Layer):
     """Implement this method. It should include your model forward pass."""
     raise NotImplementedError
 
+  @track_tf1_style_variables
   def call(self, *args, **kwargs):
-    with self._var_tracker.scope():
-      out = self.forward_pass(*args, **kwargs)
-    if not self._eager_losses:
-      # We have to record regularization losses in the call as if they
-      # are activity losses.
-      # So, don't double-count regularization losses if the layer is used
-      # multiple times in a model
-      for loss in self._var_tracker.get_regularization_losses().values():
-        self.add_loss(loss)
-    return out
+    return self.forward_pass(*args, **kwargs)

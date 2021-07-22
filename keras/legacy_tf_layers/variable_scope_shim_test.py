@@ -50,8 +50,8 @@ def run_inside_wrap_function_in_eager_mode(graph_function):
     decorated function
   """
   def wrap_and_execute(self):
-    tracker = variable_scope_shim.VariableAndLossTracker()
-    with tracker.scope():
+    store = variable_scope_shim._EagerVariableStore()
+    with variable_scope.with_variable_store(store):
       # use the original function
       graph_function(self)
   return wrap_and_execute
@@ -820,6 +820,20 @@ class CompatV1TemplateScaleByY(variable_scope_shim.VariableScopeLayer):
       return self.scale_by_y(inputs)
 
 
+class VariableScopeModule(tf.Module):
+  """Module that uses the shim."""
+
+  @variable_scope_shim.track_tf1_style_variables
+  def __call__(self, *args, **kwargs):
+    with self.name_scope:
+      return self.forward_pass(*args, **kwargs)
+
+  def get_compat_v1_regularization_losses(self):
+    """Dict w/ regularization losses from `get_variable`&`compat.v1.layers`."""
+    return {name: regularizer() for name, regularizer
+            in self._tf1_style_var_store._regularizers.items()}  # pylint: disable=protected-access
+
+
 @combinations.generate(combinations.combine(mode=["eager"]))
 class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -957,7 +971,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
   def test_module_get_variable(self):
     # Test the module shim when using `get_variable` (and regularizers) directly
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeModule):
+    class WrappedDenseLayer(VariableScopeModule):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1019,7 +1033,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
   def test_module_compat_v1_layer(self):
     # Test the module shim when using `compat.v1` layers
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeModule):
+    class WrappedDenseLayer(VariableScopeModule):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1255,7 +1269,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
     # Test the module shim when embedding a Keras model inside of it
     # And assigning the model to an attribute
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeModule):
+    class WrappedDenseLayer(VariableScopeModule):
 
       def __init__(self, units, **kwargs):
         super().__init__(**kwargs)
@@ -1329,6 +1343,16 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
     # Verify the correct variables were made
     self.assertEqual(weights.keys(),
                      {"dense_no_training/bias:0", "dense_no_training/kernel:0"})
+
+  def test_incorrect_decoration(self):
+    # Raise an error if you incorrectly decorate a method
+    # that is not a method of a Module, layer, or model:
+    @variable_scope_shim.track_tf1_style_variables
+    def foo(x):
+      return x * 2
+
+    with self.assertRaisesRegex(ValueError, "does not extend"):
+      foo(tf.ones(shape=(4, 4)))
 
 if __name__ == "__main__":
   tf.test.main()
