@@ -196,8 +196,8 @@ class TrainingTest(keras_parameterized.TestCase):
         layers_module.Dense(10, dtype=np.float64)
     ]
     model = testing_utils.get_model_from_layers(layers, input_shape=(1,))
-    inputs = np.ones(10, dtype=np.float64)
-    targets = np.ones(10, dtype=np.float64)
+    inputs = np.ones(shape=(10, 1), dtype=np.float64)
+    targets = np.ones(shape=(10, 1), dtype=np.float64)
     model.compile(
         'sgd',
         loss=loss_fn,
@@ -1110,8 +1110,9 @@ class TrainingTest(keras_parameterized.TestCase):
         return inputs * 2
 
     model = SubclassedModel()
-    dataset_one = tf.data.Dataset.range(2).batch(2)
-    dataset_two = tf.data.Dataset.range(3, 10).batch(2)
+    dataset_one = tf.data.Dataset.from_tensor_slices([[0], [1]]).batch(2)
+    dataset_two = tf.data.Dataset.from_tensor_slices(
+        [[3], [4], [5], [6]]).batch(2)
     self.assertAllEqual([[0], [2]], model.predict(dataset_one, steps=1))
     self.assertAllEqual([[6], [8], [10], [12]],
                         model.predict(dataset_two, steps=2))

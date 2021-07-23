@@ -1443,28 +1443,13 @@ def _make_class_weight_map_fn(class_weight):
     cw = tf.gather(class_weight_tensor, y_classes)
     if sw is not None:
       cw = tf.cast(cw, sw.dtype)
-      sw, cw = expand_1d((sw, cw))
       # `class_weight` and `sample_weight` are multiplicative.
       sw = sw * cw
     else:
       sw = cw
-
     return x, y, sw
 
   return _class_weights_map_fn
-
-
-def expand_1d(data):
-  """Expands 1-dimensional `Tensor`s into 2-dimensional `Tensor`s."""
-
-  def _expand_single_1d_tensor(t):
-    # Leaves `CompositeTensor`s as-is.
-    if (isinstance(t, tf.Tensor) and
-        isinstance(t.shape, tf.TensorShape) and t.shape.rank == 1):
-      return tf.expand_dims(t, axis=-1)
-    return t
-
-  return tf.nest.map_structure(_expand_single_1d_tensor, data)
 
 
 def train_validation_split(arrays, validation_split):

@@ -1094,15 +1094,6 @@ class ListsOfScalarsDataAdapterTest(DataAdapterTestBase):
     self.assertFalse(self.adapter_cls.can_handle([]))
 
 
-class TestUtils(keras_parameterized.TestCase):
-
-  def test_expand_1d_sparse_tensors_untouched(self):
-    st = tf.SparseTensor(
-        indices=[[0], [10]], values=[1, 2], dense_shape=[10])
-    st = data_adapter.expand_1d(st)
-    self.assertEqual(st.shape.rank, 1)
-
-
 if __name__ == '__main__':
   tf.compat.v1.enable_eager_execution()
   tf.test.main()
