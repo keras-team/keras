@@ -310,8 +310,8 @@ class RandomCropTest(keras_parameterized.TestCase):
     width_offset = np.random.randint(low=0, high=5)
     mock_offset = [0, height_offset, width_offset, 0]
     with tf.compat.v1.test.mock.patch.object(
-        stateless_random_ops,
-        'stateless_random_uniform',
+        tf.random,
+        'stateless_uniform',
         return_value=mock_offset):
       with testing_utils.use_gpu():
         layer = image_preprocessing.RandomCrop(height, width)
@@ -374,8 +374,8 @@ class RandomCropTest(keras_parameterized.TestCase):
     inp = np.random.random((16, 16, 3))
     mock_offset = [2, 2, 0]
     with tf.compat.v1.test.mock.patch.object(
-        stateless_random_ops,
-        'stateless_random_uniform',
+        tf.random,
+        'stateless_uniform',
         return_value=mock_offset):
       with testing_utils.use_gpu():
         layer = image_preprocessing.RandomCrop(8, 8)

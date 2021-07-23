@@ -129,7 +129,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'stddev\'], varargs=None, keywords=kwargs, defaults=None"
+    argspec: "args=[\'self\', \'stddev\', \'seed\'], varargs=None, keywords=kwargs, defaults=[\'None\'], "
   }
   member_method {
     name: "add_loss"

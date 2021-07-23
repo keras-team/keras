@@ -633,7 +633,9 @@ class GRUV2Test(keras_parameterized.TestCase):
     copied_layer = copy.deepcopy(original_layer)
     outputs = original_layer(inputs)
     copied_outputs = copied_layer(inputs)
-    self.assertNotAllClose(
+    # Because initializers are seeded and the seed got copied, we get the same
+    # results.
+    self.assertAllClose(
         self.evaluate(outputs), self.evaluate(copied_outputs))
 
     # Copy layer after layer call on inputs with weight initialization.

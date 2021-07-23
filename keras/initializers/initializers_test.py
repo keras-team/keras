@@ -69,7 +69,7 @@ class KerasInitializersTest(tf.test.TestCase):
     self.assertAllClose(output, output_2, atol=1e-4)
 
   def test_uniform(self):
-    tensor_shape = (9, 6, 7)
+    tensor_shape = (3, 2, 3)
     with self.cached_session():
       self._runner(
           initializers.RandomUniformV2(minval=-1, maxval=1, seed=124),

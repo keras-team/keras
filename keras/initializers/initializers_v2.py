@@ -19,7 +19,6 @@ import tensorflow.compat.v2 as tf
 
 import math
 from keras import backend
-from tensorflow.python.ops import stateless_random_ops
 from tensorflow.python.util.tf_export import keras_export
 
 _PARTITION_SHAPE = 'partition_shape'
@@ -262,7 +261,7 @@ class RandomUniform(Initializer):
     self.minval = minval
     self.maxval = maxval
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized as specified by the initializer.
@@ -325,7 +324,7 @@ class RandomNormal(Initializer):
     self.mean = mean
     self.stddev = stddev
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to random normal values.
@@ -390,7 +389,7 @@ class TruncatedNormal(Initializer):
     self.mean = mean
     self.stddev = stddev
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to random normal values (truncated).
@@ -480,7 +479,7 @@ class VarianceScaling(Initializer):
     self.mode = mode
     self.distribution = distribution
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized as specified by the initializer.
@@ -560,14 +559,13 @@ class Orthogonal(Initializer):
       always produce the same random tensor for a given shape and dtype.
 
   References:
-      [Saxe et al., 2014](https://openreview.net/forum?id=_wzZwKpTDF_9C)
-      ([pdf](https://arxiv.org/pdf/1312.6120.pdf))
+    - [Saxe et al., 2014](https://openreview.net/forum?id=_wzZwKpTDF_9C)
   """
 
   def __init__(self, gain=1.0, seed=None):
     self.gain = gain
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to an orthogonal matrix.
@@ -687,8 +685,7 @@ class GlorotUniform(VarianceScaling):
       always produce the same random tensor for a given shape and dtype.
 
   References:
-      [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
-      ([pdf](http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf))
+    - [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
   """
 
   def __init__(self, seed=None):
@@ -731,8 +728,7 @@ class GlorotNormal(VarianceScaling):
       always produce the same random tensor for a given shape and dtype.
 
   References:
-      [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
-      ([pdf](http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf))
+    - [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
   """
 
   def __init__(self, seed=None):
@@ -777,13 +773,7 @@ class LecunNormal(VarianceScaling):
     seed: A Python integer. Used to seed the random generator.
 
   References:
-      - Self-Normalizing Neural Networks,
-      [Klambauer et al., 2017]
-      (https://papers.nips.cc/paper/6698-self-normalizing-neural-networks)
-      ([pdf]
-      (https://papers.nips.cc/paper/6698-self-normalizing-neural-networks.pdf))
-      - Efficient Backprop,
-      [Lecun et al., 1998](http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf)
+    - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
   """
 
   def __init__(self, seed=None):
@@ -822,11 +812,7 @@ class LecunUniform(VarianceScaling):
       always produce the same random tensor for a given shape and dtype.
 
   References:
-      - Self-Normalizing Neural Networks,
-      [Klambauer et al., 2017](https://papers.nips.cc/paper/6698-self-normalizing-neural-networks) # pylint: disable=line-too-long
-      ([pdf](https://papers.nips.cc/paper/6698-self-normalizing-neural-networks.pdf))
-      - Efficient Backprop,
-      [Lecun et al., 1998](http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf)
+    - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
   """
 
   def __init__(self, seed=None):
@@ -865,8 +851,7 @@ class HeNormal(VarianceScaling):
       always produce the same random tensor for a given shape and dtype.
 
   References:
-      [He et al., 2015](https://www.cv-foundation.org/openaccess/content_iccv_2015/html/He_Delving_Deep_into_ICCV_2015_paper.html) # pylint: disable=line-too-long
-      ([pdf](https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/He_Delving_Deep_into_ICCV_2015_paper.pdf))
+    - [He et al., 2015](https://arxiv.org/abs/1502.01852)
   """
 
   def __init__(self, seed=None):
@@ -905,8 +890,7 @@ class HeUniform(VarianceScaling):
       always produce the same random tensor for a given shape and dtype.
 
   References:
-      [He et al., 2015](https://www.cv-foundation.org/openaccess/content_iccv_2015/html/He_Delving_Deep_into_ICCV_2015_paper.html) # pylint: disable=line-too-long
-      ([pdf](https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/He_Delving_Deep_into_ICCV_2015_paper.pdf))
+    - [He et al., 2015](https://arxiv.org/abs/1502.01852)
   """
 
   def __init__(self, seed=None):
@@ -941,45 +925,6 @@ def _assert_float_dtype(dtype):
   if not dtype.is_floating:
     raise ValueError('Expected floating point type, got %s.' % dtype)
   return dtype
-
-
-class _RandomGenerator(object):
-  """Random generator that selects appropriate random ops."""
-
-  def __init__(self, seed=None):
-    super(_RandomGenerator, self).__init__()
-    if seed is not None:
-      # Stateless random ops requires 2-int seed.
-      self.seed = [seed, 0]
-    else:
-      self.seed = None
-
-  def random_normal(self, shape, mean=0.0, stddev=1, dtype=tf.float32):
-    """A deterministic random normal if seed is passed."""
-    if self.seed:
-      op = tf.random.stateless_normal
-    else:
-      op = tf.random.normal
-    return op(
-        shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=self.seed)
-
-  def random_uniform(self, shape, minval, maxval, dtype):
-    """A deterministic random uniform if seed is passed."""
-    if self.seed:
-      op = stateless_random_ops.stateless_random_uniform
-    else:
-      op = tf.random.uniform
-    return op(
-        shape=shape, minval=minval, maxval=maxval, dtype=dtype, seed=self.seed)
-
-  def truncated_normal(self, shape, mean, stddev, dtype):
-    """A deterministic truncated normal if seed is passed."""
-    if self.seed:
-      op = tf.random.stateless_truncated_normal
-    else:
-      op = tf.random.truncated_normal
-    return op(
-        shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=self.seed)
 
 
 def _compute_fans(shape):

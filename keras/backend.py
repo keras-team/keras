@@ -24,6 +24,7 @@ import collections
 import itertools
 import json
 import os
+import random
 import sys
 import threading
 import warnings
@@ -1706,6 +1707,74 @@ def identity(x, name=None):
       A tensor of the same shape, type and content.
   """
   return tf.identity(x, name=name)
+
+
+class RandomGenerator:
+  """Random generator that selects appropriate random ops."""
+
+  def __init__(self, seed=None):
+    super(RandomGenerator, self).__init__()
+    if seed is None:
+      seed = random.randint(0, 1e9)
+    self.seed = seed
+    # Stateless random ops are not supported in V1 graph mode as well as
+    # with certain distribution strategies.
+    if (not tf.compat.v1.executing_eagerly_outside_functions() or
+        isinstance(tf.distribute.get_strategy(),
+                   (tf.distribute.experimental.CentralStorageStrategy,
+                    tf.distribute.experimental.ParameterServerStrategy))):
+      self._use_int_seed = True
+    else:
+      try:
+        # tf.random.Generator creates tf.Variables, so it needs to be created
+        # inside an init_scope and with its own name_scope
+        with tf.name_scope('random_seed_generator'):
+          self._seed_generator = tf.random.Generator.from_seed(self.seed)
+          self._use_int_seed = False
+      except tf.errors.NotFoundError:
+        # CUDA issues can cause tf.random.Generator to fail to instantiate.
+        self._use_int_seed = True
+
+  def get_seed(self):
+    if self._use_int_seed:
+      self.seed += 1
+      return [self.seed, 0]
+    else:
+      return self._seed_generator.make_seeds()[:, 0]
+
+  def random_normal(self, shape, mean=0., stddev=1., dtype=None):
+    dtype = dtype or floatx()
+    if self._use_int_seed:
+      self.seed += 1
+      return tf.random.normal(
+          shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=self.seed)
+    else:
+      return tf.random.stateless_normal(
+          shape=shape, mean=mean, stddev=stddev, dtype=dtype,
+          seed=self.get_seed())
+
+  def random_uniform(self, shape, minval=0., maxval=None, dtype=None):
+    dtype = dtype or floatx()
+    if self._use_int_seed:
+      self.seed += 1
+      return tf.random.uniform(
+          shape=shape, minval=minval, maxval=maxval, dtype=dtype,
+          seed=self.seed)
+    else:
+      return tf.random.stateless_uniform(
+          shape=shape, minval=minval, maxval=maxval, dtype=dtype,
+          seed=self.get_seed())
+
+  def truncated_normal(self, shape, mean=0., stddev=1., dtype=None):
+    dtype = dtype or floatx()
+    if self._use_int_seed:
+      self.seed += 1
+      return tf.random.truncated_normal(
+          shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=self.seed)
+    else:
+      return tf.random.stateless_truncated_normal(
+          shape=shape, mean=mean, stddev=stddev, dtype=dtype,
+          seed=self.get_seed())
 
 
 @keras_export('keras.backend.random_uniform_variable')
