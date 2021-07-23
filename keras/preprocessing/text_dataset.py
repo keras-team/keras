@@ -78,7 +78,7 @@ def text_dataset_from_directory(directory,
             are encoded as `float32` scalars with values 0 or 1
             (e.g. for `binary_crossentropy`).
         - None (no labels).
-    class_names: Only valid if "labels" is "inferred". This is the explict
+    class_names: Only valid if "labels" is "inferred". This is the explicit
         list of class names (must match names of subdirectories). Used
         to control the order of the classes
         (otherwise alphanumerical order is used).

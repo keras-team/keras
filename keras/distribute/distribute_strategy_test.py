@@ -631,7 +631,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
           batch_size=2,
           sample_weight=sample_weights,
           verbose=1)
-      # The per sample loss is multipled by the corresponding sample weight. The
+      # The per sample loss is multiplied by the corresponding sample weight. The
       # average of these weighted losses is the return value of the `evaluate`
       # call. For example, in the test above the average weighted loss is
       # calculated in the following manner:
@@ -1545,7 +1545,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       ds = tf.data.Dataset.from_tensor_slices(
           (inputs, targets, sample_weights)).batch(2)
       result = model.evaluate(ds, verbose=1)
-      # The per sample loss is multipled by the corresponding sample weight. The
+      # The per sample loss is multiplied by the corresponding sample weight. The
       # average of these weighted losses is the return value of the `evaluate`
       # call. For example, in the test above the average weighted loss is
       # calculated in the following manner:
