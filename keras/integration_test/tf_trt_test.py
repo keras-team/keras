@@ -26,6 +26,8 @@ class ConvertResource(tf.test.TestCase):
 
   def testConvertResource(self):
     """Test general resource inputs don't crash the converter."""
+    if not tf.test.is_built_with_cuda():
+      self.skipTest('test is only applicable with CUDA')
 
     class TokenizeLayer(tf.keras.layers.Layer):
 
