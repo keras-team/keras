@@ -1046,6 +1046,21 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       with self.assertRaisesRegex(ValueError, expected_error):
         strategy.experimental_run(run_fn)
 
+    # Test custom strategy.
+    class CustomMirroredStrategy(mirrored_strategy.MirroredStrategy):
+      @property
+      def supports_loss_scaling(self):
+        return False
+
+    expected_error = (
+        'Loss scaling is not supported with the tf.distribute.Strategy: '
+        'CustomMirroredStrategy. Try using a different Strategy, e.g. a '
+        'MirroredStrategy')
+
+    strategy = CustomMirroredStrategy(['cpu:0'])
+    with strategy.scope(), self.assertRaisesRegex(ValueError, expected_error):
+      loss_scale_optimizer.LossScaleOptimizer(gradient_descent.SGD())
+
   def testInvalidArgsWithFixedLossScale(self):
     opt = gradient_descent.SGD()
     with self.assertRaisesRegex(
