@@ -329,6 +329,19 @@ class KerasTensor(object):
     """
     return object_identity.Reference(self)
 
+  @property
+  def node(self):
+    """Find the corresponding `Node` that produce this keras_tensor.
+
+    During functional model construction, Keras will attach `KerasHistory` to
+    keras tensor to track the connectivity between calls of layers. Return
+    None if there isn't any KerasHistory attached to this tensor.
+    """
+    if hasattr(self, '_keras_history'):
+      layer, node_index, _ = self._keras_history
+      return layer.inbound_nodes[node_index]
+    return None
+
   def __iter__(self):
     shape = None
     if self.shape.ndims is not None:
