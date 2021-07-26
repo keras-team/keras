@@ -295,6 +295,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       else:
         keras_layers_gauge.get_cell(self._get_cell_name()).set(True)
         self._instrumented_keras_layer_class = True
+    else:
+      # This is a legacy layer that has disabled instrumentation
+      # as a native keras object. We still instrument this as
+      # legacy usage.
+      keras_api_gauge.get_cell('legacy_layer').set(True)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self,
