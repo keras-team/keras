@@ -27,7 +27,7 @@ from tensorflow.python.platform import tf_logging
 from tensorflow.python.util.tf_export import keras_export
 
 
-class _UnwrapPreventer(object):
+class _UnwrapPreventer:
   """Wrapper that DistributionStrategy will not unwrap.
 
   Typically, DistributionStrategy will unwrap values when going from a cross-
@@ -45,7 +45,7 @@ class _UnwrapPreventer(object):
     self.value = value
 
 
-class _DelegatingTrackableMixin(object):
+class _DelegatingTrackableMixin:
   """A mixin that delegates all Trackable methods to another trackable object.
 
   This class must be used with multiple inheritance. A class that subclasses

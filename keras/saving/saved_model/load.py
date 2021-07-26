@@ -244,7 +244,7 @@ def _is_graph_network(layer):
   return False
 
 
-class KerasObjectLoader(object):
+class KerasObjectLoader:
   """Loader that recreates Keras objects (e.g. layers, models).
 
   Layers and models are revived from either the config or SavedModel following
@@ -1008,7 +1008,7 @@ def _restore_layer_metrics(layer):
 
 # TODO(kathywu): Centrally define keys and functions for both  serialization and
 # deserialization.
-class RevivedLayer(object):
+class RevivedLayer:
   """Keras layer loaded from a SavedModel."""
 
   @classmethod
@@ -1086,7 +1086,7 @@ def _revive_setter(layer, name, value):
     setattr(layer, name, value)
 
 
-class RevivedInputLayer(object):
+class RevivedInputLayer:
   """InputLayer loaded from a SavedModel."""
 
   @classmethod

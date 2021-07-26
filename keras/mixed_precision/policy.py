@@ -28,7 +28,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 # pylint: disable=g-classes-have-attributes
 @keras_export('keras.mixed_precision.Policy', v1=[])
-class Policy(object):
+class Policy:
   """A dtype policy for a Keras layer.
 
   A dtype policy determines a layer's computation and variable dtypes. Each

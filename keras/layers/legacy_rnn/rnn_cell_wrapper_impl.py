@@ -27,7 +27,7 @@ import warnings
 from keras.utils import generic_utils
 
 
-class DropoutWrapperBase(object):
+class DropoutWrapperBase:
   """Operator adding dropout to inputs and outputs of the given cell."""
 
   def __init__(self,
@@ -312,7 +312,7 @@ class DropoutWrapperBase(object):
         config, custom_objects=custom_objects)
 
 
-class ResidualWrapperBase(object):
+class ResidualWrapperBase:
   """RNNCell wrapper that ensures cell inputs are added to the outputs."""
 
   def __init__(self, cell, residual_fn=None, **kwargs):
@@ -400,7 +400,7 @@ class ResidualWrapperBase(object):
         config, custom_objects=custom_objects)
 
 
-class DeviceWrapperBase(object):
+class DeviceWrapperBase:
   """Operator that ensures an RNNCell runs on a particular device."""
 
   def __init__(self, cell, device, **kwargs):

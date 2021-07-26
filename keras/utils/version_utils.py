@@ -44,7 +44,7 @@ callbacks_v1 = LazyLoader(
 # pylint: enable=g-inconsistent-quotes
 
 
-class ModelVersionSelector(object):
+class ModelVersionSelector:
   """Chooses between Keras v1 and v2 Model class."""
 
   def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
@@ -53,7 +53,7 @@ class ModelVersionSelector(object):
     return super(ModelVersionSelector, cls).__new__(cls)
 
 
-class LayerVersionSelector(object):
+class LayerVersionSelector:
   """Chooses between Keras v1 and v2 Layer class."""
 
   def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
@@ -62,7 +62,7 @@ class LayerVersionSelector(object):
     return super(LayerVersionSelector, cls).__new__(cls)
 
 
-class TensorBoardVersionSelector(object):
+class TensorBoardVersionSelector:
   """Chooses between Keras v1 and v2 TensorBoard callback class."""
 
   def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument

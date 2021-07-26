@@ -115,7 +115,7 @@ def handle_partial_sample_weights(outputs, sample_weights, sample_weight_modes,
           any_sample_weight, partial_sample_weight)
 
 
-class RespectCompiledTrainableState(object):
+class RespectCompiledTrainableState:
   """Set and restore trainable state if it has changed since compile.
 
   The keras API guarantees that the value of each Layer's `trainable` property

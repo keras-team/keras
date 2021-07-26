@@ -44,7 +44,7 @@ def list_checkpoint_attributes(ckpt_dir_or_file):
 
 
 @keras_export('keras.experimental.SidecarEvaluator', v1=[])
-class SidecarEvaluator(object):
+class SidecarEvaluator:
   """A class designed for a dedicated evaluator task.
 
   `SidecarEvaluator` is expected to be run in a process on a separate machine

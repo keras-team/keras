@@ -226,7 +226,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
 
   def test_Tensorboard_histogram_summaries_in_test_function(self):
 
-    class FileWriterStub(object):
+    class FileWriterStub:
 
       def __init__(self, logdir, graph=None):
         self.logdir = logdir
@@ -387,7 +387,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
 
   def test_Tensorboard_batch_logging(self):
 
-    class FileWriterStub(object):
+    class FileWriterStub:
 
       def __init__(self, logdir, graph=None):
         self.logdir = logdir
@@ -422,7 +422,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
 
   def test_Tensorboard_epoch_and_batch_logging(self):
 
-    class FileWriterStub(object):
+    class FileWriterStub:
 
       def __init__(self, logdir, graph=None):
         self.logdir = logdir
@@ -496,7 +496,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
 
   def test_TensorBoard_update_freq(self):
 
-    class FileWriterStub(object):
+    class FileWriterStub:
 
       def __init__(self, logdir, graph=None):
         self.logdir = logdir
