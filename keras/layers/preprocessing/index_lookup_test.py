@@ -2381,5 +2381,31 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     self.assertAllEqual(new_output_dataset, expected_output)
 
 
+@keras_parameterized.run_all_keras_modes(always_skip_eager=True)
+class EagerExecutionDisabled(keras_parameterized.TestCase,
+                             preprocessing_test_utils.PreprocessingLayerTest):
+
+  def test_lookup(self):
+    # We need this test for model_to_estimator followed by export_saved_model,
+    # which will call the layer in a legacy session. This could also happen
+    # directly if a user calls disable_v2_behavior or disable_eager_execution.
+    vocab_data = ["earth", "wind", "and", "fire"]
+    input_array = np.array(["earth", "wind", "and", "fire"])
+    expected_output = [1, 2, 3, 4]
+
+    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    layer = index_lookup.IndexLookup(
+        max_tokens=None,
+        num_oov_indices=1,
+        mask_token=None,
+        oov_token="[OOV]",
+        dtype=tf.string,
+        vocabulary=vocab_data)
+    int_data = layer(input_data)
+    model = keras.Model(inputs=input_data, outputs=int_data)
+    output_dataset = model(input_array)
+    self.assertAllEqual(output_dataset, expected_output)
+
+
 if __name__ == "__main__":
   tf.test.main()
