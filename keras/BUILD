@@ -9,7 +9,7 @@ package(
         "//third_party/py/tensorflow:__subpackages__",
         "//third_party/tensorflow_estimator:__subpackages__",
     ],
-    licenses = ["notice"],
+    licenses = ["unencumbered"],
 )
 
 exports_files(["LICENSE"])
