@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Common utilities for our Keras preprocessing intergration tests."""
+"""Common utilities for our Keras preprocessing integration tests."""
 
 import os
 
