@@ -354,7 +354,7 @@ def cached_per_instance(f):
   Consider the following class:
 
   ```
-  class MyClass(object):
+  class MyClass:
     def __setattr__(self, key, value):
       # Some expensive class specific code
       # ...

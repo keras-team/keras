@@ -28,7 +28,7 @@ CKPT_SAVED_EPOCH = '_ckpt_saved_epoch'
 CKPT_SAVED_EPOCH_UNUSED_VALUE = -1
 
 
-class WorkerTrainingState(object):
+class WorkerTrainingState:
   """Training state management class.
 
   This class provides apis for backing up and restoring the training state.

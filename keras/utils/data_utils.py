@@ -255,7 +255,7 @@ def get_file(fname=None,
   if download:
     print('Downloading data from', origin)
 
-    class ProgressTracker(object):
+    class ProgressTracker:
       # Maintain progbar for the lifetime of download.
       # This design was chosen for Python 2.7 compatibility.
       progbar = None
@@ -362,7 +362,7 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
     return False
 
 
-class ThreadsafeIter(object):
+class ThreadsafeIter:
   """Wrap an iterator with a lock and propagate exceptions to all threads."""
 
   def __init__(self, it):
@@ -406,7 +406,7 @@ def threadsafe_generator(f):
 
 
 @keras_export('keras.utils.Sequence')
-class Sequence(object):
+class Sequence:
   """Base object for fitting to a sequence of data, such as a dataset.
 
   Every `Sequence` must implement the `__getitem__` and the `__len__` methods.
@@ -564,7 +564,7 @@ def get_index(uid, i):
 
 
 @keras_export('keras.utils.SequenceEnqueuer')
-class SequenceEnqueuer(object):
+class SequenceEnqueuer:
   """Base class to enqueue inputs.
 
   The task of an Enqueuer is to use parallelism to speed up preprocessing.

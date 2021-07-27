@@ -526,7 +526,7 @@ def create_autocast_variable(variable):
   return AutoCastDistributedVariable(variable)
 
 
-class enable_auto_cast_variables(object):  # pylint:disable=invalid-name
+class enable_auto_cast_variables:  # pylint:disable=invalid-name
   """Context manager which enables the autocasting of `AutoCastVariable`s.
 
   Under this context manager, `AutoCastVariable`s will be cast to `dtype` if

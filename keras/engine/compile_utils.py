@@ -24,7 +24,7 @@ from keras.utils import losses_utils
 from keras.utils import tf_utils
 
 
-class Container(object):
+class Container:
   """Base Container class."""
 
   def __init__(self, output_names=None):

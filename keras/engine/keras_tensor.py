@@ -27,7 +27,7 @@ from keras.utils import object_identity
 _MAX_TENSOR_RANK = 254
 
 
-class KerasTensor(object):
+class KerasTensor:
   """A representation of a Keras in/output during Functional API construction.
 
   `KerasTensor`s are tensor-like objects that represent the symbolic inputs
@@ -535,7 +535,7 @@ class UserRegisteredTypeKerasTensor(KerasTensor):
     return self._user_registered_symbolic_object
 
 
-class _KerasTensorIterator(object):
+class _KerasTensorIterator:
   """Iterates over the leading dim of a KerasTensor. Performs 0 error checks."""
 
   def __init__(self, tensor, dim0):
