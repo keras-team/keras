@@ -224,7 +224,7 @@ def MobileNetV3(stack_fn,
         rows = backend.int_shape(input_tensor)[1]
         cols = backend.int_shape(input_tensor)[2]
         input_shape = (cols, rows, 3)
-  # If input_shape is None and input_tensor is None using standart shape
+  # If input_shape is None and input_tensor is None using standard shape
   if input_shape is None and input_tensor is None:
     input_shape = (None, None, 3)
 

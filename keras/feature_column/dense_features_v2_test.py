@@ -595,10 +595,10 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     # Provides 1-dim tensor and dense tensor.
     with tf.Graph().as_default():
       features = {
-          'price': tf.compat.v1.placeholder(tf.float32),
-          'body-style': tf.compat.v1.sparse_placeholder(tf.string),
-          # This is dense tensor for the categorical_column.
-          'country': tf.compat.v1.placeholder(tf.string),
+        'price': tf.compat.v1.placeholder(tf.float32),
+        'body-style': tf.compat.v1.sparse_placeholder(tf.string),
+        # This is dense tensor for the categorical_column.
+        'country': tf.compat.v1.placeholder(tf.string),
       }
       self.assertIsNone(features['price'].shape.ndims)
       self.assertIsNone(features['body-style'].get_shape().ndims)
@@ -641,7 +641,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     with tf.Graph().as_default():
       # Dynamic rank 0 should fail
       features = {
-          'price': tf.compat.v1.placeholder(tf.float32),
+        'price': tf.compat.v1.placeholder(tf.float32),
       }
       net = df.DenseFeatures([price])(features)
       self.assertEqual(1, net.shape[1])
