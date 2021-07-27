@@ -43,6 +43,8 @@ def strategy_combinations_eager_data_fn():
           tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
           tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
           tf.__internal__.distribute.combinations
+          .parameter_server_strategy_1worker_2ps_cpu,
+          tf.__internal__.distribute.combinations
           .parameter_server_strategy_1worker_2ps_1gpu,
           # NOTE: TPUStrategy not tested because the models in this test are
           # sparse and do not work with TPUs.
