@@ -18,6 +18,7 @@ import tensorflow.compat.v2 as tf
 
 import collections
 import io
+import tempfile
 import sys
 
 from absl.testing import parameterized
@@ -3866,6 +3867,27 @@ class TestBuildCustomModel(keras_parameterized.TestCase):
     model.build({'x': [None, 16]})
     self.assertEqual(model.l1.kernel.shape.as_list(), [16, 1])
 
+  @keras_parameterized.run_all_keras_modes
+  def test_save_model_weights_h5(self):
+
+    class MyModel(training_module.Model):
+
+      def __init__(self):
+        super(MyModel, self).__init__()
+        self.class_token = self.add_weight(shape=[2, 3])
+
+      def call(self, inputs):
+        pass
+
+    h5_file = tempfile.mktemp('.h5')
+    m1 = MyModel()
+    m1.build([None])
+    m1.save_weights(h5_file)
+
+    m2 = MyModel()
+    m2.build([None])
+    m2.load_weights(h5_file)
+    self.assertAllEqual(m1.get_weights(), m2.get_weights())
 
 if __name__ == '__main__':
   tf.test.main()

@@ -284,7 +284,7 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
                         metrics=[keras.metrics.categorical_accuracy])
 
       f_ref_model = h5py.File(h5_path, 'w')
-      hdf5_format.save_weights_to_hdf5_group(f_ref_model, ref_model.layers)
+      hdf5_format.save_weights_to_hdf5_group(f_ref_model, ref_model)
 
       f_model = h5py.File(h5_path, 'r')
       model = keras.models.Sequential()
@@ -298,10 +298,10 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
           ValueError, r'Layer #0 \(named \"d1\"\) expects 1 '
           r'weight\(s\), but the saved weights have 2 '
           r'element\(s\)\.'):
-        hdf5_format.load_weights_from_hdf5_group_by_name(f_model, model.layers)
+        hdf5_format.load_weights_from_hdf5_group_by_name(f_model, model)
 
       hdf5_format.load_weights_from_hdf5_group_by_name(
-          f_model, model.layers, skip_mismatch=True)
+          f_model, model, skip_mismatch=True)
       self.assertAllClose(keras.backend.get_value(ref_model.layers[1].kernel),
                           keras.backend.get_value(model.layers[1].kernel))
 
@@ -325,7 +325,7 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
 
       f_ref_model = h5py.File(h5_path, 'w')
       keras.backend.set_value(ref_model.layers[1].bias, [3.5] * num_classes)
-      hdf5_format.save_weights_to_hdf5_group(f_ref_model, ref_model.layers)
+      hdf5_format.save_weights_to_hdf5_group(f_ref_model, ref_model)
 
       f_model = h5py.File(h5_path, 'r')
       model = keras.models.Sequential()
@@ -341,10 +341,10 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
           r'shape=\(3, 10\) dtype=float32> has '
           r'shape \(3, 10\), but the saved weight has '
           r'shape \(3, 5\)\.'):
-        hdf5_format.load_weights_from_hdf5_group_by_name(f_model, model.layers)
+        hdf5_format.load_weights_from_hdf5_group_by_name(f_model, model)
 
       hdf5_format.load_weights_from_hdf5_group_by_name(
-          f_model, model.layers, skip_mismatch=True)
+          f_model, model, skip_mismatch=True)
       self.assertAllClose([3.5] * num_classes,
                           keras.backend.get_value(model.layers[1].bias))
 

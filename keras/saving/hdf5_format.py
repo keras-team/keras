@@ -116,8 +116,7 @@ def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
         f.attrs[k] = v
 
     model_weights_group = f.create_group('model_weights')
-    model_layers = model.layers
-    save_weights_to_hdf5_group(model_weights_group, model_layers)
+    save_weights_to_hdf5_group(model_weights_group, model)
 
     # TODO(b/128683857): Add integration tests between tf.keras and external
     # Keras, to avoid breaking TF.js users.
@@ -181,7 +180,7 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):  # pylint
                                                custom_objects=custom_objects)
 
     # set weights
-    load_weights_from_hdf5_group(f['model_weights'], model.layers)
+    load_weights_from_hdf5_group(f['model_weights'], model)
 
     if compile:
       # instantiate optimizer
@@ -312,7 +311,8 @@ def preprocess_weights_for_loading(layer,
         trainable_weights = trainable_weights[num_trainable_weights:]
         non_trainable_weights = non_trainable_weights[
             num_non_trainable_weights:]
-
+    new_trainable_weights += layer._trainable_weights
+    new_non_trainable_weights += layer._non_trainable_weights
     return new_trainable_weights + new_non_trainable_weights
 
   # Convert layers nested in Bidirectional/Model/Sequential.
@@ -615,7 +615,26 @@ def load_optimizer_weights_from_hdf5_group(hdf5_group):
   return [weights_group[weight_name] for weight_name in optimizer_weight_names]
 
 
-def save_weights_to_hdf5_group(f, layers):
+def save_subset_weights_to_hdf5_group(f, weights):
+  """Save top-level weights of a model to a HDF5 group.
+
+  Args:
+      f: HDF5 group.
+      model: model instance.
+  """
+  weight_values = backend.batch_get_value(weights)
+  weight_names = [w.name.encode('utf8') for w in weights]
+  save_attributes_to_hdf5_group(f, 'weight_names', weight_names)
+  for name, val in zip(weight_names, weight_values):
+    param_dset = f.create_dataset(name, val.shape, dtype=val.dtype)
+    if not val.shape:
+      # scalar
+      param_dset[()] = val
+    else:
+      param_dset[:] = val
+
+
+def save_weights_to_hdf5_group(f, model):
   """Saves the weights of a list of layers to a HDF5 group.
 
   Args:
@@ -623,30 +642,37 @@ def save_weights_to_hdf5_group(f, layers):
       layers: List of layer instances.
   """
   from keras import __version__ as keras_version  # pylint: disable=g-import-not-at-top
-
   save_attributes_to_hdf5_group(
-      f, 'layer_names', [layer.name.encode('utf8') for layer in layers])
+      f, 'layer_names', [layer.name.encode('utf8') for layer in model.layers])
   f.attrs['backend'] = backend.backend().encode('utf8')
   f.attrs['keras_version'] = str(keras_version).encode('utf8')
 
   # Sort model layers by layer name to ensure that group names are strictly
   # growing to avoid prefix issues.
-  for layer in sorted(layers, key=lambda x: x.name):
+  for layer in sorted(model.layers, key=lambda x: x.name):
     g = f.create_group(layer.name)
     weights = _legacy_weights(layer)
-    weight_values = backend.batch_get_value(weights)
-    weight_names = [w.name.encode('utf8') for w in weights]
-    save_attributes_to_hdf5_group(g, 'weight_names', weight_names)
-    for name, val in zip(weight_names, weight_values):
-      param_dset = g.create_dataset(name, val.shape, dtype=val.dtype)
-      if not val.shape:
-        # scalar
-        param_dset[()] = val
-      else:
-        param_dset[:] = val
+    save_subset_weights_to_hdf5_group(g, weights)
+  weights = model._trainable_weights + model._non_trainable_weights
+  g = f.create_group('top_level_model_weights')
+  save_subset_weights_to_hdf5_group(g, weights)
 
 
-def load_weights_from_hdf5_group(f, layers):
+def load_subset_weights_from_hdf5_group(f):
+  """Load layer weights of a model from hdf5.
+
+  Args:
+      f: A pointer to a HDF5 group.
+
+  Raises:
+      ValueError: in case of mismatch between provided model
+          and weights file.
+  """
+  weight_names = load_attributes_from_hdf5_group(f, 'weight_names')
+  return [np.asarray(f[weight_name]) for weight_name in weight_names]
+
+
+def load_weights_from_hdf5_group(f, model):
   """Implements topological (order-based) weight loading.
 
   Args:
@@ -671,7 +697,7 @@ def load_weights_from_hdf5_group(f, layers):
     original_backend = None
 
   filtered_layers = []
-  for layer in layers:
+  for layer in model.layers:
     weights = _legacy_weights(layer)
     if weights:
       filtered_layers.append(layer)
@@ -695,12 +721,12 @@ def load_weights_from_hdf5_group(f, layers):
   weight_value_tuples = []
   for k, name in enumerate(layer_names):
     g = f[name]
-    weight_names = load_attributes_from_hdf5_group(g, 'weight_names')
-    weight_values = [np.asarray(g[weight_name]) for weight_name in weight_names]
     layer = filtered_layers[k]
     symbolic_weights = _legacy_weights(layer)
-    weight_values = preprocess_weights_for_loading(
-        layer, weight_values, original_keras_version, original_backend)
+    weight_values = load_subset_weights_from_hdf5_group(g)
+    weight_values = preprocess_weights_for_loading(layer, weight_values,
+                                                   original_keras_version,
+                                                   original_backend)
     if len(weight_values) != len(symbolic_weights):
       raise ValueError('Layer #' + str(k) + ' (named "' + layer.name +
                        '" in the current model) was found to '
@@ -710,11 +736,19 @@ def load_weights_from_hdf5_group(f, layers):
                        ' weights, but the saved weights have ' +
                        str(len(weight_values)) + ' elements.')
     weight_value_tuples += zip(symbolic_weights, weight_values)
+  symbolic_weights = model._trainable_weights + model._non_trainable_weights
+  weight_values = load_subset_weights_from_hdf5_group(f['top_level_model_weights'])
+  if len(weight_values) != len(symbolic_weights):
+    raise ValueError('The model ' + model.name + ' expects ' +
+                      str(len(symbolic_weights)) +
+                      ' weights, but the saved weights have ' +
+                      str(len(weight_values)) + ' elements.')
+  weight_value_tuples += zip(symbolic_weights, weight_values)
   backend.batch_set_value(weight_value_tuples)
 
 
 def load_weights_from_hdf5_group_by_name(
-    f, layers, skip_mismatch=False):
+    f, model, skip_mismatch=False):
   """Implements name-based weight loading.
 
   (instead of topological weight loading).
@@ -723,7 +757,7 @@ def load_weights_from_hdf5_group_by_name(
 
   Args:
       f: A pointer to a HDF5 group.
-      layers: a list of target layers.
+      model: a model instance.
       skip_mismatch: Boolean, whether to skip loading of layers
           where there is a mismatch in the number of weights,
           or a mismatch in the shape of the weights.
@@ -750,7 +784,7 @@ def load_weights_from_hdf5_group_by_name(
 
   # Reverse index of layer name to list of layers with name.
   index = {}
-  for layer in layers:
+  for layer in model.layers:
     if layer.name:
       index.setdefault(layer.name, []).append(layer)
 
@@ -759,9 +793,7 @@ def load_weights_from_hdf5_group_by_name(
   weight_value_tuples = []
   for k, name in enumerate(layer_names):
     g = f[name]
-    weight_names = load_attributes_from_hdf5_group(g, 'weight_names')
-    weight_values = [np.asarray(g[weight_name]) for weight_name in weight_names]
-
+    weight_values = load_subset_weights_from_hdf5_group(g)
     for layer in index.get(name, []):
       symbolic_weights = _legacy_weights(layer)
       weight_values = preprocess_weights_for_loading(
@@ -796,6 +828,39 @@ def load_weights_from_hdf5_group_by_name(
 
         else:
           weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
+  symbolic_weights = model._trainable_weights + model._non_trainable_weights
+  weight_values = load_subset_weights_from_hdf5_group(f['top_level_model_weights'])
+  if len(weight_values) != len(symbolic_weights):
+    if skip_mismatch:
+      logging.warning('Skipping loading of weights for '
+                      'model {}'.format(model.name) + ' due to mismatch '
+                      'in number of weights ({} vs {}).'.format(
+                          len(symbolic_weights), len(weight_values)))
+      backend.batch_set_value(weight_value_tuples)
+      return
+    raise ValueError(' (named "' + model.name +
+                      '") expects ' + str(len(symbolic_weights)) +
+                      ' weight(s), but the saved weights' + ' have ' +
+                      str(len(weight_values)) + ' element(s).')
+  # Set values.
+  for i in range(len(weight_values)):
+    if backend.int_shape(symbolic_weights[i]) != weight_values[i].shape:
+      if skip_mismatch:
+        logging.warning('Skipping loading of weights for '
+                        'model {}'.format(model.name) + ' due to '
+                        'mismatch in shape ({} vs {}).'.format(
+                            symbolic_weights[i].shape,
+                            weight_values[i].shape))
+        continue
+      raise ValueError('(named "' + model.name +
+                        '"), weight ' + str(symbolic_weights[i]) +
+                        ' has shape {}'.format(backend.int_shape(
+                            symbolic_weights[i])) +
+                        ', but the saved weight has shape ' +
+                        str(weight_values[i].shape) + '.')
+    else:
+      weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
+
   backend.batch_set_value(weight_value_tuples)
 
 
