@@ -46,6 +46,7 @@ py_library(
         ":base_layer",
         ":base_preprocessing_layer",
         ":data_adapter",
+        ":functional_utils",
         ":input_layer",
         ":input_spec",
         ":keras_tensor",
