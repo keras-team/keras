@@ -1215,7 +1215,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
   def test_EarlyStopping_final_weights_when_restoring_model_weights(self):
 
-    class DummyModel(object):
+    class DummyModel:
 
       def __init__(self):
         self.stop_training = False
@@ -1415,12 +1415,12 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
   def test_ReduceLROnPlateau_patience(self):
 
-    class DummyOptimizer(object):
+    class DummyOptimizer:
 
       def __init__(self):
         self.lr = keras.backend.variable(1.0)
 
-    class DummyModel(object):
+    class DummyModel:
 
       def __init__(self):
         self.optimizer = DummyOptimizer()
@@ -2015,7 +2015,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 _ObservedSummary = collections.namedtuple('_ObservedSummary', ('logdir', 'tag'))
 
 
-class _SummaryFile(object):
+class _SummaryFile:
   """A record of summary tags and the files to which they were written.
 
   Fields `scalars`, `images`, `histograms`, and `tensors` are sets

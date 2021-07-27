@@ -44,7 +44,7 @@ class RNNTest(keras_parameterized.TestCase):
 
   def test_minimal_rnn_cell_non_layer(self):
 
-    class MinimalRNNCell(object):
+    class MinimalRNNCell:
 
       def __init__(self, units, input_dim):
         self.units = units
@@ -84,7 +84,7 @@ class RNNTest(keras_parameterized.TestCase):
 
   def test_minimal_rnn_cell_non_layer_multiple_states(self):
 
-    class MinimalRNNCell(object):
+    class MinimalRNNCell:
 
       def __init__(self, units, input_dim):
         self.units = units

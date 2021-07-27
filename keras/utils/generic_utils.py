@@ -49,7 +49,7 @@ _LAYER_UNDEFINED_CONFIG_KEY = 'layer was saved without config'
 
 @keras_export('keras.utils.custom_object_scope',  # pylint: disable=g-classes-have-attributes
               'keras.utils.CustomObjectScope')
-class CustomObjectScope(object):
+class CustomObjectScope:
   """Exposes custom classes/functions to Keras deserialization internals.
 
   Under a scope `with custom_object_scope(objects_dict)`, Keras methods such
@@ -142,7 +142,7 @@ def _shared_object_saving_scope():
   return getattr(SHARED_OBJECT_SAVING, 'scope', None)
 
 
-class DisableSharedObjectScope(object):
+class DisableSharedObjectScope:
   """A context manager for disabling handling of shared objects.
 
   Disables shared object handling for both saving and loading.
@@ -162,7 +162,7 @@ class DisableSharedObjectScope(object):
     SHARED_OBJECT_SAVING.scope = self._orig_saving_scope
 
 
-class NoopLoadingScope(object):
+class NoopLoadingScope:
   """The default shared object loading scope. It does nothing.
 
   Created to simplify serialization code that doesn't care about shared objects
@@ -176,7 +176,7 @@ class NoopLoadingScope(object):
     pass
 
 
-class SharedObjectLoadingScope(object):
+class SharedObjectLoadingScope:
   """A context manager for keeping track of loaded objects.
 
   During the deserialization process, we may come across objects that are
@@ -253,7 +253,7 @@ class SharedObjectConfig(dict):
     self.ref_count += 1
 
 
-class SharedObjectSavingScope(object):
+class SharedObjectSavingScope:
   """Keeps track of shared object configs when serializing."""
 
   def __enter__(self):
@@ -812,7 +812,7 @@ def has_arg(fn, name, accept_all=False):
 
 
 @keras_export('keras.utils.Progbar')
-class Progbar(object):
+class Progbar:
   """Displays a progress bar.
 
   Args:

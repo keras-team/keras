@@ -346,7 +346,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
     def custom_loss_fn(y_true, y_pred):
       return tf.reduce_sum(y_true - y_pred)
 
-    class CustomLossClass(object):
+    class CustomLossClass:
 
       def __call__(self, y_true, y_pred):
         return tf.reduce_sum(y_true - y_pred)
@@ -771,7 +771,7 @@ class MetricsContainerTest(keras_parameterized.TestCase):
     def custom_metric_fn(y_true, y_pred):
       return tf.reduce_sum(y_true - y_pred)
 
-    class CustomMetricClass(object):
+    class CustomMetricClass:
 
       def __call__(self, y_true, y_pred):
         return tf.reduce_sum(y_true - y_pred)

@@ -20,7 +20,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.utils.experimental.DatasetCreator', v1=[])
-class DatasetCreator(object):
+class DatasetCreator:
   """Object that returns a `tf.data.Dataset` upon invoking.
 
   `tf.keras.utils.experimental.DatasetCreator` is designated as a supported type
