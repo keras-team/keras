@@ -27,7 +27,7 @@ _PARTITION_OFFSET = 'partition_offset'
 
 
 @keras_export('keras.initializers.Initializer')
-class Initializer(object):
+class Initializer:
   """Initializer base class: all Keras initializers inherit from this class.
 
   Initializers should implement a `__call__` method with the following
@@ -943,7 +943,7 @@ def _assert_float_dtype(dtype):
   return dtype
 
 
-class _RandomGenerator(object):
+class _RandomGenerator:
   """Random generator that selects appropriate random ops."""
 
   def __init__(self, seed=None):

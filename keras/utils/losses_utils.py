@@ -22,7 +22,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.losses.Reduction', v1=[])
-class ReductionV2(object):
+class ReductionV2:
   """Types of loss reduction.
 
   Contains the following values:

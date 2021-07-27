@@ -23,7 +23,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.optimizers.schedules.LearningRateSchedule")
-class LearningRateSchedule(object):
+class LearningRateSchedule:
   """The learning rate schedule base class.
 
   You can use a learning rate schedule to modulate how the learning rate

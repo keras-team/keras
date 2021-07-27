@@ -1107,7 +1107,7 @@ class AbstractRNNCell(Layer):
 
 
 @doc_controls.do_not_generate_docs
-class DropoutRNNCellMixin(object):
+class DropoutRNNCellMixin:
   """Object that hold dropout related fields for RNN Cell.
 
   This class is not a standalone RNN cell. It suppose to be used with a RNN cell

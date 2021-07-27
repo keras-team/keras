@@ -176,7 +176,7 @@ def get_strategy_scope(strategy):
   return strategy_scope
 
 
-class DummyContextManager(object):
+class DummyContextManager:
 
   def __enter__(self):
     pass

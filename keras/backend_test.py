@@ -2143,7 +2143,7 @@ class BackendGraphTests(tf.test.TestCase, parameterized.TestCase):
 
   def test_function_fetch_callbacks(self):
 
-    class CallbackStub(object):
+    class CallbackStub:
 
       def __init__(self):
         self.times_called = 0

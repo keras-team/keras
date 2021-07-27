@@ -26,7 +26,7 @@ from tensorflow.python.util.tf_export import tf_export
               v1=['keras.layers.InputSpec',
                   'keras.__internal__.legacy.layers.InputSpec'])
 @tf_export(v1=['layers.InputSpec'])
-class InputSpec(object):
+class InputSpec:
   """Specifies the rank, dtype and shape of every input to a layer.
 
   Layers can expose (if appropriate) an `input_spec` attribute:

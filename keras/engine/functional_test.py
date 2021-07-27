@@ -1083,7 +1083,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
       def call(self, x1, kwarg=None):
         return x1 + x1
 
-    class NonSerializable(object):
+    class NonSerializable:
 
       def __init__(self, foo=None):
         self.foo = foo
@@ -2443,7 +2443,7 @@ class FunctionalSubclassModel(training_lib.Model):
     super().__init__(inputs=[my_input], outputs=outputs, *args, **kwargs)
 
 
-class MixinClass(object):
+class MixinClass:
 
   def __init__(self, foo, **kwargs):
     self._foo = foo

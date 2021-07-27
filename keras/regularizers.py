@@ -43,7 +43,7 @@ def _none_to_default(inputs, default):
 
 
 @keras_export('keras.regularizers.Regularizer')
-class Regularizer(object):
+class Regularizer:
   """Regularizer base class.
 
   Regularizers allow you to apply penalties on layer parameters or layer

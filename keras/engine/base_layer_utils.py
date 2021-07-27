@@ -423,7 +423,7 @@ def call_context():
 tf.__internal__.register_call_context_function(call_context)
 
 
-class CallContext(object):
+class CallContext:
   """Keeps track of properties currently inside a Layer/Model's `call`.
 
   Attributes:
@@ -512,7 +512,7 @@ class CallContext(object):
             getattr(backend.get_graph(), 'name', None) == 'keras_graph')
 
 
-class CallContextManager(object):
+class CallContextManager:
   """Context manager for `CallContext`."""
 
   def __init__(self, call_ctx, state):
@@ -769,7 +769,7 @@ def v2_dtype_behavior_enabled():
   return V2_DTYPE_BEHAVIOR
 
 
-class TrackableWeightHandler(object):
+class TrackableWeightHandler:
   """Keras wrapper for handling tracking.Trackable object saving and restoring.
 
   This class handles Trackables in both V1 and V2 modes, ensuring that they can

@@ -28,7 +28,7 @@ from keras.engine import data_adapter
 from keras.utils import data_utils
 
 
-class DummyArrayLike(object):
+class DummyArrayLike:
   """Dummy array-like object."""
 
   def __init__(self, data):
