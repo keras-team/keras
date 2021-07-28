@@ -165,10 +165,7 @@ class Conv1DTest(keras_parameterized.TestCase):
 def test_conv1d_invalid_output_shapes(self):
     kwargs = {'filters': 2, 'kernel_size': 20}
     with self.assertRaisesRegex(ValueError, r"""
-            One of the dimensions in output tensor is less than or
-             equal to zero. Please check the input shape.
-             Recieved shape:
-             """):
+      One of the dimensions in the output is <= 0"""):
       layer = keras.layers.convolutional.Conv1D(**kwargs)
       layer.build((None, 5, 2))
 
@@ -305,7 +302,8 @@ class Conv2DTest(keras_parameterized.TestCase):
   
   def test_conv2d_invalid_output_shapes(self):
     kwargs = {'filters': 2, 'kernel_size': 20}
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(ValueError, r"""
+      One of the dimensions in the output is <= 0"""):
       layer = keras.layers.convolutional.Conv2D(**kwargs)
       layer.build((None, 5, 5, 2))
 
@@ -446,7 +444,8 @@ class Conv3DTest(keras_parameterized.TestCase):
   
   def test_conv3d_invalid_output_shapes(self):
     kwargs = {'filters': 2, 'kernel_size': 20}
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(ValueError, r"""
+      One of the dimensions in the output is <= 0"""):
       layer = keras.layers.convolutional.Conv3D(**kwargs)
       layer.build((None, 5, 5, 5, 2))
 

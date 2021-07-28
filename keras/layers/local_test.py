@@ -160,7 +160,8 @@ class LocallyConnected1DLayersTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_locallyconnected1d_invalid_output_shapes(self):
     kwargs = {'filters': 2, 'kernel_size': 10}
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(ValueError, r"""
+      One of the dimensions in the output is <= 0 """):
       layer = keras.layers.LocallyConnected1D(**kwargs)
       layer.build((None, 5, 2))
 
@@ -272,7 +273,8 @@ class LocallyConnected2DLayersTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_locallyconnected2d_invalid_output_shapes(self):
     kwargs = {'filters': 2, 'kernel_size': 10}
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(ValueError, r"""
+      One of the dimensions in the output is <= 0 """):
       layer = keras.layers.LocallyConnected2D(**kwargs)
       layer.build((None, 5, 5, 2))
 
