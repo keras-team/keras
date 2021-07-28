@@ -1338,53 +1338,45 @@ class _ClusterCoordinatorDataHandler(DataHandler):
   """A `DataHandler` that is compatible with `ClusterCoordinator`."""
 
   def __init__(self, x, y=None, **kwargs):
-    if (not _is_distributed_dataset(x) and
-        not isinstance(x, (dataset_creator.DatasetCreator, tf.data.Dataset))):
-      x = self._convert_to_dataset_creator(x, y, **kwargs)
+    self._converted_dataset_fn = None
+    self._inferred_steps = None
+    if (not _is_distributed_dataset(x) and not isinstance(x, tf.data.Dataset)):
+      if (isinstance(x, _get_tensor_types()) and
+          isinstance(y, _get_tensor_types())):
 
-    super().__init__(x=x, **kwargs)
+        def _dataset_fn(input_context):
+          del input_context
+          data_adapter_cls = select_data_adapter(x, y)
+          data_adapter = data_adapter_cls(x=x, y=y, **kwargs)
+          return data_adapter.get_dataset()
 
-  def _convert_to_dataset_creator(self, x, y, **kwargs):
-    """Converts non-tf.data.Dataset to `DatasetCreator` instances."""
+        self._converted_dataset_fn = _dataset_fn
 
-    def _dataset_fn(input_context):
-      del input_context
-      data_adapter_cls = select_data_adapter(x, y)
-      return data_adapter_cls(x=x, y=y, **kwargs).get_dataset()
-
-    # This check is needed because types like `tf.data.Dataset` don't work with
-    # PSS yet. So only apply this logic to the types we can support.
-    if (isinstance(x, _get_tensor_types()) and
-        isinstance(y, _get_tensor_types())):
-      return dataset_creator.DatasetCreator(_dataset_fn)
-    else:
-      raise NotImplementedError(
-          "Only `tf.keras.utils.experimental.DatasetCreator`, `tf.Tensor`, "
-          "numpy arrays and pandas dataframes are supported types at this "
-          "time.")
+        data_adapter_cls = select_data_adapter(x, y)
+        data_adapter = data_adapter_cls(x=x, y=y, **kwargs)
+        self._inferred_steps = data_adapter.get_size()
+      else:
+        raise NotImplementedError(
+            "Only `tf.data.Dataset`, `tf.distribute.DistributedDataset`, "
+            "`tf.Tensor`, numpy arrays and pandas dataframes are supported types "
+            "at this time.")
+    super().__init__(x=x, y=y, **kwargs)
 
   def _configure_dataset_and_inferred_steps(self, strategy, x, steps_per_epoch,
                                             class_weight, distribute):
-    if isinstance(x, dataset_creator.DatasetCreator):
+    assert distribute
 
-      def per_worker_dataset_fn():
+    if self._converted_dataset_fn is not None:
+      x = strategy.distribute_datasets_from_function(self._converted_dataset_fn)
+    elif not _is_distributed_dataset(x):
+      x = strategy.experimental_distribute_dataset(x)
 
-        return strategy.distribute_datasets_from_function(
-            x, options=x.input_options)
-
-      self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
-          per_worker_dataset_fn)
-    else:
-      assert distribute
-      if not _is_distributed_dataset(x):
-        x = strategy.experimental_distribute_dataset(x)
-
-      self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
-          x)
+    self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
+        x)
 
     if steps_per_epoch == -1:
-      self._inferred_steps = None
-      self._log_indefinite_training_warning()
+      if self._inferred_steps is None:
+        self._log_indefinite_training_warning()
     else:
       self._inferred_steps = steps_per_epoch
 

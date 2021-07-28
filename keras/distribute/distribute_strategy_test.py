@@ -242,6 +242,16 @@ def all_strategy_combinations_minus_default():
           multi_worker_strategy_combinations_eager_only())
 
 
+def ps_strategy_multi_worker():
+  return tf.__internal__.test.combinations.combine(
+      distribution=[
+          tf.__internal__.distribute.combinations
+          .parameter_server_strategy_3worker_2ps_cpu, tf.__internal__.distribute
+          .combinations.parameter_server_strategy_3worker_2ps_1gpu
+      ],
+      mode=['eager'])
+
+
 def strategy_and_optimizer_combinations():
   non_tpu_strategies = tf.__internal__.test.combinations.times(
       strategy_minus_tpu_combinations(),
@@ -847,7 +857,8 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
 class TestDistributionStrategyWithDatasets(tf.test.TestCase,
                                            parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.__internal__.distribute.combinations.generate(
+      all_strategy_combinations() + ps_strategy_multi_worker())
   def test_calling_model_on_same_dataset(self, distribution):
     with self.cached_session():
       with distribution.scope():
@@ -1708,8 +1719,13 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     model.evaluate(inputs, targets)
 
   @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+      tf.__internal__.test.combinations.combine(
+          distribution=all_strategies, mode=['eager']) +
+      ps_strategy_multi_worker())
   def test_distributed_dataset(self, distribution):
+    is_ps_strategy = isinstance(
+        distribution, tf.distribute.experimental.ParameterServerStrategy)
+
     with distribution.scope():
 
       class CBCounter(keras.callbacks.Callback):
@@ -1747,11 +1763,12 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
           validation_data=val_ds,
           validation_steps=5,
           epochs=2,
-          callbacks=[cb_counter])
+          callbacks=[cb_counter] if not is_ps_strategy else [])
 
-      self.assertEqual(cb_counter.train_batches, 20)
-      self.assertEqual(cb_counter.test_batches, 10)
-      self.assertEqual(cb_counter.epochs, 2)
+      if not is_ps_strategy:
+        self.assertEqual(cb_counter.train_batches, 20)
+        self.assertEqual(cb_counter.test_batches, 10)
+        self.assertEqual(cb_counter.epochs, 2)
 
       # Check for `steps_per_epoch`.
       if distribution.num_replicas_in_sync > 1:
@@ -1760,8 +1777,13 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
           model.fit(ds, epochs=2)
 
   @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+      tf.__internal__.test.combinations.combine(
+          distribution=all_strategies, mode=['eager']) +
+      ps_strategy_multi_worker())
   def test_distributed_datasets_from_function(self, distribution):
+    is_ps_strategy = isinstance(
+        distribution, tf.distribute.experimental.ParameterServerStrategy)
+
     with distribution.scope():
 
       class CBCounter(keras.callbacks.Callback):
@@ -1799,11 +1821,12 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
           validation_data=val_ds,
           validation_steps=5,
           epochs=2,
-          callbacks=[cb_counter])
+          callbacks=[cb_counter] if not is_ps_strategy else [])
 
-      self.assertEqual(cb_counter.train_batches, 20)
-      self.assertEqual(cb_counter.test_batches, 10)
-      self.assertEqual(cb_counter.epochs, 2)
+      if not is_ps_strategy:
+        self.assertEqual(cb_counter.train_batches, 20)
+        self.assertEqual(cb_counter.test_batches, 10)
+        self.assertEqual(cb_counter.epochs, 2)
 
       # Check for `steps_per_epoch`.
       if distribution.num_replicas_in_sync > 1:
