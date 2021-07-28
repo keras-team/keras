@@ -1200,7 +1200,7 @@ def mean_squared_error(y_true, y_pred):
     Mean squared error values. shape = `[batch_size, d0, .. dN-1]`.
   """
   y_pred = tf.convert_to_tensor(y_pred)
-  
+  y_true = tf.cast(y_true, y_pred.dtype)
   return backend.mean(tf.math.squared_difference(y_pred, y_true), axis=-1)
 
 
@@ -1328,7 +1328,7 @@ def mean_absolute_error(y_true, y_pred):
     Mean absolute error values. shape = `[batch_size, d0, .. dN-1]`.
   """
   y_pred = tf.convert_to_tensor(y_pred)
-  
+  y_true = tf.cast(y_true, y_pred.dtype)
   return backend.mean(tf.abs(y_pred - y_true), axis=-1)
 
 
@@ -1413,7 +1413,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     Mean squared logarithmic error values. shape = `[batch_size, d0, .. dN-1]`.
   """
   y_pred = tf.convert_to_tensor(y_pred)
-
+  y_true = tf.cast(y_true, y_pred.dtype)
   first_log = tf.math.log(backend.maximum(y_pred, backend.epsilon()) + 1.)
   second_log = tf.math.log(backend.maximum(y_true, backend.epsilon()) + 1.)
   return backend.mean(
@@ -1470,7 +1470,7 @@ def squared_hinge(y_true, y_pred):
      Squared hinge loss values. shape = `[batch_size, d0, .. dN-1]`.
   """
   y_pred = tf.convert_to_tensor(y_pred)
-
+  y_true = tf.cast(y_true, y_pred.dtype)
   y_true = _maybe_convert_labels(y_true)
   return backend.mean(
       tf.square(tf.maximum(1. - y_true * y_pred, 0.)), axis=-1)
@@ -1503,7 +1503,7 @@ def hinge(y_true, y_pred):
     Hinge loss values. shape = `[batch_size, d0, .. dN-1]`.
   """
   y_pred = tf.convert_to_tensor(y_pred)
-
+  y_true = tf.cast(y_true, y_pred.dtype)
   y_true = _maybe_convert_labels(y_true)
   return backend.mean(tf.maximum(1. - y_true * y_pred, 0.), axis=-1)
 
@@ -1608,7 +1608,7 @@ def log_cosh(y_true, y_pred):
     Logcosh error values. shape = `[batch_size, d0, .. dN-1]`.
   """
   y_pred = tf.convert_to_tensor(y_pred)
-
+  y_true = tf.cast(y_true, y_pred.dtype)
 
   def _logcosh(x):
     return x + tf.math.softplus(-2. * x) - tf.cast(
@@ -1651,7 +1651,7 @@ def categorical_crossentropy(y_true,
     Categorical crossentropy loss value.
   """
   y_pred = tf.convert_to_tensor(y_pred)
-
+  y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(
       label_smoothing, dtype=backend.floatx())
 
@@ -1795,7 +1795,7 @@ def binary_crossentropy(y_true,
     Binary crossentropy loss value. shape = `[batch_size, d0, .. dN-1]`.
   """
   y_pred = tf.convert_to_tensor(y_pred)
-
+  y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(
       label_smoothing, dtype=backend.floatx())
 
@@ -1882,7 +1882,7 @@ def kl_divergence(y_true, y_pred):
     TypeError: If `y_true` cannot be cast to the `y_pred.dtype`.
   """
   y_pred = tf.convert_to_tensor(y_pred)
-
+  y_true = tf.cast(y_true, y_pred.dtype)
   y_true = backend.clip(y_true, backend.epsilon(), 1)
   y_pred = backend.clip(y_pred, backend.epsilon(), 1)
   return tf.reduce_sum(y_true * tf.math.log(y_true / y_pred), axis=-1)
@@ -1918,7 +1918,7 @@ def poisson(y_true, y_pred):
     InvalidArgumentError: If `y_true` and `y_pred` have incompatible shapes.
   """
   y_pred = tf.convert_to_tensor(y_pred)
-
+  y_true = tf.cast(y_true, y_pred.dtype)
   return backend.mean(
       y_pred - y_true * tf.math.log(y_pred + backend.epsilon()), axis=-1)
 
