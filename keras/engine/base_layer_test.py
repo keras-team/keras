@@ -13,13 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for TensorFlow 2.0 layer behavior."""
-
+# pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 
 import copy
 import os
-import sys
-import traceback
 
 import numpy as np
 from keras import backend
@@ -1044,15 +1042,7 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
     try:
       _ = TypeErrorLayer()(inputs)
     except TypeError as e:
-      if hasattr(e, 'ag_error_metadata'):
-        self.assertIn('easily_identifiable_name', str(e))
-        # See ErrorMetadataBase in autograph/pyct/errors.py
-        function_name = e.ag_error_metadata.translated_stack[-1].function_name
-      else:
-        tb = traceback.extract_tb(sys.exc_info()[2])
-        last_entry = tb[-1]
-        function_name = last_entry[2]
-      self.assertEqual(function_name, 'easily_identifiable_name')
+      self.assertIn('easily_identifiable_name', str(e))  # pylint: disable=g-assert-in-except
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_summaries_in_tf_function(self):
