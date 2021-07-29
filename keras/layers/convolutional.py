@@ -217,6 +217,9 @@ class Conv(Layer):
     self.input_spec = InputSpec(min_ndim=self.rank + 2,
                                 axes={channel_axis: input_channel})
 
+    # This code is kept for backwards compat, but can be removed after fixing
+    # the tests listed in b/192260878
+
     # Convert Keras formats to TF native formats.
     if self.padding == 'causal':
       tf_padding = 'VALID'  # Causal padding handled in `call`.
@@ -240,13 +243,34 @@ class Conv(Layer):
         name=tf_op_name)
     self.built = True
 
+  def convolution_op(self, inputs, kernel):
+    if self.padding == 'causal':
+      tf_padding = 'VALID'  # Causal padding handled in `call`.
+    elif isinstance(self.padding, str):
+      tf_padding = self.padding.upper()
+    else:
+      tf_padding = self.padding
+
+    tf_op_name = self.__class__.__name__
+    if tf_op_name == 'Conv1D':
+      tf_op_name = 'conv1d'  # Backwards compat.
+
+    return tf.nn.convolution(
+        inputs,
+        kernel,
+        strides=list(self.strides),
+        padding=tf_padding,
+        dilations=list(self.dilation_rate),
+        data_format=self._tf_data_format,
+        name=tf_op_name)
+
   def call(self, inputs):
     input_shape = inputs.shape
 
     if self._is_causal:  # Apply causal padding to inputs for Conv1D.
       inputs = tf.pad(inputs, self._compute_causal_padding(inputs))
 
-    outputs = self._convolution_op(inputs, self.kernel)
+    outputs = self.convolution_op(inputs, self.kernel)
 
     if self.use_bias:
       output_rank = outputs.shape.rank
