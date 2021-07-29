@@ -44,6 +44,7 @@ from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import object_identity
 from keras.utils import tf_utils
+from keras.utils import traceback_utils
 from keras.utils import version_utils
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 from keras.utils.io_utils import path_to_string
@@ -159,6 +160,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       return super(Model, cls).__new__(cls, *args, **kwargs)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @traceback_utils.filter_traceback
   def __init__(self, *args, **kwargs):
     self._is_model_for_instrumentation = True
     base_layer.keras_api_gauge.get_cell('model').set(True)
@@ -447,6 +449,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     raise NotImplementedError('When subclassing the `Model` class, you should '
                               'implement a `call()` method.')
 
+  @traceback_utils.filter_traceback
   def compile(self,
               optimizer='rmsprop',
               loss=None,
@@ -873,6 +876,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     return self.train_function
 
+  @traceback_utils.filter_traceback
   def fit(self,
           x=None,
           y=None,
@@ -1349,6 +1353,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     return self.test_function
 
+  @traceback_utils.filter_traceback
   def evaluate(self,
                x=None,
                y=None,
@@ -1606,6 +1611,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self.predict_function = predict_function
     return self.predict_function
 
+  @traceback_utils.filter_traceback
   def predict(self,
               x,
               batch_size=None,
@@ -2086,6 +2092,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     with self.distribute_strategy.scope():
       return super(Model, self).get_weights()
 
+  @traceback_utils.filter_traceback
   def save(self,
            filepath,
            overwrite=True,
@@ -2140,6 +2147,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     save.save_model(self, filepath, overwrite, include_optimizer, save_format,
                     signatures, options, save_traces)
 
+  @traceback_utils.filter_traceback
   def save_weights(self,
                    filepath,
                    overwrite=True,
@@ -2257,6 +2265,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           save_relative_paths=True,
           all_model_checkpoint_paths=[filepath])
 
+  @traceback_utils.filter_traceback
   def load_weights(self,
                    filepath,
                    by_name=False,
@@ -2332,7 +2341,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         session = backend.get_session()
         # Restore existing variables (if any) immediately, and set up a
         # streaming restore for any variables created in the future.
-        tf.__internal__.tracking.streaming_restore(status=status, session=session)
+        tf.__internal__.tracking.streaming_restore(status=status,
+                                                   session=session)
       status.assert_nontrivial_match()
     else:
       status = None
