@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
+# pylint: disable=g-classes-have-attributes
+# pylint: disable=g-bad-import-order
 """Contains the base Layer class, from which all layers inherit."""
 
 import tensorflow.compat.v2 as tf
@@ -45,6 +47,7 @@ from keras.utils import layer_utils
 from keras.utils import object_identity
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+from keras.utils import traceback_utils
 from keras.utils import version_utils
 # A module that only depends on `keras.layers` import these from here.
 from keras.utils.generic_utils import to_snake_case  # pylint: disable=unused-import
@@ -734,9 +737,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Check that either the only argument in the `__init__` is  `self`,
     # or that `get_config` has been overridden:
     if len(extra_args) > 1 and hasattr(self.get_config, '_is_default'):
-      raise NotImplementedError('Layer %s has arguments in `__init__` and '
-                                'therefore must override `get_config`.' %
-                                self.__class__.__name__)
+      raise NotImplementedError(f'Layer {self.__class__.__name__} '
+                                'has arguments in `__init__)_` and '
+                                'therefore must override `get_config()`.')
     return config
 
   @classmethod
@@ -782,7 +785,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       # with the shape the Layer will be called on (these users will have to
       # implement `compute_output_shape` themselves).
       self._maybe_build(input_shape)
-      with tf.__internal__.FuncGraph(str(self.name) + '_scratch_graph').as_default():
+      graph_name = str(self.name) + '_scratch_graph'
+      with tf.__internal__.FuncGraph(graph_name).as_default():
         input_shape = tf_utils.convert_shapes(input_shape, to_tuples=False)
         def _make_placeholder_like(shape):
           ph = backend.placeholder(shape=shape, dtype=self.dtype)
@@ -858,7 +862,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       return self._infer_output_signature(inputs, args, kwargs, input_masks)
 
   def _infer_output_signature(self, inputs, args, kwargs, input_masks):
-    """TODO(kaftan): Docstring."""
+    """Call the layer on input KerasTensors and returns output KerasTensors."""
 
     call_fn = self.call
     # Wrapping `call` function in autograph to allow for dynamic control
@@ -869,7 +873,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # enclosing tf.function, if any.
     if (base_layer_utils.is_subclassed(self) and
         not base_layer_utils.from_saved_model(self)):
-      call_fn = tf.__internal__.autograph.tf_convert(self.call, tf.__internal__.autograph.control_status_ctx())
+      call_fn = tf.__internal__.autograph.tf_convert(
+          self.call, tf.__internal__.autograph.control_status_ctx())
+
+    call_fn = traceback_utils.inject_argument_info_in_traceback(
+        call_fn,
+        object_name=f'layer "{self.name}" (type {self.__class__.__name__})')
 
     # We enter a scratch graph and build placeholder inputs inside of it that
     # match the input args.
@@ -933,6 +942,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # carry over the input mask
     return mask
 
+  @traceback_utils.filter_traceback
   def __call__(self, *args, **kwargs):
     """Wraps `call`, applying pre- and post-processing steps.
 
@@ -1034,6 +1044,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       else:
         name_scope = self._name_scope()  # Avoid autoincrementing.  # pylint: disable=not-callable
         call_fn = self._autographed_call()
+      call_fn = traceback_utils.inject_argument_info_in_traceback(
+          call_fn,
+          object_name=f'layer "{self.name}" (type {self.__class__.__name__})')
 
       with tf.name_scope(name_scope):
         if not self.built:
@@ -1190,7 +1203,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # enclosing tf.function, if any.
     if (base_layer_utils.is_subclassed(self) and
         not base_layer_utils.from_saved_model(self)):
-      return tf.__internal__.autograph.tf_convert(self.call, tf.__internal__.autograph.control_status_ctx())
+      return tf.__internal__.autograph.tf_convert(
+          self.call, tf.__internal__.autograph.control_status_ctx())
     else:
       return self.call
 
