@@ -21,6 +21,7 @@ from keras.saving.saved_model import load as saved_model_load
 from keras.saving.saved_model import load_context
 from keras.saving.saved_model import save as saved_model_save
 from keras.utils import generic_utils
+from keras.utils import traceback_utils
 from keras.utils.io_utils import path_to_string
 from tensorflow.python.util.tf_export import keras_export
 
@@ -33,6 +34,7 @@ except ImportError:
 
 
 @keras_export('keras.models.save_model')
+@traceback_utils.filter_traceback
 def save_model(model,
                filepath,
                overwrite=True,
@@ -151,6 +153,7 @@ def save_model(model,
 
 
 @keras_export('keras.models.load_model')
+@traceback_utils.filter_traceback
 def load_model(filepath, custom_objects=None, compile=True, options=None):  # pylint: disable=redefined-builtin
   """Loads a model saved via `model.save()`.
 
