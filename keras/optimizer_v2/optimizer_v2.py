@@ -595,9 +595,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
     ```python
     grads = tape.gradient(loss, vars)
-    grads = tf.distribute.get_replica_context().all_reduce('sum', grads)
+    grads_and_vars = optimizer.gradient_aggregator(zip(grads, vars))
     # Processing aggregated gradients.
-    optimizer.apply_gradients(zip(grads, vars),
+    optimizer.apply_gradients(grads_and_vars,
         experimental_aggregate_gradients=False)
 
     ```
