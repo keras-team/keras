@@ -38,7 +38,7 @@ recurrent = LazyLoader(
 # pylint:enable=g-inconsistent-quotes
 
 
-class SerializedAttributes(object):
+class SerializedAttributes:
   """Class that tracks and validates all serialization attributes.
 
   Keras models contain many Python-defined components. For example, the

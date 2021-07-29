@@ -295,6 +295,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       else:
         keras_layers_gauge.get_cell(self._get_cell_name()).set(True)
         self._instrumented_keras_layer_class = True
+    else:
+      # This is a legacy layer that has disabled instrumentation
+      # as a native keras object. We still instrument this as
+      # legacy usage.
+      keras_api_gauge.get_cell('legacy_layer').set(True)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self,
@@ -325,6 +330,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Mutable properties
     # Indicates whether the layer's weights are updated during training
     # and whether the layer's updates are run during training.
+    if not (isinstance(trainable, bool) or
+            (isinstance(trainable, (tf.Tensor, tf.Variable)) and
+             trainable.dtype is tf.bool)):
+      raise TypeError(
+          f'Expected trainable argument to be a boolean, but got: {trainable}')
     self._trainable = trainable
     # A stateful layer is a layer whose updates are run during inference too,
     # for instance stateful RNNs.

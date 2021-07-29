@@ -374,7 +374,7 @@ def tracing_enabled():
   return _thread_local_data.enable_call_tracing
 
 
-class LayerCallCollection(object):
+class LayerCallCollection:
   """Groups wrapped layer call functions.
 
   This is used to ensure that all layer call functions are traced with the same
@@ -582,7 +582,7 @@ def layer_call_wrapper(call_collection, method, name):
   return fn
 
 
-class LayerCall(object):
+class LayerCall:
   """Function that triggers traces of other functions in the same collection."""
 
   def __init__(self, call_collection, call_fn, name):

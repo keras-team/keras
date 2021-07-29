@@ -30,7 +30,7 @@ _NUM_EPOCHS = 2
 _STEPS_PER_EPOCH = 2
 
 
-class MaybeStrategyScope(object):
+class MaybeStrategyScope:
   """Provides a context allowing no distribution strategy."""
 
   def __init__(self, strategy):

@@ -29,7 +29,6 @@ py_library(
         "__init__.py",
         "compile_utils.py",
         "functional.py",
-        "input_layer.py",
         "partial_batch_padding_handler.py",
         "saving.py",
         "sequential.py",
@@ -47,6 +46,8 @@ py_library(
         ":base_layer",
         ":base_preprocessing_layer",
         ":data_adapter",
+        ":functional_utils",
+        ":input_layer",
         ":input_spec",
         ":keras_tensor",
         ":node",
@@ -117,6 +118,32 @@ py_library(
         "//keras/utils:object_identity",
         "//keras/utils:tf_utils",
         "//keras/utils:version_utils",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "input_layer",
+    srcs = ["input_layer.py"],
+    deps = [
+        ":base_layer",
+        ":keras_tensor",
+        ":node",
+        "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras/distribute",
+        "//keras/saving",
+        "//keras/utils:tf_utils",
+    ],
+)
+
+py_library(
+    name = "functional_utils",
+    srcs = ["functional_utils.py"],
+    deps = [
+        ":input_layer",
+        ":keras_tensor",
+        ":node",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -227,6 +254,21 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+    ],
+)
+
+tf_py_test(
+    name = "functional_utils_test",
+    size = "medium",
+    srcs = ["functional_utils_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":functional_utils",
+        ":input_layer",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras:models",
+        "//keras/layers",
     ],
 )
 

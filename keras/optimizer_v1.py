@@ -23,7 +23,7 @@ import tensorflow.compat.v2 as tf
 from keras import backend
 
 
-class Optimizer(object):
+class Optimizer:
   """Abstract optimizer base class.
 
   Note: this is the parent class of all optimizers, not an actual optimizer

@@ -55,7 +55,7 @@ def _use_new_code():
 
 # TODO(b/169707691): The wrapper can be removed if TFLite doesn't need to rely
 # on supportive attributes from LSTM/GRU.
-class _DefunWrapper(object):
+class _DefunWrapper:
   """A wrapper with no deep copy of the Defun in LSTM/GRU layer."""
 
   def __init__(self, time_major, go_backwards, layer_name):

@@ -19,7 +19,7 @@ import weakref
 
 
 # LINT.IfChange
-class _ObjectIdentityWrapper(object):
+class _ObjectIdentityWrapper:
   """Wraps an object, mapping __eq__ on wrapper to "is" on wrapped.
 
   Since __eq__ is based on object identity, it's safe to also define __hash__

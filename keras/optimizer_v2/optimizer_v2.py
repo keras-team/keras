@@ -62,7 +62,7 @@ def _deduplicate_indexed_slices(values, indices):
   return (summed_values, unique_indices)
 
 
-class NullContextmanager(object):
+class NullContextmanager:
 
   def __init__(self, *args, **kwargs):
     pass
