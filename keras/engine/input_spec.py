@@ -179,10 +179,10 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
       list_inputs = []
       for name in names:
         if name not in inputs:
-          raise ValueError('Missing data for input "%s". '
-                           'You passed a data dictionary with keys %s. '
-                           'Expected the following keys: %s' %
-                           (name, list(inputs.keys()), names))
+          raise ValueError(f'Missing data for input "{name}". '
+                           'You passed a data dictionary with keys '
+                           f'{list(inputs.keys())}. '
+                           f'Expected the following keys: {names}')
         list_inputs.append(inputs[name])
       inputs = list_inputs
 
@@ -193,13 +193,12 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
     # guarding for is a Layer instance (Functional API), which does not
     # have a `shape` attribute.
     if not hasattr(x, 'shape'):
-      raise TypeError('Inputs to a layer should be tensors. Got: %s' % (x,))
+      raise TypeError(f'Inputs to a layer should be tensors. Got: {x}')
 
   if len(inputs) != len(input_spec):
-    raise ValueError('Layer ' + layer_name + ' expects ' +
-                     str(len(input_spec)) + ' input(s), '
-                     'but it received ' + str(len(inputs)) +
-                     ' input tensors. Inputs received: ' + str(inputs))
+    raise ValueError(f'Layer "{layer_name}" expects {len(input_spec)} input(s),'
+                     f' but it received {len(inputs)} input tensors. '
+                     f'Inputs received: {inputs}')
   for input_index, (x, spec) in enumerate(zip(inputs, input_spec)):
     if spec is None:
       continue
@@ -211,34 +210,32 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
     if spec.ndim is not None and not spec.allow_last_axis_squeeze:
       ndim = shape.rank
       if ndim != spec.ndim:
-        raise ValueError('Input ' + str(input_index) + ' of layer ' +
-                         layer_name + ' is incompatible with the layer: '
-                         'expected ndim=' + str(spec.ndim) + ', found ndim=' +
-                         str(ndim) + '. Full shape received: ' +
-                         str(tuple(shape)))
+        raise ValueError(f'Input {input_index} of layer "{layer_name}" '
+                         'is incompatible with the layer: '
+                         f'expected ndim={spec.ndim}, found ndim={ndim}. '
+                         f'Full shape received: {tuple(shape)}')
     if spec.max_ndim is not None:
       ndim = x.shape.rank
       if ndim is not None and ndim > spec.max_ndim:
-        raise ValueError('Input ' + str(input_index) + ' of layer ' +
-                         layer_name + ' is incompatible with the layer: '
-                         'expected max_ndim=' + str(spec.max_ndim) +
-                         ', found ndim=' + str(ndim))
+        raise ValueError(f'Input {input_index} of layer "{layer_name}" '
+                         'is incompatible with the layer: '
+                         f'expected max_ndim={spec.max_ndim}, '
+                         f'found ndim={ndim}')
     if spec.min_ndim is not None:
       ndim = x.shape.rank
       if ndim is not None and ndim < spec.min_ndim:
-        raise ValueError('Input ' + str(input_index) + ' of layer ' +
-                         layer_name + ' is incompatible with the layer: '
-                         ': expected min_ndim=' + str(spec.min_ndim) +
-                         ', found ndim=' + str(ndim) +
-                         '. Full shape received: ' +
-                         str(tuple(shape)))
+        raise ValueError(f'Input {input_index} of layer "{layer_name}" '
+                         'is incompatible with the layer: '
+                         f'expected min_ndim={spec.min_ndim}, '
+                         f'found ndim={ndim}. '
+                         f'Full shape received: {tuple(shape)}')
     # Check dtype.
     if spec.dtype is not None:
       if x.dtype.name != spec.dtype:
-        raise ValueError('Input ' + str(input_index) + ' of layer ' +
-                         layer_name + ' is incompatible with the layer: '
-                         'expected dtype=' + str(spec.dtype) +
-                         ', found dtype=' + str(x.dtype))
+        raise ValueError(f'Input {input_index} of layer "{layer_name}" '
+                         'is incompatible with the layer: '
+                         f'expected dtype={spec.dtype}, '
+                         f'found dtype={x.dtype}')
 
     # Check specific shape axes.
     shape_as_list = shape.as_list()
@@ -248,10 +245,10 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
           value = value.value
         if value is not None and shape_as_list[int(axis)] not in {value, None}:
           raise ValueError(
-              'Input ' + str(input_index) + ' of layer ' + layer_name + ' is'
-              ' incompatible with the layer: expected axis ' + str(axis) +
-              ' of input shape to have value ' + str(value) +
-              ' but received input with shape ' + display_shape(x.shape))
+              f'Input {input_index} of layer "{layer_name}" is '
+              f'incompatible with the layer: expected axis {axis}'
+              f'of input shape to have value {value}, '
+              f'but received input with shape {display_shape(x.shape)}')
     # Check shape.
     if spec.shape is not None and shape.rank is not None:
       spec_shape = spec.shape
@@ -263,10 +260,10 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
       for spec_dim, dim in zip(spec_shape, shape_as_list):
         if spec_dim is not None and dim is not None:
           if spec_dim != dim:
-            raise ValueError('Input ' + str(input_index) +
-                             ' is incompatible with layer ' + layer_name +
-                             ': expected shape=' + str(spec.shape) +
-                             ', found shape=' + display_shape(x.shape))
+            raise ValueError(f'Input {input_index} of layer "{layer_name}" is '
+                             'incompatible with the layer: '
+                             f'expected shape={spec.shape}, '
+                             f'found shape={display_shape(x.shape)}')
 
 
 def display_shape(shape):

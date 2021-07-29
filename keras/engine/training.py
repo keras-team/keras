@@ -2941,8 +2941,7 @@ def _multi_worker_concat(v, strategy):
     shapes = tf.concat([
         tf.expand_dims(tf.shape(single_value)[0], axis=0)
         for single_value in v.values
-    ],
-                              axis=0)
+    ], axis=0)
     all_shapes = strategy.gather(shapes, axis=0)
   else:
     # v is a tensor. This may happen when, say, we have 2x1 multi-worker.

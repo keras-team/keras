@@ -117,6 +117,7 @@ py_library(
         "//keras/utils:layer_utils",
         "//keras/utils:object_identity",
         "//keras/utils:tf_utils",
+        "//keras/utils:traceback_utils",
         "//keras/utils:version_utils",
         "//:expect_tensorflow_installed",
     ],
