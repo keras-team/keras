@@ -736,14 +736,15 @@ def load_weights_from_hdf5_group(f, model):
                        ' weights, but the saved weights have ' +
                        str(len(weight_values)) + ' elements.')
     weight_value_tuples += zip(symbolic_weights, weight_values)
-  symbolic_weights = model._trainable_weights + model._non_trainable_weights
-  weight_values = load_subset_weights_from_hdf5_group(f['top_level_model_weights'])
-  if len(weight_values) != len(symbolic_weights):
-    raise ValueError('The model ' + model.name + ' expects ' +
-                      str(len(symbolic_weights)) +
-                      ' weights, but the saved weights have ' +
-                      str(len(weight_values)) + ' elements.')
-  weight_value_tuples += zip(symbolic_weights, weight_values)
+  if 'top_level_model_weights' in f:
+    symbolic_weights = model._trainable_weights + model._non_trainable_weights
+    weight_values = load_subset_weights_from_hdf5_group(f['top_level_model_weights'])
+    if len(weight_values) != len(symbolic_weights):
+      raise ValueError('The model ' + model.name + ' expects ' +
+                        str(len(symbolic_weights)) +
+                        ' weights, but the saved weights have ' +
+                        str(len(weight_values)) + ' elements.')
+    weight_value_tuples += zip(symbolic_weights, weight_values)
   backend.batch_set_value(weight_value_tuples)
 
 
@@ -828,38 +829,40 @@ def load_weights_from_hdf5_group_by_name(
 
         else:
           weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
-  symbolic_weights = model._trainable_weights + model._non_trainable_weights
-  weight_values = load_subset_weights_from_hdf5_group(f['top_level_model_weights'])
-  if len(weight_values) != len(symbolic_weights):
-    if skip_mismatch:
-      logging.warning('Skipping loading of weights for '
-                      'model {}'.format(model.name) + ' due to mismatch '
-                      'in number of weights ({} vs {}).'.format(
-                          len(symbolic_weights), len(weight_values)))
-      backend.batch_set_value(weight_value_tuples)
-      return
-    raise ValueError(' (named "' + model.name +
-                      '") expects ' + str(len(symbolic_weights)) +
-                      ' weight(s), but the saved weights' + ' have ' +
-                      str(len(weight_values)) + ' element(s).')
-  # Set values.
-  for i in range(len(weight_values)):
-    if backend.int_shape(symbolic_weights[i]) != weight_values[i].shape:
+          
+  if 'top_level_model_weights' in f:
+    symbolic_weights = model._trainable_weights + model._non_trainable_weights
+    weight_values = load_subset_weights_from_hdf5_group(f['top_level_model_weights'])
+    if len(weight_values) != len(symbolic_weights):
       if skip_mismatch:
         logging.warning('Skipping loading of weights for '
-                        'model {}'.format(model.name) + ' due to '
-                        'mismatch in shape ({} vs {}).'.format(
-                            symbolic_weights[i].shape,
-                            weight_values[i].shape))
-        continue
-      raise ValueError('(named "' + model.name +
-                        '"), weight ' + str(symbolic_weights[i]) +
-                        ' has shape {}'.format(backend.int_shape(
-                            symbolic_weights[i])) +
-                        ', but the saved weight has shape ' +
-                        str(weight_values[i].shape) + '.')
-    else:
-      weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
+                        'model {}'.format(model.name) + ' due to mismatch '
+                        'in number of weights ({} vs {}).'.format(
+                            len(symbolic_weights), len(weight_values)))
+        backend.batch_set_value(weight_value_tuples)
+        return
+      raise ValueError(' (named "' + model.name +
+                        '") expects ' + str(len(symbolic_weights)) +
+                        ' weight(s), but the saved weights' + ' have ' +
+                        str(len(weight_values)) + ' element(s).')
+    # Set values.
+    for i in range(len(weight_values)):
+      if backend.int_shape(symbolic_weights[i]) != weight_values[i].shape:
+        if skip_mismatch:
+          logging.warning('Skipping loading of weights for '
+                          'model {}'.format(model.name) + ' due to '
+                          'mismatch in shape ({} vs {}).'.format(
+                              symbolic_weights[i].shape,
+                              weight_values[i].shape))
+          continue
+        raise ValueError('(named "' + model.name +
+                          '"), weight ' + str(symbolic_weights[i]) +
+                          ' has shape {}'.format(backend.int_shape(
+                              symbolic_weights[i])) +
+                          ', but the saved weight has shape ' +
+                          str(weight_values[i].shape) + '.')
+      else:
+        weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
 
   backend.batch_set_value(weight_value_tuples)
 
