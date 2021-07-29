@@ -228,8 +228,8 @@ class KerasTensor:
                     'in the Functional Model.')
 
   def __hash__(self):
-    raise TypeError('Tensors are unhashable. (%s)'
-                    'Instead, use tensor.ref() as the key.' % self)
+    raise TypeError(f'Tensors are unhashable (this tensor: {self}). '
+                    'Instead, use tensor.ref() as the key.')
 
   # Note: This enables the KerasTensor's overloaded "right" binary
   # operators to run when the left operand is an ndarray, because it
@@ -267,9 +267,8 @@ class KerasTensor:
       shape = tf.TensorShape(dim_list)
     if not self.shape.is_compatible_with(shape):
       raise ValueError(
-          "Keras symbolic input/output's shape %s is not"
-          "compatible with supplied shape %s" %
-          (self.shape, shape))
+          f"Keras symbolic input/output's shape {self.shape} is not "
+          f"compatible with supplied shape {shape}.")
     else:
       self._type_spec._shape = shape  # pylint: disable=protected-access
 
