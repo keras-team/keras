@@ -7,3 +7,4 @@ tf-nightly
 portpicker
 pyyaml
 Pillow
+numpy ~= 1.19.2  # Sync with the numpy version used in TF
