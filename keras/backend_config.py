@@ -103,8 +103,10 @@ def set_floatx(value):
       ValueError: In case of invalid value.
   """
   global _FLOATX
-  if value not in {'float16', 'float32', 'float64'}:
-    raise ValueError('Unknown floatx type: ' + str(value))
+  accepted_dtypes = {'float16', 'float32', 'float64'}
+  if value not in accepted_dtypes:
+    raise ValueError(
+        f'Unknown `floatx` value: {value}. Expected one of {accepted_dtypes}')
   _FLOATX = str(value)
 
 
@@ -142,6 +144,9 @@ def set_image_data_format(data_format):
       ValueError: In case of invalid `data_format` value.
   """
   global _IMAGE_DATA_FORMAT
-  if data_format not in {'channels_last', 'channels_first'}:
-    raise ValueError('Unknown data_format: ' + str(data_format))
+  accepted_formats = {'channels_last', 'channels_first'}
+  if data_format not in accepted_formats:
+    raise ValueError(
+        f'Unknown `data_format`: {data_format}. '
+        f'Expected one of {accepted_formats}')
   _IMAGE_DATA_FORMAT = str(data_format)
