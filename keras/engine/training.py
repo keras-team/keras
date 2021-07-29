@@ -2251,7 +2251,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return
     if save_format == 'h5':
       with h5py.File(filepath, 'w') as f:
-        hdf5_format.save_weights_to_hdf5_group(f, self.layers)
+        hdf5_format.save_weights_to_hdf5_group(f, self)
     else:
       if tf.executing_eagerly():
         session = None
@@ -2360,9 +2360,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           f = f['model_weights']
         if by_name:
           hdf5_format.load_weights_from_hdf5_group_by_name(
-              f, self.layers, skip_mismatch=skip_mismatch)
+              f, self, skip_mismatch)
         else:
-          hdf5_format.load_weights_from_hdf5_group(f, self.layers)
+          hdf5_format.load_weights_from_hdf5_group(f, self)
 
     # Perform any layer defined finalization of the layer state.
     for layer in self.layers:

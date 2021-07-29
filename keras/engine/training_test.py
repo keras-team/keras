@@ -18,6 +18,7 @@ import tensorflow.compat.v2 as tf
 
 import collections
 import io
+import tempfile
 import sys
 
 from absl.testing import parameterized
@@ -3865,6 +3866,30 @@ class TestBuildCustomModel(keras_parameterized.TestCase):
     model = MyModel()
     model.build({'x': [None, 16]})
     self.assertEqual(model.l1.kernel.shape.as_list(), [16, 1])
+
+  def test_save_top_level_model_weights_h5(self):
+
+    class MyModel(training_module.Model):
+
+      def __init__(self):
+        super(MyModel, self).__init__()
+        self.class_token = self.add_weight(shape=(1,), name='class_token')
+        self.inner_layer = layers_module.Dense(1)
+
+      def call(self, inputs):
+        return self.inner_layer(inputs) * self.class_token
+
+    h5_file = tempfile.mktemp('.h5')
+    m1 = MyModel()
+    m1.build((1, 1))
+    m1.save_weights(h5_file)
+
+    m2 = MyModel()
+    m2.build((1, 1))
+    m2.load_weights(h5_file)
+    self.assertAllEqual(m1.get_weights(), m2.get_weights())
+    m2.load_weights(h5_file, by_name=True)
+    self.assertAllEqual(m1.get_weights(), m2.get_weights())
 
 
 if __name__ == '__main__':
