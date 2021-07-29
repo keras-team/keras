@@ -21,7 +21,7 @@ import abc
 from keras.saving.utils_v1 import signature_def_utils as unexported_signature_utils
 
 
-class ExportOutput(object):
+class ExportOutput:
   """Represents an output of a model that can be served.
 
   These typically correspond to model heads.

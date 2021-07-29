@@ -43,7 +43,7 @@ class TestIOUtils(keras_parameterized.TestCase):
 
   def test_path_to_string(self):
 
-    class PathLikeDummy(object):
+    class PathLikeDummy:
 
       def __fspath__(self):
         return 'dummypath'

@@ -253,7 +253,7 @@ from keras.layers.serialization import deserialize
 from keras.layers.serialization import serialize
 
 
-class VersionAwareLayers(object):
+class VersionAwareLayers:
   """Utility to be used internally to access layers in a V1/V2-aware fashion.
 
   When using layers within the Keras codebase, under the constraint that

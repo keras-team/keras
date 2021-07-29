@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """V1 Training-related part of the Keras engine."""
-
+# pylint: disable=g-classes-have-attributes
 import tensorflow.compat.v2 as tf
 
 import collections
@@ -2867,7 +2867,7 @@ class DistributedCallbackModel(Model):
     return super(DistributedCallbackModel, self).__getattr__(item)
 
 
-class _TrainingEndpoint(object):
+class _TrainingEndpoint:
   """A container for the training output/target and related entities.
 
   In the case of model with multiple outputs, there is a one-to-one mapping
@@ -3099,7 +3099,7 @@ class _TrainingEndpoint(object):
           name=self.output_name + '_sample_weights')
 
 
-class _TrainingTarget(object):
+class _TrainingTarget:
   """Container for a target tensor (y_true) and its metadata (shape, loss...).
 
   Args:

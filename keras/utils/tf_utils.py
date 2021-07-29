@@ -184,7 +184,7 @@ def convert_shapes(input_shape, to_tuples=True):
                                    input_shape)
 
 
-class ListWrapper(object):
+class ListWrapper:
   """A wrapper for lists to be treated as elements for `nest`."""
 
   def __init__(self, list_to_wrap):
@@ -333,7 +333,7 @@ def register_symbolic_tensor_type(cls):
 
   ```python
   # One-time setup.
-  class Foo(object):
+  class Foo:
     def __init__(self, input_):
       self._input = input_
     def value(self):

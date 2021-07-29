@@ -1086,7 +1086,7 @@ def broadcast_sample_weight_modes(target_structure, sample_weight_modes):
   return sample_weight_modes
 
 
-class DataHandler(object):
+class DataHandler:
   """Handles iterating over epoch-level `tf.data.Iterator` objects."""
 
   def __init__(self,

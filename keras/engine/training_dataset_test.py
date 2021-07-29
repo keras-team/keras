@@ -393,7 +393,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_finite_dataset_unknown_cardinality_no_step_with_train_and_val(self):
 
-    class CaptureStdout(object):
+    class CaptureStdout:
 
       def __enter__(self):
         self._stdout = sys.stdout

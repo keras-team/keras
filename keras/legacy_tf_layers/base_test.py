@@ -51,6 +51,11 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     # Assert that the layer was not instrumented as a Keras layer
     self.assertFalse(layer._instrumented_keras_api)
 
+    # Assert this was instrumented as a legacy layer
+    self.assertTrue(
+        keras_base_layer.keras_api_gauge.get_cell('legacy_layer').value())
+    keras_base_layer.keras_api_gauge.get_cell('legacy_layer').set(False)
+
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testInt64Layer(self):
     layer = base_layers.Layer(name='my_layer', dtype='int64')
