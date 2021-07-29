@@ -114,7 +114,7 @@ class Dense(Layer):
     self.units = int(units) if not isinstance(units, int) else units
     if self.units < 0:
       raise ValueError(f'Received an invalid value for `units`, expected '
-                       f'a positive integer, got {units}.')
+                       f'a positive integer. Received: units={units}')
     self.activation = activations.get(activation)
     self.use_bias = use_bias
     self.kernel_initializer = initializers.get(kernel_initializer)
@@ -130,14 +130,15 @@ class Dense(Layer):
   def build(self, input_shape):
     dtype = tf.as_dtype(self.dtype or K.floatx())
     if not (dtype.is_floating or dtype.is_complex):
-      raise TypeError('Unable to build `Dense` layer with non-floating point '
-                      'dtype %s' % (dtype,))
+      raise TypeError('A Dense layer can only be built with a floating-point '
+                      f'dtype. Received: dtype={dtype}')
 
     input_shape = tf.TensorShape(input_shape)
     last_dim = tf.compat.dimension_value(input_shape[-1])
     if last_dim is None:
-      raise ValueError('The last dimension of the inputs to `Dense` '
-                       'should be defined. Found `None`.')
+      raise ValueError('The last dimension of the inputs to a Dense layer '
+                       'should be defined. Found None. '
+                       f'Full input shape received: {input_shape}')
     self.input_spec = InputSpec(min_ndim=2, axes={-1: last_dim})
     self.kernel = self.add_weight(
         'kernel',
@@ -216,9 +217,9 @@ class Dense(Layer):
     input_shape = tf.TensorShape(input_shape)
     input_shape = input_shape.with_rank_at_least(2)
     if tf.compat.dimension_value(input_shape[-1]) is None:
-      raise ValueError(
-          'The innermost dimension of input_shape must be defined, but saw: %s'
-          % (input_shape,))
+      raise ValueError('The last dimension of the input shape of a Dense layer '
+                       'should be defined. Found None. '
+                       f'Received: input_shape={input_shape}')
     return input_shape[:-1].concatenate(self.units)
 
   def get_config(self):

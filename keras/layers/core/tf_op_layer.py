@@ -17,7 +17,6 @@
 import tensorflow.compat.v2 as tf
 # pylint: enable=g-bad-import-order
 
-import textwrap
 from keras import backend as K
 from keras.engine import keras_tensor
 from keras.engine.base_layer import Layer
@@ -72,15 +71,15 @@ class ClassMethod(Layer):
 
   def get_config(self):
     if not self.cls_symbol:
-      raise ValueError('This Keras class method conversion tried to convert '
-                       'a method belonging to class %s, a class '
-                       'that is not an exposed in the TensorFlow API. '
-                       'To ensure cross-version compatibility of Keras models '
-                       'that use op layers, only op layers produced from '
-                       'exported TF API symbols can be serialized.' %
-                       self.cls_symbol)
-    config = {'cls_symbol': self.cls_symbol, 'method_name': self.method_name}
+      raise ValueError(
+          'This Keras class method conversion tried to convert '
+          f'a method belonging to class {self.cls_symbol}, a class '
+          'that is not publicly exposed in the TensorFlow API. '
+          'To ensure cross-version compatibility of Keras models '
+          'that use op layers, only op layers produced from '
+          'public TensorFlow API symbols can be serialized.')
 
+    config = {'cls_symbol': self.cls_symbol, 'method_name': self.method_name}
     base_config = super(ClassMethod, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
@@ -90,7 +89,7 @@ class ClassMethod(Layer):
     symbol_name = config.pop('cls_symbol')
     cls_ref = get_symbol_from_name(symbol_name)
     if not cls_ref:
-      raise ValueError('TF symbol `tf.%s` could not be found.' % symbol_name)
+      raise ValueError(f'TensorFlow symbol `{symbol_name}` could not be found.')
 
     config['cls_ref'] = cls_ref
 
@@ -276,17 +275,14 @@ class TFOpLambda(Layer):
     ]
     if untracked_new_vars:
       variable_str = '\n'.join('  {}'.format(i) for i in untracked_new_vars)
-      error_str = textwrap.dedent("""
-          The following Variables were created within a Lambda layer ({name})
-          but are not tracked by said layer:
-          {variable_str}
-          The layer cannot safely ensure proper Variable reuse across multiple
-          calls, and consquently this behavior is disallowed for safety. Lambda
-          layers are not well suited to stateful computation; instead, writing a
-          subclassed Layer is the recommend way to define layers with
-          Variables.""").format(
-              name=self.name, variable_str=variable_str)
-      raise ValueError(error_str)
+      raise ValueError(
+          'The following Variables were created within a Lambda layer '
+          f'({self.name}) but are not tracked by said layer: {variable_str}\n'
+          'The layer cannot safely ensure proper Variable reuse '
+          'across multiple calls, and consquently this behavior is disallowed '
+          'for safety reasons. Lambda layers are not well suited for stateful '
+          'computation; instead, writing a subclassed Layer is the recommend '
+          'way to define layers with Variables.')
 
     untracked_used_vars = [
         v for v in accessed_variables if v.ref() not in tracked_weights
@@ -294,14 +290,10 @@ class TFOpLambda(Layer):
     if untracked_used_vars and not self._already_warned:
       variable_str = '\n'.join('  {}'.format(i) for i in untracked_used_vars)
       self._warn(
-          textwrap.dedent("""
-          The following Variables were used a Lambda layer's call ({name}), but
-          are not present in its tracked objects:
-          {variable_str}
-          It is possible that this is intended behavior, but it is more likely
-          an omission. This is a strong indication that this layer should be
-          formulated as a subclassed Layer rather than a Lambda layer.""")
-          .format(name=self.name, variable_str=variable_str))
+          'The following Variables were used in a Lambda layer\'s call '
+          f'({self.name}), but are not present in its tracked objects: '
+          f'{variable_str}. This is a strong indication that the Lambda layer '
+          'should be rewritten as a subclassed Layer.')
       self._already_warned = True
 
   def _warn(self, msg):
@@ -311,15 +303,15 @@ class TFOpLambda(Layer):
 
   def get_config(self):
     if not self.symbol:
-      raise ValueError('This Keras op layer was generated from %s, a method '
-                       'that is not an exposed in the TensorFlow API. This '
-                       'may have happened if the method was explicitly '
-                       'decorated to add dispatching support, and it was used '
-                       'during Functional model construction. '
-                       'To ensure cross-version compatibility of Keras models '
-                       'that use op layers, only op layers produced from '
-                       'exported TF API symbols can be serialized.' %
-                       self.function)
+      raise ValueError(
+          f'This Keras op layer was generated from {self.function}, a method '
+          'that is not publicly exposed in the TensorFlow API. This '
+          'may have happened if the method was explicitly '
+          'decorated to add dispatching support, and it was used '
+          'during Functional model construction. '
+          'To ensure cross-version compatibility of Keras models '
+          'that use op layers, only op layers produced from '
+          'public TensorFlow API symbols can be serialized.')
     config = {'function': self.symbol}
 
     base_config = super(TFOpLambda, self).get_config()
@@ -331,7 +323,7 @@ class TFOpLambda(Layer):
     symbol_name = config['function']
     function = get_symbol_from_name(symbol_name)
     if not function:
-      raise ValueError('TF symbol `tf.%s` could not be found.' % symbol_name)
+      raise ValueError(f'TF symbol `{symbol_name}` could not be found.')
 
     config['function'] = function
 
