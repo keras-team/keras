@@ -469,9 +469,6 @@ tf_py_test(
     size = "small",
     srcs = ["traceback_utils_test.py"],
     python_version = "PY3",
-    tags = [
-        "no_oss",  # TODO(b/195015653): reenable after we fix py version issue on OSS image.
-    ],
     deps = [
         "//:expect_tensorflow_installed",
         "//keras",
