@@ -23,6 +23,7 @@ from keras.engine import keras_tensor
 from keras.engine import node as node_module
 from keras.saving.saved_model import layer_serialization
 from keras.utils import tf_utils
+from keras.utils import traceback_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -92,6 +93,7 @@ class InputLayer(base_layer.Layer):
       name: Optional name of the layer (string).
   """
 
+  @traceback_utils.filter_traceback
   def __init__(self,
                input_shape=None,
                batch_size=None,
@@ -252,6 +254,7 @@ class InputLayer(base_layer.Layer):
 
 
 @keras_export('keras.Input', 'keras.layers.Input')
+@traceback_utils.filter_traceback
 def Input(  # pylint: disable=invalid-name
     shape=None,
     batch_size=None,

@@ -28,6 +28,7 @@ from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+from keras.utils import traceback_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -96,6 +97,7 @@ class Sequential(functional.Functional):
   """
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @traceback_utils.filter_traceback
   def __init__(self, layers=None, name=None):
     """Creates a `Sequential` model instance.
 
@@ -146,6 +148,7 @@ class Sequential(functional.Functional):
     return layers[:]
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @traceback_utils.filter_traceback
   def add(self, layer):
     """Adds a layer instance on top of the layer stack.
 
@@ -230,6 +233,7 @@ class Sequential(functional.Functional):
     self._layer_call_argspecs[layer] = tf_inspect.getfullargspec(layer.call)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @traceback_utils.filter_traceback
   def pop(self):
     """Removes the last layer in the model.
 
