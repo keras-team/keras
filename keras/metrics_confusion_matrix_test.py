@@ -829,7 +829,8 @@ class SensitivityAtSpecificityTest(tf.test.TestCase, parameterized.TestCase):
       metrics.SensitivityAtSpecificity(-1)
 
   def test_invalid_num_thresholds(self):
-    with self.assertRaisesRegex(ValueError, '`num_thresholds` must be > 0.'):
+    with self.assertRaisesRegex(
+        ValueError, 'Argument `num_thresholds` must be an integer > 0'):
       metrics.SensitivityAtSpecificity(0.4, num_thresholds=-1)
 
 
@@ -941,7 +942,8 @@ class SpecificityAtSensitivityTest(tf.test.TestCase, parameterized.TestCase):
       metrics.SpecificityAtSensitivity(-1)
 
   def test_invalid_num_thresholds(self):
-    with self.assertRaisesRegex(ValueError, '`num_thresholds` must be > 0.'):
+    with self.assertRaisesRegex(
+        ValueError, 'Argument `num_thresholds` must be an integer > 0'):
       metrics.SpecificityAtSensitivity(0.4, num_thresholds=-1)
 
 
@@ -1054,7 +1056,8 @@ class PrecisionAtRecallTest(tf.test.TestCase, parameterized.TestCase):
       metrics.PrecisionAtRecall(-1)
 
   def test_invalid_num_thresholds(self):
-    with self.assertRaisesRegex(ValueError, '`num_thresholds` must be > 0.'):
+    with self.assertRaisesRegex(
+        ValueError, 'Argument `num_thresholds` must be an integer > 0'):
       metrics.PrecisionAtRecall(0.4, num_thresholds=-1)
 
 
@@ -1186,7 +1189,8 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
       metrics.RecallAtPrecision(-1)
 
   def test_invalid_num_thresholds(self):
-    with self.assertRaisesRegex(ValueError, '`num_thresholds` must be > 0.'):
+    with self.assertRaisesRegex(
+        ValueError, 'Argument `num_thresholds` must be an integer > 0'):
       metrics.RecallAtPrecision(0.4, num_thresholds=-1)
 
 
@@ -1453,10 +1457,12 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, 1e-3)
 
   def test_invalid_num_thresholds(self):
-    with self.assertRaisesRegex(ValueError, '`num_thresholds` must be > 1.'):
+    with self.assertRaisesRegex(
+        ValueError, 'Argument `num_thresholds` must be an integer > 1'):
       metrics.AUC(num_thresholds=-1)
 
-    with self.assertRaisesRegex(ValueError, '`num_thresholds` must be > 1.'):
+    with self.assertRaisesRegex(
+        ValueError, 'Argument `num_thresholds` must be an integer > 1.'):
       metrics.AUC(num_thresholds=1)
 
   def test_invalid_curve(self):
