@@ -783,7 +783,7 @@ class TrackableWeightHandler:
 
   def __init__(self, trackable):
     if not isinstance(trackable, tf.__internal__.tracking.Trackable):
-      raise ValueError('%s is not a Trackable object.' % (trackable,))
+      raise ValueError(f'{trackable} is not a Trackable object.')
     self._trackable = trackable
     self._distribute_strategy = tf.distribute.get_strategy()
 
@@ -826,9 +826,9 @@ class TrackableWeightHandler:
         self._setter = self._set_weights_v1
         self._getter = lambda: [spec.tensor for spec in self._saveable.specs]
     else:
-      raise ValueError('Only Trackables with one Saveable are supported. '
-                       'The Trackable %s has %d Saveables.' %
-                       (trackable, len(saveables)))
+      raise ValueError(
+          'Only Trackables with one Saveable are supported. The Trackable '
+          f'{trackable} has {len(saveables)} Saveables.')
 
   @property
   def num_tensors(self):
@@ -837,9 +837,9 @@ class TrackableWeightHandler:
   def set_weights(self, weights):
     if len(weights) != self._num_tensors:
       raise ValueError(
-          ('Weight handler for trackable %s received the wrong number of ' +
-           'weights: expected %s, got %s.') %
-          (self._trackable, self._num_tensors, len(weights)))
+          f'Weight handler for trackable {self._trackable} received '
+          'an incorrect number of weights: '
+          f'expected {self._num_tensors} weights, got {len(weights)} weights.')
     self._setter(weights)
 
   def get_tensors(self):
@@ -855,9 +855,10 @@ class TrackableWeightHandler:
 def no_ragged_support(inputs, layer_name):
   input_list = tf.nest.flatten(inputs)
   if any(isinstance(x, tf.RaggedTensor) for x in input_list):
-    raise ValueError('Layer %s does not support RaggedTensors as input. '
-                     'Inputs received: %s. You can try converting your '
-                     'input to an uniform tensor.' % (layer_name, inputs))
+    raise ValueError(
+        f'Layer {layer_name} does not support RaggedTensors as input. '
+        f'Inputs received: {inputs}. You can try converting your '
+        'input to a dense (uniform) tensor.')
 
 
 def is_split_variable(v):

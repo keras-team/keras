@@ -1099,7 +1099,7 @@ class TrainingTest(keras_parameterized.TestCase):
       training_module.Model([input1, input2], outputs)
       self.assertEqual(
           mock_warn.call_args_list[0][0][0],
-          'Found incompatiable static batch sizes among all the inputs. '
+          'Found incompatiable static batch sizes among the inputs. '
           'Batch sizes: [2, 3]')
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
