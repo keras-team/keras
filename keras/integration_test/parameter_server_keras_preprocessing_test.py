@@ -24,6 +24,7 @@ import numpy as np
 import portpicker
 import tensorflow as tf
 
+tf.debugging.set_log_device_placement(True)
 
 # These vocabularies usually come from TFT or a Beam pipeline.
 FEATURE_VOCAB = [
