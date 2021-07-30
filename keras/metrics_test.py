@@ -1379,7 +1379,7 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(m.dtype, tf.float32)
       self.assertEmpty(m.variables)
 
-      with self.assertRaisesRegex(ValueError, 'does not have any result yet'):
+      with self.assertRaisesRegex(ValueError, 'does not have any value yet'):
         m.result()
 
       self.evaluate(m([[3], [5], [3]]))
