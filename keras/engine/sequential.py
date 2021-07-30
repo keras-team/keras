@@ -175,16 +175,16 @@ class Sequential(functional.Functional):
       if not isinstance(layer, base_layer.Layer):
         layer = functional.ModuleWrapper(layer)
     else:
-      raise TypeError('The added layer must be '
-                      'an instance of class Layer. '
-                      'Found: ' + str(layer))
+      raise TypeError('The added layer must be an instance of class Layer. '
+                      f'Received: layer={layer} of type {type(layer)}.')
 
     tf_utils.assert_no_legacy_layers([layer])
     if not self._is_layer_name_unique(layer):
-      raise ValueError('All layers added to a Sequential model '
-                       'should have unique names. Name "%s" is already the name'
-                       ' of a layer in this model. Update the `name` argument '
-                       'to pass a unique name.' % (layer.name,))
+      raise ValueError(
+          'All layers added to a Sequential model '
+          f'should have unique names. Name "{layer.name}" is already the name '
+          'of a layer in this model. Update the `name` argument '
+          'to pass a unique name.')
 
     self.built = False
     set_inputs = False
