@@ -160,6 +160,23 @@ class Ones(Initializer):
   >>> # Usage in a Keras layer:
   >>> initializer = tf.keras.initializers.Ones()
   >>> layer = tf.keras.layers.Dense(3, kernel_initializer=initializer)
+
+  @compatibility(TF2)
+  This API is compatible with TF2 behavior and tf.function.
+  Please migrate use of this api to use `tf.keras.initializers.ones`.
+
+  Before:
+  ```python
+  initializer = tf.compat.v1.keras.initializers.ones()
+  vals = initializer((1, 1))
+  ```
+
+  After:
+  ```python
+  initializer = tf.keras.initializers.ones()
+  vals = initializer((1, 1))
+  ```
+  @end_compatibility
   """
 
   def __call__(self, shape, dtype=None, **kwargs):
