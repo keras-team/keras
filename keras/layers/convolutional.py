@@ -238,10 +238,11 @@ class Conv(Layer):
 
     output_shape = self.compute_output_shape(input_shape)
     if any(d <= 0 for d in output_shape if d is not None):
-      raise ValueError( 'One of the dimensions in the output is <= 0 '
+      raise ValueError(
+          'One of the dimensions in the output is <= 0 '
           f'due to downsampling in {self.name}. Consider increasing the input size. '
           f'Received input shape {input_shape} which would produce '
-          f'output shape {output_shape}. ')
+          f'output shape {output_shape}.')
 
     self._convolution_op = functools.partial(
         tf.nn.convolution,
