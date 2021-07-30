@@ -167,28 +167,18 @@ class EinsumDense(Layer):
 
   def get_config(self):
     config = {
-        "output_shape":
-            self.partial_output_shape,
-        "equation":
-            self.equation,
-        "activation":
-            activations.serialize(self.activation),
-        "bias_axes":
-            self.bias_axes,
-        "kernel_initializer":
-            initializers.serialize(self.kernel_initializer),
-        "bias_initializer":
-            initializers.serialize(self.bias_initializer),
-        "kernel_regularizer":
-            regularizers.serialize(self.kernel_regularizer),
-        "bias_regularizer":
-            regularizers.serialize(self.bias_regularizer),
+        "output_shape": self.partial_output_shape,
+        "equation": self.equation,
+        "activation": activations.serialize(self.activation),
+        "bias_axes": self.bias_axes,
+        "kernel_initializer": initializers.serialize(self.kernel_initializer),
+        "bias_initializer": initializers.serialize(self.bias_initializer),
+        "kernel_regularizer": regularizers.serialize(self.kernel_regularizer),
+        "bias_regularizer": regularizers.serialize(self.bias_regularizer),
         "activity_regularizer":
             regularizers.serialize(self.activity_regularizer),
-        "kernel_constraint":
-            constraints.serialize(self.kernel_constraint),
-        "bias_constraint":
-            constraints.serialize(self.bias_constraint),
+        "kernel_constraint": constraints.serialize(self.kernel_constraint),
+        "bias_constraint": constraints.serialize(self.bias_constraint),
     }
     base_config = super(EinsumDense, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -229,8 +219,8 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
                                  output_shape)
 
   raise ValueError(
-      "Invalid einsum equation '%s'. Equations must be in the form "
-      "[X],[Y]->[Z], ...[X],[Y]->...[Z], or [X]...,[Y]->[Z]...." % equation)
+      f"Invalid einsum equation '{equation}'. Equations must be in the form "
+      "[X],[Y]->[Z], ...[X],[Y]->...[Z], or [X]...,[Y]->[Z]....")
 
 
 def _analyze_split_string(split_string,
@@ -281,16 +271,16 @@ def _analyze_split_string(split_string,
           output_shape_at_dim != input_shape_at_dim):
         raise ValueError(
             "Input shape and output shape do not match at shared "
-            "dimension '%s'. Input shape is %s, and output shape "
-            "is %s." %
-            (dim, input_shape_at_dim, output_shape[output_dim_map[dim]]))
+            f"dimension '{dim}'. Input shape is {input_shape_at_dim}, "
+            "and output shape "
+            f"is {output_shape[output_dim_map[dim]]}.")
 
   for dim in output_spec:
     if dim not in input_spec and dim not in weight_spec:
-      raise ValueError("Dimension '%s' was specified in the output '%s' but "
-                       "has no corresponding dim in the input spec '%s' or "
-                       "weight spec '%s.'" % (dim, output_spec, input_spec,
-                                              output_spec))
+      raise ValueError(
+          f"Dimension '{dim}' was specified in the output '{output_spec}' but "
+          f"has no corresponding dim in the input spec '{input_spec}' or "
+          f"weight spec '{output_spec}'")
 
   weight_shape = []
   for dim in weight_spec:
@@ -299,10 +289,10 @@ def _analyze_split_string(split_string,
     elif dim in output_dim_map:
       weight_shape.append(output_shape[output_dim_map[dim]])
     else:
-      raise ValueError("Weight dimension '%s' did not have a match in either "
-                       "the input spec '%s' or the output spec '%s'. For this "
-                       "layer, the weight must be fully specified." %
-                       (dim, input_spec, output_spec))
+      raise ValueError(
+          f"Weight dimension '{dim}' did not have a match in either "
+          f"the input spec '{input_spec}' or the output spec '{output_spec}'. "
+          "For this layer, the weight must be fully specified.")
 
   if bias_axes is not None:
     num_left_elided = elided if left_elided else 0
@@ -313,9 +303,9 @@ def _analyze_split_string(split_string,
 
     for char in bias_axes:
       if char not in output_spec:
-        raise ValueError("Bias dimension '%s' was requested, but is not a part "
-                         "of the output specification '%s'" %
-                         (char, output_spec))
+        raise ValueError(
+            f"Bias dimension '{char}' was requested, but is not part "
+            f"of the output spec '{output_spec}'")
 
     first_bias_location = min([output_spec.find(char) for char in bias_axes])
     bias_output_spec = output_spec[first_bias_location:]
