@@ -14,6 +14,9 @@
 #,============================================================================
 """Tests for functional_utils."""
 
+import collections
+import os
+
 from keras import keras_parameterized
 from keras import layers
 from keras import models
@@ -117,18 +120,89 @@ class FunctionalModelSlideTest(keras_parameterized.TestCase):
     layer2 = layers.Dense(16)
     x = layer1(inputs)
     y = layer2(x)
-    cloned_inputs, cloned_outputs = functional_utils.clone_graph_nodes(x, y)
-    # Make sure the inputs and outputs are cloned.
-    self.assertIsNot(x, cloned_inputs)
-    self.assertIsNot(y, cloned_outputs)
+    model = models.Model(x, y)
     # Make sure a new node is attached to layer2, which mimic y = layer2(x)
     self.assertLen(layer2.inbound_nodes, 2)
 
-    model = models.Model(cloned_inputs, cloned_outputs)
     self.assertIsInstance(model, models.Model)
+    # The model only contains 1 dense layer and 1 input layer.
+    self.assertLen(model.layers, 2)
+    self.assertIs(model.layers[1], layer2)
 
     model.compile('rmsprop', 'mse')
     model.fit(np.random.randn(batch_size, 32), np.random.randn(batch_size, 16))
+    # Test for model saving
+    output_path = os.path.join(self.get_temp_dir(), 'tf_keras_saved_model')
+    model.save(output_path, save_format='tf')
+    loaded_model = models.load_model(output_path)
+    self.assertEqual(model.summary(), loaded_model.summary())
+
+    # Also make sure the orignal inputs and y can still be used to build model
+    new_model = models.Model(inputs, y)
+    # Make sure no new node is attached to layer2
+    self.assertLen(layer2.inbound_nodes, 2)
+
+    self.assertLen(new_model.layers, 3)
+    self.assertIs(new_model.layers[1], layer1)
+    self.assertIs(new_model.layers[2], layer2)
+
+  def test_build_model_from_intermediate_tensor_with_complicated_model(self):
+    # The topology is like below:
+    # input1 -> dense1 -> a
+    #                     + -> c - + --> d - + --> output
+    # input2 -> dense1 -> b -------^         ^
+    # input3 -> dense2 -> e -----------------|
+    batch_size = 8
+    input1 = input_layer_lib.Input((2,))
+    input2 = input_layer_lib.Input((2,))
+    input3 = input_layer_lib.Input((8,))
+
+    dense1 = layers.Dense(8, name='dense1')
+    dense2 = layers.Dense(8, name='dense2')
+
+    # dense1 are shared between input1 and input2
+    a = dense1(input1)
+    b = dense1(input2)
+
+    c = layers.Add()([a, b])
+    # d has a residual connection from b.
+    d = layers.Add()([b, c])
+    e = dense2(input3)
+    output = layers.Add()([d, e])
+
+    # We skip the input2 here and use b instead.
+    model = models.Model([input1, b, input3], output)
+    # Make sure we have 8 layers, 3 for inputs, 2 for dense and 3 for Add.
+    # Note that dense1 is still in use by input1.
+    self.assertLen(model.layers, 8)
+    # Since the layers are not ordered, let's check class of the layers to make
+    # sure it match the expectation.
+    class_count = collections.Counter([l.__class__ for l in model.layers])
+    self.assertEqual(class_count[input_layer_lib.InputLayer], 3)
+    self.assertEqual(class_count[layers.Dense], 2)
+    self.assertEqual(class_count[layers.Add], 3)
+
+    model.compile('rmsprop', 'mse')
+    model.fit([np.random.randn(batch_size, 2),
+               np.random.randn(batch_size, 8),  # The shape of b is (batch, 8)
+               np.random.randn(batch_size, 8)],
+              np.random.randn(batch_size, 8))
+    output_path = os.path.join(self.get_temp_dir(), 'tf_keras_saved_model')
+    model.save(output_path, save_format='tf')
+    loaded_model = models.load_model(output_path)
+    self.assertEqual(model.summary(), loaded_model.summary())
+
+    model2 = models.Model([a, b], d)
+    # 2 input layers and 2 Add layer.
+    self.assertLen(model2.layers, 4)
+    class_count = collections.Counter([l.__class__ for l in model2.layers])
+    self.assertEqual(class_count[input_layer_lib.InputLayer], 2)
+    self.assertEqual(class_count[layers.Add], 2)
+
+    model2.compile('rmsprop', 'mse')
+    model2.fit([np.random.randn(batch_size, 8),
+                np.random.randn(batch_size, 8)],
+               np.random.randn(batch_size, 8))
 
 
 if __name__ == '__main__':
