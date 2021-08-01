@@ -280,9 +280,15 @@ class BatchNormalizationBase(Layer):
       return self.dtype or tf.float32
 
   def _support_zero_size_input(self):
-    return tf.distribute.has_strategy() and getattr(
-        tf.distribute.get_strategy().extended,
-        'experimental_enable_get_next_as_optional', False)
+    if not tf.distribute.has_strategy():
+      return False
+    strategy = tf.distribute.get_strategy()
+    # TODO(b/195085185): remove experimental_enable_get_next_as_optional after
+    # migrating all users.
+    return getattr(
+        strategy.extended, 'enable_partial_batch_handling',
+        getattr(strategy.extended, 'experimental_enable_get_next_as_optional',
+                False))
 
   def build(self, input_shape):
     input_shape = tf.TensorShape(input_shape)
