@@ -29,7 +29,7 @@ import tensorflow.compat.v2 as tf
 
 class FunctionalModelSlideTest(keras_parameterized.TestCase):
 
-  def testfind_nodes_by_inputs_and_outputs(self):
+  def test_find_nodes_by_inputs_and_outputs(self):
     inputs = input_layer_lib.Input((10,))
     unconnected_inputs = input_layer_lib.Input((10,))
     x = layers.Dense(8)(inputs)
@@ -57,7 +57,7 @@ class FunctionalModelSlideTest(keras_parameterized.TestCase):
       functional_utils.find_nodes_by_inputs_and_outputs(
           [inputs, unconnected_inputs], output)
 
-  def testfind_nodes_by_inputs_and_outputs_with_complicated_network(self):
+  def test_find_nodes_by_inputs_and_outputs_with_complicated_network(self):
     input1 = input_layer_lib.Input((10,))
     input2 = input_layer_lib.Input((10,))
     input3 = input_layer_lib.Input((10,))
