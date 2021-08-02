@@ -323,6 +323,36 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       cbk = BackupAndRestore(self.get_temp_dir())
       model.fit(np.ones((10, 1)), np.ones((10, 1)), epochs=0, callbacks=[cbk])
 
+  def test_backup_restore_train_counter(self):
+    model = keras.Sequential([keras.layers.Dense(1)])
+    model.compile('sgd', 'mse')
+    cbk = BackupAndRestore(self.get_temp_dir())
+
+    class InterruptingCallback(keras.callbacks.Callback):
+      """A callback to intentionally introduce interruption to training."""
+
+      def on_epoch_end(self, epoch, log=None):
+        logging.info(f'counter: {model._train_counter}')
+        if epoch == 5 or epoch == 12:
+          raise RuntimeError('Interruption')
+
+    log_dir = self.get_temp_dir()
+
+    # The following asserts that the train counter is fault tolerant.
+    self.assertEqual(model._train_counter.numpy(), 0)
+    try:
+      model.fit(np.ones((10, 1)), np.ones((10, 1)), epochs=20,
+                callbacks=[cbk, InterruptingCallback()])
+    except RuntimeError:
+      pass
+    self.assertEqual(model._train_counter.numpy(), 6)
+    try:
+      model.fit(np.ones((10, 1)), np.ones((10, 1)), epochs=20,
+                callbacks=[cbk, InterruptingCallback()])
+    except RuntimeError:
+      pass
+    self.assertEqual(model._train_counter.numpy(), 13)
+
   @keras_parameterized.run_all_keras_modes
   def test_callback_warning(self):
 
