@@ -634,15 +634,6 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
 
     model = training_lib.Model(inputs=[a, b], outputs=[c, d], name='model')
 
-    # input is not an Input tensor
-    j = layers.Input(shape=(32,), name='input_j')
-    j = layers.Dense(32)(j)
-    k = layers.Input(shape=(32,), name='input_k')
-    m, n = model([j, k])
-
-    with self.assertRaises(Exception):
-      training_lib.Model([j, k], [m, n])
-
     # disconnected graph
     j = layers.Input(shape=(32,), name='input_j')
     k = layers.Input(shape=(32,), name='input_k')
