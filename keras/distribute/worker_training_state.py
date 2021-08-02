@@ -52,7 +52,8 @@ class WorkerTrainingState:
     # _ckpt_saved_epoch gets tracked and is included in the checkpoint file
     # when backing up.
     checkpoint = tf.train.Checkpoint(
-        model=self._model, ckpt_saved_epoch=self._ckpt_saved_epoch)
+        model=self._model, ckpt_saved_epoch=self._ckpt_saved_epoch,
+        train_counter=self._model._train_counter)
 
     # If this is single-worker training, checkpoint_dir are the same for
     # write_checkpoint_manager and read_checkpoint_manager.
