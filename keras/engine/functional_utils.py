@@ -167,7 +167,12 @@ def clone_graph_nodes(inputs, outputs):
   cloned_inputs = tf.nest.pack_sequence_as(inputs, cloned_inputs)
 
   for kt_output in tf.nest.flatten(outputs):
-    cpy = keras_tensor.keras_tensor_from_type_spec(kt_output.type_spec)
+    cpy = _clone_keras_tensor(kt_output)
+    # We reuse the _keras_history here, which contains the old information. It
+    # is used in the Node constructor to check if the tensor "is_keras_tensor()"
+    # The history will be override by the Node constructor anyway for the
+    # corresponding layer output anyway.
+    cpy._keras_history = kt_output._keras_history  # pylint: disable=protected-access
     cloned_outputs.append(cpy)
     kt_id_mapping[id(kt_output)] = cpy
   cloned_outputs = tf.nest.pack_sequence_as(outputs, cloned_outputs)
@@ -216,6 +221,7 @@ def clone_keras_tensors(args, keras_tensor_mapping):
       else:
         # Create copy of keras_tensor if we haven't done it before
         cpy = _clone_keras_tensor(obj)
+        cpy._keras_history = obj._keras_history  # pylint: disable=protected-access
         keras_tensor_mapping[id(obj)] = cpy
       result.append(cpy)
     else:
@@ -224,7 +230,7 @@ def clone_keras_tensors(args, keras_tensor_mapping):
 
 
 def _clone_keras_tensor(kt):
-  """Create an idential keras_tensor based on the input.
+  """Create an identical keras_tensor based on the input.
 
   We use keras_tensor_to_placeholder and keras_tensor_from_tensor to make sure
   inferred shape are not lost during the copy.
@@ -233,7 +239,7 @@ def _clone_keras_tensor(kt):
     kt: the input KerasTensor.
 
   Returns:
-    An indential copy of the input KerasTensor.
+    An identical copy of the input KerasTensor.
   """
   # Create a scratch graph since we don't intend to use the placeholders.
   with backend._scratch_graph() as scratch_graph:  # pylint: disable=protected-access

@@ -24,6 +24,7 @@ import warnings
 from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
+from keras.engine import functional_utils
 from keras.engine import input_layer as input_layer_module
 from keras.engine import input_spec
 from keras.engine import node as node_module
@@ -106,6 +107,14 @@ class Functional(training_lib.Model):
       return
     generic_utils.validate_kwargs(kwargs, {})
     super(Functional, self).__init__(name=name, trainable=trainable)
+    # Check if the inputs contain any intermediate `KerasTensor` (not created
+    # by tf.keras.Input()). In this case we need to clone the `Node` and
+    # `KerasTensor` objects to mimic rebuilding a new model from new inputs.
+    # This feature is only enabled in TF2 not in v1 graph mode.
+    if tf.compat.v1.executing_eagerly_outside_functions():
+      if not all([functional_utils.is_input_keras_tensor(t)
+                  for t in tf.nest.flatten(inputs)]):
+        inputs, outputs = functional_utils.clone_graph_nodes(inputs, outputs)
     self._init_graph_network(inputs, outputs)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
