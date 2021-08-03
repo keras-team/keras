@@ -54,8 +54,8 @@ class WideDeepModelTest(keras_parameterized.TestCase):
       dnn_model = sequential.Sequential(
           [core.Dense(units=1, kernel_initializer='zeros')])
       wide_deep_model = wide_deep.WideDeepModel(linear_model, dnn_model)
-      linear_inp = np.array([1.])
-      dnn_inp = np.array([1.])
+      linear_inp = np.array([[1.]])
+      dnn_inp = np.array([[1.]])
       inputs = [linear_inp, dnn_inp]
       output = linear_inp + 2 * dnn_inp
       linear_opt = gradient_descent.SGD(learning_rate=.1)
