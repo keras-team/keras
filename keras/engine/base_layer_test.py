@@ -468,9 +468,22 @@ class BaseLayerTest(keras_parameterized.TestCase):
     base_layer.Layer(trainable=True)
     base_layer.Layer(trainable=tf.constant(True))
     base_layer.Layer(trainable=tf.Variable(tf.constant(True)))
-    with self.assertRaisesRegex(TypeError,
-                                'Expected trainable argument to be a boolean'):
+    with self.assertRaisesRegex(
+        TypeError, 'Expected `trainable` argument to be a boolean'):
       base_layer.Layer(trainable=0)
+
+  def test_exception_if_dynamic_not_boolean(self):
+    base_layer.Layer(dynamic=True)
+    with self.assertRaisesRegex(TypeError,
+                                'Expected `dynamic` argument to be a boolean'):
+      base_layer.Layer(dynamic=0)
+
+  def test_exception_if_name_not_string_or_none(self):
+    base_layer.Layer(name=None)
+    base_layer.Layer(name='layer_name')
+    with self.assertRaisesRegex(TypeError,
+                                'Expected `name` argument to be a string'):
+      base_layer.Layer(name=0)
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_layer_names(self):
