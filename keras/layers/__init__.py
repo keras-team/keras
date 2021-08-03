@@ -233,21 +233,21 @@ from keras.layers.convolutional_recurrent import ConvLSTM1D
 from keras.layers.convolutional_recurrent import ConvLSTM2D
 from keras.layers.convolutional_recurrent import ConvLSTM3D
 
-# CuDNN recurrent layers.
+# cuDNN recurrent layers.
 from keras.layers.cudnn_recurrent import CuDNNLSTM
 from keras.layers.cudnn_recurrent import CuDNNGRU
 
-# Wrapper functions
+# Wrapper functions.
 from keras.layers.wrappers import Wrapper
 from keras.layers.wrappers import Bidirectional
 from keras.layers.wrappers import TimeDistributed
 
-# # RNN Cell wrappers.
+# RNN Cell wrappers.
 from keras.layers.rnn_cell_wrapper_v2 import DeviceWrapper
 from keras.layers.rnn_cell_wrapper_v2 import DropoutWrapper
 from keras.layers.rnn_cell_wrapper_v2 import ResidualWrapper
 
-# Serialization functions
+# Serialization functions.
 from keras.layers import serialization
 from keras.layers.serialization import deserialize
 from keras.layers.serialization import serialize
