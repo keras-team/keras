@@ -229,7 +229,7 @@ def preprocess_weights_for_loading(layer,
   """Preprocess layer weights between different Keras formats.
 
   Converts layers weights from Keras 1 format to Keras 2 and also weights of
-  CuDNN layers in Keras 2.
+  cuDNN layers in Keras 2.
 
   Args:
       layer: Layer instance.
@@ -317,7 +317,7 @@ def preprocess_weights_for_loading(layer,
 
   # Convert layers nested in Bidirectional/Model/Sequential.
   # Both transformation should be ran for both Keras 1->2 conversion
-  # and for conversion of CuDNN layers.
+  # and for conversion of cuDNN layers.
   if layer.__class__.__name__ == 'Bidirectional':
     weights = convert_nested_bidirectional(weights)
   if layer.__class__.__name__ == 'TimeDistributed':
@@ -405,12 +405,12 @@ def preprocess_weights_for_loading(layer,
       if layer.__class__.__name__ == 'ConvLSTM2D':
         weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
 
-  # convert CuDNN layers
+  # convert cuDNN layers
   return _convert_rnn_weights(layer, weights)
 
 
 def _convert_rnn_weights(layer, weights):
-  """Converts weights for RNN layers between native and CuDNN format.
+  """Converts weights for RNN layers between native and cuDNN format.
 
   Input kernels for each gate are transposed and converted between Fortran
   and C layout, recurrent kernels are transposed. For LSTM biases are summed/
@@ -448,12 +448,12 @@ def _convert_rnn_weights(layer, weights):
     return np.hstack([func(k) for k in np.hsplit(kernels, n_gates)])
 
   def transpose_input(from_cudnn):
-    """Makes a function that transforms input kernels from/to CuDNN format.
+    """Makes a function that transforms input kernels from/to cuDNN format.
 
     It keeps the shape, but changes between the layout (Fortran/C). Eg.:
 
     ```
-    Keras                 CuDNN
+    Keras                 cuDNN
     [[0, 1, 2],  <--->  [[0, 2, 4],
      [3, 4, 5]]          [1, 3, 5]]
     ```
@@ -461,7 +461,7 @@ def _convert_rnn_weights(layer, weights):
     It can be passed to `transform_kernels()`.
 
     Args:
-        from_cudnn: `True` if source weights are in CuDNN format, `False`
+        from_cudnn: `True` if source weights are in cuDNN format, `False`
             if they're in plain Keras format.
 
     Returns:
@@ -498,7 +498,7 @@ def _convert_rnn_weights(layer, weights):
 
       Args:
         weights: Original weights.
-        from_cudnn: Indicates whether original weights are from CuDNN layer.
+        from_cudnn: Indicates whether original weights are from cuDNN layer.
 
       Returns:
         Updated weights compatible with LSTM.
@@ -535,7 +535,7 @@ def _convert_rnn_weights(layer, weights):
 
       Args:
         weights: Original weights.
-        from_cudnn: Indicates whether original weights are from CuDNN layer.
+        from_cudnn: Indicates whether original weights are from cuDNN layer.
 
       Returns:
         Updated weights compatible with GRU.

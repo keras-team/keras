@@ -245,7 +245,7 @@ class GRUV2Test(keras_parameterized.TestCase):
       gpu_model.set_weights(weights)
       y_2 = gpu_model.predict(x_train)
 
-    # Note that CuDNN uses 'sigmoid' as activation, so the GRU V2 uses
+    # Note that cuDNN uses 'sigmoid' as activation, so the GRU V2 uses
     # 'sigmoid' as default. Construct the canonical GRU with sigmoid to achieve
     # the same output.
     with testing_utils.device(should_use_gpu=True):

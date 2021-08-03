@@ -547,7 +547,7 @@ class LSTMV2Test(keras_parameterized.TestCase):
       gpu_model.set_weights(weights)
     y_2 = gpu_model.predict(x_train)
 
-    # Note that CuDNN uses 'sigmoid' as activation, so the LSTM V2 uses
+    # Note that cuDNN uses 'sigmoid' as activation, so the LSTM V2 uses
     # 'sigmoid' as default. Construct the canonical LSTM with sigmoid to achieve
     # the same output.
     with testing_utils.device(should_use_gpu=True):
@@ -1114,7 +1114,7 @@ class LSTMPerformanceTest(tf.test.Benchmark):
                           extras=test_config)
 
     logging.info('Expect the performance of LSTM V2 is within 80% of '
-                 'CuDNN LSTM, got {0:.2f}%'.format(cudnn_vs_v2 * 100))
+                 'cuDNN LSTM, got {0:.2f}%'.format(cudnn_vs_v2 * 100))
     logging.info('Expect the performance of LSTM V2 is more than 5 times'
                  ' of normal LSTM, got {0:.2f}'.format(v2_vs_normal))
 
