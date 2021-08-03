@@ -177,4 +177,5 @@ in [GitHub issues](https://github.com/keras-team/keras/issues).
 ## Opening a PR
 
 We welcome contributions! Before opening a PR, please read
-[our contributor guide](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md).
+[our contributor guide](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md),
+and the [API design guideline](https://github.com/keras-team/governance/blob/master/keras_api_design_guidelines.md).
