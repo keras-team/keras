@@ -231,7 +231,7 @@ class GRU(recurrent.DropoutRNNCellMixin, recurrent.GRU):
 
   The second variant is compatible with CuDNNGRU (GPU-only) and allows
   inference on CPU. Thus it has separate biases for `kernel` and
-  `recurrent_kernel`. To use this variant, set `'reset_after'=True` and
+  `recurrent_kernel`. To use this variant, set `reset_after=True` and
   `recurrent_activation='sigmoid'`.
 
   For example:
