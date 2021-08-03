@@ -803,8 +803,15 @@ class GeneratorDataAdapter(DataAdapter):
     # Need to build the Model on concrete input shapes.
     if model is not None and not model.built:
       concrete_x, _, _ = unpack_x_y_sample_weight(peek)
-      model.distribute_strategy.run(
-          lambda x: model(x, training=False), args=(concrete_x,))
+      try:
+        model.distribute_strategy.run(
+            lambda x: model(x, training=False), args=(concrete_x,))
+      except NotImplementedError:
+        # The above call may fail if the model is a container-like class that
+        # does not implement its own forward pass (e.g. a GAN or VAE where the
+        # forward pass is handled by subcomponents).
+        # Such a model does not need to be built.
+        pass
 
     self._first_batch_size = int(tf.nest.flatten(peek)[0].shape[0])
 
