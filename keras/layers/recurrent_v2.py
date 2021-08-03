@@ -149,7 +149,7 @@ class GRUCell(recurrent.GRUCell):
       the linear transformation of the recurrent state. Default: 0.
     reset_after: GRU convention (whether to apply reset gate after or
       before matrix multiplication). False = "before",
-      True = "after" (default and CuDNN compatible).
+      True = "after" (default and cuDNN compatible).
 
   Call arguments:
     inputs: A 2D tensor, with shape of `[batch, feature]`.
@@ -210,7 +210,7 @@ class GRU(recurrent.DropoutRNNCellMixin, recurrent.GRU):
   Based on available runtime hardware and constraints, this layer
   will choose different implementations (cuDNN-based or pure-TensorFlow)
   to maximize the performance. If a GPU is available and all
-  the arguments to the layer meet the requirement of the CuDNN kernel
+  the arguments to the layer meet the requirement of the cuDNN kernel
   (see below for details), the layer will use a fast cuDNN implementation.
 
   The requirements to use the cuDNN implementation are:
@@ -311,7 +311,7 @@ class GRU(recurrent.DropoutRNNCellMixin, recurrent.GRU):
       form.
     reset_after: GRU convention (whether to apply reset gate after or
       before matrix multiplication). False = "before",
-      True = "after" (default and CuDNN compatible).
+      True = "after" (default and cuDNN compatible).
 
   Call arguments:
     inputs: A 3D tensor, with shape `[batch, timesteps, feature]`.
@@ -532,9 +532,9 @@ def standard_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask,
   This implementation can be run on all types of hardware.
 
   This implementation lifts out all the layer weights and make them function
-  parameters. It has same number of tensor input params as the CuDNN
+  parameters. It has same number of tensor input params as the cuDNN
   counterpart. The RNN step logic has been simplified, eg dropout and mask is
-  removed since CuDNN implementation does not support that.
+  removed since cuDNN implementation does not support that.
 
   Args:
     inputs: Input tensor of GRU layer.
@@ -610,7 +610,7 @@ def standard_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask,
 
 def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
             go_backwards, sequence_lengths):
-  """GRU with CuDNN implementation which is only available for GPU."""
+  """GRU with cuDNN implementation which is only available for GPU."""
   if not time_major and mask is None:
     inputs = tf.transpose(inputs, perm=(1, 0, 2))
     seq_axis, batch_axis = (0, 1)
@@ -627,8 +627,8 @@ def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
   bias = tf.split(backend.flatten(bias), 6)
 
   if tf.sysconfig.get_build_info()['is_cuda_build']:
-    # Note that the gate order for CuDNN is different from the canonical format.
-    # canonical format is [z, r, h], whereas CuDNN is [r, z, h]. The swap need
+    # Note that the gate order for cuDNN is different from the canonical format.
+    # canonical format is [z, r, h], whereas cuDNN is [r, z, h]. The swap need
     # to be done for kernel, recurrent_kernel, input_bias, recurrent_bias.
     # z is update gate weights.
     # r is reset gate weights.
@@ -701,7 +701,7 @@ def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
 
   Under the hood, this function will create two TF function, one with the most
   generic kernel and can run on all device condition, and the second one with
-  CuDNN specific kernel, which can only run on GPU.
+  cuDNN specific kernel, which can only run on GPU.
 
   The first function will be called with normal_lstm_params, while the second
   function is not called, but only registered in the graph. The Grappler will
@@ -747,7 +747,7 @@ def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
   def gpu_gru_with_fallback(inputs, init_h, kernel, recurrent_kernel, bias,
                             mask, time_major, go_backwards, sequence_lengths,
                             zero_output_for_mask):
-    """Use CuDNN kernel when mask is none or strictly right padded."""
+    """Use cuDNN kernel when mask is none or strictly right padded."""
     if mask is None:
       return gpu_gru(
           inputs=inputs,
@@ -815,7 +815,7 @@ def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
                                             gpu_gru_with_fallback,
                                             supportive_attribute)
 
-    # Call the normal GRU impl and register the CuDNN impl function. The
+    # Call the normal GRU impl and register the cuDNN impl function. The
     # grappler will kick in during session execution to optimize the graph.
     last_output, outputs, new_h, runtime = defun_standard_gru(**params)
     _function_register(defun_gpu_gru, **params)
@@ -949,7 +949,7 @@ class LSTM(recurrent.DropoutRNNCellMixin, recurrent.LSTM):
   Based on available runtime hardware and constraints, this layer
   will choose different implementations (cuDNN-based or pure-TensorFlow)
   to maximize the performance. If a GPU is available and all
-  the arguments to the layer meet the requirement of the CuDNN kernel
+  the arguments to the layer meet the requirement of the cuDNN kernel
   (see below for details), the layer will use a fast cuDNN implementation.
 
   The requirements to use the cuDNN implementation are:
@@ -1170,8 +1170,8 @@ class LSTM(recurrent.DropoutRNNCellMixin, recurrent.LSTM):
       # Use the new defun approach for backend implementation swap.
       # Note that different implementations need to have same function
       # signature, eg, the tensor parameters need to have same shape and dtypes.
-      # Since the CuDNN has an extra set of bias, those bias will be passed to
-      # both normal and CuDNN implementations.
+      # Since the cuDNN has an extra set of bias, those bias will be passed to
+      # both normal and cuDNN implementations.
       self.reset_dropout_mask()
       dropout_mask = self.get_dropout_mask_for_cell(inputs, training, count=4)
       if dropout_mask is not None:
@@ -1276,12 +1276,12 @@ class LSTM(recurrent.DropoutRNNCellMixin, recurrent.LSTM):
 
 
 def _canonical_to_params(weights, biases, shape, transpose_weights=False):
-  """Utility function convert variable to CuDNN compatible parameter.
+  """Utility function convert variable to cuDNN compatible parameter.
 
-  Note that Keras weights for kernels are different from the CuDNN format. Eg.:
+  Note that Keras weights for kernels are different from the cuDNN format. Eg.:
 
   ```
-    Keras                 CuDNN
+    Keras                 cuDNN
     [[0, 1, 2],  <--->  [[0, 2, 4],
      [3, 4, 5]]          [1, 3, 5]]
   ```
@@ -1292,11 +1292,11 @@ def _canonical_to_params(weights, biases, shape, transpose_weights=False):
   Args:
     weights: list of weights for the individual kernels and recurrent kernels.
     biases: list of biases for individual gate.
-    shape: the shape for the converted variables that will be feed to CuDNN.
+    shape: the shape for the converted variables that will be feed to cuDNN.
     transpose_weights: boolean, whether to transpose the weights.
 
   Returns:
-    The converted weights that can be feed to CuDNN ops as param.
+    The converted weights that can be feed to cuDNN ops as param.
   """
   def convert(w):
     return tf.transpose(w) if transpose_weights else w
@@ -1314,12 +1314,12 @@ def standard_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias,
   This implementation can be run on all types for hardware.
 
   This implementation lifts out all the layer weights and make them function
-  parameters. It has same number of tensor input params as the CuDNN
+  parameters. It has same number of tensor input params as the cuDNN
   counterpart. The RNN step logic has been simplified, eg dropout and mask is
-  removed since CuDNN implementation does not support that.
+  removed since cuDNN implementation does not support that.
 
   Note that the first half of the bias tensor should be ignored by this impl.
-  The CuDNN impl need an extra set of input gate bias. In order to make the both
+  The cuDNN impl need an extra set of input gate bias. In order to make the both
   function take same shape of parameter, that extra set of bias is also feed
   here.
 
@@ -1393,7 +1393,7 @@ def standard_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias,
 
 def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
              time_major, go_backwards, sequence_lengths):
-  """LSTM with either CuDNN or ROCm implementation which is only available for GPU.
+  """LSTM with either cuDNN or ROCm implementation which is only available for GPU.
 
   Note that currently only right padded data is supported, or the result will be
   polluted by the unmasked data which should be filtered.
@@ -1440,7 +1440,7 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
 
   weights = tf.split(kernel, 4, axis=1)
   weights += tf.split(recurrent_kernel, 4, axis=1)
-  # CuDNN has an extra set of bias for inputs, we disable them (setting to 0),
+  # cuDNN has an extra set of bias for inputs, we disable them (setting to 0),
   # so that mathematically it is same as the canonical LSTM implementation.
   full_bias = tf.concat((tf.zeros_like(bias), bias), 0)
 
@@ -1524,7 +1524,7 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
 
   Under the hood, this function will create two TF function, one with the most
   generic kernel and can run on all device condition, and the second one with
-  CuDNN specific kernel, which can only run on GPU.
+  cuDNN specific kernel, which can only run on GPU.
 
   The first function will be called with normal_lstm_params, while the second
   function is not called, but only registered in the graph. The Grappler will
@@ -1572,7 +1572,7 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
   def gpu_lstm_with_fallback(inputs, init_h, init_c, kernel, recurrent_kernel,
                              bias, mask, time_major, go_backwards,
                              sequence_lengths, zero_output_for_mask):
-    """Use CuDNN kernel when mask is none or strictly right padded."""
+    """Use cuDNN kernel when mask is none or strictly right padded."""
     if mask is None:
       return gpu_lstm(
           inputs=inputs,
@@ -1643,7 +1643,7 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
                                              gpu_lstm_with_fallback,
                                              supportive_attribute)
 
-    # Call the normal LSTM impl and register the CuDNN impl function. The
+    # Call the normal LSTM impl and register the cuDNN impl function. The
     # grappler will kick in during session execution to optimize the graph.
     last_output, outputs, new_h, new_c, runtime = defun_standard_lstm(**params)
     _function_register(defun_gpu_lstm, **params)
@@ -1654,9 +1654,9 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
 def is_sequence_right_padded(mask):
   """Check the mask tensor and see if it right padded.
 
-  For CuDNN kernel, it uses the sequence length param to skip the tailing
+  For cuDNN kernel, it uses the sequence length param to skip the tailing
   timestep. If the data is left padded, or not a strict right padding (has
-  masked value in the middle of the sequence), then CuDNN kernel won't be work
+  masked value in the middle of the sequence), then cuDNN kernel won't be work
   properly in those cases.
 
   Left padded data: [[False, False, True, True, True]].
