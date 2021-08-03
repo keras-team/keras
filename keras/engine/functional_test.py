@@ -36,11 +36,6 @@ from keras.utils import layer_utils
 from keras.utils import tf_utils
 from tensorflow.python.training.tracking.util import Checkpoint
 
-try:
-  import yaml  # pylint:disable=g-import-not-at-top
-except ImportError:
-  yaml = None
-
 
 class NetworkConstructionTest(keras_parameterized.TestCase):
 
@@ -615,10 +610,6 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
       model.summary()
       json_str = model.to_json()
       models.model_from_json(json_str)
-
-      if yaml is not None:
-        yaml_str = model.to_yaml()
-        models.model_from_yaml(yaml_str)
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_invalid_graphs(self):
@@ -1340,10 +1331,6 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
 
     json_str = model.to_json()
     models.model_from_json(json_str)
-
-    if yaml is not None:
-      yaml_str = model.to_yaml()
-      models.model_from_yaml(yaml_str)
 
   def test_subclassed_error_if_init_not_called(self):
 
