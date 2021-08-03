@@ -725,6 +725,22 @@ class GeneratorDataAdapterTest(DataAdapterTestBase):
     for i, data in enumerate(adapter.get_dataset()):
       self.assertEqual(i, data[0].numpy().flatten())
 
+  def test_model_without_forward_pass(self):
+
+    class MyModel(keras.Model):
+
+      def train_step(self, data):
+        return {'loss': 0.}
+
+      def test_step(self, data):
+        return {'loss': 0.}
+
+    model = MyModel()
+    model.compile('rmsprop')
+    model.fit(self.generator_input, steps_per_epoch=5)
+    out = model.evaluate(self.generator_input, steps=5)
+    self.assertEqual(out, 0)
+
 
 class KerasSequenceAdapterTest(DataAdapterTestBase):
 
