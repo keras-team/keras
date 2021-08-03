@@ -337,7 +337,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             (isinstance(trainable, (tf.Tensor, tf.Variable)) and
              trainable.dtype is tf.bool)):
       raise TypeError(
-          f'Expected trainable argument to be a boolean, but got: {trainable}')
+          'Expected `trainable` argument to be a boolean, '
+          f'but got: {trainable}')
     self._trainable = trainable
     # A stateful layer is a layer whose updates are run during inference too,
     # for instance stateful RNNs.
@@ -409,6 +410,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Whether the `call` method can be used to build a TF graph without issues.
     # This attribute has no effect if the model is created using the Functional
     # API. Instead, `model.dynamic` is determined based on the internal layers.
+    if not isinstance(dynamic, bool):
+      raise TypeError(
+          f'Expected `dynamic` argument to be a boolean, but got: {dynamic}')
     self._dynamic = dynamic
 
     # Manage input shape information if passed.
@@ -2448,13 +2452,16 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     return name_scope
 
   def _init_set_name(self, name, zero_based=True):
-    if not name:
+    if name is None:
       self._name = backend.unique_object_name(
           generic_utils.to_snake_case(self.__class__.__name__),
           zero_based=zero_based)
-    else:
+    elif isinstance(name, str):
       backend.observe_object_name(name)
       self._name = name
+    else:
+      raise TypeError(
+          f'Expected `name` argument to be a string, but got: {name}')
 
   def _get_existing_metric(self, name=None):
     match = [m for m in self._metrics if m.name == name]
