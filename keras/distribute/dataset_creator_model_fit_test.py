@@ -166,7 +166,7 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
         all(predictions[0] == predictions[i] for i in [0, 1, 2, 4]))
 
   def testModelPredictWithNumpyData(self, strategy):
-    x = np.array([1., 2., 3., 1., 5., 1.])
+    x = np.array([[1.], [2.], [3.], [1.], [5.], [1.]])
     _, predictions = self._model_predict(strategy, test_data=x)
 
     self.assertTrue(all(predictions[0] == predictions[i] for i in [0, 3, 5]))
@@ -174,7 +174,7 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
         all(predictions[0] == predictions[i] for i in [0, 1, 2, 4]))
 
   def testModelPredictWithTensorData(self, strategy):
-    x = tf.constant([1., 2., 3., 1., 5., 1.])
+    x = tf.constant([[1.], [2.], [3.], [1.], [5.], [1.]])
     _, predictions = self._model_predict(strategy, test_data=x)
     self.assertTrue(all(predictions[0] == predictions[i] for i in [0, 3, 5]))
     self.assertFalse(
@@ -232,7 +232,7 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
 
     def _dataset_fn(input_context):
       del input_context
-      x = tf.constant([1., 2., 3., 1., 5., 1.])
+      x = tf.constant([[1.], [2.], [3.], [1.], [5.], [1.]])
       return tf.data.Dataset.from_tensor_slices(x).repeat().batch(2)
 
     _, predictions = self._model_predict(
