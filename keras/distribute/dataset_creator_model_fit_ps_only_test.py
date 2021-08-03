@@ -41,7 +41,7 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
       self.skipTest("Unused option.")
     model, _ = self._model_compile(strategy)
     test_data = tf.data.Dataset.from_tensor_slices(
-        [1., 2., 3., 1., 5., 1.]).repeat().batch(2)
+        [[1.], [2.], [3.], [1.], [5.], [1.]]).repeat().batch(2)
     model.predict(x=test_data, steps=3)
 
   def testClusterCoordinatorSingleInstance(self, strategy, use_dataset_creator):
