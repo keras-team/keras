@@ -607,7 +607,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       name: Optional name for the returned operation. Default to the name passed
         to the `Optimizer` constructor.
       experimental_aggregate_gradients: Whether to sum gradients from different
-        replicas in the presense of `tf.distribute.Strategy`. If False, it's
+        replicas in the presence of `tf.distribute.Strategy`. If False, it's
         user responsibility to aggregate the gradients. Default to True.
 
     Returns:

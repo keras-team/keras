@@ -46,7 +46,7 @@ def _get_input_data(inputs):
   elif "input" in inputs:
     return inputs["input"]
   else:
-    raise ValueError("Please specificy either `input_shape` or `input`"
+    raise ValueError("Please specify either `input_shape` or `input`"
                      "for the benchmark test")
 
 
