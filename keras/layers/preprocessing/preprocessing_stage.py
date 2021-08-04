@@ -92,7 +92,7 @@ class PreprocessingStage(sequential.Sequential,
                                              reset_state=reset_state)
 
 
-# Functional methods shoud take precedence.
+# Functional methods should take precedence.
 class FunctionalPreprocessingStage(functional.Functional,
                                    base_preprocessing_layer.PreprocessingLayer):
   """A functional preprocessing stage.

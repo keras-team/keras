@@ -154,7 +154,7 @@ class KerasLayerCallOverheadBenchmarks(  # pylint: disable=undefined-variable
   # 3) The shape of the input to the layer;
   # 4) The kwargs used in the benchmark. It can include the number of
   #    iterations to run the benchmarks, and kwargs used in the layer call.
-  #    By default, # of iteratons is 10000.
+  #    By default, # of iteration is 10000.
   _benchmark_parameters = [
       ("advanced_activations_leaky_relu", tf.keras.layers.LeakyReLU(),
        (1, 1)),
