@@ -16,7 +16,6 @@
 # pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 
-import functools
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -216,31 +215,6 @@ class Conv(Layer):
     channel_axis = self._get_channel_axis()
     self.input_spec = InputSpec(min_ndim=self.rank + 2,
                                 axes={channel_axis: input_channel})
-
-    # This code is kept for backwards compat, but can be removed after fixing
-    # the tests listed in b/192260878
-
-    # Convert Keras formats to TF native formats.
-    if self.padding == 'causal':
-      tf_padding = 'VALID'  # Causal padding handled in `call`.
-    elif isinstance(self.padding, str):
-      tf_padding = self.padding.upper()
-    else:
-      tf_padding = self.padding
-    tf_dilations = list(self.dilation_rate)
-    tf_strides = list(self.strides)
-
-    tf_op_name = self.__class__.__name__
-    if tf_op_name == 'Conv1D':
-      tf_op_name = 'conv1d'  # Backwards compat.
-
-    self._convolution_op = functools.partial(
-        tf.nn.convolution,
-        strides=tf_strides,
-        padding=tf_padding,
-        dilations=tf_dilations,
-        data_format=self._tf_data_format,
-        name=tf_op_name)
     self.built = True
 
   def convolution_op(self, inputs, kernel):
