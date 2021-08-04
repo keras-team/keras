@@ -1740,7 +1740,7 @@ class GRUCell(DropoutRNNCellMixin, Layer):
       the linear transformation of the recurrent state.
     reset_after: GRU convention (whether to apply reset gate after or
       before matrix multiplication). False = "before" (default),
-      True = "after" (CuDNN compatible).
+      True = "after" (cuDNN compatible).
 
   Call arguments:
     inputs: A 2D tensor.
@@ -2056,7 +2056,7 @@ class GRU(RNN):
       form.
     reset_after: GRU convention (whether to apply reset gate after or
       before matrix multiplication). False = "before" (default),
-      True = "after" (CuDNN compatible).
+      True = "after" (cuDNN compatible).
 
   Call arguments:
     inputs: A 3D tensor.
