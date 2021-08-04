@@ -807,6 +807,26 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
     output_val_2 = m2.predict(x_val)
     self.assertAllClose(output_val, output_val_2, atol=1e-6)
 
+  def test_layer_sharing_maintains_node_order(self):
+    # See https://github.com/keras-team/keras/issues/14838.
+    inp = input_layer_lib.Input(shape=[5], name='main_input')
+
+    zeros = layers.Lambda(tf.zeros_like, name='generate_zeros')(inp)
+    ones = layers.Lambda(tf.ones_like, name='generate_ones')(inp)
+
+    shared_layer = layers.Layer(name='shared')
+
+    ones_result = shared_layer(ones)
+    zeros_result = shared_layer(zeros)
+    zeros_result = layers.Layer(name='blank')(zeros_result)
+
+    m = training_lib.Model(
+        inputs=[inp], outputs=[zeros_result, ones_result])
+    m2 = models.Model.from_config(m.get_config())
+    self.assertAllClose(
+        m2.predict_on_batch(tf.zeros([1, 5])),
+        m.predict_on_batch(tf.zeros([1, 5])))
+
   @combinations.generate(combinations.keras_mode_combinations())
   def test_explicit_training_argument(self):
     a = layers.Input(shape=(2,))
