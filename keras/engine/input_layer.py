@@ -42,15 +42,15 @@ class InputLayer(base_layer.Layer):
   or create a placeholder tensor (pass arguments `input_shape`, and
   optionally, `dtype`).
 
-  It is generally recommend to use the functional layer API via `Input`,
+  It is generally recommend to use the Keras Functional model via `Input`,
   (which creates an `InputLayer`) without directly using `InputLayer`.
 
-  When using InputLayer with Keras Sequential model, it can be skipped by
-  moving the input_shape parameter to the first layer after the InputLayer.
+  When using `InputLayer` with the Keras Sequential model, it can be skipped by
+  moving the `input_shape` parameter to the first layer after the `InputLayer`.
 
-  This class can create placeholders for tf.Tensors, tf.SparseTensors, and
-  tf.RaggedTensors by choosing 'sparse=True' or 'ragged=True'. Note that
-  'sparse' and 'ragged' can't be configured to True at same time.
+  This class can create placeholders for `tf.Tensors`, `tf.SparseTensors`, and
+  `tf.RaggedTensors` by choosing `sparse=True` or `ragged=True`. Note that
+  `sparse` and `ragged` can't be configured to `True` at the same time.
   Usage:
 
   ```python
@@ -74,22 +74,22 @@ class InputLayer(base_layer.Layer):
   Args:
       input_shape: Shape tuple (not including the batch axis), or `TensorShape`
         instance (not including the batch axis).
-      batch_size: Optional input batch size (integer or None).
+      batch_size: Optional input batch size (integer or `None`).
       dtype: Optional datatype of the input. When not provided, the Keras
-          default float type will be used.
+          default `float` type will be used.
       input_tensor: Optional tensor to use as layer input. If set, the layer
           will use the `tf.TypeSpec` of this tensor rather
           than creating a new placeholder tensor.
       sparse: Boolean, whether the placeholder created is meant to be sparse.
-          Default to False.
+          Default to `False`.
       ragged: Boolean, whether the placeholder created is meant to be ragged.
-          In this case, values of 'None' in the 'shape' argument represent
-          ragged dimensions. For more information about RaggedTensors, see
-          [this guide](https://www.tensorflow.org/guide/ragged_tensors).
-          Default to False.
+          In this case, values of `None` in the `shape` argument represent
+          ragged dimensions. For more information about `tf.RaggedTensor`, see
+          [this guide](https://www.tensorflow.org/guide/ragged_tensor).
+          Default to `False`.
       type_spec: A `tf.TypeSpec` object to create Input from. This `tf.TypeSpec`
           represents the entire batch. When provided, all other args except
-          name must be None.
+          name must be `None`.
       name: Optional name of the layer (string).
   """
 
