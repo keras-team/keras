@@ -1,50 +1,108 @@
-Want to contribute? Great! First, read this page
-(including the "small print" section).
+## How to contribute code
 
-### Before you contribute
+You can follow these steps to submit your code contribution.
 
-Before we can use your code, you must sign the
-[Google Individual Contributor License Agreement](
-https://cla.developers.google.com/about/google-individual)
-(CLA), which you can do online. The CLA is necessary mainly because you own the
-copyright to your changes, even after your contribution becomes part of our
-codebase, so we need your permission to use and distribute your code. We also
-need to be sure of various other things—for instance that you'll tell us if you
-know that your code infringes on other people's patents. You don't have to sign
-the CLA until after you've submitted your code for review and a member has
-approved it, but you must do it before we can put your code into our codebase.
-Before you start working on a larger contribution, you should get in touch with
-us first through the issue tracker with your idea so that we can help out and
-possibly guide you. Coordinating up front makes it much easier to avoid
-frustration later on.
-
-### Code reviews
-
-All submissions, including submissions by project members, require review. We
-use Github Pull Requests (PRs) for this purpose. We recommend you read [this guide](
-https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests)
-if you haven't created a Pull Request before.
-
+### Step 1. Open an issue
 Before making any changes, we recommend opening an issue (if one doesn't already
 exist) and discussing your proposed changes. This way, we can give you feedback
 and validated the proposed changes. If the changes are minor (simple bug fix
 of documentation fix), then feel free to open a PR without discussion.
 
-### The small print
+### Step 2. Make code changes
 
-Contributions made by corporations are covered by a different agreement than the
-one above, see the
-[Software Grant and Corporate Contributor License Agreement](https://cla.developers.google.com/about/google-corporate).
+To make code changes, you need to fork the repository.
+You may need to setup a dev environment,
+run the unit tests, which are introduced in the later sections of this guide.
 
-### Tools needed for development
+### Step 3. Create a pull request 
+
+Once the code changes are made,
+you can open a pull request from your branch in your fork to the master branch in
+[keras-team/keras](https://github.com/keras-team/keras).
+
+### Step 4. Sign the agreement
+
+After creating the pull request,
+the `google-cla` bot will comment on your pull request
+with the instructions on signing
+the Contributor License Agreement (CLA)
+if you haven't done so.
+Please follow the instructions to sign the CLA.
+A `cla:yes` tag is then added to the pull request.
+
+### Step 5. Automated tests
+A set of automated tests will also start to run after creating the pull request.
+If the tests fail, you may look into the error messages and try to fix it. 
+
+### Step 6. Code review
+A reviewer will review the pull request and provide comments.
+There may be several rounds of comments and code changes
+before the pull request gets approved by the reviewer.
+
+### Step 7. Merge
+Once the pull request is approved,
+a `ready to pull` tag will be added to the pull request.
+A team member will take care of the merging.
+
+See the following images as an example for a PR and its related tests.
+
+![PR and tests](pr_test.png)
+
+
+## Setup environment
+
+To setup the development environment,
+We provide two options.
+One is to use our Dockerfile, which builds into a container the required dev tools.
+Another one is to setup a local environment by install the dev tools needed.
+
+### Option 1: Use a Docker container
+
+We provide a 
+[Dockerfile](
+https://github.com/keras-team/keras/blob/master/.devcontainer/Dockerfile)
+to build the dev environment.
+You can build the Dockerfile into a Docker image named `keras-dev`
+with the following command at the root directory of your cloned repo.
+
+```shell
+docker build -t keras-dev .devcontainer
+```
+
+You can launch a Docker container from the image with the following command.
+The `-it` option gives you an interactive shell of the container.
+The `-v path/to/repo/:/home/keras/` mounts your cloned repo to the container.
+Replace `path/to/repo` with the path to your cloned repo directory.
+
+```shell
+docker run -it -v path/to/repo/:/home/keras/ keras-dev
+```
+
+In the container shell, you need to install the latest dependencies
+with the following command.
+
+```shell
+pip install -r /home/keras/requirements.txt
+```
+
+Now, the environment setup is complete. You are ready to run the tests.
+
+You may modify the Dockerfile to your specific needs,
+like installing your own dev tools.
+You may also mount more volumes with the `-v` option, like your SSH credentials.
+Besides the editors running in the shell,
+many popular IDEs today also support developing in a container.
+You may use these IDEs with the Dockerfile as well.
+
+### Option 2: Setup a local environment
+
+To setup your local dev environment, you will need the following tools.
 
 1.  [Bazel](https://bazel.build/) is the tool to build and test Keras. See the
     [installation guide](https://docs.bazel.build/versions/4.0.0/install.html)
     for how to install and config bazel for your local environment.
 2.  [git](https://github.com/) for code repository management.
 3.  [python](https://www.python.org/) to build and code in Keras.
-
-### Setup and configure local workspace
 
 Using Apple Mac as an example (and linux will be very similar), the following
 commands set up and check the configuration of a local workspace.
@@ -59,16 +117,10 @@ scottzhu-macbookpro2:~ scottzhu$ which git
 scottzhu-macbookpro2:~ scottzhu$ which python
 /usr/bin/python
 
-# Keras requires at least python 3.6
+# Keras requires at least python 3.7
 scottzhu-macbookpro2:~ scottzhu$ python --version
-Python 3.6.8
-
-# Change to whatever directory you prefer
-scottzhu-macbookpro2:~ scottzhu$ mkdir workspace
-scottzhu-macbookpro2:~ scottzhu$ cd workspace/
+Python 3.9.6
 ```
-
-### Download code and set up virtual environment
 
 A [Python virtual environment](https://docs.python.org/3/tutorial/venv.html) is a
 powerful tool to create a self-contained environment that isolates any change
@@ -109,7 +161,7 @@ Uninstalling keras-nightly-2.5.0.dev2021032500:
   Successfully uninstalled keras-nightly-2.5.0.dev2021032500
 ```
 
-### Run a test locally
+## Run tests
 
 ```shell
 (venv_dir) scottzhu-macbookpro2:keras scottzhu$ bazel test -c opt keras:backend_test
@@ -135,17 +187,3 @@ INFO: Build completed successfully, 20 total actions
 
 INFO: Build completed successfully, 20 total actions
 ```
-
-### Create a PR and wait for review
-
-Once the local change is made and verified with tests, you can open a PR in
-[keras-team/keras](https://github.com/keras-team/keras). After the PR is sent,
-it will go through a set of tests to verify its correctness. Once
-the PR is tested and approved by the reviewer, the PR will be mirrored to
-Google internal repository. The PR will be marked as merged once the merge to
-Google internal repository is successfully finished. This is same as the
-Tensorflow OSS contribution workflow.
-
-See the following images as an example for a PR and its related tests.
-
-![PR and tests](pr_test.png)
