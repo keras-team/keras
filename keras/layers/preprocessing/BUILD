@@ -343,6 +343,7 @@ tf_py_test(
 distribute_py_test(
     name = "discretization_distribution_test",
     srcs = ["discretization_distribution_test.py"],
+    disable_tfrt = False,
     main = "discretization_distribution_test.py",
     python_version = "PY3",
     tags = [
@@ -484,6 +485,7 @@ tf_py_test(
 distribute_py_test(
     name = "normalization_distribution_test",
     srcs = ["normalization_distribution_test.py"],
+    disable_tfrt = False,
     main = "normalization_distribution_test.py",
     python_version = "PY3",
     tags = [
