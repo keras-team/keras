@@ -1138,13 +1138,7 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
   # It acts as a queue that maintains any unprocessed
   # layer call until it becomes possible to process it
   # (i.e. until the input tensors to the call all exist).
-  unprocessed_nodes = {}
-
-  def add_unprocessed_node(layer, node_data):
-    if layer not in unprocessed_nodes:
-      unprocessed_nodes[layer] = [node_data]
-    else:
-      unprocessed_nodes[layer].append(node_data)
+  unprocessed_nodes = collections.defaultdict(list)
 
   def get_node_index(layer, config_node_index):
     """Returns node index in layer (might differ from config_node_index)."""
@@ -1189,6 +1183,10 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
         layer: layer instance.
         node_data: Nested structure of `ListWrapper`.
 
+    Returns:
+        Whether the node was processed (i.e. the layer was called on the inputs
+        specified by the node data)
+
     Raises:
         ValueError: In case of improperly formatted `node_data`.
     """
@@ -1206,8 +1204,7 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
           kwargs = _deserialize_keras_tensors(kwargs, created_layers)
         except IndexError:
           # Happens if keras tensors in kwargs are still unprocessed
-          add_unprocessed_node(layer, node_data)
-          return
+          return False
       else:
         raise ValueError('Improperly formatted model config.')
 
@@ -1216,8 +1213,7 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
         inbound_node_index = get_node_index(inbound_layer, inbound_node_index)
 
         if inbound_node_index is None:
-          add_unprocessed_node(layer, node_data)
-          return
+          return False
         inbound_node = inbound_layer._inbound_nodes[inbound_node_index]
         input_tensors.append(
             tf.nest.flatten(inbound_node.outputs)[inbound_tensor_index])
@@ -1234,9 +1230,11 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
       output_tensors = layer(input_tensors, **kwargs)
 
       # Update node index map.
-      output_index = tf.nest.flatten(output_tensors)[0]._keras_history.node_index
+      output_index = (tf.nest.flatten(output_tensors)[0].
+                      _keras_history.node_index)
       node_index_map[(layer.name, node_count_by_layer[layer])] = output_index
       node_count_by_layer[layer] += 1
+    return True
 
   def process_layer(layer_data):
     """Deserializes a layer, then call it on appropriate inputs.
@@ -1269,7 +1267,7 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
       # on the fly because the inbound node may not yet exist,
       # in case of layer shared at different topological depths
       # (e.g. a model such as A(B(A(B(x)))))
-      add_unprocessed_node(layer, node_data)
+      unprocessed_nodes[layer].append(node_data)
 
   # First, we create all layers and enqueue nodes to be processed
   for layer_data in config['layers']:
@@ -1282,8 +1280,16 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
     for layer_data in config['layers']:
       layer = created_layers[layer_data['name']]
       if layer in unprocessed_nodes:
-        for node_data in unprocessed_nodes.pop(layer):
-          process_node(layer, node_data)
+        layer_nodes = unprocessed_nodes.pop(layer)
+        while layer_nodes:
+          node_data = layer_nodes[0]
+          if process_node(layer, node_data):
+            layer_nodes.pop(0)
+          else:
+            # If a node can't be processed, stop processing the nodes of
+            # the current layer to maintain node ordering.
+            unprocessed_nodes[layer] = layer_nodes
+            break
 
   input_tensors = []
   output_tensors = []
