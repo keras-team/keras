@@ -303,8 +303,9 @@ class StringLookup(index_lookup.IndexLookup):
     allowed_dtypes = [tf.string]
 
     if "dtype" in kwargs and kwargs["dtype"] not in allowed_dtypes:
-      raise ValueError("The value of the dtype argument for StringLookup may "
-                       "only be one of %s." % (allowed_dtypes,))
+      raise ValueError(
+          f"The value of the `dtype` for `StringLookup` may "
+          f"only be one of {allowed_dtypes}, but received {kwargs['dtype']}.")
 
     if "dtype" not in kwargs:
       kwargs["dtype"] = tf.string

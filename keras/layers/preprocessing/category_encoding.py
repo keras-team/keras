@@ -141,7 +141,8 @@ class CategoryEncoding(base_layer.Layer):
                        "number of tokens is not known beforehand, use the "
                        "IntegerLookup layer instead.")
     if num_tokens < 1:
-      raise ValueError("num_tokens must be >= 1.")
+      raise ValueError(
+          f"`num_tokens` must be >= 1. Received: num_tokens={num_tokens}.")
 
     self.num_tokens = num_tokens
     self.output_mode = output_mode
