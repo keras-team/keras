@@ -147,7 +147,7 @@ def result_wrapper(result_fn):
             raise RuntimeError(
                 'The output of `metric.result()` can only be a single '
                 'Tensor/Variable, or a dict of Tensors/Variables. '
-                'For metric %s, got result %s.' % (metric_obj.name, raw_result))
+                f'For metric {metric_obj.name}, got result {raw_result}.')
     else:
       # TODO(psv): Test distribution of metrics using different distribution
       # strategies.
@@ -199,8 +199,7 @@ def assert_thresholds_range(thresholds):
     invalid_thresholds = [t for t in thresholds if t is None or t < 0 or t > 1]
     if invalid_thresholds:
       raise ValueError(
-          'Threshold values must be in [0, 1]. Invalid values: {}'.format(
-              invalid_thresholds))
+          f'Threshold values must be in [0, 1]. Received: {invalid_thresholds}')
 
 
 def parse_init_thresholds(thresholds, default_threshold=0.5):
@@ -229,7 +228,9 @@ class AUCCurve(Enum):
     elif key in ('roc', 'ROC'):
       return AUCCurve.ROC
     else:
-      raise ValueError('Invalid AUC curve value "%s".' % key)
+      raise ValueError(
+          f'Invalid AUC curve value: "{key}". '
+          'Expected values are ["PR", "ROC"]')
 
 
 class AUCSummationMethod(Enum):
@@ -259,7 +260,9 @@ class AUCSummationMethod(Enum):
     elif key in ('minoring', 'Minoring'):
       return AUCSummationMethod.MINORING
     else:
-      raise ValueError('Invalid AUC summation method value "%s".' % key)
+      raise ValueError(
+          f'Invalid AUC summation method value: "{key}". '
+          'Expected values are ["interpolation", "majoring", "minoring"]')
 
 
 def _update_confusion_matrix_variables_optimized(
@@ -561,9 +564,8 @@ def update_confusion_matrix_variables(variables_to_update,
       key for key in variables_to_update if key in list(ConfusionMatrix)):
     raise ValueError(
         'Please provide at least one valid confusion matrix '
-        'variable to update. Valid variable key options are: "{}". '
-        'Received: "{}"'.format(
-            list(ConfusionMatrix), variables_to_update.keys()))
+        'variable to update. Valid variable key options are: '
+        f'"{list(ConfusionMatrix)}". Received: "{variables_to_update.keys()}"')
 
   variable_dtype = list(variables_to_update.values())[0].dtype
 
@@ -599,8 +601,8 @@ def update_confusion_matrix_variables(variables_to_update,
   ]
   if invalid_keys:
     raise ValueError(
-        'Invalid keys: {}. Valid variable key options are: "{}"'.format(
-            invalid_keys, list(ConfusionMatrix)))
+        f'Invalid keys: "{invalid_keys}". '
+        f'Valid variable key options are: "{list(ConfusionMatrix)}"')
 
   with tf.control_dependencies([
       tf.compat.v1.assert_greater_equal(
@@ -806,10 +808,12 @@ def ragged_assert_compatible_and_get_flat_values(values, mask=None):
     values = flat_values[0] if to_be_stripped else flat_values
 
   elif is_any_ragged:
-    raise TypeError('One of the inputs does not have acceptable types.')
+    raise TypeError('Some of the inputs are not tf.RaggedTensor. '
+                    f'Input received: {values}')
   # values are empty or value are not ragged and mask is ragged.
   elif isinstance(mask, tf.RaggedTensor):
-    raise TypeError('Ragged mask is not allowed with non-ragged inputs.')
+    raise TypeError('Ragged mask is not allowed with non-ragged inputs. '
+                    f'Input received: {values}, mask received: {mask}')
 
   return values, mask
 
@@ -831,7 +835,8 @@ def _assert_splits_match(nested_splits_lists):
   Raises:
     ValueError: If the splits are not identical.
   """
-  error_msg = 'Inputs must have identical ragged splits'
+  error_msg = ('Inputs must have identical ragged splits. '
+               f'Input received: {nested_splits_lists}')
   for splits_list in nested_splits_lists:
     if len(splits_list) != len(nested_splits_lists[0]):
       raise ValueError(error_msg)
