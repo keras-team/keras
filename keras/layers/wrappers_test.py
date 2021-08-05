@@ -561,7 +561,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     x = tf.constant(np.zeros((1, 1)).astype('float32'))
     with self.assertRaisesRegex(
         ValueError,
-        'Please initialize `Bidirectional` layer with a `Layer` instance.'):
+        'Please initialize `Bidirectional` layer with a '
+        '`tf.keras.layers.Layer` instance.'):
       keras.layers.Bidirectional(x)
 
   def test_bidirectional_weight_loading(self):
@@ -1136,7 +1137,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
       kwargs = {attr: True}
       backward_layer = rnn(units, go_backwards=True, **kwargs)
       with self.assertRaisesRegex(
-          ValueError, 'expected to have the same value for attribute ' + attr):
+          ValueError, 'expected to have the same value for attribute "' + attr):
         keras.layers.Bidirectional(
             forward_layer, merge_mode='concat', backward_layer=backward_layer)
 
