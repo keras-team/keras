@@ -17,8 +17,6 @@
 """Built-in metrics."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import check_ops
 
 import abc
 import types
