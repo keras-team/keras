@@ -95,7 +95,9 @@ class Reshape(Layer):
         if unknown is None:
           unknown = index
         else:
-          raise ValueError('Can only specify one unknown dimension.')
+          raise ValueError(
+              f'There must be at most one unknown dimension in output_shape. '
+              f'Received: output_shape={output_shape}.')
       else:
         known *= dim
 

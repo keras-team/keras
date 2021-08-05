@@ -48,12 +48,11 @@ class PreprocessingStage(sequential.Sequential,
       reset_state: Whether this call to `adapt` should reset the state of
         the layers in this preprocessing stage.
     """
-    if not isinstance(data,
-                      (tf.data.Dataset, np.ndarray, tf.__internal__.EagerTensor)):
+    if not isinstance(
+        data, (tf.data.Dataset, np.ndarray, tf.__internal__.EagerTensor)):
       raise ValueError(
-          '`adapt()` requires a batched Dataset, an EagerTensor, '
-          'or a Numpy array as input, '
-          'got {}'.format(type(data)))
+          f'`adapt()` requires a batched Dataset, an EagerTensor, or a Numpy '
+          f'array as input. Received data={data}')
     if isinstance(data, tf.data.Dataset):
       # Validate the datasets to try and ensure we haven't been passed one with
       # infinite size. That would cause an infinite loop here.
