@@ -1496,16 +1496,16 @@ class TextVectorizationErrorTest(keras_parameterized.TestCase,
 
   def test_unknown_standardize_arg_fails(self):
     with self.assertRaisesRegex(ValueError,
-                                "standardize arg.*unsupported_value"):
+                                "`standardize` arg.*unsupported_value"):
       _ = text_vectorization.TextVectorization(standardize="unsupported_value")
 
   def test_unknown_split_arg_fails(self):
-    with self.assertRaisesRegex(ValueError, "split arg.*unsupported_value"):
+    with self.assertRaisesRegex(ValueError, "`split` arg.*unsupported_value"):
       _ = text_vectorization.TextVectorization(split="unsupported_value")
 
   def test_unknown_output_mode_arg_fails(self):
     with self.assertRaisesRegex(ValueError,
-                                "output_mode arg.*unsupported_value"):
+                                "`output_mode` arg.*unsupported_value"):
       _ = text_vectorization.TextVectorization(output_mode="unsupported_value")
 
   def test_unknown_ngrams_arg_fails(self):
