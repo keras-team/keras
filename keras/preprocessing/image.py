@@ -104,14 +104,14 @@ def smart_resize(x, size, interpolation='bilinear'):
   """
   if len(size) != 2:
     raise ValueError('Expected `size` to be a tuple of 2 integers, '
-                     'but got: %s' % (size,))
+                     f'but got: {size}.')
   img = tf.convert_to_tensor(x)
   if img.shape.rank is not None:
     if img.shape.rank < 3 or img.shape.rank > 4:
       raise ValueError(
           'Expected an image array with shape `(height, width, channels)`, '
-          'or `(batch_size, height, width, channels)` but '
-          'got input with incorrect rank, of shape %s' % (img.shape,))
+          'or `(batch_size, height, width, channels)`, but '
+          f'got input with incorrect rank, of shape {img.shape}.')
   shape = tf.shape(img)
   height, width = shape[-3], shape[-2]
   target_height, target_width = size
