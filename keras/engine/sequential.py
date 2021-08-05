@@ -72,7 +72,7 @@ class Sequential(functional.Functional):
   model.add(tf.keras.layers.Dense(8, input_shape=(16,)))
   model.add(tf.keras.layers.Dense(4))
   len(model.weights)
-  4
+  # Returns "4"
 
   # When using the delayed-build pattern (no input shape specified), you can
   # choose to manually build your model by calling
@@ -82,7 +82,7 @@ class Sequential(functional.Functional):
   model.add(tf.keras.layers.Dense(4))
   model.build((None, 16))
   len(model.weights)
-  4
+  # Returns "4"
 
   # Note that when using the delayed-build pattern (no input shape specified),
   # the model gets built the first time you call `fit`, `eval`, or `predict`,
