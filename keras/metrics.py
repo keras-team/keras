@@ -1408,9 +1408,8 @@ class Precision(Metric):
         sample_weight=sample_weight)
 
   def result(self):
-    result = tf.math.divide_no_nan(
-        self.true_positives,
-        tf.math.add(self.true_positives, self.false_positives))
+    result = tf.math.divide_no_nan(self.true_positives,
+                                   self.true_positives + self.false_positives)
     return result[0] if len(self.thresholds) == 1 else result
 
   def reset_state(self):
