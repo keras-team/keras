@@ -432,6 +432,7 @@ distribute_py_test(
     srcs = ["keras_metrics_test.py"],
     disable_mlir_bridge = False,
     main = "keras_metrics_test.py",
+    shard_count = 8,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
