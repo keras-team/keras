@@ -1,45 +1,51 @@
 ## How to contribute code
 
-You can follow these steps to submit your code contribution.
+Follow these steps to submit your code contribution.
 
 ### Step 1. Open an issue
+
 Before making any changes, we recommend opening an issue (if one doesn't already
 exist) and discussing your proposed changes. This way, we can give you feedback
-and validated the proposed changes. If the changes are minor (simple bug fix
-of documentation fix), then feel free to open a PR without discussion.
+and validate the proposed changes.
+
+If the changes are minor (simple bug fix
+or documentation fix), then feel free to open a PR without discussion.
 
 ### Step 2. Make code changes
 
 To make code changes, you need to fork the repository.
-You may need to setup a dev environment,
-run the unit tests, which are introduced in the later sections of this guide.
+You will need to setup a development environment
+and run the unit tests. This is covered in section "Setup environment".
 
 ### Step 3. Create a pull request 
 
-Once the code changes are made,
-you can open a pull request from your branch in your fork to the master branch in
+Once the change is ready,
+open a pull request from your branch in your fork to the master branch in
 [keras-team/keras](https://github.com/keras-team/keras).
 
-### Step 4. Sign the agreement
+### Step 4. Sign the Contributor License Agreement
 
 After creating the pull request,
 the `google-cla` bot will comment on your pull request
-with the instructions on signing
+with instructions on signing
 the Contributor License Agreement (CLA)
 if you haven't done so.
 Please follow the instructions to sign the CLA.
 A `cla:yes` tag is then added to the pull request.
 
-### Step 5. Automated tests
+### Step 5. Continous Integration tests
+
 A set of automated tests will also start to run after creating the pull request.
-If the tests fail, you may look into the error messages and try to fix it. 
+If the tests fail, look into the error messages and try to fix it. 
 
 ### Step 6. Code review
+
 A reviewer will review the pull request and provide comments.
 There may be several rounds of comments and code changes
 before the pull request gets approved by the reviewer.
 
-### Step 7. Merge
+### Step 7. Merging
+
 Once the pull request is approved,
 a `ready to pull` tag will be added to the pull request.
 A team member will take care of the merging.
@@ -59,8 +65,7 @@ Another one is to setup a local environment by install the dev tools needed.
 ### Option 1: Use a Docker container
 
 We provide a 
-[Dockerfile](
-https://github.com/keras-team/keras/blob/master/.devcontainer/Dockerfile)
+[Dockerfile](https://github.com/keras-team/keras/blob/master/.devcontainer/Dockerfile)
 to build the dev environment.
 You can build the Dockerfile into a Docker image named `keras-dev`
 with the following command at the root directory of your cloned repo.
