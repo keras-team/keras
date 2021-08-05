@@ -85,10 +85,15 @@ def get_strategy():
     `tf.distribute.Strategy` instance.
   """
   cls = FLAGS.keras_distribute_strategy_class
+  accepted_strats = {
+      'tpu', 'multi_worker_mirrored', 'mirrored',
+      'parameter_server', 'one_device'}
   if cls == 'tpu':
     tpu_addr = FLAGS.keras_distribute_strategy_tpu_addr
     if not tpu_addr:
-      raise ValueError('Must set flag: keras_distribute_strategy_tpu_addr')
+      raise ValueError(
+          'When using a TPU strategy, you must set the flag '
+          '`keras_distribute_strategy_tpu_addr` (TPU address).')
     cluster_resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
         tpu=tpu_addr)
     tf.config.experimental_connect_to_cluster(cluster_resolver)
@@ -105,5 +110,8 @@ def get_strategy():
   elif cls == 'one_device':
     strategy = tf.distribute.OneDeviceStrategy('/gpu:0')
   else:
-    raise ValueError('Unknown strategy: {}'.format(cls))
+    raise ValueError(
+        'Unknown distribution strategy flag. Received: '
+        f'keras_distribute_strategy_class={cls}. '
+        f'It should be one of {accepted_strats}')
   return strategy
