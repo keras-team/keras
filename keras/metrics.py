@@ -236,6 +236,10 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
     return distributed_training_utils.call_replica_local_fn(
         replica_local_fn, *args, **kwargs)
 
+  def __str__(self):
+    args = ','.join(f'{k}={v}' for k, v in self.get_config().items())
+    return f'{self.__class__.__name__}({args})'
+
   @property
   def dtype(self):
     return self._dtype
@@ -278,6 +282,42 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
       **kwargs: A mini-batch of inputs to the Metric.
     """
     raise NotImplementedError('Must be implemented in subclasses.')
+
+  def merge_state(self, metrics):
+    """Merges the state from one or more metrics.
+
+    This method can be used by distributed systems to merge the state computed
+    by different metric instances. Typically the state will be stored in the
+    form of the metric's weights. For example, a tf.keras.metrics.Mean metric
+    contains a list of two weight values: a total and a count. If there were two
+    instances of a tf.keras.metrics.Accuracy that each independently aggregated
+    partial state for an overall accuracy calculation, these two metric's states
+    could be combined as follows:
+
+    >>> m1 = tf.keras.metrics.Accuracy()
+    >>> _ = m1.update_state([[1], [2]], [[0], [2]])
+
+    >>> m2 = tf.keras.metrics.Accuracy()
+    >>> _ = m2.update_state([[3], [4]], [[3], [4]])
+
+    >>> m2.merge_state([m1])
+    >>> m2.result().numpy()
+    0.75
+
+    Args:
+      metrics: an iterable of metrics. The metrics must have compatible state.
+
+    Raises:
+      ValueError: If the provided iterable does not contain metrics matching the
+        metric's required specifications.
+    """
+    assign_add_ops = []
+    for metric in metrics:
+      if len(self.weights) != len(metric.weights):
+        raise ValueError(f'Metric {metric} is not compatible with {self}')
+      for weight, weight_to_add in zip(self.weights, metric.weights):
+        assign_add_ops.append(weight.assign_add(weight_to_add))
+    return assign_add_ops
 
   @abc.abstractmethod
   def result(self):
