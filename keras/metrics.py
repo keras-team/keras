@@ -1368,8 +1368,9 @@ class Precision(Metric):
         sample_weight=sample_weight)
 
   def result(self):
-    result = tf.math.divide_no_nan(self.true_positives,
-                                 self.true_positives + self.false_positives)
+    result = tf.math.divide_no_nan(
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_positives))
     return result[0] if len(self.thresholds) == 1 else result
 
   def reset_state(self):
@@ -1497,8 +1498,9 @@ class Recall(Metric):
         sample_weight=sample_weight)
 
   def result(self):
-    result = tf.math.divide_no_nan(self.true_positives,
-                                 self.true_positives + self.false_negatives)
+    result = tf.math.divide_no_nan(
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     return result[0] if len(self.thresholds) == 1 else result
 
   def reset_state(self):
@@ -1707,9 +1709,11 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
 
   def result(self):
     specificities = tf.math.divide_no_nan(
-        self.true_negatives, self.true_negatives + self.false_positives)
+        self.true_negatives,
+        tf.math.add(self.true_negatives, self.false_positives))
     sensitivities = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_negatives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     return self._find_max_under_constraint(
         specificities, sensitivities, tf.greater_equal)
 
@@ -1801,9 +1805,11 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
 
   def result(self):
     sensitivities = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_negatives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     specificities = tf.math.divide_no_nan(
-        self.true_negatives, self.true_negatives + self.false_positives)
+        self.true_negatives,
+        tf.math.add(self.true_negatives, self.false_positives))
     return self._find_max_under_constraint(
         sensitivities, specificities, tf.greater_equal)
 
@@ -1887,9 +1893,11 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
 
   def result(self):
     recalls = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_negatives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     precisions = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_positives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_positives))
     return self._find_max_under_constraint(
         recalls, precisions, tf.greater_equal)
 
@@ -1973,9 +1981,11 @@ class RecallAtPrecision(SensitivitySpecificityBase):
 
   def result(self):
     precisions = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_positives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_positives))
     recalls = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_negatives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     return self._find_max_under_constraint(
         precisions, recalls, tf.greater_equal)
 
@@ -2353,7 +2363,7 @@ class AUC(Metric):
     """
     dtp = self.true_positives[:self.num_thresholds -
                               1] - self.true_positives[1:]
-    p = self.true_positives + self.false_positives
+    p = tf.math.add(self.true_positives, self.false_positives)
     dp = p[:self.num_thresholds - 1] - p[1:]
     prec_slope = tf.math.divide_no_nan(
         dtp, tf.maximum(dp, 0), name='prec_slope')
@@ -2396,16 +2406,19 @@ class AUC(Metric):
       return self.interpolate_pr_auc()
 
     # Set `x` and `y` values for the curves based on `curve` config.
-    recall = tf.math.divide_no_nan(self.true_positives,
-                                 self.true_positives + self.false_negatives)
+    recall = tf.math.divide_no_nan(
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     if self.curve == metrics_utils.AUCCurve.ROC:
-      fp_rate = tf.math.divide_no_nan(self.false_positives,
-                                    self.false_positives + self.true_negatives)
+      fp_rate = tf.math.divide_no_nan(
+          self.false_positives,
+          tf.math.add(self.false_positives, self.true_negatives))
       x = fp_rate
       y = recall
     else:  # curve == 'PR'.
       precision = tf.math.divide_no_nan(
-          self.true_positives, self.true_positives + self.false_positives)
+          self.true_positives,
+          tf.math.add(self.true_positives, self.false_positives))
       x = recall
       y = precision
 
