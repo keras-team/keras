@@ -67,9 +67,9 @@ class LeakyReLU(Layer):
   def __init__(self, alpha=0.3, **kwargs):
     super(LeakyReLU, self).__init__(**kwargs)
     if alpha is None:
-      raise ValueError('The alpha value of a Leaky ReLU layer '
-                       'cannot be None, needs a float. '
-                       'Got %s' % alpha)
+      raise ValueError(
+          'The alpha value of a Leaky ReLU layer cannot be None, '
+          f'Expecting a float. Received: {alpha}')
     self.supports_masking = True
     self.alpha = backend.cast_to_floatx(alpha)
 
@@ -206,8 +206,9 @@ class ELU(Layer):
   def __init__(self, alpha=1.0, **kwargs):
     super(ELU, self).__init__(**kwargs)
     if alpha is None:
-      raise ValueError('Alpha of an ELU layer cannot be None, '
-                       'requires a float. Got %s' % alpha)
+      raise ValueError(
+          'Alpha of an ELU layer cannot be None, expecting a float. '
+          f'Received: {alpha}')
     self.supports_masking = True
     self.alpha = backend.cast_to_floatx(alpha)
 
@@ -250,11 +251,12 @@ class ThresholdedReLU(Layer):
   def __init__(self, theta=1.0, **kwargs):
     super(ThresholdedReLU, self).__init__(**kwargs)
     if theta is None:
-      raise ValueError('Theta of a Thresholded ReLU layer cannot be '
-                       'None, requires a float. Got %s' % theta)
+      raise ValueError(
+          'Theta of a Thresholded ReLU layer cannot be None, expecting a float.'
+          f' Received: {theta}')
     if theta < 0:
       raise ValueError('The theta value of a Thresholded ReLU layer '
-                       'should be >=0, got %s' % theta)
+                       f'should be >=0. Received: {theta}')
     self.supports_masking = True
     self.theta = backend.cast_to_floatx(theta)
 
@@ -410,13 +412,13 @@ class ReLU(Layer):
     super(ReLU, self).__init__(**kwargs)
     if max_value is not None and max_value < 0.:
       raise ValueError('max_value of a ReLU layer cannot be a negative '
-                       'value. Got: %s' % max_value)
+                       f'value. Received: {max_value}')
     if negative_slope is None or negative_slope < 0.:
       raise ValueError('negative_slope of a ReLU layer cannot be a negative '
-                       'value. Got: %s' % negative_slope)
+                       f'value. Received: {negative_slope}')
     if threshold is None or threshold < 0.:
       raise ValueError('threshold of a ReLU layer cannot be a negative '
-                       'value. Got: %s' % threshold)
+                       f'value. Received: {threshold}')
 
     self.supports_masking = True
     if max_value is not None:
