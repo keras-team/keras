@@ -159,13 +159,13 @@ def piecewise_constant(x, boundaries, values, name=None):
         boundaries[i] = b
       else:
         raise ValueError(
-            "Boundaries (%s) must have the same dtype as x (%s)." %
-            (b.dtype.base_dtype, x_recomp.dtype.base_dtype))
+            f"`boundaries` ({b.dtype.base_dtype}) must have the same dtype as "
+            f"x ({x_recomp.dtype.base_dtype}).")
   for v in values[1:]:
     if v.dtype.base_dtype != values[0].dtype.base_dtype:
       raise ValueError(
-          "Values must have elements all with the same dtype (%s vs %s)." %
-          (values[0].dtype.base_dtype, v.dtype.base_dtype))
+          f"`values` must have elements all with the same dtype "
+          f"({values[0].dtype.base_dtype} vs {v.dtype.base_dtype}).")
   decayed_lr = learning_rate_schedule.PiecewiseConstantDecay(
       boundaries, values, name=name)
   if not tf.executing_eagerly():
