@@ -82,8 +82,10 @@ def get_layer_index_bound_by_layer_name(model, layer_names):
       lower_index.append(idx)
     if re.match(layer_names[1], layer.name):
       upper_index.append(idx)
-  if len(lower_index) == 0 or len(upper_index) == 0:
-    raise ValueError('Passed layer_range does not match to model layers')
+  if not lower_index or not upper_index:
+    raise ValueError(
+        'Passed layer_names does not match to layers in the model. '
+        f'Recieved: {layer_names}')
   if min(lower_index) > max(upper_index):
     return [min(upper_index), max(lower_index)]
   return [min(lower_index), max(upper_index)]
@@ -162,14 +164,18 @@ def model_to_dot(model,
 
   if layer_range:
     if len(layer_range) != 2:
-      raise ValueError('layer_range must be of shape (2,)')
+      raise ValueError(
+          'layer_range must be of shape (2,). Received: '
+          f'layer_range = {layer_range} of length {len(layer_range)}')
     if (not isinstance(layer_range[0], str) or
         not isinstance(layer_range[1], str)):
-      raise ValueError('layer_range should contain string type only')
+      raise ValueError(
+          'layer_range should contain string type only. '
+          f'Received: {layer_range}')
     layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
     if layer_range[0] < 0 or layer_range[1] > len(model.layers):
-      raise ValueError('Both values in layer_range should be in',
-                       'range (%d, %d)' % (0, len(model.layers)))
+      raise ValueError('Both values in layer_range should be in range (0, '
+                       f'{len(model.layers)}. Recieved: {layer_range}')
 
   sub_n_first_node = {}
   sub_n_last_node = {}
