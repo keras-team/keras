@@ -80,7 +80,8 @@ class ReductionV2:
   @classmethod
   def validate(cls, key):
     if key not in cls.all():
-      raise ValueError('Invalid Reduction Key %s.' % key)
+      raise ValueError(
+          f'Invalid Reduction Key: {key}. Expected keys are "{cls.all()}"')
 
 
 def remove_squeezable_dimensions(

@@ -268,13 +268,13 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(self.evaluate(loss), 16, 1e-2)
 
   def test_invalid_reduction(self):
-    with self.assertRaisesRegex(ValueError, 'Invalid Reduction Key Foo.'):
+    with self.assertRaisesRegex(ValueError, 'Invalid Reduction Key: Foo.'):
       losses.MeanSquaredError(reduction='Foo')
 
     mse_obj = losses.MeanSquaredError()
     y = tf.constant([1])
     mse_obj.reduction = 'Bar'
-    with self.assertRaisesRegex(ValueError, 'Invalid Reduction Key Bar.'):
+    with self.assertRaisesRegex(ValueError, 'Invalid Reduction Key: Bar.'):
       mse_obj(y, y)
 
   def test_deserialization_error(self):
