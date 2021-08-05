@@ -99,12 +99,12 @@ class FalsePositivesTest(tf.test.TestCase, parameterized.TestCase):
   def test_threshold_limit(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'Threshold values must be in \[0, 1\]. Invalid values: \[-1, 2\]'):
+        r'Threshold values must be in \[0, 1\]. Received: \[-1, 2\]'):
       metrics.FalsePositives(thresholds=[-1, 0.5, 2])
 
     with self.assertRaisesRegex(
         ValueError,
-        r'Threshold values must be in \[0, 1\]. Invalid values: \[None\]'):
+        r'Threshold values must be in \[0, 1\]. Received: \[None\]'):
       metrics.FalsePositives(thresholds=[None])
 
 
@@ -1467,12 +1467,12 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_invalid_curve(self):
     with self.assertRaisesRegex(ValueError,
-                                'Invalid AUC curve value "Invalid".'):
+                                'Invalid AUC curve value: "Invalid".'):
       metrics.AUC(curve='Invalid')
 
   def test_invalid_summation_method(self):
     with self.assertRaisesRegex(
-        ValueError, 'Invalid AUC summation method value "Invalid".'):
+        ValueError, 'Invalid AUC summation method value: "Invalid".'):
       metrics.AUC(summation_method='Invalid')
 
   def test_extra_dims(self):
