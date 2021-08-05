@@ -87,11 +87,14 @@ class DatasetCreator:
 
   def __init__(self, dataset_fn, input_options=None):
     if not callable(dataset_fn):
-      raise TypeError('`dataset_fn` for `DatasetCreator` must be a `callable`.')
+      raise TypeError(
+          '`dataset_fn` for `DatasetCreator` must be a `callable`. '
+          f'Received: {dataset_fn}')
     if input_options and (not isinstance(input_options,
                                          tf.distribute.InputOptions)):
-      raise TypeError('`input_options` for `DatasetCreator` must be a '
-                      '`tf.distribute.InputOptions`.')
+      raise TypeError(
+          '`input_options` for `DatasetCreator` must be a '
+          f'`tf.distribute.InputOptions`. Received: {input_options}')
 
     self.dataset_fn = dataset_fn
     self.input_options = input_options
@@ -101,6 +104,7 @@ class DatasetCreator:
     # the callable.
     dataset = self.dataset_fn(*args, **kwargs)
     if not isinstance(dataset, tf.data.Dataset):
-      raise TypeError('The `callable` provided to `DatasetCreator` must return '
-                      'a Dataset.')
+      raise TypeError(
+          'The `callable` provided to `DatasetCreator` must return '
+          f'a Dataset. It returns "{dataset}"')
     return dataset

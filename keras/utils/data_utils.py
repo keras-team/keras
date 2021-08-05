@@ -225,7 +225,9 @@ def get_file(fname=None,
   if not fname:
     fname = os.path.basename(urlsplit(origin).path)
     if not fname:
-      raise ValueError("Invalid origin '{}'".format(origin))
+      raise ValueError(
+          f"Can't parse the file name from the origin provided: '{origin}'."
+          "Please specify the `fname` as the input param.")
 
   if untar:
     if fname.endswith('.tar.gz'):

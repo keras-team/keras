@@ -31,7 +31,8 @@ def convert_data_format(data_format, ndim):
     elif ndim == 5:
       return 'NDHWC'
     else:
-      raise ValueError('Input rank not supported:', ndim)
+      raise ValueError(
+          f'Input rank not supported: {ndim}. Expected values are [3, 4, 5]')
   elif data_format == 'channels_first':
     if ndim == 3:
       return 'NCW'
@@ -40,9 +41,12 @@ def convert_data_format(data_format, ndim):
     elif ndim == 5:
       return 'NCDHW'
     else:
-      raise ValueError('Input rank not supported:', ndim)
+      raise ValueError(
+          f'Input rank not supported: {ndim}. Expected values are [3, 4, 5]')
   else:
-    raise ValueError('Invalid data_format:', data_format)
+    raise ValueError(
+        f'Invalid data_format: {data_format}. '
+        'Expected values are ["channels_first", "channels_last"]')
 
 
 def normalize_tuple(value, n, name):
@@ -65,22 +69,22 @@ def normalize_tuple(value, n, name):
   if isinstance(value, int):
     return (value,) * n
   else:
+    error_msg = (f'The `{name}` argument must be a tuple of {n} '
+                 f'integers. Received: {value}')
+
     try:
       value_tuple = tuple(value)
     except TypeError:
-      raise ValueError('The `' + name + '` argument must be a tuple of ' +
-                       str(n) + ' integers. Received: ' + str(value))
+      raise ValueError(error_msg)
     if len(value_tuple) != n:
-      raise ValueError('The `' + name + '` argument must be a tuple of ' +
-                       str(n) + ' integers. Received: ' + str(value))
+      raise ValueError(error_msg)
     for single_value in value_tuple:
       try:
         int(single_value)
       except (ValueError, TypeError):
-        raise ValueError('The `' + name + '` argument must be a tuple of ' +
-                         str(n) + ' integers. Received: ' + str(value) + ' '
-                         'including element ' + str(single_value) + ' of type' +
-                         ' ' + str(type(single_value)))
+        error_msg += (f'including element {single_value} of '
+                      f'type {type(single_value)}')
+        raise ValueError(error_msg)
     return value_tuple
 
 
@@ -189,8 +193,7 @@ def normalize_data_format(value):
   data_format = value.lower()
   if data_format not in {'channels_first', 'channels_last'}:
     raise ValueError('The `data_format` argument must be one of '
-                     '"channels_first", "channels_last". Received: ' +
-                     str(value))
+                     f'"channels_first", "channels_last". Received: {value}')
   return data_format
 
 
@@ -201,7 +204,7 @@ def normalize_padding(value):
   if padding not in {'valid', 'same', 'causal'}:
     raise ValueError('The `padding` argument must be a list/tuple or one of '
                      '"valid", "same" (or "causal", only for `Conv1D). '
-                     'Received: ' + str(padding))
+                     f'Received: {padding}')
   return padding
 
 
@@ -252,9 +255,8 @@ def conv_kernel_mask(input_shape, kernel_shape, strides, padding):
     NotImplementedError: if `padding` is not in {`"same"`, `"valid"`}.
   """
   if padding not in {'same', 'valid'}:
-    raise NotImplementedError('Padding type %s not supported. '
-                              'Only "valid" and "same" '
-                              'are implemented.' % padding)
+    raise NotImplementedError(f'Padding type {padding} not supported. '
+                              'Only "valid" and "same" are implemented.')
 
   in_dims = len(input_shape)
   if isinstance(kernel_shape, int):
@@ -266,8 +268,8 @@ def conv_kernel_mask(input_shape, kernel_shape, strides, padding):
   stride_dims = len(strides)
   if kernel_dims != in_dims or stride_dims != in_dims:
     raise ValueError('Number of strides, input and kernel dimensions must all '
-                     'match. Received: %d, %d, %d.' %
-                     (stride_dims, in_dims, kernel_dims))
+                     f'match. Received: stride_dims={stride_dims}, '
+                     f'in_dims={in_dims}, kernel_dims={kernel_dims}')
 
   output_shape = conv_output_shape(input_shape, kernel_shape, strides, padding)
 
@@ -334,9 +336,8 @@ def conv_kernel_idxs(input_shape, kernel_shape, strides, padding, filters_in,
       NotImplementedError: if `padding` is neither `"same"` nor `"valid"`.
   """
   if padding not in ('same', 'valid'):
-    raise NotImplementedError('Padding type %s not supported. '
-                              'Only "valid" and "same" '
-                              'are implemented.' % padding)
+    raise NotImplementedError(f'Padding type {padding} not supported. '
+                              'Only "valid" and "same" are implemented.')
 
   in_dims = len(input_shape)
   if isinstance(kernel_shape, int):
@@ -348,8 +349,8 @@ def conv_kernel_idxs(input_shape, kernel_shape, strides, padding, filters_in,
   stride_dims = len(strides)
   if kernel_dims != in_dims or stride_dims != in_dims:
     raise ValueError('Number of strides, input and kernel dimensions must all '
-                     'match. Received: %d, %d, %d.' %
-                     (stride_dims, in_dims, kernel_dims))
+                     f'match. Received: stride_dims={stride_dims}, '
+                     f'in_dims={in_dims}, kernel_dims={kernel_dims}')
 
   output_shape = conv_output_shape(input_shape, kernel_shape, strides, padding)
   output_axes_ticks = [range(dim) for dim in output_shape]
@@ -359,9 +360,9 @@ def conv_kernel_idxs(input_shape, kernel_shape, strides, padding, filters_in,
   elif data_format == 'channels_last':
     concat_idxs = lambda spatial_idx, filter_idx: spatial_idx + (filter_idx,)
   else:
-    raise ValueError('Data format %s not recognized.'
-                     '`data_format` must be "channels_first" or '
-                     '"channels_last".' % data_format)
+    raise ValueError(
+        f'Data format `{data_format}` not recognized.'
+        '`data_format` must be "channels_first" or "channels_last".')
 
   for output_position in itertools.product(*output_axes_ticks):
     input_axes_ticks = conv_connected_inputs(input_shape, kernel_shape,
