@@ -72,7 +72,7 @@ def all_combinations():
           combinations.mirrored_strategy_with_gpu_and_cpu,
           combinations.mirrored_strategy_with_two_gpus
       ],
-      mode=["graph"])
+      mode=["graph", "eager"])
 
 
 def tpu_combinations():
@@ -186,6 +186,78 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(layer.metrics[1].result().numpy(), 1.0)
     self.assertEqual(layer.sum_var.read_value().numpy(),
                      1.0 * distribution.num_replicas_in_sync)
+
+  @combinations.generate(all_combinations())
+  def test_precision(self, distribution):
+    # True positive is 2, false positive 1, precision is 2/3 = 0.6666667
+    label_prediction = ([0, 1, 1, 1], [1, 0, 1, 1])
+    with distribution.scope():
+      precision = metrics.Precision()
+      self.evaluate([v.initializer for v in precision.variables])
+      updates = distribution.run(precision, args=label_prediction)
+      self.evaluate(updates)
+    self.assertAllClose(precision.result(), 0.6666667)
+
+  @combinations.generate(all_combinations())
+  def test_recall(self, distribution):
+    # True positive is 2, false negative 1, precision is 2/3 = 0.6666667
+    label_prediction = ([0, 1, 1, 1], [1, 0, 1, 1])
+    with distribution.scope():
+      recall = metrics.Recall()
+      self.evaluate([v.initializer for v in recall.variables])
+      updates = distribution.run(recall, args=label_prediction)
+      self.evaluate(updates)
+    self.assertAllClose(recall.result(), 0.6666667)
+
+  @combinations.generate(all_combinations())
+  def test_SensitivityAtSpecificity(self, distribution):
+    label_prediction = ([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8])
+    with distribution.scope():
+      metric = metrics.SensitivityAtSpecificity(0.5)
+      self.evaluate([v.initializer for v in metric.variables])
+      updates = distribution.run(metric, args=label_prediction)
+      self.evaluate(updates)
+    self.assertAllClose(metric.result(), 0.5)
+
+  @combinations.generate(all_combinations())
+  def test_SpecificityAtSensitivity(self, distribution):
+    label_prediction = ([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8])
+    with distribution.scope():
+      metric = metrics.SpecificityAtSensitivity(0.5)
+      self.evaluate([v.initializer for v in metric.variables])
+      updates = distribution.run(metric, args=label_prediction)
+      self.evaluate(updates)
+    self.assertAllClose(metric.result(), 0.66666667)
+
+  @combinations.generate(all_combinations())
+  def test_PrecisionAtRecall(self, distribution):
+    label_prediction = ([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8])
+    with distribution.scope():
+      metric = metrics.PrecisionAtRecall(0.5)
+      self.evaluate([v.initializer for v in metric.variables])
+      updates = distribution.run(metric, args=label_prediction)
+      self.evaluate(updates)
+    self.assertAllClose(metric.result(), 0.5)
+
+  @combinations.generate(all_combinations())
+  def test_RecallAtPrecision(self, distribution):
+    label_prediction = ([0, 0, 1, 1], [0, 0.5, 0.3, 0.9])
+    with distribution.scope():
+      metric = metrics.RecallAtPrecision(0.8)
+      self.evaluate([v.initializer for v in metric.variables])
+      updates = distribution.run(metric, args=label_prediction)
+      self.evaluate(updates)
+    self.assertAllClose(metric.result(), 0.5)
+
+  @combinations.generate(all_combinations())
+  def test_auc(self, distribution):
+    label_prediction = ([0, 0, 1, 1], [0, 0.5, 0.3, 0.9])
+    with distribution.scope():
+      metric = metrics.AUC(num_thresholds=3)
+      self.evaluate([v.initializer for v in metric.variables])
+      updates = distribution.run(metric, args=label_prediction)
+      self.evaluate(updates)
+    self.assertAllClose(metric.result(), 0.75)
 
 
 if __name__ == "__main__":
