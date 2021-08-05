@@ -347,7 +347,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     for k in kwargs:
       if k not in allowed_kwargs:
         raise TypeError("Unexpected keyword argument "
-                        "passed to optimizer: " + str(k))
+                        f"passed to optimizer: {str(k)}. Allowed kwargs are "
+                        f"{allowed_kwargs}.")
       # checks that all keyword arguments are non-negative.
       if kwargs[k] is not None and kwargs[k] < 0:
         raise ValueError("Expected {} >= 0, received: {}".format(k, kwargs[k]))
@@ -374,7 +375,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
     decay = kwargs.pop("decay", 0.0)
     if decay < 0.:
-      raise ValueError("decay cannot be less than 0: {}".format(decay))
+      raise ValueError("decay cannot be less than 0. "
+                       "Received: decay={}.".format(decay))
     self._initial_decay = decay
 
     self._hypers_created = False
@@ -395,8 +397,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     self.clipnorm = kwargs.pop("clipnorm", None)
     self.global_clipnorm = kwargs.pop("global_clipnorm", None)
     if self.clipnorm is not None and self.global_clipnorm is not None:
-      raise ValueError("Cannot accept both `clipnorm` and `global_clipnorm`, "
-                       "passed `clipnorm` {}, `global_clipnorm` {}".format(
+      raise ValueError("Cannot accept both `clipnorm` and `global_clipnorm`. "
+                       "Received: `clipnorm`={}, `global_clipnorm`={}.".format(
                            self.clipnorm, self.global_clipnorm))
     self.clipvalue = kwargs.pop("clipvalue", None)
 
@@ -415,7 +417,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     if val is not None and self.gradient_transformers:
       raise ValueError("`clipnorm` cannot be set when `gradient_transformers` "
                        "is set. Instead, use the `gradient_transformers` to "
-                       "specify clipping and other transformations.")
+                       "specify clipping and other transformations. Received: "
+                       f"val={val}, "
+                       f"gradient_transformers={self.gradient_transformers}.")
     self._clipnorm = val
     self._clipnorm_fn = optimizer_utils.make_gradient_clipnorm_fn(
         self._clipnorm)
@@ -423,9 +427,12 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
   @global_clipnorm.setter
   def global_clipnorm(self, val):
     if val is not None and self.gradient_transformers:
-      raise ValueError("`clipnorm` cannot be set when `gradient_transformers` "
+      raise ValueError("`global_clipnorm` cannot be set when "
+                       "`gradient_transformers` "
                        "is set. Instead, use the `gradient_transformers` to "
-                       "specify clipping and other transformations.")
+                       "specify clipping and other transformations. Received: "
+                       f"val={val}, "
+                       f"gradient_transformers={self.gradient_transformers}.")
     self._global_clipnorm = val
     self._global_clipnorm_fn = optimizer_utils.make_global_gradient_clipnorm_fn(
         self._global_clipnorm)
@@ -440,7 +447,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     if val is not None and self.gradient_transformers:
       raise ValueError("`clipvalue` cannot be set when `gradient_transformers` "
                        "is set. Instead, use the `gradient_transformers` to "
-                       "specify clipping and other transformations.")
+                       "specify clipping and other transformations. Received: "
+                       f"val={val}, "
+                       f"gradient_transformers={self.gradient_transformers}.")
     self._clipvalue = val
     self._clipvalue_fn = optimizer_utils.make_gradient_clipvalue_fn(
         self._clipvalue)
@@ -553,7 +562,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     """
     # TODO(joshl): Test that we handle weight decay in a reasonable way.
     if not callable(loss) and tape is None:
-      raise ValueError("`tape` is required when a `Tensor` loss is passed.")
+      raise ValueError("`tape` is required when a `Tensor` loss is passed. "
+                       f"Received: loss={loss}, tape={tape}.")
     tape = tape if tape is not None else tf.GradientTape()
 
     if callable(loss):
@@ -636,7 +646,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         raise RuntimeError(
             "`apply_gradients() cannot be called in cross-replica context. "
             "Use `tf.distribute.Strategy.run` to enter replica "
-            "context.")
+            "context. For more information, please see the docstring of "
+            "`tf.distribute.get_replica_context`.")
 
       strategy = tf.distribute.get_strategy()
       if (not experimental_aggregate_gradients and strategy and
@@ -647,7 +658,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                       tf.compat.v1.distribute.experimental.CentralStorageStrategy))):
         raise NotImplementedError(
             "`experimental_aggregate_gradients=False is not supported for "
-            "ParameterServerStrategy and CentralStorageStrategy")
+            "ParameterServerStrategy and CentralStorageStrategy. Used: "
+            f"strategy={strategy}.")
 
       apply_state = self._prepare(var_list)
       if experimental_aggregate_gradients:
@@ -672,13 +684,15 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     def apply_grad_to_update_var(var, grad):
       """Apply gradient to variable."""
       if isinstance(var, tf.Tensor):
-        raise NotImplementedError("Trying to update a Tensor ", var)
+        raise NotImplementedError(
+            f"Updating a `Tensor` is not implemented. Received: var={var}.")
 
       apply_kwargs = {}
       if isinstance(grad, tf.IndexedSlices):
         if var.constraint is not None:
           raise RuntimeError(
-              "Cannot use a constraint function on a sparse variable.")
+              "Cannot use a constraint function on a sparse variable. "
+              f"Received: grad={grad}, var.constraint={var.constraint}.")
         if "apply_state" in self._sparse_apply_args:
           apply_kwargs["apply_state"] = apply_state
         return self._resource_apply_sparse_duplicate_indices(
@@ -894,7 +908,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
               "tf.distribute.Strategy ({}), which is different from the scope "
               "used for the original variable ({}). Make sure the slot "
               "variables are created under the same strategy scope. This may "
-              "happen if you're restoring from a checkpoint outside the scope"
+              "happen if you're restoring from a checkpoint outside the scope."
               .format(strategy, var))
 
         with strategy.extended.colocate_vars_with(var):
@@ -985,7 +999,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
   def iterations(self, variable):
     if self._iterations is not None:
       raise RuntimeError("Cannot set `iterations` to a new Variable after "
-                         "the Optimizer weights have been created")
+                         "the Optimizer weights have been created. Here it is "
+                         f"attempting to set `iterations` to {variable}.")
     self._iterations = variable
     self._weights.append(self._iterations)
 
@@ -1130,19 +1145,19 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     params = self.weights
     if len(params) != len(weights):
       raise ValueError(
-          "You called `set_weights(weights)` on optimizer " + self._name +
-          " with a  weight list of length " + str(len(weights)) +
-          ", but the optimizer was expecting " + str(len(params)) +
-          " weights. Provided weights: " + str(weights)[:50] + "...")
+          "You called `set_weights(weights)` on optimizer {self._name} "
+          f"with a  weight list of length {str(len(weights))}, "
+          f"but the optimizer was expecting {str(len(params))} "
+          f"weights. Provided weights: {str(weights)[:50]}...")
     if not params:
       return
     weight_value_tuples = []
     param_values = backend.batch_get_value(params)
     for pv, p, w in zip(param_values, params, weights):
       if pv.shape != w.shape:
-        raise ValueError("Optimizer weight shape " + str(pv.shape) +
-                         " not compatible with "
-                         "provided weight shape " + str(w.shape))
+        raise ValueError(f"Optimizer weight shape {str(pv.shape)} "
+                         "not compatible with "
+                         f"provided weight shape {str(w.shape)}.")
       weight_value_tuples.append((p, w))
     backend.batch_set_value(weight_value_tuples)
 
@@ -1209,8 +1224,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     for t in tensors:
       dtype = t.dtype.base_dtype
       if dtype not in valid_dtypes:
-        raise ValueError("Invalid type %r for %s, expected: %s." %
-                         (dtype, t.name, [v for v in valid_dtypes]))
+        raise ValueError("Invalid type {} for {}, expected: {}.".format(
+            dtype, t.name, [v for v in valid_dtypes]))
 
   def _valid_dtypes(self):
     """Valid types for loss, variables and gradients.
@@ -1238,7 +1253,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     Returns:
       An `Operation` which updates the value of the variable.
     """
-    raise NotImplementedError("Must be implemented in subclasses.")
+    raise NotImplementedError("`_resource_apply_dense` must be implemented in "
+                              "subclasses.")
 
   def _resource_apply_sparse_duplicate_indices(self, grad, handle, indices,
                                                **kwargs):
@@ -1287,7 +1303,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     Returns:
       An `Operation` which updates the value of the variable.
     """
-    raise NotImplementedError("Must be implemented in subclasses.")
+    raise NotImplementedError("`_resource_apply_sparse` Must be implemented in "
+                              "subclasses.")
 
   def _resource_scatter_add(self, x, i, v):
     with tf.control_dependencies([
