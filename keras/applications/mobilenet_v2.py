@@ -74,14 +74,13 @@ MACs stands for Multiply Adds
       https://arxiv.org/abs/1801.04381) (CVPR 2018)
 """
 
-import tensorflow.compat.v2 as tf
-
 from keras import backend
 from keras.applications import imagenet_utils
 from keras.engine import training
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
+import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -142,26 +141,23 @@ def MobileNetV2(input_shape=None,
       input_shape will be used if they match, if the shapes
       do not match then we will throw an error.
       E.g. `(160, 160, 3)` would be one valid value.
-    alpha: Float between 0 and 1. controls the width of the network.
-      This is known as the width multiplier in the MobileNetV2 paper,
-      but the name is kept for consistency with `applications.MobileNetV1`
-      model in Keras.
+    alpha: Float, larger than zero, controls the width of the network. This is
+      known as the width multiplier in the MobileNetV2 paper, but the name is
+      kept for consistency with `applications.MobileNetV1` model in Keras.
       - If `alpha` < 1.0, proportionally decreases the number
           of filters in each layer.
       - If `alpha` > 1.0, proportionally increases the number
           of filters in each layer.
       - If `alpha` = 1.0, default number of filters from the paper
           are used at each layer.
-    include_top: Boolean, whether to include the fully-connected
-      layer at the top of the network. Defaults to `True`.
-    weights: String, one of `None` (random initialization),
-      'imagenet' (pre-training on ImageNet),
-      or the path to the weights file to be loaded.
-    input_tensor: Optional Keras tensor (i.e. output of
-      `layers.Input()`)
+    include_top: Boolean, whether to include the fully-connected layer at the
+      top of the network. Defaults to `True`.
+    weights: String, one of `None` (random initialization), 'imagenet'
+      (pre-training on ImageNet), or the path to the weights file to be loaded.
+    input_tensor: Optional Keras tensor (i.e. output of `layers.Input()`)
       to use as image input for the model.
-    pooling: String, optional pooling mode for feature extraction
-      when `include_top` is `False`.
+    pooling: String, optional pooling mode for feature extraction when
+      `include_top` is `False`.
       - `None` means that the output of the model
           will be the 4D tensor output of the
           last convolutional block.
@@ -172,9 +168,9 @@ def MobileNetV2(input_shape=None,
           2D tensor.
       - `max` means that global max pooling will
           be applied.
-    classes: Integer, optional number of classes to classify images
-      into, only to be specified if `include_top` is True, and
-      if no `weights` argument is specified.
+    classes: Optional integer number of classes to classify images into, only to
+      be specified if `include_top` is True, and if no `weights` argument is
+      specified.
     classifier_activation: A `str` or callable. The activation function to use
       on the "top" layer. Ignored unless `include_top=True`. Set
       `classifier_activation=None` to return the logits of the "top" layer.
@@ -229,7 +225,7 @@ def MobileNetV2(input_shape=None,
       raise ValueError('input_tensor specified: ', input_tensor,
                        'is not a keras tensor')
 
-  # If input_shape is None, infer shape from input_tensor
+  # If input_shape is None, infer shape from input_tensor.
   if input_shape is None and input_tensor is not None:
 
     try:
@@ -257,7 +253,7 @@ def MobileNetV2(input_shape=None,
   elif input_shape is None:
     default_size = 224
 
-  # If input_shape is not None, assume default size
+  # If input_shape is not None, assume default size.
   else:
     if backend.image_data_format() == 'channels_first':
       rows = input_shape[1]
@@ -364,8 +360,8 @@ def MobileNetV2(input_shape=None,
       x, filters=320, alpha=alpha, stride=1, expansion=6, block_id=16)
 
   # no alpha applied to last conv as stated in the paper:
-  # if the width multiplier is greater than 1 we
-  # increase the number of output channels
+  # if the width multiplier is greater than 1 we increase the number of output
+  # channels.
   if alpha > 1.0:
     last_block_filters = _make_divisible(1280 * alpha, 8)
   else:
@@ -391,8 +387,8 @@ def MobileNetV2(input_shape=None,
     elif pooling == 'max':
       x = layers.GlobalMaxPooling2D()(x)
 
-  # Ensure that the model takes into account
-  # any potential predecessors of `input_tensor`.
+  # Ensure that the model takes into account any potential predecessors of
+  # `input_tensor`.
   if input_tensor is not None:
     inputs = layer_utils.get_source_inputs(input_tensor)
   else:
@@ -428,12 +424,13 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
 
   in_channels = backend.int_shape(inputs)[channel_axis]
   pointwise_conv_filters = int(filters * alpha)
+  # Ensure the number of filters on the last 1x1 convolution is divisible by 8.
   pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
   x = inputs
   prefix = 'block_{}_'.format(block_id)
 
   if block_id:
-    # Expand
+    # Expand with a pointwise 1x1 convolution.
     x = layers.Conv2D(
         expansion * in_channels,
         kernel_size=1,
@@ -452,7 +449,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
   else:
     prefix = 'expanded_conv_'
 
-  # Depthwise
+  # Depthwise 3x3 convolution.
   if stride == 2:
     x = layers.ZeroPadding2D(
         padding=imagenet_utils.correct_pad(x, 3),
@@ -474,7 +471,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
 
   x = layers.ReLU(6., name=prefix + 'depthwise_relu')(x)
 
-  # Project
+  # Project wiht a pointwise 1x1 convolution.
   x = layers.Conv2D(
       pointwise_filters,
       kernel_size=1,
