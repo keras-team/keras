@@ -82,10 +82,10 @@ def model_call_inputs(model, keep_original_batch_size=False):
 
 def raise_model_input_error(model):
   raise ValueError(
-      'Model {} cannot be saved because the input shapes have not been '
-      'set. Usually, input shapes are automatically determined from calling'
-      ' `.fit()` or `.predict()`. To manually set the shapes, call '
-      '`model.build(input_shape)`.'.format(model))
+      f'Model {model} cannot be saved because the input shapes have not '
+      f'been set. Usually, input shapes are automatically determined when '
+      f'calling `.fit()` or `.predict()`. To manually set the shapes, call '
+      f'`model.build(input_shape)')
 
 
 def trace_model_call(model, input_signature=None):
@@ -169,9 +169,9 @@ def model_metadata(model, include_optimizer=True, require_config=True):
       metadata['training_config'] = _serialize_nested_config(training_config)
       if isinstance(model.optimizer, optimizer_v2.RestoredOptimizer):
         raise NotImplementedError(
-            'As of now, Optimizers loaded from SavedModel cannot be saved. '
-            'If you\'re calling `model.save` or `tf.keras.models.save_model`,'
-            ' please set the `include_optimizer` option to `False`. For '
+            'Optimizers loaded from a SavedModel cannot be saved. '
+            'If you are calling `model.save` or `tf.keras.models.save_model`, '
+            'please set the `include_optimizer` option to `False`. For '
             '`tf.saved_model.save`, delete the optimizer from the model.')
       else:
         optimizer_config = {
@@ -255,7 +255,9 @@ def _deserialize_nested_config(deserialize_fn, config):
   elif isinstance(config, (tuple, list)):
     return [_deserialize_nested_config(deserialize_fn, obj) for obj in config]
 
-  raise ValueError('Saved configuration not understood.')
+  raise ValueError(
+      'Saved configuration not understood. Configuration should be a '
+      f'dictionary, string, tuple or list. Received: config={config}.')
 
 
 def _serialize_nested_config(config):

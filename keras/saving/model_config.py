@@ -46,7 +46,7 @@ def model_from_config(config, custom_objects=None):
   """
   if isinstance(config, list):
     raise TypeError('`model_from_config` expects a dictionary, not a list. '
-                    'Maybe you meant to use '
+                    f'Received: config={config}. Did you meant to use '
                     '`Sequential.from_config(config)`?')
   from keras.layers import deserialize  # pylint: disable=g-import-not-at-top
   return deserialize(config, custom_objects=custom_objects)
