@@ -13,12 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Keras initializers for TF 2."""
-
-import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
 
 import math
 from keras import backend
+import tensorflow.compat.v2 as tf
 from tensorflow.python.ops import stateless_random_ops
 from tensorflow.python.util.tf_export import keras_export
 
@@ -76,7 +75,8 @@ class Initializer:
       dtype: Optional dtype of the tensor.
       **kwargs: Additional keyword arguments.
     """
-    raise NotImplementedError
+    raise NotImplementedError('Initializer subclasses must implement the '
+                              '`__call__()` method.')
 
   def get_config(self):
     """Returns the configuration of the initializer as a JSON-serializable dict.
@@ -139,7 +139,7 @@ class Zeros(Initializer):
     _validate_kwargs(self.__class__.__name__, kwargs)
     dtype = _get_dtype(dtype)
     if not dtype.is_numpy_compatible or dtype == tf.string:
-      raise ValueError('Expected numeric or boolean dtype, got %s.' % dtype)
+      raise ValueError(f'Expected numeric or boolean dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
     return tf.zeros(shape, dtype)
@@ -176,7 +176,7 @@ class Ones(Initializer):
     _validate_kwargs(self.__class__.__name__, kwargs)
     dtype = _get_dtype(dtype)
     if not dtype.is_numpy_compatible or dtype == tf.string:
-      raise ValueError('Expected numeric or boolean dtype, got %s.' % dtype)
+      raise ValueError(f'Expected numeric or boolean dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
     return tf.ones(shape, dtype)
@@ -279,7 +279,7 @@ class RandomUniform(Initializer):
     _validate_kwargs(self.__class__.__name__, kwargs)
     dtype = _get_dtype(dtype)
     if not dtype.is_floating and not dtype.is_integer:
-      raise ValueError('Expected float or integer dtype, got %s.' % dtype)
+      raise ValueError(f'Expected float or integer dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
     return self._random_generator.random_uniform(shape, self.minval,
@@ -466,16 +466,22 @@ class VarianceScaling(Initializer):
                distribution='truncated_normal',
                seed=None):
     if scale <= 0.:
-      raise ValueError('`scale` must be positive float.')
-    if mode not in {'fan_in', 'fan_out', 'fan_avg'}:
-      raise ValueError('Invalid `mode` argument:', mode)
+      raise ValueError('`scale` must be positive float. '
+                       f'Received: scale={scale}.')
+    allowed_modes = {'fan_in', 'fan_out', 'fan_avg'}
+    if mode not in allowed_modes:
+      raise ValueError(f'Invalid `mode` argument: {mode}. '
+                       f'Please use one of the {allowed_modes}.')
     distribution = distribution.lower()
     # Compatibility with keras-team/keras.
     if distribution == 'normal':
       distribution = 'truncated_normal'
-    if distribution not in {'uniform', 'truncated_normal',
-                            'untruncated_normal'}:
-      raise ValueError('Invalid `distribution` argument:', distribution)
+    allowed_distributions = {
+        'uniform', 'truncated_normal', 'untruncated_normal'
+    }
+    if distribution not in allowed_distributions:
+      raise ValueError(f'Invalid `distribution` argument: {distribution}.'
+                       f'Allowed distributions: {allowed_distributions}.')
     self.scale = scale
     self.mode = mode
     self.distribution = distribution
@@ -585,7 +591,8 @@ class Orthogonal(Initializer):
     # Check the shape
     if len(shape) < 2:
       raise ValueError('The tensor to initialize must be '
-                       'at least two-dimensional')
+                       'at least two-dimensional. Received: '
+                       f'shape={shape} of rank {len(shape)}.')
     # Flatten the input shape with the last dimension remaining
     # its original shape so it works for conv2d
     num_rows = 1
@@ -651,7 +658,8 @@ class Identity(Initializer):
     dtype = _assert_float_dtype(_get_dtype(dtype))
     if len(shape) != 2:
       raise ValueError(
-          'Identity matrix initializer can only be used for 2D matrices.')
+          'Identity matrix initializer can only be used for 2D matrices. '
+          f'Received: shape={shape} of rank {len(shape)}.')
     initializer = tf.eye(*shape, dtype=dtype)
     return self.gain * initializer
 
@@ -939,7 +947,7 @@ def _assert_float_dtype(dtype):
   """
   dtype = tf.as_dtype(dtype)
   if not dtype.is_floating:
-    raise ValueError('Expected floating point type, got %s.' % dtype)
+    raise ValueError(f'Expected floating point type, got {dtype}.')
   return dtype
 
 
@@ -1011,8 +1019,10 @@ def _compute_fans(shape):
 
 def _validate_kwargs(cls_name, kwargs, support_partition=True):
   for kwarg in kwargs:
-    if kwarg not in [_PARTITION_SHAPE, _PARTITION_OFFSET]:
-      raise TypeError('Unknown keyword arguments: %s' % kwarg)
+    allowed_kwargs = [_PARTITION_SHAPE, _PARTITION_OFFSET]
+    if kwarg not in allowed_kwargs:
+      raise TypeError(f'Unknown keyword arguments: {kwarg}. Allowed keyword '
+                      f'arguments: {allowed_kwargs}.')
     elif not support_partition:
-      raise ValueError('%s initializer doesn\'t support partition-related '
-                       'arguments' % cls_name)
+      raise ValueError(f'{cls_name} initializer doesn\'t support '
+                       'partition-related arguments.')
