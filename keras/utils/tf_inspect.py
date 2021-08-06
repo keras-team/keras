@@ -223,9 +223,9 @@ def _get_argspec_for_partial(obj):
   ]
 
   if invalid_default_values:
-    raise ValueError('Some arguments %s do not have default value, but they '
-                     'are positioned after those with default values. This can '
-                     'not be expressed with ArgSpec.' % invalid_default_values)
+    raise ValueError(f'Some arguments {invalid_default_values} do not have '
+                     'default value, but they are positioned after those with '
+                     'default values. This can not be expressed with ArgSpec.')
 
   return ArgSpec(args, varargs, keywords, tuple(all_defaults[first_default:]))
 
