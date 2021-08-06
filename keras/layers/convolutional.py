@@ -225,10 +225,6 @@ class Conv(Layer):
     else:
       tf_padding = self.padding
 
-    tf_op_name = self.__class__.__name__
-    if tf_op_name == 'Conv1D':
-      tf_op_name = 'conv1d'  # Backwards compat.
-
     return tf.nn.convolution(
         inputs,
         kernel,
@@ -236,7 +232,7 @@ class Conv(Layer):
         padding=tf_padding,
         dilations=list(self.dilation_rate),
         data_format=self._tf_data_format,
-        name=tf_op_name)
+        name=self.__class__.__name__)
 
   def call(self, inputs):
     input_shape = inputs.shape
