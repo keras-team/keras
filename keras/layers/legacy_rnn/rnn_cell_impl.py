@@ -119,8 +119,9 @@ def _concat(prefix, suffix, static=False):
     if p.shape.ndims == 0:
       p = tf.compat.v1.expand_dims(p, 0)
     elif p.shape.ndims != 1:
-      raise ValueError("prefix tensor must be either a scalar or vector, "
-                       "but saw tensor: %s" % p)
+      raise ValueError(
+          "Prefix tensor must be either a scalar or vector, "
+          f"but received tensor: {p}")
   else:
     p = tf.TensorShape(prefix)
     p_static = p.as_list() if p.ndims is not None else None
@@ -134,7 +135,7 @@ def _concat(prefix, suffix, static=False):
       s = tf.compat.v1.expand_dims(s, 0)
     elif s.shape.ndims != 1:
       raise ValueError("suffix tensor must be either a scalar or vector, "
-                       "but saw tensor: %s" % s)
+                       f"but received tensor: {s}")
   else:
     s = tf.TensorShape(suffix)
     s_static = s.as_list() if s.ndims is not None else None
@@ -147,8 +148,9 @@ def _concat(prefix, suffix, static=False):
     shape = shape.as_list() if shape.ndims is not None else None
   else:
     if p is None or s is None:
-      raise ValueError("Provided a prefix or suffix of None: %s and %s" %
-                       (prefix, suffix))
+      raise ValueError(
+          "Prefix or suffix can't be None. "
+          f"Received prefix = {prefix} and suffix = {suffix}")
     shape = tf.concat((p, s), 0)
   return shape
 
@@ -281,21 +283,20 @@ class RNNCell(base_layer.Layer):
         if inputs.shape.dims[0].value != static_batch_size:
           raise ValueError(
               "batch size from input tensor is different from the "
-              "input param. Input tensor batch: {}, batch_size: {}".format(
-                  inputs.shape.dims[0].value, batch_size))
+              f"input param. Input tensor batch: {inputs.shape.dims[0].value}, "
+              f"batch_size: {batch_size}")
 
       if dtype is not None and inputs.dtype != dtype:
         raise ValueError(
             "dtype from input tensor is different from the "
-            "input param. Input tensor dtype: {}, dtype: {}".format(
-                inputs.dtype, dtype))
+            f"input param. Input tensor dtype: {inputs.dtype}, dtype: {dtype}")
 
       batch_size = inputs.shape.dims[0].value or tf.compat.v1.shape(inputs)[0]
       dtype = inputs.dtype
     if batch_size is None or dtype is None:
       raise ValueError(
           "batch_size and dtype cannot be None while constructing initial "
-          "state: batch_size={}, dtype={}".format(batch_size, dtype))
+          f"state: batch_size={batch_size}, dtype={dtype}")
     return self.zero_state(batch_size, dtype)
 
   def zero_state(self, batch_size, dtype):
@@ -445,8 +446,9 @@ class BasicRNNCell(LayerRNNCell):
   @tf_utils.shape_type_conversion
   def build(self, inputs_shape):
     if inputs_shape[-1] is None:
-      raise ValueError("Expected inputs.shape[-1] to be known, saw shape: %s" %
-                       str(inputs_shape))
+      raise ValueError(
+          "Expected inputs.shape[-1] to be known, "
+          f"received shape: {inputs_shape}")
     _check_supported_dtypes(self.dtype)
 
     input_depth = inputs_shape[-1]
@@ -556,8 +558,9 @@ class GRUCell(LayerRNNCell):
   @tf_utils.shape_type_conversion
   def build(self, inputs_shape):
     if inputs_shape[-1] is None:
-      raise ValueError("Expected inputs.shape[-1] to be known, saw shape: %s" %
-                       str(inputs_shape))
+      raise ValueError(
+          "Expected inputs.shape[-1] to be known, "
+          f"received shape: {inputs_shape}")
     _check_supported_dtypes(self.dtype)
     input_depth = inputs_shape[-1]
     self._gate_kernel = self.add_variable(
@@ -635,8 +638,8 @@ class LSTMStateTuple(_LSTMStateTuple):
   def dtype(self):
     (c, h) = self
     if c.dtype != h.dtype:
-      raise TypeError("Inconsistent internal state: %s vs %s" %
-                      (str(c.dtype), str(h.dtype)))
+      raise TypeError("Inconsistent dtypes for internal state: "
+                      f"{c.dtype} vs {h.dtype}")
     return c.dtype
 
 
@@ -736,8 +739,9 @@ class BasicLSTMCell(LayerRNNCell):
   @tf_utils.shape_type_conversion
   def build(self, inputs_shape):
     if inputs_shape[-1] is None:
-      raise ValueError("Expected inputs.shape[-1] to be known, saw shape: %s" %
-                       str(inputs_shape))
+      raise ValueError(
+          "Expected inputs.shape[-1] to be known, "
+          f"received shape: {inputs_shape}")
     _check_supported_dtypes(self.dtype)
     input_depth = inputs_shape[-1]
     h_depth = self._num_units
@@ -960,8 +964,9 @@ class LSTMCell(LayerRNNCell):
   @tf_utils.shape_type_conversion
   def build(self, inputs_shape):
     if inputs_shape[-1] is None:
-      raise ValueError("Expected inputs.shape[-1] to be known, saw shape: %s" %
-                       str(inputs_shape))
+      raise ValueError(
+          "Expected inputs.shape[-1] to be known, "
+          "received shape: {inputs_shape}")
     _check_supported_dtypes(self.dtype)
     input_depth = inputs_shape[-1]
     h_depth = self._num_units if self._num_proj is None else self._num_proj
@@ -1038,7 +1043,9 @@ class LSTMCell(LayerRNNCell):
 
     input_size = inputs.get_shape().with_rank(2).dims[1].value
     if input_size is None:
-      raise ValueError("Could not infer input size from inputs.get_shape()[-1]")
+      raise ValueError(
+          "Could not infer input size from inputs.get_shape()[-1]."
+          f"Received input shape: {inputs.get_shape()}")
 
     # i = input_gate, j = new_input, f = forget_gate, o = output_gate
     lstm_matrix = tf.matmul(
@@ -1248,7 +1255,7 @@ class MultiRNNCell(RNNCell):
     if not cells:
       raise ValueError("Must specify at least one cell for MultiRNNCell.")
     if not tf.nest.is_nested(cells):
-      raise TypeError("cells must be a list or tuple, but saw: %s." % cells)
+      raise TypeError(f"cells must be a list or tuple, but received: {cells}.")
 
     if len(set(id(cell) for cell in cells)) < len(cells):
       logging.log_first_n(
@@ -1265,9 +1272,10 @@ class MultiRNNCell(RNNCell):
     self._state_is_tuple = state_is_tuple
     if not state_is_tuple:
       if any(tf.nest.is_nested(c.state_size) for c in self._cells):
-        raise ValueError("Some cells return tuples of states, but the flag "
-                         "state_is_tuple is not set.  State sizes are: %s" %
-                         str([c.state_size for c in self._cells]))
+        raise ValueError(
+            "Some cells return tuples of states, but the flag "
+            "state_is_tuple is not set. "
+            f"State sizes are: {[c.state_size for c in self._cells]}")
 
   @property
   def state_size(self):
@@ -1323,8 +1331,8 @@ class MultiRNNCell(RNNCell):
         if self._state_is_tuple:
           if not tf.nest.is_nested(state):
             raise ValueError(
-                "Expected state to be a tuple of length %d, but received: %s" %
-                (len(self.state_size), state))
+                f"Expected state to be a tuple of length {len(self.state_size)}"
+                f", but received: {state}")
           cur_state = state[i]
         else:
           cur_state = tf.slice(state, [0, cur_state_pos],
@@ -1365,4 +1373,4 @@ def _check_supported_dtypes(dtype):
   dtype = tf.as_dtype(dtype)
   if not (dtype.is_floating or dtype.is_complex):
     raise ValueError("RNN cell only supports floating point inputs, "
-                     "but saw dtype: %s" % dtype)
+                     f"but received dtype: {dtype}")
