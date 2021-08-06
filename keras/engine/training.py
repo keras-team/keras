@@ -2717,8 +2717,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           f'Received: {target_tensor_arg}.')
     invalid_kwargs = set(kwargs) - {'sample_weight_mode'}
     if invalid_kwargs:
-      raise TypeError('Invalid keyword argument(s) in `compile()`: %s' %
-                      (invalid_kwargs,))
+      raise TypeError('Invalid keyword argument(s) in `compile()`: '
+                      f'{(invalid_kwargs,)}. Valid keyword arguments include '
+                      '"cloning", "experimental_run_tf_function", "distribute",'
+                      ' "target_tensors", or "sample_weight_mode".')
 
     # Model must be created and compiled with the same DistStrat.
     if self.built and tf.distribute.has_strategy():
@@ -2726,14 +2728,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       for v in self.variables:
         if not strategy.extended.variable_created_in_scope(v):
           raise ValueError(
-              'Variable (%s) was not created in the distribution strategy '
-              'scope of (%s). It is most likely due to not all layers or '
-              'the model or optimizer being created outside the distribution '
-              'strategy scope. Try to make sure your code looks similar '
-              'to the following.\n'
+              f'Variable ({v}) was not created in the distribution strategy '
+              f'scope of ({strategy}). It is most likely because some '
+              'layers, model, or optimizer was being created outside the '
+              'distribution strategy scope. Try to make sure your code looks '
+              'similar to the following.\n'
               'with strategy.scope():\n'
               '  model=_create_model()\n'
-              '  model.compile(...)' % (v, strategy))
+              '  model.compile(...)')
 
     # Model metrics must be created in the same distribution strategy scope
     # as the model.
@@ -2742,13 +2744,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       for v in getattr(metric, 'variables', []):
         if not strategy.extended.variable_created_in_scope(v):
           raise ValueError(
-              'Metric (%s) passed to model.compile was created inside of a '
-              'different distribution strategy scope than the model. All '
+              f'Metric ({metric}) passed to `model.compile` was created inside '
+              'a different distribution strategy scope than the model. All '
               'metrics must be created in the same distribution strategy '
-              'scope as the model (in this case %s). If you pass in a string '
-              'identifier for a metric to compile the metric will '
+              f'scope as the model (in this case {strategy}). If you pass in a '
+              'string identifier for a metric to compile, the metric will '
               'automatically be created in the correct distribution '
-              'strategy scope.' % (metric, strategy)
+              'strategy scope.'
           )
 
     # Model metrics must be created in the same distribution strategy scope
@@ -2757,13 +2759,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       for v in getattr(opt, '_weights', []):
         if not strategy.extended.variable_created_in_scope(v):
           raise ValueError(
-              'Optimizer (%s) passed to model.compile was created inside of a '
-              'different distribution strategy scope than the model. All '
-              'optimizers must be created in the same distribution strategy '
-              'scope as the model (in this case %s). If you pass in a string '
-              'identifier for an optimizer to compile the optimizer will '
-              'automatically be created in the correct distribution '
-              'strategy scope.' % (opt, strategy))
+              f'Optimizer ({optimizer}) passed to `model.compile` was created '
+              'inside a different distribution strategy scope than the model. '
+              'All optimizers must be created in the same distribution '
+              f'strategy scope as the model (in this case {strategy}). If you '
+              'pass in a string identifier for an optimizer to compile, the '
+              'optimizer will automatically be created in the correct '
+              'distribution strategy scope.'
+          )
 
   def _maybe_load_initial_epoch_from_ckpt(self, initial_epoch):
     """Maybe load initial epoch from ckpt considering possible worker recovery.
@@ -2827,7 +2830,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     elif isinstance(validation_freq, list):
       return epoch in validation_freq
     else:
-      raise ValueError('Expected `validation_freq` to be a list or int.')
+      raise ValueError('Expected `validation_freq` to be a list or int. '
+                       f'Received: validation_freq={validation_freq} of the '
+                       f'type {type(validation_freq)}.')
 
   ######################################################################
   # Functions below exist only as v1 / v2 compatibility shims.
@@ -2903,7 +2908,8 @@ def reduce_per_replica(values, strategy, reduction='first'):
       else:
         return concat(strategy.unwrap(v))
     else:
-      raise ValueError('`reduction` must be "first" or "concat".')
+      raise ValueError('`reduction` must be "first" or "concat". Received: '
+                       f'reduction={reduction}.')
 
   return tf.nest.map_structure(_reduce, values)
 
@@ -3075,8 +3081,10 @@ def disable_multi_worker(method):
 
   def _method_wrapper(self, *args, **kwargs):
     if self._in_multi_worker_mode():  # pylint: disable=protected-access
-      raise ValueError('{} is not supported in multi-worker mode.'.format(
-          method.__name__))
+      raise ValueError(f'{method.__name__} is not supported in multi-worker '
+                       'mode. Please use a non-multi-worker '
+                       '`tf.distribute.Strategy` such as '
+                       '`tf.distribute.MirroredStrategy`.')
     return method(self, *args, **kwargs)
 
   return tf.__internal__.decorator.make_decorator(
