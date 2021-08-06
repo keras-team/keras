@@ -2547,12 +2547,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # TODO(fchollet): We could build a dictionary based on layer names
     # since they are constant, but we have not done that yet.
     if index is not None and name is not None:
-      raise ValueError('Provide only a layer name or a layer index.')
+      raise ValueError('Provide only a layer name or a layer index. Received: '
+                       f'index={index}, name={name}.')
 
     if index is not None:
       if len(self.layers) <= index:
-        raise ValueError('Was asked to retrieve layer at index ' + str(index) +
-                         ' but model only has ' + str(len(self.layers)) +
+        raise ValueError(f'Was asked to retrieve layer at index {str(index)}'
+                         f' but model only has {str(len(self.layers))}'
                          ' layers.')
       else:
         return self.layers[index]
@@ -2561,8 +2562,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       for layer in self.layers:
         if layer.name == name:
           return layer
-      raise ValueError('No such layer: ' + name + '.')
-    raise ValueError('Provide either a layer name or layer index.')
+      raise ValueError(f'No such layer: {name}. Existing layers are '
+                       f'{self.layers}.')
+    raise ValueError('Provide either a layer name or layer index at '
+                     '`get_layer`.')
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _set_save_spec(self, inputs, args=None, kwargs=None):
@@ -2664,10 +2667,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       # For any model that has customized build() method but hasn't
       # been invoked yet, this will cover both sequential and subclass model.
       # Also make sure to exclude Model class itself which has build() defined.
-      raise ValueError('Weights for model %s have not yet been created. '
+      raise ValueError(f'Weights for model {self.name} have not yet been '
+                       'created. '
                        'Weights are created when the Model is first called on '
-                       'inputs or `build()` is called with an `input_shape`.' %
-                       self.name)
+                       'inputs or `build()` is called with an `input_shape`.')
 
   def _check_call_args(self, method_name):
     """Check that `call()` has only one positional arg."""
@@ -2684,9 +2687,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     if len(positional_args) > 2:
       extra_args = positional_args[2:]
       raise ValueError(
-          'Models passed to `' + method_name + '` can only have `training` '
+          f'Models passed to `{method_name}` can only have `training` '
           'and the first argument in `call()` as positional arguments, '
-          'found: ' + str(extra_args) + '.')
+          f'found: {str(extra_args)}.')
 
   def _validate_compile(self, optimizer, metrics, **kwargs):
     """Performs validation checks for the default `compile()`."""
@@ -2694,20 +2697,24 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         isinstance(opt, optimizer_v1.Optimizer)
         for opt in tf.nest.flatten(optimizer)):
       raise ValueError(
-          '`tf.compat.v1.keras` Optimizer (', optimizer, ') is '
+          f'`tf.compat.v1.keras` Optimizer ({optimizer}) is '
           'not supported when eager execution is enabled. Use a '
           '`tf.keras` Optimizer instead, or disable eager '
           'execution.')
 
     kwargs.pop('cloning', None)  # Legacy DistStrat argument, never used.
     kwargs.pop('experimental_run_tf_function', None)  # Always `True`.
-    if kwargs.pop('distribute', None) is not None:
+    distribute_arg = kwargs.pop('distribute', None)
+    if distribute_arg is not None:
       raise ValueError(
-          'Distribute argument in compile is not available in TF 2.0 please '
-          'create the model under the distribution strategy scope.')
-    if kwargs.pop('target_tensors', None) is not None:
+          '`distribute` argument in compile is not available in TF 2.0. Please '
+          'create the model under the `strategy.scope()`. Received: '
+          f'{distribute_arg}.')
+    target_tensor_arg = kwargs.pop('target_tensors', None)
+    if target_tensor_arg is not None:
       raise ValueError(
-          'target_tensors argument is not supported when executing eagerly.')
+          '`target_tensors` argument is not supported when executing eagerly. '
+          f'Received: {target_tensor_arg}.')
     invalid_kwargs = set(kwargs) - {'sample_weight_mode'}
     if invalid_kwargs:
       raise TypeError('Invalid keyword argument(s) in `compile()`: %s' %
