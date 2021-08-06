@@ -191,8 +191,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # In case there are unused kwargs, we should raise an error to user, in
         # case they have a typo in the param name.
         raise TypeError(
-            'The following keyword arguments aren\'t supported: {}'.format(
-                other_kwargs))
+            'The following keyword arguments passed to `Model` aren\'t '
+            'supported: {}.'.format(other_kwargs))
       return
 
     base_layer.keras_api_gauge.get_cell('Model subclass').set(True)
@@ -347,14 +347,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       return
 
     if input_shape is None:
-      raise ValueError('Input shape must be defined when calling build on a '
+      raise ValueError('Input shape must be defined when calling `build` on a '
                        'model subclass network.')
     valid_types = (tuple, list, tf.TensorShape, dict)
     if not isinstance(input_shape, valid_types):
       raise ValueError('Specified input shape is not one of the valid types. '
                        'Please specify a batch input shape of type tuple or '
                        'list of input shapes. User provided '
-                       'input type: {}'.format(type(input_shape)))
+                       'input type: {}.'.format(type(input_shape)))
 
     if input_shape and not self.inputs:
       # We create placeholders for the `None`s in the shape and build the model
@@ -401,7 +401,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                   'inputs to the model, but are required for its '
                   '`call()` method. Instead, in order to instantiate '
                   'and build your model, `call()` your model on real '
-                  'tensor data with all expected call arguments.')
+                  'tensor data with all expected call arguments. The argument '
+                  'for `call()` can be a single list/tuple that contains '
+                  'multiple inputs.')
         elif len(call_args) < 2:
           # Signature without `inputs`.
           raise ValueError(
@@ -409,12 +411,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               'method accepts an `inputs` argument.')
         try:
           self.call(x, **kwargs)
-        except (tf.errors.InvalidArgumentError, TypeError):
+        except (tf.errors.InvalidArgumentError, TypeError) as e:
           raise ValueError('You cannot build your model by calling `build` '
                            'if your layers do not support float type inputs. '
                            'Instead, in order to instantiate and build your '
                            'model, call your model on real tensor data (of '
-                           'the correct dtype).')
+                           'the correct dtype).\n\nThe actual error from '
+                           f'`call` is: {e}.')
     super(Model, self).build(input_shape)
 
   @doc_controls.doc_in_current_and_subclasses
