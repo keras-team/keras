@@ -120,15 +120,15 @@ def text_dataset_from_directory(directory,
           'directory. If you wish to infer the labels from the subdirectory '
           'names in the target directory, pass `labels="inferred"`. '
           'If you wish to get a dataset that only contains text samples '
-          '(no labels), pass `labels=None`.')
+          f'(no labels), pass `labels=None`. Received: labels={labels}')
     if class_names:
-      raise ValueError('You can only pass `class_names` if the labels are '
-                       'inferred from the subdirectory names in the target '
-                       'directory (`labels="inferred"`).')
+      raise ValueError('You can only pass `class_names` if '
+                       f'`labels="inferred"`. Received: labels={labels}, and '
+                       f'class_names={class_names}')
   if label_mode not in {'int', 'categorical', 'binary', None}:
     raise ValueError(
         '`label_mode` argument must be one of "int", "categorical", "binary", '
-        'or None. Received: %s' % (label_mode,))
+        f'or None. Received: label_mode={label_mode}')
   if labels is None or label_mode is None:
     labels = None
     label_mode = None
@@ -148,13 +148,14 @@ def text_dataset_from_directory(directory,
 
   if label_mode == 'binary' and len(class_names) != 2:
     raise ValueError(
-        'When passing `label_mode="binary", there must exactly 2 classes. '
-        'Found the following classes: %s' % (class_names,))
+        f'When passing `label_mode="binary"`, there must be exactly 2 '
+        f'class_names. Received: class_names={class_names}')
 
   file_paths, labels = dataset_utils.get_training_or_validation_split(
       file_paths, labels, validation_split, subset)
   if not file_paths:
-    raise ValueError('No text files found.')
+    raise ValueError(f'No text files found in directory {directory}. '
+                     f'Allowed format: .txt')
 
   dataset = paths_and_labels_to_dataset(
       file_paths=file_paths,
