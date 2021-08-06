@@ -1,19 +1,11 @@
 path: "tensorflow.keras.models"
 tf_module {
   member {
-    name: "LinearModel"
-    mtype: "<type \'type\'>"
-  }
-  member {
     name: "Model"
     mtype: "<type \'type\'>"
   }
   member {
     name: "Sequential"
-    mtype: "<type \'type\'>"
-  }
-  member {
-    name: "WideDeepModel"
     mtype: "<type \'type\'>"
   }
   member_method {
