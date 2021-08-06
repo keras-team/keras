@@ -165,16 +165,18 @@ def MobileNet(input_shape=None,
   else:
     layers = VersionAwareLayers()
   if kwargs:
-    raise ValueError('Unknown argument(s): %s' % (kwargs,))
+    raise ValueError(f'Unknown argument(s): {(kwargs,)}')
   if not (weights in {'imagenet', None} or tf.io.gfile.exists(weights)):
     raise ValueError('The `weights` argument should be either '
                      '`None` (random initialization), `imagenet` '
                      '(pre-training on ImageNet), '
-                     'or the path to the weights file to be loaded.')
+                     'or the path to the weights file to be loaded.  '
+                     f'Received weights={weights}')
 
   if weights == 'imagenet' and include_top and classes != 1000:
     raise ValueError('If using `weights` as `"imagenet"` with `include_top` '
-                     'as true, `classes` should be 1000')
+                     'as true, `classes` should be 1000.  '
+                     f'Received classes={classes}')
 
   # Determine proper input shape and default size.
   if input_shape is None:
@@ -210,19 +212,21 @@ def MobileNet(input_shape=None,
   if weights == 'imagenet':
     if depth_multiplier != 1:
       raise ValueError('If imagenet weights are being loaded, '
-                       'depth multiplier must be 1')
+                       'depth multiplier must be 1.  '
+                       'Received depth_multiplier={depth_multiplier}')
 
     if alpha not in [0.25, 0.50, 0.75, 1.0]:
       raise ValueError('If imagenet weights are being loaded, '
                        'alpha can be one of'
-                       '`0.25`, `0.50`, `0.75` or `1.0` only.')
+                       '`0.25`, `0.50`, `0.75` or `1.0` only.  '
+                       f'Received alpha={alpha}')
 
     if rows != cols or rows not in [128, 160, 192, 224]:
       rows = 224
       logging.warning('`input_shape` is undefined or non-square, '
                       'or `rows` is not in [128, 160, 192, 224]. '
-                      'Weights for input shape (224, 224) will be'
-                      ' loaded as the default.')
+                      'Weights for input shape (224, 224) will be '
+                      'loaded as the default.')
 
   if input_tensor is None:
     img_input = layers.Input(shape=input_shape)
