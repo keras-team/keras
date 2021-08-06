@@ -106,7 +106,8 @@ def inject_argument_info_in_traceback(fn, object_name=None):
       arguments_context = []
       for arg in list(signature.parameters.values()):
         if arg.name in bound_signature.arguments:
-          value = format_argument_value(bound_signature.arguments[arg.name])
+          value = tf.nest.map_structure(
+              format_argument_value, bound_signature.arguments[arg.name])
         else:
           value = arg.default
         arguments_context.append(f'  • {arg.name}={value}')
