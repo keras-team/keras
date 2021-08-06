@@ -76,7 +76,8 @@ def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
   """
 
   if h5py is None:
-    raise ImportError('`save_model` requires h5py.')
+    raise ImportError('`save_model()` using h5 format requires h5py. Could not '
+                      'import h5py.')
 
   # TODO(psv) Add warning when we save models that contain non-serializable
   # entities like metrics added using `add_metric` and losses added using
@@ -156,7 +157,8 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):  # pylint
       ValueError: In case of an invalid savefile.
   """
   if h5py is None:
-    raise ImportError('`load_model` requires h5py.')
+    raise ImportError('`load_model()` using h5 format requires h5py. Could not '
+                      'import h5py.')
 
   if not custom_objects:
     custom_objects = {}
@@ -172,7 +174,7 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):  # pylint
     # instantiate model
     model_config = f.attrs.get('model_config')
     if model_config is None:
-      raise ValueError('No model found in config file.')
+      raise ValueError(f'No model config found in the file at {filepath}.')
     if hasattr(model_config, 'decode'):
       model_config = model_config.decode('utf-8')
     model_config = json_utils.decode(model_config)
@@ -711,10 +713,10 @@ def load_weights_from_hdf5_group(f, model):
       filtered_layer_names.append(name)
   layer_names = filtered_layer_names
   if len(layer_names) != len(filtered_layers):
-    raise ValueError('You are trying to load a weight file '
-                     'containing ' + str(len(layer_names)) +
-                     ' layers into a model with ' + str(len(filtered_layers)) +
-                     ' layers.')
+    raise ValueError(
+        f'Layer count mismatch when loading weights from file. '
+        f'Model expected {len(filtered_layers)} layers, found '
+        f'{len(layer_names)} saved layers.')
 
   # We batch weight value assignments in a single backend call
   # which provides a speedup in TensorFlow.
@@ -728,22 +730,24 @@ def load_weights_from_hdf5_group(f, model):
                                                    original_keras_version,
                                                    original_backend)
     if len(weight_values) != len(symbolic_weights):
-      raise ValueError('Layer #' + str(k) + ' (named "' + layer.name +
-                       '" in the current model) was found to '
-                       'correspond to layer ' + name + ' in the save file. '
-                       'However the new layer ' + layer.name + ' expects ' +
-                       str(len(symbolic_weights)) +
-                       ' weights, but the saved weights have ' +
-                       str(len(weight_values)) + ' elements.')
+      raise ValueError(
+          f'Weight count mismatch for layer #{k} (named {layer.name} in the '
+          f'current model, {name} in the save file). '
+          f'Layer expects {len(symbolic_weights)} weight(s). Received '
+          f'{len(weight_values)} saved weight(s)')
     weight_value_tuples += zip(symbolic_weights, weight_values)
-  symbolic_weights = model._trainable_weights + model._non_trainable_weights
-  weight_values = load_subset_weights_from_hdf5_group(f['top_level_model_weights'])
-  if len(weight_values) != len(symbolic_weights):
-    raise ValueError('The model ' + model.name + ' expects ' +
-                      str(len(symbolic_weights)) +
-                      ' weights, but the saved weights have ' +
-                      str(len(weight_values)) + ' elements.')
-  weight_value_tuples += zip(symbolic_weights, weight_values)
+
+  if 'top_level_model_weights' in f:
+    symbolic_weights = model._trainable_weights + model._non_trainable_weights
+    weight_values = load_subset_weights_from_hdf5_group(
+        f['top_level_model_weights'])
+    if len(weight_values) != len(symbolic_weights):
+      raise ValueError(
+          f'Weight count mismatch for top-level weights when loading weights '
+          f'from file. '
+          f'Model expects {len(symbolic_weights)} top-level weight(s). '
+          f'Received {len(weight_values)} saved top-level weight(s)')
+    weight_value_tuples += zip(symbolic_weights, weight_values)
   backend.batch_set_value(weight_value_tuples)
 
 
@@ -800,32 +804,34 @@ def load_weights_from_hdf5_group_by_name(
           layer, weight_values, original_keras_version, original_backend)
       if len(weight_values) != len(symbolic_weights):
         if skip_mismatch:
-          logging.warning('Skipping loading of weights for '
-                          'layer {}'.format(layer.name) + ' due to mismatch '
-                          'in number of weights ({} vs {}).'.format(
-                              len(symbolic_weights), len(weight_values)))
+          logging.warning(
+              f'Skipping loading of weights for layer #{k} (named '
+              f'{layer.name}) due to mismatch in number of weights. '
+              f'Layer expects {len(symbolic_weights)} weight(s). Received '
+              f'{len(weight_values)} saved weight(s)')
           continue
-        raise ValueError('Layer #' + str(k) + ' (named "' + layer.name +
-                         '") expects ' + str(len(symbolic_weights)) +
-                         ' weight(s), but the saved weights' + ' have ' +
-                         str(len(weight_values)) + ' element(s).')
+        raise ValueError(
+            f'Weight count mismatch for layer #{k} (named {layer.name}). '
+            f'Layer expects {len(symbolic_weights)} weight(s). Received '
+            f'{len(weight_values)} saved weight(s)')
       # Set values.
       for i in range(len(weight_values)):
-        if backend.int_shape(symbolic_weights[i]) != weight_values[i].shape:
+        expected_shape = backend.int_shape(symbolic_weights[i])
+        received_shape = weight_values[i].shape
+        if expected_shape != received_shape:
           if skip_mismatch:
-            logging.warning('Skipping loading of weights for '
-                            'layer {}'.format(layer.name) + ' due to '
-                            'mismatch in shape ({} vs {}).'.format(
-                                symbolic_weights[i].shape,
-                                weight_values[i].shape))
+            logging.warning(
+                f'Skipping loading weights for layer #{k} (named '
+                f'{layer.name}) due to mismatch in shape for weight '
+                f'{symbolic_weights[i].name}. '
+                f'Weight expects shape {expected_shape}. Received saved weight '
+                f'with shape {received_shape}')
             continue
-          raise ValueError('Layer #' + str(k) +' (named "' + layer.name +
-                           '"), weight ' + str(symbolic_weights[i]) +
-                           ' has shape {}'.format(backend.int_shape(
-                               symbolic_weights[i])) +
-                           ', but the saved weight has shape ' +
-                           str(weight_values[i].shape) + '.')
-
+          raise ValueError(
+              f'Shape mismatch in layer #{k} (named {layer.name}) for weight '
+              f'{symbolic_weights[i].name}. '
+              f'Weight expects shape {expected_shape}. Received saved weight '
+              f'with shape {received_shape}')
         else:
           weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
   symbolic_weights = model._trainable_weights + model._non_trainable_weights
@@ -846,20 +852,35 @@ def load_weights_from_hdf5_group_by_name(
   for i in range(len(weight_values)):
     if backend.int_shape(symbolic_weights[i]) != weight_values[i].shape:
       if skip_mismatch:
-        logging.warning('Skipping loading of weights for '
-                        'model {}'.format(model.name) + ' due to '
-                        'mismatch in shape ({} vs {}).'.format(
-                            symbolic_weights[i].shape,
-                            weight_values[i].shape))
-        continue
-      raise ValueError('(named "' + model.name +
-                        '"), weight ' + str(symbolic_weights[i]) +
-                        ' has shape {}'.format(backend.int_shape(
-                            symbolic_weights[i])) +
-                        ', but the saved weight has shape ' +
-                        str(weight_values[i].shape) + '.')
+        logging.warning(
+            f'Skipping loading top-level weights for model due to mismatch '
+            f'in number of weights. '
+            f'Model expects {len(symbolic_weights)} top-level weight(s). '
+            f'Received {len(weight_values)} saved top-level weight(s)')
+      else:
+        raise ValueError(
+            f'Weight count mismatch for top-level weights of model. '
+            f'Model expects {len(symbolic_weights)} top-level weight(s). '
+            f'Received {len(weight_values)} saved top-level weight(s)')
     else:
-      weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
+      for i in range(len(weight_values)):
+        expected_shape = backend.int_shape(symbolic_weights[i])
+        received_shape = weight_values[i].shape
+        if expected_shape != received_shape:
+          if skip_mismatch:
+            logging.warning(
+                f'Skipping loading top-level weight for model due to '
+                f'mismatch in shape for weight {symbolic_weights[i].name}. '
+                f'Weight expects shape {expected_shape}. Received saved weight '
+                f'with shape {received_shape}')
+          else:
+            raise ValueError(
+                f'Shape mismatch in model for top-level weight '
+                f'{symbolic_weights[i].name}. '
+                f'Weight expects shape {expected_shape}. Received saved weight '
+                f'with shape {received_shape}')
+        else:
+          weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
 
   backend.batch_set_value(weight_value_tuples)
 
@@ -885,9 +906,9 @@ def save_attributes_to_hdf5_group(group, name, data):
 
   # Expecting this to never be true.
   if bad_attributes:
-    raise RuntimeError('The following attributes cannot be saved to HDF5 '
-                       'file because they are larger than %d bytes: %s' %
-                       (HDF5_OBJECT_HEADER_LIMIT, ', '.join(bad_attributes)))
+    raise RuntimeError(
+        'The following attributes cannot be saved to HDF5 file because they '
+        f'are larger than {HDF5_OBJECT_HEADER_LIMIT} bytes: {bad_attributes}')
 
   data_npy = np.asarray(data)
 
@@ -958,7 +979,7 @@ def _legacy_weights(layer):
   weights = layer.trainable_weights + layer.non_trainable_weights
   if any(not isinstance(w, tf.Variable) for w in weights):
     raise NotImplementedError(
-        'Save or restore weights that is not an instance of `tf.Variable` is '
-        'not supported in h5, use `save_format=\'tf\'` instead. Got a model '
-        'or layer {} with weights {}'.format(layer.__class__.__name__, weights))
+        f'Save or restore weights that is not an instance of `tf.Variable` is '
+        f'not supported in h5, use `save_format=\'tf\'` instead. Received a '
+        f'model or layer {layer.__class__.__name__} with weights {weights}')
   return weights
