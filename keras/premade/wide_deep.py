@@ -22,10 +22,14 @@ from keras.engine import base_layer
 from keras.engine import data_adapter
 from keras.engine import training as keras_training
 from keras.utils import generic_utils
+from tensorflow.python.util import deprecation  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.experimental.WideDeepModel')
+@keras_export(
+    'keras.experimental.WideDeepModel',
+    v1=['keras.experimental.WideDeepModel', 'keras.models.WideDeepModel'])
+@deprecation.deprecated_endpoints('keras.experimental.WideDeepModel')
 class WideDeepModel(keras_training.Model):
   r"""Wide & Deep Model for regression and classification problems.
 
