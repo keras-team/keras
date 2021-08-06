@@ -209,7 +209,7 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):  # py
 
   raise IOError(
       'Unable to load model. Filepath is not an hdf5 file (or h5py is not '
-      'available) or SavedModel.')
+      f'available) or SavedModel. Received: filepath={filepath}')
 
 # Inject the load_model function to keras_deps to remove the dependency
 # from TFLite to Keras.
