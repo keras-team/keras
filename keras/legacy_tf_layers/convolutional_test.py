@@ -96,14 +96,14 @@ class ConvTest(tf.test.TestCase):
       layer = conv_layers.Conv2D(32, [3, 3], activation=tf.nn.relu)
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
-          'should be defined. Found `None`.'):
+          'should be defined. The input_shape received is'):
         _ = layer.apply(images)
 
       images = tf.compat.v1.placeholder(tf.float32, (5, None, 7, 9))
       layer = conv_layers.Conv2D(32, [3, 3], data_format='channels_first')
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
-          'should be defined. Found `None`.'):
+          'should be defined. The input_shape received is'):
         _ = layer.apply(images)
 
   def testConv2DPaddingSame(self):
@@ -167,14 +167,14 @@ class ConvTest(tf.test.TestCase):
       layer = conv_layers.Conv1D(32, 3, activation=tf.nn.relu)
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
-          'should be defined. Found `None`.'):
+          'should be defined. The input_shape received is'):
         _ = layer.apply(data)
 
       data = tf.compat.v1.placeholder(tf.float32, (5, None, 4))
       layer = conv_layers.Conv1D(32, 3, data_format='channels_first')
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
-          'should be defined. Found `None`.'):
+          'should be defined. The input_shape received is'):
         _ = layer.apply(data)
 
   def testCreateConv3D(self):
@@ -195,7 +195,7 @@ class ConvTest(tf.test.TestCase):
       layer = conv_layers.Conv3D(32, [3, 3, 3], activation=tf.nn.relu)
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
-          'should be defined. Found `None`.'):
+          'should be defined. The input_shape received is'):
         _ = layer.apply(volumes)
 
   def testConv2DKernelRegularizer(self):
