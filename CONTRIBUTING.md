@@ -31,8 +31,11 @@ tag is then added to the pull request.
 
 ### Step 5. Continous Integration tests
 
-A set of automated tests will also start to run after creating the pull request.
+A set of automated tests will also start to run after creating the pull request
+as shown in the picture below.
 If the tests fail, look into the error messages and try to fix it.
+
+![CI tests](https://i.imgur.com/vVY0dZD.png)
 
 ### Step 6. Code review
 
@@ -45,9 +48,8 @@ approved by the reviewer.
 Once the pull request is approved, a `ready to pull` tag will be added to the
 pull request. A team member will take care of the merging.
 
-See the following images as an example for a PR and its related tests.
-
-![PR and tests](pr_test.png)
+Here is an [example pull request](https://github.com/keras-team/keras/pull/15015)
+for your reference.
 
 ## Setup environment
 
@@ -160,27 +162,43 @@ Uninstalling keras-nightly-2.5.0.dev2021032500:
 
 ## Run tests
 
-```shell
-(venv_dir) scottzhu-macbookpro2:keras scottzhu$ bazel test -c opt keras:backend_test
-WARNING: The following configs were expanded more than once: [v2]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
-INFO: Options provided by the client:
-  Inherited 'common' options: --isatty=1 --terminal_columns=147
-INFO: Reading rc options for 'test' from /Users/scottzhu/workspace/keras/.bazelrc:
-  Inherited 'build' options: --apple_platform_type=macos --define open_source_build=true --define=use_fast_cpp_protos=false --define=tensorflow_enable_mlir_generated_gpu_kernels=0 --define=allow_oversize_protos=true --spawn_strategy=standalone -c opt --announce_rc --define=grpc_no_ares=true --config=short_logs --config=v2
-INFO: Reading rc options for 'test' from /Users/scottzhu/workspace/keras/.bazelrc:
-  'test' options: --define open_source_build=true --define=use_fast_cpp_protos=false --config=v2
-INFO: Found applicable config definition build:short_logs in file /Users/scottzhu/workspace/keras/.bazelrc: --output_filter=DONT_MATCH_ANYTHING
-INFO: Found applicable config definition build:v2 in file /Users/scottzhu/workspace/keras/.bazelrc: --define=tf_api_version=2 --action_env=TF2_BEHAVIOR=1
-INFO: Found applicable config definition build:v2 in file /Users/scottzhu/workspace/keras/.bazelrc: --define=tf_api_version=2 --action_env=TF2_BEHAVIOR=1
-INFO: Analyzed target //keras:backend_test (0 packages loaded, 0 targets configured).
-INFO: Found 1 test target...
-Target //keras:backend_test up-to-date:
-  bazel-bin/keras/backend_test
-INFO: Elapsed time: 45.535s, Critical Path: 45.26s
-INFO: 19 processes: 19 local.
-INFO: Build completed successfully, 20 total actions
-//keras:backend_test                                                     PASSED in 45.2s
-  Stats over 4 runs: max = 45.2s, min = 40.0s, avg = 41.5s, dev = 2.1s
+We use [Bazel](https://bazel.build/) to build and run the tests.
 
-INFO: Build completed successfully, 20 total actions
+### Run a test file
+
+For example, to run the tests in `keras/engine/base_layer_test.py`,
+we can run the following command at the root directory of the repo.
+
+```shell
+bazel test keras/engine:base_layer_test
 ```
+
+`keras/engine` is the relative path to the directory containing the test file.
+`base_layer_test` is the test file name without the `.py` extension.
+
+### Run a single test case
+
+The best way to run a single test case is to comment out the rest of the test
+cases in a file before runing the test file.
+
+### Run all tests
+
+You can run all the tests locally with the following commmand.
+
+```
+bazel test keras/... --build_tests_only
+```
+
+### Useful configs
+
+Here we provide a list of useful configs you can use with Bazel.
+
+```shell
+bazel test [CONFIGS] [YOUR_TEST]
+```
+
+To use these configs, just replace `[CONFIGS]` with the actual config in the
+command above.
+* `-c opt` enables the optimizations during the build.
+* `--test_sharding_strategy=disabled` disables the sharding so that all the
+  test outputs are in one file.
