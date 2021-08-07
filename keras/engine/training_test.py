@@ -88,7 +88,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model = sequential.Sequential([layers_module.Dense(1)])
     model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
     with self.assertRaisesRegex(ValueError,
-                                'Expect x to be a non-empty array or dataset.'):
+                                'Unexpected result of `train_function`.*'):
       model.fit(x=np.array([]), y=np.array([]))
 
   @keras_parameterized.run_all_keras_modes
@@ -1765,7 +1765,7 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
     model.compile(loss='mse')
 
     with self.assertRaisesRegex(ValueError,
-                                'Expect x to be a non-empty array or dataset.'):
+                                'Unexpected result of `predict_function`.*'):
       model.predict(np.array([]))
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
