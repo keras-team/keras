@@ -255,7 +255,9 @@ class PiecewiseConstantDecay(LearningRateSchedule):
 
     if len(boundaries) != len(values) - 1:
       raise ValueError(
-          "The length of boundaries should be 1 less than the length of values")
+          "The length of boundaries should be 1 less than the length of "
+          f"values. Received: boundaries={boundaries} of length "
+          f"{len(boundaries)}, and values={values} of length {len(values)}.")
 
     self.boundaries = boundaries
     self.values = values
