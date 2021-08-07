@@ -782,9 +782,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           y, y_pred, sample_weight, regularization_losses=self.losses)
     if self.loss and y is None:
       raise TypeError(
-          'Target data is missing. Your model was compiled with a `loss` '
-          'argument and therefore expects target data to be passed in `fit()`.'
-      )
+          f'Target data is missing. Your model has `loss`: {self.loss}, '
+          'and therefore expects target data to be passed in `fit()`.')
     # Run backwards pass.
     self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
     self.compiled_metrics.update_state(y, y_pred, sample_weight)
@@ -1191,7 +1190,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         logs = tf_utils.sync_to_numpy_or_python_type(logs)
         if logs is None:
-          raise ValueError('Expect x to be a non-empty array or dataset.')
+          raise ValueError('Unexpected result of `train_function` '
+                           '(Empty logs). Please use '
+                           '`Model.compile(..., run_eagerly=True)`, or '
+                           '`tf.config.run_functions_eagerly(True)` for more '
+                           'information of where went wrong, or file a '
+                           'issue/bug to `tf.keras`.')
         epoch_logs = copy.copy(logs)
 
         # Run validation.
@@ -1448,7 +1452,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     _disallow_inside_tf_function('evaluate')
     use_cached_eval_dataset = kwargs.pop('_use_cached_eval_dataset', False)
     if kwargs:
-      raise TypeError('Invalid keyword arguments: %s' % (kwargs,))
+      raise TypeError(f'Invalid keyword arguments: {(kwargs,)}')
 
     if self.distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
       self._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
@@ -1761,7 +1765,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             end_step = step + data_handler.step_increment
             callbacks.on_predict_batch_end(end_step, {'outputs': batch_outputs})
       if batch_outputs is None:
-        raise ValueError('Expect x to be a non-empty array or dataset.')
+        raise ValueError('Unexpected result of `predict_function` '
+                         '(Empty batch_outputs). Please use '
+                         '`Model.compile(..., run_eagerly=True)`, or '
+                         '`tf.config.run_functions_eagerly(True)` for more '
+                         'information of where went wrong, or file a '
+                         'issue/bug to `tf.keras`.')
       callbacks.on_predict_end()
     all_outputs = tf.__internal__.nest.map_structure_up_to(batch_outputs, concat, outputs)
 
@@ -2221,18 +2230,18 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         save_format = 'h5'
       else:
         raise ValueError(
-            'Unknown format "%s". Was expecting one of {"tf", "h5"}.' % (
-                save_format,))
+            f'Unknown format. Received: `save_format`={save_format}. Was '
+            'expecting one of {"tf", "h5"}.')
     if save_format == 'tf' and filepath_is_h5:
       raise ValueError(
-          ('save_weights got save_format="tf"/"tensorflow", but the '
-           'filepath ("%s") looks like an HDF5 file. Omit the ".h5"/".keras" '
-           'when saving in TensorFlow format.')
-          % filepath)
+          'save_weights got save_format="tf"/"tensorflow", but the '
+          f'filepath ({filepath}) looks like an HDF5 file. '
+          'Omit the ".h5"/".keras" when saving in TensorFlow format.')
 
     if save_format == 'h5' and h5py is None:
       raise ImportError(
-          '`save_weights` requires h5py when saving in hdf5.')
+          '`save_weights` requires h5py when saving in hdf5, but h5py is not '
+          'available. Try installing h5py package.')
     if save_format == 'tf':
       check_filepath = filepath + '.index'
     else:
@@ -2315,8 +2324,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     if backend.is_tpu_strategy(self._distribution_strategy):
       if (self._distribution_strategy.extended.steps_per_run > 1 and
           (not saving_utils.is_hdf5_filepath(filepath))):
-        raise ValueError('Load weights is not yet supported with TPUStrategy '
-                         'with steps_per_run greater than 1.')
+        spr = self._distribution_strategy.extended.steps_per_run
+        raise ValueError('Load weights is not implemented with TPUStrategy '
+                         'with `steps_per_run` greater than 1. The '
+                         f'`steps_per_run` is {spr}')
     if skip_mismatch and not by_name:
       raise ValueError(
           'When calling model.load_weights, skip_mismatch can only be set to '
@@ -2341,7 +2352,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       status = None
       if h5py is None:
         raise ImportError(
-            '`load_weights` requires h5py when loading weights from HDF5.')
+            '`load_weights` requires h5py package when loading weights from '
+            'HDF5. Try installing h5py.')
       if not self._is_graph_network and not self.built:
         raise ValueError(
             'Unable to load weights saved in HDF5 format into a subclassed '
