@@ -29,6 +29,8 @@ request with instructions on signing the Contributor License Agreement (CLA) if
 you haven't done so. Please follow the instructions to sign the CLA. A `cla:yes`
 tag is then added to the pull request.
 
+![Tag added](https://i.imgur.com/LHEdIfL.png)
+
 ### Step 5. Continous Integration tests
 
 A set of automated tests will also start to run after creating the pull request
@@ -43,10 +45,14 @@ A reviewer will review the pull request and provide comments. There may be
 several rounds of comments and code changes before the pull request gets
 approved by the reviewer.
 
+![Approval from reviewer](https://i.imgur.com/Ywl4ets.png)
+
 ### Step 7. Merging
 
 Once the pull request is approved, a `ready to pull` tag will be added to the
 pull request. A team member will take care of the merging.
+
+![Ready to pull](https://i.imgur.com/yCEqJsA.png)
 
 Here is an [example pull request](https://github.com/keras-team/keras/pull/15015)
 for your reference.
