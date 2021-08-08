@@ -1370,7 +1370,7 @@ class ImageDistributed(base_layer.Layer):
 
   def call(self, inputs):
     inputs_shape = tf.shape(inputs)
-    unbatched = inputs.shape.rank == 3
+    unbatched = inputs.shape.rank == 4
 
     if unbatched:
       images = []
