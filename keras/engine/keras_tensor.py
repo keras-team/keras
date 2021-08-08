@@ -290,6 +290,10 @@ class KerasTensor:
         self.type_spec, inferred_value_string,
         name_string, symbolic_description)
 
+  def __add__(self,other):
+    from keras.layers.merge import Add
+    return Add()([self,other])
+
   def __repr__(self):
     symbolic_description = ''
     inferred_value_string = ''
@@ -363,6 +367,10 @@ class KerasTensor:
   @classmethod
   def _overload_all_operators(cls, tensor_class):  # pylint: disable=invalid-name
     """Register overloads for all operators."""
+    # KerasTensor has custom implementation for __add__
+    if cls is KerasTensor:
+      tf.Tensor.OVERLOADABLE_OPERATORS.remove('__add__')
+
     for operator in tf.Tensor.OVERLOADABLE_OPERATORS:
       cls._overload_operator(tensor_class, operator)
 
