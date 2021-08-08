@@ -26,6 +26,7 @@ from keras.utils import control_flow_util
 from tensorflow.python.ops import stateless_random_ops
 from tensorflow.python.util.tf_export import keras_export
 
+
 ResizeMethod = tf.image.ResizeMethod
 
 _RESIZE_METHODS = {
@@ -1357,6 +1358,38 @@ class RandomWidth(base_layer.Layer):
     }
     base_config = super(RandomWidth, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
+
+
+@keras_export('keras.layers.experimental.preprocessing.ImageDistributed')
+class ImageDistributed(base_layer.Layer):
+  """Call preprocessing layer on 3D image data."""
+  def __init__(self, preprocessing_layer, **kwargs):
+    self.preprocessing_layer = preprocessing_layer
+    super(ImageDistributed, self).__init__(**kwargs)
+    base_preprocessing_layer.keras_kpl_gauge.get_cell('ImageDistributed').set(True)
+
+  def call(self, inputs):
+    inputs_shape = tf.shape(inputs)
+    unbatched = inputs.shape.rank == 3
+
+    if unbatched:
+      images = []
+      for i in range(inputs_shape[0]):
+        preprocessed = self.preprocessing_layer(inputs[i])
+        images.append(preprocessed)
+
+      return backend.stack(images)
+    else:
+      batches = []
+      for batch_indx in range(inputs_shape[0]):
+        images = []
+
+        for i in range(inputs_shape[1]):
+          preprocessed = self.preprocessing_layer(inputs[batch_indx, i])
+          images.append(preprocessed)
+        
+        batches.append(backend.stack(images))
+      return backend.stack(batches)
 
 
 def make_generator(seed=None):
