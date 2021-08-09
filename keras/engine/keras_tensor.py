@@ -27,7 +27,7 @@ from keras.utils import object_identity
 _MAX_TENSOR_RANK = 254
 
 
-class KerasTensor(object):
+class KerasTensor:
   """A representation of a Keras in/output during Functional API construction.
 
   `KerasTensor`s are tensor-like objects that represent the symbolic inputs
@@ -228,14 +228,14 @@ class KerasTensor(object):
                     'in the Functional Model.')
 
   def __hash__(self):
-    raise TypeError('Tensors are unhashable. (%s)'
-                    'Instead, use tensor.ref() as the key.' % self)
+    raise TypeError(f'Tensors are unhashable (this tensor: {self}). '
+                    'Instead, use tensor.ref() as the key.')
 
   # Note: This enables the KerasTensor's overloaded "right" binary
   # operators to run when the left operand is an ndarray, because it
   # accords the Tensor class higher priority than an ndarray, or a
   # numpy matrix.
-  # In the future explore chaning this to using numpy's __numpy_ufunc__
+  # In the future explore changing this to using numpy's __numpy_ufunc__
   # mechanism, which allows more control over how Tensors interact
   # with ndarrays.
   __array_priority__ = 100
@@ -267,9 +267,8 @@ class KerasTensor(object):
       shape = tf.TensorShape(dim_list)
     if not self.shape.is_compatible_with(shape):
       raise ValueError(
-          "Keras symbolic input/output's shape %s is not"
-          "compatible with supplied shape %s" %
-          (self.shape, shape))
+          f"Keras symbolic input/output's shape {self.shape} is not "
+          f"compatible with supplied shape {shape}.")
     else:
       self._type_spec._shape = shape  # pylint: disable=protected-access
 
@@ -328,6 +327,19 @@ class KerasTensor(object):
     See the documentation of `tf.Tensor.ref()` for more info.
     """
     return object_identity.Reference(self)
+
+  @property
+  def node(self):
+    """Find the corresponding `Node` that produce this keras_tensor.
+
+    During functional model construction, Keras will attach `KerasHistory` to
+    keras tensor to track the connectivity between calls of layers. Return
+    None if there isn't any KerasHistory attached to this tensor.
+    """
+    if hasattr(self, '_keras_history'):
+      layer, node_index, _ = self._keras_history
+      return layer.inbound_nodes[node_index]
+    return None
 
   def __iter__(self):
     shape = None
@@ -522,7 +534,7 @@ class UserRegisteredTypeKerasTensor(KerasTensor):
     return self._user_registered_symbolic_object
 
 
-class _KerasTensorIterator(object):
+class _KerasTensorIterator:
   """Iterates over the leading dim of a KerasTensor. Performs 0 error checks."""
 
   def __init__(self, tensor, dim0):

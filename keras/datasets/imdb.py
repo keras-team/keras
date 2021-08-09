@@ -97,7 +97,7 @@ def load_data(path='imdb.npz',
                     'has been renamed `num_words`.')
     num_words = kwargs.pop('nb_words')
   if kwargs:
-    raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+    raise TypeError(f'Unrecognized keyword arguments: {str(kwargs)}.')
 
   origin_folder = 'https://storage.googleapis.com/tensorflow/tf-keras-datasets/'
   path = get_file(
@@ -131,9 +131,8 @@ def load_data(path='imdb.npz',
     x_train, labels_train = _remove_long_seq(maxlen, x_train, labels_train)
     x_test, labels_test = _remove_long_seq(maxlen, x_test, labels_test)
     if not x_train or not x_test:
-      raise ValueError('After filtering for sequences shorter than maxlen=' +
-                       str(maxlen) + ', no sequence was kept. '
-                       'Increase maxlen.')
+      raise ValueError('After filtering for sequences shorter than maxlen='
+                       f'{str(maxlen)}, no sequence was kept. Increase maxlen.')
 
   xs = x_train + x_test
   labels = np.concatenate([labels_train, labels_test])

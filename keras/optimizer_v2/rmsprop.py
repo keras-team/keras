@@ -136,7 +136,8 @@ class RMSprop(optimizer_v2.OptimizerV2):
     if isinstance(momentum, tf.Tensor) or callable(momentum) or momentum > 0:
       self._momentum = True
     if isinstance(momentum, (int, float)) and (momentum < 0 or momentum > 1):
-      raise ValueError("`momentum` must be between [0, 1].")
+      raise ValueError(f"`momentum` must be between [0, 1]. Received: "
+                       f"momentum={momentum} (of type {type(momentum)}).")
     self._set_hyper("momentum", momentum)
 
     self.epsilon = epsilon or backend_config.epsilon()

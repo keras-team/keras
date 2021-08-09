@@ -308,7 +308,7 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
           directory, color_mode='other')
 
     with self.assertRaisesRegex(
-        ValueError, 'only pass `class_names` if the labels are inferred'):
+        ValueError, 'only pass `class_names` if `labels="inferred"`'):
       _ = image_dataset.image_dataset_from_directory(
           directory, labels=[0, 0, 1, 1, 1],
           class_names=['class_0', 'class_1', 'class_2'])
@@ -324,7 +324,7 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
       _ = image_dataset.image_dataset_from_directory(
           directory, class_names=['class_0', 'class_2'])
 
-    with self.assertRaisesRegex(ValueError, 'there must exactly 2 classes'):
+    with self.assertRaisesRegex(ValueError, 'there must be exactly 2'):
       _ = image_dataset.image_dataset_from_directory(
           directory, label_mode='binary')
 

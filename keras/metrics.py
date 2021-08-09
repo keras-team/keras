@@ -236,6 +236,10 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
     return distributed_training_utils.call_replica_local_fn(
         replica_local_fn, *args, **kwargs)
 
+  def __str__(self):
+    args = ','.join(f'{k}={v}' for k, v in self.get_config().items())
+    return f'{self.__class__.__name__}({args})'
+
   @property
   def dtype(self):
     return self._dtype
@@ -278,6 +282,42 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
       **kwargs: A mini-batch of inputs to the Metric.
     """
     raise NotImplementedError('Must be implemented in subclasses.')
+
+  def merge_state(self, metrics):
+    """Merges the state from one or more metrics.
+
+    This method can be used by distributed systems to merge the state computed
+    by different metric instances. Typically the state will be stored in the
+    form of the metric's weights. For example, a tf.keras.metrics.Mean metric
+    contains a list of two weight values: a total and a count. If there were two
+    instances of a tf.keras.metrics.Accuracy that each independently aggregated
+    partial state for an overall accuracy calculation, these two metric's states
+    could be combined as follows:
+
+    >>> m1 = tf.keras.metrics.Accuracy()
+    >>> _ = m1.update_state([[1], [2]], [[0], [2]])
+
+    >>> m2 = tf.keras.metrics.Accuracy()
+    >>> _ = m2.update_state([[3], [4]], [[3], [4]])
+
+    >>> m2.merge_state([m1])
+    >>> m2.result().numpy()
+    0.75
+
+    Args:
+      metrics: an iterable of metrics. The metrics must have compatible state.
+
+    Raises:
+      ValueError: If the provided iterable does not contain metrics matching the
+        metric's required specifications.
+    """
+    assign_add_ops = []
+    for metric in metrics:
+      if len(self.weights) != len(metric.weights):
+        raise ValueError(f'Metric {metric} is not compatible with {self}')
+      for weight, weight_to_add in zip(self.weights, metric.weights):
+        assign_add_ops.append(weight.assign_add(weight_to_add))
+    return assign_add_ops
 
   @abc.abstractmethod
   def result(self):
@@ -394,9 +434,9 @@ class Reduce(Metric):
       values = tf.cast(values, self._dtype)
     except (ValueError, TypeError):
       msg = ('The output of a metric function can only be a single Tensor. '
-             'Got: %s' % (values,))
+             f'Received: {values}. ')
       if isinstance(values, dict):
-        msg += ('. To return a dict of values, implement a custom Metric '
+        msg += ('To return a dict of values, implement a custom Metric '
                 'subclass.')
       raise RuntimeError(msg)
     if sample_weight is not None:
@@ -438,7 +478,8 @@ class Reduce(Metric):
         num_values = tf.reduce_sum(sample_weight)
     else:
       raise NotImplementedError(
-          'reduction [%s] not implemented' % self.reduction)
+          f'Reduction "{self.reduction}" not implemented. Expected '
+          '"sum", "weighted_mean", or "sum_over_batch_size".')
 
     with tf.control_dependencies([update_total_op]):
       return self.count.assign_add(num_values)
@@ -453,7 +494,8 @@ class Reduce(Metric):
       return tf.math.divide_no_nan(self.total, self.count)
     else:
       raise NotImplementedError(
-          'reduction [%s] not implemented' % self.reduction)
+          f'Reduction "{self.reduction}" not implemented. Expected '
+          '"sum", "weighted_mean", or "sum_over_batch_size".')
 
 
 @keras_export('keras.metrics.Sum')
@@ -1366,8 +1408,9 @@ class Precision(Metric):
         sample_weight=sample_weight)
 
   def result(self):
-    result = tf.math.divide_no_nan(self.true_positives,
-                                 self.true_positives + self.false_positives)
+    result = tf.math.divide_no_nan(
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_positives))
     return result[0] if len(self.thresholds) == 1 else result
 
   def reset_state(self):
@@ -1495,8 +1538,9 @@ class Recall(Metric):
         sample_weight=sample_weight)
 
   def result(self):
-    result = tf.math.divide_no_nan(self.true_positives,
-                                 self.true_positives + self.false_negatives)
+    result = tf.math.divide_no_nan(
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     return result[0] if len(self.thresholds) == 1 else result
 
   def reset_state(self):
@@ -1530,7 +1574,9 @@ class SensitivitySpecificityBase(Metric, metaclass=abc.ABCMeta):
                dtype=None):
     super(SensitivitySpecificityBase, self).__init__(name=name, dtype=dtype)
     if num_thresholds <= 0:
-      raise ValueError('`num_thresholds` must be > 0.')
+      raise ValueError(
+          'Argument `num_thresholds` must be an integer > 0. '
+          f'Received: num_thresholds={num_thresholds}')
     self.value = value
     self.class_id = class_id
     self.true_positives = self.add_weight(
@@ -1689,7 +1735,9 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
                name=None,
                dtype=None):
     if specificity < 0 or specificity > 1:
-      raise ValueError('`specificity` must be in the range [0, 1].')
+      raise ValueError(
+          'Argument `specificity` must be in the range [0, 1]. '
+          f'Received: specificity={specificity}')
     self.specificity = specificity
     self.num_thresholds = num_thresholds
     super(SensitivityAtSpecificity, self).__init__(
@@ -1701,9 +1749,11 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
 
   def result(self):
     specificities = tf.math.divide_no_nan(
-        self.true_negatives, self.true_negatives + self.false_positives)
+        self.true_negatives,
+        tf.math.add(self.true_negatives, self.false_positives))
     sensitivities = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_negatives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     return self._find_max_under_constraint(
         specificities, sensitivities, tf.greater_equal)
 
@@ -1781,7 +1831,9 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
                name=None,
                dtype=None):
     if sensitivity < 0 or sensitivity > 1:
-      raise ValueError('`sensitivity` must be in the range [0, 1].')
+      raise ValueError(
+          'Argument `sensitivity` must be in the range [0, 1]. '
+          f'Received: sensitivity={sensitivity}')
     self.sensitivity = sensitivity
     self.num_thresholds = num_thresholds
     super(SpecificityAtSensitivity, self).__init__(
@@ -1793,9 +1845,11 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
 
   def result(self):
     sensitivities = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_negatives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     specificities = tf.math.divide_no_nan(
-        self.true_negatives, self.true_negatives + self.false_positives)
+        self.true_negatives,
+        tf.math.add(self.true_negatives, self.false_positives))
     return self._find_max_under_constraint(
         sensitivities, specificities, tf.greater_equal)
 
@@ -1865,7 +1919,9 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
                name=None,
                dtype=None):
     if recall < 0 or recall > 1:
-      raise ValueError('`recall` must be in the range [0, 1].')
+      raise ValueError(
+          'Argument `recall` must be in the range [0, 1]. '
+          f'Received: recall={recall}')
     self.recall = recall
     self.num_thresholds = num_thresholds
     super(PrecisionAtRecall, self).__init__(
@@ -1877,9 +1933,11 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
 
   def result(self):
     recalls = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_negatives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     precisions = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_positives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_positives))
     return self._find_max_under_constraint(
         recalls, precisions, tf.greater_equal)
 
@@ -1949,7 +2007,9 @@ class RecallAtPrecision(SensitivitySpecificityBase):
                name=None,
                dtype=None):
     if precision < 0 or precision > 1:
-      raise ValueError('`precision` must be in the range [0, 1].')
+      raise ValueError(
+          'Argument `precision` must be in the range [0, 1]. '
+          f'Received: precision={precision}')
     self.precision = precision
     self.num_thresholds = num_thresholds
     super(RecallAtPrecision, self).__init__(
@@ -1961,9 +2021,11 @@ class RecallAtPrecision(SensitivitySpecificityBase):
 
   def result(self):
     precisions = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_positives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_positives))
     recalls = tf.math.divide_no_nan(
-        self.true_positives, self.true_positives + self.false_negatives)
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     return self._find_max_under_constraint(
         precisions, recalls, tf.greater_equal)
 
@@ -2105,15 +2167,16 @@ class AUC(Metric):
     # Validate configurations.
     if isinstance(curve, metrics_utils.AUCCurve) and curve not in list(
         metrics_utils.AUCCurve):
-      raise ValueError('Invalid curve: "{}". Valid options are: "{}"'.format(
-          curve, list(metrics_utils.AUCCurve)))
+      raise ValueError(
+          f'Invalid `curve` argument value "{curve}". '
+          f'Expected one of: {list(metrics_utils.AUCCurve)}')
     if isinstance(
         summation_method,
         metrics_utils.AUCSummationMethod) and summation_method not in list(
             metrics_utils.AUCSummationMethod):
       raise ValueError(
-          'Invalid summation method: "{}". Valid options are: "{}"'.format(
-              summation_method, list(metrics_utils.AUCSummationMethod)))
+          f'Invalid `summation_method` argument value "{summation_method}". '
+          f'Expected one of: {list(metrics_utils.AUCSummationMethod)}')
 
     # Update properties.
     self._init_from_thresholds = thresholds is not None
@@ -2126,7 +2189,8 @@ class AUC(Metric):
               np.array([0.0] + thresholds + [1.0])))
     else:
       if num_thresholds <= 1:
-        raise ValueError('`num_thresholds` must be > 1.')
+        raise ValueError('Argument `num_thresholds` must be an integer > 1. '
+                         f'Received: num_thresholds={num_thresholds}')
 
       # Otherwise, linearly interpolate (num_thresholds - 2) thresholds in
       # (0, 1).
@@ -2188,8 +2252,10 @@ class AUC(Metric):
     """Initialize TP, FP, TN, and FN tensors, given the shape of the data."""
     if self.multi_label:
       if shape.ndims != 2:
-        raise ValueError('`y_true` must have rank=2 when `multi_label` is '
-                         'True. Found rank %s.' % shape.ndims)
+        raise ValueError(
+            '`y_true` must have rank 2 when `multi_label=True`. '
+            f'Found rank {shape.ndims}. '
+            f'Full shape received for `y_true`: {shape}')
       self._num_labels = shape[1]
       variable_shape = tf.TensorShape(
           [tf.compat.v1.Dimension(self.num_thresholds), self._num_labels])
@@ -2337,7 +2403,7 @@ class AUC(Metric):
     """
     dtp = self.true_positives[:self.num_thresholds -
                               1] - self.true_positives[1:]
-    p = self.true_positives + self.false_positives
+    p = tf.math.add(self.true_positives, self.false_positives)
     dp = p[:self.num_thresholds - 1] - p[1:]
     prec_slope = tf.math.divide_no_nan(
         dtp, tf.maximum(dp, 0), name='prec_slope')
@@ -2380,16 +2446,19 @@ class AUC(Metric):
       return self.interpolate_pr_auc()
 
     # Set `x` and `y` values for the curves based on `curve` config.
-    recall = tf.math.divide_no_nan(self.true_positives,
-                                 self.true_positives + self.false_negatives)
+    recall = tf.math.divide_no_nan(
+        self.true_positives,
+        tf.math.add(self.true_positives, self.false_negatives))
     if self.curve == metrics_utils.AUCCurve.ROC:
-      fp_rate = tf.math.divide_no_nan(self.false_positives,
-                                    self.false_positives + self.true_negatives)
+      fp_rate = tf.math.divide_no_nan(
+          self.false_positives,
+          tf.math.add(self.false_positives, self.true_negatives))
       x = fp_rate
       y = recall
     else:  # curve == 'PR'.
       precision = tf.math.divide_no_nan(
-          self.true_positives, self.true_positives + self.false_positives)
+          self.true_positives,
+          tf.math.add(self.true_positives, self.false_positives))
       x = recall
       y = precision
 
@@ -3136,9 +3205,10 @@ class MeanTensor(Metric):
     if not self._built:
       self._build(values.shape)
     elif values.shape != self._shape:
-      raise ValueError('MeanTensor input values must always have the same '
-                       'shape. Expected shape (set during the first call): {}. '
-                       'Got: {}'.format(self._shape, values.shape))
+      raise ValueError(
+          'MeanTensor input values must always have the same '
+          f'shape. Expected shape (set during the first call): {self._shape}. '
+          f'Got: {values.shape}.')
 
     num_values = tf.ones_like(values)
     if sample_weight is not None:
@@ -3168,7 +3238,7 @@ class MeanTensor(Metric):
   def result(self):
     if not self._built:
       raise ValueError(
-          'MeanTensor does not have any result yet. Please call the MeanTensor '
+          'MeanTensor does not have any value yet. Please call the MeanTensor '
           'instance or use `.update_state(value)` before retrieving the result.'
           )
     return tf.math.divide_no_nan(self.total, self.count)
@@ -3715,7 +3785,7 @@ def get(identifier):
     return identifier
   else:
     raise ValueError(
-        'Could not interpret metric function identifier: {}'.format(identifier))
+        f'Could not interpret metric identifier: {identifier}')
 
 
 def is_built_in(cls):

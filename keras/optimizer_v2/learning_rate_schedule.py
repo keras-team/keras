@@ -23,7 +23,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.optimizers.schedules.LearningRateSchedule")
-class LearningRateSchedule(object):
+class LearningRateSchedule:
   """The learning rate schedule base class.
 
   You can use a learning rate schedule to modulate how the learning rate
@@ -255,7 +255,9 @@ class PiecewiseConstantDecay(LearningRateSchedule):
 
     if len(boundaries) != len(values) - 1:
       raise ValueError(
-          "The length of boundaries should be 1 less than the length of values")
+          "The length of boundaries should be 1 less than the length of "
+          f"values. Received: boundaries={boundaries} of length "
+          f"{len(boundaries)}, and values={values} of length {len(values)}.")
 
     self.boundaries = boundaries
     self.values = values

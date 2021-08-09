@@ -85,7 +85,7 @@ def softmax(x, axis=-1):
       output = e / s
   else:
     raise ValueError('Cannot apply softmax to a tensor that is 1D. '
-                     'Received input: %s' % (x,))
+                     f'Received input: {x}')
 
   # Cache the logits to use for crossentropy loss.
   output._keras_logits = x  # pylint: disable=protected-access
@@ -600,5 +600,4 @@ def get(identifier):
     return identifier
   else:
     raise TypeError(
-        'Could not interpret activation function identifier: {}'.format(
-            identifier))
+        f'Could not interpret activation function identifier: {identifier}')

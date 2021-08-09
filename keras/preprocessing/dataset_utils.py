@@ -42,7 +42,7 @@ def index_directory(directory,
         to the alphanumeric order of the image file paths
         (obtained via `os.walk(directory)` in Python).
     formats: Allowlist of file extensions to index (e.g. ".jpg", ".txt").
-    class_names: Only valid if "labels" is "inferred". This is the explict
+    class_names: Only valid if "labels" is "inferred". This is the explicit
         list of class names (must match names of subdirectories). Used
         to control the order of the classes
         (otherwise alphanumerical order is used).

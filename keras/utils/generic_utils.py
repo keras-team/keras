@@ -49,7 +49,7 @@ _LAYER_UNDEFINED_CONFIG_KEY = 'layer was saved without config'
 
 @keras_export('keras.utils.custom_object_scope',  # pylint: disable=g-classes-have-attributes
               'keras.utils.CustomObjectScope')
-class CustomObjectScope(object):
+class CustomObjectScope:
   """Exposes custom classes/functions to Keras deserialization internals.
 
   Under a scope `with custom_object_scope(objects_dict)`, Keras methods such
@@ -142,7 +142,7 @@ def _shared_object_saving_scope():
   return getattr(SHARED_OBJECT_SAVING, 'scope', None)
 
 
-class DisableSharedObjectScope(object):
+class DisableSharedObjectScope:
   """A context manager for disabling handling of shared objects.
 
   Disables shared object handling for both saving and loading.
@@ -162,7 +162,7 @@ class DisableSharedObjectScope(object):
     SHARED_OBJECT_SAVING.scope = self._orig_saving_scope
 
 
-class NoopLoadingScope(object):
+class NoopLoadingScope:
   """The default shared object loading scope. It does nothing.
 
   Created to simplify serialization code that doesn't care about shared objects
@@ -176,7 +176,7 @@ class NoopLoadingScope(object):
     pass
 
 
-class SharedObjectLoadingScope(object):
+class SharedObjectLoadingScope:
   """A context manager for keeping track of loaded objects.
 
   During the deserialization process, we may come across objects that are
@@ -253,7 +253,7 @@ class SharedObjectConfig(dict):
     self.ref_count += 1
 
 
-class SharedObjectSavingScope(object):
+class SharedObjectSavingScope:
   """Keeps track of shared object configs when serializing."""
 
   def __enter__(self):
@@ -376,12 +376,12 @@ def register_keras_serializable(package='Custom', name=None):
 
     if registered_name in _GLOBAL_CUSTOM_OBJECTS:
       raise ValueError(
-          '%s has already been registered to %s' %
-          (registered_name, _GLOBAL_CUSTOM_OBJECTS[registered_name]))
+          f'{registered_name} has already been registered to '
+          f'{_GLOBAL_CUSTOM_OBJECTS[registered_name]}')
 
     if arg in _GLOBAL_CUSTOM_NAMES:
-      raise ValueError('%s has already been registered to %s' %
-                       (arg, _GLOBAL_CUSTOM_NAMES[arg]))
+      raise ValueError(
+          f'{arg} has already been registered to {_GLOBAL_CUSTOM_NAMES[arg]}')
     _GLOBAL_CUSTOM_OBJECTS[registered_name] = arg
     _GLOBAL_CUSTOM_NAMES[arg] = registered_name
 
@@ -527,7 +527,8 @@ def serialize_keras_object(instance):
         name, serialization_config, instance)
   if hasattr(instance, '__name__'):
     return get_registered_name(instance)
-  raise ValueError('Cannot serialize', instance)
+  raise ValueError(f'Cannot serialize {instance} since it doesn\'t implement '
+                   '`get_config()`, and also doesn\t have `__name__`')
 
 
 def get_custom_objects_by_name(item, custom_objects=None):
@@ -548,17 +549,18 @@ def class_and_config_for_serialized_keras_object(
   if (not isinstance(config, dict)
       or 'class_name' not in config
       or 'config' not in config):
-    raise ValueError('Improper config format: ' + str(config))
+    raise ValueError(
+        f'Improper config format for {config}. '
+        'Expecting python dict contains `class_name` and `config` as keys')
 
   class_name = config['class_name']
   cls = get_registered_object(class_name, custom_objects, module_objects)
   if cls is None:
     raise ValueError(
-        'Unknown {}: {}. Please ensure this object is '
-        'passed to the `custom_objects` argument. See '
+        f'Unknown {printable_module_name}: {class_name}. Please ensure this '
+        'object is passed to the `custom_objects` argument. See '
         'https://www.tensorflow.org/guide/keras/save_and_serialize'
-        '#registering_the_custom_object for details.'
-        .format(printable_module_name, class_name))
+        '#registering_the_custom_object for details.')
 
   cls_config = config['config']
   # Check if `cls_config` is a list. If it is a list, return the class and the
@@ -702,11 +704,10 @@ def deserialize_keras_object(identifier,
       obj = module_objects.get(object_name)
       if obj is None:
         raise ValueError(
-            'Unknown {}: {}. Please ensure this object is '
-            'passed to the `custom_objects` argument. See '
+            f'Unknown {printable_module_name}: {object_name}. Please ensure '
+            'this object is passed to the `custom_objects` argument. See '
             'https://www.tensorflow.org/guide/keras/save_and_serialize'
-            '#registering_the_custom_object for details.'
-            .format(printable_module_name, object_name))
+            '#registering_the_custom_object for details.')
 
     # Classes passed by name are instantiated with no args, functions are
     # returned as-is.
@@ -717,8 +718,8 @@ def deserialize_keras_object(identifier,
     # If a function has already been deserialized, return as is.
     return identifier
   else:
-    raise ValueError('Could not interpret serialized %s: %s' %
-                     (printable_module_name, identifier))
+    raise ValueError(
+        f'Could not interpret serialized {printable_module_name}: {identifier}')
 
 
 def func_dump(func):
@@ -812,7 +813,7 @@ def has_arg(fn, name, accept_all=False):
 
 
 @keras_export('keras.utils.Progbar')
-class Progbar(object):
+class Progbar:
   """Displays a progress bar.
 
   Args:
@@ -1093,7 +1094,7 @@ def slice_arrays(arrays, start=None, stop=None):
     return [None]
   if isinstance(start, list) and stop is not None:
     raise ValueError('The stop argument has to be None if the value of start '
-                     'is a list.')
+                     f'is a list. Received start={start}, stop={stop}')
   elif isinstance(arrays, list):
     if hasattr(start, '__len__'):
       # hdf5 datasets only support list objects as indices
@@ -1153,9 +1154,9 @@ def is_all_none(structure):
 def check_for_unexpected_keys(name, input_dict, expected_values):
   unknown = set(input_dict.keys()).difference(expected_values)
   if unknown:
-    raise ValueError('Unknown entries in {} dictionary: {}. Only expected '
-                     'following keys: {}'.format(name, list(unknown),
-                                                 expected_values))
+    raise ValueError(
+        f'Unknown entries in {name} dictionary: {list(unknown)}. Only expected '
+        f'following keys: {expected_values}')
 
 
 def validate_kwargs(kwargs,

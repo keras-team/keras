@@ -157,15 +157,15 @@ def _clone_functional_model(model, input_tensors=None, layer_fn=_clone_layer):
   """
   if not isinstance(model, Model):
     raise ValueError('Expected `model` argument '
-                     'to be a `Model` instance, got ', model)
+                     f'to be a `Model` instance. Received: model={model}')
   if isinstance(model, Sequential):
     raise ValueError('Expected `model` argument '
                      'to be a functional `Model` instance, '
-                     'got a `Sequential` instance instead:', model)
+                     f'got a `Sequential` instance instead: {model}')
   if not model._is_graph_network:
     raise ValueError('Expected `model` argument '
                      'to be a functional `Model` instance, '
-                     'but got a subclass model instead.')
+                     f'but got a subclassed model instead: {model}')
 
   new_input_layers = {}  # Cache for created layers.
   if input_tensors is not None:
@@ -183,10 +183,12 @@ def _clone_functional_model(model, input_tensors=None, layer_fn=_clone_layer):
         newly_created_input_layer = input_tensor._keras_history.layer
         new_input_layers[original_input_layer] = newly_created_input_layer
       else:
-        new_input_layers[original_input_layer] = original_input_layer
+        new_input_layers[
+            original_input_layer] = input_tensor._keras_history.layer
 
   if not callable(layer_fn):
-    raise ValueError('Expected `layer_fn` argument to be a callable.')
+    raise ValueError('Expected `layer_fn` argument to be a callable. '
+                     f'Received: layer_fn={layer_fn}')
 
   model_configs, created_layers = _clone_layers_and_model_config(
       model, new_input_layers, layer_fn)
@@ -305,11 +307,13 @@ def _clone_sequential_model(model, input_tensors=None, layer_fn=_clone_layer):
   """
   if not isinstance(model, Sequential):
     raise ValueError('Expected `model` argument '
-                     'to be a `Sequential` model instance, '
-                     'but got:', model)
+                     'to be a `Sequential` model instance. '
+                     f'Received: model={model}')
 
   if not callable(layer_fn):
-    raise ValueError('Expected `layer_fn` argument to be a callable.')
+    raise ValueError(
+        'Expected `layer_fn` argument to be a callable. '
+        f'Received: layer_fn={layer_fn}')
 
   layers = []  # Layers needed to compute the model's outputs.
   layer_map = {}
@@ -331,9 +335,9 @@ def _clone_sequential_model(model, input_tensors=None, layer_fn=_clone_layer):
   if input_tensors is None:
     cloned_model = Sequential(layers=layers, name=model.name)
   elif len(generic_utils.to_list(input_tensors)) != 1:
-    raise ValueError('To clone a `Sequential` model, we expect '
-                     ' at most one tensor '
-                     'as part of `input_tensors`.')
+    raise ValueError(
+        'To clone a `Sequential` model, we expect at most one tensor as part '
+        f'of `input_tensors`. Received: input_tensors={input_tensors}')
   else:
     # Overwrite the original model's input layer.
     if isinstance(input_tensors, tuple):
@@ -348,7 +352,8 @@ def _clone_sequential_model(model, input_tensors=None, layer_fn=_clone_layer):
         raise ValueError('Cannot clone a `Sequential` model on top '
                          'of a tensor that comes from a Keras layer '
                          'other than an `InputLayer`. '
-                         'Use the functional API instead.')
+                         'Use the Functional API instead. '
+                         f'Received: input_tensors={input_tensors}')
     else:
       input_tensor = Input(tensor=x, name='input_wrapper_for_' + str(x.name))
       input_layer = input_tensor._keras_history.layer
@@ -495,7 +500,7 @@ def _in_place_subclassed_model_reset(model):
       if hasattr(value, 'layers') and value.layers:
         raise ValueError('We do not support the use of nested layers '
                          'in `model_to_estimator` at this time. Found nested '
-                         'layer: %s' % value)
+                         f'layer: {value}')
     elif isinstance(
         value, (list, tuple)) and name not in ('layers', '_layers', 'metrics',
                                                '_compile_metric_functions',
@@ -505,7 +510,7 @@ def _in_place_subclassed_model_reset(model):
         raise ValueError('We do not support the use of list-of-layers '
                          'attributes in subclassed models used with '
                          '`model_to_estimator` at this time. Found list '
-                         'model: %s' % name)
+                         f'model: {name}')
 
   # Replace layers on the model with fresh layers
   layers_to_names = {value: key for key, value in attributes_cache.items()}
@@ -522,7 +527,7 @@ def _in_place_subclassed_model_reset(model):
     if isinstance(layer, training.Model) and not layer._is_graph_network:
       raise ValueError('We do not support the use of nested subclassed models '
                        'in `model_to_estimator` at this time. Found nested '
-                       'model: %s' % layer)
+                       f'model: {layer}')
     fresh_layer = layer.__class__.from_config(config)
     name = layers_to_names[layer]
     setattr(model, name, fresh_layer)
@@ -662,8 +667,8 @@ def clone_and_build_model(
   orig_optimizer = model.optimizer
   if compile_clone and not orig_optimizer:
     raise ValueError(
-        'Error when cloning model: compile_clone was set to True, but the '
-        'original model has not been compiled.')
+        'Error when cloning model: `compile_clone` was set to True, but the '
+        f'original model has not been compiled. Received: model={model}')
 
   if compile_clone:
     compile_args = model._get_compile_args()  # pylint: disable=protected-access
@@ -693,7 +698,7 @@ def clone_and_build_model(
                         'cloning the model.')
         if not in_place_reset:
           raise ValueError(
-              'This model is a subclassed model. '
+              f'This model ({model}) is a subclassed model. '
               'Such a model cannot be cloned, but there is a workaround where '
               'the model is reset in-place. To use this, please set the '
               'argument `in_place_reset` to `True`. This will reset the '

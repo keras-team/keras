@@ -16,7 +16,6 @@
 # pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 
-import functools
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -134,7 +133,7 @@ class Conv(Layer):
       filters = int(filters)
     if filters is not None and filters < 0:
       raise ValueError(f'Received a negative value for `filters`.'
-                       f'Was expecting a positive value, got {filters}.')
+                       f'Was expecting a positive value. Received {filters}.')
     self.filters = filters
     self.groups = groups or 1
     self.kernel_size = conv_utils.normalize_tuple(
@@ -216,29 +215,24 @@ class Conv(Layer):
     channel_axis = self._get_channel_axis()
     self.input_spec = InputSpec(min_ndim=self.rank + 2,
                                 axes={channel_axis: input_channel})
+    self.built = True
 
-    # Convert Keras formats to TF native formats.
+  def convolution_op(self, inputs, kernel):
     if self.padding == 'causal':
       tf_padding = 'VALID'  # Causal padding handled in `call`.
     elif isinstance(self.padding, str):
       tf_padding = self.padding.upper()
     else:
       tf_padding = self.padding
-    tf_dilations = list(self.dilation_rate)
-    tf_strides = list(self.strides)
 
-    tf_op_name = self.__class__.__name__
-    if tf_op_name == 'Conv1D':
-      tf_op_name = 'conv1d'  # Backwards compat.
-
-    self._convolution_op = functools.partial(
-        tf.nn.convolution,
-        strides=tf_strides,
+    return tf.nn.convolution(
+        inputs,
+        kernel,
+        strides=list(self.strides),
         padding=tf_padding,
-        dilations=tf_dilations,
+        dilations=list(self.dilation_rate),
         data_format=self._tf_data_format,
-        name=tf_op_name)
-    self.built = True
+        name=self.__class__.__name__)
 
   def call(self, inputs):
     input_shape = inputs.shape
@@ -246,7 +240,7 @@ class Conv(Layer):
     if self._is_causal:  # Apply causal padding to inputs for Conv1D.
       inputs = tf.pad(inputs, self._compute_causal_padding(inputs))
 
-    outputs = self._convolution_op(inputs, self.kernel)
+    outputs = self.convolution_op(inputs, self.kernel)
 
     if self.use_bias:
       output_rank = outputs.shape.rank
@@ -363,8 +357,10 @@ class Conv(Layer):
   def _get_input_channel(self, input_shape):
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
-      raise ValueError('The channel dimension of the inputs '
-                       'should be defined. Found `None`.')
+      raise ValueError('The channel dimension of the inputs should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     return int(input_shape[channel_axis])
 
   def _get_padding_op(self):
@@ -960,19 +956,22 @@ class Conv1DTranspose(Conv1D):
           self.output_padding, 1, 'output_padding')
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
-          raise ValueError('Stride ' + str(self.strides) + ' must be '
-                           'greater than output padding ' +
-                           str(self.output_padding))
+          raise ValueError('Strides must be greater than output padding. '
+                           f'Received strides={self.strides}, '
+                           f'output_padding={self.output_padding}.')
 
   def build(self, input_shape):
     input_shape = tf.TensorShape(input_shape)
     if len(input_shape) != 3:
-      raise ValueError('Inputs should have rank 3. Received input shape: ' +
-                       str(input_shape))
+      raise ValueError('Inputs should have rank 3. '
+                       f'Received input_shape={input_shape}.')
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
       raise ValueError('The channel dimension of the inputs '
-                       'should be defined. Found `None`.')
+                       'to `Conv1DTranspose` should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     input_dim = int(input_shape[channel_axis])
     self.input_spec = InputSpec(ndim=3, axes={channel_axis: input_dim})
     kernel_shape = self.kernel_size + (self.filters, input_dim)
@@ -1231,19 +1230,22 @@ class Conv2DTranspose(Conv2D):
           self.output_padding, 2, 'output_padding')
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
-          raise ValueError('Stride ' + str(self.strides) + ' must be '
-                           'greater than output padding ' +
-                           str(self.output_padding))
+          raise ValueError('Strides must be greater than output padding. '
+                           f'Received strides={self.strides}, '
+                           f'output_padding={self.output_padding}.')
 
   def build(self, input_shape):
     input_shape = tf.TensorShape(input_shape)
     if len(input_shape) != 4:
-      raise ValueError('Inputs should have rank 4. Received input '
-                       'shape: ' + str(input_shape))
+      raise ValueError('Inputs should have rank 4. '
+                       f'Received input_shape={input_shape}.')
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
       raise ValueError('The channel dimension of the inputs '
-                       'should be defined. Found `None`.')
+                       'to `Conv2DTranspose` should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     input_dim = int(input_shape[channel_axis])
     self.input_spec = InputSpec(ndim=4, axes={channel_axis: input_dim})
     kernel_shape = self.kernel_size + (self.filters, input_dim)
@@ -1541,19 +1543,22 @@ class Conv3DTranspose(Conv3D):
           self.output_padding, 3, 'output_padding')
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
-          raise ValueError('Stride ' + str(self.strides) + ' must be '
-                           'greater than output padding ' +
-                           str(self.output_padding))
+          raise ValueError('Strides must be greater than output padding. '
+                           f'Received strides={self.strides}, '
+                           f'output_padding={self.output_padding}.')
 
   def build(self, input_shape):
     input_shape = tf.TensorShape(input_shape)
     if len(input_shape) != 5:
-      raise ValueError('Inputs should have rank 5, received input shape:',
-                       str(input_shape))
+      raise ValueError('Inputs should have rank 5. '
+                       f'Received input_shape={input_shape}.')
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
       raise ValueError('The channel dimension of the inputs '
-                       'should be defined, found None: ' + str(input_shape))
+                       'to `Conv3DTranspose` should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     input_dim = int(input_shape[channel_axis])
     kernel_shape = self.kernel_size + (self.filters, input_dim)
     self.input_spec = InputSpec(ndim=5, axes={channel_axis: input_dim})
@@ -1816,8 +1821,10 @@ class SeparableConv(Conv):
     input_shape = tf.TensorShape(input_shape)
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
-      raise ValueError('The channel dimension of the inputs '
-                       'should be defined. Found `None`.')
+      raise ValueError('The channel dimension of the inputs should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     input_dim = int(input_shape[channel_axis])
     self.input_spec = InputSpec(ndim=self.rank + 2,
                                 axes={channel_axis: input_dim})
@@ -2389,15 +2396,17 @@ class DepthwiseConv(Conv):
 
   def build(self, input_shape):
     if len(input_shape) != self.rank + 2:
-      raise ValueError('Inputs to `DepthwiseConv` should have rank ',
-                       str(self.rank + 2), '. ', 'Received input shape:',
-                       str(input_shape))
+      raise ValueError('Inputs to `DepthwiseConv` should have '
+                       f'rank {self.rank + 2}. '
+                       f'Received input_shape={input_shape}.')
     input_shape = tf.TensorShape(input_shape)
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
-      raise ValueError('The channel dimension of the inputs to '
-                       '`DepthwiseConv` '
-                       'should be defined. Found `None`.')
+      raise ValueError('The channel dimension of the inputs to `DepthwiseConv` '
+                       'should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     input_dim = int(input_shape[channel_axis])
     depthwise_kernel_shape = self.kernel_size + (input_dim,
                                                  self.depth_multiplier)
@@ -2916,7 +2925,7 @@ class UpSampling2D(Layer):
     self.size = conv_utils.normalize_tuple(size, 2, 'size')
     if interpolation not in {'nearest', 'bilinear'}:
       raise ValueError('`interpolation` argument should be one of `"nearest"` '
-                       'or `"bilinear"`.')
+                       f'or `"bilinear"`. Received: "{interpolation}".')
     self.interpolation = interpolation
     self.input_spec = InputSpec(ndim=4)
 
@@ -3174,7 +3183,7 @@ class ZeroPadding2D(Layer):
     elif hasattr(padding, '__len__'):
       if len(padding) != 2:
         raise ValueError('`padding` should have two elements. '
-                         'Found: ' + str(padding))
+                         f'Received: {padding}.')
       height_padding = conv_utils.normalize_tuple(padding[0], 2,
                                                   '1st entry of padding')
       width_padding = conv_utils.normalize_tuple(padding[1], 2,
@@ -3186,7 +3195,7 @@ class ZeroPadding2D(Layer):
                        '(symmetric_height_pad, symmetric_width_pad), '
                        'or a tuple of 2 tuples of 2 ints '
                        '((top_pad, bottom_pad), (left_pad, right_pad)). '
-                       'Found: ' + str(padding))
+                       f'Received: {padding}.')
     self.input_spec = InputSpec(ndim=4)
 
   def compute_output_shape(self, input_shape):
@@ -3287,7 +3296,7 @@ class ZeroPadding3D(Layer):
     elif hasattr(padding, '__len__'):
       if len(padding) != 3:
         raise ValueError('`padding` should have 3 elements. '
-                         'Found: ' + str(padding))
+                         f'Received: {padding}.')
       dim1_padding = conv_utils.normalize_tuple(padding[0], 2,
                                                 '1st entry of padding')
       dim2_padding = conv_utils.normalize_tuple(padding[1], 2,
@@ -3304,7 +3313,7 @@ class ZeroPadding3D(Layer):
           '((left_dim1_pad, right_dim1_pad),'
           ' (left_dim2_pad, right_dim2_pad),'
           ' (left_dim3_pad, right_dim2_pad)). '
-          'Found: ' + str(padding))
+          f'Received: {padding}.')
     self.input_spec = InputSpec(ndim=5)
 
   def compute_output_shape(self, input_shape):
@@ -3476,7 +3485,7 @@ class Cropping2D(Layer):
     elif hasattr(cropping, '__len__'):
       if len(cropping) != 2:
         raise ValueError('`cropping` should have two elements. '
-                         'Found: ' + str(cropping))
+                         f'Received: {cropping}.')
       height_cropping = conv_utils.normalize_tuple(cropping[0], 2,
                                                    '1st entry of cropping')
       width_cropping = conv_utils.normalize_tuple(cropping[1], 2,
@@ -3488,7 +3497,7 @@ class Cropping2D(Layer):
                        '(symmetric_height_crop, symmetric_width_crop), '
                        'or a tuple of 2 tuples of 2 ints '
                        '((top_crop, bottom_crop), (left_crop, right_crop)). '
-                       'Found: ' + str(cropping))
+                       f'Received: {cropping}.')
     self.input_spec = InputSpec(ndim=4)
 
   def compute_output_shape(self, input_shape):
@@ -3608,7 +3617,7 @@ class Cropping3D(Layer):
     elif hasattr(cropping, '__len__'):
       if len(cropping) != 3:
         raise ValueError('`cropping` should have 3 elements. '
-                         'Found: ' + str(cropping))
+                         f'Received: {cropping}.')
       dim1_cropping = conv_utils.normalize_tuple(cropping[0], 2,
                                                  '1st entry of cropping')
       dim2_cropping = conv_utils.normalize_tuple(cropping[1], 2,
@@ -3625,7 +3634,7 @@ class Cropping3D(Layer):
           '((left_dim1_crop, right_dim1_crop),'
           ' (left_dim2_crop, right_dim2_crop),'
           ' (left_dim3_crop, right_dim2_crop)). '
-          'Found: ' + str(cropping))
+          f'Received: {cropping}.')
     self.input_spec = InputSpec(ndim=5)
 
   def compute_output_shape(self, input_shape):

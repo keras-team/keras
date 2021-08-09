@@ -19,7 +19,7 @@ import weakref
 
 
 # LINT.IfChange
-class _ObjectIdentityWrapper(object):
+class _ObjectIdentityWrapper:
   """Wraps an object, mapping __eq__ on wrapper to "is" on wrapped.
 
   Since __eq__ is based on object identity, it's safe to also define __hash__
@@ -38,7 +38,9 @@ class _ObjectIdentityWrapper(object):
 
   def _assert_type(self, other):
     if not isinstance(other, _ObjectIdentityWrapper):
-      raise TypeError("Cannot compare wrapped object with unwrapped object")
+      raise TypeError(
+          "Cannot compare wrapped object with unwrapped object. "
+          f"Expect the object to be `_ObjectIdentityWrapper`. Got: {other}")
 
   def __lt__(self, other):
     self._assert_type(other)

@@ -215,7 +215,7 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
       callbacks += default_callbacks
 
     def create_test_data():
-      x = tf.constant([1., 2., 3., 1., 5., 1.])
+      x = tf.constant([[1.], [2.], [3.], [1.], [5.], [1.]])
       return tf.data.Dataset.from_tensor_slices(x).repeat().batch(2)
 
     if test_data is None:

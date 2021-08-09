@@ -1666,7 +1666,7 @@ def infer_steps_for_dataset(model,
       (dataset.options().experimental_distribute.auto_shard_policy !=
        tf.data.experimental.AutoShardPolicy.OFF)):
     # If the dataset would be auto-sharded, we should not infer a local
-    # steps_per_epoch due to the possible inbalanced sharding between workers.
+    # steps_per_epoch due to the possible imbalanced sharding between workers.
     return None
 
   size = backend.get_value(tf.data.experimental.cardinality(dataset))
@@ -1694,7 +1694,7 @@ def infer_steps_for_dataset(model,
   return steps
 
 
-class ModelInputs(object):
+class ModelInputs:
   """Encapsulates model inputs.
 
   Allows for transforming model inputs while keeping the same structure.
@@ -1885,7 +1885,7 @@ def unpack_validation_data(validation_data, raise_if_ambiguous=True):
   return val_x, val_y, val_sample_weight
 
 
-class TrainingLoop(object):
+class TrainingLoop:
   """TrainingLoop is a wrapper class around the training logic.
 
   This class is trying to encapsulate the different logic of fit/eval/predict

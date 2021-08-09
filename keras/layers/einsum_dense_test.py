@@ -280,7 +280,7 @@ class TestEinsumLayerAPI(keras_parameterized.TestCase):
     layer = einsum_dense.EinsumDense(
         equation="ab,bc->ac", output_shape=64, bias_axes="y")
     with self.assertRaisesRegex(
-        ValueError, ".*is not a part of the output specification.*"):
+        ValueError, ".*is not part of the output spec.*"):
       _ = layer(input_tensor)
 
   def test_incompatible_input_output_shape_fails(self):

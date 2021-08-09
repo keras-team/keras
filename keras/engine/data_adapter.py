@@ -33,6 +33,11 @@ from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
+try:
+  import pandas as pd  # pylint: disable=g-import-not-at-top
+except ImportError:
+  pd = None
+
 keras_data_adapter_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/keras/data_adapters", "keras data adapter usage", "method")
 
@@ -798,8 +803,15 @@ class GeneratorDataAdapter(DataAdapter):
     # Need to build the Model on concrete input shapes.
     if model is not None and not model.built:
       concrete_x, _, _ = unpack_x_y_sample_weight(peek)
-      model.distribute_strategy.run(
-          lambda x: model(x, training=False), args=(concrete_x,))
+      try:
+        model.distribute_strategy.run(
+            lambda x: model(x, training=False), args=(concrete_x,))
+      except NotImplementedError:
+        # The above call may fail if the model is a container-like class that
+        # does not implement its own forward pass (e.g. a GAN or VAE where the
+        # forward pass is handled by subcomponents).
+        # Such a model does not need to be built.
+        pass
 
     self._first_batch_size = int(tf.nest.flatten(peek)[0].shape[0])
 
@@ -1009,7 +1021,8 @@ def _process_tensorlike(inputs):
 
   (1) Converts `Numpy` arrays to `Tensor`s.
   (2) Converts `Scipy` sparse matrices to `SparseTensor`s.
-  (2) Converts `list`s to `tuple`s (for `tf.data` support).
+  (3) Converts `pandas.Series` to `Tensor`s
+  (4) Converts `list`s to `tuple`s (for `tf.data` support).
 
   Args:
     inputs: Structure of `Tensor`s, `NumPy` arrays, or tensor-like.
@@ -1018,7 +1031,10 @@ def _process_tensorlike(inputs):
     Structure of `Tensor`s or tensor-like.
   """
 
-  def _convert_numpy_and_scipy(x):
+  def _convert_single_tensor(x):
+    if _is_pandas_series(x):
+      x = np.expand_dims(x.to_numpy(), axis=-1)
+
     if isinstance(x, np.ndarray):
       dtype = None
       if issubclass(x.dtype.type, np.floating):
@@ -1028,7 +1044,7 @@ def _process_tensorlike(inputs):
       return _scipy_sparse_to_sparse_tensor(x)
     return x
 
-  inputs = tf.nest.map_structure(_convert_numpy_and_scipy, inputs)
+  inputs = tf.nest.map_structure(_convert_single_tensor, inputs)
   return tf.__internal__.nest.list_to_tuple(inputs)
 
 
@@ -1077,7 +1093,7 @@ def broadcast_sample_weight_modes(target_structure, sample_weight_modes):
   return sample_weight_modes
 
 
-class DataHandler(object):
+class DataHandler:
   """Handles iterating over epoch-level `tf.data.Iterator` objects."""
 
   def __init__(self,
@@ -1434,28 +1450,13 @@ def _make_class_weight_map_fn(class_weight):
     cw = tf.gather(class_weight_tensor, y_classes)
     if sw is not None:
       cw = tf.cast(cw, sw.dtype)
-      sw, cw = expand_1d((sw, cw))
       # `class_weight` and `sample_weight` are multiplicative.
       sw = sw * cw
     else:
       sw = cw
-
     return x, y, sw
 
   return _class_weights_map_fn
-
-
-def expand_1d(data):
-  """Expands 1-dimensional `Tensor`s into 2-dimensional `Tensor`s."""
-
-  def _expand_single_1d_tensor(t):
-    # Leaves `CompositeTensor`s as-is.
-    if (isinstance(t, tf.Tensor) and
-        isinstance(t.shape, tf.TensorShape) and t.shape.rank == 1):
-      return tf.expand_dims(t, axis=-1)
-    return t
-
-  return tf.nest.map_structure(_expand_single_1d_tensor, data)
 
 
 def train_validation_split(arrays, validation_split):
@@ -1611,7 +1612,7 @@ def pack_x_y_sample_weight(x, y=None, sample_weight=None):
     # For single x-input, we do no tuple wrapping since in this case
     # there is no ambiguity. This also makes NumPy and Dataset
     # consistent in that the user does not have to wrap their Dataset
-    # data in an unecessary tuple
+    # data in an unnecessary tuple
     if not tf.nest.is_nested(x):
       return x
     else:
@@ -1656,12 +1657,10 @@ def _check_data_cardinality(data):
 
 
 def _get_tensor_types():
-  try:
-    import pandas as pd  # pylint: disable=g-import-not-at-top
-
-    return (tf.Tensor, np.ndarray, pd.Series, pd.DataFrame)
-  except ImportError:
+  if pd is None:
     return (tf.Tensor, np.ndarray)
+  else:
+    return (tf.Tensor, np.ndarray, pd.Series, pd.DataFrame)
 
 
 def _is_scipy_sparse(x):
@@ -1671,6 +1670,13 @@ def _is_scipy_sparse(x):
     return issparse(x)
   except ImportError:
     return False
+
+
+def _is_pandas_series(x):
+  if pd is None:
+    return False
+  else:
+    return isinstance(x, pd.Series)
 
 
 def _scipy_sparse_to_sparse_tensor(t):

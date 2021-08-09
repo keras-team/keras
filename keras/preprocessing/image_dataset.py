@@ -89,7 +89,7 @@ def image_dataset_from_directory(directory,
             are encoded as `float32` scalars with values 0 or 1
             (e.g. for `binary_crossentropy`).
         - None (no labels).
-    class_names: Only valid if "labels" is "inferred". This is the explict
+    class_names: Only valid if "labels" is "inferred". This is the explicit
         list of class names (must match names of subdirectories). Used
         to control the order of the classes
         (otherwise alphanumerical order is used).
@@ -159,15 +159,15 @@ def image_dataset_from_directory(directory,
           'directory. If you wish to infer the labels from the subdirectory '
           'names in the target directory, pass `labels="inferred"`. '
           'If you wish to get a dataset that only contains images '
-          '(no labels), pass `label_mode=None`.')
+          f'(no labels), pass `labels=None`. Received: labels={labels}')
     if class_names:
-      raise ValueError('You can only pass `class_names` if the labels are '
-                       'inferred from the subdirectory names in the target '
-                       'directory (`labels="inferred"`).')
+      raise ValueError('You can only pass `class_names` if '
+                       f'`labels="inferred"`. Received: labels={labels}, and '
+                       f'class_names={class_names}')
   if label_mode not in {'int', 'categorical', 'binary', None}:
     raise ValueError(
         '`label_mode` argument must be one of "int", "categorical", "binary", '
-        'or None. Received: %s' % (label_mode,))
+        f'or None. Received: label_mode={label_mode}')
   if labels is None or label_mode is None:
     labels = None
     label_mode = None
@@ -180,7 +180,7 @@ def image_dataset_from_directory(directory,
   else:
     raise ValueError(
         '`color_mode` must be one of {"rbg", "rgba", "grayscale"}. '
-        'Received: %s' % (color_mode,))
+        f'Received: color_mode={color_mode}')
   interpolation = image_preprocessing.get_interpolation(interpolation)
   dataset_utils.check_validation_split_arg(
       validation_split, subset, shuffle, seed)
@@ -198,13 +198,14 @@ def image_dataset_from_directory(directory,
 
   if label_mode == 'binary' and len(class_names) != 2:
     raise ValueError(
-        'When passing `label_mode="binary", there must exactly 2 classes. '
-        'Found the following classes: %s' % (class_names,))
+        f'When passing `label_mode="binary"`, there must be exactly 2 '
+        f'class_names. Received: class_names={class_names}')
 
   image_paths, labels = dataset_utils.get_training_or_validation_split(
       image_paths, labels, validation_split, subset)
   if not image_paths:
-    raise ValueError(f'No images found. Allowed formats: {ALLOWLIST_FORMATS}')
+    raise ValueError(f'No images found in directory {directory}. '
+                     f'Allowed formats: {ALLOWLIST_FORMATS}')
 
   dataset = paths_and_labels_to_dataset(
       image_paths=image_paths,

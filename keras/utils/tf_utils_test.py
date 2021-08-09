@@ -53,7 +53,7 @@ class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
 
   def test_works_with_registered(self):
 
-    class CustomClass(object):
+    class CustomClass:
 
       def value(self):
         return tf.convert_to_tensor(42.)
@@ -89,7 +89,7 @@ class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
       self.skipTest('`compile` functionality changed.')
     # Setup.
 
-    class Foo(object):
+    class Foo:
 
       def __init__(self, input_):
         self._input = input_
@@ -169,7 +169,7 @@ class AttrsTest(tf.test.TestCase):
       self.skipTest('attr module is unavailable.')
 
     @attr.s(frozen=True)
-    class Foo(object):
+    class Foo:
 
       bar = attr.ib()
 

@@ -22,7 +22,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.losses.Reduction', v1=[])
-class ReductionV2(object):
+class ReductionV2:
   """Types of loss reduction.
 
   Contains the following values:
@@ -80,7 +80,8 @@ class ReductionV2(object):
   @classmethod
   def validate(cls, key):
     if key not in cls.all():
-      raise ValueError('Invalid Reduction Key %s.' % key)
+      raise ValueError(
+          f'Invalid Reduction Key: {key}. Expected keys are "{cls.all()}"')
 
 
 def remove_squeezable_dimensions(

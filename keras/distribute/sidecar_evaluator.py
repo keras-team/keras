@@ -44,7 +44,7 @@ def list_checkpoint_attributes(ckpt_dir_or_file):
 
 
 @keras_export('keras.experimental.SidecarEvaluator', v1=[])
-class SidecarEvaluator(object):
+class SidecarEvaluator:
   """A class designed for a dedicated evaluator task.
 
   `SidecarEvaluator` is expected to be run in a process on a separate machine
@@ -205,20 +205,21 @@ class SidecarEvaluator(object):
         # TensorSliceReader constructor.
         # TODO(rchao): Remove this except block once b/150954027 is resolved.
         logging.info(
-            'SidecarEvaluator has an error loading '
-            'checkpoint: %s. Retrying. Error: %s: %s', latest_checkpoint,
-            e.__class__.__name__, e)
+            'SidecarEvaluator encountered an error when loading the checkpoint '
+            f'at {latest_checkpoint}. Retrying. '
+            f'Error: {e.__class__.__name__}: {e}')
         continue
 
       if self._iterations.numpy() == _ITERATIONS_UNINITIALIZED:
         raise RuntimeError(
-            '`iterations` cannot be loaded from the '
-            'checkpoint file. Please ensure `iterations` is '
-            'tracked in the `checkpoint` saved by the coordinator.')
+            'Variable `iterations` cannot be loaded from the '
+            f'checkpoint file at {self.checkpoint_dir}. '
+            'Please ensure `iterations` is '
+            'included in the checkpoint saved during training.')
 
       logging.info(
           'Evaluation starts: Model weights loaded from latest '
-          'checkpoint file: %s.', latest_checkpoint)
+          f'checkpoint file {latest_checkpoint}')
 
       self.model.evaluate(
           self.data, steps=self.steps, callbacks=self.callbacks, verbose=2)

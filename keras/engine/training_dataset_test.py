@@ -237,7 +237,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     ds = tf.data.Dataset.from_tensor_slices(
         (inputs, targets, sample_weights)).batch(2)
     result = model.evaluate(ds, verbose=1)
-    # The per sample loss is multipled by the corresponding sample weight. The
+    # The per sample loss is multiplied by the corresponding sample weight. The
     # average of these weighted losses is the return value of the `evaluate`
     # call. For example, in the test above the average weighted loss is
     # calculated in the following manner:
@@ -393,7 +393,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_finite_dataset_unknown_cardinality_no_step_with_train_and_val(self):
 
-    class CaptureStdout(object):
+    class CaptureStdout:
 
       def __enter__(self):
         self._stdout = sys.stdout

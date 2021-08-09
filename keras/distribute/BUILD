@@ -271,6 +271,7 @@ py_library(
 
 distribute_py_test(
     name = "keras_premade_models_test",
+    size = "medium",
     srcs = ["keras_premade_models_test.py"],
     disable_mlir_bridge = False,
     full_precision = True,
@@ -431,6 +432,7 @@ distribute_py_test(
     srcs = ["keras_metrics_test.py"],
     disable_mlir_bridge = False,
     main = "keras_metrics_test.py",
+    shard_count = 8,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
@@ -657,9 +659,9 @@ tf_py_test(
     ],
     deps = [
         ":distributed_file_utils",
+        ":multi_worker_testing_utils",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
-        "//keras/distribute:multi_worker_testing_utils",
     ],
 )
 
@@ -764,6 +766,7 @@ distribute_py_test(
     name = "dataset_creator_model_fit_test",
     srcs = ["dataset_creator_model_fit_test.py"],
     disable_mlir_bridge = True,  # TODO(b/170352626)
+    disable_tpu_use_tfrt = True,  # TODO(b/195081590)
     full_precision = True,
     main = "dataset_creator_model_fit_test.py",
     shard_count = 50,
@@ -785,7 +788,7 @@ distribute_py_test(
 
 distribute_py_test(
     name = "dataset_creator_model_fit_ps_only_test",
-    size = "small",
+    size = "medium",
     srcs = ["dataset_creator_model_fit_ps_only_test.py"],
     disable_mlir_bridge = True,  # TODO(b/170352626)
     full_precision = True,
