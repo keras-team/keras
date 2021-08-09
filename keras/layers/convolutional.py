@@ -3400,7 +3400,7 @@ class Cropping1D(Layer):
     return tf.TensorShape([input_shape[0], length, input_shape[2]])
 
   def call(self, inputs):
-    if sum(self.cropping) >= inputs.shape[1]:
+    if tf.not_equal(tf.size(inputs), 0) and sum(self.cropping) >= inputs.shape[1]:
       raise ValueError(
         'cropping parameter of Cropping layer is too high,' +
         'the result of crop' + str(inputs.shape) + ' with cropping ' +
