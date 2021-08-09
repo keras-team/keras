@@ -115,8 +115,9 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
         file_content = f.read()
       metadata.ParseFromString(file_content)
     except message.DecodeError as e:
-      raise IOError('Cannot parse keras metadata {}: {}.'
-                    .format(path_to_metadata_pb, str(e)))
+      raise IOError(
+          f'Cannot parse keras metadata at path {path_to_metadata_pb}: '
+          f'Received error: {e}')
   else:
     logging.warning('SavedModel saved prior to TF 2.5 detected when loading '
                     'Keras model. Please ensure that you are saving the model '
@@ -244,7 +245,7 @@ def _is_graph_network(layer):
   return False
 
 
-class KerasObjectLoader(object):
+class KerasObjectLoader:
   """Loader that recreates Keras objects (e.g. layers, models).
 
   Layers and models are revived from either the config or SavedModel following
@@ -404,12 +405,12 @@ class KerasObjectLoader(object):
         self.loaded_nodes[node_metadata.node_id] = self._load_layer(
             node_metadata.node_id, node_metadata.identifier,
             node_metadata.metadata)
-      except ValueError:
+      except ValueError as e:
         # Metrics are only needed when the model is compiled later. We ignore
         # errors when trying to load custom metrics when `compile=False` until
         # custom metrics are serialized properly (b/135550038).
         if compile:
-          raise
+          raise e
         logging.warning('Unable to restore custom metric. Please ensure that '
                         'the layer implements `get_config` and `from_config` '
                         'when saving. In addition, please use the '
@@ -525,14 +526,13 @@ class KerasObjectLoader(object):
     except ValueError:
       if must_restore_from_config:
         raise RuntimeError(
-            'Unable to restore a layer of class {cls}. Layers of '
-            'class {cls} require that the class be provided to '
+            f'Unable to restore a layer of class {class_name}. Layers of '
+            f'class {class_name} require that the class be provided to '
             'the model loading code, either by registering the '
-            'class using @keras.utils.register_keras_serializable '
+            'class using `@keras.utils.register_keras_serializable` '
             'on the class def and including that file in your '
             'program, or by passing the class in a '
-            'keras.utils.CustomObjectScope that wraps this load '
-            'call.'.format(cls=class_name))
+            '`keras.utils.CustomObjectScope` that wraps this load call.')
       else:
         return None
 
@@ -674,9 +674,9 @@ class KerasObjectLoader(object):
       uninitialized_model_names = [
           self.model_layer_dependencies[model_id][0].name
           for model_id in uninitialized_model_ids]
-      raise ValueError('Error when loading from SavedModel -- the following '
-                       'models could not be initialized: {}'
-                       .format(uninitialized_model_names))
+      raise ValueError(f'Error loading model(s) in the SavedModel format. '
+                       f'The following model(s) could not be initialized: '
+                       f'{uninitialized_model_names}')
 
   def _reconstruct_model(self, model_id, model, layers):
     """Reconstructs the network structure."""
@@ -886,8 +886,8 @@ def _unable_to_call_layer_due_to_serialization_issue(
   """
 
   raise ValueError(
-      'Cannot call custom layer {} of type {}, because the call function was '
-      'not serialized to the SavedModel.'
+      f'Cannot call custom layer {layer.name} of type {type(layer)}, because '
+      'the call function was not serialized to the SavedModel.'
       'Please try one of the following methods to fix this issue:'
       '\n\n(1) Implement `get_config` and `from_config` in the layer/model '
       'class, and pass the object to the `custom_objects` argument when '
@@ -897,7 +897,7 @@ def _unable_to_call_layer_due_to_serialization_issue(
       'and not `__call__`. The input shape and dtype will be automatically '
       'recorded when the object is called, and used when saving. To manually '
       'specify the input shape/dtype, decorate the call function with '
-      '`@tf.function(input_signature=...)`.'.format(layer.name, type(layer)))
+      '`@tf.function(input_signature=...)`.')
 
 
 def _finalize_config_layers(layers):
@@ -990,11 +990,11 @@ def revive_custom_object(identifier, metadata):
         tf.compat.as_str(metadata['class_name']), parent_classes, {})
     return revived_cls._init_from_metadata(metadata)  # pylint: disable=protected-access
   else:
-    raise ValueError('Unable to restore custom object of type {} currently. '
-                     'Please make sure that the layer implements `get_config`'
-                     'and `from_config` when saving. In addition, please use '
-                     'the `custom_objects` arg when calling `load_model()`.'
-                     .format(identifier))
+    raise ValueError(
+        f'Unable to restore custom object of type {identifier}. '
+        f'Please make sure that any custom layers are included in the '
+        f'`custom_objects` arg when calling `load_model()` and make sure that '
+        f'all layers implement `get_config` and `from_config`.')
 
 
 def _restore_layer_metrics(layer):
@@ -1008,7 +1008,7 @@ def _restore_layer_metrics(layer):
 
 # TODO(kathywu): Centrally define keys and functions for both  serialization and
 # deserialization.
-class RevivedLayer(object):
+class RevivedLayer:
   """Keras layer loaded from a SavedModel."""
 
   @classmethod
@@ -1086,7 +1086,7 @@ def _revive_setter(layer, name, value):
     setattr(layer, name, value)
 
 
-class RevivedInputLayer(object):
+class RevivedInputLayer:
   """InputLayer loaded from a SavedModel."""
 
   @classmethod
@@ -1118,11 +1118,13 @@ def recursively_deserialize_keras_object(config, module_objects=None):
       return {key: recursively_deserialize_keras_object(config[key],
                                                         module_objects)
               for key in config}
-  if isinstance(config, (tuple, list)):
+  elif isinstance(config, (tuple, list)):
     return [recursively_deserialize_keras_object(x, module_objects)
             for x in config]
   else:
-    raise ValueError('Unable to decode config: {}'.format(config))
+    raise ValueError(
+        f'Unable to decode Keras layer config. Config should be a dictionary, '
+        f'tuple or list. Received: config={config}')
 
 
 def get_common_shape(x, y):
@@ -1134,9 +1136,11 @@ def get_common_shape(x, y):
   if x is None:
     return None  # The associated input was not a Tensor, no shape generated.
   if not isinstance(x, tf.TensorShape):
-    raise TypeError('Expected x to be a TensorShape but saw %s' % (x,))
+    raise TypeError(
+        f'Expected x to be a TensorShape but received {x} with type {type(x)}')
   if not isinstance(y, tf.TensorShape):
-    raise TypeError('Expected y to be a TensorShape but saw %s' % (y,))
+    raise TypeError(
+        f'Expected y to be a TensorShape but received {y} with type {type(y)}')
   if x.rank != y.rank or x.rank is None:
     return tf.TensorShape(None)
   dims = []

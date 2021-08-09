@@ -20,7 +20,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.utils.experimental.DatasetCreator', v1=[])
-class DatasetCreator(object):
+class DatasetCreator:
   """Object that returns a `tf.data.Dataset` upon invoking.
 
   `tf.keras.utils.experimental.DatasetCreator` is designated as a supported type
@@ -59,7 +59,13 @@ class DatasetCreator(object):
   with strategy.scope():
     model = tf.keras.Sequential([tf.keras.layers.Dense(10)])
   model.compile(tf.keras.optimizers.SGD(), loss="mse")
-  ...
+
+  def dataset_fn(input_context):
+    ...
+
+  input_options = ...
+  model.fit(tf.keras.utils.experimental.DatasetCreator(
+      dataset_fn, input_options=input_options), epochs=10, steps_per_epoch=10)
   ```
 
   Note: When using `DatasetCreator`, `steps_per_epoch` argument in `Model.fit`
@@ -81,11 +87,14 @@ class DatasetCreator(object):
 
   def __init__(self, dataset_fn, input_options=None):
     if not callable(dataset_fn):
-      raise TypeError('`dataset_fn` for `DatasetCreator` must be a `callable`.')
+      raise TypeError(
+          '`dataset_fn` for `DatasetCreator` must be a `callable`. '
+          f'Received: {dataset_fn}')
     if input_options and (not isinstance(input_options,
                                          tf.distribute.InputOptions)):
-      raise TypeError('`input_options` for `DatasetCreator` must be a '
-                      '`tf.distribute.InputOptions`.')
+      raise TypeError(
+          '`input_options` for `DatasetCreator` must be a '
+          f'`tf.distribute.InputOptions`. Received: {input_options}')
 
     self.dataset_fn = dataset_fn
     self.input_options = input_options
@@ -95,6 +104,7 @@ class DatasetCreator(object):
     # the callable.
     dataset = self.dataset_fn(*args, **kwargs)
     if not isinstance(dataset, tf.data.Dataset):
-      raise TypeError('The `callable` provided to `DatasetCreator` must return '
-                      'a Dataset.')
+      raise TypeError(
+          'The `callable` provided to `DatasetCreator` must return '
+          f'a Dataset. It returns "{dataset}"')
     return dataset

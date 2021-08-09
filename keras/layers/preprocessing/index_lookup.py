@@ -653,10 +653,11 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
   def _lookup_dense(self, inputs):
     """Lookup table values for a dense Tensor, handling masking and OOV."""
-    # Avoid calling lookup on the table when tracing keras.Inputs. This is
-    # critical for SavedModel, which expects an uninitialized StaticHashTable
-    # and will trace the model before restoring the table.
-    if backend.is_keras_tensor(inputs):
+    # When executing eagerly and tracing keras.Inputs, do not call lookup. This
+    # is critical for restoring SavedModel, which will first trace layer.call
+    # and then attempt to restore the table. We need the table to be unitialized
+    # for the restore to work, but calling the table unitialized would error.
+    if tf.executing_eagerly() and backend.is_keras_tensor(inputs):
       lookups = tf.zeros_like(inputs, dtype=self._value_dtype)
     else:
       lookups = self.lookup_table.lookup(inputs)
@@ -711,7 +712,10 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       initializer = tf.lookup.KeyValueTensorInitializer(keys, values,
                                                         self._key_dtype,
                                                         self._value_dtype)
-      return tf.lookup.StaticHashTable(initializer, self._default_value)
+      table = tf.lookup.StaticHashTable(initializer, self._default_value)
+      if not tf.compat.v1.executing_eagerly_outside_functions():
+        backend.get_session().run(initializer.initialize(table))
+      return table
 
   def _lookup_table_from_file(self, filename):
     if self.invert:
@@ -728,7 +732,10 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           value_dtype=self._value_dtype,
           value_index=value_index,
           value_index_offset=self._token_start_index())
-      return tf.lookup.StaticHashTable(initializer, self._default_value)
+      table = tf.lookup.StaticHashTable(initializer, self._default_value)
+      if not tf.compat.v1.executing_eagerly_outside_functions():
+        backend.get_session().run(initializer.initialize(table))
+      return table
 
   def _standardize_inputs(self, inputs, dtype):
     if isinstance(inputs, (list, tuple, np.ndarray)):
@@ -764,6 +771,10 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     if self.output_mode == INT or self.pad_to_max_tokens:
       return
     with tf.init_scope():
+      if not tf.executing_eagerly():
+        raise RuntimeError(
+            "When using `output_mode={}` eager mode execution must be enabled."
+            .format(self.output_mode))
       new_vocab_size = self.vocabulary_size()
     if new_vocab_size == self._token_start_index():
       raise RuntimeError(

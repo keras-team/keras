@@ -114,7 +114,7 @@ def multi_worker_mirrored_eager_and_graph():
       eager_mode_test_configuration() + graph_mode_test_configuration())
 
 
-class MaybeDistributionScope(object):
+class MaybeDistributionScope:
   """Provides a context allowing no distribution strategy."""
 
   def __init__(self, distribution):

@@ -137,11 +137,15 @@ class ConvRNN(RNN):
                unroll=False,
                **kwargs):
     if unroll:
-      raise TypeError('Unrolling isn\'t possible with convolutional RNNs.')
+      raise TypeError(
+          'Unrolling is not possible with convolutional RNNs. '
+          f'Received: unroll={unroll}')
     if isinstance(cell, (list, tuple)):
       # The StackedConvRNN3DCells isn't implemented yet.
       raise TypeError('It is not possible at the moment to'
-                      'stack convolutional cells.')
+                      'stack convolutional cells. Only pass a single cell '
+                      'instance as the `cell` argument. Received: '
+                      f'cell={cell}')
     super(ConvRNN, self).__init__(cell, return_sequences, return_state,
                                   go_backwards, stateful, unroll, **kwargs)
     self.rank = rank
@@ -226,11 +230,10 @@ class ConvRNN(RNN):
         ch_dim = self.rank + 1
       if [spec.shape[ch_dim] for spec in self.state_spec] != state_size:
         raise ValueError(
-            'An initial_state was passed that is not compatible with '
-            '`cell.state_size`. Received `state_spec`={}; '
-            'However `cell.state_size` is '
-            '{}'.format([spec.shape for spec in self.state_spec],
-                        self.cell.state_size))
+            'An `initial_state` was passed that is not compatible with '
+            '`cell.state_size`. Received state shapes '
+            f'{[spec.shape for spec in self.state_spec]}. '
+            f'However `cell.state_size` is {self.cell.state_size}')
     else:
       img_dims = tuple((None for _ in range(self.rank)))
       if self.cell.data_format == 'channels_first':
@@ -283,7 +286,9 @@ class ConvRNN(RNN):
 
     if constants:
       if not generic_utils.has_arg(self.cell.call, 'constants'):
-        raise ValueError('RNN cell does not support constants')
+        raise ValueError(
+            f'RNN cell {self.cell} does not support constants. '
+            f'Received: constants={constants}')
 
       def step(inputs, states):
         constants = states[-self._num_constants:]  # pylint: disable=invalid-unary-operand-type
@@ -351,7 +356,10 @@ class ConvRNN(RNN):
       elif self.cell.data_format == 'channels_last':
         result[self.rank + 1] = nb_channels
       else:
-        raise KeyError
+        raise KeyError(
+            'Cell data format must be one of '
+            '{"channels_first", "channels_last"}. Received: '
+            f'cell.data_format={self.cell.data_format}')
       return tuple(result)
 
     # initialize state if None
@@ -372,22 +380,20 @@ class ConvRNN(RNN):
       if not isinstance(states, (list, tuple)):
         states = [states]
       if len(states) != len(self.states):
-        raise ValueError('Layer ' + self.name + ' expects ' +
-                         str(len(self.states)) + ' states, ' +
-                         'but it received ' + str(len(states)) +
-                         ' state values. Input received: ' + str(states))
+        raise ValueError(
+            f'Layer {self.name} expects {len(self.states)} states, '
+            f'but it received {len(states)} state values. '
+            f'States received: {states}')
       for index, (value, state) in enumerate(zip(states, self.states)):
         if hasattr(self.cell.state_size, '__len__'):
           dim = self.cell.state_size[index]
         else:
           dim = self.cell.state_size
         if value.shape != get_tuple_shape(dim):
-          raise ValueError('State ' + str(index) +
-                           ' is incompatible with layer ' +
-                           self.name + ': expected shape=' +
-                           str(get_tuple_shape(dim)) +
-                           ', found shape=' + str(value.shape))
-        # TODO(anjalisridhar): consider batch calls to `set_value`.
+          raise ValueError(
+              f'State {index} is incompatible with layer {self.name}: '
+              f'expected shape={get_tuple_shape(dim)}, '
+              f'found shape={value.shape}')
         backend.set_value(state, value)
 
 
@@ -478,8 +484,8 @@ class ConvLSTMCell(DropoutRNNCellMixin, Layer):
     super(ConvLSTMCell, self).__init__(**kwargs)
     self.rank = rank
     if self.rank > 3:
-      raise ValueError('Rank ' + str(self.rank) +
-                       ' convolutions not currently implemented.')
+      raise ValueError(f'Rank {rank} convolutions are not currently '
+                       f'implemented. Received: rank={rank}')
     self.filters = filters
     self.kernel_size = conv_utils.normalize_tuple(kernel_size, self.rank,
                                                   'kernel_size')
@@ -516,8 +522,9 @@ class ConvLSTMCell(DropoutRNNCellMixin, Layer):
     else:
       channel_axis = -1
     if input_shape[channel_axis] is None:
-      raise ValueError('The channel dimension of the inputs '
-                       'should be defined. Found `None`.')
+      raise ValueError(
+          'The channel dimension of the inputs (last axis) should be defined. '
+          f'Found None. Full input shape received: input_shape={input_shape}')
     input_dim = input_shape[channel_axis]
     self.kernel_shape = self.kernel_size + (input_dim, self.filters * 4)
     recurrent_kernel_shape = self.kernel_size + (self.filters, self.filters * 4)

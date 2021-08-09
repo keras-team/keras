@@ -27,7 +27,7 @@ from tensorflow.python.platform import tf_logging
 from tensorflow.python.util.tf_export import keras_export
 
 
-class _UnwrapPreventer(object):
+class _UnwrapPreventer:
   """Wrapper that DistributionStrategy will not unwrap.
 
   Typically, DistributionStrategy will unwrap values when going from a cross-
@@ -45,7 +45,7 @@ class _UnwrapPreventer(object):
     self.value = value
 
 
-class _DelegatingTrackableMixin(object):
+class _DelegatingTrackableMixin:
   """A mixin that delegates all Trackable methods to another trackable object.
 
   This class must be used with multiple inheritance. A class that subclasses
@@ -706,7 +706,7 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
     if experimental_aggregate_gradients:
       # We must aggregate the gradients here instead of in
       # self.optimizer.apply_gradients, so that any NaN or Inf gradients are
-      # propogated to each replica. If any replica has a NaN or Inf gradient,
+      # propagated to each replica. If any replica has a NaN or Inf gradient,
       # they must all have a NaN or Inf gradient so that they all skip the step.
       # pylint: disable=protected-access
       grads_and_vars = self._optimizer._transform_unaggregated_gradients(

@@ -146,16 +146,15 @@ class RandomFourierFeatures(base_layer.Layer):
                **kwargs):
     if output_dim <= 0:
       raise ValueError(
-          '`output_dim` should be a positive integer. Given: {}.'.format(
-              output_dim))
+          f'`output_dim` should be a positive integer. Received: {output_dim}')
     if isinstance(kernel_initializer, str):
       if kernel_initializer.lower() not in _SUPPORTED_RBF_KERNEL_TYPES:
         raise ValueError(
-            'Unsupported kernel type: \'{}\'. Supported kernel types: {}.'
-            .format(kernel_initializer, _SUPPORTED_RBF_KERNEL_TYPES))
+            f'Unsupported `kernel_initializer`: {kernel_initializer} '
+            f'Expected one of: {_SUPPORTED_RBF_KERNEL_TYPES}')
     if scale is not None and scale <= 0.0:
       raise ValueError('When provided, `scale` should be a positive float. '
-                       'Given: {}.'.format(scale))
+                       f'Received: {scale}')
     super(RandomFourierFeatures, self).__init__(
         trainable=trainable, name=name, **kwargs)
     self.output_dim = output_dim
@@ -168,12 +167,13 @@ class RandomFourierFeatures(base_layer.Layer):
     # to have shape [batch_size, dimension].
     if input_shape.rank != 2:
       raise ValueError(
-          'The rank of the input tensor should be 2. Got {} instead.'.format(
-              input_shape.ndims))
+          'The rank of the input tensor should be 2. '
+          f'Received input with rank {input_shape.ndims} instead. '
+          f'Full input shape received: {input_shape}')
     if input_shape.dims[1].value is None:
       raise ValueError(
-          'The last dimension of the inputs to `RandomFourierFeatures` '
-          'should be defined. Found `None`.')
+          'The last dimension of the input tensor should be defined. '
+          f'Found `None`. Full input shape received: {input_shape}')
     self.input_spec = input_spec.InputSpec(
         ndim=2, axes={1: input_shape.dims[1].value})
     input_dim = input_shape.dims[1].value
@@ -220,8 +220,8 @@ class RandomFourierFeatures(base_layer.Layer):
     input_shape = input_shape.with_rank(2)
     if input_shape.dims[-1].value is None:
       raise ValueError(
-          'The innermost dimension of input shape must be defined. Given: %s' %
-          input_shape)
+          'The last dimension of the input tensor should be defined. '
+          f'Found `None`. Full input shape received: {input_shape}')
     return input_shape[:-1].concatenate(self.output_dim)
 
   def get_config(self):
@@ -255,8 +255,8 @@ def _get_random_features_initializer(initializer, shape):
 
     else:
       raise ValueError(
-          'Unsupported kernel type: \'{}\'. Supported kernel types: {}.'.format(
-              random_features_initializer, _SUPPORTED_RBF_KERNEL_TYPES))
+          f'Unsupported `kernel_initializer`: "{initializer}" '
+          f'Expected one of: {_SUPPORTED_RBF_KERNEL_TYPES}')
   return random_features_initializer
 
 

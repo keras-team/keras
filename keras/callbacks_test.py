@@ -323,6 +323,36 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       cbk = BackupAndRestore(self.get_temp_dir())
       model.fit(np.ones((10, 1)), np.ones((10, 1)), epochs=0, callbacks=[cbk])
 
+  def test_backup_restore_train_counter(self):
+    model = keras.Sequential([keras.layers.Dense(1)])
+    model.compile('sgd', 'mse')
+    cbk = BackupAndRestore(self.get_temp_dir())
+
+    class InterruptingCallback(keras.callbacks.Callback):
+      """A callback to intentionally introduce interruption to training."""
+
+      def on_epoch_end(self, epoch, log=None):
+        logging.info(f'counter: {model._train_counter}')
+        if epoch == 5 or epoch == 12:
+          raise RuntimeError('Interruption')
+
+    log_dir = self.get_temp_dir()
+
+    # The following asserts that the train counter is fault tolerant.
+    self.assertEqual(model._train_counter.numpy(), 0)
+    try:
+      model.fit(np.ones((10, 1)), np.ones((10, 1)), epochs=20,
+                callbacks=[cbk, InterruptingCallback()])
+    except RuntimeError:
+      pass
+    self.assertEqual(model._train_counter.numpy(), 6)
+    try:
+      model.fit(np.ones((10, 1)), np.ones((10, 1)), epochs=20,
+                callbacks=[cbk, InterruptingCallback()])
+    except RuntimeError:
+      pass
+    self.assertEqual(model._train_counter.numpy(), 13)
+
   @keras_parameterized.run_all_keras_modes
   def test_callback_warning(self):
 
@@ -1215,7 +1245,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
   def test_EarlyStopping_final_weights_when_restoring_model_weights(self):
 
-    class DummyModel(object):
+    class DummyModel:
 
       def __init__(self):
         self.stop_training = False
@@ -1415,12 +1445,12 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
   def test_ReduceLROnPlateau_patience(self):
 
-    class DummyOptimizer(object):
+    class DummyOptimizer:
 
       def __init__(self):
         self.lr = keras.backend.variable(1.0)
 
-    class DummyModel(object):
+    class DummyModel:
 
       def __init__(self):
         self.optimizer = DummyOptimizer()
@@ -2015,7 +2045,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 _ObservedSummary = collections.namedtuple('_ObservedSummary', ('logdir', 'tag'))
 
 
-class _SummaryFile(object):
+class _SummaryFile:
   """A record of summary tags and the files to which they were written.
 
   Fields `scalars`, `images`, `histograms`, and `tensors` are sets
@@ -2204,7 +2234,7 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         callbacks=[tb_cbk])
 
     events_file_run_basenames = set()
-    for (dirpath, _, filenames) in os.walk(self.logdir):
+    for (dirpath, _, filenames) in os.walk(self.train_dir):
       if any(fn.startswith('events.out.') for fn in filenames):
         events_file_run_basenames.add(os.path.basename(dirpath))
     self.assertEqual(events_file_run_basenames, {'train'})
@@ -2639,7 +2669,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_1'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_outerProfiler(self):
     """Runs a profiler session that interferes with the one from the callback.
@@ -2692,7 +2722,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_2'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_profileBatchRangeSingle(self):
     model = self._get_seq_model()
@@ -2716,7 +2746,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_2'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_profileBatchRangeTwice(self):
     model = self._get_seq_model()
@@ -2741,7 +2771,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
         epochs=10,
         validation_data=(x, y),
         callbacks=[tb_cbk])
-    self.assertEqual(2, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(2, self._count_trace_file(logdir=self.logdir))
 
   # Test case that replicates a Github issue.
   # https://github.com/tensorflow/tensorflow/issues/37543
@@ -2794,7 +2824,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_3'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_profileInvalidBatchRange(self):
     with self.assertRaises(ValueError):

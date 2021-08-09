@@ -103,7 +103,7 @@ def load_data(path='reuters.npz',
                     'has been renamed `num_words`.')
     num_words = kwargs.pop('nb_words')
   if kwargs:
-    raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+    raise TypeError(f'Unrecognized keyword arguments: {str(kwargs)}')
 
   origin_folder = 'https://storage.googleapis.com/tensorflow/tf-keras-datasets/'
   path = get_file(

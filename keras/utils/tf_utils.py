@@ -73,7 +73,8 @@ def get_reachable_from_inputs(inputs, targets=None):
     elif tf.is_tensor(x):
       outputs = x.consumers()
     else:
-      raise TypeError('Expected Operation, Variable, or Tensor, got ' + str(x))
+      raise TypeError(
+          f'Expected tf.Operation, tf.Variable, or tf.Tensor. Received: {x}')
 
     for y in outputs:
       if y not in reachable:
@@ -112,7 +113,7 @@ def map_structure_with_atomic(is_atomic_fn, map_fn, nested):
   # Recursively convert.
   if not tf.nest.is_nested(nested):
     raise ValueError(
-        'Received non-atomic and non-sequence element: {}'.format(nested))
+        f'Received non-atomic and non-sequence element: {nested}')
   if tf.__internal__.nest.is_mapping(nested):
     values = [nested[k] for k in sorted(nested.keys())]
   elif tf.__internal__.nest.is_attrs(nested):
@@ -184,7 +185,7 @@ def convert_shapes(input_shape, to_tuples=True):
                                    input_shape)
 
 
-class ListWrapper(object):
+class ListWrapper:
   """A wrapper for lists to be treated as elements for `nest`."""
 
   def __init__(self, list_to_wrap):
@@ -333,7 +334,7 @@ def register_symbolic_tensor_type(cls):
 
   ```python
   # One-time setup.
-  class Foo(object):
+  class Foo:
     def __init__(self, input_):
       self._input = input_
     def value(self):
@@ -406,11 +407,12 @@ def assert_no_legacy_layers(layers):
   if legacy_layers:
     layer_str = '\n'.join('  ' + str(l) for l in legacy_layers)
     raise TypeError(
-        'The following are legacy tf.layers.Layers:\n{}\nTo use keras as a '
+        f'The following are legacy tf.layers.Layers:\n{layer_str}\n'
+        'To use keras as a '
         'framework (for instance using the Network, Model, or Sequential '
         'classes), please use the tf.keras.layers implementation instead. '
         '(Or, if writing custom layers, subclass from tf.keras.layers rather '
-        'than tf.layers)'.format(layer_str))
+        'than tf.layers)')
 
 
 @tf_contextlib.contextmanager
@@ -521,7 +523,7 @@ def _astuple(attrs):
   cls = type(attrs)
   fields = getattr(cls, '__attrs_attrs__', None)
   if fields is None:
-    raise ValueError('%r is not an attrs-decorated class.' % cls)
+    raise ValueError(f'{cls} is not an attrs-decorated class.')
   values = []
   for field in fields:
     values.append(getattr(attrs, field.name))

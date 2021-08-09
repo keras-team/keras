@@ -44,6 +44,7 @@ py_library(
         ":layer_utils",
         ":multi_gpu_utils",
         ":np_utils",
+        ":traceback_utils",
         ":vis_utils",
     ],
 )
@@ -102,6 +103,15 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":object_identity",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "traceback_utils",
+    srcs = ["traceback_utils.py"],
+    srcs_version = "PY3",
+    deps = [
         "//:expect_tensorflow_installed",
     ],
 )
@@ -451,5 +461,16 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:combinations",
+    ],
+)
+
+tf_py_test(
+    name = "traceback_utils_test",
+    size = "small",
+    srcs = ["traceback_utils_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )

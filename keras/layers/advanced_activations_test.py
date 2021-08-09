@@ -81,7 +81,7 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
   def test_relu_with_invalid_max_value(self):
     with self.assertRaisesRegex(
         ValueError, 'max_value of a ReLU layer cannot be a negative '
-        'value. Got: -10'):
+        'value. Received: -10'):
       testing_utils.layer_test(
           keras.layers.ReLU,
           kwargs={'max_value': -10},
@@ -91,7 +91,7 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
   def test_relu_with_invalid_negative_slope(self):
     with self.assertRaisesRegex(
         ValueError, 'negative_slope of a ReLU layer cannot be a negative '
-        'value. Got: None'):
+        'value. Received: None'):
       testing_utils.layer_test(
           keras.layers.ReLU,
           kwargs={'negative_slope': None},
@@ -100,7 +100,7 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
 
     with self.assertRaisesRegex(
         ValueError, 'negative_slope of a ReLU layer cannot be a negative '
-        'value. Got: -10'):
+        'value. Received: -10'):
       testing_utils.layer_test(
           keras.layers.ReLU,
           kwargs={'negative_slope': -10},
@@ -110,7 +110,7 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
   def test_relu_with_invalid_threshold(self):
     with self.assertRaisesRegex(
         ValueError, 'threshold of a ReLU layer cannot be a negative '
-        'value. Got: None'):
+        'value. Received: None'):
       testing_utils.layer_test(
           keras.layers.ReLU,
           kwargs={'threshold': None},
@@ -119,7 +119,7 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
 
     with self.assertRaisesRegex(
         ValueError, 'threshold of a ReLU layer cannot be a negative '
-        'value. Got: -10'):
+        'value. Received: -10'):
       testing_utils.layer_test(
           keras.layers.ReLU,
           kwargs={'threshold': -10},
@@ -140,7 +140,7 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
     # Test case for GitHub issue 46993.
     with self.assertRaisesRegex(
         ValueError, 'The alpha value of a Leaky ReLU layer '
-        'cannot be None, needs a float. Got None'):
+        'cannot be None. Expecting a float. Received: None'):
       testing_utils.layer_test(
           keras.layers.LeakyReLU,
           kwargs={'alpha': None},
@@ -151,7 +151,7 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
     # Test case for GitHub issue 46993.
     with self.assertRaisesRegex(
         ValueError, 'Alpha of an ELU layer cannot be None, '
-        'requires a float. Got None'):
+        'expecting a float. Received: None'):
       testing_utils.layer_test(
           keras.layers.ELU,
           kwargs={'alpha': None},
@@ -161,7 +161,7 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
   def test_threshold_relu_with_invalid_theta(self):
     with self.assertRaisesRegex(
         ValueError, 'Theta of a Thresholded ReLU layer cannot '
-        'be None, requires a float. Got None'):
+        'be None, expecting a float. Received: None'):
       testing_utils.layer_test(
           keras.layers.ThresholdedReLU,
           kwargs={'theta': None},
@@ -170,7 +170,7 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
 
     with self.assertRaisesRegex(
         ValueError, 'The theta value of a Thresholded ReLU '
-        'layer should be >=0, got -10'):
+        'layer should be >=0. Received: -10'):
       testing_utils.layer_test(
           keras.layers.ThresholdedReLU,
           kwargs={'theta': -10},

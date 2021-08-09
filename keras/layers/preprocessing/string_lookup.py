@@ -332,7 +332,7 @@ class StringLookup(index_lookup.IndexLookup):
     base_config = super(StringLookup, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
-  # Overriden methods from IndexLookup.
+  # Overridden methods from IndexLookup.
   def _tensor_vocab_to_numpy(self, vocabulary):
     vocabulary = vocabulary.numpy()
     return np.array([tf.compat.as_text(x, self.encoding) for x in vocabulary])

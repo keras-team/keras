@@ -111,7 +111,7 @@ class ScikitLearnAPIWrapperTest(tf.test.TestCase):
 
   def test_classify_class_build_fn(self):
 
-    class ClassBuildFnClf(object):
+    class ClassBuildFnClf:
 
       def __call__(self, hidden_dim):
         return build_fn_clf(hidden_dim)
@@ -153,7 +153,7 @@ class ScikitLearnAPIWrapperTest(tf.test.TestCase):
 
   def test_regression_class_build_fn(self):
 
-    class ClassBuildFnReg(object):
+    class ClassBuildFnReg:
 
       def __call__(self, hidden_dim):
         return build_fn_reg(hidden_dim)

@@ -101,12 +101,14 @@ PREPROCESS_INPUT_RET_DOC_CAFFE = """
 def preprocess_input(x, data_format=None, mode='caffe'):
   """Preprocesses a tensor or Numpy array encoding a batch of images."""
   if mode not in {'caffe', 'tf', 'torch'}:
-    raise ValueError('Unknown mode ' + str(mode))
+    raise ValueError('Expected mode to be one of `caffe`, `tf` or `torch`. '
+                     f'Received: mode={mode}')
 
   if data_format is None:
     data_format = backend.image_data_format()
   elif data_format not in {'channels_first', 'channels_last'}:
-    raise ValueError('Unknown data_format ' + str(data_format))
+    raise ValueError('Expected data_format to be one of `channels_first` or '
+                     f'`channels_last`. Received: data_format={data_format}')
 
   if isinstance(x, np.ndarray):
     return _preprocess_numpy_input(
@@ -342,7 +344,8 @@ def obtain_input_shape(input_shape,
       if input_shape != default_shape:
         raise ValueError('When setting `include_top=True` '
                          'and loading `imagenet` weights, '
-                         '`input_shape` should be ' + str(default_shape) + '.')
+                         f'`input_shape` should be {default_shape}.  '
+                         f'Received: input_shape={input_shape}')
     return default_shape
   if input_shape:
     if data_format == 'channels_first':
@@ -350,25 +353,25 @@ def obtain_input_shape(input_shape,
         if len(input_shape) != 3:
           raise ValueError('`input_shape` must be a tuple of three integers.')
         if input_shape[0] != 3 and weights == 'imagenet':
-          raise ValueError('The input must have 3 channels; got '
-                           '`input_shape=' + str(input_shape) + '`')
+          raise ValueError('The input must have 3 channels; Received '
+                           f'`input_shape={input_shape}`')
         if ((input_shape[1] is not None and input_shape[1] < min_size) or
             (input_shape[2] is not None and input_shape[2] < min_size)):
-          raise ValueError('Input size must be at least ' + str(min_size) +
-                           'x' + str(min_size) + '; got `input_shape=' +
-                           str(input_shape) + '`')
+          raise ValueError(f'Input size must be at least {min_size}'
+                           f'x{min_size}; Received: '
+                           f'input_shape={input_shape}')
     else:
       if input_shape is not None:
         if len(input_shape) != 3:
           raise ValueError('`input_shape` must be a tuple of three integers.')
         if input_shape[-1] != 3 and weights == 'imagenet':
-          raise ValueError('The input must have 3 channels; got '
-                           '`input_shape=' + str(input_shape) + '`')
+          raise ValueError('The input must have 3 channels; Received '
+                           f'`input_shape={input_shape}`')
         if ((input_shape[0] is not None and input_shape[0] < min_size) or
             (input_shape[1] is not None and input_shape[1] < min_size)):
-          raise ValueError('Input size must be at least ' + str(min_size) +
-                           'x' + str(min_size) + '; got `input_shape=' +
-                           str(input_shape) + '`')
+          raise ValueError('Input size must be at least '
+                           f'{min_size}x{min_size}; Received: '
+                           f'input_shape={input_shape}')
   else:
     if require_flatten:
       input_shape = default_shape
@@ -381,7 +384,7 @@ def obtain_input_shape(input_shape,
     if None in input_shape:
       raise ValueError('If `include_top` is True, '
                        'you should specify a static `input_shape`. '
-                       'Got `input_shape=' + str(input_shape) + '`')
+                       f'Received: input_shape={input_shape}')
   return input_shape
 
 
@@ -429,4 +432,5 @@ def validate_activation(classifier_activation, weights):
   }:
     raise ValueError('Only `None` and `softmax` activations are allowed '
                      'for the `classifier_activation` argument when using '
-                     'pretrained weights, with `include_top=True`')
+                     'pretrained weights, with `include_top=True`; Received: '
+                     f'classifier_activation={classifier_activation}')

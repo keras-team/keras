@@ -119,8 +119,7 @@ class TimeDistributed(Wrapper):
     if not isinstance(layer, Layer):
       raise ValueError(
           'Please initialize `TimeDistributed` layer with a '
-          '`tf.keras.layers.Layer` instance. You passed: {input}'.format(
-              input=layer))
+          f'`tf.keras.layers.Layer` instance. Received: {layer}')
     super(TimeDistributed, self).__init__(layer, **kwargs)
     self.supports_masking = True
 
@@ -174,7 +173,7 @@ class TimeDistributed(Wrapper):
     if any(dim < 3 for dim in input_dims):
       raise ValueError(
           '`TimeDistributed` Layer should be passed an `input_shape ` '
-          'with at least 3 dimensions, received: ' + str(input_shape))
+          f'with at least 3 dimensions, received: {input_shape}')
     # Don't enforce the batch or time dimension.
     self.input_spec = tf.nest.map_structure(
         lambda x: InputSpec(shape=[None, None] + x.as_list()[2:]), input_shape)
@@ -243,10 +242,10 @@ class TimeDistributed(Wrapper):
             lambda x: x.nested_row_lengths()[0], inputs)
         y = self.layer(input_values, **kwargs)
         y = tf.nest.map_structure(tf.RaggedTensor.from_row_lengths, y,
-                               input_row_lenghts)
+                                  input_row_lenghts)
       elif any(is_ragged_input):
         raise ValueError('All inputs has to be either ragged or not, '
-                         'but not mixed. You passed: {}'.format(inputs))
+                         f'but not mixed. Received: {inputs}')
       else:
         input_length = tf_utils.convert_shapes(input_shape)
         input_length = tf.nest.flatten(input_length)[1]
@@ -453,12 +452,13 @@ class Bidirectional(Wrapper):
     if not isinstance(layer, Layer):
       raise ValueError(
           'Please initialize `Bidirectional` layer with a '
-          '`Layer` instance. You passed: {input}'.format(input=layer))
+          f'`tf.keras.layers.Layer` instance. Received: {layer}')
     if backward_layer is not None and not isinstance(backward_layer, Layer):
-      raise ValueError('`backward_layer` need to be a `Layer` instance. '
-                       'You passed: {input}'.format(input=backward_layer))
+      raise ValueError(
+          '`backward_layer` need to be a `tf.keras.layers.Layer` instance. '
+          f'Received: {backward_layer}')
     if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
-      raise ValueError('Invalid merge mode. '
+      raise ValueError(f'Invalid merge mode. Received: {merge_mode}. '
                        'Merge mode should be one of '
                        '{"sum", "mul", "ave", "concat", None}')
     # We don't want to track `layer` since we're already tracking the two copies
@@ -511,8 +511,11 @@ class Bidirectional(Wrapper):
   def _verify_layer_config(self):
     """Ensure the forward and backward layers have valid common property."""
     if self.forward_layer.go_backwards == self.backward_layer.go_backwards:
-      raise ValueError('Forward layer and backward layer should have different '
-                       '`go_backwards` value.')
+      raise ValueError(
+          'Forward layer and backward layer should have different '
+          '`go_backwards` value.'
+          f'forward_layer.go_backwards = {self.forward_layer.go_backwards},'
+          f'backward_layer.go_backwards = {self.backward_layer.go_backwards}')
 
     common_attributes = ('stateful', 'return_sequences', 'return_state')
     for a in common_attributes:
@@ -521,8 +524,8 @@ class Bidirectional(Wrapper):
       if forward_value != backward_value:
         raise ValueError(
             'Forward layer and backward layer are expected to have the same '
-            'value for attribute {attr}, got {forward} and {backward}'.format(
-                attr=a, forward=forward_value, backward=backward_value))
+            f'value for attribute "{a}", got "{forward_value}" for forward '
+            f'layer and "{backward_value}" for backward layer')
 
   def _recreate_layer_from_config(self, layer, go_backwards=False):
     # When recreating the layer from its config, it is possible that the layer
@@ -593,7 +596,7 @@ class Bidirectional(Wrapper):
             'When passing `initial_state` to a Bidirectional RNN, '
             'the state should be a list containing the states of '
             'the underlying RNNs. '
-            'Found: ' + str(initial_state))
+            f'Received: {initial_state}')
 
       kwargs['initial_state'] = initial_state
       additional_inputs += initial_state
@@ -723,7 +726,8 @@ class Bidirectional(Wrapper):
       output = [y, y_rev]
     else:
       raise ValueError(
-          'Unrecognized value for `merge_mode`: %s' % (self.merge_mode))
+          f'Unrecognized value for `merge_mode`. Received: {self.merge_mode}'
+          'Expected values are ["concat", "sum", "ave", "mul"]')
 
     if self.return_state:
       if self.merge_mode is None:

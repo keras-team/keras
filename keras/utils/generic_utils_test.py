@@ -77,7 +77,7 @@ class TestCustomObjectScope(tf.test.TestCase):
     def custom_fn():
       pass
 
-    class CustomClass(object):
+    class CustomClass:
       pass
 
     with keras.utils.generic_utils.custom_object_scope(
@@ -100,7 +100,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
   def test_serialize_custom_class_with_default_name(self):
 
     @keras.utils.generic_utils.register_keras_serializable()
-    class TestClass(object):
+    class TestClass:
 
       def __init__(self, value):
         self._value = value
@@ -122,7 +122,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
     # Make sure registering a new class with same name will fail.
     with self.assertRaisesRegex(ValueError, '.*has already been registered.*'):
       @keras.utils.generic_utils.register_keras_serializable()  # pylint: disable=function-redefined
-      class TestClass(object):  # pylint: disable=function-redefined
+      class TestClass:  # pylint: disable=function-redefined
 
         def __init__(self, value):
           self._value = value
@@ -134,7 +134,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
 
     @keras.utils.generic_utils.register_keras_serializable(
         'TestPackage', 'CustomName')
-    class OtherTestClass(object):
+    class OtherTestClass:
 
       def __init__(self, val):
         self._val = val
@@ -188,7 +188,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
 
       @keras.utils.generic_utils.register_keras_serializable(  # pylint: disable=unused-variable
           'TestPackage', 'TestClass')
-      class TestClass(object):
+      class TestClass:
 
         def __init__(self, value):
           self._value = value
@@ -403,7 +403,7 @@ class SliceArraysTest(tf.test.TestCase):
 
 # object() alone isn't compatible with WeakKeyDictionary, which we use to
 # track shared configs.
-class MaybeSharedObject(object):
+class MaybeSharedObject:
   pass
 
 

@@ -134,6 +134,7 @@ def distribute_py_test(
         full_precision = False,
         xla_enable_strict_auto_jit = True,
         disable_mlir_bridge = True,
+        disable_tpu_use_tfrt = None,
         **kwargs):
     # Default to PY3 since multi worker tests require PY3.
     kwargs.setdefault("python_version", "PY3")

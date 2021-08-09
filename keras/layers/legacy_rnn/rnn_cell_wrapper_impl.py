@@ -27,7 +27,7 @@ import warnings
 from keras.utils import generic_utils
 
 
-class DropoutWrapperBase(object):
+class DropoutWrapperBase:
   """Operator adding dropout to inputs and outputs of the given cell."""
 
   def __init__(self,
@@ -102,7 +102,8 @@ class DropoutWrapperBase(object):
 
     if (dropout_state_filter_visitor is not None and
         not callable(dropout_state_filter_visitor)):
-      raise TypeError("dropout_state_filter_visitor must be callable")
+      raise TypeError("dropout_state_filter_visitor must be callable. "
+                      f"Received: {dropout_state_filter_visitor}")
     self._dropout_state_filter = (
         dropout_state_filter_visitor or _default_dropout_state_filter_visitor)
     with tf.name_scope("DropoutWrapperInit"):
@@ -118,8 +119,9 @@ class DropoutWrapperBase(object):
         tensor_prob, const_prob = tensor_and_const_value(prob)
         if const_prob is not None:
           if const_prob < 0 or const_prob > 1:
-            raise ValueError("Parameter %s must be between 0 and 1: %d" %
-                             (attr, const_prob))
+            raise ValueError(
+                f"Parameter {attr} must be between 0 and 1. "
+                "Received {const_prob}")
           setattr(self, "_%s" % attr, float(const_prob))
         else:
           setattr(self, "_%s" % attr, tensor_prob)
@@ -312,7 +314,7 @@ class DropoutWrapperBase(object):
         config, custom_objects=custom_objects)
 
 
-class ResidualWrapperBase(object):
+class ResidualWrapperBase:
   """RNNCell wrapper that ensures cell inputs are added to the outputs."""
 
   def __init__(self, cell, residual_fn=None, **kwargs):
@@ -400,7 +402,7 @@ class ResidualWrapperBase(object):
         config, custom_objects=custom_objects)
 
 
-class DeviceWrapperBase(object):
+class DeviceWrapperBase:
   """Operator that ensures an RNNCell runs on a particular device."""
 
   def __init__(self, cell, device, **kwargs):
@@ -451,8 +453,8 @@ def _serialize_function_to_config(function):
     output_type = "function"
     module = function.__module__
   else:
-    raise ValueError("Unrecognized function type for input: {}".format(
-        type(function)))
+    raise ValueError(
+        f"Unrecognized function type for input: {type(function)}")
 
   return output, output_type, module
 
@@ -482,7 +484,9 @@ def _parse_config_to_function(config, custom_objects, func_attr_name,
     function = generic_utils.func_load(
         config[func_attr_name], globs=globs)
   else:
-    raise TypeError("Unknown function type:", function_type)
+    raise TypeError(
+        f"Unknown function type received: {function_type}. "
+        "Expected types are ['function', 'lambda']")
   return function
 
 

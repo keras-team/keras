@@ -317,7 +317,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
 
   def test_summary(self):
 
-    class ToString(object):
+    class ToString:
 
       def __init__(self):
         self.contents = ''

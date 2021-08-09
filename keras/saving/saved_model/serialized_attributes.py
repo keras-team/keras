@@ -38,7 +38,7 @@ recurrent = LazyLoader(
 # pylint:enable=g-inconsistent-quotes
 
 
-class SerializedAttributes(object):
+class SerializedAttributes:
   """Class that tracks and validates all serialization attributes.
 
   Keras models contain many Python-defined components. For example, the
@@ -152,8 +152,9 @@ class SerializedAttributes(object):
     elif isinstance(obj, base_layer.Layer):
       return LayerAttributes()
     else:
-      raise TypeError('Internal error during serialization: Expected Keras '
-                      'Layer object, got {} of type {}'.format(obj, type(obj)))
+      raise TypeError('Internal error during serialization. Expected Keras '
+                      f'Layer object. Received: {obj} '
+                      f'(of type {type(obj)})')
 
   def __init__(self):
     self._object_dict = {}
@@ -200,8 +201,9 @@ class SerializedAttributes(object):
                             tf.types.experimental.ConcreteFunction,
                             save_impl.LayerCall))):
           raise ValueError(
-              'Function dictionary contained a non-function object: {} (for key'
-              ' {})'.format(function_dict[key], key))
+              'The tf.function dictionary contained a non-function object: '
+              f'{function_dict[key]} (for key {key}). Only tf.function '
+              'instances or ConcreteFunction instances should be passed.')
         fn = function_dict[key]
         self._function_dict[key] = fn
 
@@ -209,8 +211,8 @@ class SerializedAttributes(object):
         tf_fn = fn.wrapped_call if isinstance(fn, save_impl.LayerCall) else fn
         setattr(self._keras_trackable, key, tf_fn)
       else:
-        raise ValueError('Function {} missing from serialized function dict.'
-                         .format(key))
+        raise ValueError(
+            f'Function {key} missing from serialized tf.function dictionary.')
     return self.functions
 
   def set_and_validate_objects(self, object_dict):
@@ -219,13 +221,14 @@ class SerializedAttributes(object):
       if key in object_dict:
         if not isinstance(object_dict[key], tf.__internal__.tracking.Trackable):
           raise ValueError(
-              'Object dictionary contained a non-trackable object: {} (for key'
-              ' {})'.format(object_dict[key], key))
+              'The object dictionary contained a non-trackable object: '
+              f'{object_dict[key]} (for key {key}). Only trackable objects are '
+              f'allowed, such as Keras layers/models or tf.Module instances.')
         self._object_dict[key] = object_dict[key]
         setattr(self._keras_trackable, key, object_dict[key])
       else:
         raise ValueError(
-            'Object {} missing from serialized object dict.'.format(key))
+            f'Object {key} missing from serialized object dictionary.')
     return self.checkpointable_objects
 
 

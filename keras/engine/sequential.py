@@ -28,6 +28,7 @@ from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+from keras.utils import traceback_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -45,44 +46,44 @@ class Sequential(functional.Functional):
 
   Examples:
 
-  >>> # Optionally, the first layer can receive an `input_shape` argument:
-  >>> model = tf.keras.Sequential()
-  >>> model.add(tf.keras.layers.Dense(8, input_shape=(16,)))
-  >>> # Afterwards, we do automatic shape inference:
-  >>> model.add(tf.keras.layers.Dense(4))
-
-  >>> # This is identical to the following:
-  >>> model = tf.keras.Sequential()
-  >>> model.add(tf.keras.Input(shape=(16,)))
-  >>> model.add(tf.keras.layers.Dense(8))
-
-  >>> # Note that you can also omit the `input_shape` argument.
-  >>> # In that case the model doesn't have any weights until the first call
-  >>> # to a training/evaluation method (since it isn't yet built):
-  >>> model = tf.keras.Sequential()
-  >>> model.add(tf.keras.layers.Dense(8))
-  >>> model.add(tf.keras.layers.Dense(4))
-  >>> # model.weights not created yet
-
-  >>> # Whereas if you specify the input shape, the model gets built
-  >>> # continuously as you are adding layers:
-  >>> model = tf.keras.Sequential()
-  >>> model.add(tf.keras.layers.Dense(8, input_shape=(16,)))
-  >>> model.add(tf.keras.layers.Dense(4))
-  >>> len(model.weights)
-  4
-
-  >>> # When using the delayed-build pattern (no input shape specified), you can
-  >>> # choose to manually build your model by calling
-  >>> # `build(batch_input_shape)`:
-  >>> model = tf.keras.Sequential()
-  >>> model.add(tf.keras.layers.Dense(8))
-  >>> model.add(tf.keras.layers.Dense(4))
-  >>> model.build((None, 16))
-  >>> len(model.weights)
-  4
-
   ```python
+  # Optionally, the first layer can receive an `input_shape` argument:
+  model = tf.keras.Sequential()
+  model.add(tf.keras.layers.Dense(8, input_shape=(16,)))
+  # Afterwards, we do automatic shape inference:
+  model.add(tf.keras.layers.Dense(4))
+
+  # This is identical to the following:
+  model = tf.keras.Sequential()
+  model.add(tf.keras.Input(shape=(16,)))
+  model.add(tf.keras.layers.Dense(8))
+
+  # Note that you can also omit the `input_shape` argument.
+  # In that case the model doesn't have any weights until the first call
+  # to a training/evaluation method (since it isn't yet built):
+  model = tf.keras.Sequential()
+  model.add(tf.keras.layers.Dense(8))
+  model.add(tf.keras.layers.Dense(4))
+  # model.weights not created yet
+
+  # Whereas if you specify the input shape, the model gets built
+  # continuously as you are adding layers:
+  model = tf.keras.Sequential()
+  model.add(tf.keras.layers.Dense(8, input_shape=(16,)))
+  model.add(tf.keras.layers.Dense(4))
+  len(model.weights)
+  # Returns "4"
+
+  # When using the delayed-build pattern (no input shape specified), you can
+  # choose to manually build your model by calling
+  # `build(batch_input_shape)`:
+  model = tf.keras.Sequential()
+  model.add(tf.keras.layers.Dense(8))
+  model.add(tf.keras.layers.Dense(4))
+  model.build((None, 16))
+  len(model.weights)
+  # Returns "4"
+
   # Note that when using the delayed-build pattern (no input shape specified),
   # the model gets built the first time you call `fit`, `eval`, or `predict`,
   # or the first time you call the model on some input data.
@@ -96,6 +97,7 @@ class Sequential(functional.Functional):
   """
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @traceback_utils.filter_traceback
   def __init__(self, layers=None, name=None):
     """Creates a `Sequential` model instance.
 
@@ -116,8 +118,8 @@ class Sequential(functional.Functional):
     self._layer_call_argspecs = {}
     self._created_nodes = set()
     # Flag that indicate whether the sequential network topology has been
-    # created. It is false when there isn't any layer, or the layers doesn't
-    # have input shape.
+    # created. It is false when there isn't any layer, or the layers don't
+    # have an input shape.
     self._graph_initialized = False
 
     # Unfortunately some Sequential models using custom layers or FeatureColumn
@@ -146,6 +148,7 @@ class Sequential(functional.Functional):
     return layers[:]
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @traceback_utils.filter_traceback
   def add(self, layer):
     """Adds a layer instance on top of the layer stack.
 
@@ -172,16 +175,16 @@ class Sequential(functional.Functional):
       if not isinstance(layer, base_layer.Layer):
         layer = functional.ModuleWrapper(layer)
     else:
-      raise TypeError('The added layer must be '
-                      'an instance of class Layer. '
-                      'Found: ' + str(layer))
+      raise TypeError('The added layer must be an instance of class Layer. '
+                      f'Received: layer={layer} of type {type(layer)}.')
 
     tf_utils.assert_no_legacy_layers([layer])
     if not self._is_layer_name_unique(layer):
-      raise ValueError('All layers added to a Sequential model '
-                       'should have unique names. Name "%s" is already the name'
-                       ' of a layer in this model. Update the `name` argument '
-                       'to pass a unique name.' % (layer.name,))
+      raise ValueError(
+          'All layers added to a Sequential model '
+          f'should have unique names. Name "{layer.name}" is already the name '
+          'of a layer in this model. Update the `name` argument '
+          'to pass a unique name.')
 
     self.built = False
     set_inputs = False
@@ -230,6 +233,7 @@ class Sequential(functional.Functional):
     self._layer_call_argspecs[layer] = tf_inspect.getfullargspec(layer.call)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @traceback_utils.filter_traceback
   def pop(self):
     """Removes the last layer in the model.
 
@@ -350,7 +354,7 @@ class Sequential(functional.Functional):
     if not self._has_explicit_input_shape:
       if not tf.is_tensor(inputs) and not isinstance(
           inputs, tf.Tensor):
-        # This is a Sequential with mutiple inputs. This is technically an
+        # This is a Sequential with multiple inputs. This is technically an
         # invalid use case of Sequential, but we tolerate it for backwards
         # compatibility.
         self._use_legacy_deferred_behavior = True
@@ -441,8 +445,8 @@ class Sequential(functional.Functional):
   def input_spec(self):
     if hasattr(self, '_manual_input_spec'):
       return self._manual_input_spec
-    if self.layers and hasattr(self.layers[0], 'input_spec'):
-      return self.layers[0].input_spec
+    if self._has_explicit_input_shape:
+      return super().input_spec
     return None
 
   @input_spec.setter

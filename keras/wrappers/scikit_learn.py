@@ -27,7 +27,7 @@ from keras.utils.np_utils import to_categorical
 from tensorflow.python.util.tf_export import keras_export
 
 
-class BaseWrapper(object):
+class BaseWrapper:
   """Base class for the Keras scikit-learn wrapper.
 
   Warning: This class should not be used directly.

@@ -207,7 +207,7 @@ class MultiHeadAttention(Layer):
       where `T` is for target sequence shapes and `E` is the query input last
       dimension if `output_shape` is `None`. Otherwise, the multi-head outputs
       are project to the shape specified by `output_shape`.
-    attention_scores: [Optional] multi-head attention coeffients over
+    attention_scores: [Optional] multi-head attention coefficients over
       attention axes.
   """
 

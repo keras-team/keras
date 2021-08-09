@@ -149,7 +149,7 @@ class SplitUtilsTest(keras_parameterized.TestCase):
 
   def test_multiple_inheritance(self):
 
-    class Return2(object):
+    class Return2:
 
       def return_2(self):
         return 2

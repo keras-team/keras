@@ -44,6 +44,7 @@ from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import object_identity
 from keras.utils import tf_utils
+from keras.utils import traceback_utils
 from keras.utils import version_utils
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 from keras.utils.io_utils import path_to_string
@@ -58,11 +59,6 @@ try:
   import h5py
 except ImportError:
   h5py = None
-
-try:
-  import yaml
-except ImportError:
-  yaml = None
 # pylint: enable=g-import-not-at-top
 
 
@@ -147,7 +143,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       itertools.chain(('_train_counter', '_test_counter', '_predict_counter',
                        '_steps_per_execution'),
                       base_layer.Layer._TF_MODULE_IGNORED_PROPERTIES))  # pylint: disable=protected-access
-  _SCALAR_UPRANKING_ON = True
+  _SCALAR_UPRANKING_ON = False
 
   def __new__(cls, *args, **kwargs):
     # Signature detection
@@ -159,6 +155,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       return super(Model, cls).__new__(cls, *args, **kwargs)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @traceback_utils.filter_traceback
   def __init__(self, *args, **kwargs):
     self._is_model_for_instrumentation = True
     base_layer.keras_api_gauge.get_cell('model').set(True)
@@ -194,8 +191,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # In case there are unused kwargs, we should raise an error to user, in
         # case they have a typo in the param name.
         raise TypeError(
-            'The following keyword arguments aren\'t supported: {}'.format(
-                other_kwargs))
+            'The following keyword arguments passed to `Model` aren\'t '
+            'supported: {}.'.format(other_kwargs))
       return
 
     base_layer.keras_api_gauge.get_cell('Model subclass').set(True)
@@ -350,14 +347,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       return
 
     if input_shape is None:
-      raise ValueError('Input shape must be defined when calling build on a '
+      raise ValueError('Input shape must be defined when calling `build` on a '
                        'model subclass network.')
     valid_types = (tuple, list, tf.TensorShape, dict)
     if not isinstance(input_shape, valid_types):
       raise ValueError('Specified input shape is not one of the valid types. '
                        'Please specify a batch input shape of type tuple or '
                        'list of input shapes. User provided '
-                       'input type: {}'.format(type(input_shape)))
+                       'input type: {}.'.format(type(input_shape)))
 
     if input_shape and not self.inputs:
       # We create placeholders for the `None`s in the shape and build the model
@@ -404,7 +401,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                   'inputs to the model, but are required for its '
                   '`call()` method. Instead, in order to instantiate '
                   'and build your model, `call()` your model on real '
-                  'tensor data with all expected call arguments.')
+                  'tensor data with all expected call arguments. The argument '
+                  'for `call()` can be a single list/tuple that contains '
+                  'multiple inputs.')
         elif len(call_args) < 2:
           # Signature without `inputs`.
           raise ValueError(
@@ -412,12 +411,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               'method accepts an `inputs` argument.')
         try:
           self.call(x, **kwargs)
-        except (tf.errors.InvalidArgumentError, TypeError):
+        except (tf.errors.InvalidArgumentError, TypeError) as e:
           raise ValueError('You cannot build your model by calling `build` '
                            'if your layers do not support float type inputs. '
                            'Instead, in order to instantiate and build your '
                            'model, call your model on real tensor data (of '
-                           'the correct dtype).')
+                           'the correct dtype).\n\nThe actual error from '
+                           f'`call` is: {e}.')
     super(Model, self).build(input_shape)
 
   @doc_controls.doc_in_current_and_subclasses
@@ -447,6 +447,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     raise NotImplementedError('When subclassing the `Model` class, you should '
                               'implement a `call()` method.')
 
+  @traceback_utils.filter_traceback
   def compile(self,
               optimizer='rmsprop',
               loss=None,
@@ -773,9 +774,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       values of the `Model`'s metrics are returned. Example:
       `{'loss': 0.2, 'accuracy': 0.7}`.
     """
-    # These are the only transformations `Model.fit` applies to user-input
-    # data when a `tf.data.Dataset` is provided.
-    data = data_adapter.expand_1d(data)
     x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
     # Run forward pass.
     with tf.GradientTape() as tape:
@@ -784,9 +782,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           y, y_pred, sample_weight, regularization_losses=self.losses)
     if self.loss and y is None:
       raise TypeError(
-          'Target data is missing. Your model was compiled with a `loss` '
-          'argument and therefore expects target data to be passed in `fit()`.'
-      )
+          f'Target data is missing. Your model has `loss`: {self.loss}, '
+          'and therefore expects target data to be passed in `fit()`.')
     # Run backwards pass.
     self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
     self.compiled_metrics.update_state(y, y_pred, sample_weight)
@@ -873,6 +870,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     return self.train_function
 
+  @traceback_utils.filter_traceback
   def fit(self,
           x=None,
           y=None,
@@ -1192,7 +1190,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         logs = tf_utils.sync_to_numpy_or_python_type(logs)
         if logs is None:
-          raise ValueError('Expect x to be a non-empty array or dataset.')
+          raise ValueError('Unexpected result of `train_function` '
+                           '(Empty logs). Please use '
+                           '`Model.compile(..., run_eagerly=True)`, or '
+                           '`tf.config.run_functions_eagerly(True)` for more '
+                           'information of where went wrong, or file a '
+                           'issue/bug to `tf.keras`.')
         epoch_logs = copy.copy(logs)
 
         # Run validation.
@@ -1261,7 +1264,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       `tf.keras.callbacks.CallbackList.on_train_batch_end`. Typically, the
       values of the `Model`'s metrics are returned.
     """
-    data = data_adapter.expand_1d(data)
     x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
 
     y_pred = self(x, training=False)
@@ -1349,6 +1351,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     return self.test_function
 
+  @traceback_utils.filter_traceback
   def evaluate(self,
                x=None,
                y=None,
@@ -1449,7 +1452,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     _disallow_inside_tf_function('evaluate')
     use_cached_eval_dataset = kwargs.pop('_use_cached_eval_dataset', False)
     if kwargs:
-      raise TypeError('Invalid keyword arguments: %s' % (kwargs,))
+      raise TypeError(f'Invalid keyword arguments: {(kwargs,)}')
 
     if self.distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
       self._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
@@ -1531,7 +1534,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       The result of one inference step, typically the output of calling the
       `Model` on data.
     """
-    data = data_adapter.expand_1d(data)
     x, _, _ = data_adapter.unpack_x_y_sample_weight(data)
     return self(x, training=False)
 
@@ -1606,6 +1608,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self.predict_function = predict_function
     return self.predict_function
 
+  @traceback_utils.filter_traceback
   def predict(self,
               x,
               batch_size=None,
@@ -1762,7 +1765,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             end_step = step + data_handler.step_increment
             callbacks.on_predict_batch_end(end_step, {'outputs': batch_outputs})
       if batch_outputs is None:
-        raise ValueError('Expect x to be a non-empty array or dataset.')
+        raise ValueError('Unexpected result of `predict_function` '
+                         '(Empty batch_outputs). Please use '
+                         '`Model.compile(..., run_eagerly=True)`, or '
+                         '`tf.config.run_functions_eagerly(True)` for more '
+                         'information of where went wrong, or file a '
+                         'issue/bug to `tf.keras`.')
       callbacks.on_predict_end()
     all_outputs = tf.__internal__.nest.map_structure_up_to(batch_outputs, concat, outputs)
 
@@ -2086,6 +2094,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     with self.distribute_strategy.scope():
       return super(Model, self).get_weights()
 
+  @traceback_utils.filter_traceback
   def save(self,
            filepath,
            overwrite=True,
@@ -2140,6 +2149,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     save.save_model(self, filepath, overwrite, include_optimizer, save_format,
                     signatures, options, save_traces)
 
+  @traceback_utils.filter_traceback
   def save_weights(self,
                    filepath,
                    overwrite=True,
@@ -2220,18 +2230,18 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         save_format = 'h5'
       else:
         raise ValueError(
-            'Unknown format "%s". Was expecting one of {"tf", "h5"}.' % (
-                save_format,))
+            f'Unknown format. Received: `save_format`={save_format}. Was '
+            'expecting one of {"tf", "h5"}.')
     if save_format == 'tf' and filepath_is_h5:
       raise ValueError(
-          ('save_weights got save_format="tf"/"tensorflow", but the '
-           'filepath ("%s") looks like an HDF5 file. Omit the ".h5"/".keras" '
-           'when saving in TensorFlow format.')
-          % filepath)
+          'save_weights got save_format="tf"/"tensorflow", but the '
+          f'filepath ({filepath}) looks like an HDF5 file. '
+          'Omit the ".h5"/".keras" when saving in TensorFlow format.')
 
     if save_format == 'h5' and h5py is None:
       raise ImportError(
-          '`save_weights` requires h5py when saving in hdf5.')
+          '`save_weights` requires h5py when saving in hdf5, but h5py is not '
+          'available. Try installing h5py package.')
     if save_format == 'tf':
       check_filepath = filepath + '.index'
     else:
@@ -2243,7 +2253,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return
     if save_format == 'h5':
       with h5py.File(filepath, 'w') as f:
-        hdf5_format.save_weights_to_hdf5_group(f, self.layers)
+        hdf5_format.save_weights_to_hdf5_group(f, self)
     else:
       if tf.executing_eagerly():
         session = None
@@ -2257,6 +2267,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           save_relative_paths=True,
           all_model_checkpoint_paths=[filepath])
 
+  @traceback_utils.filter_traceback
   def load_weights(self,
                    filepath,
                    by_name=False,
@@ -2313,8 +2324,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     if backend.is_tpu_strategy(self._distribution_strategy):
       if (self._distribution_strategy.extended.steps_per_run > 1 and
           (not saving_utils.is_hdf5_filepath(filepath))):
-        raise ValueError('Load weights is not yet supported with TPUStrategy '
-                         'with steps_per_run greater than 1.')
+        spr = self._distribution_strategy.extended.steps_per_run
+        raise ValueError('Load weights is not implemented with TPUStrategy '
+                         'with `steps_per_run` greater than 1. The '
+                         f'`steps_per_run` is {spr}')
     if skip_mismatch and not by_name:
       raise ValueError(
           'When calling model.load_weights, skip_mismatch can only be set to '
@@ -2332,13 +2345,15 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         session = backend.get_session()
         # Restore existing variables (if any) immediately, and set up a
         # streaming restore for any variables created in the future.
-        tf.__internal__.tracking.streaming_restore(status=status, session=session)
+        tf.__internal__.tracking.streaming_restore(status=status,
+                                                   session=session)
       status.assert_nontrivial_match()
     else:
       status = None
       if h5py is None:
         raise ImportError(
-            '`load_weights` requires h5py when loading weights from HDF5.')
+            '`load_weights` requires h5py package when loading weights from '
+            'HDF5. Try installing h5py.')
       if not self._is_graph_network and not self.built:
         raise ValueError(
             'Unable to load weights saved in HDF5 format into a subclassed '
@@ -2350,9 +2365,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           f = f['model_weights']
         if by_name:
           hdf5_format.load_weights_from_hdf5_group_by_name(
-              f, self.layers, skip_mismatch=skip_mismatch)
+              f, self, skip_mismatch)
         else:
-          hdf5_format.load_weights_from_hdf5_group(f, self.layers)
+          hdf5_format.load_weights_from_hdf5_group(f, self)
 
     # Perform any layer defined finalization of the layer state.
     for layer in self.layers:
@@ -2416,6 +2431,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def to_yaml(self, **kwargs):
     """Returns a yaml string containing the network configuration.
 
+    Note: Since TF 2.6, this method is no longer supported and will raise a
+    RuntimeError.
+
     To load a network from a yaml save file, use
     `keras.models.model_from_yaml(yaml_string, custom_objects={})`.
 
@@ -2431,12 +2449,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         A YAML string.
 
     Raises:
-        ImportError: if the `yaml` module is not found.
+        RuntimeError: announces that the method poses a security risk
     """
-    if yaml is None:
-      raise ImportError(
-          'Requires yaml module installed (`pip install pyyaml`).')
-    return yaml.dump(self._updated_config(), **kwargs)
+    raise RuntimeError(
+        'Method `model.to_yaml()` has been removed due to security risk of '
+        'arbitrary code execution. Please use `model.to_json()` instead.'
+    )
 
   def reset_states(self):
     for layer in self.layers:
@@ -2544,12 +2562,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # TODO(fchollet): We could build a dictionary based on layer names
     # since they are constant, but we have not done that yet.
     if index is not None and name is not None:
-      raise ValueError('Provide only a layer name or a layer index.')
+      raise ValueError('Provide only a layer name or a layer index. Received: '
+                       f'index={index}, name={name}.')
 
     if index is not None:
       if len(self.layers) <= index:
-        raise ValueError('Was asked to retrieve layer at index ' + str(index) +
-                         ' but model only has ' + str(len(self.layers)) +
+        raise ValueError(f'Was asked to retrieve layer at index {str(index)}'
+                         f' but model only has {str(len(self.layers))}'
                          ' layers.')
       else:
         return self.layers[index]
@@ -2558,8 +2577,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       for layer in self.layers:
         if layer.name == name:
           return layer
-      raise ValueError('No such layer: ' + name + '.')
-    raise ValueError('Provide either a layer name or layer index.')
+      raise ValueError(f'No such layer: {name}. Existing layers are '
+                       f'{self.layers}.')
+    raise ValueError('Provide either a layer name or layer index at '
+                     '`get_layer`.')
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _set_save_spec(self, inputs, args=None, kwargs=None):
@@ -2661,10 +2682,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       # For any model that has customized build() method but hasn't
       # been invoked yet, this will cover both sequential and subclass model.
       # Also make sure to exclude Model class itself which has build() defined.
-      raise ValueError('Weights for model %s have not yet been created. '
+      raise ValueError(f'Weights for model {self.name} have not yet been '
+                       'created. '
                        'Weights are created when the Model is first called on '
-                       'inputs or `build()` is called with an `input_shape`.' %
-                       self.name)
+                       'inputs or `build()` is called with an `input_shape`.')
 
   def _check_call_args(self, method_name):
     """Check that `call()` has only one positional arg."""
@@ -2681,9 +2702,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     if len(positional_args) > 2:
       extra_args = positional_args[2:]
       raise ValueError(
-          'Models passed to `' + method_name + '` can only have `training` '
+          f'Models passed to `{method_name}` can only have `training` '
           'and the first argument in `call()` as positional arguments, '
-          'found: ' + str(extra_args) + '.')
+          f'found: {str(extra_args)}.')
 
   def _validate_compile(self, optimizer, metrics, **kwargs):
     """Performs validation checks for the default `compile()`."""
@@ -2691,24 +2712,30 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         isinstance(opt, optimizer_v1.Optimizer)
         for opt in tf.nest.flatten(optimizer)):
       raise ValueError(
-          '`tf.compat.v1.keras` Optimizer (', optimizer, ') is '
+          f'`tf.compat.v1.keras` Optimizer ({optimizer}) is '
           'not supported when eager execution is enabled. Use a '
           '`tf.keras` Optimizer instead, or disable eager '
           'execution.')
 
     kwargs.pop('cloning', None)  # Legacy DistStrat argument, never used.
     kwargs.pop('experimental_run_tf_function', None)  # Always `True`.
-    if kwargs.pop('distribute', None) is not None:
+    distribute_arg = kwargs.pop('distribute', None)
+    if distribute_arg is not None:
       raise ValueError(
-          'Distribute argument in compile is not available in TF 2.0 please '
-          'create the model under the distribution strategy scope.')
-    if kwargs.pop('target_tensors', None) is not None:
+          '`distribute` argument in compile is not available in TF 2.0. Please '
+          'create the model under the `strategy.scope()`. Received: '
+          f'{distribute_arg}.')
+    target_tensor_arg = kwargs.pop('target_tensors', None)
+    if target_tensor_arg is not None:
       raise ValueError(
-          'target_tensors argument is not supported when executing eagerly.')
+          '`target_tensors` argument is not supported when executing eagerly. '
+          f'Received: {target_tensor_arg}.')
     invalid_kwargs = set(kwargs) - {'sample_weight_mode'}
     if invalid_kwargs:
-      raise TypeError('Invalid keyword argument(s) in `compile()`: %s' %
-                      (invalid_kwargs,))
+      raise TypeError('Invalid keyword argument(s) in `compile()`: '
+                      f'{(invalid_kwargs,)}. Valid keyword arguments include '
+                      '"cloning", "experimental_run_tf_function", "distribute",'
+                      ' "target_tensors", or "sample_weight_mode".')
 
     # Model must be created and compiled with the same DistStrat.
     if self.built and tf.distribute.has_strategy():
@@ -2716,14 +2743,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       for v in self.variables:
         if not strategy.extended.variable_created_in_scope(v):
           raise ValueError(
-              'Variable (%s) was not created in the distribution strategy '
-              'scope of (%s). It is most likely due to not all layers or '
-              'the model or optimizer being created outside the distribution '
-              'strategy scope. Try to make sure your code looks similar '
-              'to the following.\n'
+              f'Variable ({v}) was not created in the distribution strategy '
+              f'scope of ({strategy}). It is most likely because some '
+              'layers, model, or optimizer was being created outside the '
+              'distribution strategy scope. Try to make sure your code looks '
+              'similar to the following.\n'
               'with strategy.scope():\n'
               '  model=_create_model()\n'
-              '  model.compile(...)' % (v, strategy))
+              '  model.compile(...)')
 
     # Model metrics must be created in the same distribution strategy scope
     # as the model.
@@ -2732,13 +2759,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       for v in getattr(metric, 'variables', []):
         if not strategy.extended.variable_created_in_scope(v):
           raise ValueError(
-              'Metric (%s) passed to model.compile was created inside of a '
-              'different distribution strategy scope than the model. All '
+              f'Metric ({metric}) passed to `model.compile` was created inside '
+              'a different distribution strategy scope than the model. All '
               'metrics must be created in the same distribution strategy '
-              'scope as the model (in this case %s). If you pass in a string '
-              'identifier for a metric to compile the metric will '
+              f'scope as the model (in this case {strategy}). If you pass in a '
+              'string identifier for a metric to compile, the metric will '
               'automatically be created in the correct distribution '
-              'strategy scope.' % (metric, strategy)
+              'strategy scope.'
           )
 
     # Model metrics must be created in the same distribution strategy scope
@@ -2747,13 +2774,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       for v in getattr(opt, '_weights', []):
         if not strategy.extended.variable_created_in_scope(v):
           raise ValueError(
-              'Optimizer (%s) passed to model.compile was created inside of a '
-              'different distribution strategy scope than the model. All '
-              'optimizers must be created in the same distribution strategy '
-              'scope as the model (in this case %s). If you pass in a string '
-              'identifier for an optimizer to compile the optimizer will '
-              'automatically be created in the correct distribution '
-              'strategy scope.' % (opt, strategy))
+              f'Optimizer ({optimizer}) passed to `model.compile` was created '
+              'inside a different distribution strategy scope than the model. '
+              'All optimizers must be created in the same distribution '
+              f'strategy scope as the model (in this case {strategy}). If you '
+              'pass in a string identifier for an optimizer to compile, the '
+              'optimizer will automatically be created in the correct '
+              'distribution strategy scope.'
+          )
 
   def _maybe_load_initial_epoch_from_ckpt(self, initial_epoch):
     """Maybe load initial epoch from ckpt considering possible worker recovery.
@@ -2817,7 +2845,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     elif isinstance(validation_freq, list):
       return epoch in validation_freq
     else:
-      raise ValueError('Expected `validation_freq` to be a list or int.')
+      raise ValueError('Expected `validation_freq` to be a list or int. '
+                       f'Received: validation_freq={validation_freq} of the '
+                       f'type {type(validation_freq)}.')
 
   ######################################################################
   # Functions below exist only as v1 / v2 compatibility shims.
@@ -2893,7 +2923,8 @@ def reduce_per_replica(values, strategy, reduction='first'):
       else:
         return concat(strategy.unwrap(v))
     else:
-      raise ValueError('`reduction` must be "first" or "concat".')
+      raise ValueError('`reduction` must be "first" or "concat". Received: '
+                       f'reduction={reduction}.')
 
   return tf.nest.map_structure(_reduce, values)
 
@@ -2941,8 +2972,7 @@ def _multi_worker_concat(v, strategy):
     shapes = tf.concat([
         tf.expand_dims(tf.shape(single_value)[0], axis=0)
         for single_value in v.values
-    ],
-                              axis=0)
+    ], axis=0)
     all_shapes = strategy.gather(shapes, axis=0)
   else:
     # v is a tensor. This may happen when, say, we have 2x1 multi-worker.
@@ -3066,8 +3096,10 @@ def disable_multi_worker(method):
 
   def _method_wrapper(self, *args, **kwargs):
     if self._in_multi_worker_mode():  # pylint: disable=protected-access
-      raise ValueError('{} is not supported in multi-worker mode.'.format(
-          method.__name__))
+      raise ValueError(f'{method.__name__} is not supported in multi-worker '
+                       'mode. Please use a non-multi-worker '
+                       '`tf.distribute.Strategy` such as '
+                       '`tf.distribute.MirroredStrategy`.')
     return method(self, *args, **kwargs)
 
   return tf.__internal__.decorator.make_decorator(

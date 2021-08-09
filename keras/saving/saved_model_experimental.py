@@ -244,7 +244,8 @@ def _export_mode(
   compile_clone = (mode != mode_keys.ModeKeys.PREDICT)
   if compile_clone and not model.optimizer:
     raise ValueError(
-        'Model does not have an optimizer. Cannot export mode %s' % mode)
+        f'Model {model.name} does not have an optimizer. '
+        f'Cannot export mode {mode}.')
 
   model_graph = tf.compat.v1.get_default_graph()
   with tf.Graph().as_default() as g, backend.learning_phase_scope(

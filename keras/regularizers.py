@@ -28,14 +28,14 @@ from tensorflow.python.util.tf_export import keras_export
 def _check_penalty_number(x):
   """check penalty number availability, raise ValueError if failed."""
   if not isinstance(x, (float, int)):
-    raise ValueError(('Value: {} is not a valid regularization penalty number, '
-                      'expected an int or float value').format(x))
+    raise ValueError(
+        f'Value: {x} is not a valid regularization penalty number, '
+        'expected an int or float value')
 
   if math.isinf(x) or math.isnan(x):
     raise ValueError(
-        ('Value: {} is not a valid regularization penalty number, '
-         'a positive/negative infinity or NaN is not a property value'
-        ).format(x))
+        f'Value: {x} is not a valid regularization penalty number, '
+        'an infinity nubmer or NaN are not valid value')
 
 
 def _none_to_default(inputs, default):
@@ -43,7 +43,7 @@ def _none_to_default(inputs, default):
 
 
 @keras_export('keras.regularizers.Regularizer')
-class Regularizer(object):
+class Regularizer:
   """Regularizer base class.
 
   Regularizers allow you to apply penalties on layer parameters or layer
@@ -204,7 +204,7 @@ class Regularizer(object):
     Returns:
         Python dictionary.
     """
-    raise NotImplementedError(str(self) + ' does not implement get_config()')
+    raise NotImplementedError(f'{self} does not implement get_config()')
 
 
 @keras_export('keras.regularizers.L1L2')
@@ -272,7 +272,7 @@ class L1(Regularizer):
   def __init__(self, l1=0.01, **kwargs):  # pylint: disable=redefined-outer-name
     l1 = kwargs.pop('l', l1)  # Backwards compatibility
     if kwargs:
-      raise TypeError('Argument(s) not recognized: %s' % (kwargs,))
+      raise TypeError(f'Argument(s) not recognized: {kwargs}')
 
     l1 = 0.01 if l1 is None else l1
     _check_penalty_number(l1)
@@ -306,7 +306,7 @@ class L2(Regularizer):
   def __init__(self, l2=0.01, **kwargs):  # pylint: disable=redefined-outer-name
     l2 = kwargs.pop('l', l2)  # Backwards compatibility
     if kwargs:
-      raise TypeError('Argument(s) not recognized: %s' % (kwargs,))
+      raise TypeError(f'Argument(s) not recognized: {kwargs}')
 
     l2 = 0.01 if l2 is None else l2
     _check_penalty_number(l2)
@@ -376,4 +376,4 @@ def get(identifier):
     return identifier
   else:
     raise ValueError(
-        'Could not interpret regularizer identifier: {}'.format(identifier))
+        f'Could not interpret regularizer identifier: {identifier}')

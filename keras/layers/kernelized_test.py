@@ -76,19 +76,19 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_invalid_output_dim(self):
     with self.assertRaisesRegex(
-        ValueError, r'`output_dim` should be a positive integer. Given: -3.'):
+        ValueError, '`output_dim` should be a positive integer'):
       _ = kernel_layers.RandomFourierFeatures(output_dim=-3, scale=2.0)
 
   def test_unsupported_kernel_type(self):
     with self.assertRaisesRegex(
-        ValueError, r'Unsupported kernel type: \'unsupported_kernel\'.'):
+        ValueError, 'Unsupported `kernel_initializer`'):
       _ = kernel_layers.RandomFourierFeatures(
           3, 'unsupported_kernel', stddev=2.0)
 
   def test_invalid_scale(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'When provided, `scale` should be a positive float. Given: 0.0.'):
+        'When provided, `scale` should be a positive float'):
       _ = kernel_layers.RandomFourierFeatures(output_dim=10, scale=0.0)
 
   def test_invalid_input_shape(self):
@@ -96,7 +96,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     rff_layer = kernel_layers.RandomFourierFeatures(output_dim=10, scale=3.0)
     with self.assertRaisesRegex(
         ValueError,
-        r'The rank of the input tensor should be 2. Got 3 instead.'):
+        'The rank of the input tensor should be 2'):
       _ = rff_layer(inputs)
 
   @parameterized.named_parameters(
@@ -155,8 +155,8 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
           kernel_initializer=initializer,
           name='random_fourier_features')
       with self.assertRaisesRegex(
-          ValueError, r'The last dimension of the inputs to '
-          '`RandomFourierFeatures` should be defined. Found `None`.'):
+          ValueError,
+          'The last dimension of the input tensor should be defined'):
         rff_layer(inputs)
 
       inputs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[2, None])
@@ -165,8 +165,8 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
           kernel_initializer=initializer,
           name='random_fourier_features')
       with self.assertRaisesRegex(
-          ValueError, r'The last dimension of the inputs to '
-          '`RandomFourierFeatures` should be defined. Found `None`.'):
+          ValueError,
+          'The last dimension of the input tensor should be defined'):
         rff_layer(inputs)
 
       inputs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, 3])
@@ -190,7 +190,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       rff_layer.compute_output_shape(tf.TensorShape([3, 2, 3]))
 
     with self.assertRaisesRegex(
-        ValueError, r'The innermost dimension of input shape must be defined.'):
+        ValueError, 'The last dimension of the input tensor should be defined'):
       rff_layer.compute_output_shape(tf.TensorShape([3, None]))
 
     self.assertEqual([None, output_dim],

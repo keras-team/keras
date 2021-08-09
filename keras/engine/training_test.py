@@ -18,6 +18,7 @@ import tensorflow.compat.v2 as tf
 
 import collections
 import io
+import tempfile
 import sys
 
 from absl.testing import parameterized
@@ -87,7 +88,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model = sequential.Sequential([layers_module.Dense(1)])
     model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
     with self.assertRaisesRegex(ValueError,
-                                'Expect x to be a non-empty array or dataset.'):
+                                'Unexpected result of `train_function`.*'):
       model.fit(x=np.array([]), y=np.array([]))
 
   @keras_parameterized.run_all_keras_modes
@@ -196,8 +197,8 @@ class TrainingTest(keras_parameterized.TestCase):
         layers_module.Dense(10, dtype=np.float64)
     ]
     model = testing_utils.get_model_from_layers(layers, input_shape=(1,))
-    inputs = np.ones(10, dtype=np.float64)
-    targets = np.ones(10, dtype=np.float64)
+    inputs = np.ones(shape=(10, 1), dtype=np.float64)
+    targets = np.ones(shape=(10, 1), dtype=np.float64)
     model.compile(
         'sgd',
         loss=loss_fn,
@@ -1098,7 +1099,7 @@ class TrainingTest(keras_parameterized.TestCase):
       training_module.Model([input1, input2], outputs)
       self.assertEqual(
           mock_warn.call_args_list[0][0][0],
-          'Found incompatiable static batch sizes among all the inputs. '
+          'Found incompatiable static batch sizes among the inputs. '
           'Batch sizes: [2, 3]')
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -1110,8 +1111,9 @@ class TrainingTest(keras_parameterized.TestCase):
         return inputs * 2
 
     model = SubclassedModel()
-    dataset_one = tf.data.Dataset.range(2).batch(2)
-    dataset_two = tf.data.Dataset.range(3, 10).batch(2)
+    dataset_one = tf.data.Dataset.from_tensor_slices([[0], [1]]).batch(2)
+    dataset_two = tf.data.Dataset.from_tensor_slices(
+        [[3], [4], [5], [6], [7], [8]]).batch(2)
     self.assertAllEqual([[0], [2]], model.predict(dataset_one, steps=1))
     self.assertAllEqual([[6], [8], [10], [12]],
                         model.predict(dataset_two, steps=2))
@@ -1763,7 +1765,7 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
     model.compile(loss='mse')
 
     with self.assertRaisesRegex(ValueError,
-                                'Expect x to be a non-empty array or dataset.'):
+                                'Unexpected result of `predict_function`.*'):
       model.predict(np.array([]))
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -3865,6 +3867,62 @@ class TestBuildCustomModel(keras_parameterized.TestCase):
     model = MyModel()
     model.build({'x': [None, 16]})
     self.assertEqual(model.l1.kernel.shape.as_list(), [16, 1])
+
+  def test_save_top_level_model_weights_h5(self):
+
+    class MyModel(training_module.Model):
+
+      def __init__(self):
+        super(MyModel, self).__init__()
+        self.class_token = self.add_weight(shape=(1,), name='class_token')
+        self.inner_layer = layers_module.Dense(1)
+
+      def call(self, inputs):
+        return self.inner_layer(inputs) * self.class_token
+
+    h5_file = tempfile.mktemp('.h5')
+    m1 = MyModel()
+    m1.build((1, 1))
+    m1.save_weights(h5_file)
+
+    m2 = MyModel()
+    m2.build((1, 1))
+    m2.load_weights(h5_file)
+    self.assertAllEqual(m1.get_weights(), m2.get_weights())
+    m2.load_weights(h5_file, by_name=True)
+    self.assertAllEqual(m1.get_weights(), m2.get_weights())
+
+
+class ScalarDataModelTest(keras_parameterized.TestCase):
+
+  def test_scalar_loss_reduction(self):
+
+    class MyModel(training_module.Model):
+
+      def __init__(self):
+        super().__init__()
+        self.w = self.add_weight((), initializer='ones')
+        self.b = self.add_weight((), initializer='zeros')
+
+      def call(self, inputs):
+        return inputs * self.w + self.b
+
+    model = MyModel()
+    model.compile(optimizer_v2.gradient_descent.SGD(1e-2),
+                  loss='mse',
+                  metrics=['binary_accuracy'])
+    # learn y = x * 2 + 0.5
+    x = np.array([3, 5, 5, 3, 5], dtype='float32')
+    y = x * 2 + 0.5
+    x2d = np.expand_dims(x, axis=-1)
+    y2d = np.expand_dims(y, axis=-1)
+    loss, acc = model.evaluate(x, y)
+    loss2d, acc2d = model.evaluate(x2d, y2d)
+    self.assertAllClose([loss, acc], [loss2d, acc2d], atol=1e-6)
+    model.fit(x, y, epochs=20)
+    preds = model.predict(x)
+    self.assertEqual(preds.shape, (5,))
+    self.assertAllClose(preds, y, atol=2e-1)
 
 
 if __name__ == '__main__':
