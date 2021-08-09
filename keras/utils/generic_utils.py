@@ -35,9 +35,6 @@ from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 from tensorflow.python.util.tf_export import keras_export
 
-_GLOBAL_CUSTOM_OBJECTS = {}
-_GLOBAL_CUSTOM_NAMES = {}
-
 # Flag that determines whether to skip the NotImplementedError when calling
 # get_config in custom models and layers. This is only enabled when saving to
 # SavedModel, when the config isn't required.
@@ -45,6 +42,17 @@ _SKIP_FAILED_SERIALIZATION = False
 # If a layer does not have a defined config, then the returned config will be a
 # dictionary with the below key.
 _LAYER_UNDEFINED_CONFIG_KEY = 'layer was saved without config'
+
+
+class CustomObjectsContext(threading.local):
+
+  def __init__(self):
+    super(CustomObjectsContext, self).__init__()
+    self.objects = {}
+    self.names = {}
+
+
+GLOBAL_CUSTOM_OBJECTS = CustomObjectsContext()
 
 
 @keras_export('keras.utils.custom_object_scope',  # pylint: disable=g-classes-have-attributes
@@ -79,14 +87,14 @@ class CustomObjectScope:
     self.backup = None
 
   def __enter__(self):
-    self.backup = _GLOBAL_CUSTOM_OBJECTS.copy()
+    self.backup = GLOBAL_CUSTOM_OBJECTS.objects.copy()
     for objects in self.custom_objects:
-      _GLOBAL_CUSTOM_OBJECTS.update(objects)
+      GLOBAL_CUSTOM_OBJECTS.objects.update(objects)
     return self
 
   def __exit__(self, *args, **kwargs):
-    _GLOBAL_CUSTOM_OBJECTS.clear()
-    _GLOBAL_CUSTOM_OBJECTS.update(self.backup)
+    GLOBAL_CUSTOM_OBJECTS.objects.clear()
+    GLOBAL_CUSTOM_OBJECTS.objects.update(self.backup)
 
 
 @keras_export('keras.utils.get_custom_objects')
@@ -105,9 +113,9 @@ def get_custom_objects():
   ```
 
   Returns:
-      Global dictionary of names to classes (`_GLOBAL_CUSTOM_OBJECTS`).
+      Global dictionary of names to classes (`GLOBAL_CUSTOM_OBJECTS.objects`).
   """
-  return _GLOBAL_CUSTOM_OBJECTS
+  return GLOBAL_CUSTOM_OBJECTS.objects
 
 
 # Store a unique, per-object ID for shared objects.
@@ -374,16 +382,16 @@ def register_keras_serializable(package='Custom', name=None):
       raise ValueError(
           'Cannot register a class that does not have a get_config() method.')
 
-    if registered_name in _GLOBAL_CUSTOM_OBJECTS:
-      raise ValueError(
-          f'{registered_name} has already been registered to '
-          f'{_GLOBAL_CUSTOM_OBJECTS[registered_name]}')
+    if registered_name in GLOBAL_CUSTOM_OBJECTS.objects:
+      raise ValueError(f'{registered_name} has already been registered to '
+                       f'{GLOBAL_CUSTOM_OBJECTS.objects[registered_name]}')
 
-    if arg in _GLOBAL_CUSTOM_NAMES:
+    if arg in GLOBAL_CUSTOM_OBJECTS.names:
       raise ValueError(
-          f'{arg} has already been registered to {_GLOBAL_CUSTOM_NAMES[arg]}')
-    _GLOBAL_CUSTOM_OBJECTS[registered_name] = arg
-    _GLOBAL_CUSTOM_NAMES[arg] = registered_name
+          f'{arg} has already been registered to {GLOBAL_CUSTOM_OBJECTS.names[arg]}'
+      )
+    GLOBAL_CUSTOM_OBJECTS.objects[registered_name] = arg
+    GLOBAL_CUSTOM_OBJECTS.names[arg] = registered_name
 
     return arg
 
@@ -405,8 +413,8 @@ def get_registered_name(obj):
     The name associated with the object, or the default Python name if the
       object is not registered.
   """
-  if obj in _GLOBAL_CUSTOM_NAMES:
-    return _GLOBAL_CUSTOM_NAMES[obj]
+  if obj in GLOBAL_CUSTOM_OBJECTS.names:
+    return GLOBAL_CUSTOM_OBJECTS.names[obj]
   else:
     return obj.__name__
 
@@ -449,8 +457,8 @@ def get_registered_object(name, custom_objects=None, module_objects=None):
     An instantiable class associated with 'name', or None if no such class
       exists.
   """
-  if name in _GLOBAL_CUSTOM_OBJECTS:
-    return _GLOBAL_CUSTOM_OBJECTS[name]
+  if name in GLOBAL_CUSTOM_OBJECTS.objects:
+    return GLOBAL_CUSTOM_OBJECTS.objects[name]
   elif custom_objects and name in custom_objects:
     return custom_objects[name]
   elif module_objects and name in module_objects:
@@ -533,8 +541,8 @@ def serialize_keras_object(instance):
 
 def get_custom_objects_by_name(item, custom_objects=None):
   """Returns the item if it is in either local or global custom objects."""
-  if item in _GLOBAL_CUSTOM_OBJECTS:
-    return _GLOBAL_CUSTOM_OBJECTS[item]
+  if item in GLOBAL_CUSTOM_OBJECTS.objects:
+    return GLOBAL_CUSTOM_OBJECTS.objects[item]
   elif custom_objects and item in custom_objects:
     return custom_objects[item]
   return None
@@ -676,7 +684,7 @@ def deserialize_keras_object(identifier,
         deserialized_obj = cls.from_config(
             cls_config,
             custom_objects=dict(
-                list(_GLOBAL_CUSTOM_OBJECTS.items()) +
+                list(GLOBAL_CUSTOM_OBJECTS.objects.items()) +
                 list(custom_objects.items())))
       else:
         with CustomObjectScope(custom_objects):
@@ -698,8 +706,8 @@ def deserialize_keras_object(identifier,
     object_name = identifier
     if custom_objects and object_name in custom_objects:
       obj = custom_objects.get(object_name)
-    elif object_name in _GLOBAL_CUSTOM_OBJECTS:
-      obj = _GLOBAL_CUSTOM_OBJECTS[object_name]
+    elif object_name in GLOBAL_CUSTOM_OBJECTS.objects:
+      obj = GLOBAL_CUSTOM_OBJECTS.objects[object_name]
     else:
       obj = module_objects.get(object_name)
       if obj is None:

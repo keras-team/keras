@@ -17,6 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 from functools import partial
+import threading
 
 import numpy as np
 
@@ -87,6 +88,58 @@ class TestCustomObjectScope(tf.test.TestCase):
       cl = keras.regularizers.get('CustomClass')
       self.assertEqual(cl.__class__, CustomClass)
 
+  def test_custom_object_scope_thread_safety(self):
+
+    class CustomClass:
+      pass
+
+    def custom_object_scope_in_thread(event_start, event_entered, event_finish,
+                                      event_exited):
+
+      def fn():
+        event_start.wait()
+        with keras.utils.generic_utils.custom_object_scope(
+            {'CustomClass': CustomClass}):
+          event_entered.set()
+          event_finish.wait()
+        event_exited.set()
+
+      return fn
+
+    event_start_1 = threading.Event()
+    event_entered_1 = threading.Event()
+    event_finish_1 = threading.Event()
+    event_exited_1 = threading.Event()
+    thread_1 = threading.Thread(
+        target=custom_object_scope_in_thread(event_start_1, event_entered_1,
+                                             event_finish_1, event_exited_1))
+
+    event_start_2 = threading.Event()
+    event_entered_2 = threading.Event()
+    event_finish_2 = threading.Event()
+    event_exited_2 = threading.Event()
+    thread_2 = threading.Thread(
+        target=custom_object_scope_in_thread(event_start_2, event_entered_2,
+                                             event_finish_2, event_exited_2))
+
+    keras.utils.generic_utils.get_custom_objects().clear()
+    thread_1.start()
+    thread_2.start()
+
+    event_start_1.set()
+    event_entered_1.wait()
+    event_start_2.set()
+    event_entered_2.wait()
+
+    event_finish_1.set()
+    event_exited_1.wait()
+    event_finish_2.set()
+    event_exited_2.wait()
+
+    thread_1.join()
+    thread_2.join()
+    self.assertEqual(keras.utils.generic_utils.get_custom_objects(), {})
+
 
 class SerializeKerasObjectTest(tf.test.TestCase):
 
@@ -110,7 +163,8 @@ class SerializeKerasObjectTest(tf.test.TestCase):
 
     serialized_name = 'Custom>TestClass'
     inst = TestClass(value=10)
-    class_name = keras.utils.generic_utils._GLOBAL_CUSTOM_NAMES[TestClass]
+    class_name = keras.utils.generic_utils.GLOBAL_CUSTOM_OBJECTS.names[
+        TestClass]
     self.assertEqual(serialized_name, class_name)
     config = keras.utils.generic_utils.serialize_keras_object(inst)
     self.assertEqual(class_name, config['class_name'])
@@ -144,7 +198,8 @@ class SerializeKerasObjectTest(tf.test.TestCase):
 
     serialized_name = 'TestPackage>CustomName'
     inst = OtherTestClass(val=5)
-    class_name = keras.utils.generic_utils._GLOBAL_CUSTOM_NAMES[OtherTestClass]
+    class_name = keras.utils.generic_utils.GLOBAL_CUSTOM_OBJECTS.names[
+        OtherTestClass]
     self.assertEqual(serialized_name, class_name)
     fn_class_name = keras.utils.generic_utils.get_registered_name(
         OtherTestClass)
@@ -167,7 +222,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
       return 42
 
     serialized_name = 'Custom>my_fn'
-    class_name = keras.utils.generic_utils._GLOBAL_CUSTOM_NAMES[my_fn]
+    class_name = keras.utils.generic_utils.GLOBAL_CUSTOM_OBJECTS.names[my_fn]
     self.assertEqual(serialized_name, class_name)
     fn_class_name = keras.utils.generic_utils.get_registered_name(my_fn)
     self.assertEqual(fn_class_name, class_name)
