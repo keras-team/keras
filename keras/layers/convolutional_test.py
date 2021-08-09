@@ -23,6 +23,7 @@ import keras
 from tensorflow.python.framework import test_util
 from keras import keras_parameterized
 from keras import testing_utils
+from tensorflow.python.types.core import Value
 
 
 @keras_parameterized.run_all_keras_modes
@@ -1012,6 +1013,9 @@ class CroppingTest(keras_parameterized.TestCase):
       keras.layers.Cropping1D(cropping=(1, 1, 1))
     with self.assertRaises(ValueError):
       keras.layers.Cropping1D(cropping=None)
+    with self.assertRaises(ValueError):
+      input_layer = keras.layers.Input(shape=(num_samples, time_length, input_len_dim1))
+      crop = keras.layers.Cropping1D(cropping=(2,3))(input_layer)
 
   def test_cropping_2d(self):
     num_samples = 2
