@@ -1626,14 +1626,16 @@ class DeterminismTest(keras_parameterized.TestCase):
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class ImageDistributedTest(keras_parameterized.TestCase):
-  def test_image_distributed(self):
-    layer = image_preprocessing.ImageDistributed(image_preprocessing.Rescaling(0.5))
-    shape = (16, 9, 4, 4, 3)
-    img = np.random.random(shape).astype(np.float32)
-    preproc = layer(img)
+class Keras3DAugmentationTest(keras_parameterized.TestCase):
+  def test_3d_augmentation(self):
+    shapes = [(16, 9, 4, 4, 3), (16, 4, 4, 3), (1, 1, 1, 1)]
+    
+    for shape in shapes:
+      layer = image_preprocessing.Keras3DAugmentation(image_preprocessing.Rescaling(0.5))
+      img = np.random.random(shape).astype(np.float32)
+      preproc = layer(img)
 
-    self.assertEqual(shape, preproc.shape)
+      self.assertEqual(shape, preproc.shape)
 
 
 if __name__ == '__main__':

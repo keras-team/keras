@@ -1360,36 +1360,32 @@ class RandomWidth(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.ImageDistributed')
-class ImageDistributed(base_layer.Layer):
-  """Call preprocessing layer on 3D image data."""
+@keras_export('keras.layers.experimental.preprocessing.Keras3DAugmentation')
+class Keras3DAugmentation(base_layer.Layer):
+  """Call image augmentation layer on 3D image data."""
   def __init__(self, preprocessing_layer, **kwargs):
     self.preprocessing_layer = preprocessing_layer
-    super(ImageDistributed, self).__init__(**kwargs)
-    base_preprocessing_layer.keras_kpl_gauge.get_cell('ImageDistributed').set(True)
+    super(Keras3DAugmentation, self).__init__(**kwargs)
+    base_preprocessing_layer.keras_kpl_gauge.get_cell('Keras3DAugmentation').set(True)
 
   def call(self, inputs):
     inputs_shape = tf.shape(inputs)
     unbatched = inputs.shape.rank == 4
 
+    images = []
+
     if unbatched:
-      images = []
       for i in range(inputs_shape[0]):
         preprocessed = self.preprocessing_layer(inputs[i])
         images.append(preprocessed)
-
-      return backend.stack(images)
+      stacked = backend.stack(images)
     else:
-      batches = []
-      for batch_indx in range(inputs_shape[0]):
-        images = []
-
-        for i in range(inputs_shape[1]):
-          preprocessed = self.preprocessing_layer(inputs[batch_indx, i])
-          images.append(preprocessed)
-        
-        batches.append(backend.stack(images))
-      return backend.stack(batches)
+      for i in range(inputs_shape[1]):
+        preprocessed = self.preprocessing_layer(inputs[:, i])
+        images.append(preprocessed)
+      stacked = backend.stack(images, axis=1)
+      
+    return stacked
 
 
 def make_generator(seed=None):
