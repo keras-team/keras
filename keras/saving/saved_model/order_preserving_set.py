@@ -20,10 +20,10 @@ but sets are not. This class implements a set on top of a dict so that we get
 deterministic iteration order across runs.
 """
 
-import collections
+import collections.abc
 
 
-class OrderPreservingSet(collections.MutableSet):
+class OrderPreservingSet(collections.abc.MutableSet):
   """A set based on dict so that it preserves key insertion order."""
 
   def __init__(self, iterable=None):
