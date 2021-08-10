@@ -14,16 +14,19 @@
 # ==============================================================================
 """Keras text vectorization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
+# pylint: disable=g-direct-tensorflow-import
 
-import numpy as np
 from keras import backend
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup
+from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.layers.preprocessing import string_lookup
+from keras.saving.saved_model import layer_serialization
 from keras.utils import layer_utils
 from keras.utils import tf_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 LOWER_AND_STRIP_PUNCTUATION = "lower_and_strip_punctuation"
@@ -307,6 +310,13 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
 
     self._output_mode = output_mode
     self._output_sequence_length = output_sequence_length
+
+    # VocabularySavedModelSaver will clear the config vocabulary to restore the
+    # lookup table ops directly. We persist this hidden option to persist the
+    # fact that we have have a non-adaptable layer with a manually set vocab.
+    self._has_input_vocabulary = kwargs.pop("has_input_vocabulary",
+                                            (vocabulary is not None))
+
     # Drop deprecated config options.
     kwargs.pop("vocabulary_size", None)
 
@@ -314,12 +324,13 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     base_preprocessing_layer.keras_kpl_gauge.get_cell("TextVectorization").set(
         True)
 
-    self._index_lookup_layer = string_lookup.StringLookup(
+    self._lookup_layer = string_lookup.StringLookup(
         max_tokens=max_tokens,
         vocabulary=vocabulary,
         pad_to_max_tokens=pad_to_max_tokens,
         mask_token="",
-        output_mode=output_mode if output_mode is not None else INT)
+        output_mode=output_mode if output_mode is not None else INT,
+        has_input_vocabulary=self._has_input_vocabulary)
 
   def compute_output_shape(self, input_shape):
     if self._output_mode == INT:
@@ -330,7 +341,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         input_shape = tuple(input_shape) + (1,)
     else:
       input_shape = tuple(input_shape) + (None,)
-    return self._index_lookup_layer.compute_output_shape(input_shape)
+    return self._lookup_layer.compute_output_shape(input_shape)
 
   def compute_output_signature(self, input_spec):
     output_shape = self.compute_output_shape(input_spec.shape.as_list())
@@ -339,13 +350,13 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
 
   def update_state(self, data):
-    self._index_lookup_layer.update_state(self._preprocess(data))
+    self._lookup_layer.update_state(self._preprocess(data))
 
   def finalize_state(self):
-    self._index_lookup_layer.finalize_state()
+    self._lookup_layer.finalize_state()
 
   def reset_state(self):  # pylint: disable=method-hidden
-    self._index_lookup_layer.reset_state()
+    self._lookup_layer.reset_state()
 
   def get_vocabulary(self, include_special_tokens=True):
     """Returns the current vocabulary of the layer.
@@ -356,7 +367,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         equal the term's index when calling the layer. If False, the returned
         vocabulary will not include any padding or OOV tokens.
     """
-    return self._index_lookup_layer.get_vocabulary(include_special_tokens)
+    return self._lookup_layer.get_vocabulary(include_special_tokens)
 
   def vocabulary_size(self):
     """Gets the current size of the layer's vocabulary.
@@ -364,20 +375,19 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     Returns:
       The integer size of the voculary, including optional mask and oov indices.
     """
-    return self._index_lookup_layer.vocabulary_size()
+    return self._lookup_layer.vocabulary_size()
 
   def get_config(self):
-    # This does not include the 'vocabulary' arg, since if the vocab was passed
-    # at init time it's now stored in variable state - we don't need to
-    # pull it off disk again.
+    vocab = self._lookup_layer.input_vocabulary
     config = {
-        "max_tokens": self._index_lookup_layer.max_tokens,
+        "max_tokens": self._lookup_layer.max_tokens,
         "standardize": self._standardize,
         "split": self._split,
         "ngrams": self._ngrams_arg,
         "output_mode": self._output_mode,
         "output_sequence_length": self._output_sequence_length,
-        "pad_to_max_tokens": self._index_lookup_layer.pad_to_max_tokens,
+        "pad_to_max_tokens": self._lookup_layer.pad_to_max_tokens,
+        "vocabulary": utils.listify_tensors(vocab),
     }
     base_config = super(TextVectorization, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -408,7 +418,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         if `pad_to_max_tokens` is False and the layer itself has already been
         called.
     """
-    self._index_lookup_layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
+    self._lookup_layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
 
   def build(self, input_shape):
     # We have to use 'and not ==' here, because input_shape[1] !/== 1 can result
@@ -484,7 +494,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     if self._output_mode is None:
       return inputs
 
-    lookup_data = self._index_lookup_layer(inputs)
+    lookup_data = self._lookup_layer(inputs)
 
     # For any non-int output, we can return directly from the underlying layer.
     if self._output_mode is not INT:
@@ -511,3 +521,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
       return tf.pad(lookup_data, padding)
 
     return lookup_data
+
+  @property
+  def _trackable_saved_model_saver(self):
+    return layer_serialization.VocabularySavedModelSaver(self)

@@ -49,6 +49,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":preprocessing_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/engine",
@@ -108,6 +109,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":category_encoding",
+        ":preprocessing_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -122,6 +124,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":preprocessing_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -150,6 +153,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":category_encoding",
+        ":preprocessing_utils",
         ":string_lookup",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -218,6 +222,16 @@ py_library(
 py_library(
     name = "preprocessing_test_utils",
     srcs = ["preprocessing_test_utils.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "preprocessing_utils",
+    srcs = ["preprocessing_utils.py"],
     srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",

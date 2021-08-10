@@ -14,14 +14,15 @@
 # ==============================================================================
 """Normalization preprocessing layer."""
 
+# pylint: disable=g-classes-have-attributes
+# pylint: disable=g-direct-tensorflow-import
+
 from keras import backend
 from keras.engine import base_preprocessing_layer
+from keras.layers.preprocessing import preprocessing_utils as utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.util.tf_export import keras_export
-
-# pylint: disable=g-classes-have-attributes
 
 
 @keras_export('keras.layers.Normalization',
@@ -262,8 +263,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     config = super().get_config()
     config.update({
         'axis': self.axis,
-        'mean': self._convert_to_list(self.input_mean),
-        'variance': self._convert_to_list(self.input_variance),
+        'mean': utils.listify_tensors(self.input_mean),
+        'variance': utils.listify_tensors(self.input_variance),
     })
     return config
 
@@ -271,12 +272,4 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     inputs = tf.convert_to_tensor(inputs)
     if inputs.dtype != self.dtype:
       inputs = tf.cast(inputs, self.dtype)
-    return inputs
-
-  def _convert_to_list(self, inputs):
-    if tf.is_tensor(inputs):
-      inputs = inputs.numpy()
-    if isinstance(inputs, (np.ndarray)):
-      inputs = inputs.tolist()
-      inputs = list(inputs)
     return inputs
