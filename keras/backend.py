@@ -6636,3 +6636,97 @@ _GRAPH_VARIABLES = ContextValueCache(object_identity.ObjectIdentityWeakSet)
 # This dictionary holds a mapping between a graph and TF optimizers created in
 # the graph.
 _GRAPH_TF_OPTIMIZERS = ContextValueCache(object_identity.ObjectIdentityWeakSet)
+
+
+# Global flag to enforce new stateful RNG for RandomGenerator.
+# When this is enabled, for any caller to RandomGenerator without seed,
+# RandomGenerator will use tf.random.get_global_generator to generate the RNG
+_ENFORCE_NEW_STATEFUL_RNG = False
+
+
+def is_new_stateful_rng_enforced():
+  return _ENFORCE_NEW_STATEFUL_RNG
+
+
+def enforce_new_stateful_rng():
+  global _ENFORCE_NEW_STATEFUL_RNG
+  _ENFORCE_NEW_STATEFUL_RNG = True
+
+
+def disable_new_stateful_rng():
+  global _ENFORCE_NEW_STATEFUL_RNG
+  _ENFORCE_NEW_STATEFUL_RNG = False
+
+
+class RandomGenerator:
+  """Random generator that selects appropriate random ops.
+
+  This class contains the logic for legacy stateful random ops, as well as the
+  new stateless random ops with seeds and tf.random.Generator. Any class that
+  relies on RNG (eg initializer, shuffle, dropout) should use this class to
+  handle the transition from legacy RNG to new stateless RNG.
+  """
+
+  def __init__(self, seed=None):
+    super(RandomGenerator, self).__init__()
+    if seed is not None:
+      # Stateless random ops requires 2-int seed.
+      self.seed = [seed, 0]
+    else:
+      self.seed = None
+
+  def _call_random_op(self, kwargs, stateless_op,
+                      stateful_op, enforced_new_stateful_op):
+    """Select the proper op to invoke based on the seed."""
+    if self.seed:
+      kwargs['seed'] = self.seed
+      return stateless_op(**kwargs)
+    elif enforce_new_stateful_rng():
+      return enforced_new_stateful_op(**kwargs)
+    else:
+      return stateful_op(**kwargs)
+
+  # TODO(scottzhu): Remove the lambda function for enforced_new_stateful_op and
+  # below after we turn on the _ENFORCE_NEW_STATEFUL_RNG. Currently the lambda
+  # function is used to ensure we don't call tf.random.get_global_generator()
+  # unless user really use them.
+  def random_normal(self, shape, mean=0.0, stddev=1.0, dtype=tf.dtypes.float32):
+    """A deterministic random normal if seed is passed."""
+    kwargs = {'shape': shape,
+              'mean': mean,
+              'stddev': stddev,
+              'dtype': dtype}
+    return self._call_random_op(
+        kwargs,
+        stateless_op=tf.random.stateless_normal,
+        stateful_op=tf.random.normal,
+        enforced_new_stateful_op=lambda *args, **kwargs:    # pylint: disable=g-long-lambda
+        tf.random.get_global_generator().normal(*args, **kwargs))
+
+  def random_uniform(self, shape, minval=0.0, maxval=1.0,
+                     dtype=tf.dtypes.float32):
+    """A deterministic random uniform if seed is passed."""
+    kwargs = {'shape': shape,
+              'minval': minval,
+              'maxval': maxval,
+              'dtype': dtype}
+    return self._call_random_op(
+        kwargs,
+        stateless_op=tf.random.stateless_uniform,
+        stateful_op=tf.random.uniform,
+        enforced_new_stateful_op=lambda *args, **kwargs:    # pylint: disable=g-long-lambda
+        tf.random.get_global_generator().uniform(*args, **kwargs))
+
+  def truncated_normal(self, shape, mean=0.0, stddev=1.0,
+                       dtype=tf.dtypes.float32):
+    """A deterministic truncated normal if seed is passed."""
+    kwargs = {'shape': shape,
+              'mean': mean,
+              'stddev': stddev,
+              'dtype': dtype}
+    return self._call_random_op(
+        kwargs,
+        stateless_op=tf.random.stateless_truncated_normal,
+        stateful_op=tf.random.truncated_normal,
+        enforced_new_stateful_op=lambda *args, **kwargs:    # pylint: disable=g-long-lambda
+        tf.random.get_global_generator().truncated_normal(*args, **kwargs))

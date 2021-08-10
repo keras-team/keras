@@ -16,9 +16,11 @@
 # pylint: disable=g-classes-have-attributes
 
 import math
+
 from keras import backend
+
 import tensorflow.compat.v2 as tf
-from tensorflow.python.ops import stateless_random_ops
+
 from tensorflow.python.util.tf_export import keras_export
 
 _PARTITION_SHAPE = 'partition_shape'
@@ -262,7 +264,7 @@ class RandomUniform(Initializer):
     self.minval = minval
     self.maxval = maxval
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized as specified by the initializer.
@@ -325,7 +327,7 @@ class RandomNormal(Initializer):
     self.mean = mean
     self.stddev = stddev
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to random normal values.
@@ -390,7 +392,7 @@ class TruncatedNormal(Initializer):
     self.mean = mean
     self.stddev = stddev
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to random normal values (truncated).
@@ -486,7 +488,7 @@ class VarianceScaling(Initializer):
     self.mode = mode
     self.distribution = distribution
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized as specified by the initializer.
@@ -573,7 +575,7 @@ class Orthogonal(Initializer):
   def __init__(self, gain=1.0, seed=None):
     self.gain = gain
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to an orthogonal matrix.
@@ -602,7 +604,8 @@ class Orthogonal(Initializer):
     flat_shape = (max(num_cols, num_rows), min(num_cols, num_rows))
 
     # Generate a random matrix
-    a = self._random_generator.random_normal(flat_shape, dtype=dtype)
+    a = self._random_generator.random_normal(flat_shape, mean=0.0, stddev=1,
+                                             dtype=dtype)
     # Compute the qr factorization
     q, r = tf.linalg.qr(a, full_matrices=False)
     # Make Q uniform
@@ -949,45 +952,6 @@ def _assert_float_dtype(dtype):
   if not dtype.is_floating:
     raise ValueError(f'Expected floating point type, got {dtype}.')
   return dtype
-
-
-class _RandomGenerator:
-  """Random generator that selects appropriate random ops."""
-
-  def __init__(self, seed=None):
-    super(_RandomGenerator, self).__init__()
-    if seed is not None:
-      # Stateless random ops requires 2-int seed.
-      self.seed = [seed, 0]
-    else:
-      self.seed = None
-
-  def random_normal(self, shape, mean=0.0, stddev=1, dtype=tf.float32):
-    """A deterministic random normal if seed is passed."""
-    if self.seed:
-      op = tf.random.stateless_normal
-    else:
-      op = tf.random.normal
-    return op(
-        shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=self.seed)
-
-  def random_uniform(self, shape, minval, maxval, dtype):
-    """A deterministic random uniform if seed is passed."""
-    if self.seed:
-      op = stateless_random_ops.stateless_random_uniform
-    else:
-      op = tf.random.uniform
-    return op(
-        shape=shape, minval=minval, maxval=maxval, dtype=dtype, seed=self.seed)
-
-  def truncated_normal(self, shape, mean, stddev, dtype):
-    """A deterministic truncated normal if seed is passed."""
-    if self.seed:
-      op = tf.random.stateless_truncated_normal
-    else:
-      op = tf.random.truncated_normal
-    return op(
-        shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=self.seed)
 
 
 def _compute_fans(shape):
