@@ -187,16 +187,18 @@ def MobileNetV2(input_shape=None,
   else:
     layers = VersionAwareLayers()
   if kwargs:
-    raise ValueError('Unknown argument(s): %s' % (kwargs,))
+    raise ValueError(f'Unknown argument(s): {kwargs}')
   if not (weights in {'imagenet', None} or tf.io.gfile.exists(weights)):
     raise ValueError('The `weights` argument should be either '
                      '`None` (random initialization), `imagenet` '
                      '(pre-training on ImageNet), '
-                     'or the path to the weights file to be loaded.')
+                     'or the path to the weights file to be loaded.  '
+                     f'Received `weights={weights}`')
 
   if weights == 'imagenet' and include_top and classes != 1000:
-    raise ValueError('If using `weights` as `"imagenet"` with `include_top` '
-                     'as true, `classes` should be 1000')
+    raise ValueError(
+        'If using `weights` as `"imagenet"` with `include_top` '
+        f'as true, `classes` should be 1000. Received `classes={classes}`')
 
   # Determine proper input shape and default size.
   # If both input_shape and input_tensor are used, they should match
@@ -208,22 +210,29 @@ def MobileNetV2(input_shape=None,
         is_input_t_tensor = backend.is_keras_tensor(
             layer_utils.get_source_inputs(input_tensor))
       except ValueError:
-        raise ValueError('input_tensor: ', input_tensor,
-                         'is not type input_tensor')
+        raise ValueError(
+            f'input_tensor: {input_tensor}'
+            'is not type input_tensor. '
+            f'Received `type(input_tensor)={type(input_tensor)}`'
+        )
     if is_input_t_tensor:
       if backend.image_data_format() == 'channels_first':
         if backend.int_shape(input_tensor)[1] != input_shape[1]:
-          raise ValueError('input_shape: ', input_shape, 'and input_tensor: ',
-                           input_tensor,
-                           'do not meet the same shape requirements')
+          raise ValueError('input_shape[1] must equal shape(input_tensor)[1] '
+                           'when `image_data_format` is `channels_first`; '
+                           'Received `input_tensor.shape='
+                           f'{input_tensor.shape}`'
+                           f', `input_shape={input_shape}`')
       else:
         if backend.int_shape(input_tensor)[2] != input_shape[1]:
-          raise ValueError('input_shape: ', input_shape, 'and input_tensor: ',
-                           input_tensor,
-                           'do not meet the same shape requirements')
+          raise ValueError(
+              'input_tensor.shape[2] must equal input_shape[1]; '
+              'Received `input_tensor.shape='
+              f'{input_tensor.shape}`, '
+              f'`input_shape={input_shape}`')
     else:
-      raise ValueError('input_tensor specified: ', input_tensor,
-                       'is not a keras tensor')
+      raise ValueError('input_tensor is not a Keras tensor; '
+                       f'Received `input_tensor={input_tensor}`')
 
   # If input_shape is None, infer shape from input_tensor.
   if input_shape is None and input_tensor is not None:
@@ -231,8 +240,8 @@ def MobileNetV2(input_shape=None,
     try:
       backend.is_keras_tensor(input_tensor)
     except ValueError:
-      raise ValueError('input_tensor: ', input_tensor, 'is type: ',
-                       type(input_tensor), 'which is not a valid type')
+      raise ValueError('input_tensor must be a valid Keras tensor type; '
+                       f'Received {input_tensor} of type {type(input_tensor)}')
 
     if input_shape is None and not backend.is_keras_tensor(input_tensor):
       default_size = 224
@@ -285,15 +294,16 @@ def MobileNetV2(input_shape=None,
   if weights == 'imagenet':
     if alpha not in [0.35, 0.50, 0.75, 1.0, 1.3, 1.4]:
       raise ValueError('If imagenet weights are being loaded, '
-                       'alpha can be one of `0.35`, `0.50`, `0.75`, '
-                       '`1.0`, `1.3` or `1.4` only.')
+                       'alpha must be one of `0.35`, `0.50`, `0.75`, '
+                       '`1.0`, `1.3` or `1.4` only;'
+                       f' Received `alpha={alpha}`')
 
     if rows != cols or rows not in [96, 128, 160, 192, 224]:
       rows = 224
       logging.warning('`input_shape` is undefined or non-square, '
-                      'or `rows` is not in [96, 128, 160, 192, 224].'
-                      ' Weights for input shape (224, 224) will be'
-                      ' loaded as the default.')
+                      'or `rows` is not in [96, 128, 160, 192, 224]. '
+                      'Weights for input shape (224, 224) will be '
+                      'loaded as the default.')
 
   if input_tensor is None:
     img_input = layers.Input(shape=input_shape)
