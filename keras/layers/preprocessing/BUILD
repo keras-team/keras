@@ -454,7 +454,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
-        "broken",  # b/170974360
         "noasan",  # TODO(b/337374867) fails with -fsanitize=null
     ],
     deps = [
