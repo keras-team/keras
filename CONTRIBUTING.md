@@ -31,23 +31,26 @@ tag is then added to the pull request.
 
 ![Tag added](https://i.imgur.com/LHEdIfL.png)
 
-### Step 5. Continous Integration tests
 
-A set of automated tests will also start to run after creating the pull request
-as shown in the picture below.
+### Step 5. Code review
+
+A reviewer will review the pull request and provide comments.
+The reviewer may add a `kokoro:force-run` label to trigger the 
+continuous integration tests.
+
+![CI tests tag](https://i.imgur.com/58NOCB0.png)
+
 If the tests fail, look into the error messages and try to fix it.
 
 ![CI tests](https://i.imgur.com/vVY0dZD.png)
 
-### Step 6. Code review
-
-A reviewer will review the pull request and provide comments. There may be
+There may be
 several rounds of comments and code changes before the pull request gets
 approved by the reviewer.
 
 ![Approval from reviewer](https://i.imgur.com/Ywl4ets.png)
 
-### Step 7. Merging
+### Step 6. Merging
 
 Once the pull request is approved, a `ready to pull` tag will be added to the
 pull request. A team member will take care of the merging.
@@ -179,8 +182,9 @@ we can run the following command at the root directory of the repo.
 bazel test keras/engine:base_layer_test
 ```
 
-`keras/engine` is the relative path to the directory containing the test file.
-`base_layer_test` is the test file name without the `.py` extension.
+`keras/engine` is the relative path to the directory 
+containing the `BUILD` file defing the test.
+`base_layer_test` is the test target name defined  with `tf_py_test` in the `BUILD` file.
 
 ### Run a single test case
 
@@ -189,7 +193,7 @@ cases in a file before runing the test file.
 
 ### Run all tests
 
-You can run all the tests locally with the following commmand.
+You can run all the tests in a directory locally with the following commmand.
 
 ```
 bazel test keras/... --build_tests_only
@@ -208,3 +212,5 @@ command above.
 * `-c opt` enables the optimizations during the build.
 * `--test_sharding_strategy=disabled` disables the sharding so that all the
   test outputs are in one file.
+  However, it may slow down the tests for not running in parallel
+  and may cause the test to timeout.
