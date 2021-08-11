@@ -58,7 +58,7 @@ def _supervised_signature_def(
     ValueError: If inputs or outputs is `None`.
   """
   if inputs is None or not inputs:
-    raise ValueError('{} inputs cannot be None or empty.'.format(method_name))
+    raise ValueError('f{method_name} `inputs` cannot be None or empty.')
 
   signature_inputs = {key: tf.compat.v1.saved_model.build_tensor_info(tensor)
                       for key, tensor in inputs.items()}
