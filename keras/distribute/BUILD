@@ -215,7 +215,6 @@ distribute_py_test(
 distribute_py_test(
     name = "custom_training_loop_models_test",
     srcs = ["custom_training_loop_models_test.py"],
-    disable_tpu_use_tfrt = True,  # TODO(b/196046592)
     main = "custom_training_loop_models_test.py",
     tags = [
         "multi_and_single_gpu",
