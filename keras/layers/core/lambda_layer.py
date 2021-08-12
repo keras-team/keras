@@ -351,5 +351,8 @@ class Lambda(Layer):
     elif function_type == 'raw':
       function = config[func_attr_name]
     else:
-      raise TypeError('Unknown function type:', function_type)
+      supported_types = ['function', 'lambda', 'raw']
+      raise TypeError(
+          f'Unsupported value for `function_type` argument. Received: '
+          f'function_type={function_type}. Expected one of {supported_types}')
     return function

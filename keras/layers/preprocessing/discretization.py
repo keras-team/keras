@@ -184,7 +184,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     base_preprocessing_layer.keras_kpl_gauge.get_cell("Discretization").set(
         True)
     if num_bins is not None and num_bins < 0:
-      raise ValueError("`num_bins` must be must be greater than or equal to 0. "
+      raise ValueError("`num_bins` must be greater than or equal to 0. "
                        "You passed `num_bins={}`".format(num_bins))
     if num_bins is not None and bin_boundaries is not None:
       raise ValueError("Both `num_bins` and `bin_boundaries` should not be "
