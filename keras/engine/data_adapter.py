@@ -1144,11 +1144,9 @@ class DataHandler:
     # `steps_per_execution` is mutable and may be changed by the DataAdapter
     # to handle partial executions.
     if steps_per_execution is None:
-      self._steps_per_execution = 1
-      self._steps_per_execution_value = 1
+      self._steps_per_execution = tf.Variable(1)
     else:
       self._steps_per_execution = steps_per_execution
-      self._steps_per_execution_value = steps_per_execution.numpy().item()
 
     adapter_cls = select_data_adapter(x, y)
     self._adapter = adapter_cls(
@@ -1168,7 +1166,7 @@ class DataHandler:
     strategy = tf.distribute.get_strategy()
 
     self._current_step = 0
-    self._step_increment = self._steps_per_execution_value - 1
+    self._step_increment = self._steps_per_execution.numpy().item() - 1
     self._insufficient_data = False
 
     self._configure_dataset_and_inferred_steps(strategy, x, steps_per_epoch,
@@ -1207,17 +1205,15 @@ class DataHandler:
     """Truncates steps per execution to at most one epoch."""
     should_truncate = (
         self._inferred_steps is not None and
-        self._steps_per_execution_value > self._inferred_steps)
-    original_value = self._steps_per_execution_value
+        self._steps_per_execution.numpy().item() > self._inferred_steps)
+    original_value = self._steps_per_execution.numpy().item()
     try:
       if should_truncate:
         self._steps_per_execution.assign(self._inferred_steps)
-        self._steps_per_execution_value = self._inferred_steps
       yield
     finally:
       if should_truncate:
         self._steps_per_execution.assign(original_value)
-        self._steps_per_execution_value = original_value
 
   def sync(self):
     context.async_wait()
@@ -1250,17 +1246,17 @@ class DataHandler:
            self._current_step < self._inferred_steps):
       if self._insufficient_data:  # Set by `catch_stop_iteration`.
         break
-
+      original_spe = self._steps_per_execution.numpy().item()
       can_run_full_execution = (
-          self._steps_per_execution_value == 1 or
+          original_spe == 1 or
           self._inferred_steps is None or
           self._inferred_steps - self._current_step >=
-          self._steps_per_execution_value)
+          original_spe)
 
       if can_run_full_execution:
-        self._step_increment = self._steps_per_execution_value - 1
+        self._step_increment = original_spe - 1
         yield self._current_step
-        self._current_step += self._steps_per_execution_value
+        self._current_step += original_spe
       else:
         # Last partial execution.
         steps_remaining = self._inferred_steps - self._current_step
@@ -1268,7 +1264,7 @@ class DataHandler:
         self._step_increment = steps_remaining - 1
         yield self._current_step
         self._current_step += steps_remaining
-        self._steps_per_execution.assign(self._steps_per_execution_value)
+        self._steps_per_execution.assign(original_spe)
 
   @property
   def step_increment(self):
@@ -1334,7 +1330,8 @@ class DataHandler:
 
   def _validate_data_handler(self):
     # TODO(b/152094471): Support this with DistIter.get_next_as_optional.
-    if self._steps_per_execution_value > 1 and self._inferred_steps is None:
+    if self._steps_per_execution.numpy().item(
+    ) > 1 and self._inferred_steps is None:
       raise ValueError(
           "Could not infer the size of the data. With "
           "`steps_per_execution > 1`, you must specify the number of steps "
