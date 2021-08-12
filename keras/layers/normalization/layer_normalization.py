@@ -223,7 +223,9 @@ class LayerNormalization(Layer):
     # Validate axes
     for x in self.axis:
       if x < 0 or x >= ndims:
-        raise ValueError('Invalid axis: %d' % x)
+        raise ValueError(
+            f'Invalid axis. Expected 0 <= axis < inputs.rank (with '
+            f'inputs.rank={ndims}). Received: layer.axis={self.axis}')
     if len(self.axis) != len(set(self.axis)):
       raise ValueError('Duplicate axis: {}'.format(tuple(self.axis)))
 
