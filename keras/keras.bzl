@@ -133,7 +133,7 @@ def distribute_py_test(
         shard_count = 1,
         full_precision = False,
         xla_enable_strict_auto_jit = True,
-        disable_mlir_bridge = True,
+        disable_mlir_bridge = False,
         disable_tpu_use_tfrt = None,
         **kwargs):
     # Default to PY3 since multi worker tests require PY3.
