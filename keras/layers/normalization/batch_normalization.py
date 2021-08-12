@@ -213,8 +213,9 @@ class BatchNormalizationBase(Layer):
       renorm_clipping = renorm_clipping or {}
       keys = ['rmax', 'rmin', 'dmax']
       if set(renorm_clipping) - set(keys):
-        raise ValueError('renorm_clipping %s contains keys not in %s' %
-                         (renorm_clipping, keys))
+        raise ValueError(
+            f'Received invalid keys for `renorm_clipping` argument: '
+            f'{renorm_clipping}. Supported values: {keys}.')
       self.renorm_clipping = renorm_clipping
       self.renorm_momentum = renorm_momentum
 
@@ -293,7 +294,8 @@ class BatchNormalizationBase(Layer):
   def build(self, input_shape):
     input_shape = tf.TensorShape(input_shape)
     if not input_shape.ndims:
-      raise ValueError('Input has undefined rank.')
+      raise ValueError(
+          f'Input has undefined rank. Received: input_shape={input_shape}.')
     ndims = len(input_shape)
 
     # Convert axis to list and resolve negatives
@@ -307,14 +309,18 @@ class BatchNormalizationBase(Layer):
     # Validate axes
     for x in self.axis:
       if x < 0 or x >= ndims:
-        raise ValueError('Invalid axis: %s' % (self.axis,))
+        raise ValueError(
+            f'Invalid axis. Expected 0 <= axis < inputs.rank (with '
+            f'inputs.rank={ndims}). Received: layer.axis={self.axis}')
     if len(self.axis) != len(set(self.axis)):
       raise ValueError('Duplicate axis: %s' % (self.axis,))
 
     if self.virtual_batch_size is not None:
       if self.virtual_batch_size <= 0:
-        raise ValueError('virtual_batch_size must be a positive integer that '
-                         'divides the true batch size of the input tensor')
+        raise ValueError(
+            f'virtual_batch_size must be a positive integer that divides the '
+            f'true batch size of the input tensor. Received: '
+            f'virtual_batch_size={self.virtual_batch_size}')
       # If using virtual batches, the first dimension must be the batch
       # dimension and cannot be the batch norm axis
       if 0 in self.axis:

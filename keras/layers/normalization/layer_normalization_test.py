@@ -156,7 +156,9 @@ class LayerNormalizationTest(keras_parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testInvalidAxis(self):
-    with self.assertRaisesRegex(ValueError, r'Invalid axis: 3'):
+    with self.assertRaisesRegex(
+        ValueError,
+        r'Invalid axis. Expected 0 <= axis < inputs.rank'):
       layer_norm = layer_normalization.LayerNormalization(axis=3)
       layer_norm.build(input_shape=(2, 2, 2))
 
