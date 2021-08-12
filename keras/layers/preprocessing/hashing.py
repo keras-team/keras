@@ -124,7 +124,9 @@ class Hashing(base_layer.Layer):
 
   def __init__(self, num_bins, mask_value=None, salt=None, **kwargs):
     if num_bins is None or num_bins <= 0:
-      raise ValueError('`num_bins` cannot be `None` or non-positive values.')
+      raise ValueError(
+          f'The `num_bins` for `Hashing` cannot be `None` or non-positive '
+          f'values. Received: num_bins={num_bins}.')
     super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Hashing').set(True)
     self.num_bins = num_bins
@@ -137,8 +139,9 @@ class Hashing(base_layer.Layer):
       elif isinstance(salt, int):
         self.salt = [salt, salt]
       else:
-        raise ValueError('`salt can only be a tuple of size 2 integers, or a '
-                         'single integer, given {}'.format(salt))
+        raise ValueError(
+            f'The `salt` argument for `Hashing` can only be a tuple of size 2 '
+            f'integers, or a single integer. Received: salt={salt}.')
 
   def call(self, inputs):
     if isinstance(inputs, (list, tuple, np.ndarray)):
