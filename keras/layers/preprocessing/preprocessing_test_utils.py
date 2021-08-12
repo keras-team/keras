@@ -57,7 +57,9 @@ class PreprocessingLayerTest(tf.test.TestCase):
   def validate_accumulator_computation(self, combiner, data, expected):
     """Validate that various combinations of compute and merge are identical."""
     if len(data) < 4:
-      raise AssertionError("Data must have at least 4 elements.")
+      raise AssertionError(
+          f"Data must have at least 4 elements. Received "
+          f"len(data)={len(data)}.")
     data_0 = np.array([data[0]])
     data_1 = np.array([data[1]])
     data_2 = np.array(data[2:])

@@ -238,7 +238,9 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     # This layer only applies to string processing, and so should only have
     # a dtype of 'string'.
     if "dtype" in kwargs and kwargs["dtype"] != tf.string:
-      raise ValueError("TextVectorization may only have a dtype of string.")
+      raise ValueError(
+          f"`TextVectorization` may only have a dtype of string. "
+          f"Received dtype: {kwargs['dtype']}.")
     elif "dtype" not in kwargs:
       kwargs["dtype"] = tf.string
 
@@ -290,8 +292,9 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
                        "Got %s" % output_sequence_length)
 
     if output_mode != INT and output_sequence_length is not None:
-      raise ValueError("`output_sequence_length` must not be set if "
-                       "`output_mode` is not 'int'.")
+      raise ValueError(
+          f"`output_sequence_length` must not be set if `output_mode` is not "
+          f"'int'. Received output_sequence_length={output_sequence_length}.")
 
     self._max_tokens = max_tokens
     self._standardize = standardize
