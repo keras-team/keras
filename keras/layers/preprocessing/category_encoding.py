@@ -14,22 +14,22 @@
 # ==============================================================================
 """Keras CategoryEncoding preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
+# pylint: disable=g-direct-tensorflow-import
 
-import numpy as np
-from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
+from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.utils import layer_utils
-from keras.utils import tf_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
-INT = "int"
-ONE_HOT = "one_hot"
-MULTI_HOT = "multi_hot"
-COUNT = "count"
+INT = utils.INT
+ONE_HOT = utils.ONE_HOT
+MULTI_HOT = utils.MULTI_HOT
+COUNT = utils.COUNT
 
 
 @keras_export("keras.layers.CategoryEncoding",
@@ -180,35 +180,12 @@ class CategoryEncoding(base_layer.Layer):
     if isinstance(inputs, (list, np.ndarray)):
       inputs = tf.convert_to_tensor(inputs)
 
-    def expand_dims(inputs, axis):
-      if tf_utils.is_sparse(inputs):
-        return tf.sparse.expand_dims(inputs, axis)
-      else:
-        return tf.expand_dims(inputs, axis)
-
-    original_shape = inputs.shape
-    # In all cases, we should uprank scalar input to a single sample.
-    if inputs.shape.rank == 0:
-      inputs = expand_dims(inputs, -1)
-    # One hot will unprank only if the final output dimension is not already 1.
-    if self.output_mode == ONE_HOT:
-      if inputs.shape[-1] != 1:
-        inputs = expand_dims(inputs, -1)
-
-    # TODO(b/190445202): remove output rank restriction.
-    if inputs.shape.rank > 2:
-      raise ValueError(
-          "Received input shape {}, which would result in output rank {}. "
-          "Currently only outputs up to rank 2 are supported.".format(
-              original_shape, inputs.shape.rank))
-
     if count_weights is not None and self.output_mode != COUNT:
       raise ValueError(
           "`count_weights` is not used when `output_mode` is not `'count'`. "
           "Received `count_weights={}`.".format(count_weights))
 
-    out_depth = self.num_tokens
-    binary_output = self.output_mode in (MULTI_HOT, ONE_HOT)
+    depth = self.num_tokens
     if isinstance(inputs, tf.SparseTensor):
       max_value = tf.reduce_max(inputs.values)
       min_value = tf.reduce_min(inputs.values)
@@ -216,58 +193,16 @@ class CategoryEncoding(base_layer.Layer):
       max_value = tf.reduce_max(inputs)
       min_value = tf.reduce_min(inputs)
     condition = tf.logical_and(
-        tf.greater(
-            tf.cast(out_depth, max_value.dtype), max_value),
-        tf.greater_equal(
-            min_value, tf.cast(0, min_value.dtype)))
+        tf.greater(tf.cast(depth, max_value.dtype), max_value),
+        tf.greater_equal(min_value, tf.cast(0, min_value.dtype)))
     assertion = tf.Assert(condition, [
         "Input values must be in the range 0 <= values < num_tokens"
-        " with num_tokens={}".format(out_depth)
+        " with num_tokens={}".format(depth)
     ])
     with tf.control_dependencies([assertion]):
-      if self.sparse:
-        return sparse_bincount(inputs, out_depth, binary_output,
-                               count_weights)
-      else:
-        return dense_bincount(inputs, out_depth, binary_output,
-                              count_weights)
-
-
-def sparse_bincount(inputs, out_depth, binary_output, count_weights=None):
-  """Apply binary or count encoding to an input and return a sparse tensor."""
-  result = tf.sparse.bincount(
-      inputs,
-      weights=count_weights,
-      minlength=out_depth,
-      maxlength=out_depth,
-      axis=-1,
-      binary_output=binary_output)
-  if inputs.shape.rank == 1:
-    output_shape = (out_depth,)
-  else:
-    result = tf.cast(result, backend.floatx())
-    batch_size = tf.shape(result)[0]
-    output_shape = (batch_size, out_depth)
-  result = tf.SparseTensor(
-      indices=result.indices,
-      values=result.values,
-      dense_shape=output_shape)
-  return result
-
-
-def dense_bincount(inputs, out_depth, binary_output, count_weights=None):
-  """Apply binary or count encoding to an input."""
-  result = tf.math.bincount(
-      inputs,
-      weights=count_weights,
-      minlength=out_depth,
-      maxlength=out_depth,
-      dtype=backend.floatx(),
-      axis=-1,
-      binary_output=binary_output)
-  if inputs.shape.rank == 1:
-    result.set_shape(tf.TensorShape((out_depth,)))
-  else:
-    batch_size = inputs.shape.as_list()[0]
-    result.set_shape(tf.TensorShape((batch_size, out_depth)))
-  return result
+      return utils.encode_categorical_inputs(
+          inputs,
+          output_mode=self.output_mode,
+          depth=depth,
+          sparse=self.sparse,
+          count_weights=count_weights)

@@ -22,7 +22,6 @@ import collections
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.engine import base_preprocessing_layer
-from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.saving.saved_model import layer_serialization
 from keras.utils import layer_utils
@@ -31,11 +30,11 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 
-INT = "int"
-MULTI_HOT = "multi_hot"
-ONE_HOT = "one_hot"
-COUNT = "count"
-TF_IDF = "tf_idf"
+INT = utils.INT
+MULTI_HOT = utils.MULTI_HOT
+ONE_HOT = utils.ONE_HOT
+COUNT = utils.COUNT
+TF_IDF = utils.TF_IDF
 
 _VOCAB_NAME = "vocab"
 _IDF_WEIGHTS_NAME = "idf_weights"
@@ -295,11 +294,9 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
   def compute_output_shape(self, input_shape):
     if self.output_mode == INT:
       return input_shape
-    if self.pad_to_max_tokens:
-      out_depth = self.max_tokens
-    else:
-      out_depth = self.vocabulary_size()
-    return tf.TensorShape([input_shape[0], out_depth])
+    depth = (
+        self.max_tokens if self.pad_to_max_tokens else self._frozen_vocab_size)
+    return tf.TensorShape([input_shape[0], depth])
 
   def compute_output_signature(self, input_spec):
     output_shape = self.compute_output_shape(input_spec.shape.as_list())
@@ -644,42 +641,15 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         lookups = tf.squeeze(lookups, -1)
       return lookups
 
-    # One hot will unprank only if the final output dimension is not already 1.
-    if self.output_mode == ONE_HOT:
-      if lookups.shape[-1] != 1:
-        lookups = self._expand_dims(lookups, -1)
-
-    # TODO(b/190445202): remove output rank restriction.
-    if lookups.shape.rank > 2:
-      raise ValueError(
-          "Received input shape {}, which would result in output rank {}. "
-          "Currently only outputs up to rank 2 are supported for "
-          "`output_mode={}`.".format(original_shape, lookups.shape.rank,
-                                     self.output_mode))
-
-    binary_output = self.output_mode in (MULTI_HOT, ONE_HOT)
-    if self.pad_to_max_tokens:
-      out_depth = self.max_tokens
-    else:
-      out_depth = self._frozen_vocab_size
-    if self.sparse:
-      bincounts = category_encoding.sparse_bincount(lookups, out_depth,
-                                                    binary_output)
-    else:
-      bincounts = category_encoding.dense_bincount(lookups, out_depth,
-                                                   binary_output)
-
-    if self.output_mode == TF_IDF:
-      if self.sparse:
-        value_weights = tf.gather(self.idf_weights_const,
-                                  bincounts.indices[:, -1])
-        return tf.SparseTensor(bincounts.indices,
-                               value_weights * bincounts.values,
-                               bincounts.dense_shape)
-      else:
-        return tf.multiply(bincounts, self.idf_weights_const)
-
-    return bincounts
+    depth = (
+        self.max_tokens if self.pad_to_max_tokens else self._frozen_vocab_size)
+    idf_weights = self.idf_weights_const if self.output_mode == TF_IDF else None
+    return utils.encode_categorical_inputs(
+        lookups,
+        output_mode=self.output_mode,
+        depth=depth,
+        sparse=self.sparse,
+        idf_weights=idf_weights)
 
   def _lookup_dense(self, inputs):
     """Lookup table values for a dense Tensor, handling masking and OOV."""
@@ -724,9 +694,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
     with tf.control_dependencies(lookup_checks):
       return tf.identity(lookups)
-
-  def _encode_output(self, lookups):
-    """Encode the lookup result to the final output depending on output_mode."""
 
   def _uninitialized_lookup_table(self):
     with tf.init_scope():
@@ -789,7 +756,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     with tf.init_scope():
       if not tf.executing_eagerly():
         raise RuntimeError(
-            "When using `output_mode={}` eager mode execution must be enabled."
+            "When using `output_mode={}` eager execution must be enabled."
             .format(self.output_mode))
       new_vocab_size = self.vocabulary_size()
     if new_vocab_size == self._token_start_index():

@@ -19,7 +19,6 @@
 
 from keras import backend
 from keras.engine import base_preprocessing_layer
-from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.layers.preprocessing import string_lookup
 from keras.saving.saved_model import layer_serialization
@@ -30,34 +29,17 @@ import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 LOWER_AND_STRIP_PUNCTUATION = "lower_and_strip_punctuation"
-
 SPLIT_ON_WHITESPACE = "whitespace"
 
-TF_IDF = index_lookup.TF_IDF
-INT = index_lookup.INT
-MULTI_HOT = index_lookup.MULTI_HOT
-COUNT = index_lookup.COUNT
+TF_IDF = utils.TF_IDF
+INT = utils.INT
+MULTI_HOT = utils.MULTI_HOT
+COUNT = utils.COUNT
 
 # This is an explicit regex of all the tokens that will be stripped if
 # LOWER_AND_STRIP_PUNCTUATION is set. If an application requires other
 # stripping, a Callable should be passed into the 'standardize' arg.
 DEFAULT_STRIP_REGEX = r'[!"#$%&()\*\+,-\./:;<=>?@\[\\\]^_`{|}~\']'
-
-# The string tokens in the extracted vocabulary
-_VOCAB_NAME = "vocab"
-# The inverse-document-frequency weights
-_IDF_NAME = "idf"
-# The IDF data for the OOV token
-_OOV_IDF_NAME = "oov_idf"
-
-# The string tokens in the full vocabulary
-_ACCUMULATOR_VOCAB_NAME = "vocab"
-# The total counts of each token in the vocabulary
-_ACCUMULATOR_COUNTS_NAME = "counts"
-# The number of documents / examples that each token appears in.
-_ACCUMULATOR_DOCUMENT_COUNTS = "document_counts"
-# The total number of documents / examples in the dataset.
-_ACCUMULATOR_NUM_DOCUMENTS = "num_documents"
 
 
 @keras_export(
