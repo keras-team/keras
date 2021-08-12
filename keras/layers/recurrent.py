@@ -827,7 +827,8 @@ class RNN(Layer):
 
     if self.stateful:
       updates = [
-          tf.compat.v1.assign(self_state, state) for self_state, state in zip(
+          tf.compat.v1.assign(self_state, tf.cast(state, self_state.dtype))
+          for self_state, state in zip(
               tf.nest.flatten(self.states), tf.nest.flatten(states))
       ]
       self.add_update(updates)
@@ -878,6 +879,9 @@ class RNN(Layer):
                                           strict=True)
       else:
         initial_state = self.states
+      initial_state = tf.nest.map_structure(
+          lambda v: tf.cast(v, self.compute_dtype), initial_state
+      )
     elif initial_state is None:
       initial_state = self.get_initial_state(inputs)
 
@@ -949,10 +953,13 @@ class RNN(Layer):
       if getattr(self.cell, 'get_initial_state', None):
         flat_init_state_values = tf.nest.flatten(self.cell.get_initial_state(
             inputs=None, batch_size=batch_size,
-            dtype=self.dtype or backend.floatx()))
+            # Use variable_dtype instead of compute_dtype, since the state is
+            # stored in a variable
+            dtype=self.variable_dtype or backend.floatx()))
       else:
         flat_init_state_values = tf.nest.flatten(_generate_zero_filled_state(
-            batch_size, self.cell.state_size, self.dtype or backend.floatx()))
+            batch_size, self.cell.state_size,
+            self.variable_dtype or backend.floatx()))
       flat_states_variables = tf.nest.map_structure(
           backend.variable, flat_init_state_values)
       self.states = tf.nest.pack_sequence_as(self.cell.state_size,
