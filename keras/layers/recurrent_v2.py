@@ -444,7 +444,8 @@ class GRU(recurrent.DropoutRNNCellMixin, recurrent.GRU):
           inputs, initial_state, training, mask, row_lengths)
 
     if self.stateful:
-      updates = [tf.compat.v1.assign(self.states[0], states[0])]
+      updates = [tf.compat.v1.assign(self.states[0],
+                                     tf.cast(states[0], self.states[0].dtype))]
       self.add_update(updates)
 
     if self.return_sequences:
@@ -1256,7 +1257,7 @@ class LSTM(recurrent.DropoutRNNCellMixin, recurrent.LSTM):
 
     if self.stateful:
       updates = [
-          tf.compat.v1.assign(self_state, state)
+          tf.compat.v1.assign(self_state, tf.cast(state, self_state.dtype))
           for self_state, state in zip(self.states, states)
       ]
       self.add_update(updates)
