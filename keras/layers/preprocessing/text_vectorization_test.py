@@ -1554,7 +1554,11 @@ class TextVectorizationSavingTest(
     gc.collect()
     super(TextVectorizationSavingTest, self).tearDown()
 
-  def test_saving(self):
+  @parameterized.parameters(
+      {"init_vocab": True},
+      {"init_vocab": False},
+  )
+  def test_saving(self, init_vocab):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
@@ -1562,12 +1566,15 @@ class TextVectorizationSavingTest(
 
     # Build and validate a golden model.
     input_data = keras.Input(shape=(None,), dtype=tf.string)
+    vocabulary = vocab_data if init_vocab else None
     layer = text_vectorization.TextVectorization(
         max_tokens=None,
         standardize=None,
         split=None,
-        output_mode=text_vectorization.INT)
-    layer.set_vocabulary(vocab_data)
+        output_mode=text_vectorization.INT,
+        vocabulary=vocabulary)
+    if not init_vocab:
+      layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
 
@@ -1578,14 +1585,16 @@ class TextVectorizationSavingTest(
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(output_path)
     self.assertAllEqual(loaded_model.predict(input_array), expected_output)
 
-  def test_saving_when_nested(self):
+  @parameterized.parameters(
+      {"init_vocab": True},
+      {"init_vocab": False},
+  )
+  def test_saving_when_nested(self, init_vocab):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
@@ -1593,12 +1602,15 @@ class TextVectorizationSavingTest(
 
     # Build and validate a golden model.
     input_data = keras.Input(shape=(None,), dtype=tf.string)
+    vocabulary = vocab_data if init_vocab else None
     layer = text_vectorization.TextVectorization(
         max_tokens=None,
         standardize=None,
         split=None,
-        output_mode=text_vectorization.INT)
-    layer.set_vocabulary(vocab_data)
+        output_mode=text_vectorization.INT,
+        vocabulary=vocabulary)
+    if not init_vocab:
+      layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
 
@@ -1612,9 +1624,39 @@ class TextVectorizationSavingTest(
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
+
+    loaded_model = keras.models.load_model(output_path)
+    self.assertAllEqual(loaded_model.predict(input_array), expected_output)
+
+  def test_saving_when_adapted(self):
+    adapt_data = [
+        "earth", "earth", "earth", "earth", "wind", "wind", "wind", "and",
+        "and", "fire"
+    ]
+    input_array = np.array([["earth", "wind", "and", "fire"],
+                            ["fire", "and", "earth", "michigan"]])
+    expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
+
+    # Build and validate a golden model.
+    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    layer = text_vectorization.TextVectorization(
+        max_tokens=None,
+        standardize=None,
+        split=None,
+        output_mode=text_vectorization.INT)
+    layer.adapt(adapt_data)
+    int_data = layer(input_data)
+    model = keras.Model(inputs=input_data, outputs=int_data)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
+
+    model.save(output_path, save_format="tf")
+
+    # Delete the session and graph to ensure that the loaded model is generated
+    # from scratch.
+    keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(output_path)
     self.assertAllEqual(loaded_model.predict(input_array), expected_output)
