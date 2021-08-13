@@ -17,6 +17,7 @@
 
 import copy
 import types
+import warnings
 
 import numpy as np
 
@@ -25,6 +26,7 @@ from keras.models import Sequential
 from keras.utils.generic_utils import has_arg
 from keras.utils.np_utils import to_categorical
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls  # pylint: disable=g-direct-tensorflow-import
 
 
 class BaseWrapper:
@@ -184,9 +186,20 @@ class BaseWrapper:
 
 
 @keras_export('keras.wrappers.scikit_learn.KerasClassifier')
+@doc_controls.do_not_generate_docs
 class KerasClassifier(BaseWrapper):
   """Implementation of the scikit-learn classifier API for Keras.
+
+  DEPRECATED. Use [Sci-Keras](https://github.com/adriangb/scikeras) instead.
   """
+
+  def __init__(self, build_fn=None, **sk_params):
+    warnings.warn(
+        'KerasClassifier is deprecated, '
+        'use Sci-Keras (https://github.com/adriangb/scikeras) instead.',
+        DeprecationWarning
+    )
+    super().__init__(build_fn, **sk_params)
 
   def fit(self, x, y, **kwargs):
     """Constructs a new model with `build_fn` & fit the model to `(x, y)`.
@@ -309,9 +322,21 @@ class KerasClassifier(BaseWrapper):
 
 
 @keras_export('keras.wrappers.scikit_learn.KerasRegressor')
+@doc_controls.do_not_generate_docs
 class KerasRegressor(BaseWrapper):
   """Implementation of the scikit-learn regressor API for Keras.
+
+  DEPRECATED. Use [Sci-Keras](https://github.com/adriangb/scikeras) instead.
   """
+
+  @doc_controls.do_not_doc_inheritable
+  def __init__(self, build_fn=None, **sk_params):
+    warnings.warn(
+        'KerasRegressor is deprecated, '
+        'use Sci-Keras (https://github.com/adriangb/scikeras) instead.',
+        DeprecationWarning
+    )
+    super().__init__(build_fn, **sk_params)
 
   def predict(self, x, **kwargs):
     """Returns predictions for the given test data.
