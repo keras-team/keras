@@ -14,12 +14,14 @@
 # ==============================================================================
 """Keras discretization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
+# pylint: disable=g-direct-tensorflow-import
 
-import numpy as np
 from keras.engine import base_preprocessing_layer
+from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.utils import tf_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -190,7 +192,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
       raise ValueError("Both `num_bins` and `bin_boundaries` should not be "
                        "set. You passed `num_bins={}` and "
                        "`bin_boundaries={}`".format(num_bins, bin_boundaries))
-    bin_boundaries = self._convert_to_list(bin_boundaries)
+    bin_boundaries = utils.listify_tensors(bin_boundaries)
     self.input_bin_boundaries = bin_boundaries
     self.bin_boundaries = bin_boundaries if bin_boundaries is not None else []
     self.num_bins = num_bins
@@ -232,7 +234,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
       return
 
     # The bucketize op only support list boundaries.
-    self.bin_boundaries = self._convert_to_list(
+    self.bin_boundaries = utils.listify_tensors(
         get_bin_boundaries(self.summary, self.num_bins))
 
   def reset_state(self):  # pylint: disable=method-hidden
@@ -282,11 +284,3 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
           dense_shape=tf.identity(inputs.dense_shape))
     else:
       return bucketize(inputs)
-
-  def _convert_to_list(self, inputs):
-    if tf.is_tensor(inputs):
-      inputs = inputs.numpy()
-    if isinstance(inputs, (np.ndarray)):
-      inputs = inputs.tolist()
-      inputs = list(inputs)
-    return inputs

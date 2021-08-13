@@ -56,8 +56,8 @@ class TextVectorizationDistributionTest(
           max_tokens=None,
           standardize=None,
           split=None,
-          output_mode=text_vectorization.INT)
-      layer.set_vocabulary(vocab_data)
+          output_mode=text_vectorization.INT,
+          vocabulary=vocab_data)
       int_data = layer(input_data)
       model = keras.Model(inputs=input_data, outputs=int_data)
 
