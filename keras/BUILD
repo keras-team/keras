@@ -6,6 +6,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 package(
     default_visibility = [
         ":__subpackages__",
+        "//learning/brain/keras/xmanager/examples/hello_world_simplified_model:__subpackages__",
         "//third_party/py/tensorflow:__subpackages__",
         "//third_party/tensorflow_estimator:__subpackages__",
     ],
