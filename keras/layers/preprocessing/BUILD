@@ -36,7 +36,6 @@ py_library(
         ":normalization",
         ":preprocessing_stage",
         ":preprocessing_test_utils",
-        ":reduction",
         ":string_lookup",
         ":text_vectorization",
     ],
@@ -177,18 +176,6 @@ py_library(
         "//keras/engine",
         "//keras/engine:input_spec",
         "//keras/utils:layer_utils",
-    ],
-)
-
-py_library(
-    name = "reduction",
-    srcs = [
-        "reduction.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras/engine:base_layer",
     ],
 )
 
@@ -545,20 +532,6 @@ distribute_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/distribute:strategy_combinations",
-    ],
-)
-
-tf_py_test(
-    name = "reduction_test",
-    srcs = ["reduction_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = ["notsan"],  # TODO(b/170783154)
-    deps = [
-        ":reduction",
-        "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
     ],
 )
 
