@@ -15,6 +15,7 @@
 """Keras index lookup preprocessing layer."""
 
 # pylint: disable=g-classes-have-attributes
+# pylint: disable=g-direct-tensorflow-import
 
 import collections
 
@@ -22,6 +23,7 @@ from keras import backend
 from keras.engine import base_layer_utils
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import category_encoding
+from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.saving.saved_model import layer_serialization
 from keras.utils import layer_utils
 from keras.utils import tf_utils
@@ -197,13 +199,14 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     self.output_mode = output_mode
     self.sparse = sparse
     self.pad_to_max_tokens = pad_to_max_tokens
-    self.input_vocabulary = None
-    # IndexLookupLayerSavedModelSaver will clear the config config vocabulary to
-    # restore the lookup table ops directly. We persist this hidden option to
-    # persist the fact that we have have a non-adaptable layer with a manually
-    # set vocabulary.
-    self._has_input_vocabulary = kwargs.pop("has_input_vocabulary", False)
     self._frozen_vocab_size = None
+
+    self.input_vocabulary = vocabulary
+    # VocabularySavedModelSaver will clear the config vocabulary to restore the
+    # lookup table ops directly. We persist this hidden option to persist the
+    # fact that we have have a non-adaptable layer with a manually set vocab.
+    self._has_input_vocabulary = kwargs.pop("has_input_vocabulary",
+                                            (vocabulary is not None))
 
     # Drop deprecated config options.
     kwargs.pop("vocabulary_size", None)
@@ -257,16 +260,18 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       # find and restore a lookup_table attribute on the layer. This table needs
       # to be uninitialized as a StaticHashTable cannot be initialized twice.
       self.lookup_table = self._uninitialized_lookup_table()
-      if not self._has_input_vocabulary:
-        # Add a custom weight handler to return the layers vocab as it's weight.
-        self._add_trackable(VocabWeightHandler(self), False)
-        # Set adapt state.
-        self.token_counts = tf.lookup.experimental.MutableHashTable(
+
+    # Only set up adapt state if we did not recieve a vocab on construction.
+    if not self._has_input_vocabulary:
+      # Add a custom weight handler to return the layers vocab as it's weight.
+      self._add_trackable(VocabWeightHandler(self), False)
+      # Set adapt state.
+      self.token_counts = tf.lookup.experimental.MutableHashTable(
+          key_dtype=self.dtype, value_dtype=tf.int64, default_value=0)
+      if self.output_mode == TF_IDF:
+        self.token_document_counts = tf.lookup.experimental.MutableHashTable(
             key_dtype=self.dtype, value_dtype=tf.int64, default_value=0)
-        if self.output_mode == TF_IDF:
-          self.token_document_counts = tf.lookup.experimental.MutableHashTable(
-              key_dtype=self.dtype, value_dtype=tf.int64, default_value=0)
-          self.num_documents = tf.Variable(0, dtype=tf.int64, trainable=False)
+        self.num_documents = tf.Variable(0, dtype=tf.int64, trainable=False)
 
   def compute_output_shape(self, input_shape):
     if self.output_mode == INT:
@@ -330,7 +335,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         "mask_token": self.mask_token,
         "output_mode": self.output_mode,
         "pad_to_max_tokens": self.pad_to_max_tokens,
-        "vocabulary": self._make_serializable(self.input_vocabulary),
+        "vocabulary": utils.listify_tensors(self.input_vocabulary),
     }
 
     base_config = super().get_config()
@@ -363,9 +368,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         been called.
       RuntimeError: If a tensor vocabulary is passed outside of eager execution.
     """
-    self.input_vocabulary = vocabulary
-    self._has_input_vocabulary = True
-
     if self.output_mode != TF_IDF and idf_weights is not None:
       raise ValueError("`idf_weights` should only be set if output_mode is "
                        "TF_IDF. output_mode is {}.".format(self.output_mode))
@@ -753,14 +755,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     else:
       return tf.expand_dims(inputs, axis)
 
-  def _make_serializable(self, x):
-    if tf.is_tensor(x):
-      x = x.numpy()
-    if isinstance(x, (np.ndarray)):
-      x = x.tolist()
-      x = list(x)
-    return x
-
   def _oov_start_index(self):
     return 1 if self.mask_token is not None and self.output_mode == INT else 0
 
@@ -831,7 +825,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
   @property
   def _trackable_saved_model_saver(self):
-    return layer_serialization.IndexLookupLayerSavedModelSaver(self)
+    return layer_serialization.VocabularySavedModelSaver(self)
 
   # Override points for IntegerLookup and StringLookup.
   def _tensor_vocab_to_numpy(self, vocabulary):
