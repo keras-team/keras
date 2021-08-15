@@ -179,7 +179,7 @@ def image_dataset_from_directory(directory,
     num_channels = 1
   else:
     raise ValueError(
-        '`color_mode` must be one of {"rbg", "rgba", "grayscale"}. '
+        '`color_mode` must be one of {"rgb", "rgba", "grayscale"}. '
         f'Received: color_mode={color_mode}')
   interpolation = image_preprocessing.get_interpolation(interpolation)
   dataset_utils.check_validation_split_arg(
