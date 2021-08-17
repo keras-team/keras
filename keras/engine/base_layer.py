@@ -23,6 +23,7 @@ import collections
 import copy
 import functools
 import itertools
+import textwrap
 import threading
 import warnings
 import weakref
@@ -640,8 +641,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # When `getter` is specified, it's possibly fine for `initializer` to be
         # None since it's up to the custom `getter` to raise error in case it
         # indeed needs `initializer`.
-        raise ValueError('An initializer for variable %s of type %s is required'
-                         ' for layer %s' % (name, dtype.base_dtype, self.name))
+        raise ValueError(f'An initializer for variable {name} of type '
+                         f'{dtype.base_dtype} is required for layer '
+                         f'{self.name}. Received: {initializer}.')
 
     getter = kwargs.pop('getter', base_layer_utils.make_variable)
     if (autocast and
@@ -741,9 +743,26 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Check that either the only argument in the `__init__` is  `self`,
     # or that `get_config` has been overridden:
     if len(extra_args) > 1 and hasattr(self.get_config, '_is_default'):
-      raise NotImplementedError(f'Layer {self.__class__.__name__} '
-                                'has arguments in `__init__)_` and '
-                                'therefore must override `get_config()`.')
+      raise NotImplementedError(textwrap.dedent(f"""
+          Layer {self.__class__.__name__} has arguments {extra_args}
+          in `__init__` and therefore must override `get_config()`.
+
+          Example:
+
+          class CustomLayer(keras.layers.Layer):
+              def __init__(self, arg1, arg2):
+                  super().__init__()
+                  self.arg1 = arg1
+                  self.arg2 = arg2
+
+              def get_config(self):
+                  config = super().get_config()
+                  config.update({{
+                      "arg1": self.arg1,
+                      "arg2": self.arg2,
+                  }})
+                  return config"""))
+
     return config
 
   @classmethod
@@ -834,8 +853,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     def check_type_return_shape(s):
       if not isinstance(s, tf.TensorSpec):
-        raise TypeError('Only TensorSpec signature types are supported, '
-                        'but saw signature entry: {}.'.format(s))
+        raise TypeError('Only TensorSpec signature types are supported. '
+                        f'Received: {s}.')
       return s.shape
     input_shape = tf.nest.map_structure(check_type_return_shape, input_signature)
     output_shape = self.compute_output_shape(input_shape)
@@ -1651,7 +1670,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     kwargs_keys = list(kwargs.keys())
     if (len(kwargs_keys) > 1 or
         (len(kwargs_keys) == 1 and kwargs_keys[0] != 'aggregation')):
-      raise TypeError('Unknown keyword arguments: ', str(kwargs.keys()))
+      raise TypeError(f'Unknown keyword arguments: {kwargs.keys()}. '
+                      'Expected `aggregation`.')
 
     from_metric_obj = hasattr(value, '_metric_obj')
     is_symbolic = isinstance(value, keras_tensor.KerasTensor)
@@ -1827,8 +1847,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         ref_shape = param.shape
         if not ref_shape.is_compatible_with(weight_shape):
           raise ValueError(
-              'Layer weight shape %s not compatible with provided weight '
-              'shape %s' % (ref_shape, weight_shape))
+              f'Layer {self.name} weight shape {ref_shape} '
+              'is not compatible with provided weight '
+              f'shape {weight_shape}.')
         weight_value_tuples.append((param, weight))
         weight_index += 1
 
@@ -2144,7 +2165,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         RuntimeError: if called in Eager mode.
     """
     if not self._inbound_nodes:
-      raise AttributeError('The layer has never been called '
+      raise AttributeError(f'The layer "{self.name}" has never been called '
                            'and thus has no defined input shape.')
     all_input_shapes = set(
         [str(node.input_shapes) for node in self._inbound_nodes])
@@ -2174,10 +2195,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         with tf_utils.maybe_init_scope(self):
           self._maybe_build(self.inputs)
       else:
-        raise ValueError('You tried to call `count_params` on ' + self.name +
+        raise ValueError('You tried to call `count_params` '
+                         f'on layer {self.name}'
                          ', but the layer isn\'t built. '
-                         'You can build it manually via: `' + self.name +
-                         '.build(batch_input_shape)`.')
+                         'You can build it manually via: '
+                         f'`{self.name}.build(batch_input_shape)`.')
     return layer_utils.count_params(self.weights)
 
   @property
@@ -2197,7 +2219,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         RuntimeError: if called in Eager mode.
     """
     if not self._inbound_nodes:
-      raise AttributeError('The layer has never been called '
+      raise AttributeError(f'The layer "{self.name}" has never been called '
                            'and thus has no defined output shape.')
     all_output_shapes = set(
         [str(node.output_shapes) for node in self._inbound_nodes])
@@ -2648,12 +2670,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         ValueError: If the index provided does not match any node.
     """
     if not self._inbound_nodes:
-      raise RuntimeError('The layer has never been called '
-                         'and thus has no defined ' + attr_name + '.')
+      raise RuntimeError(f'The layer {self.name} has never been called '
+                         'and thus has no defined {attr_name}.')
     if not len(self._inbound_nodes) > node_index:
-      raise ValueError('Asked to get ' + attr_name + ' at node ' +
-                       str(node_index) + ', but the layer has only ' +
-                       str(len(self._inbound_nodes)) + ' inbound nodes.')
+      raise ValueError(f'Asked to get {attr_name} at node '
+                       f'{node_index}, but the layer has only '
+                       f'{len(self._inbound_nodes)} inbound nodes.')
     values = getattr(self._inbound_nodes[node_index], attr)
     if isinstance(values, list) and len(values) == 1:
       return values[0]
