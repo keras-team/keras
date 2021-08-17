@@ -66,6 +66,12 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
     tf.__internal__.saved_model.parse_saved_model(path)
 
   @testing_utils.run_v2_only
+  def test_load_file_not_found(self):
+    path = pathlib.Path(self.get_temp_dir()) / 'does_not_exist'
+    with self.assertRaisesRegex(IOError, 'No file or directory found at'):
+      save.load_model(path)
+
+  @testing_utils.run_v2_only
   def test_save_format_defaults(self):
     path = os.path.join(self.get_temp_dir(), 'model_path')
     save.save_model(self.model, path)
