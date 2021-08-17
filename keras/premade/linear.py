@@ -153,12 +153,11 @@ class LinearModel(training.Model):
       different_keys = set(names) - set(inputs.keys())
       if different_keys:
         raise ValueError(
-            'The input dictionary does not match '
+            'The `inputs` dictionary does not match '
             'the structure expected by the model.'
-            '\n\tExpected keys: {}'
-            '\n\tReceived keys: {}'
-            '\n\tMissing keys: {}'.format(set(names), set(inputs.keys()),
-                                          different_keys))
+            f'\n\tExpected keys: {set(names)}'
+            f'\n\tReceived keys: {set(inputs.keys())}'
+            f'\n\tMissing keys: {different_keys}')
       inputs = [inputs[name] for name in names]
       for inp, layer in zip(inputs, self.dense_layers):
         output = layer(inp)
