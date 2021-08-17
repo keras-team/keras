@@ -103,12 +103,13 @@ pip install -r /home/keras/requirements.txt
 
 Now, the environment setup is complete. You are ready to run the tests.
 
-You may modify the Dockerfile to your specific needs,
-like installing your own dev tools.
-You may also mount more volumes with the `-v` option, like your SSH credentials.
-Besides the editors running in the shell,
-many popular IDEs today also support developing in a container.
-You may use these IDEs with the Dockerfile as well.
+You may modify the Dockerfile to your specific needs, like installing your own
+dev tools. You may also mount more volumes with the `-v` option, like your SSH
+credentials.
+
+Many popular editors today support developing in a container. Here is list of
+[supported editors](https://discuss.tensorflow.org/t/setup-your-favorite-editor-to-develop-keras)
+with setup instructions.
 
 ### Option 2: Setup a local environment
 
