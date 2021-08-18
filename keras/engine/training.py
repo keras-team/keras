@@ -422,7 +422,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   @doc_controls.doc_in_current_and_subclasses
   def call(self, inputs, training=None, mask=None):
-    """Calls the model on new inputs.
+    """Calls the model on new inputs and returns the outputs as tensors.
 
     In this case `call()` just reapplies
     all ops in the graph to the new inputs
