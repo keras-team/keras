@@ -880,6 +880,31 @@ class TextVectorizationOutputTest(
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
+  def test_int_output_ragged(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+    # Create an input array that has 5 elements in the first example and 4 in
+    # the second.
+    input_array = np.array([["earth wind and also fire"],
+                            ["fire and earth michigan"]])
+    expected_output = tf.ragged.constant([[2, 3, 4, 1, 5], [5, 4, 2, 1]])
+    expected_output_shape = [None, None]
+
+    # The input shape here is explicitly 1 because we're tokenizing.
+    input_data = keras.Input(shape=(1,), dtype=tf.string)
+    layer = text_vectorization.TextVectorization(
+        max_tokens=None,
+        standardize=None,
+        split=text_vectorization.SPLIT_ON_WHITESPACE,
+        output_mode=text_vectorization.INT,
+        ragged=True)
+    layer.set_vocabulary(vocab_data)
+    int_data = layer(input_data)
+    self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
+
+    model = keras.Model(inputs=input_data, outputs=int_data)
+    output_dataset = model.predict(input_array)
+    self.assertAllEqual(expected_output, output_dataset)
+
   def test_int_output_densifies_with_zeros_and_pads(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     # Create an input array that has 5 elements in the first example and 4 in
@@ -970,7 +995,11 @@ class TextVectorizationOutputTest(
     output_dataset = model.predict(input_array_2)
     self.assertAllEqual(expected_output_2, output_dataset)
 
-  def test_binary_output_hard_maximum(self):
+  @parameterized.parameters(
+      {"sparse": True},
+      {"sparse": False},
+  )
+  def test_multi_hot_output_hard_maximum(self, sparse):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "earth"],
                             ["ohio", "and", "earth", "michigan"]])
@@ -988,16 +1017,26 @@ class TextVectorizationOutputTest(
         standardize=None,
         split=None,
         output_mode=text_vectorization.MULTI_HOT,
-        pad_to_max_tokens=True)
+        pad_to_max_tokens=True,
+        sparse=sparse)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
 
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
-    self.assertAllEqual(expected_output, output_dataset)
+    if sparse:
+      expected_output = tf.sparse.from_dense(tf.constant(expected_output))
+      self.assertAllEqual(expected_output.indices, output_dataset.indices)
+      self.assertAllEqual(expected_output.values, output_dataset.values)
+    else:
+      self.assertAllEqual(expected_output, output_dataset)
 
-  def test_binary_output_soft_maximum(self):
+  @parameterized.parameters(
+      {"sparse": True},
+      {"sparse": False},
+  )
+  def test_multi_hot_output_soft_maximum(self, sparse):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "earth"],
                             ["ohio", "and", "earth", "michigan"]])
@@ -1015,16 +1054,22 @@ class TextVectorizationOutputTest(
         standardize=None,
         split=None,
         output_mode=text_vectorization.MULTI_HOT,
-        pad_to_max_tokens=False)
+        pad_to_max_tokens=False,
+        sparse=sparse)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
 
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
-    self.assertAllEqual(expected_output, output_dataset)
+    if sparse:
+      expected_output = tf.sparse.from_dense(tf.constant(expected_output))
+      self.assertAllEqual(expected_output.indices, output_dataset.indices)
+      self.assertAllEqual(expected_output.values, output_dataset.values)
+    else:
+      self.assertAllEqual(expected_output, output_dataset)
 
-  def test_bag_output_hard_maximum_set_vocabulary_after_build(self):
+  def test_multi_hot_output_hard_maximum_set_vocabulary_after_build(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "earth"],
                             ["ohio", "and", "earth", "michigan"]])
@@ -1051,7 +1096,7 @@ class TextVectorizationOutputTest(
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
-  def test_bag_output_hard_maximum_adapt_after_build(self):
+  def test_multi_hot_output_hard_maximum_adapt_after_build(self):
     vocab_data = np.array([
         "earth", "earth", "earth", "earth", "wind", "wind", "wind", "and",
         "and", "fire"
@@ -1081,7 +1126,7 @@ class TextVectorizationOutputTest(
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
-  def test_bag_output_hard_maximum_multiple_adapts(self):
+  def test_multi_hot_output_hard_maximum_multiple_adapts(self):
     input_array = np.array([["earth", "wind", "and", "earth"],
                             ["ohio", "and", "earth", "michigan"]])
     adapt_data = ["earth", "earth", "earth", "earth", "wind", "wind", "wind"]
@@ -1119,7 +1164,7 @@ class TextVectorizationOutputTest(
     self.assertAllEqual(first_expected_output, first_output)
     self.assertAllEqual(second_expected_output, second_output)
 
-  def test_bag_output_soft_maximum_set_state_after_build(self):
+  def test_multi_hot_output_soft_maximum_set_state_after_build(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "earth"],
                             ["ohio", "and", "earth", "michigan"]])
@@ -1525,11 +1570,27 @@ class TextVectorizationErrorTest(keras_parameterized.TestCase,
       _ = text_vectorization.TextVectorization(
           output_mode="int", output_sequence_length=2.0)
 
-  def test_non_none_output_sequence_length_fails_if_output_type_not_int(self):
+  def test_non_none_output_sequence_length_fails_if_output_mode_not_int(self):
     with self.assertRaisesRegex(ValueError,
                                 "`output_sequence_length` must not be set"):
       _ = text_vectorization.TextVectorization(
           output_mode="count", output_sequence_length=2)
+
+  def test_non_none_output_sequence_length_fails_if_ragged_true(self):
+    with self.assertRaisesRegex(ValueError,
+                                "`output_sequence_length` must not be set"):
+      _ = text_vectorization.TextVectorization(
+          ragged=True, output_sequence_length=2)
+
+  def test_ragged_true_fails_if_output_mode_not_int(self):
+    with self.assertRaisesRegex(ValueError, "`ragged` must not be true if"):
+      _ = text_vectorization.TextVectorization(
+          ragged=True, output_mode=text_vectorization.MULTI_HOT)
+
+  def test_sparse_true_fails_if_output_mode_is_int(self):
+    with self.assertRaisesRegex(ValueError, "`sparse` must not be true if"):
+      _ = text_vectorization.TextVectorization(
+          sparse=True, output_mode=text_vectorization.INT)
 
 
 # Custom functions for the custom callable serialization test. Declared here

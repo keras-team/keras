@@ -145,9 +145,9 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       padded to `max_tokens` even if the number of unique tokens in the
       vocabulary is less than max_tokens, resulting in a tensor of shape
       [batch_size, max_tokens] regardless of vocabulary size. Defaults to False.
-    sparse: Boolean. Only applicable to `"multi_hot"` and `"count"` output
-      modes. If True, returns a `SparseTensor` instead of a dense `Tensor`.
-      Defaults to False.
+    sparse: Boolean. Only applicable to `"one_hot"`, `"multi_hot"`, `"count"`
+      and `"tf-idf"` output modes. If True, returns a `SparseTensor` instead of
+      a dense `Tensor`. Defaults to False.
   """
 
   def __init__(self,
@@ -164,16 +164,16 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     # If max_tokens is set, the value must be greater than 1 - otherwise we
     # are creating a 0-element vocab, which doesn't make sense.
     if max_tokens is not None and max_tokens <= 1:
-      raise ValueError("If set, `max_tokens` must be greater than 1. "
-                       "You passed `max_tokens={}`".format(max_tokens))
+      raise ValueError(f"If set, `max_tokens` must be greater than 1. "
+                       f"Received: max_tokens={max_tokens}")
 
     if pad_to_max_tokens and max_tokens is None:
-      raise ValueError("If pad_to_max_tokens is True, must set `max_tokens`. "
-                       "You passed `max_tokens={}`".format(max_tokens))
+      raise ValueError(f"If pad_to_max_tokens is True, must set `max_tokens`. "
+                       f"Received: max_tokens={max_tokens}")
 
     if num_oov_indices < 0:
-      raise ValueError("`num_oov_indices` must be greater than or equal to 0. "
-                       "You passed {}".format(num_oov_indices))
+      raise ValueError(f"`num_oov_indices` must be greater than or equal to 0. "
+                       f"Received: num_oov_indices={num_oov_indices}")
 
     # Support deprecated names for output_modes.
     if output_mode == "binary":
@@ -188,8 +188,14 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         arg_name="output_mode")
 
     if invert and output_mode != INT:
-      raise ValueError("`output_mode` must be {} when `invert` is true. You "
-                       "passed {}".format(INT, output_mode))
+      raise ValueError(f"`output_mode` must be `'int'` when `invert` is true. "
+                       f"Received: output_mode={output_mode}")
+
+    if sparse and output_mode == INT:
+      raise ValueError(f"`sparse` must not be true if `output_mode` is "
+                       f"`'one_hot'`, `'multi_hot'`, `'count'` or `'tf_idf'`. "
+                       f"Received: sparse={sparse} and "
+                       f"output_mode={output_mode}")
 
     self.invert = invert
     self.max_tokens = max_tokens
@@ -369,8 +375,9 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       RuntimeError: If a tensor vocabulary is passed outside of eager execution.
     """
     if self.output_mode != TF_IDF and idf_weights is not None:
-      raise ValueError("`idf_weights` should only be set if output_mode is "
-                       "TF_IDF. output_mode is {}.".format(self.output_mode))
+      raise ValueError(f"`idf_weights` should only be set if output_mode is "
+                       f"`'tf_idf'`. Received: output_mode={self.output_mode} "
+                       f"and idf_weights={idf_weights}")
 
     if isinstance(vocabulary, str):
       if not tf.io.gfile.exists(vocabulary):
