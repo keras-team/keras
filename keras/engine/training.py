@@ -932,7 +932,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         epochs: Integer. Number of epochs to train the model.
             An epoch is an iteration over the entire `x` and `y`
             data provided 
-            (unless the steps_per_epoch flag is set to something other than None).
+            (unless the `steps_per_epoch` flag is set to 
+            something other than None).
             Note that in conjunction with `initial_epoch`,
             `epochs` is to be understood as "final epoch".
             The model is not trained for a number of iterations
