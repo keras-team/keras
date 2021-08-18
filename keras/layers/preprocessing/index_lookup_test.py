@@ -1899,7 +1899,7 @@ class IndexLookupInverseVocabularyTest(
           invert=True)
 
   def test_non_int_output_fails(self):
-    with self.assertRaisesRegex(ValueError, "`output_mode` must be int"):
+    with self.assertRaisesRegex(ValueError, "`output_mode` must be `'int'`"):
       _ = index_lookup.IndexLookup(
           max_tokens=None,
           num_oov_indices=1,
