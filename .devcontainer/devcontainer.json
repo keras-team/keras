@@ -1,5 +1,5 @@
 {
     "dockerFile": "Dockerfile",
-    "postCreateCommand": "pip install -r requirements.txt",
+    "postCreateCommand": "pip install -r requirements.txt && pip uninstall keras-nightly",
     "extensions": ["ms-python.python"]
 }
