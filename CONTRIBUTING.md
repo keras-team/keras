@@ -146,12 +146,16 @@ venv_dir\Scripts\activate.bat  # for Windows
 
 Clone your forked repo to your local machine. Go to the cloned directory to
 install the dependencies into the venv.
+Since `tf-nightly` uses `keras-nightly` as a dependency, we need to uninstall
+`keras-nightly` so that tests will run against keras code in local workspace.
 
 ```shell
 git clone https://github.com/YOUR_GITHUB_USERNAME/keras.git
 cd keras
 pip install -r requirements.txt
+pip uninstall keras-nightly
 ```
+
 
 The environment setup is completed.  You may need to update the `tf-nightly`
 version regularly to keep your environment up-to-date with the following
