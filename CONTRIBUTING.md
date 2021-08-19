@@ -98,9 +98,11 @@ Now, the environment setup is complete. You are ready to run the tests.
 
 You may modify the Dockerfile to your specific needs, like installing your own
 dev tools. You may also mount more volumes with the `-v` option, like your SSH
-credentials. Besides the editors running in the shell, many popular IDEs today
-also support developing in a container. You may use these IDEs with the
-Dockerfile as well.
+credentials.
+
+Many popular editors today support developing in a container. Here is list of
+[supported editors](https://discuss.tensorflow.org/t/setup-your-favorite-editor-to-develop-keras)
+with setup instructions.
 
 ### Option 2: Setup a local environment
 
@@ -112,61 +114,54 @@ To setup your local dev environment, you will need the following tools.
 2.  [git](https://github.com/) for code repository management.
 3.  [python](https://www.python.org/) to build and code in Keras.
 
-Using Apple Mac as an example (and linux will be very similar), the following
-commands set up and check the configuration of a local workspace.
+The following commands checks the tools above are successfully installed. Note
+that Keras requires at least Python 3.7 to run.
 
 ```shell
-scottzhu-macbookpro2:~ scottzhu$ which bazel
-/Users/scottzhu/bin/bazel
-
-scottzhu-macbookpro2:~ scottzhu$ which git
-/usr/local/git/current/bin/git
-
-scottzhu-macbookpro2:~ scottzhu$ which python
-/usr/bin/python
-
-# Keras requires at least python 3.7
-scottzhu-macbookpro2:~ scottzhu$ python --version
-Python 3.9.6
+bazel --version
+git --version
+python --version
 ```
 
-A [Python virtual environment](https://docs.python.org/3/tutorial/venv.html) is a
-powerful tool to create a self-contained environment that isolates any change
-from the system level config. It is highly recommended to avoid any unexpected
-dependency or version issue.
+A [Python virtual environment](https://docs.python.org/3/tutorial/venv.html)
+(venv) is a powerful tool to create a self-contained environment that isolates
+any change from the system level config. It is highly recommended to avoid any
+unexpected dependency or version issue.
+
+With the following commands, you create a new venv, named `venv_dir`.
 
 ```shell
-scottzhu-macbookpro2:workspace scottzhu$ git clone https://github.com/keras-team/keras.git
-Cloning into 'keras'...
-remote: Enumerating objects: 492, done.
-remote: Counting objects: 100% (492/492), done.
-remote: Compressing objects: 100% (126/126), done.
-remote: Total 35951 (delta 381), reused 443 (delta 366), pack-reused 35459
-Receiving objects: 100% (35951/35951), 15.70 MiB | 16.09 MiB/s, done.
-Resolving deltas: 100% (26243/26243), done.
+mkdir venv_dir
+python3 -m venv venv_dir
+```
 
-scottzhu-macbookpro2:workspace scottzhu$ mkdir venv_dir
-scottzhu-macbookpro2:workspace scottzhu$ python3 -m venv venv_dir
-scottzhu-macbookpro2:workspace scottzhu$ source venv_dir/bin/activate
-(venv_dir) scottzhu-macbookpro2:workspace scottzhu$ ls
-keras       venv_dir
+You can activate the venv with the following command. You should always run the
+tests with the venv activated. You need to activate the venv everytime you open
+a new shell.
 
-(venv_dir) scottzhu-macbookpro2:workspace scottzhu$ cd keras
+```shell
+source venv_dir/bin/activate  # for linux or MacOS
+venv_dir\Scripts\activate.bat  # for Windows
+```
 
-(venv_dir) scottzhu-macbookpro2:workspace scottzhu$ pip install -r requirements.txt
-Collecting pandas
-  Using cached pandas-1.2.3-cp38-cp38-manylinux1_x86_64.whl (9.7 MB)
-Collecting pydot
-...
-...
-...
+Clone your forked repo to your local machine. Go to the cloned directory to
+install the dependencies into the venv. Since `tf-nightly` uses `keras-nightly`
+as a dependency, we need to uninstall `keras-nightly` so that tests will run
+against keras code in local workspace.
 
-# Since tf-nightly uses keras-nightly as a dependency, we need to uninstall
-# keras-nightly so that tests will run against keras code in local workspace.
-(venv_dir) scottzhu-macbookpro2:workspace scottzhu$ pip uninstall keras-nightly
-Found existing installation: keras-nightly 2.5.0.dev2021032500
-Uninstalling keras-nightly-2.5.0.dev2021032500:
-  Successfully uninstalled keras-nightly-2.5.0.dev2021032500
+```shell
+git clone https://github.com/YOUR_GITHUB_USERNAME/keras.git
+cd keras
+pip install -r requirements.txt
+pip uninstall keras-nightly
+```
+
+The environment setup is completed. You may need to update the `tf-nightly`
+version regularly to keep your environment up-to-date with the following
+command.
+
+```shell
+pip install --upgrade tf-nightly
 ```
 
 ## Run tests
