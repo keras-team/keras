@@ -1798,6 +1798,7 @@ class EarlyStopping(Callback):
     self.stopped_epoch = 0
     self.best = np.Inf if self.monitor_op == np.less else -np.Inf
     self.best_weights = None
+    self.best_epoch = 0
 
   def on_epoch_end(self, epoch, logs=None):
     current = self.get_monitor_value(logs)
@@ -1810,6 +1811,7 @@ class EarlyStopping(Callback):
     self.wait += 1
     if self._is_improvement(current, self.best):
       self.best = current
+      self.best_epoch = epoch
       if self.restore_best_weights:
         self.best_weights = self.model.get_weights()
       # Only restart wait if we beat both the baseline and our previous best.
@@ -1822,7 +1824,8 @@ class EarlyStopping(Callback):
       self.model.stop_training = True
       if self.restore_best_weights and self.best_weights is not None:
         if self.verbose > 0:
-          print('Restoring model weights from the end of the best epoch.')
+          print('Restoring model weights from the end of the best epoch (%s).'
+                % (self.best_epoch + 1))
         self.model.set_weights(self.best_weights)
 
   def on_train_end(self, logs=None):
