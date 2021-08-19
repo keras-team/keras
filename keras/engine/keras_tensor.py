@@ -240,7 +240,7 @@ class KerasTensor:
   # with ndarrays.
   __array_priority__ = 100
 
-  def __array__(self):
+  def __array__(self, dtype=None):
     raise TypeError(
         'Cannot convert a symbolic Keras input/output to a numpy array. '
         'This error may indicate that you\'re trying to pass a symbolic value '
