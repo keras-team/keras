@@ -721,10 +721,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       initializer = tf.lookup.KeyValueTensorInitializer(keys, values,
                                                         self._key_dtype,
                                                         self._value_dtype)
-      table = tf.lookup.StaticHashTable(initializer, self._default_value)
-      if not tf.compat.v1.executing_eagerly_outside_functions():
-        backend.get_session().run(initializer.initialize(table))
-      return table
+      return tf.lookup.StaticHashTable(initializer, self._default_value)
 
   def _lookup_table_from_file(self, filename):
     if self.invert:
@@ -741,10 +738,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           value_dtype=self._value_dtype,
           value_index=value_index,
           value_index_offset=self._token_start_index())
-      table = tf.lookup.StaticHashTable(initializer, self._default_value)
-      if not tf.compat.v1.executing_eagerly_outside_functions():
-        backend.get_session().run(initializer.initialize(table))
-      return table
+      return tf.lookup.StaticHashTable(initializer, self._default_value)
 
   def _standardize_inputs(self, inputs, dtype):
     if isinstance(inputs, (list, tuple, np.ndarray)):
