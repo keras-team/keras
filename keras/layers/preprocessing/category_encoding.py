@@ -35,13 +35,16 @@ COUNT = "count"
 @keras_export("keras.layers.CategoryEncoding",
               "keras.layers.experimental.preprocessing.CategoryEncoding")
 class CategoryEncoding(base_layer.Layer):
-  """Category encoding layer.
+  """A preprocessing layer which encodes integer features.
 
   This layer provides options for condensing data into a categorical encoding
   when the total number of tokens are known in advance. It accepts integer
-  values as inputs, and it outputs a dense representation of those
-  inputs. For integer inputs where the total number of tokens is not known,
-  use instead `tf.keras.layers.IntegerLookup`.
+  values as inputs, and it outputs a dense or sparse representation of those
+  inputs. For integer inputs where the total number of tokens is not known, use
+  `tf.keras.layers.IntegerLookup` instead.
+
+  For an overview and full list of preprocessing layers, see the preprocessing
+  [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Examples:
 
