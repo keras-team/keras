@@ -437,7 +437,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         inputs: Input tensor, or dict/list/tuple of input tensors.
         training: Boolean or boolean scalar tensor, indicating whether to run
           the `Network` in training mode or inference mode.
-        mask: A mask or list of masks. A mask can be either a a boolean tensor or
+        mask: A mask or list of masks. A mask can be either a boolean tensor or
             None (no mask). For more details, check the guide
             [here](https://www.tensorflow.org/guide/keras/masking_and_padding).
 
