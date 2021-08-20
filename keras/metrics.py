@@ -258,7 +258,7 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
       warnings.warn('Metric %s implements a `reset_states()` method; rename it '
                     'to `reset_state()` (without the final "s"). The name '
                     '`reset_states()` has been deprecated to improve API '
-                    'consistency.' % (self.__class__.__name__,))
+                    'consistency.' % (self.__class__.__name__,), stacklevel=2)
       return self.reset_states()
     else:
       backend.batch_set_value([(v, 0) for v in self.variables])

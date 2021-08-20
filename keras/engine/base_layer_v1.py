@@ -1675,7 +1675,8 @@ class Layer(base_layer.Layer):
     """
     warnings.warn('`layer.apply` is deprecated and '
                   'will be removed in a future version. '
-                  'Please use `layer.__call__` method instead.')
+                  'Please use `layer.__call__` method instead.',
+                  stacklevel=2)
     return self.__call__(inputs, *args, **kwargs)
 
   @doc_controls.do_not_doc_inheritable
@@ -1683,7 +1684,8 @@ class Layer(base_layer.Layer):
     """Deprecated, do NOT use! Alias for `add_weight`."""
     warnings.warn('`layer.add_variable` is deprecated and '
                   'will be removed in a future version. '
-                  'Please use `layer.add_weight` method instead.')
+                  'Please use `layer.add_weight` method instead.',
+                  stacklevel=2)
     return self.add_weight(*args, **kwargs)
 
   @property

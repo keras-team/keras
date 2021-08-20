@@ -472,7 +472,8 @@ def learning_phase_scope(value):
   warnings.warn('`tf.keras.backend.learning_phase_scope` is deprecated and '
                 'will be removed after 2020-10-11. To update it, simply '
                 'pass a True/False value to the `training` argument of the '
-                '`__call__` method of your layer or model.')
+                '`__call__` method of your layer or model.',
+                stacklevel=2)
   with deprecated_internal_learning_phase_scope(value):
     try:
       yield
@@ -4999,7 +5000,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
       warnings.warn(
           '"`categorical_crossentropy` received `from_logits=True`, but '
           'the `output` argument was produced by a sigmoid or softmax '
-          'activation and thus does not represent logits. Was this intended?"')
+          'activation and thus does not represent logits. Was this intended?"',
+          stacklevel=2)
     from_logits = True
 
   if from_logits:
@@ -5059,7 +5061,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
       warnings.warn(
           '"`sparse_categorical_crossentropy` received `from_logits=True`, but '
           'the `output` argument was produced by a sigmoid or softmax '
-          'activation and thus does not represent logits. Was this intended?"')
+          'activation and thus does not represent logits. Was this intended?"',
+          stacklevel=2)
     from_logits = True
   elif (not from_logits and
         not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable)) and
@@ -5146,7 +5149,8 @@ def binary_crossentropy(target, output, from_logits=False):
       warnings.warn(
           '"`binary_crossentropy` received `from_logits=True`, but the `output`'
           ' argument was produced by a sigmoid or softmax activation and thus '
-          'does not represent logits. Was this intended?"')
+          'does not represent logits. Was this intended?"',
+          stacklevel=2)
     from_logits = True
 
   if from_logits:
@@ -6241,7 +6245,8 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
   """
   warnings.warn('`tf.keras.backend.random_binomial` is deprecated, '
                 'and will be removed in a future version.'
-                'Please use `tf.keras.backend.random_bernoulli` instead.')
+                'Please use `tf.keras.backend.random_bernoulli` instead.',
+                stacklevel=2)
   return random_bernoulli(shape, p, dtype, seed)
 
 
