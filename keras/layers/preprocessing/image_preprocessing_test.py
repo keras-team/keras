@@ -24,9 +24,6 @@ from keras.layers.preprocessing import image_preprocessing
 import numpy as np
 import tensorflow.compat.v2 as tf
 # pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.distribute.mirrored_strategy import MirroredStrategy
-from tensorflow.python.ops import gen_stateful_random_ops
-from tensorflow.python.ops import gen_stateless_random_ops_v2
 from tensorflow.python.ops import stateless_random_ops
 
 
@@ -309,12 +306,10 @@ class RandomCropTest(keras_parameterized.TestCase):
     height_offset = np.random.randint(low=0, high=3)
     width_offset = np.random.randint(low=0, high=5)
     mock_offset = [0, height_offset, width_offset, 0]
-    with tf.compat.v1.test.mock.patch.object(
-        stateless_random_ops,
-        'stateless_random_uniform',
-        return_value=mock_offset):
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomCrop(height, width)
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomCrop(height, width)
+      with tf.compat.v1.test.mock.patch.object(
+          layer._random_generator, 'random_uniform', return_value=mock_offset):
         inp = np.random.random((12, 5, 8, 3))
         actual_output = layer(inp, training=1)
         expected_output = inp[:, height_offset:(height_offset + height),
@@ -373,12 +368,12 @@ class RandomCropTest(keras_parameterized.TestCase):
     np.random.seed(1337)
     inp = np.random.random((16, 16, 3))
     mock_offset = [2, 2, 0]
-    with tf.compat.v1.test.mock.patch.object(
-        stateless_random_ops,
-        'stateless_random_uniform',
-        return_value=mock_offset):
-      with testing_utils.use_gpu():
-        layer = image_preprocessing.RandomCrop(8, 8)
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomCrop(8, 8)
+      with tf.compat.v1.test.mock.patch.object(
+          layer._random_generator,
+          'random_uniform',
+          return_value=mock_offset):
         actual_output = layer(inp, training=1)
         self.assertAllClose(inp[2:10, 2:10, :], actual_output)
 
@@ -1200,7 +1195,7 @@ class RandomRotationTest(keras_parameterized.TestCase):
     """Tests that RandomRotation can be created within distribution strategies."""
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     with testing_utils.use_gpu():
-      strat = MirroredStrategy(devices=['cpu', 'gpu'])
+      strat = tf.distribute.MirroredStrategy(devices=['cpu', 'gpu'])
       with strat.scope():
         layer = image_preprocessing.RandomRotation(.5)
         output = strat.run(lambda: layer(input_images, training=True))
@@ -1370,18 +1365,14 @@ class RandomHeightTest(keras_parameterized.TestCase):
 
   def test_valid_random_height(self):
     # need (maxval - minval) * rnd + minval = 0.6
-    mock_factor = 0
-    with tf.compat.v1.test.mock.patch.object(
-        gen_stateful_random_ops, 'stateful_uniform', return_value=mock_factor):
+    mock_factor = 0.6
+    with testing_utils.use_gpu():
+      img = np.random.random((12, 5, 8, 3))
+      layer = image_preprocessing.RandomHeight(.4)
       with tf.compat.v1.test.mock.patch.object(
-          gen_stateless_random_ops_v2,
-          'stateless_random_uniform_v2',
-          return_value=mock_factor):
-        with testing_utils.use_gpu():
-          img = np.random.random((12, 5, 8, 3))
-          layer = image_preprocessing.RandomHeight(.4)
-          img_out = layer(img, training=True)
-          self.assertEqual(img_out.shape[1], 3)
+          layer._random_generator, 'random_uniform', return_value=mock_factor):
+        img_out = layer(img, training=True)
+        self.assertEqual(img_out.shape[1], 3)
 
   def test_random_height_longer_numeric(self):
     for dtype in (np.int64, np.float32):
@@ -1440,18 +1431,14 @@ class RandomHeightTest(keras_parameterized.TestCase):
 
   def test_unbatched_image(self):
     # need (maxval - minval) * rnd + minval = 0.6
-    mock_factor = 0
-    with tf.compat.v1.test.mock.patch.object(
-        gen_stateful_random_ops, 'stateful_uniform', return_value=mock_factor):
+    mock_factor = 0.6
+    with testing_utils.use_gpu():
+      img = np.random.random((5, 8, 3))
+      layer = image_preprocessing.RandomHeight(.4)
       with tf.compat.v1.test.mock.patch.object(
-          gen_stateless_random_ops_v2,
-          'stateless_random_uniform_v2',
-          return_value=mock_factor):
-        with testing_utils.use_gpu():
-          img = np.random.random((5, 8, 3))
-          layer = image_preprocessing.RandomHeight(.4)
-          img_out = layer(img, training=True)
-          self.assertEqual(img_out.shape[0], 3)
+          layer._random_generator, 'random_uniform', return_value=mock_factor):
+        img_out = layer(img, training=True)
+        self.assertEqual(img_out.shape[0], 3)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -1479,18 +1466,14 @@ class RandomWidthTest(keras_parameterized.TestCase):
 
   def test_valid_random_width(self):
     # need (maxval - minval) * rnd + minval = 0.6
-    mock_factor = 0
-    with tf.compat.v1.test.mock.patch.object(
-        gen_stateful_random_ops, 'stateful_uniform', return_value=mock_factor):
+    mock_factor = 0.6
+    with testing_utils.use_gpu():
+      img = np.random.random((12, 8, 5, 3))
+      layer = image_preprocessing.RandomWidth(.4)
       with tf.compat.v1.test.mock.patch.object(
-          gen_stateless_random_ops_v2,
-          'stateless_random_uniform_v2',
-          return_value=mock_factor):
-        with testing_utils.use_gpu():
-          img = np.random.random((12, 8, 5, 3))
-          layer = image_preprocessing.RandomWidth(.4)
-          img_out = layer(img, training=True)
-          self.assertEqual(img_out.shape[2], 3)
+          layer._random_generator, 'random_uniform', return_value=mock_factor):
+        img_out = layer(img, training=True)
+        self.assertEqual(img_out.shape[2], 3)
 
   def test_random_width_longer_numeric(self):
     for dtype in (np.int64, np.float32):
@@ -1548,18 +1531,14 @@ class RandomWidthTest(keras_parameterized.TestCase):
 
   def test_unbatched_image(self):
     # need (maxval - minval) * rnd + minval = 0.6
-    mock_factor = 0
-    with tf.compat.v1.test.mock.patch.object(
-        gen_stateful_random_ops, 'stateful_uniform', return_value=mock_factor):
+    mock_factor = 0.6
+    with testing_utils.use_gpu():
+      img = np.random.random((8, 5, 3))
+      layer = image_preprocessing.RandomWidth(.4)
       with tf.compat.v1.test.mock.patch.object(
-          gen_stateless_random_ops_v2,
-          'stateless_random_uniform_v2',
-          return_value=mock_factor):
-        with testing_utils.use_gpu():
-          img = np.random.random((8, 5, 3))
-          layer = image_preprocessing.RandomWidth(.4)
-          img_out = layer(img, training=True)
-          self.assertEqual(img_out.shape[1], 3)
+          layer._random_generator, 'random_uniform', return_value=mock_factor):
+        img_out = layer(img, training=True)
+        self.assertEqual(img_out.shape[1], 3)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
