@@ -342,10 +342,10 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       with self.cached_session() as sess:
         keras_backend._initialize_variables(sess)
         abs_error_eval = sess.run([abs_error])
-        self.assertGreater(abs_error_eval[0][0], 0.05)
+        self.assertGreater(abs_error_eval[0][0], 0.01)
         self.assertLess(abs_error_eval[0][0], 0.5)
     else:
-      self.assertGreater(abs_error, 0.05)
+      self.assertGreater(abs_error, 0.01)
       self.assertLess(abs_error, 0.5)
 
   @parameterized.named_parameters(
