@@ -326,13 +326,15 @@ def obtain_input_shape(input_shape,
       if input_shape[0] not in {1, 3}:
         warnings.warn('This model usually expects 1 or 3 input channels. '
                       'However, it was passed an input_shape with ' +
-                      str(input_shape[0]) + ' input channels.')
+                      str(input_shape[0]) + ' input channels.',
+                      stacklevel=2)
       default_shape = (input_shape[0], default_size, default_size)
     else:
       if input_shape[-1] not in {1, 3}:
         warnings.warn('This model usually expects 1 or 3 input channels. '
                       'However, it was passed an input_shape with ' +
-                      str(input_shape[-1]) + ' input channels.')
+                      str(input_shape[-1]) + ' input channels.',
+                      stacklevel=2)
       default_shape = (default_size, default_size, input_shape[-1])
   else:
     if data_format == 'channels_first':

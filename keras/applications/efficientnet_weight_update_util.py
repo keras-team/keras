@@ -104,7 +104,8 @@ def write_ckpt_to_h5(path_h5, path_ckpt, keras_model, use_ema=True):
     except ValueError as e:
       if any([x in w.name for x in ['top', 'predictions', 'probs']]):
         warnings.warn('Fail to load top layer variable {}'
-                      'from {} because of {}.'.format(w.name, tf_name, e))
+                      'from {} because of {}.'.format(w.name, tf_name, e),
+                      stacklevel=2)
       else:
         raise ValueError('Fail to load {} from {}'.format(w.name, tf_name))
 
@@ -330,7 +331,7 @@ def check_match(keras_block, tf_block, keras_weight_names, tf_weight_names,
   names_unused = names_from_tf - names_from_keras
   if names_unused:
     warnings.warn('{} variables from checkpoint file are not used: {}'.format(
-        len(names_unused), names_unused))
+        len(names_unused), names_unused), stacklevel=2)
 
 
 if __name__ == '__main__':
