@@ -2265,5 +2265,52 @@ class ContextValueCacheTest(tf.test.TestCase):
     self.assertEqual(self.evaluate(fn()), 5)
 
 
+@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+class RandomGeneratorTest(tf.test.TestCase):
+
+  def test_generator_reproducibility(self):
+    seed = 1337
+    gen1 = backend.RandomGenerator(seed, force_generator=True)
+    output1 = gen1.random_normal(shape=[2, 3])
+    output2 = gen1.random_normal(shape=[2, 3])
+
+    self.assertNotAllClose(output1, output2)
+
+    gen2 = backend.RandomGenerator(seed, force_generator=True)
+    output3 = gen2.random_normal(shape=[2, 3])
+    output4 = gen2.random_normal(shape=[2, 3])
+
+    if tf.compat.v1.executing_eagerly():
+      # Make sure generator with same seed will produce same sequence.
+      self.assertAllEqual(output1, output3)
+      self.assertAllEqual(output2, output4)
+
+  def test_unseeded(self):
+    seed = None
+    gen1 = backend.RandomGenerator(seed, force_generator=True)
+    output1 = gen1.random_normal(shape=[2, 3])
+
+    gen2 = backend.RandomGenerator(seed, force_generator=True)
+    output2 = gen2.random_normal(shape=[2, 3])
+
+    self.assertNotAllClose(output1, output2)
+
+  def test_implementation(self):
+    seed = 1337
+    seeded = backend.RandomGenerator(seed, force_generator=True)
+    seeded._maybe_init()
+    unseeded = backend.RandomGenerator(None, force_generator=True)
+    unseeded._maybe_init()
+    if tf.compat.v1.executing_eagerly():
+      # Make sure we use tf.random.Generator in v2.
+      self.assertIsNotNone(seeded._generator)
+      self.assertIsNotNone(unseeded._generator)
+    else:
+      # In v1, we can't use tf.random.Generator since it is not compatible with
+      # graph mode.
+      self.assertIsNone(seeded._generator)
+      self.assertIsNone(unseeded._generator)
+
+
 if __name__ == '__main__':
   tf.test.main()

@@ -23,7 +23,6 @@ from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.preprocessing import image as image_preprocessing
 from keras.utils import control_flow_util
-from tensorflow.python.ops import stateless_random_ops
 from tensorflow.python.util.tf_export import keras_export
 
 ResizeMethod = tf.image.ResizeMethod
@@ -219,12 +218,12 @@ class RandomCrop(base_layer.Layer):
   """
 
   def __init__(self, height, width, seed=None, **kwargs):
+    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomCrop').set(True)
+    super(RandomCrop, self).__init__(**kwargs)
     self.height = height
     self.width = width
     self.seed = seed
-    self._rng = make_generator(self.seed)
-    super(RandomCrop, self).__init__(**kwargs)
-    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomCrop').set(True)
+    self._random_generator = backend.RandomGenerator(seed, force_generator=True)
 
   def call(self, inputs, training=True):
     if training is None:
@@ -245,11 +244,11 @@ class RandomCrop(base_layer.Layer):
           [self.height, self.width])
       with tf.control_dependencies([check]):
         limit = shape - crop_size + 1
-        offset = stateless_random_ops.stateless_random_uniform(
+        offset = self._random_generator.random_uniform(
             tf.shape(shape),
             dtype=crop_size.dtype,
-            maxval=crop_size.dtype.max,
-            seed=self._rng.make_seeds()[:, 0]) % limit
+            minval=0,
+            maxval=crop_size.dtype.max) % limit
         return tf.slice(inputs, offset, crop_size)
 
     # TODO(b/143885775): Share logic with Resize and CenterCrop.
@@ -411,7 +410,7 @@ class RandomFlip(base_layer.Layer):
       raise ValueError('RandomFlip layer {name} received an unknown mode '
                        'argument {arg}'.format(name=self.name, arg=mode))
     self.seed = seed
-    self._rng = make_generator(self.seed)
+    self._random_generator = backend.RandomGenerator(seed, force_generator=True)
 
   def call(self, inputs, training=True):
     if training is None:
@@ -420,13 +419,21 @@ class RandomFlip(base_layer.Layer):
     def random_flipped_inputs():
       flipped_outputs = inputs
       if self.horizontal:
-        flipped_outputs = tf.image.stateless_random_flip_left_right(
-            flipped_outputs,
-            self._rng.make_seeds()[:, 0])
+        seed = self._random_generator.make_seed_for_stateless_op()
+        if seed is not None:
+          flipped_outputs = tf.image.stateless_random_flip_left_right(
+              flipped_outputs, seed=seed)
+        else:
+          flipped_outputs = tf.image.random_flip_left_right(
+              flipped_outputs, self._random_generator.make_legacy_seed())
       if self.vertical:
-        flipped_outputs = tf.image.stateless_random_flip_up_down(
-            flipped_outputs,
-            self._rng.make_seeds()[:, 0])
+        seed = self._random_generator.make_seed_for_stateless_op()
+        if seed is not None:
+          flipped_outputs = tf.image.stateless_random_flip_up_down(
+              flipped_outputs, seed=seed)
+        else:
+          flipped_outputs = tf.image.random_flip_up_down(
+              flipped_outputs, self._random_generator.make_legacy_seed())
       return flipped_outputs
 
     output = control_flow_util.smart_cond(training, random_flipped_inputs,
@@ -503,6 +510,9 @@ class RandomTranslation(base_layer.Layer):
                seed=None,
                fill_value=0.0,
                **kwargs):
+    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomTranslation').set(
+        True)
+    super(RandomTranslation, self).__init__(**kwargs)
     self.height_factor = height_factor
     if isinstance(height_factor, (tuple, list)):
       self.height_lower = height_factor[0]
@@ -537,10 +547,7 @@ class RandomTranslation(base_layer.Layer):
     self.fill_value = fill_value
     self.interpolation = interpolation
     self.seed = seed
-    self._rng = make_generator(self.seed)
-    super(RandomTranslation, self).__init__(**kwargs)
-    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomTranslation').set(
-        True)
+    self._random_generator = backend.RandomGenerator(seed, force_generator=True)
 
   def call(self, inputs, training=True):
     if training is None:
@@ -560,13 +567,13 @@ class RandomTranslation(base_layer.Layer):
       batch_size = inputs_shape[0]
       img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
       img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-      height_translate = self._rng.uniform(
+      height_translate = self._random_generator.random_uniform(
           shape=[batch_size, 1],
           minval=self.height_lower,
           maxval=self.height_upper,
           dtype=tf.float32)
       height_translate = height_translate * img_hd
-      width_translate = self._rng.uniform(
+      width_translate = self._random_generator.random_uniform(
           shape=[batch_size, 1],
           minval=self.width_lower,
           maxval=self.width_upper,
@@ -818,6 +825,9 @@ class RandomRotation(base_layer.Layer):
                seed=None,
                fill_value=0.0,
                **kwargs):
+    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomRotation').set(
+        True)
+    super(RandomRotation, self).__init__(**kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
       self.lower = factor[0]
@@ -833,10 +843,7 @@ class RandomRotation(base_layer.Layer):
     self.fill_value = fill_value
     self.interpolation = interpolation
     self.seed = seed
-    self._rng = make_generator(self.seed)
-    super(RandomRotation, self).__init__(**kwargs)
-    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomRotation').set(
-        True)
+    self._random_generator = backend.RandomGenerator(seed, force_generator=True)
 
   def call(self, inputs, training=True):
     if training is None:
@@ -858,7 +865,7 @@ class RandomRotation(base_layer.Layer):
       img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
       min_angle = self.lower * 2. * np.pi
       max_angle = self.upper * 2. * np.pi
-      angles = self._rng.uniform(
+      angles = self._random_generator.random_uniform(
           shape=[batch_size], minval=min_angle, maxval=max_angle)
       return transform(
           inputs,
@@ -951,6 +958,8 @@ class RandomZoom(base_layer.Layer):
                seed=None,
                fill_value=0.0,
                **kwargs):
+    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomZoom').set(True)
+    super(RandomZoom, self).__init__(**kwargs)
     self.height_factor = height_factor
     if isinstance(height_factor, (tuple, list)):
       self.height_lower = height_factor[0]
@@ -982,9 +991,7 @@ class RandomZoom(base_layer.Layer):
     self.fill_value = fill_value
     self.interpolation = interpolation
     self.seed = seed
-    self._rng = make_generator(self.seed)
-    super(RandomZoom, self).__init__(**kwargs)
-    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomZoom').set(True)
+    self._random_generator = backend.RandomGenerator(seed, force_generator=True)
 
   def call(self, inputs, training=True):
     if training is None:
@@ -1004,12 +1011,12 @@ class RandomZoom(base_layer.Layer):
       batch_size = inputs_shape[0]
       img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
       img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-      height_zoom = self._rng.uniform(
+      height_zoom = self._random_generator.random_uniform(
           shape=[batch_size, 1],
           minval=1. + self.height_lower,
           maxval=1. + self.height_upper)
       if self.width_factor is not None:
-        width_zoom = self._rng.uniform(
+        width_zoom = self._random_generator.random_uniform(
             shape=[batch_size, 1],
             minval=1. + self.width_lower,
             maxval=1. + self.width_upper)
@@ -1119,6 +1126,9 @@ class RandomContrast(base_layer.Layer):
   """
 
   def __init__(self, factor, seed=None, **kwargs):
+    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomContrast').set(
+        True)
+    super(RandomContrast, self).__init__(**kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
       self.lower = factor[0]
@@ -1129,19 +1139,21 @@ class RandomContrast(base_layer.Layer):
       raise ValueError('Factor cannot have negative values or greater than 1.0,'
                        ' got {}'.format(factor))
     self.seed = seed
-    self._rng = make_generator(self.seed)
-    super(RandomContrast, self).__init__(**kwargs)
-    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomContrast').set(
-        True)
+    self._random_generator = backend.RandomGenerator(seed, force_generator=True)
 
   def call(self, inputs, training=True):
     if training is None:
       training = backend.learning_phase()
 
     def random_contrasted_inputs():
-      return tf.image.stateless_random_contrast(inputs, 1. - self.lower,
-                                                1. + self.upper,
-                                                self._rng.make_seeds()[:, 0])
+      seed = self._random_generator.make_seed_for_stateless_op()
+      if seed is not None:
+        return tf.image.stateless_random_contrast(
+            inputs, 1. - self.lower, 1. + self.upper, seed=seed)
+      else:
+        return tf.image.random_contrast(
+            inputs, 1. - self.lower, 1. + self.upper,
+            seed=self._random_generator.make_legacy_seed())
 
     output = control_flow_util.smart_cond(training, random_contrasted_inputs,
                                           lambda: inputs)
@@ -1199,6 +1211,8 @@ class RandomHeight(base_layer.Layer):
                interpolation='bilinear',
                seed=None,
                **kwargs):
+    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomHeight').set(True)
+    super(RandomHeight, self).__init__(**kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
       self.height_lower = factor[0]
@@ -1216,9 +1230,7 @@ class RandomHeight(base_layer.Layer):
     self.interpolation = interpolation
     self._interpolation_method = get_interpolation(interpolation)
     self.seed = seed
-    self._rng = make_generator(self.seed)
-    super(RandomHeight, self).__init__(**kwargs)
-    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomHeight').set(True)
+    self._random_generator = backend.RandomGenerator(seed, force_generator=True)
 
   def call(self, inputs, training=True):
     if training is None:
@@ -1229,7 +1241,7 @@ class RandomHeight(base_layer.Layer):
       inputs_shape = tf.shape(inputs)
       img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
       img_wd = inputs_shape[W_AXIS]
-      height_factor = self._rng.uniform(
+      height_factor = self._random_generator.random_uniform(
           shape=[],
           minval=(1.0 + self.height_lower),
           maxval=(1.0 + self.height_upper))
@@ -1299,6 +1311,8 @@ class RandomWidth(base_layer.Layer):
                interpolation='bilinear',
                seed=None,
                **kwargs):
+    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomWidth').set(True)
+    super(RandomWidth, self).__init__(**kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
       self.width_lower = factor[0]
@@ -1315,9 +1329,7 @@ class RandomWidth(base_layer.Layer):
     self.interpolation = interpolation
     self._interpolation_method = get_interpolation(interpolation)
     self.seed = seed
-    self._rng = make_generator(self.seed)
-    super(RandomWidth, self).__init__(**kwargs)
-    base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomWidth').set(True)
+    self._random_generator = backend.RandomGenerator(seed, force_generator=True)
 
   def call(self, inputs, training=True):
     if training is None:
@@ -1328,7 +1340,7 @@ class RandomWidth(base_layer.Layer):
       inputs_shape = tf.shape(inputs)
       img_hd = inputs_shape[H_AXIS]
       img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-      width_factor = self._rng.uniform(
+      width_factor = self._random_generator.random_uniform(
           shape=[],
           minval=(1.0 + self.width_lower),
           maxval=(1.0 + self.width_upper))
@@ -1359,22 +1371,6 @@ class RandomWidth(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-def make_generator(seed=None):
-  """Creates a random generator.
-
-  Args:
-    seed: the seed to initialize the generator. If None, the generator will be
-      initialized non-deterministically.
-
-  Returns:
-    A generator object.
-  """
-  if seed is not None:
-    return tf.random.Generator.from_seed(seed)
-  else:
-    return tf.random.Generator.from_non_deterministic_state()
-
-
 def get_interpolation(interpolation):
   interpolation = interpolation.lower()
   if interpolation not in _RESIZE_METHODS:
@@ -1382,3 +1378,4 @@ def get_interpolation(interpolation):
         'Value not recognized for `interpolation`: {}. Supported values '
         'are: {}'.format(interpolation, _RESIZE_METHODS.keys()))
   return _RESIZE_METHODS[interpolation]
+
