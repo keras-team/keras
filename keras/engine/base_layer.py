@@ -1394,7 +1394,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   def updates(self):
     warnings.warn('`layer.updates` will be removed in a future version. '
                   'This property should not be used in TensorFlow 2.0, '
-                  'as `updates` are applied automatically.')
+                  'as `updates` are applied automatically.',
+                  stacklevel=2)
     return []
 
   @property
@@ -1927,7 +1928,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     warnings.warn('`layer.get_updates_for` is deprecated and '
                   'will be removed in a future version. '
-                  'Please use `layer.updates` method instead.')
+                  'Please use `layer.updates` method instead.',
+                  stacklevel=2)
     return self.updates
 
   @doc_controls.do_not_generate_docs
@@ -1944,7 +1946,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     warnings.warn('`layer.get_losses_for` is deprecated and '
                   'will be removed in a future version. '
-                  'Please use `layer.losses` instead.')
+                  'Please use `layer.losses` instead.',
+                  stacklevel=2)
     return self.losses
 
   @doc_controls.do_not_doc_inheritable
@@ -2266,7 +2269,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     warnings.warn('`layer.apply` is deprecated and '
                   'will be removed in a future version. '
-                  'Please use `layer.__call__` method instead.')
+                  'Please use `layer.__call__` method instead.',
+                  stacklevel=2)
     return self.__call__(inputs, *args, **kwargs)
 
   @doc_controls.do_not_doc_inheritable
@@ -2274,7 +2278,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """Deprecated, do NOT use! Alias for `add_weight`."""
     warnings.warn('`layer.add_variable` is deprecated and '
                   'will be removed in a future version. '
-                  'Please use `layer.add_weight` method instead.')
+                  'Please use `layer.add_weight` method instead.',
+                  stacklevel=2)
     return self.add_weight(*args, **kwargs)
 
   @property

@@ -335,7 +335,7 @@ class Lambda(Layer):
       # Note: we don't know the name of the function if it's a lambda.
       warnings.warn(
           '{} is not loaded, but a Lambda layer uses it. '
-          'It may cause errors.'.format(module), UserWarning)
+          'It may cause errors.'.format(module), UserWarning, stacklevel=2)
     if custom_objects:
       globs.update(custom_objects)
     function_type = config.pop(func_type_attr_name)
