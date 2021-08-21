@@ -1824,10 +1824,8 @@ class EarlyStopping(Callback):
       self.model.stop_training = True
       if self.restore_best_weights and self.best_weights is not None:
         if self.verbose > 0:
-          print(
-            'Restoring model weights from the end of the best epoch: '
-            f'{self.best_epoch + 1}'
-          )
+          print('Restoring model weights from the end of the best epoch (%s).' %
+                (self.best_epoch + 1))
         self.model.set_weights(self.best_weights)
 
   def on_train_end(self, logs=None):
