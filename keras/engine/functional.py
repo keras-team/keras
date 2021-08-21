@@ -593,7 +593,8 @@ class Functional(training_lib.Model):
         warnings.warn(
             'Input dict contained keys {} which did not match any model input. '
             'They will be ignored by the model.'.format(
-                [n for n in tensors.keys() if n not in ref_input_names])
+                [n for n in tensors.keys() if n not in ref_input_names]),
+            stacklevel=2
             )
 
       try:

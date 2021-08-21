@@ -149,7 +149,8 @@ def average_pooling1d(inputs, pool_size, strides,
   """
   warnings.warn('`tf.layers.average_pooling1d` is deprecated and '
                 'will be removed in a future version. '
-                'Please use `tf.keras.layers.AveragePooling1D` instead.')
+                'Please use `tf.keras.layers.AveragePooling1D` instead.',
+                stacklevel=2)
   layer = AveragePooling1D(pool_size=pool_size,
                            strides=strides,
                            padding=padding,
@@ -281,7 +282,8 @@ def max_pooling1d(inputs, pool_size, strides,
   """
   warnings.warn('`tf.layers.max_pooling1d` is deprecated and '
                 'will be removed in a future version. '
-                'Please use `tf.keras.layers.MaxPooling1D` instead.')
+                'Please use `tf.keras.layers.MaxPooling1D` instead.',
+                stacklevel=2)
   layer = MaxPooling1D(pool_size=pool_size,
                        strides=strides,
                        padding=padding,
@@ -418,7 +420,8 @@ def average_pooling2d(inputs,
   """
   warnings.warn('`tf.layers.average_pooling2d` is deprecated and '
                 'will be removed in a future version. '
-                'Please use `tf.keras.layers.AveragePooling2D` instead.')
+                'Please use `tf.keras.layers.AveragePooling2D` instead.',
+                stacklevel=2)
   layer = AveragePooling2D(pool_size=pool_size, strides=strides,
                            padding=padding, data_format=data_format,
                            name=name)
@@ -553,7 +556,8 @@ def max_pooling2d(inputs,
   """
   warnings.warn('`tf.layers.max_pooling2d` is deprecated and '
                 'will be removed in a future version. '
-                'Please use `tf.keras.layers.MaxPooling2D` instead.')
+                'Please use `tf.keras.layers.MaxPooling2D` instead.',
+                stacklevel=2)
   layer = MaxPooling2D(pool_size=pool_size, strides=strides,
                        padding=padding, data_format=data_format,
                        name=name)
@@ -692,7 +696,8 @@ def average_pooling3d(inputs,
   """
   warnings.warn('`tf.layers.average_pooling3d` is deprecated and '
                 'will be removed in a future version. '
-                'Please use `tf.keras.layers.AveragePooling3D` instead.')
+                'Please use `tf.keras.layers.AveragePooling3D` instead.',
+                stacklevel=2)
   layer = AveragePooling3D(pool_size=pool_size, strides=strides,
                            padding=padding, data_format=data_format,
                            name=name)
@@ -829,7 +834,8 @@ def max_pooling3d(inputs,
   """
   warnings.warn('`tf.layers.max_pooling3d` is deprecated and '
                 'will be removed in a future version. '
-                'Please use `tf.keras.layers.MaxPooling3D` instead.')
+                'Please use `tf.keras.layers.MaxPooling3D` instead.',
+                stacklevel=2)
   layer = MaxPooling3D(pool_size=pool_size, strides=strides,
                        padding=padding, data_format=data_format,
                        name=name)

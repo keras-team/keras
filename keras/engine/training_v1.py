@@ -1227,7 +1227,8 @@ class Model(training_lib.Model):
     """
     warnings.warn('`model.fit_generator` is deprecated and '
                   'will be removed in a future version. '
-                  'Please use `Model.fit`, which supports generators.')
+                  'Please use `Model.fit`, which supports generators.',
+                  stacklevel=2)
     return self.fit(
         generator,
         steps_per_epoch=steps_per_epoch,
@@ -1260,7 +1261,8 @@ class Model(training_lib.Model):
     """
     warnings.warn('`Model.evaluate_generator` is deprecated and '
                   'will be removed in a future version. '
-                  'Please use `Model.evaluate`, which supports generators.')
+                  'Please use `Model.evaluate`, which supports generators.',
+                  stacklevel=2)
     self._check_call_args('evaluate_generator')
 
     return self.evaluate(
@@ -1288,7 +1290,8 @@ class Model(training_lib.Model):
     """
     warnings.warn('`Model.predict_generator` is deprecated and '
                   'will be removed in a future version. '
-                  'Please use `Model.predict`, which supports generators.')
+                  'Please use `Model.predict`, which supports generators.',
+                  stacklevel=2)
     return self.predict(
         generator,
         steps=steps,

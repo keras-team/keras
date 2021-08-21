@@ -235,7 +235,8 @@ def dense(
   """
   warnings.warn('`tf.layers.dense` is deprecated and '
                 'will be removed in a future version. '
-                'Please use `tf.keras.layers.Dense` instead.')
+                'Please use `tf.keras.layers.Dense` instead.',
+                stacklevel=2)
   layer = Dense(units,
                 activation=activation,
                 use_bias=use_bias,
@@ -392,7 +393,8 @@ def dropout(inputs,
   """
   warnings.warn('`tf.layers.dropout` is deprecated and '
                 'will be removed in a future version. '
-                'Please use `tf.keras.layers.Dropout` instead.')
+                'Please use `tf.keras.layers.Dropout` instead.',
+                stacklevel=2)
   layer = Dropout(rate, noise_shape=noise_shape, seed=seed, name=name)
   return layer.apply(inputs, training=training)
 
@@ -512,7 +514,8 @@ def flatten(inputs, name=None, data_format='channels_last'):
   """
   warnings.warn('`tf.layers.flatten` is deprecated and '
                 'will be removed in a future version. '
-                'Please use `tf.keras.layers.Flatten` instead.')
+                'Please use `tf.keras.layers.Flatten` instead.',
+                stacklevel=2)
   layer = Flatten(name=name, data_format=data_format)
   return layer.apply(inputs)
 

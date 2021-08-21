@@ -426,7 +426,7 @@ def batch_normalization(inputs,
       'Please use `tf.keras.layers.BatchNormalization` instead. '
       'In particular, `tf.control_dependencies(tf.GraphKeys.UPDATE_OPS)` '
       'should not be used (consult the `tf.keras.layers.BatchNormalization` '
-      'documentation).')
+      'documentation).', stacklevel=2)
   layer = BatchNormalization(
       axis=axis,
       momentum=momentum,

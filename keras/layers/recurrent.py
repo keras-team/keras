@@ -2599,7 +2599,7 @@ class PeepholeLSTMCell(LSTMCell):
     warnings.warn('`tf.keras.experimental.PeepholeLSTMCell` is deprecated '
                   'and will be removed in a future version. '
                   'Please use tensorflow_addons.rnn.PeepholeLSTMCell '
-                  'instead.')
+                  'instead.', stacklevel=2)
     super(PeepholeLSTMCell, self).__init__(
         units=units,
         activation=activation,
