@@ -652,7 +652,8 @@ class VariableScopeTest(tf.test.TestCase):
           with tf.compat.v1.variable_scope("_"):
             pass
 
-    self.assertRaisesRegex(ValueError, "'_' is not a valid scope name", f)
+    self.assertRaisesRegex(ValueError,
+                           "'_' is not a valid (?:root )?scope name", f)
 
 
 class VariableScopeWithCustomGetterTest(tf.test.TestCase):
