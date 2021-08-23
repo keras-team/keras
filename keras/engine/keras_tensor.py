@@ -240,7 +240,7 @@ class KerasTensor:
   # with ndarrays.
   __array_priority__ = 100
 
-  def __array__(self):
+  def __array__(self, dtype=None):
     raise TypeError(
         f'You are passing {self}, an intermediate Keras symbolic input/output, '
         'to a TF API that does not allow registering custom dispatchers, such '
