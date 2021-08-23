@@ -101,9 +101,9 @@ class GradientsTest(tf.test.TestCase):
     self.assertAllClose(eager_result, function_result)
     backprop_result, numeric_result = tf.test.compute_gradient(
         m, [inp], delta=1e-3)
-    self.assertAllClose(numeric_result, backprop_result, rtol=1e-2)
+    self.assertAllClose(numeric_result, backprop_result, atol=1e-3)
     self.assertAllClose(tf.reshape(numeric_result, [-1]),
-                        tf.reshape(eager_result, [-1]), rtol=1e-2)
+                        tf.reshape(eager_result, [-1]), atol=1e-3)
 
   def testEmbeddingLookupGradientsHaveKnownShape(self):
 

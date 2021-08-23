@@ -192,8 +192,7 @@ class RandomFourierFeatures(base_layer.Layer):
         name='bias',
         shape=(self.output_dim,),
         dtype=tf.float32,
-        initializer=tf.compat.v1.random_uniform_initializer(
-            minval=0.0, maxval=2 * np.pi, dtype=tf.float32),
+        initializer=initializers.RandomUniform(minval=0.0, maxval=2 * np.pi),
         trainable=False)
 
     if self.scale is None:
@@ -247,10 +246,9 @@ def _get_random_features_initializer(initializer, shape):
   random_features_initializer = initializer
   if isinstance(initializer, str):
     if initializer.lower() == 'gaussian':
-      random_features_initializer = tf.compat.v1.random_normal_initializer(
-          stddev=1.0)
+      random_features_initializer = initializers.RandomNormal(stddev=1.0)
     elif initializer.lower() == 'laplacian':
-      random_features_initializer = tf.compat.v1.constant_initializer(
+      random_features_initializer = initializers.Constant(
           _get_cauchy_samples(loc=0.0, scale=1.0, shape=shape))
 
     else:

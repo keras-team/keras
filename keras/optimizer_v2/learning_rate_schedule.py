@@ -18,6 +18,7 @@ import tensorflow.compat.v2 as tf
 
 import abc
 import math
+from keras import backend
 from keras.utils import generic_utils
 from tensorflow.python.util.tf_export import keras_export
 
@@ -950,6 +951,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
       num_periods=0.5,
       alpha=0.0,
       beta=0.001,
+      seed=None,
       name=None):
     """Applies noisy linear cosine decay to the learning rate.
 
@@ -964,6 +966,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
         See computation above.
       alpha: See computation above.
       beta: See computation above.
+      seed: Integer, optional random seed to enable deterministic behavior.
       name: String.  Optional name of the operation.  Defaults to
         'NoisyLinearCosineDecay'.
     """
@@ -976,7 +979,9 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
     self.num_periods = num_periods
     self.alpha = alpha
     self.beta = beta
+    self.seed = seed
     self.name = name
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, step):
     with tf.name_scope(self.name or "NoisyLinearCosineDecay") as name:
@@ -997,7 +1002,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
           tf.pow(1.0 + global_step_recomp, variance_decay))
       std = tf.sqrt(variance)
       noisy_linear_decayed = (
-          linear_decayed + tf.random.normal(
+          linear_decayed + self._random_generator.random_normal(
               linear_decayed.shape, stddev=std))
 
       completed_fraction = global_step_recomp / decay_steps
@@ -1019,7 +1024,8 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
         "num_periods": self.num_periods,
         "alpha": self.alpha,
         "beta": self.beta,
-        "name": self.name
+        "seed": self.seed,
+        "name": self.name,
     }
 
 
