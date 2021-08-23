@@ -21,6 +21,7 @@ import tensorflow.compat.v2 as tf
 import os
 import sys
 import re
+from keras import activations
 from keras.utils.io_utils import path_to_string
 from tensorflow.python.util.tf_export import keras_export
 
@@ -100,7 +101,8 @@ def model_to_dot(model,
                  expand_nested=False,
                  dpi=96,
                  subgraph=False,
-                 layer_range=None):
+                 layer_range=None,
+                 show_layer_activations=False):
   """Convert a Keras model to dot format.
 
   Args:
@@ -240,10 +242,17 @@ def model_to_dot(model,
       dot.add_subgraph(submodel_not_wrapper)
 
     # Create node's label.
+    label = class_name
+    
+    # Rebuild the label as a table including the layer's activation.
+    if (
+        show_layer_activations and hasattr(layer, 'activation')
+        and layer.activation is not None):
+      label = '{%s|%s}' % (label, activations.serialize(layer.activation))
+      
+    # Rebuild the label as a table including the layer's name.
     if show_layer_names:
-      label = '{}: {}'.format(layer_name, class_name)
-    else:
-      label = class_name
+      label = '%s|%s' % (layer_name, label)
 
     # Rebuild the label as a table including the layer's dtype.
     if show_dtype:
@@ -342,7 +351,8 @@ def plot_model(model,
                rankdir='TB',
                expand_nested=False,
                dpi=96,
-               layer_range=None):
+               layer_range=None,
+               show_layer_activations=False):
   """Converts a Keras model to dot format and save to a file.
 
   Example:
@@ -395,7 +405,8 @@ def plot_model(model,
       rankdir=rankdir,
       expand_nested=expand_nested,
       dpi=dpi,
-      layer_range=layer_range)
+      layer_range=layer_range,
+      show_layer_activations=show_layer_activations)
   to_file = path_to_string(to_file)
   if dot is None:
     return
