@@ -1005,7 +1005,7 @@ class CroppingTest(keras_parameterized.TestCase):
     with self.cached_session():
       testing_utils.layer_test(
           keras.layers.Cropping1D,
-          kwargs={'cropping': (2, 2)},
+          kwargs={'cropping': (1, 1)},
           input_shape=inputs.shape)
 
     # test incorrect use
