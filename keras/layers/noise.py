@@ -37,6 +37,7 @@ class GaussianNoise(Layer):
 
   Args:
     stddev: Float, standard deviation of the noise distribution.
+    seed: Integer, optional random seed to enable deterministic behavior.
 
   Call arguments:
     inputs: Input tensor (of any rank).
@@ -52,15 +53,17 @@ class GaussianNoise(Layer):
     Same shape as input.
   """
 
-  def __init__(self, stddev, **kwargs):
+  def __init__(self, stddev, seed=None, **kwargs):
     super(GaussianNoise, self).__init__(**kwargs)
     self.supports_masking = True
     self.stddev = stddev
+    self.seed = seed
+    self._random_generator = backend.RandomGenerator(seed)
 
   def call(self, inputs, training=None):
 
     def noised():
-      return inputs + backend.random_normal(
+      return inputs + self._random_generator.random_normal(
           shape=tf.shape(inputs),
           mean=0.,
           stddev=self.stddev,
@@ -69,7 +72,7 @@ class GaussianNoise(Layer):
     return backend.in_train_phase(noised, inputs, training=training)
 
   def get_config(self):
-    config = {'stddev': self.stddev}
+    config = {'stddev': self.stddev, 'seed': self.seed}
     base_config = super(GaussianNoise, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
@@ -88,6 +91,7 @@ class GaussianDropout(Layer):
     rate: Float, drop probability (as with `Dropout`).
       The multiplicative noise will have
       standard deviation `sqrt(rate / (1 - rate))`.
+    seed: Integer, optional random seed to enable deterministic behavior.
 
   Call arguments:
     inputs: Input tensor (of any rank).
@@ -103,17 +107,19 @@ class GaussianDropout(Layer):
     Same shape as input.
   """
 
-  def __init__(self, rate, **kwargs):
+  def __init__(self, rate, seed=None, **kwargs):
     super(GaussianDropout, self).__init__(**kwargs)
     self.supports_masking = True
     self.rate = rate
+    self.seed = seed
+    self._random_generator = backend.RandomGenerator(seed)
 
   def call(self, inputs, training=None):
     if 0 < self.rate < 1:
 
       def noised():
         stddev = np.sqrt(self.rate / (1.0 - self.rate))
-        return inputs * backend.random_normal(
+        return inputs * self._random_generator.random_normal(
             shape=tf.shape(inputs),
             mean=1.0,
             stddev=stddev,
@@ -123,7 +129,7 @@ class GaussianDropout(Layer):
     return inputs
 
   def get_config(self):
-    config = {'rate': self.rate}
+    config = {'rate': self.rate, 'seed': self.seed}
     base_config = super(GaussianDropout, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
@@ -146,7 +152,7 @@ class AlphaDropout(Layer):
     rate: float, drop probability (as with `Dropout`).
       The multiplicative noise will have
       standard deviation `sqrt(rate / (1 - rate))`.
-    seed: A Python integer to use as random seed.
+    seed: Integer, optional random seed to enable deterministic behavior.
 
   Call arguments:
     inputs: Input tensor (of any rank).
@@ -168,6 +174,7 @@ class AlphaDropout(Layer):
     self.noise_shape = noise_shape
     self.seed = seed
     self.supports_masking = True
+    self._random_generator = backend.RandomGenerator(seed)
 
   def _get_noise_shape(self, inputs):
     return self.noise_shape if self.noise_shape else tf.shape(inputs)
@@ -176,13 +183,13 @@ class AlphaDropout(Layer):
     if 0. < self.rate < 1.:
       noise_shape = self._get_noise_shape(inputs)
 
-      def dropped_inputs(inputs=inputs, rate=self.rate, seed=self.seed):  # pylint: disable=missing-docstring
+      def dropped_inputs(inputs=inputs, rate=self.rate):  # pylint: disable=missing-docstring
         alpha = 1.6732632423543772848170429916717
         scale = 1.0507009873554804934193349852946
         alpha_p = -alpha * scale
 
         kept_idx = tf.greater_equal(
-            backend.random_uniform(noise_shape, seed=seed), rate)
+            self._random_generator.random_uniform(noise_shape), rate)
         kept_idx = tf.cast(kept_idx, inputs.dtype)
 
         # Get affine transformation params
@@ -199,7 +206,7 @@ class AlphaDropout(Layer):
     return inputs
 
   def get_config(self):
-    config = {'rate': self.rate}
+    config = {'rate': self.rate, 'seed': self.seed}
     base_config = super(AlphaDropout, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
