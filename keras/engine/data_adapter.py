@@ -1564,6 +1564,8 @@ def unpack_x_y_sample_weight(data):
     The unpacked tuple, with `None`s for `y` and `sample_weight` if they are not
     provided.
   """
+  if isinstance(data, list):
+    data = tuple(data)
   if not isinstance(data, tuple):
     return (data, None, None)
   elif len(data) == 1:
