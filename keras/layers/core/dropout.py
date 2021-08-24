@@ -15,7 +15,7 @@
 """Contains the dropout layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from keras import backend as K
+from keras import backend
 from keras.engine.base_layer import Layer
 from keras.utils import control_flow_util
 import tensorflow.compat.v2 as tf
@@ -110,7 +110,7 @@ class Dropout(Layer):
 
   def call(self, inputs, training=None):
     if training is None:
-      training = K.learning_phase()
+      training = backend.learning_phase()
 
     def dropped_inputs():
       return tf.nn.dropout(
