@@ -15,7 +15,7 @@
 """Contains the RepeatVector layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from keras import backend as K
+from keras import backend
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 import tensorflow.compat.v2 as tf
@@ -57,7 +57,7 @@ class RepeatVector(Layer):
     return tf.TensorShape([input_shape[0], self.n, input_shape[1]])
 
   def call(self, inputs):
-    return K.repeat(inputs, self.n)
+    return backend.repeat(inputs, self.n)
 
   def get_config(self):
     config = {'n': self.n}
