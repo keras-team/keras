@@ -1330,6 +1330,23 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertIs(model.l1.training, expected_training_arg)
 
   @keras_parameterized.run_all_keras_modes
+  def test_subclassed_model_with_protected_attribute(self):
+
+    class ModelWithProtectedAttribute(training_module.Model):
+
+      def __init__(self):
+        super(ModelWithProtectedAttribute, self).__init__()
+        self.model = layers_module.Dense(1)
+
+      def call(self, inputs, training=None):
+        inputs = self.model(inputs, training=training)
+        return inputs
+
+    with self.assertRaisesRegex(AttributeError,
+                                'is a protected attribute name'):
+      ModelWithProtectedAttribute()
+
+  @keras_parameterized.run_all_keras_modes
   def test_error_when_model_is_not_compiled(self):
     inputs = input_layer.Input(shape=(1,))
     outputs = layers_module.Dense(1)(inputs)
