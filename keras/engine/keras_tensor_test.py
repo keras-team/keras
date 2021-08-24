@@ -15,11 +15,15 @@
 """InputSpec tests."""
 
 import tensorflow.compat.v2 as tf
+
+from absl.testing import parameterized
+from keras import keras_parameterized
 from keras import layers
 from keras.engine import keras_tensor
+from keras.engine import training
 
 
-class KerasTensorTest(tf.test.TestCase):
+class KerasTensorTest(keras_parameterized.TestCase):
 
   def test_repr_and_string(self):
     kt = keras_tensor.KerasTensor(
@@ -83,6 +87,26 @@ class KerasTensorTest(tf.test.TestCase):
                        "(created by layer 'tf.unstack')>")
       self.assertEqual(expected_str, str(kts[i]))
       self.assertEqual(expected_repr, repr(kts[i]))
+    
+  @parameterized.parameters(
+      {'property_name': 'values'},
+      {'property_name': 'indices'},
+      {'property_name': 'dense_shape'},
+  )
+  def test_sparse_instance_property(self, property_name):
+    inp = layers.Input(shape=[3], sparse=True)
+    out = getattr(inp, property_name)
+    model = training.Model(inp, out)
+
+    x = tf.SparseTensor([[0, 0], [0, 1], [1, 1], [1, 2]], [1, 2, 3, 4], [2, 3])
+    expected_property = getattr(x, property_name)
+    self.assertAllEqual(model(x), expected_property)
+
+    # Test that it works with serialization and deserialization as well
+    model_config = model.get_config()
+    model2 = training.Model.from_config(model_config)
+    self.assertAllEqual(model2(x), expected_property)
+
 
 if __name__ == "__main__":
   tf.compat.v1.enable_eager_execution()
