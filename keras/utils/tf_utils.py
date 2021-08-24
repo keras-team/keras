@@ -20,7 +20,7 @@ import collections
 import copy
 import numpy as np
 from tensorflow.python.framework import ops
-from keras import backend as K
+from keras import backend
 from keras.engine import keras_tensor
 from keras.utils import object_identity
 from keras.utils import tf_contextlib
@@ -438,7 +438,7 @@ def maybe_init_scope(layer):
 def graph_context_for_symbolic_tensors(*args, **kwargs):
   """Returns graph context manager if any of the inputs is a symbolic tensor."""
   if any(is_symbolic_tensor(v) for v in list(args) + list(kwargs.values())):
-    with K.get_graph().as_default():
+    with backend.get_graph().as_default():
       yield
   else:
     yield
@@ -450,7 +450,8 @@ def dataset_is_infinite(dataset):
     return tf.equal(
         tf.data.experimental.cardinality(dataset), tf.data.experimental.INFINITE_CARDINALITY)
   else:
-    dataset_size = K.get_session().run(tf.data.experimental.cardinality(dataset))
+    dataset_size = backend.get_session().run(
+        tf.data.experimental.cardinality(dataset))
     return dataset_size == tf.data.experimental.INFINITE_CARDINALITY
 
 

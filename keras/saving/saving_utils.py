@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 
 import copy
 import os
-from keras import backend as K
+from keras import backend
 from keras import losses
 from keras import optimizer_v1
 from keras import optimizers
@@ -149,7 +149,7 @@ def model_metadata(model, include_optimizer=True, require_config=True):
 
   metadata = dict(
       keras_version=str(keras_version),
-      backend=K.backend(),
+      backend=backend.backend(),
       model_config=model_config)
   if model.optimizer and include_optimizer:
     if isinstance(model.optimizer, optimizer_v1.TFOptimizer):

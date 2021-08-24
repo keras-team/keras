@@ -17,7 +17,7 @@
 import tensorflow.compat.v2 as tf
 # pylint: enable=g-bad-import-order
 
-from keras import backend as K
+from keras import backend
 from keras.engine import keras_tensor
 from keras.engine.base_layer import Layer
 
@@ -48,7 +48,7 @@ class ClassMethod(Layer):
         get_canonical_name_for_symbol(
             self.cls_ref, api_name='keras', add_prefix_to_v1_names=True))
     if 'name' not in kwargs:
-      kwargs['name'] = K.unique_object_name(
+      kwargs['name'] = backend.unique_object_name(
           'tf.' + self.cls_symbol + '.' + self.method_name,
           zero_based=True,
           avoid_observed_names=True)
@@ -134,7 +134,7 @@ class InstanceProperty(Layer):
     self.attr_name = attr_name
 
     if 'name' not in kwargs:
-      kwargs['name'] = K.unique_object_name(
+      kwargs['name'] = backend.unique_object_name(
           'input.' + self.attr_name, zero_based=True, avoid_observed_names=True)
     kwargs['autocast'] = False
 
@@ -217,7 +217,7 @@ class TFOpLambda(Layer):
         name = 'tf.' + self.symbol
       else:
         name = self.function.__name__
-      kwargs['name'] = K.unique_object_name(
+      kwargs['name'] = backend.unique_object_name(
           name, zero_based=True, avoid_observed_names=True)
     kwargs['autocast'] = False
 

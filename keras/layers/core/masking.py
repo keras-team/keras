@@ -15,7 +15,6 @@
 """Contains the Masking layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from keras import backend as K
 from keras.engine.base_layer import Layer
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
@@ -69,10 +68,10 @@ class Masking(Layer):
     self._compute_output_and_mask_jointly = True
 
   def compute_mask(self, inputs, mask=None):
-    return K.any(tf.not_equal(inputs, self.mask_value), axis=-1)
+    return tf.reduce_any(tf.not_equal(inputs, self.mask_value), axis=-1)
 
   def call(self, inputs):
-    boolean_mask = K.any(
+    boolean_mask = tf.reduce_any(
         tf.not_equal(inputs, self.mask_value), axis=-1, keepdims=True)
     outputs = inputs * tf.cast(boolean_mask, inputs.dtype)
     # Compute the mask and outputs simultaneously.
