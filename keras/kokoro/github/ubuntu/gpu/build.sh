@@ -59,7 +59,6 @@ bazel test --test_timeout 300,600,1200,3600 --test_output=errors --keep_going \
    --action_env=TF_CUDNN_VERSION=7 \
    --test_env=TF_GPU_COUNT=${TF_GPU_COUNT} \
    --test_env=TF_TESTS_PER_GPU=${TF_TESTS_PER_GPU} \
-   --test_env=_PREFER_OSS_KERAS=1 \
    --build_tag_filters="${tag_filters}" \
    --test_tag_filters="${tag_filters}" \
    --run_under=@org_keras//keras/tools/gpu_build:parallel_gpu_execute \
