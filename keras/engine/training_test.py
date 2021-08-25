@@ -322,6 +322,13 @@ class TrainingTest(keras_parameterized.TestCase):
         epochs=2,
         batch_size=5,
         verbose=2)
+    model.fit(
+        [input_a_np, input_b_np], [output_d_np, output_e_np],
+        validation_data=[[input_a_np, input_b_np], [output_d_np,
+                                                    output_e_np]],
+        epochs=2,
+        batch_size=5,
+        verbose=2)
     # Test with validation split
     model.fit(
         [input_a_np, input_b_np], [output_d_np, output_e_np],
