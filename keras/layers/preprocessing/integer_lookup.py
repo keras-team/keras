@@ -29,7 +29,7 @@ from tensorflow.python.util.tf_export import keras_export
     "keras.layers.experimental.preprocessing.IntegerLookup",
     v1=[])
 class IntegerLookup(index_lookup.IndexLookup):
-  """Reindex integer inputs to be in a contiguous range, via a dict lookup.
+  """A preprocessing layer which maps integer features to contiguous ranges.
 
   This layer maps a set of arbitrary integer input tokens into indexed
   integer output via a table-based vocabulary lookup. The layer's output indices
@@ -59,6 +59,9 @@ class IntegerLookup(index_lookup.IndexLookup):
   OOV indices, followed by the rest of the vocabulary. When `output_mode` is
   `"multi_hot"`, `"count"`, or `"tf_idf"` the vocabulary will begin with OOV
   indices and instances of the mask token will be dropped.
+
+  For an overview and full list of preprocessing layers, see the preprocessing
+  [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Args:
     max_tokens: Maximum size of the vocabulary for this layer. This should only

@@ -27,10 +27,10 @@ from tensorflow.python.util.tf_export import keras_export
 @keras_export('keras.layers.Hashing',
               'keras.layers.experimental.preprocessing.Hashing')
 class Hashing(base_layer.Layer):
-  """Implements categorical feature hashing, also known as "hashing trick".
+  """A preprocessing layer which hashes and bins categorical features.
 
-  This layer transforms single or multiple categorical inputs to hashed output.
-  It converts a sequence of int or string to a sequence of int. The stable hash
+  This layer transforms categorical inputs to hashed output. It element-wise
+  converts a ints or strings to ints in a fixed range. The stable hash
   function uses `tensorflow::ops::Fingerprint` to produce the same output
   consistently across all platforms.
 
@@ -43,6 +43,9 @@ class Hashing(base_layer.Layer):
   argument in the constructor. In that case, the layer will use the
   [SipHash64](https://github.com/google/highwayhash) hash function, with
   the `salt` value serving as additional input to the hash function.
+
+  For an overview and full list of preprocessing layers, see the preprocessing
+  [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   **Example (FarmHash64)**
 
