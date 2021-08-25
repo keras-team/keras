@@ -1588,7 +1588,7 @@ class TextVectorizationErrorTest(keras_parameterized.TestCase,
           ragged=True, output_mode=text_vectorization.MULTI_HOT)
 
   def test_sparse_true_fails_if_output_mode_is_int(self):
-    with self.assertRaisesRegex(ValueError, "`sparse` must not be true if"):
+    with self.assertRaisesRegex(ValueError, "`sparse` may only be true if"):
       _ = text_vectorization.TextVectorization(
           sparse=True, output_mode=text_vectorization.INT)
 
