@@ -228,10 +228,6 @@ class Conv(Layer):
     tf_dilations = list(self.dilation_rate)
     tf_strides = list(self.strides)
 
-    tf_op_name = self.__class__.__name__
-    if tf_op_name == 'Conv1D':
-      tf_op_name = 'conv1d'  # Backwards compat.
-
     # Check if output shapes are valid
     # They must not have 0 entries along any dimension
     # Check dimensions other than batch and channel, must be greater than 0
