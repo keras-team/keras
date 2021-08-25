@@ -8,30 +8,27 @@ Before making any changes, we recommend opening an issue (if one doesn't already
 exist) and discussing your proposed changes. This way, we can give you feedback
 and validate the proposed changes.
 
-If the changes are minor (simple bug fix
-or documentation fix), then feel free to open a PR without discussion.
+
+If the changes are minor (simple bug fix or documentation fix), then feel free
+to open a PR without discussion.
 
 ### Step 2. Make code changes
 
-To make code changes, you need to fork the repository.
-You will need to setup a development environment
-and run the unit tests. This is covered in section "Setup environment".
+To make code changes, you need to fork the repository. You will need to setup a
+development environment and run the unit tests. This is covered in section
+"Setup environment".
 
-### Step 3. Create a pull request 
+### Step 3. Create a pull request
 
-Once the change is ready,
-open a pull request from your branch in your fork to the master branch in
-[keras-team/keras](https://github.com/keras-team/keras).
+Once the change is ready, open a pull request from your branch in your fork to
+the master branch in [keras-team/keras](https://github.com/keras-team/keras).
 
 ### Step 4. Sign the Contributor License Agreement
 
-After creating the pull request,
-the `google-cla` bot will comment on your pull request
-with instructions on signing
-the Contributor License Agreement (CLA)
-if you haven't done so.
-Please follow the instructions to sign the CLA.
-A `cla:yes` tag is then added to the pull request.
+After creating the pull request, the `google-cla` bot will comment on your pull
+request with instructions on signing the Contributor License Agreement (CLA) if
+you haven't done so. Please follow the instructions to sign the CLA. A `cla:yes`
+tag is then added to the pull request.
 
 ![Tag added](https://i.imgur.com/LHEdIfL.png)
 
@@ -54,48 +51,46 @@ approved by the reviewer.
 
 ![Approval from reviewer](https://i.imgur.com/Ywl4ets.png)
 
+
 ### Step 6. Merging
 
-Once the pull request is approved,
-a `ready to pull` tag will be added to the pull request.
-A team member will take care of the merging.
+Once the pull request is approved, a `ready to pull` tag will be added to the
+pull request. A team member will take care of the merging.
 
 ![Ready to pull](https://i.imgur.com/yCEqJsA.png)
 
 Here is an [example pull request](https://github.com/keras-team/keras/pull/15015)
 for your reference.
 
-
 ## Setup environment
 
-To setup the development environment,
-We provide two options.
-One is to use our Dockerfile, which builds into a container the required dev tools.
-Another one is to setup a local environment by install the dev tools needed.
+To setup the development environment, We provide two options. One is to use our
+Dockerfile, which builds into a container the required dev tools. Another one is
+to setup a local environment by install the dev tools needed.
 
 ### Option 1: Use a Docker container
 
-We provide a 
+We provide a
 [Dockerfile](https://github.com/keras-team/keras/blob/master/.devcontainer/Dockerfile)
-to build the dev environment.
-You can build the Dockerfile into a Docker image named `keras-dev`
-with the following command at the root directory of your cloned repo.
+to build the dev environment. You can build the Dockerfile into a Docker image
+named `keras-dev` with the following command at the root directory of your
+cloned repo.
 
 ```shell
 docker build -t keras-dev .devcontainer
 ```
 
-You can launch a Docker container from the image with the following command.
-The `-it` option gives you an interactive shell of the container.
-The `-v path/to/repo/:/home/keras/` mounts your cloned repo to the container.
-Replace `path/to/repo` with the path to your cloned repo directory.
+You can launch a Docker container from the image with the following command. The
+`-it` option gives you an interactive shell of the container. The `-v
+path/to/repo/:/home/keras/` mounts your cloned repo to the container. Replace
+`path/to/repo` with the path to your cloned repo directory.
 
 ```shell
 docker run -it -v path/to/repo/:/home/keras/ keras-dev
 ```
 
-In the container shell, you need to install the latest dependencies
-with the following command.
+In the container shell, you need to install the latest dependencies with the
+following command.
 
 ```shell
 pip install -r /home/keras/requirements.txt
@@ -121,8 +116,9 @@ To setup your local dev environment, you will need the following tools.
 2.  [git](https://github.com/) for code repository management.
 3.  [python](https://www.python.org/) to build and code in Keras.
 
-The following commands checks the tools above are successfully installed.
-Note that Keras requires at least Python 3.7 to run.
+
+The following commands checks the tools above are successfully installed. Note
+that Keras requires at least Python 3.7 to run.
 
 ```shell
 bazel --version
@@ -142,9 +138,9 @@ mkdir venv_dir
 python3 -m venv venv_dir
 ```
 
-You can activate the venv with the following command.
-You should always run the tests with the venv activated.
-You need to activate the venv everytime you open a new shell.
+You can activate the venv with the following command. You should always run the
+tests with the venv activated. You need to activate the venv everytime you open
+a new shell.
 
 ```shell
 source venv_dir/bin/activate  # for linux or MacOS
@@ -152,9 +148,9 @@ venv_dir\Scripts\activate.bat  # for Windows
 ```
 
 Clone your forked repo to your local machine. Go to the cloned directory to
-install the dependencies into the venv.
-Since `tf-nightly` uses `keras-nightly` as a dependency, we need to uninstall
-`keras-nightly` so that tests will run against keras code in local workspace.
+install the dependencies into the venv. Since `tf-nightly` uses `keras-nightly`
+as a dependency, we need to uninstall `keras-nightly` so that tests will run
+against keras code in local workspace.
 
 ```shell
 git clone https://github.com/YOUR_GITHUB_USERNAME/keras.git
@@ -163,8 +159,7 @@ pip install -r requirements.txt
 pip uninstall keras-nightly
 ```
 
-
-The environment setup is completed.  You may need to update the `tf-nightly`
+The environment setup is completed. You may need to update the `tf-nightly`
 version regularly to keep your environment up-to-date with the following
 command.
 

@@ -284,14 +284,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   def __reduce__(self):
     if self.built:
-      return (
-        pickle_utils.deserialize_model_from_bytecode,
-        pickle_utils.serialize_model_as_bytecode(self)
-      )
+      return (pickle_utils.deserialize_model_from_bytecode,
+              pickle_utils.serialize_model_as_bytecode(self))
     else:
-      # SavedModel (and hence serialize_model_as_bytecode) only support built models,
-      # but if the model is not built,
-      # it _may_ be possible to serialize as a plain Python object,
+      # SavedModel (and hence serialize_model_as_bytecode) only support
+      # built models, but if the model is not built,
+      # it may be possible to serialize as a plain Python object,
       # as long as the constituent parts (layers, optimizers, losses, etc.)
       # can be serialized as plain Python objects.
       # Thus we call up the superclass hierarchy to get an implementation of
@@ -301,11 +299,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def __deepcopy__(self, memo):
     if self.built:
       new = pickle_utils.deserialize_model_from_bytecode(
-        *pickle_utils.serialize_model_as_bytecode(self)
-      )
+          *pickle_utils.serialize_model_as_bytecode(self))
       memo[id(self)] = new
     else:
-      # See comment in __reduce__ for explanation 
+      # See comment in __reduce__ for explanation
       deserializer, serialized, *rest = super(Model, self).__reduce__()
       new = deserializer(*serialized)
       memo[id(self)] = new
@@ -330,9 +327,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     never throw unexpected errors in an unrelated workflow).
 
     Args:
-     input_shape: Single tuple, `TensorShape` instance,
-       or list/dict of shapes, where shapes are tuples, integers, or
-       `TensorShape` instances.
+     input_shape: Single tuple, `TensorShape` instance, or list/dict of shapes,
+       where shapes are tuples, integers, or `TensorShape` instances.
 
     Raises:
       ValueError:
@@ -443,6 +439,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           the `Network` in training mode or inference mode.
         mask: A mask or list of masks. A mask can be either a boolean tensor or
             None (no mask). For more details, check the guide
+
             [here](https://www.tensorflow.org/guide/keras/masking_and_padding).
 
     Returns:
@@ -2369,10 +2366,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if 'layer_names' not in f.attrs and 'model_weights' in f:
           f = f['model_weights']
         if by_name:
-          hdf5_format.load_weights_from_hdf5_group_by_name(f, self, skip_mismatch)
+
+          hdf5_format.load_weights_from_hdf5_group_by_name(
+              f, self, skip_mismatch)
         else:
           hdf5_format.load_weights_from_hdf5_group(f, self)
-      
+
+
     # Perform any layer defined finalization of the layer state.
     for layer in self.layers:
       layer.finalize_state()

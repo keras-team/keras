@@ -180,7 +180,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
       line = ''
       for col in range(len(left_to_print)):
         if col > 0:
-          start_pos = positions[col-1]
+          start_pos = positions[col - 1]
         else:
           start_pos = 0
         end_pos = positions[col]
@@ -189,18 +189,20 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
         space = 2 if col != len(positions) - 1 else 0
         cutoff = end_pos - start_pos - space
         fit_into_line = left_to_print[col][:cutoff]
-        # For nicer formatting we line-break on seeing end of 
+        # For nicer formatting we line-break on seeing end of
         # tuple/dict etc.
-        line_break_conditions = ("),", "},", "],", "',")
-        candidate_cutoffs = [fit_into_line.find(x) + len(x) 
-                              for x in line_break_conditions 
-                              if fit_into_line.find(x) >= 0]
+        line_break_conditions = ('),', '},', '],', "',")
+        candidate_cutoffs = [
+            fit_into_line.find(x) + len(x)
+            for x in line_break_conditions
+            if fit_into_line.find(x) >= 0
+        ]
         if candidate_cutoffs:
           cutoff = min(candidate_cutoffs)
           fit_into_line = fit_into_line[:cutoff]
-        
+
         line += fit_into_line
-        line += ' '*space if space else ''
+        line += ' ' * space if space else ''
         left_to_print[col] = left_to_print[col][cutoff:]
 
         # Pad out to the next position

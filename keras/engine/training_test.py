@@ -3868,27 +3868,30 @@ class TestBuildCustomModel(keras_parameterized.TestCase):
     model.build({'x': [None, 16]})
     self.assertEqual(model.l1.kernel.shape.as_list(), [16, 1])
 
-  @keras_parameterized.run_all_keras_modes
-  def test_save_model_weights_h5(self):
 
+  def test_save_top_level_model_weights_h5(self):
     class MyModel(training_module.Model):
 
       def __init__(self):
         super(MyModel, self).__init__()
-        self.class_token = self.add_weight(shape=[2, 3])
+        self.class_token = self.add_weight(shape=(1,), name='class_token')
+        self.inner_layer = layers_module.Dense(1)
 
       def call(self, inputs):
-        pass
+        return self.inner_layer(inputs) * self.class_token
 
     h5_file = tempfile.mktemp('.h5')
     m1 = MyModel()
-    m1.build([None])
+    m1.build((1, 1))
     m1.save_weights(h5_file)
 
     m2 = MyModel()
-    m2.build([None])
+    m2.build((1, 1))
     m2.load_weights(h5_file)
     self.assertAllEqual(m1.get_weights(), m2.get_weights())
+    m2.load_weights(h5_file, by_name=True)
+    self.assertAllEqual(m1.get_weights(), m2.get_weights())
+
 
 class ScalarDataModelTest(keras_parameterized.TestCase):
 

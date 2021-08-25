@@ -1407,10 +1407,10 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
     recurrent_kernel: Weights for cell recurrent kernel.
     bias: Weights for cell kernel bias and recurrent bias. Only recurrent bias
       is used in this case.
-    mask: Boolean tensor for mask out the steps within sequence.
-      An individual `True` entry indicates that the corresponding timestep
-      should be utilized, while a `False` entry indicates that the corresponding
-      timestep should be ignored.
+    mask: Boolean tensor for mask out the steps within sequence. An individual
+      `True` entry indicates that the corresponding timestep should be utilized,
+      while a `False` entry indicates that the corresponding timestep should be
+      ignored.
     time_major: Boolean, whether the inputs are in the format of [time, batch,
       feature] or [batch, time, feature].
     go_backwards: Boolean (default False). If True, process the input sequence

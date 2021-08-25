@@ -121,7 +121,8 @@ class TestModelCloning(keras_parameterized.TestCase):
       self.assertGreaterEqual(len(new_model.updates), 2)
 
     # On top of new tensor  -- clone model should always have an InputLayer.
-    input_a = keras.Input(shape=(4,), name="a")
+
+    input_a = keras.Input(shape=(4,), name='a')
     new_model = clone_fn(model, input_tensors=input_a)
     self.assertIsInstance(
         list(new_model._flatten_layers(include_self=False, recursive=False))[0],
@@ -187,8 +188,8 @@ class TestModelCloning(keras_parameterized.TestCase):
     input_a = keras.Input(shape=(4,), name='a')
     input_b = keras.Input(shape=(4,), name='b')
     new_input_tensors = [input_a, input_b]
-    new_model = keras.models.clone_model(
-        model, input_tensors=new_input_tensors)
+
+    new_model = keras.models.clone_model(model, input_tensors=new_input_tensors)
     if not tf.compat.v1.executing_eagerly_outside_functions():
       self.assertLen(new_model.updates, 2)
     new_model.compile(

@@ -156,7 +156,7 @@ class StackedRNNCells(Layer):
     def get_batch_input_shape(batch_size, dim):
       shape = tf.TensorShape(dim).as_list()
       return tuple([batch_size] + shape)
-    
+
     for cell in self.cells:
       if isinstance(cell, Layer) and not cell.built:
         with backend.name_scope(cell.name):
@@ -171,12 +171,10 @@ class StackedRNNCells(Layer):
       batch_size = tf.nest.flatten(input_shape)[0]
       if tf.nest.is_nested(output_dim):
         input_shape = tf.nest.map_structure(
-                        functools.partial(get_batch_input_shape, batch_size),
-                        output_dim)
+            functools.partial(get_batch_input_shape, batch_size), output_dim)
         input_shape = tuple(input_shape)
       else:
-        input_shape = tuple([batch_size] +
-                        tf.TensorShape(output_dim).as_list())
+        input_shape = tuple([batch_size] + tf.TensorShape(output_dim).as_list())
     self.built = True
 
   def get_config(self):

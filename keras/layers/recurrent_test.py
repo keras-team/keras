@@ -904,13 +904,13 @@ class RNNTest(keras_parameterized.TestCase):
   def test_stacked_rnn_with_nested_cell(self):
     batch = 10
     t = 5
-    i1,  i2,  i3  = 3, 4, 5
+    i1, i2, i3 = 3, 4, 5
     o11, o12, o13 = 2, 3, 4
     o21, o22, o23 = 4, 5, 6
 
     # test 1: use_tuple=False
-    cells = [NestedCell(o11, o12, o13),
-             NestedCell(o21, o22, o23)]
+
+    cells = [NestedCell(o11, o12, o13), NestedCell(o21, o22, o23)]
     rnn = keras.layers.RNN(cells, return_sequences=True, return_state=True)
 
     input_1 = keras.Input((t, i1))
@@ -940,8 +940,10 @@ class RNNTest(keras_parameterized.TestCase):
     self.assertEqual(model.output_shape, [(None, t, o21), (None, t, o22, o23)])
 
     # test 2: use_tuple=True
-    cells = [NestedCell(o11, o12, o13, use_tuple=True),
-             NestedCell(o21, o22, o23)]
+    cells = [
+        NestedCell(o11, o12, o13, use_tuple=True),
+        NestedCell(o21, o22, o23)
+    ]
 
     rnn = keras.layers.RNN(cells, return_sequences=True, return_state=True)
 

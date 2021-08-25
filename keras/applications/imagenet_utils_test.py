@@ -24,6 +24,7 @@ from keras import keras_parameterized
 from keras.applications import imagenet_utils as utils
 from keras.mixed_precision.policy import set_policy
 
+
 class TestImageNetUtils(keras_parameterized.TestCase):
 
   def test_preprocess_input(self):
@@ -159,16 +160,19 @@ class TestImageNetUtils(keras_parameterized.TestCase):
       },
   ])
   def test_preprocess_input_symbolic_mixed_precision(self, mode):
-    set_policy("mixed_float16")
+
+    set_policy('mixed_float16')
+
     shape = (20, 20, 3)
     inputs = keras.layers.Input(shape=shape)
     try:
       keras.layers.Lambda(
-          lambda x: utils.preprocess_input(x, mode=mode),
-          output_shape=shape)(
+
+          lambda x: utils.preprocess_input(x, mode=mode), output_shape=shape)(
               inputs)
     finally:
-      set_policy("float32")
+      set_policy('float32')
+
 
   @parameterized.named_parameters([
       {'testcase_name': 'channels_last_format',

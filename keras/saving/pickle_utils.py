@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Saving utilities to support Python's Pickle protocol.
-"""
+
+"""Saving utilities to support Python's Pickle protocol."""
+# pylint: disable=g-bad-import-order
 
 import tensorflow.compat.v2 as tf
 
 import os
 import tarfile
-from io import BytesIO
-from uuid import uuid4
-
+import io
+import uuid
 import numpy
 
 from keras.saving import save as save_module
@@ -31,13 +31,14 @@ def deserialize_model_from_bytecode(serialized_model):
   """Reconstruct a Model from the output of `serialize_model_as_bytecode`.
 
   Args:
-      serialized_model: (np.array) return value from `serialize_model_as_bytecode`.
+      serialized_model: (np.array) return value from
+        `serialize_model_as_bytecode`.
 
   Returns:
       keras.Model: Keras Model instance.
   """
-  temp_dir = f"ram://{uuid4()}"
-  b = BytesIO(serialized_model)
+  temp_dir = f"ram://{uuid.uuid4()}"
+  b = io.BytesIO(serialized_model)
   with tarfile.open(fileobj=b, mode="r") as archive:
     for name in archive.getnames():
       dest_path = os.path.join(temp_dir, name)
@@ -61,9 +62,9 @@ def serialize_model_as_bytecode(model):
       tuple: tuple of arguments that can be sent to
           `deserialize_from_bytecode`.
   """
-  temp_dir = f"ram://{uuid4()}"
+  temp_dir = f"ram://{uuid.uuid4()}"
   model.save(temp_dir)
-  b = BytesIO()
+  b = io.BytesIO()
   with tarfile.open(fileobj=b, mode="w") as archive:
     for root, dirs, filenames in tf.io.gfile.walk(temp_dir):
       for dirname in dirs:
@@ -79,4 +80,4 @@ def serialize_model_as_bytecode(model):
           archive.addfile(tarinfo=info, fileobj=f)
   tf.io.gfile.rmtree(temp_dir)
   b.seek(0)
-  return (numpy.asarray(memoryview(b.read())), )
+  return (numpy.asarray(memoryview(b.read())),)

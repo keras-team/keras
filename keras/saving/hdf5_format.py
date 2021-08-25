@@ -426,8 +426,8 @@ def _convert_rnn_weights(layer, weights):
 
   Args:
       layer: Target layer instance.
-      weights: List of source weights values (input kernels, recurrent
-          kernels, [biases]) (Numpy arrays).
+      weights: List of source weights values (input kernels, recurrent kernels,
+        [biases]) (Numpy arrays).
 
   Returns:
       A list of converted weights values (Numpy arrays).
@@ -463,8 +463,8 @@ def _convert_rnn_weights(layer, weights):
     It can be passed to `transform_kernels()`.
 
     Args:
-        from_cudnn: `True` if source weights are in cuDNN format, `False`
-            if they're in plain Keras format.
+        from_cudnn: `True` if source weights are in cuDNN format, `False` if
+          they're in plain Keras format.
 
     Returns:
         Function that converts input kernel to the other format.
@@ -622,7 +622,7 @@ def save_subset_weights_to_hdf5_group(f, weights):
 
   Args:
       f: HDF5 group.
-      model: model instance.
+      weights: List of weight variables.
   """
   weight_values = backend.batch_get_value(weights)
   weight_names = [w.name.encode('utf8') for w in weights]
@@ -641,7 +641,7 @@ def save_weights_to_hdf5_group(f, model):
 
   Args:
       f: HDF5 group.
-      layers: List of layer instances.
+      model: Model instance.
   """
   from keras import __version__ as keras_version  # pylint: disable=g-import-not-at-top
   save_attributes_to_hdf5_group(
@@ -666,6 +666,9 @@ def load_subset_weights_from_hdf5_group(f):
   Args:
       f: A pointer to a HDF5 group.
 
+  Returns:
+      List of NumPy arrays of the weight values.
+
   Raises:
       ValueError: in case of mismatch between provided model
           and weights file.
@@ -674,12 +677,13 @@ def load_subset_weights_from_hdf5_group(f):
   return [np.asarray(f[weight_name]) for weight_name in weight_names]
 
 
+
 def load_weights_from_hdf5_group(f, model):
   """Implements topological (order-based) weight loading.
 
   Args:
       f: A pointer to a HDF5 group.
-      layers: a list of target layers.
+      model: Model instance.
 
   Raises:
       ValueError: in case of mismatch between provided layers
@@ -735,6 +739,7 @@ def load_weights_from_hdf5_group(f, model):
           f'current model, {name} in the save file). '
           f'Layer expects {len(symbolic_weights)} weight(s). Received '
           f'{len(weight_values)} saved weight(s)')
+
     weight_value_tuples += zip(symbolic_weights, weight_values)
 
   if 'top_level_model_weights' in f:
@@ -751,17 +756,15 @@ def load_weights_from_hdf5_group(f, model):
   backend.batch_set_value(weight_value_tuples)
 
 
-def load_weights_from_hdf5_group_by_name(
-    f, model, skip_mismatch=False):
-  """Implements name-based weight loading.
 
-  (instead of topological weight loading).
+def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
+  """Implements name-based weight loading (instead of topological loading).
 
   Layers that have no matching name are skipped.
 
   Args:
       f: A pointer to a HDF5 group.
-      model: a model instance.
+      model: Model instance.
       skip_mismatch: Boolean, whether to skip loading of layers
           where there is a mismatch in the number of weights,
           or a mismatch in the shape of the weights.
@@ -834,23 +837,14 @@ def load_weights_from_hdf5_group_by_name(
               f'with shape {received_shape}')
         else:
           weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
-  symbolic_weights = model._trainable_weights + model._non_trainable_weights
-  weight_values = load_subset_weights_from_hdf5_group(f['top_level_model_weights'])
-  if len(weight_values) != len(symbolic_weights):
-    if skip_mismatch:
-      logging.warning('Skipping loading of weights for '
-                      'model {}'.format(model.name) + ' due to mismatch '
-                      'in number of weights ({} vs {}).'.format(
-                          len(symbolic_weights), len(weight_values)))
-      backend.batch_set_value(weight_value_tuples)
-      return
-    raise ValueError(' (named "' + model.name +
-                      '") expects ' + str(len(symbolic_weights)) +
-                      ' weight(s), but the saved weights' + ' have ' +
-                      str(len(weight_values)) + ' element(s).')
-  # Set values.
-  for i in range(len(weight_values)):
-    if backend.int_shape(symbolic_weights[i]) != weight_values[i].shape:
+
+
+  if 'top_level_model_weights' in f:
+    symbolic_weights = model._trainable_weights + model._non_trainable_weights
+    weight_values = load_subset_weights_from_hdf5_group(
+        f['top_level_model_weights'])
+
+    if len(weight_values) != len(symbolic_weights):
       if skip_mismatch:
         logging.warning(
             f'Skipping loading top-level weights for model due to mismatch '
