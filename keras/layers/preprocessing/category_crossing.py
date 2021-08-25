@@ -27,10 +27,13 @@ from tensorflow.python.util.tf_export import keras_export
 
 @keras_export('keras.layers.experimental.preprocessing.CategoryCrossing')
 class CategoryCrossing(base_layer.Layer):
-  """Category crossing layer.
+  """A preprocessing layer which crosses categorical features.
 
   This layer concatenates multiple categorical inputs into a single categorical
   output (similar to Cartesian product). The output dtype is string.
+
+  For an overview and full list of preprocessing layers, see the preprocessing
+  [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Usage:
   >>> inp_1 = ['a', 'b', 'c']

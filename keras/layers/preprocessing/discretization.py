@@ -123,11 +123,14 @@ def get_bin_boundaries(summary, num_bins):
 @keras_export("keras.layers.Discretization",
               "keras.layers.experimental.preprocessing.Discretization")
 class Discretization(base_preprocessing_layer.PreprocessingLayer):
-  """Buckets data into discrete ranges.
+  """A preprocessing layer which buckets continuous features by ranges.
 
   This layer will place each element of its input data into one of several
   contiguous ranges and output an integer index indicating which range each
   element was placed in.
+
+  For an overview and full list of preprocessing layers, see the preprocessing
+  [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Input shape:
     Any `tf.Tensor` or `tf.RaggedTensor` of dimension 2 or higher.
