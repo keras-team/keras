@@ -17,7 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
-
+import numpy as np
 import keras
 from keras import combinations
 from keras.utils import tf_utils
@@ -227,6 +227,27 @@ class TestIsExtensionType(tf.test.TestCase):
   def test_is_extension_type_return_false_for_list(self):
     tensor = [1., 2., 3.]
     self.assertFalse(tf_utils.is_extension_type(tensor))
+
+
+class TestRandomSeedSetting(tf.test.TestCase):
+
+  def test_seeds(self):
+    def get_model_output():
+      model = keras.Sequential([
+          keras.layers.Dense(10),
+          keras.layers.Dropout(0.5),
+          keras.layers.Dense(10),
+      ])
+      x = np.random.random((32, 10)).astype('float32')
+      ds = tf.data.Dataset.from_tensor_slices(x).shuffle(32).batch(16)
+      return model.predict(ds)
+
+    tf_utils.set_random_seed(42)
+    y1 = get_model_output()
+    tf_utils.set_random_seed(42)
+    y2 = get_model_output()
+    self.assertAllClose(y1, y2, atol=1e-6)
+
 
 if __name__ == '__main__':
   tf.test.main()
