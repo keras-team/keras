@@ -192,7 +192,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                        f"Received: output_mode={output_mode}")
 
     if sparse and output_mode == INT:
-      raise ValueError(f"`sparse` must not be true if `output_mode` is "
+      raise ValueError(f"`sparse` may only be true if `output_mode` is "
                        f"`'one_hot'`, `'multi_hot'`, `'count'` or `'tf_idf'`. "
                        f"Received: sparse={sparse} and "
                        f"output_mode={output_mode}")
