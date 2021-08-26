@@ -463,7 +463,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     Example:
 
     ```python
-    model.compile(optimizer=tf.keras.optimizer.Adam(learning_rate=1e-3),
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
                   loss=tf.keras.losses.BinaryCrossentropy(),
                   metrics=[tf.keras.metrics.BinaryAccuracy(),
                            tf.keras.metrics.FalseNegatives()])
