@@ -61,20 +61,25 @@ Reference:
       https://arxiv.org/abs/1704.04861)
 """
 
-import tensorflow.compat.v2 as tf
-
 from keras import backend
 from keras.applications import imagenet_utils
 from keras.engine import training
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHT_PATH = ('https://storage.googleapis.com/tensorflow/'
                     'keras-applications/mobilenet/')
 layers = None
+
+# Check if layer_override is used. If used, we will pass the full pointwise
+# Conv2D filter size to layer_override to avoid alpha value to be
+# multiplied twice.
+layers_override_enabled = False
 
 
 @keras_export('keras.applications.mobilenet.MobileNet',
@@ -160,8 +165,11 @@ def MobileNet(input_shape=None,
     A `keras.Model` instance.
   """
   global layers
+  global layers_override_enabled
+
   if 'layers' in kwargs:
     layers = kwargs.pop('layers')
+    layers_override_enabled = True
   else:
     layers = VersionAwareLayers()
   if kwargs:
@@ -407,7 +415,12 @@ def _depthwise_conv_block(inputs,
     Output tensor of block.
   """
   channel_axis = 1 if backend.image_data_format() == 'channels_first' else -1
-  pointwise_conv_filters = int(pointwise_conv_filters * alpha)
+
+  # if layers_override_enabled=True, we feed the full pointwise_conv_filters
+  # value to layers.Conv2D because layers.Conv2D multiplies filter size with
+  # alpha
+  if not layers_override_enabled:
+    pointwise_conv_filters = int(pointwise_conv_filters * alpha)
 
   if strides == (1, 1):
     x = inputs
