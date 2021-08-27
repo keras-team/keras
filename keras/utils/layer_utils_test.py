@@ -14,6 +14,7 @@
 # ==============================================================================
 """Tests for layer_utils."""
 
+import keras
 import tensorflow.compat.v2 as tf
 
 import collections
@@ -24,7 +25,6 @@ import time
 import timeit
 
 import numpy as np
-
 from keras.utils import layer_utils
 
 
@@ -46,6 +46,70 @@ class MyPickleableObject(tf.__internal__.tracking.AutoTrackable):
 
 
 class LayerUtilsTest(tf.test.TestCase):
+
+  def test_print_summary(self):
+    model = keras.Sequential()
+    model.add(
+        keras.layers.Conv2D(
+            filters=2, kernel_size=(2, 3), input_shape=(3, 5, 5), name='conv'))
+    model.add(keras.layers.Flatten(name='flat'))
+    model.add(keras.layers.Dense(5, name='dense'))
+
+    file_name = 'model_1.txt'
+    writer = open(file_name, 'w')
+
+    def print_to_file(text, end="\n"):
+      print(text, end=end, file=writer)
+    try:
+      layer_utils.print_summary(model,
+                                print_fn=print_to_file)
+      self.assertTrue(tf.io.gfile.exists(file_name))
+      writer.close()
+      reader = open(file_name, 'r')
+      lines = reader.readlines()
+      reader.close()
+      self.assertEquals(len(lines), 15)
+      tf.io.gfile.remove(file_name)
+
+    except ImportError:
+      pass
+
+  def test_print_summary_expand_nested(self):
+    inputs = keras.Input(shape=(None, 3))
+    lstm = keras.layers.LSTM(6, return_sequences=True, name='lstm')
+    x = lstm(inputs)
+    # Add layer inside a Wrapper
+    bilstm = keras.layers.Bidirectional(
+        keras.layers.LSTM(16, return_sequences=True, name='bilstm'))
+    x = bilstm(x)
+    # Add model inside a Wrapper
+    submodel = keras.Sequential(
+        [keras.layers.Dense(32, name='dense', input_shape=(None, 32))]
+    )
+    wrapped_dense = keras.layers.TimeDistributed(submodel)
+    x = wrapped_dense(x)
+    # Add shared submodel
+    outputs = submodel(x)
+    model = keras.Model(inputs, outputs)
+
+    file_name = 'model_2.txt'
+    writer = open(file_name, 'w')
+
+    def print_to_file(text, end="\n"):
+      print(text, end=end, file=writer)
+    try:
+      layer_utils.print_summary(model,
+                                print_fn=print_to_file, expand_nested=True)
+      self.assertTrue(tf.io.gfile.exists(file_name))
+      writer.close()
+      reader = open(file_name, 'r')
+      lines = reader.readlines()
+      reader.close()
+      self.assertEquals(len(lines), 23)
+      tf.io.gfile.remove(file_name)
+
+    except ImportError:
+      pass
 
   def test_property_cache(self):
     test_counter = collections.Counter()
@@ -76,7 +140,8 @@ class LayerUtilsTest(tf.test.TestCase):
     self.assertEqual(second_object.test_property, id(second_object))
 
     # Make sure the cache does not share across objects
-    self.assertNotEqual(first_object.test_property, second_object.test_property)
+    self.assertNotEqual(first_object.test_property,
+                        second_object.test_property)
 
     # Check again (Now the values should be cached.)
     self.assertEqual(first_object.test_property, id(first_object))
