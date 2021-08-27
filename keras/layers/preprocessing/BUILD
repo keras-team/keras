@@ -292,6 +292,7 @@ distribute_py_test(
         ":preprocessing_test_utils",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras:backend",
         "//keras/distribute:strategy_combinations",
     ],
 )
@@ -313,6 +314,7 @@ distribute_py_test(
         ":preprocessing_test_utils",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras:backend",
         "//keras/distribute:strategy_combinations",
     ],
 )
