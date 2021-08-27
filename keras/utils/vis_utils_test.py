@@ -105,7 +105,12 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
     except ImportError:
       pass
 
-  def test_plot_model_cnn_with_activations(self):
+  @parameterized.parameters(
+      {'show_shapes': False, 'show_dtype': False},
+      {'show_shapes': False, 'show_dtype': True},
+      {'show_shapes': True, 'show_dtype': False},
+      {'show_shapes': True, 'show_dtype': True})
+  def test_plot_model_cnn_with_activations(self, show_shapes, show_dtype):
     model = keras.Sequential()
     model.add(
         keras.layers.Conv2D(
@@ -120,8 +125,8 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
       vis_utils.plot_model(
           model,
           to_file=dot_img_file,
-          show_shapes=True,
-          show_dtype=True,
+          show_shapes=show_shapes,
+          show_dtype=show_dtype,
           show_layer_activations=True)
       self.assertTrue(tf.io.gfile.exists(dot_img_file))
       tf.io.gfile.remove(dot_img_file)
