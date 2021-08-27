@@ -403,6 +403,7 @@ for ragged_method_name in [
 for sparse_property in [
     'indices',
     'values',
+    'dense_shape',
 ]:
   _delegate_property(keras_tensor.SparseKerasTensor, sparse_property)
 
