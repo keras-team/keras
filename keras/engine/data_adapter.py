@@ -30,6 +30,7 @@ from keras.engine import training_utils
 from keras.utils import data_utils
 from keras.utils import dataset_creator
 from keras.utils import tf_utils
+from tensorflow.python.framework import type_spec
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -815,15 +816,10 @@ class GeneratorDataAdapter(DataAdapter):
 
     self._first_batch_size = int(tf.nest.flatten(peek)[0].shape[0])
 
-    def _get_dynamic_shape(t):
-      shape = t.shape
-      # Unknown number of dimensions, `as_list` cannot be called.
-      if shape.rank is None:
-        return shape
-      return tf.TensorShape([None for _ in shape.as_list()])
+    def _get_tensor_spec(t):
+      return type_spec._type_spec_from_value(t)._with_tensor_ranks_only()
 
-    output_shapes = tf.nest.map_structure(_get_dynamic_shape, peek)
-    output_types = tf.nest.map_structure(lambda t: t.dtype, peek)
+    output_signature = nest.map_structure(_get_tensor_spec, peek)
 
     # Note that dataset API takes a callable that creates a generator object,
     # rather than generator itself, which is why we define a function here.
@@ -835,7 +831,7 @@ class GeneratorDataAdapter(DataAdapter):
         yield self._standardize_batch(data)
 
     dataset = tf.data.Dataset.from_generator(
-        wrapped_generator, output_types, output_shapes=output_shapes)
+        wrapped_generator, output_signature=output_signature)
 
     if workers == 1 and not use_multiprocessing:
       dataset = dataset.prefetch(1)
