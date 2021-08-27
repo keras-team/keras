@@ -1630,6 +1630,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     `tf.keras.layers.BatchNormalization` that behaves differently during
     inference. Also, note the fact that test loss is not affected by
     regularization layers like noise and dropout.
+    
+    Note: `model.predict(x)` returns a numpy array whereas `model(x)` returns a
+    `tf.Tensor`. However, numpy array can be accessed through
+    `model(x).numpy()`. 
 
     Args:
         x: Input samples. It could be:
