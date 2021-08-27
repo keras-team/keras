@@ -290,7 +290,7 @@ def model_to_dot(model,
             [format_shape(ishape) for ishape in layer.input_shapes])
       else:
         inputlabels = '?'
-      label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label,
+      label = '%s|{input:|output:}|{{%s}|{%s}}' % (label,
                                                      inputlabels,
                                                      outputlabels)
 
