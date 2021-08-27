@@ -1110,6 +1110,16 @@ class ListsOfScalarsDataAdapterTest(DataAdapterTestBase):
     self.assertFalse(self.adapter_cls.can_handle([]))
 
 
+class TestDataAdapterUtils(DataAdapterTestBase):
+
+  def test_unpack_x_y_sample_weight_with_tuple_and_list(self):
+    tuple_version = data_adapter.unpack_x_y_sample_weight(
+        (self.tensor_input, self.tensor_target))
+    list_version = data_adapter.unpack_x_y_sample_weight(
+        [self.tensor_input, self.tensor_target])
+    self.assertEqual(tuple_version, list_version)
+
+
 if __name__ == '__main__':
   tf.compat.v1.enable_eager_execution()
   tf.test.main()

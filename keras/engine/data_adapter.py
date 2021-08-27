@@ -1074,7 +1074,8 @@ def broadcast_sample_weight_modes(target_structure, sample_weight_modes):
           training_utils.list_to_tuple(sample_weight_modes))
     except (ValueError, TypeError):
       target_str = str(tf.nest.map_structure(lambda _: "...", target_structure))
-      mode_str = str(tf.nest.map_structure(lambda _: "...", sample_weight_modes))
+      mode_str = str(
+          tf.nest.map_structure(lambda _: "...", sample_weight_modes))
 
       # Attempt to coerce sample_weight_modes to the target structure. This
       # implicitly depends on the fact that Model flattens outputs for its
@@ -1564,6 +1565,8 @@ def unpack_x_y_sample_weight(data):
     The unpacked tuple, with `None`s for `y` and `sample_weight` if they are not
     provided.
   """
+  if isinstance(data, list):
+    data = tuple(data)
   if not isinstance(data, tuple):
     return (data, None, None)
   elif len(data) == 1:
@@ -1648,7 +1651,8 @@ def _check_data_cardinality(data):
     msg = "Data cardinality is ambiguous:\n"
     for label, single_data in zip(["x", "y", "sample_weight"], data):
       msg += "  {} sizes: {}\n".format(
-          label, ", ".join(str(i.shape[0]) for i in tf.nest.flatten(single_data)))
+          label, ", ".join(str(i.shape[0])
+                           for i in tf.nest.flatten(single_data)))
     msg += "Make sure all arrays contain the same number of samples."
     raise ValueError(msg)
 
