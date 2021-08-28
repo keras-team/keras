@@ -68,29 +68,28 @@ class LayerUtilsTest(tf.test.TestCase):
       reader = open(file_name, 'r')
       lines = reader.readlines()
       reader.close()
-      self.assertEquals(len(lines), 15)
+      self.assertEqual(len(lines), 15)
       tf.io.gfile.remove(file_name)
 
     except ImportError:
       pass
 
   def test_print_summary_expand_nested(self):
-    inputs = keras.Input(shape=(None, 3))
-    lstm = keras.layers.LSTM(6, return_sequences=True, name='lstm')
-    x = lstm(inputs)
-    # Add layer inside a Wrapper
-    bilstm = keras.layers.Bidirectional(
-        keras.layers.LSTM(16, return_sequences=True, name='bilstm'))
-    x = bilstm(x)
-    # Add model inside a Wrapper
-    submodel = keras.Sequential(
-        [keras.layers.Dense(32, name='dense', input_shape=(None, 32))]
-    )
-    wrapped_dense = keras.layers.TimeDistributed(submodel)
-    x = wrapped_dense(x)
-    # Add shared submodel
-    outputs = submodel(x)
-    model = keras.Model(inputs, outputs)
+    shape = (None, None, 3)
+
+    def BNModel():
+        x = inputs = keras.Input(shape)
+        x = keras.layers.Conv2D(3, 1)(x)
+        x = keras.layers.BatchNormalization()(x)
+        return keras.Model(inputs, x)
+
+    x = inner_inputs = keras.Input(shape)
+    x = BNModel()(x)
+    x = BNModel()(x)
+    inner_model = keras.Model(inner_inputs, x)
+
+    inputs = keras.Input(shape)
+    model = keras.Model(inputs, inner_model(inputs))
 
     file_name = 'model_2.txt'
     writer = open(file_name, 'w')
@@ -105,7 +104,7 @@ class LayerUtilsTest(tf.test.TestCase):
       reader = open(file_name, 'r')
       lines = reader.readlines()
       reader.close()
-      self.assertEquals(len(lines), 23)
+      self.assertEqual(len(lines), 34)
       tf.io.gfile.remove(file_name)
 
     except ImportError:
@@ -113,30 +112,51 @@ class LayerUtilsTest(tf.test.TestCase):
 
   def test_summary_subclass_model_expand_nested(self):
 
-    class SampleModel(tf.keras.Model):
+    class Sequential(keras.Model):
+      def __init__(self, *args):
+          super(Sequential, self).__init__()
+          self.module_list = list(args) if args else []
 
-      def __init__(self, classes, backbone_model, *args, **kwargs):
-          super(SampleModel, self).__init__(self, args, kwargs)
-          self.backbone = backbone_model
-          self.classify_layer = keras.layers.Dense(
-              classes, activation='sigmoid')
-
-      def my_process_layers(self, inputs):
-          layers = self.backbone.layers
-          tmp_x = inputs
-          for i in range(1, len(layers)):
-              tmp_x = layers[i](tmp_x)
-          return tmp_x
-
-      def call(self, inputs):
-          x = self.my_process_layers(inputs)
-          x = self.classify_layer(x)
+      def call(self, x):
+          for module in self.module_list:
+              x = module(x)
           return x
 
-    inputs = keras.Input(shape=(224, 224, 3))
-    model = SampleModel(inputs=inputs, classes=61,
-                        backbone_model=tf.keras.applications.MobileNet())
-    model.build(input_shape=(20, 224, 224, 3))
+    class Block(keras.Model):
+        def __init__(self):
+            super(Block, self).__init__()
+            self.module = Sequential(
+                    keras.layers.Dense(10),
+                    keras.layers.Dense(10),)
+
+        def call(self, input_tensor):
+            x = self.module(input_tensor)
+            return x
+
+    class Base(keras.Model):
+        def __init__(self):
+            super(Base, self).__init__()
+            self.module = Sequential(
+                    Block(),
+                    Block())
+
+        def call(self, input_tensor):
+            x = self.module(input_tensor)
+            y = self.module(x)
+            return x, y
+
+    class Network(keras.Model):
+        def __init__(self):
+            super(Network, self).__init__()
+            self.child = Base()
+
+        def call(self, inputs):
+            return self.child(inputs)
+
+    net = Network()
+    inputs = keras.Input(shape=(10, ))
+    outputs = net(inputs)
+    model = keras.models.Model(inputs=inputs, outputs=outputs)
 
     file_name = 'model_3.txt'
     writer = open(file_name, 'w')
@@ -151,7 +171,7 @@ class LayerUtilsTest(tf.test.TestCase):
       reader = open(file_name, 'r')
       lines = reader.readlines()
       reader.close()
-      self.assertEquals(len(lines), 197)
+      self.assertEqual(len(lines), 39)
       tf.io.gfile.remove(file_name)
 
     except ImportError:
