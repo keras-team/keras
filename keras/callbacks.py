@@ -2393,7 +2393,6 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
   def on_train_begin(self, logs=None):
     self._global_train_batch = 0
     self._previous_epoch_iterations = 0
-    self._train_accumulated_time = 0
     self._push_writer(self._train_writer, self._train_step)
 
   def on_train_end(self, logs=None):
@@ -2438,7 +2437,6 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
       self._should_write_train_graph = False
     if self.write_steps_per_second:
       batch_run_time = time.time() - self._batch_start_time
-      self._train_accumulated_time += batch_run_time
       tf.summary.scalar(
           'batch_steps_per_second', 1. / batch_run_time, step=self._train_step)
     if not self._should_trace:
@@ -2451,7 +2449,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     # Keeps track of epoch for profiling.
     if self.write_steps_per_second:
       self._previous_epoch_iterations = self.model.optimizer.iterations.numpy()
-      self._train_accumulated_time = 0
+      self._epoch_start_time = time.time()
 
   def on_epoch_end(self, epoch, logs=None):
     """Runs metrics and histogram summaries at epoch end."""
@@ -2487,8 +2485,9 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   def _compute_steps_per_second(self):
     current_iteration = self.model.optimizer.iterations.numpy()
+    time_since_epoch_begin = time.time() - self._epoch_start_time
     steps_per_second = ((current_iteration - self._previous_epoch_iterations) /
-                        (self._train_accumulated_time))
+                        time_since_epoch_begin)
     return steps_per_second
 
   def _log_epoch_metrics(self, epoch, logs):
