@@ -111,6 +111,52 @@ class LayerUtilsTest(tf.test.TestCase):
     except ImportError:
       pass
 
+  def test_summary_subclass_model_expand_nested(self):
+
+    class SampleModel(tf.keras.Model):
+
+      def __init__(self, classes, backbone_model, *args, **kwargs):
+          super(SampleModel, self).__init__(self, args, kwargs)
+          self.backbone = backbone_model
+          self.classify_layer = keras.layers.Dense(
+              classes, activation='sigmoid')
+
+      def my_process_layers(self, inputs):
+          layers = self.backbone.layers
+          tmp_x = inputs
+          for i in range(1, len(layers)):
+              tmp_x = layers[i](tmp_x)
+          return tmp_x
+
+      def call(self, inputs):
+          x = self.my_process_layers(inputs)
+          x = self.classify_layer(x)
+          return x
+
+    inputs = keras.Input(shape=(224, 224, 3))
+    model = SampleModel(inputs=inputs, classes=61,
+                        backbone_model=tf.keras.applications.MobileNet())
+    model.build(input_shape=(20, 224, 224, 3))
+
+    file_name = 'model_3.txt'
+    writer = open(file_name, 'w')
+
+    def print_to_file(text, end="\n"):
+      print(text, end=end, file=writer)
+    try:
+      layer_utils.print_summary(model, line_length=120,
+                                print_fn=print_to_file, expand_nested=True)
+      self.assertTrue(tf.io.gfile.exists(file_name))
+      writer.close()
+      reader = open(file_name, 'r')
+      lines = reader.readlines()
+      reader.close()
+      self.assertEquals(len(lines), 197)
+      tf.io.gfile.remove(file_name)
+
+    except ImportError:
+      pass
+
   def test_property_cache(self):
     test_counter = collections.Counter()
 
