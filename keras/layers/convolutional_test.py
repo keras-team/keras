@@ -1004,7 +1004,7 @@ class CroppingTest(keras_parameterized.TestCase):
     with self.cached_session():
       testing_utils.layer_test(
           keras.layers.Cropping1D,
-          kwargs={'cropping': (2, 2)},
+          kwargs={'cropping': (1, 1)},
           input_shape=inputs.shape)
 
     # test incorrect use
@@ -1012,6 +1012,10 @@ class CroppingTest(keras_parameterized.TestCase):
       keras.layers.Cropping1D(cropping=(1, 1, 1))
     with self.assertRaises(ValueError):
       keras.layers.Cropping1D(cropping=None)
+    with self.assertRaises(ValueError):
+      input_layer = keras.layers.Input(
+          shape=(num_samples, time_length, input_len_dim1))
+      keras.layers.Cropping1D(cropping=(2, 3))(input_layer)
 
   def test_cropping_2d(self):
     num_samples = 2
