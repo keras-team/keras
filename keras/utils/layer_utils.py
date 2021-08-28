@@ -284,7 +284,7 @@ def print_summary(model, line_length=None, positions=None,
     else:
       print_layer_summary_with_connections(layer, nested_level)
 
-    if expand_nested and isinstance(layer, type(model)) and layer.layers:
+    if expand_nested and hasattr(layer, 'layers') and layer.layers:
       print_fn('|' * (nested_level + 1) +
                '¯' * (line_length - 2 * nested_level - 2) +
                '|' * (nested_level + 1))
