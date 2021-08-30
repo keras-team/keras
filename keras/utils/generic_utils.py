@@ -499,10 +499,12 @@ def serialize_keras_object(instance):
                       or (hasattr(instance, 'compute_mask')
                           and not is_default(instance.compute_mask)))
   if supports_masking and is_default(instance.get_config):
-    warnings.warn('Custom mask layers require a config and must override '
-                  'get_config. When loading, the custom mask layer must be '
-                  'passed to the custom_objects argument.',
-                  category=CustomMaskWarning)
+    warnings.warn(
+        'Custom mask layers require a config and must override '
+        'get_config. When loading, the custom mask layer must be '
+        'passed to the custom_objects argument.',
+        category=CustomMaskWarning,
+        stacklevel=2)
   # pylint: enable=protected-access
 
   if hasattr(instance, 'get_config'):

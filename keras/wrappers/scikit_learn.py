@@ -197,8 +197,8 @@ class KerasClassifier(BaseWrapper):
     warnings.warn(
         'KerasClassifier is deprecated, '
         'use Sci-Keras (https://github.com/adriangb/scikeras) instead.',
-        DeprecationWarning
-    )
+        DeprecationWarning,
+        stacklevel=2)
     super().__init__(build_fn, **sk_params)
 
   def fit(self, x, y, **kwargs):
@@ -334,8 +334,8 @@ class KerasRegressor(BaseWrapper):
     warnings.warn(
         'KerasRegressor is deprecated, '
         'use Sci-Keras (https://github.com/adriangb/scikeras) instead.',
-        DeprecationWarning
-    )
+        DeprecationWarning,
+        stacklevel=2)
     super().__init__(build_fn, **sk_params)
 
   def predict(self, x, **kwargs):
