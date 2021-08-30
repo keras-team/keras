@@ -260,9 +260,11 @@ def conv1d(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.conv1d` is deprecated and '
-                'will be removed in a future version. '
-                'Please Use `tf.keras.layers.Conv1D` instead.')
+  warnings.warn(
+      '`tf.layers.conv1d` is deprecated and '
+      'will be removed in a future version. '
+      'Please Use `tf.keras.layers.Conv1D` instead.',
+      stacklevel=2)
   layer = Conv1D(
       filters=filters,
       kernel_size=kernel_size,
@@ -533,9 +535,11 @@ def conv2d(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.conv2d` is deprecated and '
-                'will be removed in a future version. '
-                'Please Use `tf.keras.layers.Conv2D` instead.')
+  warnings.warn(
+      '`tf.layers.conv2d` is deprecated and '
+      'will be removed in a future version. '
+      'Please Use `tf.keras.layers.Conv2D` instead.',
+      stacklevel=2)
   layer = Conv2D(
       filters=filters,
       kernel_size=kernel_size,
@@ -808,9 +812,11 @@ def conv3d(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.conv3d` is deprecated and '
-                'will be removed in a future version. '
-                'Please Use `tf.keras.layers.Conv3D` instead.')
+  warnings.warn(
+      '`tf.layers.conv3d` is deprecated and '
+      'will be removed in a future version. '
+      'Please Use `tf.keras.layers.Conv3D` instead.',
+      stacklevel=2)
   layer = Conv3D(
       filters=filters,
       kernel_size=kernel_size,
@@ -1241,9 +1247,11 @@ def separable_conv1d(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.separable_conv1d` is deprecated and '
-                'will be removed in a future version. '
-                'Please Use `tf.keras.layers.SeparableConv1D` instead.')
+  warnings.warn(
+      '`tf.layers.separable_conv1d` is deprecated and '
+      'will be removed in a future version. '
+      'Please Use `tf.keras.layers.SeparableConv1D` instead.',
+      stacklevel=2)
   layer = SeparableConv1D(
       filters=filters,
       kernel_size=kernel_size,
@@ -1402,9 +1410,11 @@ def separable_conv2d(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.separable_conv2d` is deprecated and '
-                'will be removed in a future version. '
-                'Please Use `tf.keras.layers.SeparableConv2D` instead.')
+  warnings.warn(
+      '`tf.layers.separable_conv2d` is deprecated and '
+      'will be removed in a future version. '
+      'Please Use `tf.keras.layers.SeparableConv2D` instead.',
+      stacklevel=2)
   layer = SeparableConv2D(
       filters=filters,
       kernel_size=kernel_size,
@@ -1657,9 +1667,11 @@ def conv2d_transpose(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.conv2d_transpose` is deprecated and '
-                'will be removed in a future version. '
-                'Please Use `tf.keras.layers.Conv2DTranspose` instead.')
+  warnings.warn(
+      '`tf.layers.conv2d_transpose` is deprecated and '
+      'will be removed in a future version. '
+      'Please Use `tf.keras.layers.Conv2DTranspose` instead.',
+      stacklevel=2)
   layer = Conv2DTranspose(
       filters=filters,
       kernel_size=kernel_size,
@@ -1898,9 +1910,11 @@ def conv3d_transpose(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.conv3d_transpose` is deprecated and '
-                'will be removed in a future version. '
-                'Please Use `tf.keras.layers.Conv3DTranspose` instead.')
+  warnings.warn(
+      '`tf.layers.conv3d_transpose` is deprecated and '
+      'will be removed in a future version. '
+      'Please Use `tf.keras.layers.Conv3DTranspose` instead.',
+      stacklevel=2)
   layer = Conv3DTranspose(
       filters=filters,
       kernel_size=kernel_size,

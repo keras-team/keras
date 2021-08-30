@@ -114,10 +114,12 @@ def export_saved_model(model,
     ValueError: If the input signature cannot be inferred from the model.
     AssertionError: If the SavedModel directory already exists and isn't empty.
   """
-  warnings.warn('`tf.keras.experimental.export_saved_model` is deprecated'
-                'and will be removed in a future version. '
-                'Please use `model.save(..., save_format="tf")` or '
-                '`tf.keras.models.save_model(..., save_format="tf")`.')
+  warnings.warn(
+      '`tf.keras.experimental.export_saved_model` is deprecated'
+      'and will be removed in a future version. '
+      'Please use `model.save(..., save_format="tf")` or '
+      '`tf.keras.models.save_model(..., save_format="tf")`.',
+      stacklevel=2)
   if serving_only:
     tf.saved_model.save(
         model,
@@ -398,9 +400,11 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
   Returns:
     a keras.Model instance.
   """
-  warnings.warn('`tf.keras.experimental.load_from_saved_model` is deprecated'
-                'and will be removed in a future version. '
-                'Please switch to `tf.keras.models.load_model`.')
+  warnings.warn(
+      '`tf.keras.experimental.load_from_saved_model` is deprecated'
+      'and will be removed in a future version. '
+      'Please switch to `tf.keras.models.load_model`.',
+      stacklevel=2)
   # restore model topology from json string
   model_json_filepath = os.path.join(
       tf.compat.as_bytes(saved_model_path),

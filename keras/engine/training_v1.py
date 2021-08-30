@@ -1225,9 +1225,11 @@ class Model(training_lib.Model):
       `Model.fit` now supports generators, so there is no longer any need to use
       this endpoint.
     """
-    warnings.warn('`model.fit_generator` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `Model.fit`, which supports generators.')
+    warnings.warn(
+        '`model.fit_generator` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `Model.fit`, which supports generators.',
+        stacklevel=2)
     return self.fit(
         generator,
         steps_per_epoch=steps_per_epoch,
@@ -1258,9 +1260,11 @@ class Model(training_lib.Model):
       `Model.evaluate` now supports generators, so there is no longer any need
       to use this endpoint.
     """
-    warnings.warn('`Model.evaluate_generator` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `Model.evaluate`, which supports generators.')
+    warnings.warn(
+        '`Model.evaluate_generator` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `Model.evaluate`, which supports generators.',
+        stacklevel=2)
     self._check_call_args('evaluate_generator')
 
     return self.evaluate(
@@ -1286,9 +1290,11 @@ class Model(training_lib.Model):
       `Model.predict` now supports generators, so there is no longer any need
       to use this endpoint.
     """
-    warnings.warn('`Model.predict_generator` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `Model.predict`, which supports generators.')
+    warnings.warn(
+        '`Model.predict_generator` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `Model.predict`, which supports generators.',
+        stacklevel=2)
     return self.predict(
         generator,
         steps=steps,
