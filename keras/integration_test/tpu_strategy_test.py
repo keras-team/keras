@@ -19,7 +19,7 @@ import tempfile
 
 from absl import flags
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from tensorflow.python.framework import test_util
 
 FLAGS = flags.FLAGS

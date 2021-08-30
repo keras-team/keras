@@ -18,7 +18,7 @@ import tempfile
 
 from absl import flags
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 import tensorflow_text as tf_text
 
 
