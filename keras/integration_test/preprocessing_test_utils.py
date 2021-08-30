@@ -16,7 +16,7 @@
 
 import os
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 preprocessing = tf.keras.layers
 
 BATCH_SIZE = 64

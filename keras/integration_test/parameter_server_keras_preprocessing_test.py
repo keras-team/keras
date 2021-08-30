@@ -22,7 +22,7 @@ import tempfile
 from absl.testing import parameterized
 import numpy as np
 import portpicker
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 
 # These vocabularies usually come from TFT or a Beam pipeline.
