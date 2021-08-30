@@ -22,7 +22,7 @@ import numpy as np
 import keras
 from keras import keras_parameterized
 from keras.applications import imagenet_utils as utils
-from keras.mixed_precision.policy import set_policy
+from keras.mixed_precision.policy import set_global_policy
 
 
 class TestImageNetUtils(keras_parameterized.TestCase):
@@ -160,7 +160,7 @@ class TestImageNetUtils(keras_parameterized.TestCase):
       },
   ])
   def test_preprocess_input_symbolic_mixed_precision(self, mode):
-    set_policy('mixed_float16')
+    set_global_policy('mixed_float16')
     shape = (20, 20, 3)
     inputs = keras.layers.Input(shape=shape)
     try:
@@ -168,7 +168,7 @@ class TestImageNetUtils(keras_parameterized.TestCase):
           lambda x: utils.preprocess_input(x, mode=mode), output_shape=shape)(
               inputs)
     finally:
-      set_policy('float32')
+      set_global_policy('float32')
 
   @parameterized.named_parameters([
       {'testcase_name': 'channels_last_format',
