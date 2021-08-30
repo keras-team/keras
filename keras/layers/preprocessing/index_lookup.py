@@ -741,9 +741,9 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       return tf.lookup.StaticHashTable(initializer, self._default_value)
 
   def _standardize_inputs(self, inputs, dtype):
-    if isinstance(inputs, (list, tuple, np.ndarray)):
-      inputs = tf.convert_to_tensor(inputs)
-    if inputs.dtype != dtype:
+    if not isinstance(inputs, (tf.Tensor, tf.RaggedTensor, tf.SparseTensor)):
+      inputs = tf.convert_to_tensor(inputs, dtype)
+    elif inputs.dtype != dtype:
       inputs = tf.cast(inputs, dtype)
     return inputs
 
