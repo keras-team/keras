@@ -245,7 +245,10 @@ class TestDistributionStrategyDnnCorrectness(tf.test.TestCase,
       tf.__internal__.test.combinations.combine(
           distribution=[
               tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+              tf.__internal__.distribute.combinations
+              .mirrored_strategy_with_two_gpus,
+              tf.__internal__.distribute.combinations
+              .multi_worker_mirrored_2x1_gpu_noshare,
           ],
           optimizer_fn=[
               optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
