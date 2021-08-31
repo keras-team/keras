@@ -354,7 +354,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         raise ValueError("Expected {} >= 0, received: {}".format(k, kwargs[k]))
       if k == "lr":
         warnings.warn(
-            "The `lr` argument is deprecated, use `learning_rate` instead.")
+            "The `lr` argument is deprecated, use `learning_rate` instead.",
+            stacklevel=2)
 
     self._use_locking = True
     self._init_set_name(name)

@@ -16,7 +16,7 @@
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 from keras import activations
-from keras import backend as K
+from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
@@ -128,7 +128,7 @@ class Dense(Layer):
     self.supports_masking = True
 
   def build(self, input_shape):
-    dtype = tf.as_dtype(self.dtype or K.floatx())
+    dtype = tf.as_dtype(self.dtype or backend.floatx())
     if not (dtype.is_floating or dtype.is_complex):
       raise TypeError('A Dense layer can only be built with a floating-point '
                       f'dtype. Received: dtype={dtype}')

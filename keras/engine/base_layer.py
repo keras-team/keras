@@ -1392,9 +1392,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   @property
   @doc_controls.do_not_generate_docs
   def updates(self):
-    warnings.warn('`layer.updates` will be removed in a future version. '
-                  'This property should not be used in TensorFlow 2.0, '
-                  'as `updates` are applied automatically.')
+    warnings.warn(
+        '`layer.updates` will be removed in a future version. '
+        'This property should not be used in TensorFlow 2.0, '
+        'as `updates` are applied automatically.',
+        stacklevel=2)
     return []
 
   @property
@@ -1925,9 +1927,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     Returns:
       List of update ops of the layer that depend on `inputs`.
     """
-    warnings.warn('`layer.get_updates_for` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.updates` method instead.')
+    warnings.warn(
+        '`layer.get_updates_for` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.updates` method instead.',
+        stacklevel=2)
     return self.updates
 
   @doc_controls.do_not_generate_docs
@@ -1942,9 +1946,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     Returns:
       List of loss tensors of the layer that depend on `inputs`.
     """
-    warnings.warn('`layer.get_losses_for` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.losses` instead.')
+    warnings.warn(
+        '`layer.get_losses_for` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.losses` instead.',
+        stacklevel=2)
     return self.losses
 
   @doc_controls.do_not_doc_inheritable
@@ -2264,17 +2270,21 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     Returns:
       Output tensor(s).
     """
-    warnings.warn('`layer.apply` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.__call__` method instead.')
+    warnings.warn(
+        '`layer.apply` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.__call__` method instead.',
+        stacklevel=2)
     return self.__call__(inputs, *args, **kwargs)
 
   @doc_controls.do_not_doc_inheritable
   def add_variable(self, *args, **kwargs):
     """Deprecated, do NOT use! Alias for `add_weight`."""
-    warnings.warn('`layer.add_variable` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.add_weight` method instead.')
+    warnings.warn(
+        '`layer.add_variable` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.add_weight` method instead.',
+        stacklevel=2)
     return self.add_weight(*args, **kwargs)
 
   @property

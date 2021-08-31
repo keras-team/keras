@@ -28,9 +28,9 @@ from tensorflow.python.util.tf_export import keras_export
     "keras.layers.experimental.preprocessing.StringLookup",
     v1=[])
 class StringLookup(index_lookup.IndexLookup):
-  """Maps strings from a vocabulary to integer indices.
+  """A preprocessing layer which maps string features to integer indices.
 
-  This layer translates a set of arbitrary strings into an integer output via a
+  This layer translates a set of arbitrary strings into  integer output via a
   table-based vocabulary lookup.
 
   The vocabulary for the layer must be either supplied on construction or
@@ -55,6 +55,9 @@ class StringLookup(index_lookup.IndexLookup):
   OOV indices, followed by the rest of the vocabulary. When `output_mode` is
   `"multi_hot"`, `"count"`, or `"tf_idf"` the vocabulary will begin with OOV
   indices and instances of the mask token will be dropped.
+
+  For an overview and full list of preprocessing layers, see the preprocessing
+  [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Args:
     max_tokens: Maximum size of the vocabulary for this layer. This should only

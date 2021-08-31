@@ -126,6 +126,8 @@ def model_to_dot(model,
         `layer_range[1]`. By default `None` which considers all layers of
         model. Note that you must pass range such that the resultant subgraph
         must be complete.
+    show_layer_activations: Display layer activations (only for layers that
+        have an `activation` property).
 
   Returns:
     A `pydot.Dot` instance representing the Keras model or
@@ -243,13 +245,12 @@ def model_to_dot(model,
 
     # Create node's label.
     label = class_name
-    
+
     # Rebuild the label as a table including the layer's activation.
-    if (
-        show_layer_activations and hasattr(layer, 'activation')
-        and layer.activation is not None):
+    if (show_layer_activations and hasattr(layer, 'activation') and
+        layer.activation is not None):
       label = '{%s|%s}' % (label, activations.serialize(layer.activation))
-      
+
     # Rebuild the label as a table including the layer's name.
     if show_layer_names:
       label = '%s|%s' % (layer_name, label)
@@ -378,20 +379,20 @@ def plot_model(model,
     show_dtype: whether to display layer dtypes.
     show_layer_names: whether to display layer names.
     rankdir: `rankdir` argument passed to PyDot,
-        a string specifying the format of the plot:
-        'TB' creates a vertical plot;
-        'LR' creates a horizontal plot.
+        a string specifying the format of the plot: 'TB' creates a vertical
+          plot; 'LR' creates a horizontal plot.
     expand_nested: Whether to expand nested models into clusters.
     dpi: Dots per inch.
     layer_range: input of `list` containing two `str` items, which is the
-        starting layer name and ending layer name (both inclusive) indicating
-        the range of layers for which the plot will be generated. It also
-        accepts regex patterns instead of exact name. In such case, start
-        predicate will be the first element it matches to `layer_range[0]`
-        and the end predicate will be the last element it matches to
-        `layer_range[1]`. By default `None` which considers all layers of
-        model. Note that you must pass range such that the resultant subgraph
-        must be complete.
+      starting layer name and ending layer name (both inclusive) indicating the
+      range of layers for which the plot will be generated. It also accepts
+      regex patterns instead of exact name. In such case, start predicate will
+      be the first element it matches to `layer_range[0]` and the end predicate
+      will be the last element it matches to `layer_range[1]`. By default `None`
+      which considers all layers of model. Note that you must pass range such
+      that the resultant subgraph must be complete.
+    show_layer_activations: Display layer activations (only for layers that
+      have an `activation` property).
 
   Returns:
     A Jupyter notebook Image object if Jupyter is installed.

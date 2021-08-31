@@ -1673,17 +1673,21 @@ class Layer(base_layer.Layer):
     Returns:
       Output tensor(s).
     """
-    warnings.warn('`layer.apply` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.__call__` method instead.')
+    warnings.warn(
+        '`layer.apply` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.__call__` method instead.',
+        stacklevel=2)
     return self.__call__(inputs, *args, **kwargs)
 
   @doc_controls.do_not_doc_inheritable
   def add_variable(self, *args, **kwargs):
     """Deprecated, do NOT use! Alias for `add_weight`."""
-    warnings.warn('`layer.add_variable` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.add_weight` method instead.')
+    warnings.warn(
+        '`layer.add_variable` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.add_weight` method instead.',
+        stacklevel=2)
     return self.add_weight(*args, **kwargs)
 
   @property

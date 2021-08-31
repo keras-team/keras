@@ -22,7 +22,7 @@ import functools
 import threading
 import weakref
 
-from keras import backend as K
+from keras import backend
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
 from keras.mixed_precision import autocast_variable
@@ -355,7 +355,7 @@ def tracing_scope():
     while _thread_local_data.trace_queue:
       fn, args, kwargs, training = _thread_local_data.trace_queue.pop()
       if training is not None:
-        with K.deprecated_internal_learning_phase_scope(training):
+        with backend.deprecated_internal_learning_phase_scope(training):
           fn.get_concrete_function(*args, **kwargs)
       else:
         fn.get_concrete_function(*args, **kwargs)
@@ -694,7 +694,7 @@ def _wrap_activity_regularizer(layer):
       layer._activity_regularizer,
       '{}_activity_regularizer'.format(layer.name),
       input_signature=[
-          tf.TensorSpec(None, layer._compute_dtype or K.floatx())
+          tf.TensorSpec(None, layer._compute_dtype or backend.floatx())
       ])
   # pylint: enable=protected-access
 

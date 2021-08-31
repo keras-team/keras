@@ -28,15 +28,19 @@ from tensorflow.python.util.tf_export import keras_export
 @keras_export('keras.layers.Normalization',
               'keras.layers.experimental.preprocessing.Normalization')
 class Normalization(base_preprocessing_layer.PreprocessingLayer):
-  """Feature-wise normalization of the data.
+  """A preprocessing layer which normalizes continuous features.
 
-  This layer will coerce its inputs into a distribution centered around
+  This layer will shift and scale inputs into a distribution centered around
   0 with standard deviation 1. It accomplishes this by precomputing the mean and
   variance of the data, and calling `(input - mean) / sqrt(var)` at runtime.
 
-  What happens in `adapt()`: Compute mean and variance of the data and store
-  them as the layer's weights. `adapt()` should be called before `fit()`,
-  `evaluate()`, or `predict()`.
+  The mean and variance values for the layer must be either supplied on
+  construction or learned via `adapt()`. `adapt()` will compute the mean and
+  variance of the data and store them as the layer's weights. `adapt()` should
+  be called before `fit()`, `evaluate()`, or `predict()`.
+
+  For an overview and full list of preprocessing layers, see the preprocessing
+  [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Args:
       axis: Integer, tuple of integers, or None. The axis or axes that should

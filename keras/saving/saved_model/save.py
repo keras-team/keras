@@ -18,7 +18,7 @@ import tensorflow.compat.v2 as tf
 
 import os
 
-from keras import backend as K
+from keras import backend
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import saving_utils
@@ -85,7 +85,7 @@ def save(model, filepath, overwrite, include_optimizer, signatures=None,
   # already-set learning phase placeholder.
   # This is needed for compatibility reasons until learning phase setting
   # is removed from the public apis.
-  with K.deprecated_internal_learning_phase_scope(0):
+  with backend.deprecated_internal_learning_phase_scope(0):
     with utils.keras_option_scope(save_traces):
       saved_nodes, node_paths = save_lib.save_and_return_nodes(
           model, filepath, signatures, options)

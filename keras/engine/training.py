@@ -422,7 +422,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   @doc_controls.doc_in_current_and_subclasses
   def call(self, inputs, training=None, mask=None):
-    """Calls the model on new inputs.
+    """Calls the model on new inputs and returns the outputs as tensors.
 
     In this case `call()` just reapplies
     all ops in the graph to the new inputs
@@ -437,8 +437,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         inputs: Input tensor, or dict/list/tuple of input tensors.
         training: Boolean or boolean scalar tensor, indicating whether to run
           the `Network` in training mode or inference mode.
-        mask: A mask or list of masks. A mask can be
-            either a tensor or None (no mask).
+        mask: A mask or list of masks. A mask can be either a boolean tensor or
+          None (no mask). For more details, check the guide
+            [here](https://www.tensorflow.org/guide/keras/masking_and_padding).
 
     Returns:
         A tensor if there is a single output, or
@@ -462,7 +463,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     Example:
 
     ```python
-    model.compile(optimizer=tf.keras.optimizer.Adam(learning_rate=1e-3),
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
                   loss=tf.keras.losses.BinaryCrossentropy(),
                   metrics=[tf.keras.metrics.BinaryAccuracy(),
                            tf.keras.metrics.FalseNegatives()])
@@ -931,7 +932,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             (since they generate batches).
         epochs: Integer. Number of epochs to train the model.
             An epoch is an iteration over the entire `x` and `y`
-            data provided.
+            data provided
+            (unless the `steps_per_epoch` flag is set to
+            something other than None).
             Note that in conjunction with `initial_epoch`,
             `epochs` is to be understood as "final epoch".
             The model is not trained for a number of iterations
@@ -1714,10 +1717,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           options.experimental_distribute.auto_shard_policy = data_option
           x = x.with_options(options)
         except ValueError:
-          warnings.warn('Using Model.predict with '
-                        'MultiWorkerDistributionStrategy or TPUStrategy and '
-                        'AutoShardPolicy.FILE might lead to out-of-order result'
-                        '. Consider setting it to AutoShardPolicy.DATA.')
+          warnings.warn(
+              'Using Model.predict with '
+              'MultiWorkerDistributionStrategy or TPUStrategy and '
+              'AutoShardPolicy.FILE might lead to out-of-order result'
+              '. Consider setting it to AutoShardPolicy.DATA.',
+              stacklevel=2)
 
       data_handler = data_adapter.get_data_handler(
           x=x,
@@ -1972,9 +1977,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       `Model.fit` now supports generators, so there is no longer any need to use
       this endpoint.
     """
-    warnings.warn('`Model.fit_generator` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `Model.fit`, which supports generators.')
+    warnings.warn(
+        '`Model.fit_generator` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `Model.fit`, which supports generators.',
+        stacklevel=2)
     return self.fit(
         generator,
         steps_per_epoch=steps_per_epoch,
@@ -2006,9 +2013,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       `Model.evaluate` now supports generators, so there is no longer any need
       to use this endpoint.
     """
-    warnings.warn('`Model.evaluate_generator` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `Model.evaluate`, which supports generators.')
+    warnings.warn(
+        '`Model.evaluate_generator` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `Model.evaluate`, which supports generators.',
+        stacklevel=2)
     self._check_call_args('evaluate_generator')
 
     return self.evaluate(
@@ -2035,9 +2044,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       `Model.predict` now supports generators, so there is no longer any need
       to use this endpoint.
     """
-    warnings.warn('`Model.predict_generator` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `Model.predict`, which supports generators.')
+    warnings.warn(
+        '`Model.predict_generator` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `Model.predict`, which supports generators.',
+        stacklevel=2)
     return self.predict(
         generator,
         steps=steps,
@@ -2475,9 +2486,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     Returns:
         A list of update ops.
     """
-    warnings.warn('`Model.state_updates` will be removed in a future version. '
-                  'This property should not be used in TensorFlow 2.0, '
-                  'as `updates` are applied automatically.')
+    warnings.warn(
+        '`Model.state_updates` will be removed in a future version. '
+        'This property should not be used in TensorFlow 2.0, '
+        'as `updates` are applied automatically.',
+        stacklevel=2)
     state_updates = []
     for layer in self.layers:
       if getattr(layer, 'stateful', False):

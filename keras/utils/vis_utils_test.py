@@ -112,16 +112,12 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
       {'show_shapes': True, 'show_dtype': True})
   def test_plot_model_cnn_with_activations(self, show_shapes, show_dtype):
     model = keras.Sequential()
-    model.add(keras.layers.Conv2D(
-        filters=2,
-        kernel_size=2,
-        input_shape=(9, 9, 3),
-        activation='relu'))
-    model.add(keras.layers.Conv2D(
-        filters=4,
-        kernel_size=2,
-        strides=(2, 2),
-        activation='relu'))
+    model.add(
+        keras.layers.Conv2D(
+            filters=2, kernel_size=2, input_shape=(9, 9, 3), activation='relu'))
+    model.add(
+        keras.layers.Conv2D(
+            filters=4, kernel_size=2, strides=(2, 2), activation='relu'))
     model.add(keras.layers.Flatten(name='flat'))
     model.add(keras.layers.Dense(5, name='head', activation='softmax'))
     dot_img_file = 'model_5.png'

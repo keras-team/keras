@@ -18,13 +18,46 @@ import tensorflow.compat.v2 as tf
 
 import collections
 import copy
+import random
 import numpy as np
 from tensorflow.python.framework import ops
-from keras import backend as K
+from keras import backend
 from keras.engine import keras_tensor
 from keras.utils import object_identity
 from keras.utils import tf_contextlib
 from tensorflow.python.util.tf_export import keras_export
+
+
+@keras_export('keras.utils.set_random_seed', v1=[])
+def set_random_seed(seed):
+  """Sets all random seeds for the program (Python, NumPy, and TensorFlow).
+
+  You can use this utility to make almost any Keras program fully deterministic.
+  Some limitations apply in cases where network communications are involved
+  (e.g. parameter server distribution), which creates additional sources of
+  randomness, or when certain non-deterministic cuDNN ops are involved.
+
+  Calling this utility is equivalent to the following:
+
+  ```python
+  import random
+  import numpy as np
+  import tensorflow as tf
+  random.seed(seed)
+  np.random.seed(seed)
+  tf.random.set_seed(seed)
+  ```
+
+  Arguments:
+    seed: Integer, the random seed to use.
+  """
+  if not isinstance(seed, int):
+    raise ValueError(
+        'Expected `seed` argument to be an integer. '
+        f'Received: seed={seed} (of type {type(seed)})')
+  random.seed(seed)
+  np.random.seed(seed)
+  tf.random.set_seed(seed)
 
 
 def is_tensor_or_tensor_list(v):
@@ -438,7 +471,7 @@ def maybe_init_scope(layer):
 def graph_context_for_symbolic_tensors(*args, **kwargs):
   """Returns graph context manager if any of the inputs is a symbolic tensor."""
   if any(is_symbolic_tensor(v) for v in list(args) + list(kwargs.values())):
-    with K.get_graph().as_default():
+    with backend.get_graph().as_default():
       yield
   else:
     yield
@@ -450,7 +483,8 @@ def dataset_is_infinite(dataset):
     return tf.equal(
         tf.data.experimental.cardinality(dataset), tf.data.experimental.INFINITE_CARDINALITY)
   else:
-    dataset_size = K.get_session().run(tf.data.experimental.cardinality(dataset))
+    dataset_size = backend.get_session().run(
+        tf.data.experimental.cardinality(dataset))
     return dataset_size == tf.data.experimental.INFINITE_CARDINALITY
 
 

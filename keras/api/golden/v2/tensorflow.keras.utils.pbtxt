@@ -74,7 +74,7 @@ tf_module {
   }
   member_method {
     name: "model_to_dot"
-    argspec: "args=[\'model\', \'show_shapes\', \'show_dtype\', \'show_layer_names\', \'rankdir\', \'expand_nested\', \'dpi\', \'subgraph\', \'layer_range\'], varargs=None, keywords=None, defaults=[\'False\', \'False\', \'True\', \'TB\', \'False\', \'96\', \'False\', \'None\'], "
+    argspec: "args=[\'model\', \'show_shapes\', \'show_dtype\', \'show_layer_names\', \'rankdir\', \'expand_nested\', \'dpi\', \'subgraph\', \'layer_range\', \'show_layer_activations\'], varargs=None, keywords=None, defaults=[\'False\', \'False\', \'True\', \'TB\', \'False\', \'96\', \'False\', \'None\', \'False\'], "
   }
   member_method {
     name: "normalize"
@@ -86,7 +86,7 @@ tf_module {
   }
   member_method {
     name: "plot_model"
-    argspec: "args=[\'model\', \'to_file\', \'show_shapes\', \'show_dtype\', \'show_layer_names\', \'rankdir\', \'expand_nested\', \'dpi\', \'layer_range\'], varargs=None, keywords=None, defaults=[\'model.png\', \'False\', \'False\', \'True\', \'TB\', \'False\', \'96\', \'None\'], "
+    argspec: "args=[\'model\', \'to_file\', \'show_shapes\', \'show_dtype\', \'show_layer_names\', \'rankdir\', \'expand_nested\', \'dpi\', \'layer_range\', \'show_layer_activations\'], varargs=None, keywords=None, defaults=[\'model.png\', \'False\', \'False\', \'True\', \'TB\', \'False\', \'96\', \'None\', \'False\'], "
   }
   member_method {
     name: "register_keras_serializable"
@@ -99,6 +99,10 @@ tf_module {
   member_method {
     name: "serialize_keras_object"
     argspec: "args=[\'instance\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "set_random_seed"
+    argspec: "args=[\'seed\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "text_dataset_from_directory"

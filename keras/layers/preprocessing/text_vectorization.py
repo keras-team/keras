@@ -65,11 +65,11 @@ _ACCUMULATOR_NUM_DOCUMENTS = "num_documents"
     "keras.layers.experimental.preprocessing.TextVectorization",
     v1=[])
 class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
-  """Text vectorization layer.
+  """A preprocessing layer which maps text features to integer sequences.
 
-  This layer has basic options for managing text in a Keras model. It
-  transforms a batch of strings (one example = one string) into either a list of
-  token indices (one example = 1D tensor of integer token indices) or a dense
+  This layer has basic options for managing text in a Keras model. It transforms
+  a batch of strings (one example = one string) into either a list of token
+  indices (one example = 1D tensor of integer token indices) or a dense
   representation (one example = 1D tensor of float values representing data
   about the example's tokens).
 
@@ -108,6 +108,9 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
      in this example, we should see something like `[["string", "to",
      "split"], ["another", "string", "to", "split"]]`. This makes the callable
      site natively compatible with `tf.strings.split()`.
+
+  For an overview and full list of preprocessing layers, see the preprocessing
+  [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Args:
     max_tokens: Maximum size of the vocabulary for this layer. This should only
@@ -231,7 +234,6 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
   ['', '[UNK]', 'earth', 'wind', 'and', 'fire']
 
   """
-  # TODO(momernick): Add an examples section to the docstring.
 
   def __init__(self,
                max_tokens=None,
