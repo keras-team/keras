@@ -103,7 +103,7 @@ class TestSparseSequence(TestSequence):
   def __getitem__(self, item):
     indices = [[row, self.feature_shape-1] for row in range(self.batch_size)]
     values = [1 for row in range(self.batch_size)]
-    st = tf.ops.sparse_tensor.SparseTensor(
+    st = tf.SparseTensor(
       indices, values, (self.batch_size,self.feature_shape)
     )
     return (st, np.ones((self.batch_size,)))
@@ -118,7 +118,7 @@ class TestRaggedSequence(TestSequence):
       (self.batch_size, 2)
     ).reshape(-1)
     row_lengths = np.full(self.batch_size, 2)
-    rt = tf.ops.ragged_tensor.RaggedTensor.from_row_lengths(values, row_lengths)
+    rt = tf.RaggedTensor.from_row_lengths(values, row_lengths)
     return (rt, np.ones((self.batch_size,)))
 
 
@@ -840,7 +840,7 @@ class KerasSequenceAdapterRaggedTest(KerasSequenceAdapterTest):
     self.model = keras.models.Sequential([
         keras.layers.Input(shape=(None, ), ragged=True),
         keras.layers.Embedding(10, 10),
-        keras.layers.Lambda(tf.ops.math_ops.reduce_mean, arguments=dict(axis=1)),
+        keras.layers.Lambda(tf.reduce_mean, arguments=dict(axis=1)),
         keras.layers.Dense(8, input_shape=(10,), activation='relu'),
       ])
 

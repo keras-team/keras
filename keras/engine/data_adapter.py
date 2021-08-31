@@ -817,9 +817,9 @@ class GeneratorDataAdapter(DataAdapter):
     self._first_batch_size = int(tf.nest.flatten(peek)[0].shape[0])
 
     def _get_tensor_spec(t):
-      return type_spec._type_spec_from_value(t)._with_tensor_ranks_only()
+      return type_spec.type_spec_from_value(t)
 
-    output_signature = nest.map_structure(_get_tensor_spec, peek)
+    output_signature = tf.nest.map_structure(_get_tensor_spec, peek)
 
     # Note that dataset API takes a callable that creates a generator object,
     # rather than generator itself, which is why we define a function here.
