@@ -2275,7 +2275,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                    options=None):
     """Loads all layer weights, either from a TensorFlow or an HDF5 weight file.
 
-    If `by_name` is False weights are loaded based on the network's
+    If `by_name` is False, weights are loaded based on the network's
     topology. This means the architecture should be the same as when the weights
     were saved.  Note that layers that don't have weights are not taken into
     account in the topological ordering, so adding or removing layers is fine as
