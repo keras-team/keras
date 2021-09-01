@@ -662,7 +662,7 @@ class CosineDecayRestarts(LearningRateSchedule):
   The learning rate multiplier first decays
   from 1 to `alpha` for `first_decay_steps` steps. Then, a warm
   restart is performed. Each new warm restart runs for `t_mul` times more
-  steps and with `m_mul` times smaller initial learning rate.
+  steps and with `m_mul` times larger initial learning rate.
 
   Example usage:
   ```python
@@ -700,9 +700,9 @@ class CosineDecayRestarts(LearningRateSchedule):
       first_decay_steps: A scalar `int32` or `int64` `Tensor` or a Python
         number. Number of steps to decay over.
       t_mul: A scalar `float32` or `float64` `Tensor` or a Python number.
-        Used to derive the number of iterations in the i-th period
+        Used to derive the number of iterations in the i-th period.
       m_mul: A scalar `float32` or `float64` `Tensor` or a Python number.
-        Used to derive the initial learning rate of the i-th period:
+        Used to derive the initial learning rate of the i-th period.
       alpha: A scalar `float32` or `float64` Tensor or a Python number.
         Minimum learning rate value as a fraction of the initial_learning_rate.
       name: String. Optional name of the operation.  Defaults to 'SGDRDecay'.
