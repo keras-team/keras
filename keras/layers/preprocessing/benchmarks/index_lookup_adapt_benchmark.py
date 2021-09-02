@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark for Keras text vectorization preprocessing layer's adapt method."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 import itertools
