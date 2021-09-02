@@ -242,16 +242,18 @@ class CenterCropTest(keras_parameterized.TestCase):
   def test_center_crop_half_mis_aligned(self, expected_height, expected_width):
     self._run_test(expected_height, expected_width)
 
-  @parameterized.named_parameters(('center_crop_5_by_12', 5, 12),
-                                  ('center_crop_10_by_8', 10, 8),
-                                  ('center_crop_10_by_12', 10, 12))
-  def test_invalid_center_crop(self, expected_height, expected_width):
-    # InternelError is raised by tf.function MLIR lowering pass when TFRT
-    # is enabled.
-    with self.assertRaisesRegex(
-        (tf.errors.InvalidArgumentError, tf.errors.InternalError),
-        r'assertion failed|error: \'tf.Slice\' op'):
-      self._run_test(expected_height, expected_width)
+  def test_input_smaller_than_crop_box(self):
+    np.random.seed(1337)
+    height, width = 10, 8
+    inp = np.random.random((12, 3, 3, 3))
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.CenterCrop(height, width)
+      actual_output = layer(inp)
+      # In this case, output should equal resizing with crop_to_aspect ratio.
+      resize_layer = image_preprocessing.Resizing(
+          height, width, crop_to_aspect_ratio=True)
+      expected_output = resize_layer(inp)
+      self.assertAllEqual(expected_output, actual_output)
 
   def test_config_with_custom_name(self):
     layer = image_preprocessing.CenterCrop(5, 5, name='image_preproc')
@@ -290,28 +292,31 @@ class RandomCropTest(keras_parameterized.TestCase):
           expected_output_shape=(None, expected_height, expected_width,
                                  channels))
 
-  @parameterized.named_parameters(('random_crop_5_by_12', 5, 12),
-                                  ('random_crop_10_by_8', 10, 8),
-                                  ('random_crop_10_by_12', 10, 12))
-  def test_invalid_random_crop(self, expected_height, expected_width):
-    # InternelError is raised by tf.function MLIR lowering pass when TFRT
-    # is enabled.
-    with self.assertRaises(
-        (tf.errors.InvalidArgumentError, tf.errors.InternalError)):
-      self._run_test(expected_height, expected_width)
+  def test_input_smaller_than_crop_box(self):
+    np.random.seed(1337)
+    height, width = 10, 8
+    inp = np.random.random((12, 3, 3, 3))
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomCrop(height, width)
+      actual_output = layer(inp)
+      # In this case, output should equal resizing with crop_to_aspect ratio.
+      resize_layer = image_preprocessing.Resizing(
+          height, width, crop_to_aspect_ratio=True)
+      expected_output = resize_layer(inp)
+      self.assertAllEqual(expected_output, actual_output)
 
   def test_training_with_mock(self):
     np.random.seed(1337)
     height, width = 3, 4
     height_offset = np.random.randint(low=0, high=3)
     width_offset = np.random.randint(low=0, high=5)
-    mock_offset = [0, height_offset, width_offset, 0]
+    mock_offset = [height_offset, width_offset]
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomCrop(height, width)
       with tf.compat.v1.test.mock.patch.object(
           layer._random_generator, 'random_uniform', return_value=mock_offset):
         inp = np.random.random((12, 5, 8, 3))
-        actual_output = layer(inp, training=1)
+        actual_output = layer(inp, training=True)
         expected_output = inp[:, height_offset:(height_offset + height),
                               width_offset:(width_offset + width), :]
         self.assertAllClose(expected_output, actual_output)
@@ -333,7 +338,7 @@ class RandomCropTest(keras_parameterized.TestCase):
     inp = np.random.random((12, 8, 16, 3))
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomCrop(height, width)
-      actual_output = layer(inp, training=0)
+      actual_output = layer(inp, training=False)
       self.assertAllClose(inp, actual_output)
 
   def test_predicting_with_mock_longer_height(self):
@@ -342,7 +347,7 @@ class RandomCropTest(keras_parameterized.TestCase):
     inp = np.random.random((12, 10, 6, 3))
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomCrop(height, width)
-      actual_output = layer(inp, training=0)
+      actual_output = layer(inp, training=False)
       resized_inp = tf.image.resize(inp, size=[5, 3])
       expected_output = resized_inp[:, 1:4, :, :]
       self.assertAllClose(expected_output, actual_output)
@@ -353,7 +358,7 @@ class RandomCropTest(keras_parameterized.TestCase):
     inp = np.random.random((12, 8, 16, 3))
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomCrop(height, width)
-      actual_output = layer(inp, training=0)
+      actual_output = layer(inp, training=False)
       resized_inp = tf.image.resize(inp, size=[4, 8])
       expected_output = resized_inp[:, :, 1:7, :]
       self.assertAllClose(expected_output, actual_output)
@@ -367,14 +372,14 @@ class RandomCropTest(keras_parameterized.TestCase):
   def test_unbatched_image(self):
     np.random.seed(1337)
     inp = np.random.random((16, 16, 3))
-    mock_offset = [2, 2, 0]
+    mock_offset = [2, 2]
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomCrop(8, 8)
       with tf.compat.v1.test.mock.patch.object(
           layer._random_generator,
           'random_uniform',
           return_value=mock_offset):
-        actual_output = layer(inp, training=1)
+        actual_output = layer(inp, training=True)
         self.assertAllClose(inp[2:10, 2:10, :], actual_output)
 
 
@@ -444,7 +449,7 @@ class RandomFlipTest(keras_parameterized.TestCase):
     ):
       with testing_utils.use_gpu():
         layer = image_preprocessing.RandomFlip(mode)
-        actual_output = layer(inp, training=1)
+        actual_output = layer(inp, training=True)
         self.assertAllClose(expected_output, actual_output)
 
   @parameterized.named_parameters(
@@ -477,7 +482,7 @@ class RandomFlipTest(keras_parameterized.TestCase):
     expected_output = input_images
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomFlip()
-      actual_output = layer(input_images, training=0)
+      actual_output = layer(input_images, training=False)
       self.assertAllClose(expected_output, actual_output)
 
   def test_random_flip_default(self):
@@ -492,7 +497,7 @@ class RandomFlipTest(keras_parameterized.TestCase):
     ):
       with self.cached_session():
         layer = image_preprocessing.RandomFlip()
-        actual_output = layer(input_images, training=1)
+        actual_output = layer(input_images, training=True)
         self.assertAllClose(expected_output, actual_output)
 
   @testing_utils.run_v2_only
@@ -513,7 +518,7 @@ class RandomFlipTest(keras_parameterized.TestCase):
     ):
       with self.cached_session():
         layer = image_preprocessing.RandomFlip('vertical')
-        actual_output = layer(input_image, training=1)
+        actual_output = layer(input_image, training=True)
         self.assertAllClose(expected_output, actual_output)
 
 
@@ -768,7 +773,7 @@ class RandomTranslationTest(keras_parameterized.TestCase):
     expected_output = input_images
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomTranslation(.5, .5)
-      actual_output = layer(input_images, training=0)
+      actual_output = layer(input_images, training=False)
       self.assertAllClose(expected_output, actual_output)
 
   @testing_utils.run_v2_only
@@ -1188,7 +1193,7 @@ class RandomRotationTest(keras_parameterized.TestCase):
     expected_output = input_images
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomRotation(.5)
-      actual_output = layer(input_images, training=0)
+      actual_output = layer(input_images, training=False)
       self.assertAllClose(expected_output, actual_output)
 
   def test_distribution_strategy(self):
@@ -1313,7 +1318,7 @@ class RandomZoomTest(keras_parameterized.TestCase):
     expected_output = input_images
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomZoom(.5, .5)
-      actual_output = layer(input_images, training=0)
+      actual_output = layer(input_images, training=False)
       self.assertAllClose(expected_output, actual_output)
 
   @testing_utils.run_v2_only
@@ -1419,7 +1424,7 @@ class RandomHeightTest(keras_parameterized.TestCase):
     expected_output = input_images
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomHeight(.5)
-      actual_output = layer(input_images, training=0)
+      actual_output = layer(input_images, training=False)
       self.assertAllClose(expected_output, actual_output)
 
   @testing_utils.run_v2_only
@@ -1519,7 +1524,7 @@ class RandomWidthTest(keras_parameterized.TestCase):
     expected_output = input_images
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomWidth(.5)
-      actual_output = layer(input_images, training=0)
+      actual_output = layer(input_images, training=False)
       self.assertAllClose(expected_output, actual_output)
 
   @testing_utils.run_v2_only
