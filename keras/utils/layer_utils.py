@@ -104,11 +104,7 @@ def count_params(weights):
   return int(sum(np.prod(p) for p in standardized_weight_shapes))
 
 
-def print_summary(model,
-                  line_length=None,
-                  positions=None,
-                  print_fn=None,
-                  expand_nested=False):
+def print_summary(model, line_length=None, positions=None, print_fn=None):
   """Prints a summary of a model.
 
   Args:
@@ -123,8 +119,6 @@ def print_summary(model,
           You can set it to a custom function
           in order to capture the string summary.
           It defaults to `print` (prints to stdout).
-      expand_nested: Whether to expand the nested models.
-          If not provided, defaults to `False`.
   """
   if print_fn is None:
     print_fn = print
@@ -180,7 +174,7 @@ def print_summary(model,
     for v in model._nodes_by_depth.values():
       relevant_nodes += v
 
-  def print_row(fields, positions, nested_level=0):
+  def print_row(fields, positions):
     left_to_print = [str(x) for x in fields]
     while any(left_to_print):
       line = ''
@@ -212,11 +206,7 @@ def print_summary(model,
         left_to_print[col] = left_to_print[col][cutoff:]
 
         # Pad out to the next position
-        if nested_level:
-          line += ' ' * (positions[col] - len(line) - (2 * nested_level) - 1)
-        else:
-          line += ' ' * (positions[col] - len(line))
-      line += '|' * nested_level
+        line += ' ' * (positions[col] - len(line))
       print_fn(line)
 
   print_fn('Model: "{}"'.format(model.name))
@@ -224,13 +214,11 @@ def print_summary(model,
   print_row(to_display, positions)
   print_fn('=' * line_length)
 
-  def print_layer_summary(layer, nested_level=0):
+  def print_layer_summary(layer):
     """Prints a summary for a single layer.
 
     Args:
         layer: target layer.
-        nested_level: level of nesting of the layer inside its parent layer
-          (e.g. 0 for a top-level layer, 1 for a nested layer).
     """
     try:
       output_shape = layer.output_shape
@@ -247,15 +235,13 @@ def print_summary(model,
     else:
       params = layer.count_params()
     fields = [name + ' (' + cls_name + ')', output_shape, params]
-    print_row(fields, positions, nested_level)
+    print_row(fields, positions)
 
-  def print_layer_summary_with_connections(layer, nested_level=0):
+  def print_layer_summary_with_connections(layer):
     """Prints a summary for a single layer (including topological connections).
 
     Args:
         layer: target layer.
-        nested_level: level of nesting of the layer inside its parent layer
-          (e.g. 0 for a top-level layer, 1 for a nested layer).
     """
     try:
       output_shape = layer.output_shape
@@ -277,37 +263,18 @@ def print_summary(model,
         name + ' (' + cls_name + ')', output_shape,
         layer.count_params(), connections
     ]
-    print_row(fields, positions, nested_level)
-
-  def print_layer(layer, nested_level=0, is_nested_last=False):
-    if sequential_like:
-      print_layer_summary(layer, nested_level)
-    else:
-      print_layer_summary_with_connections(layer, nested_level)
-
-    if expand_nested and hasattr(layer, 'layers') and layer.layers:
-      print_fn('|' * (nested_level + 1) + '¯' *
-               (line_length - 2 * nested_level - 2) + '|' * (nested_level + 1))
-
-      nested_layer = layer.layers
-      is_nested_last = False
-      for i in range(len(nested_layer)):
-        if i == len(nested_layer) - 1:
-          is_nested_last = True
-        print_fn('|' * (nested_level + 1), end=' ')
-        print_layer(nested_layer[i], nested_level + 1, is_nested_last)
-
-      print_fn('|' * nested_level + '¯' * (line_length - 2 * nested_level) +
-               '|' * nested_level)
-
-    if not is_nested_last:
-      print_fn('|' * nested_level + '_' * (line_length - 2 * nested_level) +
-               '|' * nested_level)
+    print_row(fields, positions)
 
   layers = model.layers
-  for layer in layers:
-    print_layer(layer)
-  print_fn('=' * line_length)
+  for i in range(len(layers)):
+    if sequential_like:
+      print_layer_summary(layers[i])
+    else:
+      print_layer_summary_with_connections(layers[i])
+    if i == len(layers) - 1:
+      print_fn('=' * line_length)
+    else:
+      print_fn('_' * line_length)
 
   if hasattr(model, '_collected_trainable_weights'):
     trainable_count = count_params(model._collected_trainable_weights)
