@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark for KPL implementation of categorical cross hash columns with dense inputs."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import keras
 from tensorflow.python.eager.def_function import function as tf_function

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Microbenchmarks for Keras components in eager mode."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import time
 
@@ -201,5 +201,6 @@ class KerasLayerCallOverheadBenchmarks(  # pylint: disable=undefined-variable
 
 
 if __name__ == "__main__":
-  assert tf.executing_eagerly()
-  tf.test.main()
+  if tf.compat.v1.executing_eagerly():
+    # Only run test when eager is enabled (skip test in v1).
+    tf.test.main()
