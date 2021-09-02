@@ -141,10 +141,8 @@ def model_to_dot(model,
 
   if not model.built:
     raise ValueError('This model has not yet been built. '
-                       'Build the model first by calling `build()` or calling '
-                       '`fit()` with some data, or specify '
-                       'an `input_shape` argument in the first layer(s) for '
-                       'automatic build.')
+                     'Build the model first by calling `build()` or calling '
+                     'the model on a batch of data.')
 
   from keras.layers import wrappers
   from keras.engine import sequential
@@ -181,7 +179,7 @@ def model_to_dot(model,
           'layer_range must be of shape (2,). Received: '
           f'layer_range = {layer_range} of length {len(layer_range)}')
     if (not isinstance(layer_range[0], str) or
-        not isinstance(layer_range[1], str)):
+            not isinstance(layer_range[1], str)):
       raise ValueError(
           'layer_range should contain string type only. '
           f'Received: {layer_range}')
@@ -257,7 +255,7 @@ def model_to_dot(model,
 
     # Rebuild the label as a table including the layer's activation.
     if (show_layer_activations and hasattr(layer, 'activation') and
-        layer.activation is not None):
+            layer.activation is not None):
       label = '{%s|%s}' % (label, activations.serialize(layer.activation))
 
     # Rebuild the label as a table including the layer's name.
@@ -297,7 +295,7 @@ def model_to_dot(model,
                                                      outputlabels)
 
     if not expand_nested or not isinstance(
-        layer, functional.Functional):
+            layer, functional.Functional):
       node = pydot.Node(layer_id, label=label)
       dot.add_node(node)
 
@@ -319,10 +317,10 @@ def model_to_dot(model,
             # if inbound_layer is not Model or wrapped Model
             if (not isinstance(inbound_layer,
                                functional.Functional) and
-                not is_wrapped_model(inbound_layer)):
+                    not is_wrapped_model(inbound_layer)):
               # if current layer is not Model or wrapped Model
               if (not isinstance(layer, functional.Functional) and
-                  not is_wrapped_model(layer)):
+                      not is_wrapped_model(layer)):
                 assert dot.get_node(inbound_layer_id)
                 assert dot.get_node(layer_id)
                 add_edge(dot, inbound_layer_id, layer_id)
@@ -412,10 +410,8 @@ def plot_model(model,
   """
   if not model.built:
     raise ValueError('This model has not yet been built. '
-                       'Build the model first by calling `build()` or calling '
-                       '`fit()` with some data, or specify '
-                       'an `input_shape` argument in the first layer(s) for '
-                       'automatic build.')
+                     'Build the model first by calling `build()` or calling '
+                     'the model on a batch of data.')
 
   dot = model_to_dot(
       model,

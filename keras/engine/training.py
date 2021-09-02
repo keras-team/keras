@@ -2541,9 +2541,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     if not self.built:
       raise ValueError('This model has not yet been built. '
                        'Build the model first by calling `build()` or calling '
-                       '`fit()` with some data, or specify '
-                       'an `input_shape` argument in the first layer(s) for '
-                       'automatic build.')
+                       'the model on a batch of data.')
     layer_utils.print_summary(self,
                               line_length=line_length,
                               positions=positions,
