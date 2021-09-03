@@ -2520,7 +2520,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     weights += (self._trainable_weights + self._non_trainable_weights)
     return weights
 
-  def summary(self, line_length=None, positions=None, print_fn=None):
+  def summary(self,
+              line_length=None,
+              positions=None,
+              print_fn=None,
+              expand_nested=False):
     """Prints a string summary of the network.
 
     Args:
@@ -2534,6 +2538,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             It will be called on each line of the summary.
             You can set it to a custom function
             in order to capture the string summary.
+        expand_nested: Whether to expand the nested models.
+            If not provided, defaults to `False`.
 
     Raises:
         ValueError: if `summary()` is called before the model is built.
@@ -2544,10 +2550,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                        '`fit()` with some data, or specify '
                        'an `input_shape` argument in the first layer(s) for '
                        'automatic build.')
-    layer_utils.print_summary(self,
-                              line_length=line_length,
-                              positions=positions,
-                              print_fn=print_fn)
+    layer_utils.print_summary(
+        self,
+        line_length=line_length,
+        positions=positions,
+        print_fn=print_fn,
+        expand_nested=expand_nested)
 
   @property
   def layers(self):
