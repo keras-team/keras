@@ -1715,7 +1715,7 @@ class TrainingTest(keras_parameterized.TestCase):
 
 class TestExceptionsAndWarnings(keras_parameterized.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   @keras_parameterized.run_with_all_model_types
   def test_fit_on_no_output(self):
     inputs = layers_module.Input((3,))
@@ -1726,7 +1726,7 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
     with self.assertRaisesRegex(TypeError, 'Target data is missing..*'):
       model.fit(x)
 
-  @keras_parameterized.run_all_keras_modes
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   @keras_parameterized.run_with_all_model_types
   def test_fit_on_wrong_output_type(self):
     inputs1 = layers_module.Input((3,), name='a')
@@ -3906,14 +3906,15 @@ class TestBuildCustomModel(keras_parameterized.TestCase):
 
 class ScalarDataModelTest(keras_parameterized.TestCase):
 
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_scalar_loss_reduction(self):
 
     class MyModel(training_module.Model):
 
       def __init__(self):
         super().__init__()
-        self.w = self.add_weight((), initializer='ones')
-        self.b = self.add_weight((), initializer='zeros')
+        self.w = self.add_weight(initializer='ones', name='kernel')
+        self.b = self.add_weight(initializer='zeros', name='bias')
 
       def call(self, inputs):
         return inputs * self.w + self.b
