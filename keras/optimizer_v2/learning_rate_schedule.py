@@ -662,7 +662,7 @@ class CosineDecayRestarts(LearningRateSchedule):
   The learning rate multiplier first decays
   from 1 to `alpha` for `first_decay_steps` steps. Then, a warm
   restart is performed. Each new warm restart runs for `t_mul` times more
-  steps and with `m_mul` times larger initial learning rate.
+  steps and with `m_mul` times initial learning rate as the new learning rate.
 
   Example usage:
   ```python
