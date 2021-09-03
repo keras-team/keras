@@ -14,7 +14,7 @@
 # ==============================================================================
 r"""Benchmarks on Keras components with different Keras model types."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import time
 

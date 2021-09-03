@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for benchmark utitilies."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from keras.benchmarks import benchmark_util
 
