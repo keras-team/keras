@@ -18,7 +18,7 @@ Mostly from
 https://github.com/tensorflow/models/blob/master/official/utils/misc/distribution_utils.py.
 """
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import json
 import os
