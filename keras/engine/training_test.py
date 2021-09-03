@@ -3789,6 +3789,9 @@ class TestFunctionTracing(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes(
       always_skip_v1=True, always_skip_eager=True)
   def test_no_tracing_between_epoch(self):
+    if _is_oss():
+      self.skipTest('b/198729465')
+
     model, x, y = self._seq_model_and_data()
 
     logging.set_verbosity(1)
@@ -3801,6 +3804,9 @@ class TestFunctionTracing(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes(
       always_skip_v1=True, always_skip_eager=True)
   def test_evaluate_no_cached_data(self):
+    if _is_oss():
+      self.skipTest('b/198729465')
+
     model, x, y = self._seq_model_and_data()
 
     new_func_graph = 'INFO:absl:Creating new FuncGraph for Python function'
@@ -3928,6 +3934,11 @@ class ScalarDataModelTest(keras_parameterized.TestCase):
     preds = model.predict(x)
     self.assertEqual(preds.shape, (5,))
     self.assertAllClose(preds, y, atol=2e-1)
+
+
+def _is_oss():
+  """Returns whether the test is run under OSS."""
+  return len(sys.argv) >= 1 and 'bazel' in sys.argv[0]
 
 
 if __name__ == '__main__':
