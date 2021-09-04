@@ -287,11 +287,11 @@ def model_to_dot(model,
         inputlabels = format_shape(layer.input_shape)
       elif hasattr(layer, 'input_shapes'):
         inputlabels = ', '.join(
-          [format_shape(ishape) for ishape in layer.input_shapes])
+            [format_shape(ishape) for ishape in layer.input_shapes])
       else:
         inputlabels = '?'
-      label = '%s|{input:|output:}|{{%s}|{%s}}' % (
-        label, inputlabels, outputlabels)
+      label = f'{label}|{{input:|output:}}|' \
+          + f'{{{{{inputlabels}}}|{{{outputlabels}}}}}'
 
     if not expand_nested or not isinstance(
         layer, functional.Functional):
