@@ -362,7 +362,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 20,
     tags = [
-        "manual",
         "nomac",  # TODO(mihaimaruseac): b/127695564
         "notsan",
     ],

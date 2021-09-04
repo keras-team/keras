@@ -44,6 +44,12 @@ class DistributedTrainingTest(tf.test.TestCase):
   """Test to demonstrate basic Keras training with a variety of strategies."""
 
   def testKerasTrainingAPI(self, strategy):
+    if (not tf.__internal__.tf2.enabled()
+        and isinstance(strategy,
+                       tf.distribute.experimental.ParameterServerStrategy)):
+      self.skipTest(
+          "Parameter Server strategy with dataset creator need to be run when "
+          "eager execution is enabled.")
 
     # A `dataset_fn` is required for `Model.fit` to work across all strategies.
     def dataset_fn(input_context):

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark for Keras image preprocessing layer."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import functools
 import time

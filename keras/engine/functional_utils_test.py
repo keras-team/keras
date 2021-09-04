@@ -27,6 +27,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 
+@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class FunctionalModelSlideTest(keras_parameterized.TestCase):
 
   def test_find_nodes_by_inputs_and_outputs(self):

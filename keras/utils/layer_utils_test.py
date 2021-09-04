@@ -14,17 +14,19 @@
 # ==============================================================================
 """Tests for layer_utils."""
 
+import keras
 import tensorflow.compat.v2 as tf
 
 import collections
 import contextlib
 import multiprocessing.dummy
+import os
 import pickle
+import shutil
 import time
 import timeit
 
 import numpy as np
-
 from keras.utils import layer_utils
 
 
@@ -47,6 +49,144 @@ class MyPickleableObject(tf.__internal__.tracking.AutoTrackable):
 
 class LayerUtilsTest(tf.test.TestCase):
 
+  def test_print_summary(self):
+    model = keras.Sequential()
+    model.add(
+        keras.layers.Conv2D(
+            filters=2, kernel_size=(2, 3), input_shape=(3, 5, 5), name='conv'))
+    model.add(keras.layers.Flatten(name='flat'))
+    model.add(keras.layers.Dense(5, name='dense'))
+
+    file_name = 'model_1.txt'
+    temp_dir = self.get_temp_dir()
+    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+    fpath = os.path.join(temp_dir, file_name)
+    writer = open(fpath, 'w')
+
+    def print_to_file(text, end='\n'):
+      print(text, end=end, file=writer)
+
+    try:
+      layer_utils.print_summary(model, print_fn=print_to_file)
+      self.assertTrue(tf.io.gfile.exists(fpath))
+      writer.close()
+      reader = open(fpath, 'r')
+      lines = reader.readlines()
+      reader.close()
+      self.assertEqual(len(lines), 15)
+    except ImportError:
+      pass
+
+  def test_print_summary_expand_nested(self):
+    shape = (None, None, 3)
+
+    def make_model():
+      x = inputs = keras.Input(shape)
+      x = keras.layers.Conv2D(3, 1)(x)
+      x = keras.layers.BatchNormalization()(x)
+      return keras.Model(inputs, x)
+
+    x = inner_inputs = keras.Input(shape)
+    x = make_model()(x)
+    x = make_model()(x)
+    inner_model = keras.Model(inner_inputs, x)
+
+    inputs = keras.Input(shape)
+    model = keras.Model(inputs, inner_model(inputs))
+
+    file_name = 'model_2.txt'
+    temp_dir = self.get_temp_dir()
+    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+    fpath = os.path.join(temp_dir, file_name)
+    writer = open(fpath, 'w')
+
+    def print_to_file(text, end='\n'):
+      print(text, end=end, file=writer)
+
+    try:
+      layer_utils.print_summary(
+          model, print_fn=print_to_file, expand_nested=True)
+      self.assertTrue(tf.io.gfile.exists(fpath))
+      writer.close()
+      reader = open(fpath, 'r')
+      lines = reader.readlines()
+      reader.close()
+      self.assertEqual(len(lines), 34)
+    except ImportError:
+      pass
+
+  def test_summary_subclass_model_expand_nested(self):
+
+    class Sequential(keras.Model):
+
+      def __init__(self, *args):
+        super(Sequential, self).__init__()
+        self.module_list = list(args) if args else []
+
+      def call(self, x):
+        for module in self.module_list:
+          x = module(x)
+        return x
+
+    class Block(keras.Model):
+
+      def __init__(self):
+        super(Block, self).__init__()
+        self.module = Sequential(
+            keras.layers.Dense(10),
+            keras.layers.Dense(10),
+        )
+
+      def call(self, input_tensor):
+        x = self.module(input_tensor)
+        return x
+
+    class Base(keras.Model):
+
+      def __init__(self):
+        super(Base, self).__init__()
+        self.module = Sequential(Block(), Block())
+
+      def call(self, input_tensor):
+        x = self.module(input_tensor)
+        y = self.module(x)
+        return x, y
+
+    class Network(keras.Model):
+
+      def __init__(self):
+        super(Network, self).__init__()
+        self.child = Base()
+
+      def call(self, inputs):
+        return self.child(inputs)
+
+    net = Network()
+    inputs = keras.Input(shape=(10,))
+    outputs = net(inputs)
+    model = keras.models.Model(inputs=inputs, outputs=outputs)
+
+    file_name = 'model_3.txt'
+    temp_dir = self.get_temp_dir()
+    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+    fpath = os.path.join(temp_dir, file_name)
+    writer = open(fpath, 'w')
+
+    def print_to_file(text, end='\n'):
+      print(text, end=end, file=writer)
+
+    try:
+      layer_utils.print_summary(
+          model, line_length=120, print_fn=print_to_file, expand_nested=True)
+      self.assertTrue(tf.io.gfile.exists(fpath))
+      writer.close()
+      reader = open(fpath, 'r')
+      lines = reader.readlines()
+      reader.close()
+      self.assertEqual(len(lines), 39)
+    except ImportError:
+      pass
+
   def test_property_cache(self):
     test_counter = collections.Counter()
 
@@ -58,8 +198,8 @@ class LayerUtilsTest(tf.test.TestCase):
 
       def __setattr__(self, key, value):
         """Enforce that cache does not set attribute on MyObject."""
-        if getattr(self, "_frozen", False):
-          raise ValueError("Cannot mutate when frozen.")
+        if getattr(self, '_frozen', False):
+          raise ValueError('Cannot mutate when frozen.')
         return super(MyObject, self).__setattr__(key, value)
 
       @property
@@ -95,7 +235,7 @@ class LayerUtilsTest(tf.test.TestCase):
       def test_property(self):
         # Random sleeps to ensure that the execution thread changes
         # mid-computation.
-        call_count["test_property"] += 1
+        call_count['test_property'] += 1
         time.sleep(np.random.random() + 1.)
 
         # Use a RandomState which is seeded off the instance's id (the mod is
@@ -119,7 +259,7 @@ class LayerUtilsTest(tf.test.TestCase):
     self.assertEqual(len(set(results)), 1)
 
     # Make sure we actually are testing threaded behavior.
-    self.assertGreater(call_count["test_property"], 1)
+    self.assertGreater(call_count['test_property'], 1)
 
     # Make sure new threads still cache hit.
     with contextlib.closing(multiprocessing.dummy.Pool(2)) as pool:
@@ -162,5 +302,5 @@ class LayerUtilsTest(tf.test.TestCase):
     self.assertEqual(expected_size, len(pickle.dumps(size_check_instance)))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   tf.test.main()

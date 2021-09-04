@@ -205,6 +205,12 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):  # py
 
         filepath = path_to_string(filepath)
         if isinstance(filepath, str):
+          if not tf.io.gfile.exists(filepath):
+            raise IOError(f'No file or directory found at {filepath}')
+          if saving_utils.is_hdf5_filepath(filepath) and h5py is None:
+            raise ImportError(
+                'Filepath looks like a hdf5 file but h5py is not available.'
+                f' filepath={filepath}')
           return saved_model_load.load(filepath, compile, options)
 
   raise IOError(
