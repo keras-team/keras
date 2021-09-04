@@ -402,7 +402,7 @@ def plot_model(model,
       have an `activation` property).
   
   Raises:
-    ValueError: if `print_model` is called before the model is built.
+    ValueError: if `plot_model` is called before the model is built.
 
   Returns:
     A Jupyter notebook Image object if Jupyter is installed.
