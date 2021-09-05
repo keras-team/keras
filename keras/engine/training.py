@@ -2546,7 +2546,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     """
     if not self.built:
       raise ValueError('This model has not yet been built. '
-                       'Build the model first by calling `build()` or calling '
+                       'Build the model first by calling `build()` or by calling '
                        'the model on a batch of data.')
     layer_utils.print_summary(
         self,
