@@ -290,9 +290,8 @@ def model_to_dot(model,
             [format_shape(ishape) for ishape in layer.input_shapes])
       else:
         inputlabels = '?'
-      label = f'{label}|{{input:|output:}}|' \
-          + f'{{{{{inputlabels}}}|{{{outputlabels}}}}}'
-
+      label = '{%s}|{input:|output:}|{{%s}}|{{%s}}' % (
+          label, inputlabels, outputlabels)
     if not expand_nested or not isinstance(
         layer, functional.Functional):
       node = pydot.Node(layer_id, label=label)
