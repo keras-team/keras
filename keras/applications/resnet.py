@@ -291,18 +291,18 @@ def block2(x, filters, kernel_size=3, stride=1, conv_shortcut=False, name=None):
   """
   bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
 
-  preact = layers.BatchNormalization(
-      axis=bn_axis, epsilon=1.001e-5, name=name + '_preact_bn')(x)
-  preact = layers.Activation('relu', name=name + '_preact_relu')(preact)
-
   if conv_shortcut:
     shortcut = layers.Conv2D(
-        4 * filters, 1, strides=stride, name=name + '_0_conv')(preact)
+        4 * filters, 1, strides=stride, name=name + '_0_conv')(x)
   else:
     shortcut = layers.MaxPooling2D(1, strides=stride)(x) if stride > 1 else x
 
+  x = layers.BatchNormalization(
+      axis=bn_axis, epsilon=1.001e-5, name=name + '_preact_bn')(x)
+  x = layers.Activation('relu', name=name + '_preact_relu')(x)
+
   x = layers.Conv2D(
-      filters, 1, strides=1, use_bias=False, name=name + '_1_conv')(preact)
+      filters, 1, strides=1, use_bias=False, name=name + '_1_conv')(x)
   x = layers.BatchNormalization(
       axis=bn_axis, epsilon=1.001e-5, name=name + '_1_bn')(x)
   x = layers.Activation('relu', name=name + '_1_relu')(x)
