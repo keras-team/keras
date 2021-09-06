@@ -1159,7 +1159,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
       # Use multiple calls to verify that no new weights get created
       self.assertAllEqual(layer(tf.ones(shape=(2, 3))),
                           tf.constant(1.5, shape=(2, 3)))
-    self.assertAllEqual({var.name: var for var in layer.weights},
+    self.assertAllEqual({var.name: var.numpy() for var in layer.weights},
                         {"foo/scale_by_y/y:0": 1.5})
     self.assertAllEqual(tf.add_n(layer.losses),
                         regularizers.L2()(layer.weights[0]))
@@ -1179,7 +1179,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
       out, loss = foo(tf.ones(shape=(2, 3)))
       self.assertAllEqual(out, tf.constant(1.5, shape=(2, 3)))
       self.assertAllEqual(loss, regularizers.L2()(layer.weights[0]))
-    self.assertAllEqual({var.name: var for var in layer.weights},
+    self.assertAllEqual({var.name: var.numpy() for var in layer.weights},
                         {"foo/scale_by_y/y:0": 1.5})
 
   def test_compat_v1_make_template_in_trace_in_shim(self):
@@ -1199,8 +1199,9 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
       out, loss = bar(tf.ones(shape=(2, 3)))
       self.assertAllEqual(out, tf.constant(1.5, shape=(2, 3)))
       self.assertAllEqual(loss, regularizers.L2()(layers["layer"].weights[0]))
-    self.assertAllEqual({var.name: var for var in layers["layer"].weights},
-                        {"foo/scale_by_y/y:0": 1.5})
+    self.assertAllEqual(
+        {var.name: var.numpy() for var in layers["layer"].weights},
+        {"foo/scale_by_y/y:0": 1.5})
 
   def test_only_track_get_variable(self):
     # Test the shim does not try tracking or reusing variables
