@@ -662,8 +662,8 @@ class BasicLSTMCell(LayerRNNCell):
   that follows.
 
   Note that this cell is not optimized for performance. Please use
-  `tf.contrib.cudnn_rnn.CudnnLSTM` for better performance on GPU, or
-  `tf.contrib.rnn.LSTMBlockCell` and `tf.contrib.rnn.LSTMBlockFusedCell` for
+  `tf.compat.v1.cudnn_rnn.CudnnLSTM` for better performance on GPU, or
+  `tf.compat.v1.rnn.LSTMBlockCell` and `tf.compat.v1.rnn.LSTMBlockFusedCell` for
   better performance on CPU.
   """
 
@@ -827,8 +827,8 @@ class LSTMCell(LayerRNNCell):
   an optional projection layer.
 
   Note that this cell is not optimized for performance. Please use
-  `tf.contrib.cudnn_rnn.CudnnLSTM` for better performance on GPU, or
-  `tf.contrib.rnn.LSTMBlockCell` and `tf.contrib.rnn.LSTMBlockFusedCell` for
+  `tf.compat.v1.cudnn_rnn.CudnnLSTM` for better performance on GPU, or
+  `tf.compat.v1.rnn.LSTMBlockCell` and `tf.compat.v1.rnn.LSTMBlockFusedCell` for
   better performance on CPU.
   References:
     Long short-term memory recurrent neural network architectures for large
