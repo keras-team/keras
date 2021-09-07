@@ -30,6 +30,7 @@ py_library(
         "ftrl.py",
         "gradient_descent.py",
         "nadam.py",
+        "optimizer.py",
         "optimizer_v2.py",
         "rmsprop.py",
         "utils.py",
