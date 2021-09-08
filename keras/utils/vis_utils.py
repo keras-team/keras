@@ -135,8 +135,15 @@ def model_to_dot(model,
     `subgraph=True`.
 
   Raises:
+    ValueError: if `model_to_dot` is called before the model is built.
     ImportError: if graphviz or pydot are not available.
   """
+
+  if not model.built:
+    raise ValueError('This model has not yet been built. '
+                     'Build the model first by calling `build()` or by calling '
+                     'the model on a batch of data.')
+
   from keras.layers import wrappers
   from keras.engine import sequential
   from keras.engine import functional
@@ -394,10 +401,19 @@ def plot_model(model,
     show_layer_activations: Display layer activations (only for layers that
       have an `activation` property).
 
+  Raises:
+    ValueError: if `plot_model` is called before the model is built.
+
   Returns:
     A Jupyter notebook Image object if Jupyter is installed.
     This enables in-line display of the model plots in notebooks.
   """
+
+  if not model.built:
+    raise ValueError('This model has not yet been built. '
+                     'Build the model first by calling `build()` or by calling '
+                     'the model on a batch of data.')
+
   dot = model_to_dot(
       model,
       show_shapes=show_shapes,
