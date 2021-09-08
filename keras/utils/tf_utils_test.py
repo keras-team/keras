@@ -232,6 +232,8 @@ class TestIsExtensionType(tf.test.TestCase):
 class TestRandomSeedSetting(tf.test.TestCase):
 
   def test_seeds(self):
+    if not tf.__internal__.tf2.enabled():
+      self.skipTest('set_random_seed() is only expected to work in tf2.')
     def get_model_output():
       model = keras.Sequential([
           keras.layers.Dense(10),

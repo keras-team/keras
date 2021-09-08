@@ -183,7 +183,12 @@ class LayerUtilsTest(tf.test.TestCase):
       reader = open(fpath, 'r')
       lines = reader.readlines()
       reader.close()
-      self.assertEqual(len(lines), 39)
+      # The output content are slightly different for the input shapes between
+      # v1 and v2.
+      if tf.__internal__.tf2.enabled():
+        self.assertEqual(len(lines), 39)
+      else:
+        self.assertEqual(len(lines), 40)
     except ImportError:
       pass
 

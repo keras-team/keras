@@ -46,6 +46,12 @@ class PreprocessingAppliedInDatasetCreatorTest(tf.test.TestCase):
   """Demonstrate Keras preprocessing layers applied in tf.data.Dataset.map."""
 
   def testDistributedModelFit(self, strategy):
+    if (not tf.__internal__.tf2.enabled()
+        and isinstance(strategy,
+                       tf.distribute.experimental.ParameterServerStrategy)):
+      self.skipTest(
+          "Parameter Server strategy with dataset creator need to be run when "
+          "eager execution is enabled.")
     with strategy.scope():
       preprocessing_model = utils.make_preprocessing_model(self.get_temp_dir())
       training_model = utils.make_training_model()
