@@ -642,7 +642,7 @@ def update_confusion_matrix_variables(variables_to_update,
   if y_pred.shape.ndims == 1:
     num_labels = 1
   else:
-    num_labels = tf.math.reduce_prod(pred_shape[1:], axis=0)
+    num_labels = tf.raw_ops.Prod(input=pred_shape[1:], axis=0)
   thresh_label_tile = tf.where(one_thresh, num_labels,
                                          tf.ones([], dtype=tf.int32))
 
