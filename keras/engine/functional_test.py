@@ -14,11 +14,8 @@
 #,============================================================================
 """Tests for layer graphs construction & handling."""
 
-import tensorflow.compat.v2 as tf
-
 import warnings
 
-import numpy as np
 from keras import backend
 from keras import combinations
 from keras import initializers
@@ -34,7 +31,14 @@ from keras.engine import sequential
 from keras.engine import training as training_lib
 from keras.utils import layer_utils
 from keras.utils import tf_utils
+
+import numpy as np
+import tensorflow.compat.v2 as tf
+
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import extension_type
 from tensorflow.python.training.tracking.util import Checkpoint
+# pylint: enable=g-direct-tensorflow-import
 
 
 class NetworkConstructionTest(keras_parameterized.TestCase):
@@ -1167,6 +1171,36 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
         batch_size=2)
     # Check that second input was correctly added to first.
     self.assertEqual(history.history['loss'][0], 0.0)
+
+  @combinations.generate(combinations.keras_mode_combinations())
+  def test_dont_cast_composite_unless_necessary(self):
+    if not tf.executing_eagerly():
+      return  # Creating Keras inputs from a type_spec only supported in eager.
+
+    # TODO(edloper): Change this to tf.experimental.ExtensionTyep once
+    # it's been released.
+    class MyType(extension_type.ExtensionType):
+      # TODO(edloper) Remove _shape and _dtype once Keras has been switched
+      # to use .shape and .dtype instead.
+      value: tf.Tensor
+      _shape = property(lambda self: self.value.shape)
+      shape = property(lambda self: self.value.shape)
+      _dtype = property(lambda self: self.value.dtype)
+      dtype = property(lambda self: self.value.dtype)
+
+      class Spec:
+        _shape = property(lambda self: self.value.shape)
+        shape = property(lambda self: self.value.shape)
+        _dtype = property(lambda self: self.value.dtype)
+        dtype = property(lambda self: self.value.dtype)
+
+    my_spec = MyType.Spec(tf.TensorSpec([5], tf.float32))
+    input1 = input_layer_lib.Input(type_spec=my_spec)
+    model = training_lib.Model([input1], input1)
+    model.compile(run_eagerly=testing_utils.should_run_eagerly())
+    model(MyType([1., 2., 3., 4., 5.]))  # Does not require cast.
+    with self.assertRaises((ValueError, TypeError)):
+      model(MyType([1, 2, 3, 4, 5]))
 
   @combinations.generate(combinations.keras_mode_combinations())
   def test_composite_call_kwarg_derived_from_keras_layer(self):
