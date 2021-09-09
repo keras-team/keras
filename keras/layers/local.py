@@ -775,8 +775,10 @@ def local_conv_sparse_matmul(inputs, kernel, kernel_idxs, kernel_shape,
       Output (N+2)-D dense tensor with shape `output_shape`.
   """
   inputs_flat = backend.reshape(inputs, (backend.shape(inputs)[0], -1))
-  output_flat = tf.sparse.sparse_dense_matmul(
-      sp_a=tf.SparseTensor(kernel_idxs, kernel, kernel_shape),
+  output_flat = tf.raw_ops.SparseTensorDenseMatMul(
+      a_indices=kernel_idxs,
+      a_values=kernel,
+      a_shape=kernel_shape,
       b=inputs_flat,
       adjoint_b=True)
   output_flat_transpose = backend.transpose(output_flat)

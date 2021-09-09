@@ -196,7 +196,7 @@ class Dense(Layer):
         outputs = tf.nn.embedding_lookup_sparse(
             self.kernel, ids, weights, combiner='sum')
       else:
-        outputs = tf.matmul(a=inputs, b=self.kernel)
+        outputs = tf.raw_ops.MatMul(a=inputs, b=self.kernel)
     # Broadcast kernel to inputs.
     else:
       outputs = tf.tensordot(inputs, self.kernel, [[rank - 1], [0]])
