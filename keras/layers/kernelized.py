@@ -210,7 +210,7 @@ class RandomFourierFeatures(base_layer.Layer):
     inputs = tf.convert_to_tensor(inputs, dtype=self.dtype)
     inputs = tf.cast(inputs, tf.float32)
     kernel = (1.0 / self.kernel_scale) * self.unscaled_kernel
-    outputs = tf.matmul(a=inputs, b=kernel)
+    outputs = tf.raw_ops.MatMul(a=inputs, b=kernel)
     outputs = tf.nn.bias_add(outputs, self.bias)
     return tf.cos(outputs)
 
