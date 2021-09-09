@@ -14,13 +14,12 @@
 # ==============================================================================
 """Tests for Keras TF utils."""
 
-import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
-import numpy as np
 import keras
 from keras import combinations
 from keras.utils import tf_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 try:
   import attr  # pylint:disable=g-import-not-at-top
@@ -249,6 +248,65 @@ class TestRandomSeedSetting(tf.test.TestCase):
     tf_utils.set_random_seed(42)
     y2 = get_model_output()
     self.assertAllClose(y1, y2, atol=1e-6)
+
+
+class CustomTypeSpec(tf.TypeSpec):
+  """Stubbed-out custom type spec, for testing."""
+
+  def __init__(self, shape, dtype):
+    self.shape = tf.TensorShape(shape)
+    self.dtype = tf.dtypes.as_dtype(dtype)
+
+  def with_shape(self, new_shape):
+    return CustomTypeSpec(new_shape, self.dtype)
+
+  # Stub implementations for all the TypeSpec methods:
+  value_type = None
+  _to_components = lambda self, value: None
+  _from_components = lambda self, components: None
+  _component_specs = property(lambda self: None)
+  _serialize = lambda self: (self.shape, self.dtype)
+
+
+class TestGetTensorSpec(parameterized.TestCase):
+
+  @parameterized.parameters([
+      (lambda: tf.constant([[1, 2]]), [1, 2]),
+      (tf.TensorSpec([8, 3], tf.int32), [8, 3]),
+      (tf.TensorSpec([8], tf.int32), [8]),
+      (tf.TensorSpec([], tf.int32), []),
+      (tf.TensorSpec(None, tf.int32), None),
+      (tf.RaggedTensorSpec([8, 3], tf.int32), [8, 3]),
+      (tf.SparseTensorSpec([8, 3], tf.int32), [8, 3]),
+  ])
+  def test_without_dynamic_batch(self, t, expected_shape):
+    if callable(t):
+      t = t()
+    result = tf_utils.get_tensor_spec(t)
+    self.assertTrue(result.is_compatible_with(t))
+    if expected_shape is None:
+      self.assertIsNone(result.shape.rank)
+    else:
+      self.assertEqual(result.shape.as_list(), expected_shape)
+
+  @parameterized.parameters([
+      (lambda: tf.constant([[1, 2]]), [None, 2]),
+      (tf.TensorSpec([8, 3], tf.int32), [None, 3]),
+      (tf.TensorSpec([8], tf.int32), [None]),
+      (tf.TensorSpec([], tf.int32), []),
+      (tf.TensorSpec(None, tf.int32), None),
+      (tf.RaggedTensorSpec([8, 3], tf.int32), [None, 3]),
+      (tf.SparseTensorSpec([8, 3], tf.int32), [None, 3]),
+  ])
+  def test_with_dynamic_batch(self, t, expected_shape):
+    if callable(t):
+      t = t()
+    result = tf_utils.get_tensor_spec(t, True)
+    self.assertTrue(result.is_compatible_with(t))
+    if expected_shape is None:
+      self.assertIsNone(result.shape.rank)
+    else:
+      self.assertEqual(result.shape.as_list(), expected_shape)
 
 
 if __name__ == '__main__':
