@@ -14,18 +14,21 @@
 # ==============================================================================
 """TensorFlow-related utilities."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
-import copy
 import random
-import numpy as np
-from tensorflow.python.framework import ops
+
 from keras import backend
 from keras.engine import keras_tensor
 from keras.utils import object_identity
 from keras.utils import tf_contextlib
+
+import numpy as np
+
+import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import ops
 from tensorflow.python.util.tf_export import keras_export
+# pylint: enable=g-direct-tensorflow-import
 
 
 @keras_export('keras.utils.set_random_seed', v1=[])
@@ -503,19 +506,18 @@ def get_tensor_spec(t, dynamic_batch=False, name=None):
     spec = tf.TensorSpec(shape=t.shape, dtype=t.dtype, name=name)
   else:
     return None  # Allow non-Tensors to pass through.
+  # pylint: enable=protected-access
 
   if not dynamic_batch:
     return spec
 
-  dynamic_batch_spec = copy.deepcopy(spec)
-  # RaggedTensorSpec only has a private _shape.
-  shape = dynamic_batch_spec._shape
-  if shape.rank is not None and shape.rank > 0:
-    shape_list = shape.as_list()
-    shape_list[0] = None
-    dynamic_batch_spec._shape = tf.TensorShape(shape_list)
-  return dynamic_batch_spec
-  # pylint: enable=protected-access
+  shape = spec.shape
+  if shape.rank is None or shape.rank == 0:
+    return spec
+
+  shape_list = shape.as_list()
+  shape_list[0] = None
+  return keras_tensor.type_spec_with_shape(spec, tf.TensorShape(shape_list))
 
 
 def sync_to_numpy_or_python_type(tensors):

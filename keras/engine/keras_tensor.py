@@ -14,8 +14,11 @@
 # ==============================================================================
 """Keras Input Tensor used to track functional API Topology."""
 
-import tensorflow.compat.v2 as tf
+import copy
 from keras.utils import object_identity
+import tensorflow.compat.v2 as tf
+
+from tensorflow.python.data.util import structure  # pylint: disable=g-direct-tensorflow-import
 
 # pylint: disable=g-classes-have-attributes
 
@@ -116,6 +119,18 @@ class KerasTensor:
     self._inferred_value = inferred_value
     self._name = name
 
+    if not isinstance(type_spec, structure.NoneTensorSpec):
+      if not hasattr(type_spec, 'shape'):
+        raise ValueError(
+            'KerasTensor only supports TypeSpecs that have a shape field; got '
+            f'{type(type_spec).__qualname__}, which does not have a shape.')
+      if not isinstance(type_spec.shape, tf.TensorShape):
+        raise TypeError(
+            "KerasTensor requires that wrapped TypeSpec's shape is a "
+            f'TensorShape; got TypeSpec {type(type_spec).__qualname__}, whose '
+            'shape field has unexpected type '
+            f'{type(type_spec.dtype).__qualname__}.')
+
   @property
   def type_spec(self):
     """Returns the `tf.TypeSpec` symbolically inferred for this Keras output."""
@@ -124,11 +139,7 @@ class KerasTensor:
   @property
   def shape(self):
     """Returns the `TensorShape` symbolically inferred for this Keras output."""
-    # TODO(kaftan): This is only valid for normal/sparse/ragged tensors.
-    # may need to raise an error when it's not valid for a type_spec,
-    # but some keras code (e.g. build-related stuff) will likely fail when
-    # it can't access shape or dtype
-    return self._type_spec._shape  # pylint: disable=protected-access
+    return self._type_spec.shape
 
   @classmethod
   def from_tensor(cls, tensor):
@@ -273,7 +284,12 @@ class KerasTensor:
           f"Keras symbolic input/output's shape {self.shape} is not "
           f"compatible with supplied shape {shape}.")
     else:
-      self._type_spec._shape = shape  # pylint: disable=protected-access
+      if isinstance(self._type_spec, tf.TensorSpec):
+        # Note: this mutates self._type_spec in place -- if any other code has
+        # a reference to self._type_spec, then they will also see this change.
+        self._type_spec._shape = shape  # pylint: disable=protected-access
+      else:
+        self._type_spec = type_spec_with_shape(self._type_spec, shape)
 
   def __str__(self):
     symbolic_description = ''
@@ -313,11 +329,17 @@ class KerasTensor:
   @property
   def dtype(self):
     """Returns the `dtype` symbolically inferred for this Keras output."""
-    # TODO(kaftan): This is only valid for normal/sparse/ragged tensors.
-    # may need to raise an error when it's not valid for a type_spec,
-    # but some keras code (e.g. build-related stuff) will likely fail when
-    # it can't access shape or dtype
-    return self._type_spec._dtype  # pylint: disable=protected-access
+    type_spec = self._type_spec
+    if not hasattr(type_spec, 'dtype'):
+      raise AttributeError(
+          f'KerasTensor wraps TypeSpec {type(type_spec).__qualname__}, '
+          'which does not have a dtype.')
+    if not isinstance(type_spec.dtype, tf.DType):
+      raise TypeError(
+          "KerasTensor requires that wrapped TypeSpec's dtype is a DType; got "
+          f'TypeSpec {type(type_spec).__qualname__}, whose dtype field has '
+          f'unexpected type {type(type_spec.dtype).__qualname__}.')
+    return type_spec.dtype
 
   def ref(self):
     """Returns a hashable reference object to this KerasTensor.
@@ -615,3 +637,20 @@ def keras_tensor_from_type_spec(type_spec, name=None):
       break
 
   return keras_tensor_cls.from_type_spec(type_spec, name=name)
+
+
+def type_spec_with_shape(spec, shape):
+  """Returns a copy of TypeSpec `spec` with its shape set to `shape`."""
+  if isinstance(spec,
+                (tf.TensorSpec, tf.RaggedTensorSpec, tf.SparseTensorSpec)):
+    result = copy.deepcopy(spec)
+    result._shape = shape  # pylint: disable=protected-access
+    return result
+  elif hasattr(spec, 'with_shape'):
+    # TODO(edloper): Consider adding .with_shape method to TensorSpec,
+    # RaggedTensorSpec, and SparseTensorSpec.
+    return spec.with_shape(shape)
+  else:
+    # TODO(edloper): Consider moving this check to the KerasTensor constructor.
+    raise ValueError('Keras requires TypeSpec to have a `with_shape` method '
+                     'that returns a copy of `self` with an updated shape.')

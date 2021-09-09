@@ -24,6 +24,28 @@ from keras.engine import keras_tensor
 from keras.engine import training
 
 
+class CustomTypeSpec(tf.TypeSpec):
+  """Stubbed-out custom type spec, for testing."""
+
+  def __init__(self, shape, dtype):
+    self.shape = tf.TensorShape(shape)
+    self.dtype = tf.dtypes.as_dtype(dtype)
+
+  # Stub implementations for all the TypeSpec methods:
+  value_type = None
+  _to_components = lambda self, value: None
+  _from_components = lambda self, components: None
+  _component_specs = property(lambda self: None)
+  _serialize = lambda self: (self.shape, self.dtype)
+
+
+class CustomTypeSpec2(CustomTypeSpec):
+  """Adds a with_shape method to CustomTypeSpec."""
+
+  def with_shape(self, new_shape):
+    return CustomTypeSpec2(new_shape, self.dtype)
+
+
 class KerasTensorTest(keras_parameterized.TestCase):
 
   def test_repr_and_string(self):
@@ -107,6 +129,76 @@ class KerasTensorTest(keras_parameterized.TestCase):
     model_config = model.get_config()
     model2 = training.Model.from_config(model_config)
     self.assertAllEqual(model2(x), expected_property)
+
+  @parameterized.parameters([
+      (tf.TensorSpec([2, 3], tf.int32), [2, 3]),
+      (tf.RaggedTensorSpec([2, None]), [2, None]),
+      (tf.SparseTensorSpec([8]), [8]),
+      (CustomTypeSpec([3, 8], tf.int32), [3, 8]),
+  ])
+  def test_shape(self, spec, expected_shape):
+    kt = keras_tensor.KerasTensor(spec)
+    self.assertEqual(kt.shape.as_list(), expected_shape)
+
+  @parameterized.parameters([
+      (tf.TensorSpec([8, 3], tf.int32), [8, 3]),
+      (tf.TensorSpec([None, 3], tf.int32), [8, 3]),
+      (tf.TensorSpec(None, tf.int32), [8, 3]),
+      (tf.TensorSpec(None, tf.int32), [8, None]),
+      (tf.TensorSpec(None, tf.int32), None),
+      (tf.RaggedTensorSpec([2, None, None]), [2, None, 5]),
+      (tf.SparseTensorSpec([8]), [8]),
+      (CustomTypeSpec2([3, None], tf.int32), [3, 8]),
+  ])
+  def test_set_shape(self, spec, new_shape):
+    kt = keras_tensor.KerasTensor(spec)
+    kt.set_shape(new_shape)
+    if new_shape is None:
+      self.assertIsNone(kt.type_spec.shape.rank)
+    else:
+      self.assertEqual(kt.type_spec.shape.as_list(), new_shape)
+    self.assertTrue(kt.type_spec.is_compatible_with(spec))
+
+  def test_set_shape_error(self):
+    spec = CustomTypeSpec([3, None], tf.int32)
+    kt = keras_tensor.KerasTensor(spec)
+    with self.assertRaisesRegex(
+        ValueError, "Keras requires TypeSpec to have a `with_shape` method"):
+      kt.set_shape([3, 3])
+
+  def test_missing_shape_error(self):
+    spec = CustomTypeSpec(None, tf.int32)
+    del spec.shape
+    with self.assertRaisesRegex(
+        ValueError,
+        "KerasTensor only supports TypeSpecs that have a shape field; .*"):
+      keras_tensor.KerasTensor(spec)
+
+  def test_wrong_shape_type_error(self):
+    spec = CustomTypeSpec(None, tf.int32)
+    spec.shape = "foo"
+    with self.assertRaisesRegex(
+        TypeError, "KerasTensor requires that wrapped TypeSpec's shape is a "
+        "TensorShape; .*"):
+      keras_tensor.KerasTensor(spec)
+
+  def test_missing_dtype_error(self):
+    spec = CustomTypeSpec(None, tf.int32)
+    del spec.dtype
+    kt = keras_tensor.KerasTensor(spec)
+    with self.assertRaisesRegex(
+        AttributeError,
+        "KerasTensor wraps TypeSpec .* which does not have a dtype."):
+      kt.dtype  # pylint: disable=pointless-statement
+
+  def test_wrong_dtype_type_error(self):
+    spec = CustomTypeSpec(None, tf.int32)
+    spec.dtype = "foo"
+    kt = keras_tensor.KerasTensor(spec)
+    with self.assertRaisesRegex(
+        TypeError,
+        "KerasTensor requires that wrapped TypeSpec's dtype is a DType; .*"):
+      kt.dtype  # pylint: disable=pointless-statement
 
 
 if __name__ == "__main__":
