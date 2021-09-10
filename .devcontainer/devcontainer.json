@@ -7,7 +7,6 @@
             "**/bazel-*/**": true
         },
         "search.exclude": {
-          
             "**/bazel-*/**": true
         },
         "terminal.integrated.defaultProfile.linux": "bash",
