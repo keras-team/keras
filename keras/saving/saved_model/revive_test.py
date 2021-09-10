@@ -21,7 +21,6 @@ SavedModel have the expected structure.
 
 import tensorflow.compat.v2 as tf
 # TODO(kathywu): Move relevant tests from saved_model_test to
-
 import shutil
 
 from absl.testing import parameterized
@@ -172,6 +171,26 @@ class UnregisteredCustomSequentialModel(keras.Sequential):
   def __init__(self, **kwargs):
     super(UnregisteredCustomSequentialModel, self).__init__(**kwargs)
     self.add(keras.layers.InputLayer(input_shape=(2, 3)))
+
+
+class FunctionalSubclassModel(keras.Model):
+
+  def __init__(self, units):
+    self.units = units
+    my_input = keras.Input(shape=(2, 3), name='inputs')
+    dense = keras.layers.Dense(self.units, activation='relu', name='dense')
+    output = dense(my_input)
+    outputs = {'output': output}
+    super().__init__(inputs=[my_input], outputs=outputs)
+
+  def get_config(self):
+    return {'units': self.units}
+
+
+class FunctionalSubclassModelWrongConfig(FunctionalSubclassModel):
+
+  def get_config(self):
+    return {}
 
 
 class ReviveTestBase(keras_parameterized.TestCase):
@@ -346,6 +365,18 @@ class TestModelRevive(ReviveTestBase):
     revived = keras_load.load(self.path, compile=False)
     self._assert_revived_correctness(model, revived)
 
+  def test_functional_subclass(self):
+    model = FunctionalSubclassModel(32)
+    model.save(self.path, save_format='tf')
+    revived = keras_load.load(self.path, compile=False)
+    self._assert_revived_correctness(model, revived)
+
+  def test_functional_subclass_wrong_config(self):
+    model = FunctionalSubclassModelWrongConfig(32)
+    model.save(self.path, save_format='tf')
+    with self.assertRaisesRegex(TypeError, 'Unable to revive model'):
+      keras_load.load(self.path, compile=False)
+
   def test_load_compiled_metrics(self):
     model = testing_utils.get_small_sequential_mlp(1, 3)
 
@@ -385,6 +416,8 @@ if __name__ == '__main__':
       'CustomLayerWithConfig': CustomLayerWithConfig,
       'CustomNetworkWithConfig': CustomNetworkWithConfig,
       'CustomNetworkWithConfigName': CustomNetworkWithConfigName,
-      'SubclassedModelWithConfig': SubclassedModelWithConfig
+      'SubclassedModelWithConfig': SubclassedModelWithConfig,
+      'FunctionalSubclassModel': FunctionalSubclassModel,
+      'FunctionalSubclassModelWrongConfig': FunctionalSubclassModelWrongConfig
   }):
     tf.test.main()
