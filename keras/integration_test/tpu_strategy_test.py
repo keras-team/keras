@@ -95,6 +95,8 @@ class TpuStrategyTest(tf.test.TestCase):
     return label_inverse_lookup_layer
 
   def test_keras_metric_outside_strategy_scope_per_replica(self):
+    if not tf.compat.v1.executing_eagerly():
+      self.skipTest("connect_to_cluster() can only be called in eager mode")
     strategy = get_tpu_strategy()
     metric = tf.keras.metrics.Mean("test_metric", dtype=tf.float32)
 
@@ -114,6 +116,8 @@ class TpuStrategyTest(tf.test.TestCase):
 
   @test_util.disable_mlir_bridge("TODO(b/168036682): Support dynamic padder")
   def test_train_and_serve(self):
+    if not tf.compat.v1.executing_eagerly():
+      self.skipTest("connect_to_cluster() can only be called in eager mode")
     strategy = get_tpu_strategy()
     use_adapt = False
 

@@ -709,7 +709,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
        np.array(["earth", "wind", "and", "fire"]),
        [2, 3, 4, 5]),
       ("array_0", [],
-       tf.constant("earth"),
+       lambda: tf.constant("earth"),
        2),
       ("str", [],
        "earth",
@@ -723,6 +723,8 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
   )  # pyformat: disable
   def test_int_output(self, shape, input_array, expected_output):
     vocab_data = ["earth", "wind", "and", "fire"]
+    if callable(input_array):
+      input_array = input_array()
 
     layer = index_lookup.IndexLookup(
         max_tokens=None,

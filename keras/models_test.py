@@ -127,7 +127,9 @@ class TestModelCloning(keras_parameterized.TestCase):
         list(new_model._flatten_layers(include_self=False, recursive=False))[0],
         keras.layers.InputLayer)
     # The new models inputs should have the properties of the new input tensor
-    self.assertEqual(new_model.input_names[0], input_a.name)
+    if tf.__internal__.tf2.enabled():
+      # In TF1, the new model will be a:0
+      self.assertEqual(new_model.input_names[0], input_a.name)
     self.assertEqual(new_model.inputs[0].shape, input_a.shape)
     self.assertTrue(new_model._is_graph_network)
 

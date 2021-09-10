@@ -324,6 +324,8 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       model.fit(np.ones((10, 1)), np.ones((10, 1)), epochs=0, callbacks=[cbk])
 
   def test_backup_restore_train_counter(self):
+    if not tf.compat.v1.executing_eagerly():
+      self.skipTest('BackupAndRestore only available when execution is enabled')
     model = keras.Sequential([keras.layers.Dense(1)])
     model.compile('sgd', 'mse')
     cbk = BackupAndRestore(self.get_temp_dir())
@@ -523,6 +525,8 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     model_type = testing_utils.get_model_type()
     if model_type == 'subclass':
       return  # Skip test since subclassed models cannot be saved in .h5 format.
+    if not tf.__internal__.tf2.enabled():
+      self.skipTest('Checkpoint callback only available in v2.')
 
     layers = [
         keras.layers.Dense(NUM_HIDDEN, input_dim=INPUT_DIM, activation='relu'),
@@ -1118,7 +1122,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
             1, activation='sigmoid'),))
     model.compile(
         optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
-    expected_log = r'(.*- loss:.*- accuracy:.*epoch)+'
+    expected_log = r'(.*- loss:.*- acc.*:.*epoch)+'
     with self.captureWritesToStream(sys.stdout) as printed:
       model.fit(data, labels, verbose=2, epochs=20)
       self.assertRegex(printed.contents(), expected_log)

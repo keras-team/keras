@@ -643,9 +643,12 @@ class Functional(training_lib.Model):
       tensor = tf.cast(tensor, dtype=ref_input.dtype)
     elif tf_utils.is_extension_type(tensor):
       # Dtype casting (If the extension type has a non-variant dtype and
-      # supports being cast)
+      # supports being cast).  Only cast if necessary (since some extension
+      # types may not implement tf.cast).
+      tensor_dtype = getattr(tensor, 'dtype', None)
       ref_input_dtype = getattr(ref_input, 'dtype', None)
-      if ref_input_dtype is not None and ref_input_dtype != tf.variant:
+      if (ref_input_dtype is not None and tensor_dtype is not None and
+          tensor_dtype != ref_input_dtype and ref_input_dtype != tf.variant):
         tensor = tf.cast(tensor, dtype=ref_input_dtype)
 
     return tensor

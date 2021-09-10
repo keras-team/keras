@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark for KPL implementation of vocabulary columns from files with varying-length inputs."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import os
 

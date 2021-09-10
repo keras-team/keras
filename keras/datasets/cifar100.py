@@ -49,7 +49,7 @@ def load_data(label_mode='fine'):
     with shape `(50000, 1)` for the training data.
 
   **x_test**: uint8 NumPy array of grayscale image data with shapes
-    (10000, 32, 32, 3), containing the test data. Pixel values range
+    `(10000, 32, 32, 3)`, containing the test data. Pixel values range
     from 0 to 255.
 
   **y_test**: uint8 NumPy array of labels (integers in range 0-99)

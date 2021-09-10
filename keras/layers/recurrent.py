@@ -880,7 +880,9 @@ class RNN(Layer):
       else:
         initial_state = self.states
       initial_state = tf.nest.map_structure(
-          lambda v: tf.cast(v, self.compute_dtype), initial_state
+          # When the layer has a inferred dtype, use the dtype from the cell.
+          lambda v: tf.cast(v, self.compute_dtype or self.cell.compute_dtype),
+          initial_state
       )
     elif initial_state is None:
       initial_state = self.get_initial_state(inputs)

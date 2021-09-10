@@ -35,7 +35,8 @@ class TestPickleProtocol(keras_parameterized.TestCase):
         for protocol in range(pickle.HIGHEST_PROTOCOL + 1)))
   def test_built_models(self, serializer):
     """Built models should be copyable and picklable for all model types."""
-
+    if not tf.__internal__.tf2.enabled():
+      self.skipTest('pickle model only available in v2 when tf format is used.')
     model = testing_utils.get_small_mlp(
         num_hidden=1, num_classes=2, input_dim=3)
     model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy')
@@ -63,7 +64,8 @@ class TestPickleProtocol(keras_parameterized.TestCase):
   )
   def test_unbuilt_models(self, serializer):
     """Unbuilt models should be copyable & deepcopyable for all model types."""
-
+    if not tf.__internal__.tf2.enabled():
+      self.skipTest('pickle model only available in v2 when tf format is used.')
     original_model = testing_utils.get_small_mlp(
         num_hidden=1, num_classes=2, input_dim=3)
     # roundtrip without compiling or training

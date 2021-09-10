@@ -235,4 +235,5 @@ class AutomaticControlDependenciesTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  if tf.__internal__.tf2.enabled():
+    tf.test.main()
