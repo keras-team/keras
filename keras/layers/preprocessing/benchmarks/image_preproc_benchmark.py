@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark for Keras image preprocessing layer."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import functools
 import time
@@ -86,7 +86,7 @@ class BenchmarkLayer(tf.test.Benchmark):
       ds = ds.prefetch(batch_size)
       img_augmentation = functools.partial(
           image_augmentation, batch_size=batch_size)
-      ds = ds.map(img_augmentation)
+      ds = ds.map(img_augmentation, num_parallel_calls=8)
       starts.append(time.time())
       count = 0
       # Benchmarked code begins here.

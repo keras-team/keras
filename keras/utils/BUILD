@@ -367,6 +367,7 @@ tf_py_test(
         ":layer_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )
 

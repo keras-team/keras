@@ -160,6 +160,8 @@ class TestImageNetUtils(keras_parameterized.TestCase):
       },
   ])
   def test_preprocess_input_symbolic_mixed_precision(self, mode):
+    if not tf.__internal__.tf2.enabled():
+      self.skipTest('The global policy can only be tested in TensorFlow 2')
     set_global_policy('mixed_float16')
     shape = (20, 20, 3)
     inputs = keras.layers.Input(shape=shape)

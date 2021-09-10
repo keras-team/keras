@@ -14,15 +14,16 @@
 # ==============================================================================
 """Keras image preprocessing layers."""
 
-import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
+# pylint: disable=g-direct-tensorflow-import
 
-import numpy as np
 from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
-from keras.preprocessing import image as image_preprocessing
+from keras.preprocessing.image import smart_resize
 from keras.utils import control_flow_util
+import numpy as np
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 ResizeMethod = tf.image.ResizeMethod
@@ -83,8 +84,8 @@ class Resizing(base_layer.Layer):
                interpolation='bilinear',
                crop_to_aspect_ratio=False,
                **kwargs):
-    self.target_height = height
-    self.target_width = width
+    self.height = height
+    self.width = width
     self.interpolation = interpolation
     self.crop_to_aspect_ratio = crop_to_aspect_ratio
     self._interpolation_method = get_interpolation(interpolation)
@@ -93,27 +94,27 @@ class Resizing(base_layer.Layer):
 
   def call(self, inputs):
     if self.crop_to_aspect_ratio:
-      outputs = image_preprocessing.smart_resize(
+      outputs = smart_resize(
           inputs,
-          size=[self.target_height, self.target_width],
+          size=[self.height, self.width],
           interpolation=self._interpolation_method)
     else:
       outputs = tf.image.resize(
           inputs,
-          size=[self.target_height, self.target_width],
+          size=[self.height, self.width],
           method=self._interpolation_method)
     return outputs
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
-    input_shape[H_AXIS] = self.target_height
-    input_shape[W_AXIS] = self.target_width
+    input_shape[H_AXIS] = self.height
+    input_shape[W_AXIS] = self.width
     return tf.TensorShape(input_shape)
 
   def get_config(self):
     config = {
-        'height': self.target_height,
-        'width': self.target_width,
+        'height': self.height,
+        'width': self.width,
         'interpolation': self.interpolation,
         'crop_to_aspect_ratio': self.crop_to_aspect_ratio,
     }
@@ -126,8 +127,10 @@ class Resizing(base_layer.Layer):
 class CenterCrop(base_layer.Layer):
   """A preprocessing layer which crops images.
 
-  This layers crops the central portion of the images to a target height and
-  width.
+  This layers crops the central portion of the images to a target size. If an
+  image is smaller than the target size, it will be resized and cropped so as to
+  return the largest possible window in the image that matches the target aspect
+  ratio.
 
   For an overview and full list of preprocessing layers, see the preprocessing
   [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
@@ -149,52 +152,38 @@ class CenterCrop(base_layer.Layer):
   """
 
   def __init__(self, height, width, **kwargs):
-    self.target_height = height
-    self.target_width = width
-    super(CenterCrop, self).__init__(**kwargs)
+    self.height = height
+    self.width = width
+    super(CenterCrop, self).__init__(**kwargs, autocast=False)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('CenterCrop').set(True)
 
   def call(self, inputs):
     inputs = tf.convert_to_tensor(inputs)
-    inputs_shape = tf.shape(inputs)
-    unbatched = inputs.shape.rank == 3
-    img_hd = inputs_shape[H_AXIS]
-    img_wd = inputs_shape[W_AXIS]
-    img_hd_diff = img_hd - self.target_height
-    img_wd_diff = img_wd - self.target_width
-    checks = []
-    checks.append(
-        tf.debugging.assert_non_negative(
-            img_hd_diff,
-            message='The crop height {} should not be greater than input '
-            'height.'.format(self.target_height)))
-    checks.append(
-        tf.debugging.assert_non_negative(
-            img_wd_diff,
-            message='The crop width {} should not be greater than input '
-            'width.'.format(self.target_width)))
-    with tf.control_dependencies(checks):
-      bbox_h_start = tf.cast(img_hd_diff / 2, tf.int32)
-      bbox_w_start = tf.cast(img_wd_diff / 2, tf.int32)
-      if unbatched:
-        bbox_begin = tf.stack([bbox_h_start, bbox_w_start, 0])
-        bbox_size = tf.stack([self.target_height, self.target_width, -1])
-      else:
-        bbox_begin = tf.stack([0, bbox_h_start, bbox_w_start, 0])
-        bbox_size = tf.stack([-1, self.target_height, self.target_width, -1])
-      outputs = tf.slice(inputs, bbox_begin, bbox_size)
-      return outputs
+    input_shape = tf.shape(inputs)
+    h_diff = input_shape[H_AXIS] - self.height
+    w_diff = input_shape[W_AXIS] - self.width
+
+    def center_crop():
+      h_start = tf.cast(h_diff / 2, tf.int32)
+      w_start = tf.cast(w_diff / 2, tf.int32)
+      return tf.image.crop_to_bounding_box(inputs, h_start, w_start,
+                                           self.height, self.width)
+
+    outputs = tf.cond(
+        tf.reduce_all((h_diff >= 0, w_diff >= 0)), center_crop,
+        lambda: smart_resize(inputs, [self.height, self.width]))
+    return tf.cast(outputs, inputs.dtype)
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
-    input_shape[H_AXIS] = self.target_height
-    input_shape[W_AXIS] = self.target_width
+    input_shape[H_AXIS] = self.height
+    input_shape[W_AXIS] = self.width
     return tf.TensorShape(input_shape)
 
   def get_config(self):
     config = {
-        'height': self.target_height,
-        'width': self.target_width,
+        'height': self.height,
+        'width': self.width,
     }
     base_config = super(CenterCrop, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -205,12 +194,15 @@ class CenterCrop(base_layer.Layer):
 class RandomCrop(base_layer.Layer):
   """A preprocessing layer which randomly crops images during training.
 
-  This layer will crop all the images in the same batch to the same cropping
-  location.
-  By default, random cropping is only applied during training. At inference
-  time, the images will be first rescaled to preserve the shorter side, and
-  center cropped. If you need to apply random cropping at inference time,
-  set `training` to True when calling the layer.
+  During training, this layer will randomly choose a location to crop images
+  down to a target size. The layer will crop all the images in the same batch to
+  the same cropping location.
+
+  At inference time, and during training if an input image is smaller than the
+  target size, the input will be resized and cropped so as to return the largest
+  possible window in the image that matches the target aspect ratio. If you need
+  to apply random cropping at inference time, set `training` to True when
+  calling the layer.
 
   For an overview and full list of preprocessing layers, see the preprocessing
   [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
@@ -231,7 +223,7 @@ class RandomCrop(base_layer.Layer):
 
   def __init__(self, height, width, seed=None, **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomCrop').set(True)
-    super(RandomCrop, self).__init__(**kwargs)
+    super(RandomCrop, self).__init__(**kwargs, autocast=False)
     self.height = height
     self.width = width
     self.seed = seed
@@ -240,71 +232,23 @@ class RandomCrop(base_layer.Layer):
   def call(self, inputs, training=True):
     if training is None:
       training = backend.learning_phase()
-
     inputs = tf.convert_to_tensor(inputs)
-    unbatched = inputs.shape.rank == 3
+    input_shape = tf.shape(inputs)
+    h_diff = input_shape[H_AXIS] - self.height
+    w_diff = input_shape[W_AXIS] - self.width
 
-    def random_cropped_inputs():
-      """Cropped inputs with stateless random ops."""
-      shape = tf.shape(inputs)
-      if unbatched:
-        crop_size = tf.stack([self.height, self.width, shape[-1]])
-      else:
-        crop_size = tf.stack([shape[0], self.height, self.width, shape[-1]])
-      check = tf.Assert(
-          tf.reduce_all(shape >= crop_size),
-          [self.height, self.width])
-      with tf.control_dependencies([check]):
-        limit = shape - crop_size + 1
-        offset = self._random_generator.random_uniform(
-            tf.shape(shape),
-            dtype=crop_size.dtype,
-            minval=0,
-            maxval=crop_size.dtype.max) % limit
-        return tf.slice(inputs, offset, crop_size)
+    def random_crop():
+      dtype = input_shape.dtype
+      rands = self._random_generator.random_uniform([2], 0, dtype.max, dtype)
+      h_start = rands[0] % (h_diff + 1)
+      w_start = rands[1] % (w_diff + 1)
+      return tf.image.crop_to_bounding_box(inputs, h_start, w_start,
+                                           self.height, self.width)
 
-    # TODO(b/143885775): Share logic with Resize and CenterCrop.
-    def resize_and_center_cropped_inputs():
-      """Deterministically resize to shorter side and center crop."""
-      input_shape = tf.shape(inputs)
-      input_height_t = input_shape[H_AXIS]
-      input_width_t = input_shape[W_AXIS]
-      ratio_cond = (input_height_t / input_width_t > (self.height / self.width))
-      # pylint: disable=g-long-lambda
-      resized_height = control_flow_util.smart_cond(
-          ratio_cond,
-          lambda: tf.cast(self.width * input_height_t / input_width_t,
-                          input_height_t.dtype), lambda: self.height)
-      resized_width = control_flow_util.smart_cond(
-          ratio_cond, lambda: self.width,
-          lambda: tf.cast(self.height * input_width_t / input_height_t,
-                          input_width_t.dtype))
-      # pylint: enable=g-long-lambda
-      resized_inputs = tf.image.resize(
-          images=inputs, size=tf.stack([resized_height, resized_width]))
-
-      img_hd_diff = resized_height - self.height
-      img_wd_diff = resized_width - self.width
-      bbox_h_start = tf.cast(img_hd_diff / 2, tf.int32)
-      bbox_w_start = tf.cast(img_wd_diff / 2, tf.int32)
-      if unbatched:
-        bbox_begin = tf.stack([bbox_h_start, bbox_w_start, 0])
-        bbox_size = tf.stack([self.height, self.width, -1])
-      else:
-        bbox_begin = tf.stack([0, bbox_h_start, bbox_w_start, 0])
-        bbox_size = tf.stack([-1, self.height, self.width, -1])
-      outputs = tf.slice(resized_inputs, bbox_begin, bbox_size)
-      return outputs
-
-    output = control_flow_util.smart_cond(training, random_cropped_inputs,
-                                          resize_and_center_cropped_inputs)
-    input_shape = inputs.shape.as_list()
-    if unbatched:
-      output_shape = [self.height, self.width, input_shape[-1]]
-    else:
-      output_shape = [input_shape[0], self.height, self.width, input_shape[-1]]
-    output.set_shape(output_shape)
-    return output
+    outputs = tf.cond(
+        tf.reduce_all((training, h_diff >= 0, w_diff >= 0)), random_crop,
+        lambda: smart_resize(inputs, [self.height, self.width]))
+    return tf.cast(outputs, inputs.dtype)
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
@@ -1427,4 +1371,3 @@ def get_interpolation(interpolation):
         'Value not recognized for `interpolation`: {}. Supported values '
         'are: {}'.format(interpolation, _RESIZE_METHODS.keys()))
   return _RESIZE_METHODS[interpolation]
-

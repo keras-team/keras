@@ -20,7 +20,7 @@ To add a new model for memory profile:
 3. Add the model function to the dict `models`.
 """
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl import app
 from absl import flags

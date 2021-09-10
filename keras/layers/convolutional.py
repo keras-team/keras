@@ -1942,8 +1942,6 @@ class SeparableConv1D(SeparableConv):
       inputs with shape `(batch_size, channels, length)`.
     dilation_rate: A single integer, specifying
       the dilation rate to use for dilated convolution.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any stride value != 1.
     depth_multiplier: The number of depthwise convolution output channels for
       each input channel. The total number of depthwise convolution output
       channels will be equal to `num_filters_in * depth_multiplier`.
@@ -1999,9 +1997,6 @@ class SeparableConv1D(SeparableConv):
   Returns:
     A tensor of rank 3 representing
     `activation(separableconv1d(inputs, kernel) + bias)`.
-
-  Raises:
-    ValueError: when both `strides` > 1 and `dilation_rate` > 1.
   """
 
   def __init__(self,
@@ -2137,8 +2132,6 @@ class SeparableConv2D(SeparableConv):
       If you never set it, then it will be "channels_last".
     dilation_rate: An integer or tuple/list of 2 integers, specifying
       the dilation rate to use for dilated convolution.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any `strides` value != 1.
     depth_multiplier: The number of depthwise convolution output channels
       for each input channel.
       The total number of depthwise convolution output
@@ -2192,7 +2185,6 @@ class SeparableConv2D(SeparableConv):
 
   Raises:
     ValueError: if `padding` is "causal".
-    ValueError: when both `strides` > 1 and `dilation_rate` > 1.
   """
 
   def __init__(self,

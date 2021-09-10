@@ -37,7 +37,7 @@ def make_dataset():
     The dataset.
   """
   tf.random.set_seed(197011)
-  floats = tf.random.uniform((DS_SIZE, 1), maxval=10, dtype="float64")
+  floats = tf.random.uniform((DS_SIZE, 1), maxval=10, dtype="float32")
   # Generate a 100 unique integer values, but over a wide range to showcase a
   # common use case for IntegerLookup.
   ints = tf.random.uniform((DS_SIZE, 1), maxval=VOCAB_SIZE, dtype="int64")
@@ -56,7 +56,7 @@ def make_dataset():
 def make_preprocessing_model(file_dir):
   """Make a standalone preprocessing model."""
   # The name of our keras.Input should match the column name in the dataset.
-  float_in = tf.keras.Input(shape=(1,), dtype="float64", name="float_col")
+  float_in = tf.keras.Input(shape=(1,), dtype="float32", name="float_col")
   int_in = tf.keras.Input(shape=(1,), dtype="int64", name="int_col")
   string_in = tf.keras.Input(shape=(1,), dtype="string", name="string_col")
 
@@ -85,7 +85,7 @@ def make_preprocessing_model(file_dir):
 
 def make_training_model():
   """Make a trainable model for the preprocessed inputs."""
-  float_in = tf.keras.Input(shape=(1,), dtype="float64", name="float_col")
+  float_in = tf.keras.Input(shape=(1,), dtype="float32", name="float_col")
   # After preprocessing, both the string and int column are integer ready for
   # embedding.
   int_in = tf.keras.Input(shape=(1,), dtype="int64", name="int_col")

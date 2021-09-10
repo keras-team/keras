@@ -130,4 +130,5 @@ class ParameterServerCustomTrainingLoopTest(tf.test.TestCase):
 
 
 if __name__ == "__main__":
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  if tf.__internal__.tf2.enabled():
+    tf.__internal__.distribute.multi_process_runner.test_main()

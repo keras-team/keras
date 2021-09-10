@@ -997,8 +997,8 @@ def _compute_fans(shape):
 
 
 def _validate_kwargs(cls_name, kwargs, support_partition=True):
+  allowed_kwargs = [_PARTITION_SHAPE, _PARTITION_OFFSET]
   for kwarg in kwargs:
-    allowed_kwargs = [_PARTITION_SHAPE, _PARTITION_OFFSET]
     if kwarg not in allowed_kwargs:
       raise TypeError(f'Unknown keyword arguments: {kwarg}. Allowed keyword '
                       f'arguments: {allowed_kwargs}.')

@@ -330,7 +330,7 @@ tf_class {
   }
   member_method {
     name: "summary"
-    argspec: "args=[\'self\', \'line_length\', \'positions\', \'print_fn\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\'], "
+    argspec: "args=[\'self\', \'line_length\', \'positions\', \'print_fn\', \'expand_nested\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\', \'False\'], "
   }
   member_method {
     name: "test_on_batch"
