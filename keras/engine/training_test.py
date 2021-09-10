@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 import collections
 import io
 import tempfile
+import unittest
 import sys
 
 from absl.testing import parameterized
@@ -1426,6 +1427,30 @@ class TrainingTest(keras_parameterized.TestCase):
     loss, accuracy = model.test_on_batch(x, y)
     self.assertIsInstance(loss, float)
     self.assertIsInstance(accuracy, float)
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @unittest.expectedFailure
+  def test_loss_acc_is_corrupted(self):
+    batch_size = 32
+    n_samples, n_features = batch_size * 10, 5
+    rng = np.random.RandomState(0)
+    x = rng.normal(size=(n_samples, n_features))
+    y = rng.randint(low=0, high=2, size=x.shape[0])
+    model = sequential.Sequential([layers_module.Dense(1,)])
+    model.compile('adam', 'binary_crossentropy', metrics=['accuracy'], run_eagerly=testing_utils.should_run_eagerly())
+    loss = {}
+    accurancy = {}
+    loss_1 = {}
+    accurancy_1 = {}
+    for i in range(3):
+      loss[i], accurancy[i] = model.test_on_batch(x[:batch_size], y[:batch_size])
+    model.evaluate(x[:batch_size],y[:batch_size], batch_size=batch_size, verbose=0)
+    for i in range(3):
+      loss_1[i], accurancy_1[i] = model.test_on_batch(x[:batch_size], y[:batch_size])
+    self.assertAllEqual(loss, loss_1, 
+                        "https://github.com/keras-team/keras/issues/14086")
+    self.assertAllEqual(accurancy, accurancy_1, 
+                        "https://github.com/keras-team/keras/issues/14086")
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_int_output(self):
