@@ -671,14 +671,35 @@ class Functional(training_lib.Model):
 
     Raises:
         ValueError: In case of improperly formatted config dict.
+        TypeError: In case the config does match the cls constructor.
     """
+
     with generic_utils.SharedObjectLoadingScope():
-      input_tensors, output_tensors, created_layers = reconstruct_from_config(
-          config, custom_objects)
-      model = cls(inputs=input_tensors, outputs=output_tensors,
-                  name=config.get('name'))
-      connect_ancillary_layers(model, created_layers)
-      return model
+      if all(key in config for key in [
+          'name', 'layers', 'input_layers', 'output_layers']):
+        input_tensors, output_tensors, created_layers = reconstruct_from_config(
+            config, custom_objects)
+        model = cls(
+            inputs=input_tensors,
+            outputs=output_tensors,
+            name=config.get('name'))
+        connect_ancillary_layers(model, created_layers)
+        return model
+      # The config does not contain all the information necessary to revive a
+      # Functional model. This happens when the user creates subclassed models
+      # with a Functional constructor and has overriden the `get_config` method
+      # to return a completely new dictionary.
+      try:
+        return cls(**config)
+      except TypeError as e:
+        raise TypeError('Unable to revive model from config. When overriding '
+                        'the `get_config`, make sure that the returned config '
+                        'contains all items used as arguments in the '
+                        f'constructor to {cls}, which is the default behavior. '
+                        'You can override this default behavior by defining a '
+                        '`from_config` method to specify how to create an '
+                        f'instance of {cls.__name__} from the config. \n\n'
+                        f'Error encountered during deserialization:\n{e}')
 
   def _validate_graph_inputs_and_outputs(self):
     """Validates the inputs and outputs of a Graph Network."""
