@@ -77,6 +77,18 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
     with self.assertRaises(ValueError):
       conv_utils.normalize_tuple(None, n=3, name='strides')
 
+  def test_normalize_positive_tuple(self):
+    self.assertEqual((1, 2, 3,),
+                     conv_utils.normalize_positive_tuple((1,2,3), n=3, name='pool_size'))
+    self.assertEqual((3,3,3),
+                     conv_utils.normalize_positive_tuple(3, n=3, name='pool_size'))
+
+    with self.assertRaises(ValueError):
+      conv_utils.normalize_positive_tuple(-4, n=3, name='pool_size')
+
+    with self.assertRaises(ValueError):
+      conv_utils.normalize_positive_tuple((0, 1, 2), n=3, name='pool_size')
+
   def test_normalize_data_format(self):
     self.assertEqual('channels_last',
                      conv_utils.normalize_data_format('Channels_Last'))

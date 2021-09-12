@@ -49,6 +49,31 @@ def convert_data_format(data_format, ndim):
         'Expected values are ["channels_first", "channels_last"]')
 
 
+def normalize_positive_tuple(value, n, name):
+  """Transforms a single positive integer or iterable of positive integers into an
+    integer tuple.
+
+  Args:
+    value: The value to validate and convert. Could a positive int, or any iterable
+      of positive ints.
+    n: The size of the tuple to be returned.
+    name: The name of the argument being validated, e.g. "pool_size" or "kernel_size".
+    This is only used for format error messages.
+
+  Returns:
+    A tuple of n positive integers.
+
+  Raises:
+    ValueError: If something else than an postive int/long or iterable thereof was passed.
+  """
+  value_tuple = normalize_tuple(value, n, name)
+  for value in value_tuple:
+    if value <= 0:
+      raise ValueError(f'The `{name}` argument must be a positive int or a tuple of positive integers. '
+                       f'Received: {value}.')
+  return value_tuple
+
+
 def normalize_tuple(value, n, name):
   """Transforms a single integer or iterable of integers into an integer tuple.
 
