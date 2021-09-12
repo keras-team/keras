@@ -136,7 +136,7 @@ class Conv(Layer):
                        f'Was expecting a positive value. Received {filters}.')
     self.filters = filters
     self.groups = groups or 1
-    self.kernel_size = conv_utils.normalize_tuple(
+    self.kernel_size = conv_utils.normalize_positive_tuple(
         kernel_size, rank, 'kernel_size')
     self.strides = conv_utils.normalize_tuple(strides, rank, 'strides')
     self.padding = conv_utils.normalize_padding(padding)

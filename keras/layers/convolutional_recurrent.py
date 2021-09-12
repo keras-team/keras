@@ -487,7 +487,7 @@ class ConvLSTMCell(DropoutRNNCellMixin, Layer):
       raise ValueError(f'Rank {rank} convolutions are not currently '
                        f'implemented. Received: rank={rank}')
     self.filters = filters
-    self.kernel_size = conv_utils.normalize_tuple(kernel_size, self.rank,
+    self.kernel_size = conv_utils.normalize_positive_tuple(kernel_size, self.rank,
                                                   'kernel_size')
     self.strides = conv_utils.normalize_tuple(strides, self.rank, 'strides')
     self.padding = conv_utils.normalize_padding(padding)
