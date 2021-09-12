@@ -79,8 +79,8 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
 
   def test_normalize_positive_tuple(self):
     self.assertEqual((1, 2, 3,),
-                     conv_utils.normalize_positive_tuple((1,2,3), n=3, name='pool_size'))
-    self.assertEqual((3,3,3),
+                     conv_utils.normalize_positive_tuple((1, 2, 3), n=3, name='pool_size'))
+    self.assertEqual((3, 3, 3),
                      conv_utils.normalize_positive_tuple(3, n=3, name='pool_size'))
 
     with self.assertRaises(ValueError):
