@@ -208,7 +208,7 @@ def print_summary(model,
           fit_into_line = fit_into_line[:cutoff]
 
         if col == 0:
-            line += '|' * (nested_level) + ' '
+            line += '|' * nested_level + ' '
         line += fit_into_line
         line += ' ' * space if space else ''
         left_to_print[col] = left_to_print[col][cutoff:]

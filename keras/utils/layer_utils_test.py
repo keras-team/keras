@@ -88,7 +88,6 @@ class LayerUtilsTest(tf.test.TestCase):
 
     x = inner_inputs = keras.Input(shape)
     x = make_model()(x)
-    x = make_model()(x)
     inner_model = keras.Model(inner_inputs, x)
 
     inputs = keras.Input(shape)
@@ -111,7 +110,39 @@ class LayerUtilsTest(tf.test.TestCase):
       reader = open(fpath, 'r')
       lines = reader.readlines()
       reader.close()
-      self.assertEqual(len(lines), 34)
+      check_str = """Model: "model_2"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_3 (InputLayer)        [(None, None, None, 3)]   0         
+                                                                 
+ model_1 (Functional)        (None, None, None, 3)     24        
+|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|
+| input_1 (InputLayer)      [(None, None, None, 3)]   0         |
+|                                                               |
+| model (Functional)        (None, None, None, 3)     24        |
+||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||
+|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||
+||                                                             ||
+|| conv2d (Conv2D)         (None, None, None, 3)     12        ||
+||                                                             ||
+|| batch_normalization (BatchN  (None, None, None, 3)  12      ||
+|| ormalization)                                               ||
+|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|
+¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+=================================================================
+Total params: 24
+Trainable params: 18
+Non-trainable params: 6
+_________________________________________________________________
+"""
+
+      fin_str = ""
+      for line in lines:
+        fin_str += line
+
+      self.assertIn(fin_str, check_str)
+      self.assertEqual(len(lines), 25)
     except ImportError:
       pass
 
