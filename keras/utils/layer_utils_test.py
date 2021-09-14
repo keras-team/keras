@@ -63,8 +63,8 @@ class LayerUtilsTest(tf.test.TestCase):
     fpath = os.path.join(temp_dir, file_name)
     writer = open(fpath, 'w')
 
-    def print_to_file(text, end='\n'):
-      print(text, end=end, file=writer)
+    def print_to_file(text):
+      print(text, file=writer)
 
     try:
       layer_utils.print_summary(model, print_fn=print_to_file)
@@ -99,8 +99,8 @@ class LayerUtilsTest(tf.test.TestCase):
     fpath = os.path.join(temp_dir, file_name)
     writer = open(fpath, 'w')
 
-    def print_to_file(text, end='\n'):
-      print(text, end=end, file=writer)
+    def print_to_file(text):
+      print(text, file=writer)
 
     try:
       layer_utils.print_summary(
@@ -203,8 +203,8 @@ _________________________________________________________________
     fpath = os.path.join(temp_dir, file_name)
     writer = open(fpath, 'w')
 
-    def print_to_file(text, end='\n'):
-      print(text, end=end, file=writer)
+    def print_to_file(text):
+      print(text, file=writer)
 
     try:
       layer_utils.print_summary(
