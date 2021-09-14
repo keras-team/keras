@@ -1082,6 +1082,10 @@ class CroppingTest(keras_parameterized.TestCase):
       keras.layers.Cropping2D(cropping=(1, 1, 1))
     with self.assertRaises(ValueError):
       keras.layers.Cropping2D(cropping=None)
+    with self.assertRaises(ValueError):
+      input_layer = keras.layers.Input(
+          shape=(num_samples, input_len_dim1, input_len_dim2, stack_size))
+      keras.layers.Cropping2D(cropping=((5, 4), (3, 4)))(input_layer)
 
   def test_cropping_3d(self):
     num_samples = 2
