@@ -920,6 +920,15 @@ class BaseLayerTest(keras_parameterized.TestCase):
     layer = MyLayer(activity_regularizer='l2')
     self.assertIsInstance(layer.activity_regularizer, regularizers.L2)
 
+  def test_activity_regularizer_ragged_output(self):
+
+    class MyLayer(base_layer.Layer):
+      pass
+
+    layer = MyLayer(activity_regularizer='l2')
+    inputs = tf.ragged.constant([[1., 2., 3.], [], [4., 5.]])
+    layer(inputs)
+
   def test_tf_module_tracking(self):
 
     class MyModule(tf.Module):
