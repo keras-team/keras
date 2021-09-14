@@ -1653,7 +1653,7 @@ def categorical_crossentropy(y_true,
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(
-      label_smoothing, dtype=backend.floatx())
+      label_smoothing, dtype=y_pred.dtype)
 
   def _smooth_labels():
     num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
@@ -1797,7 +1797,7 @@ def binary_crossentropy(y_true,
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(
-      label_smoothing, dtype=backend.floatx())
+      label_smoothing, dtype=y_pred.dtype)
 
   def _smooth_labels():
     return y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
