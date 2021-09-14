@@ -2073,8 +2073,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
       profile_batch: Profile the batch(es) to sample compute characteristics.
         profile_batch must be a non-negative integer or a tuple of integers.
         A pair of positive integers signify a range of batches to profile.
-        By default, it will profile the second batch. Set profile_batch=0
-        to disable profiling.
+        By default, profiling is disabled.
       embeddings_freq: frequency (in epochs) at which embedding layers will be
         visualized. If set to 0, embeddings won't be visualized.
       embeddings_metadata: Dictionary which maps embedding layer names to the
@@ -2159,7 +2158,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                write_images=False,
                write_steps_per_second=False,
                update_freq='epoch',
-               profile_batch=2,
+               profile_batch=0,
                embeddings_freq=0,
                embeddings_metadata=None,
                **kwargs):
