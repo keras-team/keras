@@ -106,6 +106,9 @@ with setup instructions.
 
 ### Option 2: Setup a local environment
 
+<a href="https://colab.research.google.com/gist/AdityaKane2001/df4086c7265a1b3519ffe65ea61d5ec1/keras-build-test-notebook.ipynb" 
+target="_blank"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
 To setup your local dev environment, you will need the following tools.
 
 1.  [Bazel](https://bazel.build/) is the tool to build and test Keras. See the
