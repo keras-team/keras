@@ -110,32 +110,31 @@ class LayerUtilsTest(tf.test.TestCase):
       reader = open(fpath, 'r')
       lines = reader.readlines()
       reader.close()
-      check_str = """Model: "model_2"
-_________________________________________________________________
- Layer (type)                Output Shape              Param #   
-=================================================================
- input_3 (InputLayer)        [(None, None, None, 3)]   0         
-                                                                 
- model_1 (Functional)        (None, None, None, 3)     24        
-|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|
-| input_1 (InputLayer)      [(None, None, None, 3)]   0         |
-|                                                               |
-| model (Functional)        (None, None, None, 3)     24        |
-||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||
-|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||
-||                                                             ||
-|| conv2d (Conv2D)         (None, None, None, 3)     12        ||
-||                                                             ||
-|| batch_normalization (BatchN  (None, None, None, 3)  12      ||
-|| ormalization)                                               ||
-|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|
-¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-=================================================================
-Total params: 24
-Trainable params: 18
-Non-trainable params: 6
-_________________________________________________________________
-"""
+      check_str = ('Model: "model_2"\n'
+                  '_________________________________________________________________\n'
+                  ' Layer (type)                Output Shape              Param #   \n'
+                  '=================================================================\n'
+                  ' input_3 (InputLayer)        [(None, None, None, 3)]   0         \n'
+                  '                                                                 \n'
+                  ' model_1 (Functional)        (None, None, None, 3)     24        \n'
+                  '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n'
+                  '| input_1 (InputLayer)      [(None, None, None, 3)]   0         |\n'
+                  '|                                                               |\n'
+                  '| model (Functional)        (None, None, None, 3)     24        |\n'
+                  '||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n'
+                  '|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||\n'
+                  '||                                                             ||\n'
+                  '|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n'
+                  '||                                                             ||\n'
+                  '|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n'
+                  '|| ormalization)                                               ||\n'
+                  '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n'
+                  '¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n'
+                  '=================================================================\n'
+                  'Total params: 24\n'
+                  'Trainable params: 18\n'
+                  'Non-trainable params: 6\n'
+                  '_________________________________________________________________\n')
 
       fin_str = ""
       for line in lines:
