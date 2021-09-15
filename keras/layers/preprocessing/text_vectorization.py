@@ -163,6 +163,12 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
       tensor containing the string vocbulary terms. If passing a file path, the
       file should contain one line per term in the vocabulary. If this argument
       is set, there is no need to `adapt` the layer.
+    idf_weights: Only valid when `output_mode` is `"tf_idf"`. A tuple, list, 1D
+      numpy array, or 1D tensor or the same length as the vocabulary, containing
+      the floating point inverse document frequency weights, which will be
+      multiplied by per sample term counts for the final `tf_idf` weight. If the
+      `vocabulary` argument is set, and `output_mode` is `"tf_idf"`, this
+      argument must be supplied.
     ragged: Boolean. Only applicable to `"int"` output mode. If True, returns a
       `RaggedTensor` instead of a dense `Tensor`, where each sequence may have a
       different length after string splitting. Defaults to False.
@@ -244,6 +250,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
                output_sequence_length=None,
                pad_to_max_tokens=False,
                vocabulary=None,
+               idf_weights=None,
                sparse=False,
                ragged=False,
                **kwargs):
@@ -348,6 +355,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     self._lookup_layer = string_lookup.StringLookup(
         max_tokens=max_tokens,
         vocabulary=vocabulary,
+        idf_weights=idf_weights,
         pad_to_max_tokens=pad_to_max_tokens,
         mask_token="",
         output_mode=output_mode if output_mode is not None else INT,
@@ -401,6 +409,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
 
   def get_config(self):
     vocab = self._lookup_layer.input_vocabulary
+    idf_weights = self._lookup_layer.input_idf_weights
     config = {
         "max_tokens": self._lookup_layer.max_tokens,
         "standardize": self._standardize,
@@ -412,6 +421,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         "sparse": self._lookup_layer.sparse,
         "ragged": self._ragged,
         "vocabulary": utils.listify_tensors(vocab),
+        "idf_weights": utils.listify_tensors(idf_weights),
     }
     base_config = super(TextVectorization, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
