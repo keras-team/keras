@@ -193,6 +193,8 @@ class Conv(Layer):
     kernel_shape = self.kernel_size + (input_channel // self.groups,
                                        self.filters)
 
+    output_shape = self.compute_output_shape(input_shape)
+
     self.kernel = self.add_weight(
         name='kernel',
         shape=kernel_shape,
