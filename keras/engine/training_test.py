@@ -2945,10 +2945,13 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     x_test = np.random.random((10, 4))
     y_test = np.random.random((10, 1))
     loss, acc = model.test_on_batch(x_test[:2],y_test[:2])
-    model.evaluate(x_test, y_test)
+    loss_eval, acc_eval = model.evaluate(x_test, y_test)
     loss_1, acc_1 = model.test_on_batch(x_test[:2],y_test[:2])
+    loss_eval_1, acc_eval_1 = model.evaluate(x_test, y_test)
     self.assertEqual(loss, loss_1)
     self.assertEqual(acc, acc_1)
+    self.assertEqual(loss_eval, loss_eval_1)
+    self.assertEqual(acc_eval, acc_eval_1)
 
   @keras_parameterized.run_with_all_model_types(exclude_models=['sequential'])
   @keras_parameterized.run_all_keras_modes
