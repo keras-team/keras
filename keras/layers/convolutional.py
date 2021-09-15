@@ -1984,7 +1984,7 @@ class SeparableConv1D(SeparableConv):
   Input shape:
     3D tensor with shape:
     `(batch_size, channels, steps)` if data_format='channels_first'
-    or 5D tensor with shape:
+    or 3D tensor with shape:
     `(batch_size, steps, channels)` if data_format='channels_last'.
 
   Output shape:
