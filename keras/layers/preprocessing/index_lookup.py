@@ -656,7 +656,14 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                                                    binary_output)
 
     if self.output_mode == TF_IDF:
-      return tf.multiply(bincounts, self.idf_weights_const)
+      if self.sparse:
+        value_weights = tf.gather(self.idf_weights_const,
+                                  bincounts.indices[:, -1])
+        return tf.SparseTensor(bincounts.indices,
+                               value_weights * bincounts.values,
+                               bincounts.dense_shape)
+      else:
+        return tf.multiply(bincounts, self.idf_weights_const)
 
     return bincounts
 
