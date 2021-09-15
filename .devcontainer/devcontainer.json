@@ -9,7 +9,7 @@
         "search.exclude": {
             "**/bazel-*/**": true
         },
-        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.defaultProfile.linux": "bash"
     },
     "remoteUser": "keras-vscode"
 }
