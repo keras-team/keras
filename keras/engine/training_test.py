@@ -1429,34 +1429,6 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertIsInstance(accuracy, float)
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-  @unittest.expectedFailure
-  def test_loss_acc_is_corrupted(self):
-    batch_size = 32
-    n_samples, n_features = batch_size * 10, 5
-    rng = np.random.RandomState(0)
-    x = rng.normal(size=(n_samples, n_features))
-    y = rng.randint(low=0, high=2, size=x.shape[0])
-    model = sequential.Sequential([layers_module.Dense(1,)])
-    model.compile('adam', 'binary_crossentropy', 
-                  metrics=['accuracy'], 
-                  run_eagerly=testing_utils.should_run_eagerly())
-    loss = {}
-    accurancy = {}
-    loss_1 = {}
-    accurancy_1 = {}
-    for i in range(3):
-      loss[i], accurancy[i] = model.test_on_batch(x[:batch_size], 
-                                                  y[:batch_size])
-    model.evaluate(x,y, batch_size=batch_size, verbose=0)
-    for i in range(3):
-      loss_1[i], accurancy_1[i] = model.test_on_batch(x[:batch_size], 
-                                                      y[:batch_size])
-    self.assertAllEqual(loss, loss_1, 
-                        "https://github.com/keras-team/keras/issues/14086")
-    self.assertAllEqual(accurancy, accurancy_1, 
-                        "https://github.com/keras-team/keras/issues/14086")
-
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_int_output(self):
     x, y = np.ones((10, 1)), np.ones((10, 1))
     model = sequential.Sequential([layers_module.Dense(1)])
@@ -2957,6 +2929,26 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     y_test = np.random.random((10, 1))
     model.evaluate(x_test, y_test, batch_size=5)
     self.assertEqual(self.evaluate(acc_obj.count), 10)
+
+  @keras_parameterized.run_all_keras_modes
+  def test_metric_state_reset_between_test_on_batch_and_evaluate(self):
+    model = sequential.Sequential()
+    model.add(layers_module.Dense(3, activation='relu', input_dim=4))
+    model.add(layers_module.Dense(1, activation='sigmoid'))
+    acc_obj = metrics_module.BinaryAccuracy()
+    model.compile(
+        loss='mae',
+        metrics=[acc_obj],
+        optimizer=RMSPropOptimizer(learning_rate=0.001),
+        run_eagerly=testing_utils.should_run_eagerly())
+
+    x_test = np.random.random((10, 4))
+    y_test = np.random.random((10, 1))
+    loss, acc = model.test_on_batch(x_test[:2],y_test[:2])
+    model.evaluate(x_test, y_test)
+    loss_1, acc_1 = model.test_on_batch(x_test[:2],y_test[:2])
+    self.assertEqual(loss, loss_1)
+    self.assertEqual(acc, acc_1)
 
   @keras_parameterized.run_with_all_model_types(exclude_models=['sequential'])
   @keras_parameterized.run_all_keras_modes

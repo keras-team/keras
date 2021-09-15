@@ -1847,6 +1847,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._assert_compile_was_called()
     self._check_call_args('train_on_batch')
     _disallow_inside_tf_function('train_on_batch')
+    if reset_metrics:
+      self.reset_metrics()
     with self.distribute_strategy.scope(), \
          training_utils.RespectCompiledTrainableState(self):
       iterator = data_adapter.single_batch_iterator(self.distribute_strategy, x,
@@ -1855,8 +1857,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       self.train_function = self.make_train_function()
       logs = self.train_function(iterator)
 
-    if reset_metrics:
-      self.reset_metrics()
     logs = tf_utils.sync_to_numpy_or_python_type(logs)
     if return_dict:
       return logs
@@ -1906,14 +1906,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._assert_compile_was_called()
     self._check_call_args('test_on_batch')
     _disallow_inside_tf_function('test_on_batch')
+    if reset_metrics:
+      self.reset_metrics()
     with self.distribute_strategy.scope():
       iterator = data_adapter.single_batch_iterator(self.distribute_strategy, x,
                                                     y, sample_weight)
       self.test_function = self.make_test_function()
       logs = self.test_function(iterator)
 
-    if reset_metrics:
-      self.reset_metrics()
     logs = tf_utils.sync_to_numpy_or_python_type(logs)
     if return_dict:
       return logs
