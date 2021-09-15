@@ -948,6 +948,26 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     expected_value = (100.0 + 50.0 * label_smoothing) / 3.0
     self.assertAlmostEqual(self.evaluate(loss), expected_value, 3)
 
+  def test_label_smoothing_ndarray(self):
+    logits = np.asarray([[100.0, -100.0, -100.0]])
+    y_true = np.asarray([[1, 0, 1]])
+    label_smoothing = 0.1
+    # Loss: max(x, 0) - x * z + log(1 + exp(-abs(x)))
+    #            (where x = logits and z = y_true)
+    # Label smoothing: z' = z * (1 - L) + 0.5L
+    #                  1  = 1 - 0.5L
+    #                  0  = 0.5L
+    # Applying the above two fns to the given input:
+    # (100 - 100 * (1 - 0.5 L)  + 0 +
+    #  0   + 100 * (0.5 L)      + 0 +
+    #  0   + 100 * (1 - 0.5 L)  + 0) * (1/3)
+    #  = (100 + 50L) * 1/3
+    bce_obj = losses.BinaryCrossentropy(
+        from_logits=True, label_smoothing=label_smoothing)
+    loss = bce_obj(y_true, logits)
+    expected_value = (100.0 + 50.0 * label_smoothing) / 3.0
+    self.assertAlmostEqual(self.evaluate(loss), expected_value, 3)
+
   def test_ragged_tensors(self):
     bce_obj = losses.BinaryCrossentropy()
     y_true = tf.ragged.constant([[1, 0, 1], [0]])
@@ -1056,6 +1076,28 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
   def test_label_smoothing(self):
     logits = tf.constant([[100.0, -100.0, -100.0]])
     y_true = tf.constant([[1, 0, 0]])
+    label_smoothing = 0.1
+    # Softmax Cross Entropy Loss: -\sum_i p_i \log q_i
+    # where for a softmax activation
+    # \log q_i = x_i - \log \sum_j \exp x_j
+    #          = x_i - x_max - \log \sum_j \exp (x_j - x_max)
+    # For our activations, [100, -100, -100]
+    # \log ( exp(0) + exp(-200) + exp(-200) ) = 0
+    # so our log softmaxes become: [0, -200, -200]
+    # Label smoothing: z' = z * (1 - L) + L/n
+    #                  1  = 1 - L + L/n
+    #                  0  = L/n
+    # Applying the above two fns to the given input:
+    # -0 * (1 - L + L/n) + 200 * L/n + 200 * L/n = 400 L/n
+    cce_obj = losses.CategoricalCrossentropy(
+        from_logits=True, label_smoothing=label_smoothing)
+    loss = cce_obj(y_true, logits)
+    expected_value = 400.0 * label_smoothing / 3.0
+    self.assertAlmostEqual(self.evaluate(loss), expected_value, 3)
+
+  def test_label_smoothing_ndarray(self):
+    logits = np.asarray([[100.0, -100.0, -100.0]])
+    y_true = np.asarray([[1, 0, 0]])
     label_smoothing = 0.1
     # Softmax Cross Entropy Loss: -\sum_i p_i \log q_i
     # where for a softmax activation
