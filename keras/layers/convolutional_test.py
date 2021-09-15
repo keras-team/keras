@@ -161,6 +161,13 @@ class Conv1DTest(keras_parameterized.TestCase):
       fn(inpt2)
       self.assertEqual(outp1_shape, layer(inpt1).shape)
 
+  def test_conv1d_invalid_output_shapes(self):
+    kwargs = {'filters': 2, 'kernel_size': 20}
+    with self.assertRaisesRegex(ValueError,
+                                r"""One of the dimensions in the output is <= 0"""):
+      layer = keras.layers.convolutional.Conv1D(**kwargs)
+      layer.build((None, 5, 2))
+
 
 @keras_parameterized.run_all_keras_modes
 class Conv2DTest(keras_parameterized.TestCase):
@@ -292,6 +299,13 @@ class Conv2DTest(keras_parameterized.TestCase):
     kwargs = {'filters': 2, 'kernel_size': 0}
     with self.assertRaises(ValueError):
       keras.layers.Conv2D(**kwargs)
+  
+  def test_conv2d_invalid_output_shapes(self):
+    kwargs = {'filters': 2, 'kernel_size': 20}
+    with self.assertRaisesRegex(ValueError,
+                                r"""One of the dimensions in the output is <= 0"""):
+      layer = keras.layers.convolutional.Conv2D(**kwargs)
+      layer.build((None, 5, 5, 2))
 
 
 @keras_parameterized.run_all_keras_modes
@@ -427,6 +441,13 @@ class Conv3DTest(keras_parameterized.TestCase):
             },
             input_shape=(None, 3, None, None, None),
             input_data=input_data)
+
+  def test_conv3d_invalid_output_shapes(self):
+    kwargs = {'filters': 2, 'kernel_size': 20}
+    with self.assertRaisesRegex(ValueError,
+                                r"""One of the dimensions in the output is <= 0"""):
+      layer = keras.layers.convolutional.Conv3D(**kwargs)
+      layer.build((None, 5, 5, 5, 2))
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
