@@ -157,6 +157,12 @@ class LocallyConnected1DLayersTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(layer.kernel.constraint, k_constraint)
         self.assertEqual(layer.bias.constraint, b_constraint)
 
+  def test_locallyconnected1d_invalid_output_shapes(self):
+    kwargs = {'filters': 2, 'kernel_size': 10}
+    with self.assertRaisesRegex(ValueError,
+                                r"""One of the dimensions in the output is <= 0 """):
+      layer = keras.layers.LocallyConnected1D(**kwargs)
+      layer.build((None, 5, 2))
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
 class LocallyConnected2DLayersTest(tf.test.TestCase, parameterized.TestCase):
@@ -264,6 +270,12 @@ class LocallyConnected2DLayersTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(layer.kernel.constraint, k_constraint)
         self.assertEqual(layer.bias.constraint, b_constraint)
 
+  def test_locallyconnected2d_invalid_output_shapes(self):
+    kwargs = {'filters': 2, 'kernel_size': 10}
+    with self.assertRaisesRegex(ValueError,
+                                r"""One of the dimensions in the output is <= 0 """):
+      layer = keras.layers.LocallyConnected2D(**kwargs)
+      layer.build((None, 5, 5, 2))
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
 class LocallyConnectedImplementationModeTest(tf.test.TestCase,
@@ -283,8 +295,19 @@ class LocallyConnectedImplementationModeTest(tf.test.TestCase,
 
       np.random.seed(1)
       tf_test_util.random_seed.set_seed(1)
-      targets = np.random.randint(0, num_classes, (num_samples,))
+      # Following code generates sparse targets and converts them
+      # to one-hot encoded vectors
+      # Create sparse targets eg. [0,1,2]
+      sparse_targets = np.random.randint(0, num_classes, (num_samples,))
 
+      # Convert to one-hot encoding
+      # Final targets:
+      # [[ 1. 0. 0. ]
+      #  [ 0. 1. 0. ]
+      #  [ 0. 0. 1. ]]
+
+      targets = np.zeros((sparse_targets.size, num_classes))
+      targets[np.arange(sparse_targets.size), sparse_targets] = 1
       height = 7
       filters = 2
       inputs = get_inputs(data_format, filters, height, num_samples, width)
@@ -387,7 +410,19 @@ class LocallyConnectedImplementationModeTest(tf.test.TestCase,
 
       np.random.seed(1)
       tf_test_util.random_seed.set_seed(1)
-      targets = np.random.randint(0, num_classes, (num_samples,))
+      # Following code generates sparse targets and converts them
+      # to one-hot encoded vectors
+      # Create sparse targets eg. [0,1,2]
+      sparse_targets = np.random.randint(0, num_classes, (num_samples,))
+
+      # Convert to one-hot encoding
+      # Final targets:
+      # [[ 1. 0. 0. ]
+      #  [ 0. 1. 0. ]
+      #  [ 0. 0. 1. ]]
+
+      targets = np.zeros((sparse_targets.size, num_classes))
+      targets[np.arange(sparse_targets.size), sparse_targets] = 1
 
       height = 7
       filters = 2
@@ -555,7 +590,7 @@ def get_model(implementation,
   model.compile(
       optimizer=RMSPropOptimizer(0.01),
       metrics=[keras.metrics.categorical_accuracy],
-      loss=xent
+      loss=keras.losses.CategoricalCrossentropy(from_logits=True)
   )
   return model
 
@@ -589,7 +624,7 @@ def get_model_saveable(implementation, filters, kernel_size, strides, layers,
   model.compile(
       optimizer=rmsprop.RMSProp(learning_rate=0.01),
       metrics=[keras.metrics.categorical_accuracy],
-      loss=xent)
+      loss=keras.losses.CategoricalCrossentropy(from_logits=True))
   return model
 
 
