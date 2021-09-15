@@ -1149,7 +1149,11 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     count_data = layer(input_data)
     self.assertAllEqual(count_data.shape.as_list(), [16, 2])
 
-  def test_ifidf_output_hard_maximum(self):
+  @parameterized.named_parameters(
+      ("sparse", True),
+      ("dense", False),
+  )
+  def test_ifidf_output_hard_maximum(self, sparse):
     """Check tf-idf output when pad_to_max_tokens=True."""
     vocab_data = ["earth", "wind", "and", "fire"]
     # OOV idf weight (bucket 0) should 0.5, the average of passed weights.
@@ -1169,14 +1173,21 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         output_mode=index_lookup.TF_IDF,
         pad_to_max_tokens=True,
-        dtype=tf.string)
+        dtype=tf.string,
+        sparse=sparse)
     layer.set_vocabulary(vocab_data, idf_weights=idf_weights)
     layer_output = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=layer_output)
     output_dataset = model.predict(input_array)
+    if sparse:
+      output_dataset = tf.sparse.to_dense(output_dataset)
     self.assertAllClose(expected_output, output_dataset)
 
-  def test_ifidf_output_soft_maximum(self):
+  @parameterized.named_parameters(
+      ("sparse", True),
+      ("dense", False),
+  )
+  def test_ifidf_output_soft_maximum(self, sparse):
     """Check tf-idf output when pad_to_max_tokens=False."""
     vocab_data = ["earth", "wind", "and", "fire"]
     # OOV idf weight (bucket 0) should 0.5, the average of passed weights.
@@ -1195,11 +1206,14 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         output_mode=index_lookup.TF_IDF,
-        dtype=tf.string)
+        dtype=tf.string,
+        sparse=sparse)
     layer.set_vocabulary(vocab_data, idf_weights=idf_weights)
     layer_output = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=layer_output)
     output_dataset = model.predict(input_array)
+    if sparse:
+      output_dataset = tf.sparse.to_dense(output_dataset)
     self.assertAllClose(expected_output, output_dataset)
 
   def test_ifidf_output_shape(self):

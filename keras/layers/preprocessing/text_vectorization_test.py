@@ -1264,7 +1264,11 @@ class TextVectorizationOutputTest(
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
-  def test_tfidf_output_hard_maximum(self):
+  @parameterized.named_parameters(
+      ("sparse", True),
+      ("dense", False),
+  )
+  def test_tfidf_output_hard_maximum(self, sparse):
     vocab_data = ["earth", "wind", "and", "fire"]
     # OOV idf weight (bucket 0) should 0.5, the average of passed weights.
     idf_weights = [.4, .25, .75, .6]
@@ -1286,16 +1290,23 @@ class TextVectorizationOutputTest(
         standardize=None,
         split=None,
         output_mode=text_vectorization.TF_IDF,
-        pad_to_max_tokens=True)
+        pad_to_max_tokens=True,
+        sparse=sparse)
     layer.set_vocabulary(vocab_data, idf_weights=idf_weights)
     int_data = layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
 
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
+    if sparse:
+      output_dataset = tf.sparse.to_dense(output_dataset)
     self.assertAllClose(expected_output, output_dataset)
 
-  def test_tfidf_output_soft_maximum(self):
+  @parameterized.named_parameters(
+      ("sparse", True),
+      ("dense", False),
+  )
+  def test_tfidf_output_soft_maximum(self, sparse):
     vocab_data = ["earth", "wind", "and", "fire"]
     # OOV idf weight (bucket 0) should 0.5, the average of passed weights.
     idf_weights = [.4, .25, .75, .6]
@@ -1317,16 +1328,23 @@ class TextVectorizationOutputTest(
         standardize=None,
         split=None,
         output_mode=text_vectorization.TF_IDF,
-        pad_to_max_tokens=False)
+        pad_to_max_tokens=False,
+        sparse=sparse)
     layer.set_vocabulary(vocab_data, idf_weights=idf_weights)
     int_data = layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
 
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
+    if sparse:
+      output_dataset = tf.sparse.to_dense(output_dataset)
     self.assertAllClose(expected_output, output_dataset)
 
-  def test_tfidf_output_set_oov_weight(self):
+  @parameterized.named_parameters(
+      ("sparse", True),
+      ("dense", False),
+  )
+  def test_tfidf_output_set_oov_weight(self, sparse):
     vocab_data = ["[UNK]", "earth", "wind", "and", "fire"]
     idf_weights = [.1, .4, .25, .75, .6]
     input_array = np.array([["earth", "wind", "and", "earth"],
@@ -1347,13 +1365,16 @@ class TextVectorizationOutputTest(
         standardize=None,
         split=None,
         output_mode=text_vectorization.TF_IDF,
-        pad_to_max_tokens=False)
+        pad_to_max_tokens=False,
+        sparse=sparse)
     layer.set_vocabulary(vocab_data, idf_weights=idf_weights)
     int_data = layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
 
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
+    if sparse:
+      output_dataset = tf.sparse.to_dense(output_dataset)
     self.assertAllClose(expected_output, output_dataset)
 
   def test_accept_1D_input(self):
