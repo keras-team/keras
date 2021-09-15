@@ -1437,16 +1437,20 @@ class TrainingTest(keras_parameterized.TestCase):
     x = rng.normal(size=(n_samples, n_features))
     y = rng.randint(low=0, high=2, size=x.shape[0])
     model = sequential.Sequential([layers_module.Dense(1,)])
-    model.compile('adam', 'binary_crossentropy', metrics=['accuracy'], run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('adam', 'binary_crossentropy', 
+                  metrics=['accuracy'], 
+                  run_eagerly=testing_utils.should_run_eagerly())
     loss = {}
     accurancy = {}
     loss_1 = {}
     accurancy_1 = {}
     for i in range(3):
-      loss[i], accurancy[i] = model.test_on_batch(x[:batch_size], y[:batch_size])
-    model.evaluate(x[:batch_size],y[:batch_size], batch_size=batch_size, verbose=0)
+      loss[i], accurancy[i] = model.test_on_batch(x[:batch_size], 
+                                                  y[:batch_size])
+    model.evaluate(x,y, batch_size=batch_size, verbose=0)
     for i in range(3):
-      loss_1[i], accurancy_1[i] = model.test_on_batch(x[:batch_size], y[:batch_size])
+      loss_1[i], accurancy_1[i] = model.test_on_batch(x[:batch_size], 
+                                                      y[:batch_size])
     self.assertAllEqual(loss, loss_1, 
                         "https://github.com/keras-team/keras/issues/14086")
     self.assertAllEqual(accurancy, accurancy_1, 
