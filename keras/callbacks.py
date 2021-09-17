@@ -251,13 +251,13 @@ class CallbackList:
       elif isinstance(cb, History):
         self._history = cb
 
-    if self._progbar is None and add_progbar:
-      self._progbar = ProgbarLogger(count_mode='steps')
-      self.callbacks.insert(0, self._progbar)
-
     if self._history is None and add_history:
       self._history = History()
       self.callbacks.append(self._history)
+
+    if self._progbar is None and add_progbar:
+      self._progbar = ProgbarLogger(count_mode='steps')
+      self.callbacks.append(self._progbar)
 
   def _process_logs(self, logs, is_batch_hook=False):
     """Turns tensors into numpy arrays or Python scalars if necessary."""
