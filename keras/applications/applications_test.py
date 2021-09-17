@@ -48,8 +48,8 @@ MODEL_LIST_NO_NASNET = [
     (inception_resnet_v2.InceptionResNetV2, 1536),
     (mobilenet.MobileNet, 1024),
     (mobilenet_v2.MobileNetV2, 1280),
-    (mobilenet_v3.MobileNetV3Small, 1024),
-    (mobilenet_v3.MobileNetV3Large, 1280),
+    (mobilenet_v3.MobileNetV3Small, 576),
+    (mobilenet_v3.MobileNetV3Large, 960),
     (densenet.DenseNet121, 1024),
     (densenet.DenseNet169, 1664),
     (densenet.DenseNet201, 1920),
@@ -93,7 +93,7 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.parameters(*MODEL_LIST)
   def test_application_notop(self, app, last_dim):
-    if 'NASNet' or 'MobileNetV3' in app.__name__:
+    if 'NASNet' in app.__name__:
       only_check_last_dim = True
     else:
       only_check_last_dim = False
@@ -119,10 +119,7 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
       input_shape = (None, None, 1)
     output_shape = _get_output_shape(
         lambda: app(weights=None, include_top=False, input_shape=input_shape))
-    if 'MobileNetV3' in app.__name__:
-      self.assertShapeEqual(output_shape, (None, 1, 1, last_dim))
-    else:
-      self.assertShapeEqual(output_shape, (None, None, None, last_dim))
+    self.assertShapeEqual(output_shape, (None, None, None, last_dim))
     backend.clear_session()
 
     if backend.image_data_format() == 'channels_first':
@@ -131,10 +128,7 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
       input_shape = (None, None, 4)
     output_shape = _get_output_shape(
         lambda: app(weights=None, include_top=False, input_shape=input_shape))
-    if 'MobileNetV3' in app.__name__:
-      self.assertShapeEqual(output_shape, (None, 1, 1, last_dim))
-    else:
-      self.assertShapeEqual(output_shape, (None, None, None, last_dim))
+    self.assertShapeEqual(output_shape, (None, None, None, last_dim))
     backend.clear_session()
 
 
