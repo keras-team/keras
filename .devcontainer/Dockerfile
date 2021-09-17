@@ -24,3 +24,4 @@ RUN echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.
 RUN apt update && apt install bazel -y
 
 USER $USERNAME
+ENV PATH="/home/$USERNAME/.local/bin:${PATH}"
