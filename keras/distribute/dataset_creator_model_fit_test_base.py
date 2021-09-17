@@ -119,7 +119,8 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
                  with_normalization_layer=False,
                  callbacks=None,
                  use_lookup_layer=False,
-                 use_dataset_creator=True):
+                 use_dataset_creator=True,
+                 verbose="auto"):
     if callbacks is None:
       callbacks = []
 
@@ -153,7 +154,8 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
         steps_per_epoch=steps_per_epoch,
         callbacks=callbacks,
         validation_data=validation_data,
-        validation_steps=steps_per_epoch)
+        validation_steps=steps_per_epoch,
+        verbose=verbose)
     return model
 
   def _model_evaluate(self,
