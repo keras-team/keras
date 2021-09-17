@@ -1109,10 +1109,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         verbose = 2  # Default to epoch-level logging for PSStrategy.
       else:
         verbose = 1  # Default to batch-level logging otherwise.
-    elif verbose == 1 and self.distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
-      raise ValueError(
-          '`verbose=1` is not allowed with `ParameterServerStrategy` for '
-          f'performance reasons. Received: `verbose`={verbose}')
 
     if validation_split:
       # Create the validation data using the training data. Only supported for
