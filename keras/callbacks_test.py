@@ -26,6 +26,7 @@ import sys
 import threading
 import time
 import unittest
+from unittest import mock
 
 from absl.testing import parameterized
 import numpy as np
@@ -2041,6 +2042,28 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     model.fit(x, y, batch_size=2, callbacks=[my_cb])
     self.assertEqual(my_cb.batch_counter, 3)
 
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_built_in_callback_order(self):
+
+    class CustomCallback(keras.callbacks.Callback):
+      pass
+
+    class TestingCallbackList(keras.callbacks.CallbackList):
+
+      def __init__(self, *args, **kwargs):
+        super(TestingCallbackList, self).__init__(*args, **kwargs)
+        if ((not isinstance(self.callbacks[0], CustomCallback)) or
+            (not isinstance(self.callbacks[1], keras.callbacks.History)) or
+            (not isinstance(self.callbacks[2], keras.callbacks.ProgbarLogger))):
+          raise AssertionError(f'Callback order unexpected: {self.callbacks}')
+
+    with mock.patch.object(
+        keras.callbacks, 'CallbackList', TestingCallbackList):
+      model = keras.Sequential([keras.layers.Dense(1)])
+      model.compile('sgd', 'mse')
+      custom_callback = CustomCallback()
+      model.fit(np.ones((10, 10)), np.ones((10, 1)), epochs=5,
+                callbacks=[custom_callback])
 
 # A summary that was emitted during a test. Fields:
 #   logdir: str. The logdir of the FileWriter to which the summary was
