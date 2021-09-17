@@ -105,15 +105,6 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
     files = tf.compat.v1.gfile.ListDirectory(log_dir)
     self.assertGreaterEqual(len(files), 1)
 
-  def testModelFitVerbose1(self, strategy, use_dataset_creator):
-    with self.assertRaisesRegex(ValueError,
-                                "`verbose=1` is not allowed with "
-                                "`ParameterServerStrategy` for performance "
-                                "reasons. Received: `verbose`=1"):
-      self._model_fit(
-          strategy, use_dataset_creator=use_dataset_creator,
-          verbose=1)
-
   def testModelEvaluateErrorOnBatchLevelCallbacks(self, strategy,
                                                   use_dataset_creator):
 
