@@ -119,6 +119,12 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       containing the vocbulary terms. If passing a file path, the file should
       contain one line per term in the vocabulary. If this argument is set,
       there is no need to `adapt` the layer.
+    idf_weights: Only valid when `output_mode` is `"tf_idf"`. A tuple, list, 1D
+      numpy array, or 1D tensor or the same length as the vocabulary, containing
+      the floating point inverse document frequency weights, which will be
+      multiplied by per sample term counts for the final `tf_idf` weight. If the
+      `vocabulary` argument is set, and `output_mode` is `"tf_idf"`, this
+      argument must be supplied.
     invert: Only valid when `output_mode` is `"int"`. If True, this layer will
       map indices to vocabulary items instead of mapping vocabulary items to
       indices. Default to False.
@@ -156,6 +162,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                mask_token,
                oov_token,
                vocabulary=None,
+               idf_weights=None,
                invert=False,
                output_mode="int",
                sparse=False,
@@ -197,6 +204,11 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                        f"Received: sparse={sparse} and "
                        f"output_mode={output_mode}")
 
+    if idf_weights is not None and output_mode != TF_IDF:
+      raise ValueError(f"`idf_weights` should only be set if `output_mode` is "
+                       f"`'tf_idf'`. Received: idf_weights={idf_weights} and "
+                       f"output_mode={output_mode}")
+
     self.invert = invert
     self.max_tokens = max_tokens
     self.num_oov_indices = num_oov_indices
@@ -208,6 +220,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     self._frozen_vocab_size = None
 
     self.input_vocabulary = vocabulary
+    self.input_idf_weights = idf_weights
     # VocabularySavedModelSaver will clear the config vocabulary to restore the
     # lookup table ops directly. We persist this hidden option to persist the
     # fact that we have have a non-adaptable layer with a manually set vocab.
@@ -260,7 +273,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       self.idf_weights_const = self.idf_weights.value()
 
     if vocabulary is not None:
-      self.set_vocabulary(vocabulary)
+      self.set_vocabulary(vocabulary, idf_weights)
     else:
       # When restoring from a keras SavedModel, the loading code will expect to
       # find and restore a lookup_table attribute on the layer. This table needs
@@ -342,6 +355,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         "output_mode": self.output_mode,
         "pad_to_max_tokens": self.pad_to_max_tokens,
         "vocabulary": utils.listify_tensors(self.input_vocabulary),
+        "idf_weights": utils.listify_tensors(self.input_idf_weights),
     }
 
     base_config = super().get_config()

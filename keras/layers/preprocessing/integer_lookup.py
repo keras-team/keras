@@ -85,6 +85,12 @@ class IntegerLookup(index_lookup.IndexLookup):
       tensor containing the integer vocbulary terms. If passing a file path, the
       file should contain one line per term in the vocabulary. If this argument
       is set, there is no need to `adapt` the layer.
+    idf_weights: Only valid when `output_mode` is `"tf_idf"`. A tuple, list, 1D
+      numpy array, or 1D tensor or the same length as the vocabulary, containing
+      the floating point inverse document frequency weights, which will be
+      multiplied by per sample term counts for the final `tf_idf` weight. If the
+      `vocabulary` argument is set, and `output_mode` is `"tf_idf"`, this
+      argument must be supplied.
     invert: Only valid when `output_mode` is `"int"`. If True, this layer will
       map indices to vocabulary items instead of mapping vocabulary items to
       indices. Default to False.
@@ -233,8 +239,8 @@ class IntegerLookup(index_lookup.IndexLookup):
   >>> vocab = [12, 36, 1138, 42]
   >>> idf_weights = [0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([[12, 1138, 42, 42], [42, 7, 36, 7]]) # Note OOV tokens
-  >>> layer = tf.keras.layers.IntegerLookup(output_mode='tf_idf')
-  >>> layer.set_vocabulary(vocab, idf_weights=idf_weights)
+  >>> layer = tf.keras.layers.IntegerLookup(
+  ...     output_mode='tf_idf', vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0.  , 0.25, 0.  , 0.6 , 0.8 ],
@@ -246,8 +252,8 @@ class IntegerLookup(index_lookup.IndexLookup):
   >>> vocab = [-1, 12, 36, 1138, 42]
   >>> idf_weights = [0.9, 0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([[12, 1138, 42, 42], [42, 7, 36, 7]]) # Note OOV tokens
-  >>> layer = tf.keras.layers.IntegerLookup(output_mode='tf_idf')
-  >>> layer.set_vocabulary(vocab, idf_weights=idf_weights)
+  >>> layer = tf.keras.layers.IntegerLookup(
+  ...     output_mode='tf_idf', vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0.  , 0.25, 0.  , 0.6 , 0.8 ],
@@ -303,6 +309,7 @@ class IntegerLookup(index_lookup.IndexLookup):
                mask_token=None,
                oov_token=-1,
                vocabulary=None,
+               idf_weights=None,
                invert=False,
                output_mode="int",
                sparse=False,
@@ -359,6 +366,7 @@ class IntegerLookup(index_lookup.IndexLookup):
         mask_token=mask_token,
         oov_token=oov_token,
         vocabulary=vocabulary,
+        idf_weights=idf_weights,
         invert=invert,
         output_mode=output_mode,
         sparse=sparse,
