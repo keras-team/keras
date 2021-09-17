@@ -147,7 +147,7 @@ class CategoricalEncodingInputTest(
   def test_ragged_int_input(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
     input_array = tf.ragged.constant([[10, 11, 13], [13, 12, 10, 42]],
-                                              dtype=np.int64)
+                                     dtype=np.int64)
     expected_output = [[1, 2, 4], [4, 3, 1, 0]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
@@ -193,7 +193,7 @@ class CategoricalEncodingMultiOOVTest(
   def test_ragged_int_input_multi_bucket(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
     input_array = tf.ragged.constant([[10, 11, 13], [13, 12, 10, 133]],
-                                              dtype=np.int64)
+                                     dtype=np.int64)
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
@@ -237,8 +237,7 @@ class CategoricalEncodingAdaptTest(
       for _ in itertools.count(1):
         yield random.randint(0, 100)
 
-    ds = tf.data.Dataset.from_generator(word_gen, tf.int64,
-                                            tf.TensorShape([]))
+    ds = tf.data.Dataset.from_generator(word_gen, tf.int64, tf.TensorShape([]))
     batched_ds = ds.take(2)
     input_t = keras.Input(shape=(), dtype=tf.int64)
     layer = integer_lookup.IntegerLookup(

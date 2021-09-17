@@ -81,6 +81,12 @@ class StringLookup(index_lookup.IndexLookup):
       tensor containing the string vocbulary terms. If passing a file path, the
       file should contain one line per term in the vocabulary. If this argument
       is set, there is no need to `adapt` the layer.
+    idf_weights: Only valid when `output_mode` is `"tf_idf"`. A tuple, list, 1D
+      numpy array, or 1D tensor or the same length as the vocabulary, containing
+      the floating point inverse document frequency weights, which will be
+      multiplied by per sample term counts for the final `tf_idf` weight. If the
+      `vocabulary` argument is set, and `output_mode` is `"tf_idf"`, this
+      argument must be supplied.
     invert: Only valid when `output_mode` is `"int"`. If True, this layer will
       map indices to vocabulary items instead of mapping vocabulary items to
       indices. Default to False.
@@ -297,6 +303,7 @@ class StringLookup(index_lookup.IndexLookup):
                mask_token=None,
                oov_token="[UNK]",
                vocabulary=None,
+               idf_weights=None,
                encoding=None,
                invert=False,
                output_mode="int",
@@ -324,6 +331,7 @@ class StringLookup(index_lookup.IndexLookup):
         mask_token=mask_token,
         oov_token=oov_token,
         vocabulary=vocabulary,
+        idf_weights=idf_weights,
         invert=invert,
         output_mode=output_mode,
         sparse=sparse,
