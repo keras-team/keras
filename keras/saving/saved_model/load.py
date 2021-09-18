@@ -523,6 +523,21 @@ class KerasObjectLoader:
       obj = layers_module.deserialize(
           generic_utils.serialize_keras_class_and_config(
               class_name, config, shared_object_id=shared_object_id))
+    except (TypeError, KeyError) as e:
+      # A name conflict has occured. The `class_name` is in the Keras native
+      # framework; however, the value in the framework is different from the
+      # user's class definition which confuses the KerasObjectLoader.
+      builtin_layer = layers_module.get_builtin_layer(class_name)
+      if builtin_layer:
+        raise RuntimeError(
+            f'Unable to restore object of class \'{class_name}\' likely due to '
+            f'name conflict with built-in Keras class \'{builtin_layer}\'. To '
+            'override the built-in Keras definition of the object, decorate '
+            'your class with `@keras.utils.register_keras_serializable` and '
+            'include that file in your program, or pass your class in a '
+            '`keras.utils.CustomObjectScope` that wraps this load call.') from e
+      else:
+        raise
     except ValueError:
       if must_restore_from_config:
         raise RuntimeError(
