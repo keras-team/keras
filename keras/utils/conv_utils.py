@@ -49,32 +49,7 @@ def convert_data_format(data_format, ndim):
         'Expected values are ["channels_first", "channels_last"]')
 
 
-def normalize_positive_tuple(value, n, name):
-  """Transforms a single positive integer or iterable of positive integers into an
-    integer tuple.
-
-  Args:
-    value: The value to validate and convert. Could a positive int, or any iterable
-      of positive ints.
-    n: The size of the tuple to be returned.
-    name: The name of the argument being validated, e.g. "pool_size" or "kernel_size".
-    This is only used for format error messages.
-
-  Returns:
-    A tuple of n positive integers.
-
-  Raises:
-    ValueError: If something else than an postive int/long or iterable thereof was passed.
-  """
-  value_tuple = normalize_tuple(value, n, name)
-  for value in value_tuple:
-    if value <= 0:
-      raise ValueError(f'The `{name}` argument must be a positive int or a tuple of positive integers. '
-                       f'Received: {value}.')
-  return value_tuple
-
-
-def normalize_tuple(value, n, name):
+def normalize_tuple(value, n, name, cmp=None):
   """Transforms a single integer or iterable of integers into an integer tuple.
 
   Args:
@@ -83,7 +58,7 @@ def normalize_tuple(value, n, name):
     n: The size of the tuple to be returned.
     name: The name of the argument being validated, e.g. "strides" or
       "kernel_size". This is only used to format error messages.
-
+    cmp: the function used to filter out unqualified values.
   Returns:
     A tuple of n integers.
 
@@ -110,6 +85,11 @@ def normalize_tuple(value, n, name):
         error_msg += (f'including element {single_value} of '
                       f'type {type(single_value)}')
         raise ValueError(error_msg)
+
+    unqualified_values = [v for v in value_tuple if cmp is not None and cmp(v)]
+    if len(unqualified_values) > 0:
+      error_msg += f' that does not satisfy the requirement.'
+      raise ValueError(error_msg)
     return value_tuple
 
 

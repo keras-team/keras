@@ -67,27 +67,27 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
 
   def test_normalize_tuple(self):
     self.assertEqual((2, 2, 2),
-                     conv_utils.normalize_tuple(2, n=3, name='strides'))
+                     conv_utils.normalize_tuple(2, n=3, name='strides', cmp=lambda x: x < 0))
     self.assertEqual((2, 1, 2),
-                     conv_utils.normalize_tuple((2, 1, 2), n=3, name='strides'))
-
-    with self.assertRaises(ValueError):
-      conv_utils.normalize_tuple((2, 1), n=3, name='strides')
-
-    with self.assertRaises(ValueError):
-      conv_utils.normalize_tuple(None, n=3, name='strides')
-
-  def test_normalize_positive_tuple(self):
+                     conv_utils.normalize_tuple((2, 1, 2), n=3, name='strides', cmp=lambda x: x < 0))
     self.assertEqual((1, 2, 3,),
-                     conv_utils.normalize_positive_tuple((1, 2, 3), n=3, name='pool_size'))
+                     conv_utils.normalize_tuple((1, 2, 3), n=3, name='pool_size', cmp=lambda x: x <= 0))
     self.assertEqual((3, 3, 3),
-                     conv_utils.normalize_positive_tuple(3, n=3, name='pool_size'))
+                     conv_utils.normalize_tuple(3, n=3, name='pool_size', cmp=lambda x: x <= 0))
+    self.assertEqual((3, -1, 3),
+                     conv_utils.normalize_tuple((3, -1, 3), n=3, name='negative_size'))
 
     with self.assertRaises(ValueError):
-      conv_utils.normalize_positive_tuple(-4, n=3, name='pool_size')
+      conv_utils.normalize_tuple((2, 1), n=3, name='strides', cmp=lambda x: x < 0)
 
     with self.assertRaises(ValueError):
-      conv_utils.normalize_positive_tuple((0, 1, 2), n=3, name='pool_size')
+      conv_utils.normalize_tuple(None, n=3, name='strides', cmp=lambda x: x < 0)
+
+    with self.assertRaises(ValueError):
+      conv_utils.normalize_tuple(-4, n=3, name='pool_size', cmp=lambda x: x <= 0)
+
+    with self.assertRaises(ValueError):
+      conv_utils.normalize_tuple((0, 1, 2), n=3, name='pool_size', cmp=lambda x: x <= 0)
 
   def test_normalize_data_format(self):
     self.assertEqual('channels_last',
