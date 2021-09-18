@@ -87,7 +87,6 @@ def normalize_tuple(value, n, name, cmp=None):
         raise ValueError(error_msg)
 
   unqualified_values = [v for v in value_tuple if cmp and cmp(v)]
-  print(unqualified_values, value_tuple)
 
   if len(unqualified_values) > 0:
     error_msg += (f' including {unqualified_values}'
