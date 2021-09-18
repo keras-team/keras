@@ -33,6 +33,12 @@ py_library(
 )
 
 py_library(
+    name = "load_context",
+    srcs = ["load_context.py"],
+    visibility = ["//third_party/tensorflow/python/distribute:__pkg__"],
+)
+
+py_library(
     name = "saved_model",
     srcs = [
         "base_serialization.py",
