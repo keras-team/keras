@@ -56,7 +56,7 @@ class Pooling1D(Layer):
     if strides is None:
       strides = pool_size
     self.pool_function = pool_function
-    self.pool_size = conv_utils.normalize_positive_tuple(pool_size, 1, 'pool_size')
+    self.pool_size = conv_utils.normalize_tuple(pool_size, 1, 'pool_size', lambda x: x <= 0)
     self.strides = conv_utils.normalize_tuple(strides, 1, 'strides')
     self.padding = conv_utils.normalize_padding(padding)
     self.data_format = conv_utils.normalize_data_format(data_format)
@@ -339,7 +339,7 @@ class Pooling2D(Layer):
     if strides is None:
       strides = pool_size
     self.pool_function = pool_function
-    self.pool_size = conv_utils.normalize_positive_tuple(pool_size, 2, 'pool_size')
+    self.pool_size = conv_utils.normalize_tuple(pool_size, 2, 'pool_size', lambda x: x <= 0)
     self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
     self.padding = conv_utils.normalize_padding(padding)
     self.data_format = conv_utils.normalize_data_format(data_format)
@@ -677,7 +677,7 @@ class Pooling3D(Layer):
     if strides is None:
       strides = pool_size
     self.pool_function = pool_function
-    self.pool_size = conv_utils.normalize_positive_tuple(pool_size, 3, 'pool_size')
+    self.pool_size = conv_utils.normalize_tuple(pool_size, 3, 'pool_size', lambda x: x <= 0)
     self.strides = conv_utils.normalize_tuple(strides, 3, 'strides')
     self.padding = conv_utils.normalize_padding(padding)
     self.data_format = conv_utils.normalize_data_format(data_format)

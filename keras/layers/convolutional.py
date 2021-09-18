@@ -136,13 +136,13 @@ class Conv(Layer):
                        f'Was expecting a positive value. Received {filters}.')
     self.filters = filters
     self.groups = groups or 1
-    self.kernel_size = conv_utils.normalize_positive_tuple(
-        kernel_size, rank, 'kernel_size')
-    self.strides = conv_utils.normalize_tuple(strides, rank, 'strides')
+    self.kernel_size = conv_utils.normalize_tuple(
+        kernel_size, rank, 'kernel_size', lambda x: x <= 0)
+    self.strides = conv_utils.normalize_tuple(strides, rank, 'strides', lambda x: x < 0)
     self.padding = conv_utils.normalize_padding(padding)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.dilation_rate = conv_utils.normalize_tuple(
-        dilation_rate, rank, 'dilation_rate')
+        dilation_rate, rank, 'dilation_rate', lambda x: x <= 0)
 
     self.activation = activations.get(activation)
     self.use_bias = use_bias
@@ -953,7 +953,7 @@ class Conv1DTranspose(Conv1D):
     self.output_padding = output_padding
     if self.output_padding is not None:
       self.output_padding = conv_utils.normalize_tuple(
-          self.output_padding, 1, 'output_padding')
+          self.output_padding, 1, 'output_padding', lambda x: x < 0)
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
           raise ValueError('Strides must be greater than output padding. '
@@ -1227,7 +1227,7 @@ class Conv2DTranspose(Conv2D):
     self.output_padding = output_padding
     if self.output_padding is not None:
       self.output_padding = conv_utils.normalize_tuple(
-          self.output_padding, 2, 'output_padding')
+          self.output_padding, 2, 'output_padding', lambda x: x < 0)
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
           raise ValueError('Strides must be greater than output padding. '
@@ -1540,7 +1540,7 @@ class Conv3DTranspose(Conv3D):
     self.output_padding = output_padding
     if self.output_padding is not None:
       self.output_padding = conv_utils.normalize_tuple(
-          self.output_padding, 3, 'output_padding')
+          self.output_padding, 3, 'output_padding', lambda x: x < 0)
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
           raise ValueError('Strides must be greater than output padding. '
@@ -3081,7 +3081,7 @@ class ZeroPadding1D(Layer):
 
   def __init__(self, padding=1, **kwargs):
     super(ZeroPadding1D, self).__init__(**kwargs)
-    self.padding = conv_utils.normalize_tuple(padding, 2, 'padding')
+    self.padding = conv_utils.normalize_tuple(padding, 2, 'padding', lambda x: x < 0)
     self.input_spec = InputSpec(ndim=3)
 
   def compute_output_shape(self, input_shape):
@@ -3177,9 +3177,9 @@ class ZeroPadding2D(Layer):
         raise ValueError('`padding` should have two elements. '
                          f'Received: {padding}.')
       height_padding = conv_utils.normalize_tuple(padding[0], 2,
-                                                  '1st entry of padding')
+                                                  '1st entry of padding', lambda x: x < 0)
       width_padding = conv_utils.normalize_tuple(padding[1], 2,
-                                                 '2nd entry of padding')
+                                                 '2nd entry of padding', lambda x: x < 0)
       self.padding = (height_padding, width_padding)
     else:
       raise ValueError('`padding` should be either an int, '
@@ -3290,11 +3290,11 @@ class ZeroPadding3D(Layer):
         raise ValueError('`padding` should have 3 elements. '
                          f'Received: {padding}.')
       dim1_padding = conv_utils.normalize_tuple(padding[0], 2,
-                                                '1st entry of padding')
+                                                '1st entry of padding', lambda x: x < 0)
       dim2_padding = conv_utils.normalize_tuple(padding[1], 2,
-                                                '2nd entry of padding')
+                                                '2nd entry of padding', lambda x: x < 0)
       dim3_padding = conv_utils.normalize_tuple(padding[2], 2,
-                                                '3rd entry of padding')
+                                                '3rd entry of padding', lambda x: x < 0)
       self.padding = (dim1_padding, dim2_padding, dim3_padding)
     else:
       raise ValueError(
