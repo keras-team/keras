@@ -74,8 +74,10 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
         (1, 2, 3), n=3, name='pool_size'))
     self.assertEqual((3, 3, 3), conv_utils.normalize_tuple(
         3, n=3, name='pool_size'))
-    self.assertEqual((3, -1, 3), conv_utils.normalize_tuple(
-        (3, -1, 3), n=3, name='negative_size', allow_zero=True))
+
+    with self.assertRaises(ValueError) as ctx:
+      conv_utils.normalize_tuple((3, -1, 3), n=3, name='negative_size')
+    self.assertIn('that does not satisfy the requirement >0', str(ctx.exception))
 
     with self.assertRaises(ValueError) as ctx:
       conv_utils.normalize_tuple((2, 1), n=3, name='strides', allow_zero=True)
