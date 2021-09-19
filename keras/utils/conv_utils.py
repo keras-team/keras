@@ -49,7 +49,7 @@ def convert_data_format(data_format, ndim):
         'Expected values are ["channels_first", "channels_last"]')
 
 
-def normalize_tuple(value, n, name, validation_fn=lambda x: x > 0, fn_alt='>0'):
+def normalize_tuple(value, n, name, allow_zero=False):
   """Transforms a single integer or iterable of integers into an integer tuple.
 
   Args:
@@ -58,8 +58,7 @@ def normalize_tuple(value, n, name, validation_fn=lambda x: x > 0, fn_alt='>0'):
     n: The size of the tuple to be returned.
     name: The name of the argument being validated, e.g. "strides" or
       "kernel_size". This is only used to format error messages.
-    validation_fn: the function used to filter out unqualified values.
-    fn_alt: alternative text for validation_fn.
+    allow_zero: Whether the function will accept zero values.
   Returns:
     A tuple of n integers.
 
@@ -87,11 +86,16 @@ def normalize_tuple(value, n, name, validation_fn=lambda x: x > 0, fn_alt='>0'):
                       f'type {type(single_value)}')
         raise ValueError(error_msg)
 
-  unqualified_values = [v for v in value_tuple if validation_fn and (not validation_fn(v))]
+  if allow_zero:
+    qualified_values = list(filter(lambda x: x >= 0, value_tuple))
+    req_msg = '>=0'
+  else:
+    qualified_values = list(filter(lambda x: x > 0, value_tuple))
+    req_msg = '>0'
 
-  if len(unqualified_values) > 0:
-    error_msg += (f' including {unqualified_values}'
-                  f' that does not satisfy the requirement {fn_alt}.')
+  if len(qualified_values) < len(value_tuple):
+    error_msg += (f' including {qualified_values}'
+                  f' that does not satisfy the requirement {req_msg}.')
     raise ValueError(error_msg)
 
   return value_tuple

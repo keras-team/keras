@@ -66,22 +66,19 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
       conv_utils.convert_data_format('invalid', 2)
 
   def test_normalize_tuple(self):
-    self.assertEqual((2, 2, 2),
-                     conv_utils.normalize_tuple(2,
-                                                n=3, name='strides', validation_fn=lambda x: x >= 0, fn_alt='>=0'))
-    self.assertEqual((2, 1, 2),
-                     conv_utils.normalize_tuple((2, 1, 2),
-                                                n=3, name='strides', validation_fn=lambda x: x >= 0, fn_alt='>=0'))
-    self.assertEqual((1, 2, 3,),
-                     conv_utils.normalize_tuple((1, 2, 3), n=3, name='pool_size'))
-    self.assertEqual((3, 3, 3),
-                     conv_utils.normalize_tuple(3, n=3, name='pool_size'))
-    self.assertEqual((3, -1, 3),
-                     conv_utils.normalize_tuple((3, -1, 3),
-                                                n=3, name='negative_size', validation_fn=None, fn_alt=None))
+    self.assertEqual((2, 2, 2), conv_utils.normalize_tuple(
+        2, n=3, name='strides', allow_zero=True))
+    self.assertEqual((2, 1, 2), conv_utils.normalize_tuple(
+        (2, 1, 2), n=3, name='strides', allow_zero=True))
+    self.assertEqual((1, 2, 3,), conv_utils.normalize_tuple(
+        (1, 2, 3), n=3, name='pool_size'))
+    self.assertEqual((3, 3, 3), conv_utils.normalize_tuple(
+        3, n=3, name='pool_size'))
+    self.assertEqual((3, -1, 3), conv_utils.normalize_tuple(
+        (3, -1, 3), n=3, name='negative_size', allow_zero=True))
 
     with self.assertRaises(ValueError) as ctx:
-      conv_utils.normalize_tuple((2, 1), n=3, name='strides', validation_fn=lambda x: x >= 0, fn_alt='>=0')
+      conv_utils.normalize_tuple((2, 1), n=3, name='strides', allow_zero=True)
     self.assertIn('The `strides` argument must be a tuple of 3', str(ctx.exception))
 
     with self.assertRaises(ValueError) as ctx:
@@ -89,7 +86,7 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
     self.assertIn('The `kernel_size` argument must be a tuple of 3', str(ctx.exception))
 
     with self.assertRaises(ValueError) as ctx:
-      conv_utils.normalize_tuple(-4, n=3, name='strides', validation_fn=lambda x: x >= 0, fn_alt='>=0')
+      conv_utils.normalize_tuple(-4, n=3, name='strides', allow_zero=True)
     self.assertIn('that does not satisfy the requirement >=0', str(ctx.exception))
 
     with self.assertRaises(ValueError) as ctx:
