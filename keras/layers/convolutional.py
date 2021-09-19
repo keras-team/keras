@@ -139,7 +139,7 @@ class Conv(Layer):
     self.kernel_size = conv_utils.normalize_tuple(
         kernel_size, rank, 'kernel_size')
     self.strides = conv_utils.normalize_tuple(
-        strides, rank, 'strides', lambda x: x >= 0, '>=0')
+        strides, rank, 'strides', allow_zero=True)
     self.padding = conv_utils.normalize_padding(padding)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.dilation_rate = conv_utils.normalize_tuple(
@@ -954,7 +954,7 @@ class Conv1DTranspose(Conv1D):
     self.output_padding = output_padding
     if self.output_padding is not None:
       self.output_padding = conv_utils.normalize_tuple(
-          self.output_padding, 1, 'output_padding', lambda x: x >= 0, '>=0')
+          self.output_padding, 1, 'output_padding', allow_zero=True)
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
           raise ValueError('Strides must be greater than output padding. '
@@ -1228,7 +1228,7 @@ class Conv2DTranspose(Conv2D):
     self.output_padding = output_padding
     if self.output_padding is not None:
       self.output_padding = conv_utils.normalize_tuple(
-          self.output_padding, 2, 'output_padding', lambda x: x >= 0, '>=0')
+          self.output_padding, 2, 'output_padding', allow_zero=True)
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
           raise ValueError('Strides must be greater than output padding. '
@@ -1541,7 +1541,7 @@ class Conv3DTranspose(Conv3D):
     self.output_padding = output_padding
     if self.output_padding is not None:
       self.output_padding = conv_utils.normalize_tuple(
-          self.output_padding, 3, 'output_padding', lambda x: x >= 0, '>=0')
+          self.output_padding, 3, 'output_padding', allow_zero=True)
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
           raise ValueError('Strides must be greater than output padding. '
@@ -3082,7 +3082,7 @@ class ZeroPadding1D(Layer):
 
   def __init__(self, padding=1, **kwargs):
     super(ZeroPadding1D, self).__init__(**kwargs)
-    self.padding = conv_utils.normalize_tuple(padding, 2, 'padding', lambda x: x >= 0, '>=0')
+    self.padding = conv_utils.normalize_tuple(padding, 2, 'padding', allow_zero=True)
     self.input_spec = InputSpec(ndim=3)
 
   def compute_output_shape(self, input_shape):
@@ -3178,9 +3178,9 @@ class ZeroPadding2D(Layer):
         raise ValueError('`padding` should have two elements. '
                          f'Received: {padding}.')
       height_padding = conv_utils.normalize_tuple(padding[0], 2,
-                                                  '1st entry of padding', lambda x: x >= 0, '>=0')
+                                                  '1st entry of padding', allow_zero=True)
       width_padding = conv_utils.normalize_tuple(padding[1], 2,
-                                                 '2nd entry of padding', lambda x: x >= 0, '>=0')
+                                                 '2nd entry of padding', allow_zero=True)
       self.padding = (height_padding, width_padding)
     else:
       raise ValueError('`padding` should be either an int, '
@@ -3292,13 +3292,13 @@ class ZeroPadding3D(Layer):
                          f'Received: {padding}.')
       dim1_padding = conv_utils.normalize_tuple(padding[0], 2,
                                                 '1st entry of padding',
-                                                lambda x: x >= 0, '>=0')
+                                                allow_zero=True)
       dim2_padding = conv_utils.normalize_tuple(padding[1], 2,
                                                 '2nd entry of padding',
-                                                lambda x: x >= 0, '>=0')
+                                                allow_zero=True)
       dim3_padding = conv_utils.normalize_tuple(padding[2], 2,
                                                 '3rd entry of padding',
-                                                lambda x: x >= 0, '>=0')
+                                                allow_zero=True)
       self.padding = (dim1_padding, dim2_padding, dim3_padding)
     else:
       raise ValueError(
@@ -3393,8 +3393,8 @@ class Cropping1D(Layer):
 
   def __init__(self, cropping=(1, 1), **kwargs):
     super(Cropping1D, self).__init__(**kwargs)
-    self.cropping = conv_utils.normalize_tuple(
-        cropping, 2, 'cropping', lambda x: x >= 0, '>=0')
+    self.cropping = conv_utils.normalize_tuple(cropping, 2, 'cropping',
+                                               allow_zero=True)
     self.input_spec = InputSpec(ndim=3)
 
   def compute_output_shape(self, input_shape):
@@ -3483,10 +3483,10 @@ class Cropping2D(Layer):
                          f'Received: {cropping}.')
       height_cropping = conv_utils.normalize_tuple(cropping[0], 2,
                                                    '1st entry of cropping',
-                                                   lambda x: x >= 0, '>=0')
+                                                   allow_zero=True)
       width_cropping = conv_utils.normalize_tuple(cropping[1], 2,
                                                   '2nd entry of cropping',
-                                                  lambda x: x >= 0, '>=0')
+                                                  allow_zero=True)
       self.cropping = (height_cropping, width_cropping)
     else:
       raise ValueError('`cropping` should be either an int, '
@@ -3617,13 +3617,13 @@ class Cropping3D(Layer):
                          f'Received: {cropping}.')
       dim1_cropping = conv_utils.normalize_tuple(cropping[0], 2,
                                                  '1st entry of cropping',
-                                                 lambda x: x >= 0, '>=0')
+                                                 allow_zero=True)
       dim2_cropping = conv_utils.normalize_tuple(cropping[1], 2,
                                                  '2nd entry of cropping',
-                                                 lambda x: x >= 0, '>=0')
+                                                 allow_zero=True)
       dim3_cropping = conv_utils.normalize_tuple(cropping[2], 2,
                                                  '3rd entry of cropping',
-                                                 lambda x: x >= 0, '>=0')
+                                                 allow_zero=True)
       self.cropping = (dim1_cropping, dim2_cropping, dim3_cropping)
     else:
       raise ValueError(
