@@ -132,8 +132,8 @@ class LocallyConnected1D(Layer):
                **kwargs):
     super(LocallyConnected1D, self).__init__(**kwargs)
     self.filters = filters
-    self.kernel_size = conv_utils.normalize_tuple(kernel_size, 1, 'kernel_size', lambda x: x <= 0)
-    self.strides = conv_utils.normalize_tuple(strides, 1, 'strides')
+    self.kernel_size = conv_utils.normalize_tuple(kernel_size, 1, 'kernel_size')
+    self.strides = conv_utils.normalize_tuple(strides, 1, 'strides', lambda x: x >= 0, '>=0')
     self.padding = conv_utils.normalize_padding(padding)
     if self.padding != 'valid' and implementation == 1:
       raise ValueError('Invalid border mode for LocallyConnected1D '
@@ -439,8 +439,8 @@ class LocallyConnected2D(Layer):
                **kwargs):
     super(LocallyConnected2D, self).__init__(**kwargs)
     self.filters = filters
-    self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size', lambda x: x <= 0)
-    self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
+    self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
+    self.strides = conv_utils.normalize_tuple(strides, 2, 'strides', lambda x: x >= 0, '>=0')
     self.padding = conv_utils.normalize_padding(padding)
     if self.padding != 'valid' and implementation == 1:
       raise ValueError('Invalid border mode for LocallyConnected2D '
