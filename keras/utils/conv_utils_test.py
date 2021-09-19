@@ -82,19 +82,19 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
 
     with self.assertRaises(ValueError) as ctx:
       conv_utils.normalize_tuple((2, 1), n=3, name='strides', validation_fn=lambda x: x >= 0, fn_alt='>=0')
-    self.assertTrue('The `strides` argument must be a tuple of 3' in str(ctx.exception))
+    self.assertIn('The `strides` argument must be a tuple of 3', str(ctx.exception))
 
     with self.assertRaises(ValueError) as ctx:
       conv_utils.normalize_tuple(None, n=3, name='kernel_size')
-    self.assertTrue('The `kernel_size` argument must be a tuple of 3' in str(ctx.exception))
+    self.assertIn('The `kernel_size` argument must be a tuple of 3', str(ctx.exception))
 
     with self.assertRaises(ValueError) as ctx:
       conv_utils.normalize_tuple(-4, n=3, name='strides', validation_fn=lambda x: x >= 0, fn_alt='>=0')
-    self.assertTrue('that does not satisfy the requirement' in str(ctx.exception))
+    self.assertIn('that does not satisfy the requirement >=0', str(ctx.exception))
 
     with self.assertRaises(ValueError) as ctx:
       conv_utils.normalize_tuple((0, 1, 2), n=3, name='pool_size')
-    self.assertTrue('that does not satisfy the requirement' in str(ctx.exception))
+    self.assertIn('that does not satisfy the requirement >0', str(ctx.exception))
 
   def test_normalize_data_format(self):
     self.assertEqual('channels_last',
