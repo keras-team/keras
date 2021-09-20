@@ -83,15 +83,15 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
             ValueError, r'The `strides` argument .* a tuple of 3 integers.* \(2, 1\)$'):
       conv_utils.normalize_tuple((2, 1), n=3, name='strides', allow_zero=True)
 
-    with self.assertRaises(
+    with self.assertRaisesRegex(
             ValueError, r'The `kernel_size` argument .* tuple of 3 integers.* None$'):
       conv_utils.normalize_tuple(None, n=3, name='kernel_size')
 
-    with self.assertRaises(
+    with self.assertRaisesRegex(
             ValueError, r'including \[-4, -4, -4\] that does not .* `>= 0`'):
       conv_utils.normalize_tuple(-4, n=3, name='strides', allow_zero=True)
 
-    with self.assertRaises(
+    with self.assertRaisesRegex(
             ValueError, r'including \[0\] that does not .* `> 0`'):
       conv_utils.normalize_tuple((0, 1, 2), n=3, name='pool_size')
 
