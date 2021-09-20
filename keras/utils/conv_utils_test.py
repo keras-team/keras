@@ -75,25 +75,23 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
     self.assertEqual((3, 3, 3), conv_utils.normalize_tuple(
         3, n=3, name='pool_size'))
 
-    with self.assertRaises(ValueError) as ctx:
+    with self.assertRaisesRegex(ValueError,
+                                f'including {[-1]} that does not satisfy the requirement `> 0`') as ctx:
       conv_utils.normalize_tuple((3, -1, 3), n=3, name='negative_size')
-    self.assertIn('that does not satisfy the requirement >0', str(ctx.exception))
 
-    with self.assertRaises(ValueError) as ctx:
+    with self.assertRaisesRegex(ValueError, f'The `strides` argument must be a tuple of 3') as ctx:
       conv_utils.normalize_tuple((2, 1), n=3, name='strides', allow_zero=True)
-    self.assertIn('The `strides` argument must be a tuple of 3', str(ctx.exception))
 
-    with self.assertRaises(ValueError) as ctx:
+    with self.assertRaises(ValueError, 'The `kernel_size` argument must be a tuple of 3') as ctx:
       conv_utils.normalize_tuple(None, n=3, name='kernel_size')
-    self.assertIn('The `kernel_size` argument must be a tuple of 3', str(ctx.exception))
 
-    with self.assertRaises(ValueError) as ctx:
+    with self.assertRaises(ValueError,
+                           f'including {[-4, -4, -4]} that does not satisfy the requirement `>= 0`') as ctx:
       conv_utils.normalize_tuple(-4, n=3, name='strides', allow_zero=True)
-    self.assertIn('that does not satisfy the requirement >=0', str(ctx.exception))
 
-    with self.assertRaises(ValueError) as ctx:
+    with self.assertRaises(ValueError,
+                           f'including {[0]} that does not satisfy the requirement `> 0`') as ctx:
       conv_utils.normalize_tuple((0, 1, 2), n=3, name='pool_size')
-    self.assertIn('that does not satisfy the requirement >0', str(ctx.exception))
 
   def test_normalize_data_format(self):
     self.assertEqual('channels_last',
