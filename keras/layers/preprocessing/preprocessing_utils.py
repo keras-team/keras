@@ -14,8 +14,16 @@
 # ==============================================================================
 """Utils for preprocessing layers."""
 
+from keras import backend
+from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+INT = "int"
+ONE_HOT = "one_hot"
+MULTI_HOT = "multi_hot"
+COUNT = "count"
+TF_IDF = "tf_idf"
 
 
 def listify_tensors(x):
@@ -25,3 +33,97 @@ def listify_tensors(x):
   if isinstance(x, np.ndarray):
     x = x.tolist()
   return x
+
+
+def sparse_bincount(inputs, depth, binary_output, count_weights=None):
+  """Apply binary or count encoding to an input and return a sparse tensor."""
+  result = tf.sparse.bincount(
+      inputs,
+      weights=count_weights,
+      minlength=depth,
+      maxlength=depth,
+      axis=-1,
+      binary_output=binary_output)
+  result = tf.cast(result, backend.floatx())
+  if inputs.shape.rank == 1:
+    output_shape = (depth,)
+  else:
+    batch_size = tf.shape(result)[0]
+    output_shape = (batch_size, depth)
+  result = tf.SparseTensor(
+      indices=result.indices, values=result.values, dense_shape=output_shape)
+  return result
+
+
+def dense_bincount(inputs, depth, binary_output, count_weights=None):
+  """Apply binary or count encoding to an input."""
+  result = tf.math.bincount(
+      inputs,
+      weights=count_weights,
+      minlength=depth,
+      maxlength=depth,
+      dtype=backend.floatx(),
+      axis=-1,
+      binary_output=binary_output)
+  if inputs.shape.rank == 1:
+    result.set_shape(tf.TensorShape((depth,)))
+  else:
+    batch_size = inputs.shape.as_list()[0]
+    result.set_shape(tf.TensorShape((batch_size, depth)))
+  return result
+
+
+def expand_dims(inputs, axis):
+  if tf_utils.is_sparse(inputs):
+    return tf.sparse.expand_dims(inputs, axis)
+  else:
+    return tf.expand_dims(inputs, axis)
+
+
+def encode_categorical_inputs(inputs,
+                              output_mode,
+                              depth,
+                              sparse=False,
+                              count_weights=None,
+                              idf_weights=None):
+  """Encodes categoical inputs according to output_mode."""
+  if output_mode == INT:
+    return inputs
+
+  original_shape = inputs.shape
+  # In all cases, we should uprank scalar input to a single sample.
+  if inputs.shape.rank == 0:
+    inputs = expand_dims(inputs, -1)
+  # One hot will unprank only if the final output dimension is not already 1.
+  if output_mode == ONE_HOT:
+    if inputs.shape[-1] != 1:
+      inputs = expand_dims(inputs, -1)
+
+  # TODO(b/190445202): remove output rank restriction.
+  if inputs.shape.rank > 2:
+    raise ValueError(
+        f"When output_mode is not `'int'`, maximum supported output rank is 2. "
+        f"Received output_mode {output_mode} and input shape {original_shape}, "
+        f"which would result in output rank {inputs.shape.rank}.")
+
+  binary_output = output_mode in (MULTI_HOT, ONE_HOT)
+  if sparse:
+    bincounts = sparse_bincount(inputs, depth, binary_output, count_weights)
+  else:
+    bincounts = dense_bincount(inputs, depth, binary_output, count_weights)
+
+  if output_mode != TF_IDF:
+    return bincounts
+
+  if idf_weights is None:
+    raise ValueError(
+        f"When output mode is `'tf_idf'`, idf_weights must be provided. "
+        f"Received: output_mode={output_mode} and idf_weights={idf_weights}")
+
+  if sparse:
+    value_weights = tf.gather(idf_weights, bincounts.indices[:, -1])
+    return tf.SparseTensor(bincounts.indices,
+                           value_weights * bincounts.values,
+                           bincounts.dense_shape)
+  else:
+    return tf.multiply(bincounts, idf_weights)
