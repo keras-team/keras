@@ -276,7 +276,7 @@ distribute_py_test(
     disable_mlir_bridge = False,
     full_precision = True,
     main = "keras_premade_models_test.py",
-    shard_count = 4,
+    shard_count = 8,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
