@@ -57,7 +57,7 @@ class Pooling1D(Layer):
       strides = pool_size
     self.pool_function = pool_function
     self.pool_size = conv_utils.normalize_tuple(pool_size, 1, 'pool_size')
-    self.strides = conv_utils.normalize_tuple(strides, 1, 'strides', True)
+    self.strides = conv_utils.normalize_tuple(strides, 1, 'strides', allow_zero=True)
     self.padding = conv_utils.normalize_padding(padding)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.input_spec = InputSpec(ndim=3)
@@ -340,7 +340,7 @@ class Pooling2D(Layer):
       strides = pool_size
     self.pool_function = pool_function
     self.pool_size = conv_utils.normalize_tuple(pool_size, 2, 'pool_size')
-    self.strides = conv_utils.normalize_tuple(strides, 2, 'strides', True)
+    self.strides = conv_utils.normalize_tuple(strides, 2, 'strides', allow_zero=True)
     self.padding = conv_utils.normalize_padding(padding)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.input_spec = InputSpec(ndim=4)
