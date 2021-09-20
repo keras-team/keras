@@ -440,7 +440,7 @@ class LocallyConnected2D(Layer):
     super(LocallyConnected2D, self).__init__(**kwargs)
     self.filters = filters
     self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
-    self.strides = conv_utils.normalize_tuple(strides, 2, 'strides', True)
+    self.strides = conv_utils.normalize_tuple(strides, 2, 'strides', allow_zero=True)
     self.padding = conv_utils.normalize_padding(padding)
     if self.padding != 'valid' and implementation == 1:
       raise ValueError('Invalid border mode for LocallyConnected2D '
