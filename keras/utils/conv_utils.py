@@ -94,7 +94,7 @@ def normalize_tuple(value, n, name, allow_zero=False):
     req_msg = '> 0'
 
   if len(unqualified_values) > 0:
-    error_msg += (f' including {unqualified_values}'
+    error_msg += (f' including {set(unqualified_values)}'
                   f' that does not satisfy the requirement `{req_msg}`.')
     raise ValueError(error_msg)
 

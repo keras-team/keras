@@ -76,7 +76,7 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
         3, n=3, name='pool_size'))
 
     with self.assertRaisesRegex(
-            ValueError, r'including \[-1\] that does not satisfy the requirement `> 0`'):
+            ValueError, r'including \{-1\} that does not satisfy the requirement `> 0`'):
       conv_utils.normalize_tuple((3, -1, 3), n=3, name='negative_size')
 
     with self.assertRaisesRegex(
@@ -88,11 +88,11 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
       conv_utils.normalize_tuple(None, n=3, name='kernel_size')
 
     with self.assertRaisesRegex(
-            ValueError, r'including \[-4, -4, -4\] that does not .* `>= 0`'):
+            ValueError, r'including \{-4\} that does not .* `>= 0`'):
       conv_utils.normalize_tuple(-4, n=3, name='strides', allow_zero=True)
 
     with self.assertRaisesRegex(
-            ValueError, r'including \[0\] that does not .* `> 0`'):
+            ValueError, r'including \{0\} that does not .* `> 0`'):
       conv_utils.normalize_tuple((0, 1, 2), n=3, name='pool_size')
 
   def test_normalize_data_format(self):
