@@ -13,19 +13,46 @@
 # limitations under the License.
 # ==============================================================================
 """Layers that operate regularization via the addition of noise."""
-
-import tensorflow.compat.v2 as tf
-
-import numpy as np
+# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 from keras import backend
-from keras.engine.base_layer import Layer
+from keras.engine import base_layer
 from keras.utils import tf_utils
+
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.util.tf_export import keras_export
 
 
+class BaseRandomLayer(base_layer.Layer):
+  """A layer handle the random nubmer creation and savemodel behavior."""
+
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  def __init__(self, seed=None, **kwargs):
+    # Note that the constructor is annotated with
+    # @no_automatic_dependency_tracking. This is to skip the auto
+    # tracking of self._random_generator instance, which is an AutoTrackable.
+    # The backend.RandomGenerator could contain a tf.random.Generator instance
+    # which will have tf.Variable as the internal state. We want to avoid saving
+    # that state into model.weights and checkpoints for backward compatibility
+    # reason. In the meantime, we still need to make them visible to SavedModel
+    # when it is tracing the tf.function for the `call()`.
+    # See _list_extra_dependencies_for_serialization below for more details.
+    super().__init__(**kwargs)
+    self._random_generator = backend.RandomGenerator(seed)
+
+  def _list_extra_dependencies_for_serialization(self, serialization_cache):
+    # This method exposes the self._random_generator to SavedModel
+    # only (not layer.weights and checkpoint).
+    deps = super()._list_extra_dependencies_for_serialization(
+        serialization_cache)
+    deps['_random_generator'] = self._random_generator
+    return deps
+
+
 @keras_export('keras.layers.GaussianNoise')
-class GaussianNoise(Layer):
+class GaussianNoise(BaseRandomLayer):
   """Apply additive zero-centered Gaussian noise.
 
   This is useful to mitigate overfitting
@@ -54,11 +81,10 @@ class GaussianNoise(Layer):
   """
 
   def __init__(self, stddev, seed=None, **kwargs):
-    super(GaussianNoise, self).__init__(**kwargs)
+    super(GaussianNoise, self).__init__(seed=seed, **kwargs)
     self.supports_masking = True
     self.stddev = stddev
     self.seed = seed
-    self._random_generator = backend.RandomGenerator(seed)
 
   def call(self, inputs, training=None):
 
@@ -82,7 +108,7 @@ class GaussianNoise(Layer):
 
 
 @keras_export('keras.layers.GaussianDropout')
-class GaussianDropout(Layer):
+class GaussianDropout(BaseRandomLayer):
   """Apply multiplicative 1-centered Gaussian noise.
 
   As it is a regularization layer, it is only active at training time.
@@ -108,11 +134,10 @@ class GaussianDropout(Layer):
   """
 
   def __init__(self, rate, seed=None, **kwargs):
-    super(GaussianDropout, self).__init__(**kwargs)
+    super(GaussianDropout, self).__init__(seed=seed, **kwargs)
     self.supports_masking = True
     self.rate = rate
     self.seed = seed
-    self._random_generator = backend.RandomGenerator(seed)
 
   def call(self, inputs, training=None):
     if 0 < self.rate < 1:
@@ -139,7 +164,7 @@ class GaussianDropout(Layer):
 
 
 @keras_export('keras.layers.AlphaDropout')
-class AlphaDropout(Layer):
+class AlphaDropout(BaseRandomLayer):
   """Applies Alpha Dropout to the input.
 
   Alpha Dropout is a `Dropout` that keeps mean and variance of inputs
@@ -169,12 +194,11 @@ class AlphaDropout(Layer):
   """
 
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
-    super(AlphaDropout, self).__init__(**kwargs)
+    super(AlphaDropout, self).__init__(seed=seed, **kwargs)
     self.rate = rate
     self.noise_shape = noise_shape
     self.seed = seed
     self.supports_masking = True
-    self._random_generator = backend.RandomGenerator(seed)
 
   def _get_noise_shape(self, inputs):
     return self.noise_shape if self.noise_shape else tf.shape(inputs)

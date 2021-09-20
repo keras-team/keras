@@ -74,7 +74,17 @@ class Dropout(Layer):
       training mode (adding dropout) or in inference mode (doing nothing).
   """
 
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
+    # Note that the constructor is annotated with
+    # @no_automatic_dependency_tracking. This is to skip the auto
+    # tracking of self._random_generator instance, which is an AutoTrackable.
+    # The backend.RandomGenerator could contain a tf.random.Generator instance
+    # which will have tf.Variable as the internal state. We want to avoid saving
+    # that state into model.weights and checkpoints for backward compatibility
+    # reason. In the meantime, we still need to make them visible to SavedModel
+    # when it is tracing the tf.function for the `call()`.
+    # See _list_extra_dependencies_for_serialization below for more details.
     super(Dropout, self).__init__(**kwargs)
     if isinstance(rate, (int, float)) and not 0 <= rate <= 1:
       raise ValueError(f'Invalid value {rate} received for '
@@ -83,6 +93,10 @@ class Dropout(Layer):
     self.noise_shape = noise_shape
     self.seed = seed
     self.supports_masking = True
+    self._random_generator = backend.RandomGenerator(seed)
+
+  def build(self, input_shape):
+    self._random_generator._maybe_init()  # pylint: disable=protected-access
 
   def _get_noise_shape(self, inputs):
     # Subclasses of `Dropout` may implement `_get_noise_shape(self, inputs)`,
@@ -102,11 +116,8 @@ class Dropout(Layer):
       training = backend.learning_phase()
 
     def dropped_inputs():
-      return tf.nn.dropout(
-          inputs,
-          noise_shape=self._get_noise_shape(inputs),
-          seed=self.seed,
-          rate=self.rate)
+      return self._random_generator.dropout(
+          inputs, self.rate, noise_shape=self._get_noise_shape(inputs))
 
     output = control_flow_util.smart_cond(training, dropped_inputs,
                                           lambda: tf.identity(inputs))
@@ -124,3 +135,10 @@ class Dropout(Layer):
     base_config = super(Dropout, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
+  def _list_extra_dependencies_for_serialization(self, serialization_cache):
+    # This method exposes the self._random_generator to SavedModel only
+    # (not layer.weights and checkpoint).
+    deps = super()._list_extra_dependencies_for_serialization(
+        serialization_cache)
+    deps['_random_generator'] = self._random_generator
+    return deps

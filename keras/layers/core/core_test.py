@@ -13,9 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for Keras core layers."""
-# pylint: disable=g-bad-import-order
-import tensorflow.compat.v2 as tf
 
+import os
 import textwrap
 
 import keras
@@ -24,6 +23,8 @@ from keras import testing_utils
 from keras.layers import core
 from keras.mixed_precision import policy
 import numpy as np
+
+import tensorflow.compat.v2 as tf
 
 
 @keras_parameterized.run_all_keras_modes
@@ -88,6 +89,44 @@ class DropoutLayersTest(keras_parameterized.TestCase):
     out_np = keras.backend.get_value(out)
     # Test that dropout mask is shared across second dim.
     self.assertAllClose(out_np[:, 0, :], out_np[:, 1, :])
+
+  def test_dropout_with_savemodel(self):
+    inputs = keras.Input(shape=(5, 10))
+    layer = keras.layers.Dropout(0.5)
+    layer._random_generator._force_generator = True
+    outputs = layer(inputs)
+    model = keras.Model(inputs, outputs)
+    train = model(np.ones((20, 5, 10)), training=True)
+    predict = model(np.ones((20, 5, 10)))
+    # Make sure the weights from tf.random.Generator is not present in the model
+    # which will cause weight loading issue for existing application models if
+    # it contains dropout layer.
+    self.assertEmpty(layer.get_weights())
+    self.assertEmpty(model.get_weights())
+
+    # Make sure the layer does dropout value when training
+    self.assertNotAllClose(train, predict)
+
+    model.save(os.path.join(self.get_temp_dir(), 'savedmodel'),
+               save_format='tf')
+    loaded_model = keras.models.load_model(
+        os.path.join(self.get_temp_dir(), 'savedmodel'))
+    predict2 = loaded_model(np.ones((20, 5, 10)))
+
+    self.assertAllClose(predict, predict2)
+    # Make sure the model droput different value after loading
+    train2 = loaded_model(np.ones((20, 5, 10)), training=True)
+    self.assertNotAllClose(train, train2)
+    self.assertIsNotNone(loaded_model.layers[1]._random_generator)
+
+    # Also make sure the checkpoint doesn't contain any variable from the
+    # dropout layer, to keep the backward compatibility.
+    checkpoint = tf.train.Checkpoint(model)
+    save_path = checkpoint.save(os.path.join(self.get_temp_dir(), 'checkpoint'))
+    checkpoint_var_names = [name_value_tuple[0] for name_value_tuple in
+                            tf.train.list_variables(save_path)]
+    for name in checkpoint_var_names:
+      self.assertNotIn('dropout', name)
 
 
 @keras_parameterized.run_all_keras_modes
