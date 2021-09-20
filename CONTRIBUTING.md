@@ -177,9 +177,10 @@ we can run the following command at the root directory of the repo.
 bazel test keras/engine:base_layer_test
 ```
 
-`keras/engine` is the relative path to the directory 
+`keras/engine` is the relative path to the directory
 containing the `BUILD` file defing the test.
-`base_layer_test` is the test target name defined  with `tf_py_test` in the `BUILD` file.
+`base_layer_test` is the test target name defined  with `tf_py_test`
+in the `BUILD` file.
 
 ### Run a single test case
 
@@ -188,10 +189,11 @@ cases in a file before runing the test file.
 
 ### Run all tests
 
-You can run all the tests in a directory locally with the following commmand.
+You can run all the tests locally by running the following commmand
+in the repo root directory.
 
 ```
-bazel test keras/... --build_tests_only
+bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going --define=use_fast_cpp_protos=false --build_tests_only --build_tag_filters=-no_oss --test_tag_filters=-no_oss keras/...
 ```
 
 ### Useful configs
