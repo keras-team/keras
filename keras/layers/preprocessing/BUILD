@@ -226,6 +226,19 @@ py_library(
     ],
 )
 
+tf_py_test(
+    name = "preprocessing_utils_test",
+    srcs = ["preprocessing_utils_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":preprocessing_utils",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/utils:generic_utils",
+    ],
+)
+
 cuda_py_test(
     name = "category_crossing_test",
     srcs = ["category_crossing_test.py"],
