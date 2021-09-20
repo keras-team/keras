@@ -75,24 +75,24 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
     self.assertEqual((3, 3, 3), conv_utils.normalize_tuple(
         3, n=3, name='pool_size'))
 
-    msg_fmt1 = 'The `{}` argument must be a tuple of {} integers. Received: {}'
-    msg_fmt2 = msg_fmt1 + ' including {} that does not satisfy the requirement `{}`.'
     with self.assertRaisesRegex(
-            ValueError, msg_fmt2.format('negative_size', 3, (3, -1, 3), [-1], '> 0')):
+            ValueError, r'including \[-1\] that does not satisfy the requirement `> 0`'):
       conv_utils.normalize_tuple((3, -1, 3), n=3, name='negative_size')
 
-    with self.assertRaisesRegex(ValueError, msg_fmt1.format('strides', 3, (2, 1))):
+    with self.assertRaisesRegex(
+            ValueError, r'The `strides` argument .* a tuple of 3 integers .* \(2, 1\)$'):
       conv_utils.normalize_tuple((2, 1), n=3, name='strides', allow_zero=True)
 
-    with self.assertRaises(ValueError, msg_fmt1.format('kernel_size', 3, None)):
+    with self.assertRaises(
+            ValueError, r'The `kernel_size` argument .* tuple of 3 integers .* None$'):
       conv_utils.normalize_tuple(None, n=3, name='kernel_size')
 
-    with self.assertRaises(ValueError,
-                           msg_fmt2.format('strides', 3, -4, [-4, -4, -4], '>= 0')):
+    with self.assertRaises(
+            ValueError, r'including \[-4, -4, -4\] that does not .* `>= 0`'):
       conv_utils.normalize_tuple(-4, n=3, name='strides', allow_zero=True)
 
-    with self.assertRaises(ValueError,
-                           msg_fmt2.format('pool_size', 3, (0, 1, 2), [0], '> 0')):
+    with self.assertRaises(
+            ValueError, r'including \[0\] that does not .* `> 0`'):
       conv_utils.normalize_tuple((0, 1, 2), n=3, name='pool_size')
 
   def test_normalize_data_format(self):
