@@ -89,6 +89,25 @@ class DropoutLayersTest(keras_parameterized.TestCase):
     # Test that dropout mask is shared across second dim.
     self.assertAllClose(out_np[:, 0, :], out_np[:, 1, :])
 
+  def test_dropout_with_savemodel(self):
+    inputs = keras.Input(shape=(5, 10))
+    layer = keras.layers.Dropout(0.5)
+    # Note that enabling the following line will cause savemodel failure, since
+    # the tf.Variable in the tf.random.Generator is not attached to any model
+    # object, and will get traced in the layer.call() body.
+    # See sponge/fb6cbaf6-d16f-4534-82a8-dd993929efc9 for error details.
+    # layer._random_generator._force_generator = True
+    outputs = layer(inputs)
+    model = keras.Model(inputs, outputs)
+    model(np.ones((20, 5, 10)), training=True)
+    predict = model(np.ones((20, 5, 10)))
+
+    model.save(self.get_temp_dir(), save_format='tf')
+    loaded_model = keras.models.load_model(self.get_temp_dir())
+    predict2 = loaded_model(np.ones((20, 5, 10)))
+
+    self.assertAllClose(predict, predict2)
+
 
 @keras_parameterized.run_all_keras_modes
 class LambdaLayerTest(keras_parameterized.TestCase):

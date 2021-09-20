@@ -94,6 +94,7 @@ class Dropout(Layer):
     self.noise_shape = noise_shape
     self.seed = seed
     self.supports_masking = True
+    self._random_generator = backend.RandomGenerator(seed)
 
   def _get_noise_shape(self, inputs):
     # Subclasses of `Dropout` may implement `_get_noise_shape(self, inputs)`,
@@ -113,11 +114,8 @@ class Dropout(Layer):
       training = backend.learning_phase()
 
     def dropped_inputs():
-      return tf.nn.dropout(
-          inputs,
-          noise_shape=self._get_noise_shape(inputs),
-          seed=self.seed,
-          rate=self.rate)
+      return self._random_generator.dropout(
+          inputs, self.rate, noise_shape=self._get_noise_shape(inputs))
 
     output = control_flow_util.smart_cond(training, dropped_inputs,
                                           lambda: tf.identity(inputs))
