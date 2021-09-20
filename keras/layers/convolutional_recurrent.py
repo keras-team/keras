@@ -645,7 +645,7 @@ class ConvLSTMCell(DropoutRNNCellMixin, Layer):
     return conv_out
 
   def recurrent_conv(self, x, w):
-    strides = conv_utils.normalize_tuple(1, self.rank, 'strides', True)
+    strides = conv_utils.normalize_tuple(1, self.rank, 'strides', allow_zero=True)
     conv_out = self._conv_func(
         x, w, strides=strides, padding='same', data_format=self.data_format)
     return conv_out
