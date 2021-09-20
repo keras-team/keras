@@ -142,7 +142,11 @@ class MultiHeadAttention(Layer):
 
   Finally, the result tensor with the last dimension as value_dim can take an
   linear projection and return.
-
+  
+  Because of the softmax, some information from masked inputs may leak
+  despite the attention mask. In most scenarios with masked keys,
+  it is appropriate to further multiply the attention outputs by the mask.
+  
   Examples:
 
   Performs 1D cross-attention over two sequence inputs with an attention mask.
