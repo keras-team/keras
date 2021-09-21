@@ -2929,6 +2929,29 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.evaluate(x_test, y_test, batch_size=5)
     self.assertEqual(self.evaluate(acc_obj.count), 10)
 
+  @keras_parameterized.run_all_keras_modes
+  def test_metric_state_reset_between_test_on_batch_and_evaluate(self):
+    model = sequential.Sequential()
+    model.add(layers_module.Dense(3, activation='relu', input_dim=4))
+    model.add(layers_module.Dense(1, activation='sigmoid'))
+    acc_obj = metrics_module.BinaryAccuracy()
+    model.compile(
+        loss='mae',
+        metrics=[acc_obj],
+        optimizer=RMSPropOptimizer(learning_rate=0.001),
+        run_eagerly=testing_utils.should_run_eagerly())
+
+    x_test = np.random.random((10, 4))
+    y_test = np.random.random((10, 1))
+    loss, acc = model.test_on_batch(x_test[:2], y_test[:2])
+    loss_eval, acc_eval = model.evaluate(x_test, y_test)
+    loss_1, acc_1 = model.test_on_batch(x_test[:2], y_test[:2])
+    loss_eval_1, acc_eval_1 = model.evaluate(x_test, y_test)
+    self.assertEqual(loss, loss_1)
+    self.assertEqual(acc, acc_1)
+    self.assertEqual(loss_eval, loss_eval_1)
+    self.assertEqual(acc_eval, acc_eval_1)
+
   @keras_parameterized.run_with_all_model_types(exclude_models=['sequential'])
   @keras_parameterized.run_all_keras_modes
   def test_metrics_valid_compile_input_formats(self):
