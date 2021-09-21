@@ -18,15 +18,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
+import contextlib
 import functools
 from keras.engine import base_layer
-from keras.utils import tf_inspect
 from keras.utils import layer_utils
+from keras.utils import tf_inspect
 
-from tensorflow.python.ops import variable_scope as vs
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow.compat.v2 as tf
+
+from tensorflow.python.ops import variable_scope as vs  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.platform import tf_logging as logging  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
 
 
@@ -149,6 +150,11 @@ class _EagerVariableStore(tf.Module):
     self._vars = {}  # A dictionary of the stored TensorFlow variables.
     self._regularizers = {}  # A dict mapping var names to their regularizers.
     self._store_eager_variables = True
+
+  @contextlib.contextmanager
+  def scope(self):
+    with vs.with_variable_store(self):
+      yield
 
   def get_variable(
       self,
@@ -739,7 +745,7 @@ def track_tf1_style_variables(method):
       self._tf1_style_var_store = var_store  # pylint: disable=protected-access
 
     existing_regularized_variables = set(var_store._regularizers.keys())  # pylint: disable=protected-access
-    with vs.with_variable_store(var_store):
+    with var_store.scope():
       out = method(self, *args, **kwargs)
 
     # If this is a layer method, add the regularization losses

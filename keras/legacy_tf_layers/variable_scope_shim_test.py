@@ -969,6 +969,75 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
     tmp_dir = self.get_temp_dir()
     tf.saved_model.save(layer, tmp_dir)
 
+  def test_variable_store_scope_get_variable(self):
+    # Test the module shim when using `get_variable` (and regularizers) directly
+
+    class WrappedDenseLayer(tf.Module):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+        self._variable_store = variable_scope_shim._EagerVariableStore()
+
+      def get_compat_v1_regularization_losses(self):
+        """Dict w/ regularization losses from `get_variable`."""
+        return {name: regularizer() for name, regularizer
+                in self._variable_store._regularizers.items()}  # pylint: disable=protected-access
+
+      def __call__(self, inputs, training=None):
+        with self._variable_store.scope():
+          out = inputs
+          with tf.compat.v1.variable_scope("dense_one"):
+            # The weights are created with a `regularizer`,
+            # so the layer should track their regularization losses
+            kernel = tf.compat.v1.get_variable(
+                shape=[out.shape[-1], self.units],
+                regularizer=regularizers.L2(),
+                initializer=tf.compat.v1.ones_initializer(),
+                name="kernel")
+            bias = tf.compat.v1.get_variable(
+                shape=[self.units,],
+                initializer=tf.compat.v1.zeros_initializer(),
+                name="bias")
+            out = tf.matmul(out, kernel)
+            out = tf.nn.bias_add(out, bias)
+          with tf.compat.v1.variable_scope("nested_scope"):
+            with tf.compat.v1.variable_scope("dense_two"):
+              kernel = tf.compat.v1.get_variable(
+                  shape=[out.shape[-1], self.units],
+                  regularizer=regularizers.L2(),
+                  initializer=tf.compat.v1.ones_initializer(),
+                  name="kernel")
+              bias = tf.compat.v1.get_variable(
+                  shape=[self.units,],
+                  initializer=tf.compat.v1.zeros_initializer(),
+                  name="bias")
+              out = tf.matmul(out, kernel)
+              out = tf.nn.bias_add(out, bias)
+          return out
+
+    layer = WrappedDenseLayer(10)
+    out = layer(tf.ones(shape=(5, 5)))
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct output, regularization losses, + variables were made
+    self.assertEqual(weights.keys(), {"dense_one/bias:0",
+                                      "dense_one/kernel:0",
+                                      "nested_scope/dense_two/bias:0",
+                                      "nested_scope/dense_two/kernel:0"})
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 50)
+    self.assertAllEqual(
+        tf.add_n(layer.get_compat_v1_regularization_losses().values()), 1.5)
+
+    # Verify reuse by updating the variables then re-running
+    weights["dense_one/kernel:0"].assign(tf.ones(shape=(5, 10)) * 2)
+    weights["nested_scope/dense_two/kernel:0"].assign(
+        tf.ones(shape=(10, 10)) * 2)
+    out = layer(tf.ones(shape=(5, 5)))
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 200)
+    self.assertAllEqual(
+        tf.add_n(layer.get_compat_v1_regularization_losses().values()), 6)
+
   def test_module_get_variable(self):
     # Test the module shim when using `get_variable` (and regularizers) directly
 
