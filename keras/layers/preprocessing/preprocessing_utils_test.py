@@ -98,17 +98,27 @@ class EncodeCategoricalInputsTest(keras_parameterized.TestCase):
       outputs = tf.sparse.to_dense(outputs)
     self.assertAllClose([.1, 2, 30, 0], outputs)
 
+  def test_output_dtype(self):
+    inputs = tf.constant([0, 1, 2], dtype=tf.dtypes.int32)
+    outputs = preprocessing_utils.encode_categorical_inputs(
+        inputs, output_mode='int', depth=4, dtype=tf.dtypes.int64)
+    self.assertAllEqual(outputs.dtype, tf.dtypes.int64)
+    outputs = preprocessing_utils.encode_categorical_inputs(
+        inputs, output_mode='one_hot', depth=4, dtype=tf.dtypes.float64)
+    self.assertAllEqual(outputs.dtype, tf.dtypes.float64)
+
   def test_rank_3_output_fails(self):
     inputs = tf.constant([[[0]], [[1]], [[2]]])
     with self.assertRaisesRegex(ValueError,
                                 'maximum supported output rank is 2'):
-      preprocessing_utils.encode_categorical_inputs(inputs, 'multi_hot', 4)
+      preprocessing_utils.encode_categorical_inputs(inputs, 'multi_hot', 4,
+                                                    'float32')
 
   def test_tf_idf_output_with_no_weights_fails(self):
     inputs = tf.constant([0, 1, 2])
-    with self.assertRaisesRegex(ValueError,
-                                'idf_weights must be provided'):
-      preprocessing_utils.encode_categorical_inputs(inputs, 'tf_idf', 4)
+    with self.assertRaisesRegex(ValueError, 'idf_weights must be provided'):
+      preprocessing_utils.encode_categorical_inputs(inputs, 'tf_idf', 4,
+                                                    'float32')
 
 
 if __name__ == '__main__':

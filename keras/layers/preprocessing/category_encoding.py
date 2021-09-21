@@ -17,6 +17,7 @@
 # pylint: disable=g-classes-have-attributes
 # pylint: disable=g-direct-tensorflow-import
 
+from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
@@ -125,6 +126,11 @@ class CategoryEncoding(base_layer.Layer):
       num_tokens = kwargs["max_tokens"]
       del kwargs["max_tokens"]
 
+    # By default, output floats. This is already default for TF2, but in TF1
+    # dtype is inferred from inputs, and would default to int.
+    if "dtype" not in kwargs:
+      kwargs["dtype"] = backend.floatx()
+
     super(CategoryEncoding, self).__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell("CategoryEncoding").set(
         True)
@@ -204,5 +210,6 @@ class CategoryEncoding(base_layer.Layer):
           inputs,
           output_mode=self.output_mode,
           depth=depth,
+          dtype=self.compute_dtype,
           sparse=self.sparse,
           count_weights=count_weights)
