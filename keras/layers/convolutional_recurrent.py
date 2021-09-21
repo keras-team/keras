@@ -489,7 +489,8 @@ class ConvLSTMCell(DropoutRNNCellMixin, Layer):
     self.filters = filters
     self.kernel_size = conv_utils.normalize_tuple(kernel_size, self.rank,
                                                   'kernel_size')
-    self.strides = conv_utils.normalize_tuple(strides, self.rank, 'strides')
+    self.strides = conv_utils.normalize_tuple(
+        strides, self.rank, 'strides', allow_zero=True)
     self.padding = conv_utils.normalize_padding(padding)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, self.rank,
@@ -644,7 +645,8 @@ class ConvLSTMCell(DropoutRNNCellMixin, Layer):
     return conv_out
 
   def recurrent_conv(self, x, w):
-    strides = conv_utils.normalize_tuple(1, self.rank, 'strides')
+    strides = conv_utils.normalize_tuple(
+        1, self.rank, 'strides', allow_zero=True)
     conv_out = self._conv_func(
         x, w, strides=strides, padding='same', data_format=self.data_format)
     return conv_out
