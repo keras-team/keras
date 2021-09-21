@@ -66,16 +66,44 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
       conv_utils.convert_data_format('invalid', 2)
 
   def test_normalize_tuple(self):
-    self.assertEqual((2, 2, 2),
-                     conv_utils.normalize_tuple(2, n=3, name='strides'))
+    self.assertEqual(
+        (2, 2, 2),
+        conv_utils.normalize_tuple(2, n=3, name='strides', allow_zero=True))
     self.assertEqual((2, 1, 2),
-                     conv_utils.normalize_tuple((2, 1, 2), n=3, name='strides'))
+                     conv_utils.normalize_tuple((2, 1, 2),
+                                                n=3,
+                                                name='strides',
+                                                allow_zero=True))
+    self.assertEqual((
+        1,
+        2,
+        3,
+    ), conv_utils.normalize_tuple((1, 2, 3), n=3, name='pool_size'))
+    self.assertEqual((3, 3, 3),
+                     conv_utils.normalize_tuple(3, n=3, name='pool_size'))
 
-    with self.assertRaises(ValueError):
-      conv_utils.normalize_tuple((2, 1), n=3, name='strides')
+    with self.assertRaisesRegex(
+        ValueError,
+        r'including \{-1\} that does not satisfy the requirement `> 0`'):
+      conv_utils.normalize_tuple((3, -1, 3), n=3, name='negative_size')
 
-    with self.assertRaises(ValueError):
-      conv_utils.normalize_tuple(None, n=3, name='strides')
+    with self.assertRaisesRegex(
+        ValueError,
+        r'The `strides` argument .* a tuple of 3 integers.* \(2, 1\)$'):
+      conv_utils.normalize_tuple((2, 1), n=3, name='strides', allow_zero=True)
+
+    with self.assertRaisesRegex(
+        ValueError,
+        r'The `kernel_size` argument .* tuple of 3 integers.* None$'):
+      conv_utils.normalize_tuple(None, n=3, name='kernel_size')
+
+    with self.assertRaisesRegex(ValueError,
+                                r'including \{-4\} that does not .* `>= 0`'):
+      conv_utils.normalize_tuple(-4, n=3, name='strides', allow_zero=True)
+
+    with self.assertRaisesRegex(ValueError,
+                                r'including \{0\} that does not .* `> 0`'):
+      conv_utils.normalize_tuple((0, 1, 2), n=3, name='pool_size')
 
   def test_normalize_data_format(self):
     self.assertEqual('channels_last',
