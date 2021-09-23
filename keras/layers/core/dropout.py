@@ -21,13 +21,6 @@ from keras.utils import control_flow_util
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
-# TODO(b/168039935): track dropout rate to decide whether/how to make a
-# dropout rate fastpath.
-keras_temporary_dropout_rate = tf.__internal__.monitoring.BoolGauge(
-    '/tensorflow/api/keras/dropout/temp_rate_is_zero',
-    'Temporarily record if Keras dropout layer was created w/'
-    'constant rate = 0')
-
 
 @keras_export('keras.layers.Dropout')
 class Dropout(Layer):
@@ -87,10 +80,6 @@ class Dropout(Layer):
       raise ValueError(f'Invalid value {rate} received for '
                        f'`rate`, expected a value between 0 and 1.')
     self.rate = rate
-    if isinstance(rate, (int, float)) and not rate:
-      keras_temporary_dropout_rate.get_cell().set(True)
-    else:
-      keras_temporary_dropout_rate.get_cell().set(False)
     self.noise_shape = noise_shape
     self.seed = seed
     self.supports_masking = True
