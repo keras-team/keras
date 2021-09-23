@@ -63,8 +63,8 @@ class LayerUtilsTest(tf.test.TestCase):
     fpath = os.path.join(temp_dir, file_name)
     writer = open(fpath, 'w')
 
-    def print_to_file(text, end='\n'):
-      print(text, end=end, file=writer)
+    def print_to_file(text):
+      print(text, file=writer)
 
     try:
       layer_utils.print_summary(model, print_fn=print_to_file)
@@ -88,7 +88,6 @@ class LayerUtilsTest(tf.test.TestCase):
 
     x = inner_inputs = keras.Input(shape)
     x = make_model()(x)
-    x = make_model()(x)
     inner_model = keras.Model(inner_inputs, x)
 
     inputs = keras.Input(shape)
@@ -100,8 +99,8 @@ class LayerUtilsTest(tf.test.TestCase):
     fpath = os.path.join(temp_dir, file_name)
     writer = open(fpath, 'w')
 
-    def print_to_file(text, end='\n'):
-      print(text, end=end, file=writer)
+    def print_to_file(text):
+      print(text, file=writer)
 
     try:
       layer_utils.print_summary(
@@ -111,7 +110,39 @@ class LayerUtilsTest(tf.test.TestCase):
       reader = open(fpath, 'r')
       lines = reader.readlines()
       reader.close()
-      self.assertEqual(len(lines), 34)
+      check_str = (
+          'Model: "model_2"\n'
+          '_________________________________________________________________\n'
+          ' Layer (type)                Output Shape              Param #   \n'
+          '=================================================================\n'
+          ' input_3 (InputLayer)        [(None, None, None, 3)]   0         \n'
+          '                                                                 \n'
+          ' model_1 (Functional)        (None, None, None, 3)     24        \n'
+          '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n'
+          '| input_1 (InputLayer)      [(None, None, None, 3)]   0         |\n'
+          '|                                                               |\n'
+          '| model (Functional)        (None, None, None, 3)     24        |\n'
+          '||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n'
+          '|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||\n'
+          '||                                                             ||\n'
+          '|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n'
+          '||                                                             ||\n'
+          '|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n'
+          '|| ormalization)                                               ||\n'
+          '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n'
+          '¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n'
+          '=================================================================\n'
+          'Total params: 24\n'
+          'Trainable params: 18\n'
+          'Non-trainable params: 6\n'
+          '_________________________________________________________________\n')
+
+      fin_str = ''
+      for line in lines:
+        fin_str += line
+
+      self.assertIn(fin_str, check_str)
+      self.assertEqual(len(lines), 25)
     except ImportError:
       pass
 
@@ -172,8 +203,8 @@ class LayerUtilsTest(tf.test.TestCase):
     fpath = os.path.join(temp_dir, file_name)
     writer = open(fpath, 'w')
 
-    def print_to_file(text, end='\n'):
-      print(text, end=end, file=writer)
+    def print_to_file(text):
+      print(text, file=writer)
 
     try:
       layer_utils.print_summary(
