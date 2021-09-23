@@ -14,10 +14,9 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.index_lookup."""
 
-import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
 
 import os
-import numpy as np
 
 import keras
 from keras import backend
@@ -25,13 +24,18 @@ from keras import keras_parameterized
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import preprocessing_test_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.framework import test_util
 
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
-        strategy_combinations.multi_worker_mirrored_strategies,
-        mode=["eager"]))  # Eager-only, no graph: b/158793009
+        strategy_combinations.multi_worker_mirrored_strategies +
+        strategy_combinations.parameter_server_strategies_single_worker +
+        strategy_combinations.parameter_server_strategies_multi_worker,
+        mode=["eager"]))
 class IndexLookupDistributionTest(
     keras_parameterized.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
@@ -46,9 +50,9 @@ class IndexLookupDistributionTest(
     return vocab_path
 
   def test_strategy(self, strategy):
-    # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
-    if backend.is_tpu_strategy(strategy):
-      self.skipTest("This test needs MLIR bridge on TPU.")
+    if (backend.is_tpu_strategy(strategy) and
+        not test_util.is_mlir_bridge_enabled()):
+      self.skipTest("TPU tests require MLIR bridge")
 
     vocab_data = [[
         "earth", "earth", "earth", "earth", "wind", "wind", "wind", "and",
@@ -79,9 +83,9 @@ class IndexLookupDistributionTest(
     self.assertAllEqual(expected_output, output_dataset)
 
   def test_strategy_with_file(self, strategy):
-    # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
-    if backend.is_tpu_strategy(strategy):
-      self.skipTest("This test needs MLIR bridge on TPU.")
+    if (backend.is_tpu_strategy(strategy) and
+        not test_util.is_mlir_bridge_enabled()):
+      self.skipTest("TPU tests require MLIR bridge")
 
     vocab_data = ["earth", "wind", "and", "fire"]
     vocab_file = self._write_to_temp_file("temp", vocab_data)
@@ -138,7 +142,6 @@ class IndexLookupDistributionTest(
       layer.adapt(vocab_dataset)
       int_data = layer(input_data)
       model = keras.Model(inputs=input_data, outputs=int_data)
-    model.compile(loss="mse")
     output_dataset = model.predict(input_dataset)
     self.assertAllEqual(expected_output, output_dataset)
 
