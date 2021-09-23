@@ -1404,8 +1404,6 @@ def root_mean_squared_percentage_error(y_true, y_pred):
   Returns:
     Root mean squared percentage error values. shape = `[batch_size, d0, .. dN-1]`.
   """
-  return np.sqrt(np.mean(np.square((y_true - y_pred) / y_true)))
-
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   diff = tf.square(
