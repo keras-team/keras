@@ -207,13 +207,15 @@ def print_summary(model,
           cutoff = min(candidate_cutoffs)
           fit_into_line = fit_into_line[:cutoff]
 
+        if col == 0:
+          line += '|' * nested_level + ' '
         line += fit_into_line
         line += ' ' * space if space else ''
         left_to_print[col] = left_to_print[col][cutoff:]
 
         # Pad out to the next position
         if nested_level:
-          line += ' ' * (positions[col] - len(line) - (2 * nested_level) - 1)
+          line += ' ' * (positions[col] - len(line) - nested_level)
         else:
           line += ' ' * (positions[col] - len(line))
       line += '|' * nested_level
@@ -294,14 +296,13 @@ def print_summary(model,
       for i in range(len(nested_layer)):
         if i == len(nested_layer) - 1:
           is_nested_last = True
-        print_fn('|' * (nested_level + 1), end=' ')
         print_layer(nested_layer[i], nested_level + 1, is_nested_last)
 
       print_fn('|' * nested_level + '¯' * (line_length - 2 * nested_level) +
                '|' * nested_level)
 
     if not is_nested_last:
-      print_fn('|' * nested_level + '_' * (line_length - 2 * nested_level) +
+      print_fn('|' * nested_level + ' ' * (line_length - 2 * nested_level) +
                '|' * nested_level)
 
   layers = model.layers
