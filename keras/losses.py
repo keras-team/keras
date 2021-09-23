@@ -1381,6 +1381,37 @@ def _ragged_tensor_mape(y_true, y_pred):
   return _ragged_tensor_apply_loss(mean_absolute_percentage_error, y_true,
                                    y_pred)
 
+@keras_export('keras.metrics.root_mean_squared_percentage_error',
+              'keras.metrics.rmspe', 'keras.metrics.RMSPE',
+              'keras.losses.root_mean_squared_percentage_error',
+              'keras.losses.rmspe', 'keras.losses.RMSPE')
+@tf.__internal__.dispatch.add_dispatch_support
+def root_mean_squared_percentage_error(y_true, y_pred):
+  """Computes the root mean squared percentage error between `y_true` and `y_pred`.
+  `loss = sqrt(mean(square((y_true - y_pred) / y_true), axis=-1))`
+  Standalone usage:
+  >>> y_true = np.random.random(size=(2, 3))
+  >>> y_true = np.maximum(y_true, 1e-7)  # Prevent division by zero
+  >>> y_pred = np.random.random(size=(2, 3))
+  >>> loss = tf.keras.losses.root_mean_squared_percentage_error(y_true, y_pred)
+  >>> assert loss.shape == (2,)
+  >>> assert np.array_equal(
+  ...     loss.numpy(),
+  ...     100. * np.sqrt(np.mean(np.square((y_true - y_pred) / y_true)), axis=-1)
+  Args:
+    y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
+    y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
+  Returns:
+    Root mean squared percentage error values. shape = `[batch_size, d0, .. dN-1]`.
+  """
+  return np.sqrt(np.mean(np.square((y_true - y_pred) / y_true)))
+
+  y_pred = tf.convert_to_tensor(y_pred)
+  y_true = tf.cast(y_true, y_pred.dtype)
+  diff = tf.square(
+      (y_true - y_pred) / backend.maximum(tf.abs(y_true),
+                                             backend.epsilon()))
+  return backend.sqrt(backend.mean(diff, axis=-1))
 
 @keras_export('keras.metrics.mean_squared_logarithmic_error',
               'keras.metrics.msle', 'keras.metrics.MSLE',
