@@ -1631,9 +1631,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     inference. Also, note the fact that test loss is not affected by
     regularization layers like noise and dropout.
     
-    Note: Check [FAQs](https://keras.io/getting_started/faq/#whats-the-difference-between-model-methods-predict-and-call) 
-    for more details about the differences between `Model` methods `predict()`
-    and `__call__()`. 
+    Note: See
+    [this FAQ entry](https://keras.io/getting_started/faq/#whats-the-difference-between-model-methods-predict-and-call) 
+    for more details about the difference between `Model` methods `predict()`
+    and `__call__()`.
 
     Args:
         x: Input samples. It could be:
