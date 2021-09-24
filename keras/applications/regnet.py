@@ -81,7 +81,7 @@ BASE_DOCSTRING = """ Instantiates Regnet architecture.
   values in the [0-255] range.
 
   The naming of models is as follows: `RegNet{block_type}{flops}` where 
-  `block_type` is one of `{X, Y, Z}` and `flops` signifies hundred million 
+  `block_type` is one of `(X, Y, Z)` and `flops` signifies hundred million 
   floating point operations. For example RegNetY64 corresponds to RegNet with 
   Y block and 6.4 giga flops (64 hundred million flops). 
 
@@ -123,13 +123,201 @@ BASE_DOCSTRING = """ Instantiates Regnet architecture.
     A `keras.Model` instance.
 """
 
+def XBlock(inputs,
+           filters_in,
+           filters_out,
+           group_width,
+           stride=1):
+  """
+  Implementation of X Block. 
+  Reference: [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
+
+  Args:
+    inputs: input tensor
+    filters_in: Filters in the input tensor
+    filters_out: Filters in the output tensor
+    group_width: Group width
+    stride: Stride
+
+  Return:
+    Output tensor of the block 
+  """
+
+  # Declare layers
+  groups = filters_out // group_width
+
+  relu1x1 = layers.ReLU()
+  relu3x3 = layers.ReLU()
+  relu = layers.ReLU()
+  
+  if stride != 1:
+    skip = layers.Conv2D(filters_out, (1,1), strides=stride, use_bias=False)(inputs)
+    skip = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(skip)
+    conv_3x3 = layers.Conv2D(filters_out, (3, 3), use_bias=False, strides=stride,
+        groups=groups)
+  else:
+    skip = inputs
+    conv_3x3 = layers.Conv2D(filters_out, (3, 3), use_bias=False,
+                             groups=groups)
+  
+  # Build block
+  # conv_1x1_1
+  x = layers.Conv2D(filters_out, (1,1), use_bias=False)(inputs)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = relu1x1(x)
+  
+  # conv_3x3
+  x = conv_3x3(x)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = relu3x3(x)
+  
+  # conv_1x1_2
+  x = layers.Conv2D(filters_out, (1, 1), use_bias=False)(x)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+
+  x = relu(x + skip)
+
+  return x
+
+
+def YBlock(inputs,
+           filters_in,
+           filters_out,
+           group_width,
+           stride=1,
+           se_ratio=0.25):
+  """
+  Implementation of Y Block. 
+  Reference: [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
+
+  Args:
+    inputs: input tensor
+    filters_in: Filters in the input tensor
+    filters_out: Filters in the output tensor
+    group_width: Group width
+    stride: Stride
+    se_ratio: Expansion ration for Squeeze and Excite block
+
+  Return:
+    Output tensor of the block 
+  """
+  groups = filters_out // group_width
+  se_filters = int(filters_in * se_ratio)
+
+  relu1x1 = layers.ReLU()
+  relu3x3 = layers.ReLU()
+  relu = layers.ReLU()
+
+
+
+  if stride != 1:
+    skip = layers.Conv2D(filters_out, (1, 1),
+                         strides=stride, use_bias=False)(inputs)
+    skip = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(skip)
+    conv_3x3 = layers.Conv2D(filters_out, (3, 3), use_bias=False, strides=stride,
+                             groups=groups)
+  else:
+    skip = inputs
+    conv_3x3 = layers.Conv2D(filters_out, (3, 3), use_bias=False,
+                             groups=groups)
+
+  # Build block
+  # conv_1x1_1
+  x = layers.Conv2D(filters_out, (1, 1), use_bias=False)(inputs)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = relu1x1(x)
+
+  # # conv_3x3
+  x = conv_3x3(x)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = relu3x3(x)
+
+  # SE 
+  x = layers.GlobalAveragePooling2D(name="Y_GlobalAvgPool")(x)
+  x = layers.Reshape((1, 1, filters_out))(x)
+  x = layers.Conv2D(se_filters, (1, 1), activation="relu")(x)
+  x = layers.Conv2D(filters_out, (1, 1), activation="sigmoid")(x)
+
+
+  # conv_1x1_2
+  x = layers.Conv2D(filters_out, (1, 1), use_bias=False)(x)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+
+  x = relu(x + skip)
+
+  return x
+
+
+def ZBlock(inputs,
+           filters_in,
+           filters_out,
+           group_width,
+           stride=1,
+           se_ratio=0.25,
+           b=0.25):
+  """Implementation of Z block
+  Reference: [Fast and Accurate Model Scaling](https://arxiv.org/abs/2103.06877)
+  Note that Z block can be completely 
+  
+  Args:
+    inputs: input tensor
+    filters_in: Filters in the input tensor
+    filters_out: Filters in the output tensor
+    group_width: Group width
+    stride: Stride
+    se_ratio: Expansion ration for Squeeze and Excite block
+    b: inverted bottleneck ratio 
+  Return:
+    Output tensor of the block 
+  """
+  
+  groups = filters_out // group_width
+  se_filters = int(filters_in * se_ratio)
+
+  inv_btlneck_filters = int(filters_out / b)
+  if stride != 1:
+    conv_3x3 = layers.Conv2D(inv_btlneck_filters, (3, 3), use_bias=False, strides=stride,
+                             groups=groups)
+  else:
+    conv_3x3 = layers.Conv2D(inv_btlneck_filters, (3, 3), use_bias=False,
+                             groups=groups)
+
+  # Build block
+  # conv_1x1_1
+  x = layers.Conv2D(inv_btlneck_filters, (1, 1), use_bias=False)(inputs)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = tf.nn.silu(x)
+
+  # # conv_3x3
+  x = conv_3x3(x)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = tf.nn.silu(x)
+
+  # SE
+  x = layers.GlobalAveragePooling2D(name="Y_GlobalAvgPool")(x)
+  x = layers.Reshape((1, 1, inv_btlneck_filters))(x)
+  x = layers.Conv2D(se_filters, (1, 1), activation=tf.nn.silu)(x)
+  x = layers.Conv2D(inv_btlneck_filters, (1, 1), activation="sigmoid")(x)
+
+  # conv_1x1_2
+  x = layers.Conv2D(filters_out, (1, 1), use_bias=False)(x)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+
+  if stride != 1:
+    return x
+  else:
+    return x + inputs
+
+def Stage(block_type, depths):
+  pass
+
+
 def RegNet(
     depths,
     widths,
     group_width,
     block_type,
     model_name='regnet',
-    activation='relu',
     include_top=True,
     weights='imagenet',
     input_tensor=None,
@@ -149,8 +337,6 @@ def RegNet(
         papers 'Designing network design spaces' and 'Fast and Accurate Model 
         Scaling'
       model_name: An optional name for the model.
-      activation: A string or callable denoting the activation to be used. 
-        Defaults to 'relu'.
       include_top: Boolean denoting whether to include classification head to 
         the model.
       weights: one of `None` (random initialization),
