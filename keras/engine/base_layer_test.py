@@ -715,6 +715,16 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertTrue(layer.built)
     self.assertEqual([None, 3], layer._build_input_shape.as_list())
 
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_layer_input_shape_raises_error(self):
+    layer = layers.Dense(3)
+    with self.assertRaisesRegex(AttributeError, 'no defined input shape'):
+      _ = layer.input_shape
+
+    layer(tf.ones((10, 1)))
+    with self.assertRaisesRegex(AttributeError, 'no defined input shape'):
+      _ = layer.input_shape
+
   @combinations.generate(combinations.combine(mode=['eager']))
   def test_custom_layer_training_arg(self):
     class CustomLayerNoTrainingArg(base_layer.Layer):
