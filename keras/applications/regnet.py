@@ -123,6 +123,23 @@ BASE_DOCSTRING = """ Instantiates Regnet architecture.
     A `keras.Model` instance.
 """
 
+
+def Stem(x):
+  """Implementation of Regnet stem. (Common to all models)
+  
+  Args:
+    x: Input tensor. Should be 224x224, rescaled and normalized to [0,1].   
+
+  Returns:
+    Output tensor of the Stem
+  """
+  x = layers.Conv2D(32, (3, 3), strides=2, use_bias=False)(x)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = layers.ReLU()(x)
+
+  return x
+
+
 def XBlock(inputs,
            filters_in,
            filters_out,
@@ -142,6 +159,10 @@ def XBlock(inputs,
   Return:
     Output tensor of the block 
   """
+
+  if filters_in != filters_out and stride == 1:
+    raise ValueError("""Input filters and output filters are not equal for stride
+                         1. Please check inputs and try again.""")
 
   # Declare layers
   groups = filters_out // group_width
@@ -201,8 +222,13 @@ def YBlock(inputs,
   Return:
     Output tensor of the block 
   """
+
+  if filters_in != filters_out and stride == 1:
+    raise ValueError("""Input filters and output filters are not equal for stride
+                         1. Please check inputs and try again.""")
+
   groups = filters_out // group_width
-  se_filters = int(filters_in * se_ratio)
+  se_filters = int(filters_out * se_ratio)
 
   relu1x1 = layers.ReLU()
   relu3x3 = layers.ReLU()
@@ -233,7 +259,7 @@ def YBlock(inputs,
   x = relu3x3(x)
 
   # SE 
-  x = layers.GlobalAveragePooling2D(name="Y_GlobalAvgPool")(x)
+  x = layers.GlobalAveragePooling2D()(x)
   x = layers.Reshape((1, 1, filters_out))(x)
   x = layers.Conv2D(se_filters, (1, 1), activation="relu")(x)
   x = layers.Conv2D(filters_out, (1, 1), activation="sigmoid")(x)
@@ -270,9 +296,13 @@ def ZBlock(inputs,
   Return:
     Output tensor of the block 
   """
+
+  if filters_in != filters_out and stride == 1:
+    raise ValueError("""Input filters and output filters are not equal for stride
+                         1. Please check inputs and try again.""")
   
   groups = filters_out // group_width
-  se_filters = int(filters_in * se_ratio)
+  se_filters = int(filters_out * se_ratio)
 
   inv_btlneck_filters = int(filters_out / b)
   if stride != 1:
@@ -308,75 +338,119 @@ def ZBlock(inputs,
   else:
     return x + inputs
 
-def Stage(block_type, depths):
-  pass
+
+def Stage(inputs,  block_type, depth, group_width, filters_in, filters_out):
+  """Implementation of Stage in RegNet.
+
+  Args:
+    inputs: Input tensor
+    block_type: Must be one of "X", "Y", "Z"
+    depth: Depth of stage, number of blocks to use
+    group_width: Group width of all blocks in  this stage
+    filters_in: Input filters to this stage
+    filters_out: Output filters from this stage
+
+  Returns:
+    Output tensor of Stage
+  """
+  x = inputs
+  if block_type == "X":
+    x = XBlock(x, filters_in, filters_out, group_width, stride=2)
+    for _ in range(depth - 1):
+      x = XBlock(x, filters_out, filters_out, group_width)
+  elif block_type == "Y":
+    x = YBlock(x, filters_in, filters_out, group_width, stride=2)
+    for _ in range(depth - 1):
+      x = YBlock(x, filters_out, filters_out, group_width)
+  elif block_type == "Z":
+    x = ZBlock(x, filters_in, filters_out, group_width, stride=2)
+    for _ in range(depth - 1):
+      x = ZBlock(x, filters_out, filters_out, group_width)
+  else:
+    raise NotImplementedError(f"""Block type {block_type} not implemented. 
+                              block_type must be one of ("X", "Y", "Z"). """)
+  return x
+
+
+def Head(x, num_classes=1000):
+  """Implementation of classification head of RegNet
+  
+  Args:
+  x: Input tensor
+    num_classes: Classes for Dense layer
+  
+  Returns:
+    Output logits tensor. 
+  """
+
+  x = layers.GlobalAveragePooling2D()(x)
+  x = layers.Dense(num_classes)(x)
+
+  return x
 
 
 def RegNet(
-    depths,
-    widths,
-    group_width,
-    block_type,
-    model_name='regnet',
-    include_top=True,
-    weights='imagenet',
-    input_tensor=None,
-    input_shape=None,
-    pooling=None,
-    classes=1000,
-    classifier_activation='softmax'):
-    """ Instantiates RegNet architecture given specific configuration.
-
-    Args:
-      depths: An iterable containing depths for each individual stages. 
-      widths: An iterable containing output channel width of each individual 
-        stages
-      group_width: Number of channels to be used in each group. See grouped 
-        convolutions for more information.
-      block_type: Must be one of {'x', 'y', 'z'}. For more details see the
-        papers 'Designing network design spaces' and 'Fast and Accurate Model 
-        Scaling'
-      model_name: An optional name for the model.
-      include_top: Boolean denoting whether to include classification head to 
-        the model.
-      weights: one of `None` (random initialization),
-        'imagenet' (pre-training on ImageNet),
-        or the path to the weights file to be loaded.
-      input_tensor: optional Keras tensor
-        (i.e. output of `layers.Input()`)
-        to use as image input for the model.
-      input_shape: optional shape tuple, only to be specified
-        if `include_top` is False.
-        It should have exactly 3 inputs channels.
-      pooling: optional pooling mode for feature extraction
-        when `include_top` is `False`.
-        - `None` means that the output of the model will be
-            the 4D tensor output of the
-            last convolutional layer.
-        - `avg` means that global average pooling
-            will be applied to the output of the
-            last convolutional layer, and thus
-            the output of the model will be a 2D tensor.
-        - `max` means that global max pooling will
-            be applied.
-      classes: optional number of classes to classify images
-        into, only to be specified if `include_top` is True, and
-        if no `weights` argument is specified.
-      classifier_activation: A `str` or callable. The activation function to use
-        on the "top" layer. Ignored unless `include_top=True`. Set
-        `classifier_activation=None` to return the logits of the "top" layer.        
-    
-    Returns:
-    A `keras.Model` instance.
-
-    Raises:
-        ValueError: in case of invalid argument for `weights`,
-          or invalid input shape.
-        ValueError: if `classifier_activation` is not `softmax` or `None` when
-          using a pretrained top layer.
-        ValueError: if `include_top` is True but `num_classes` is not 1000.
-        ValueError: if `block_type` is not one of `{'x', 'y', 'z'}`
-
-    
-    """
-    pass
+  depths,
+  widths,
+  group_width,
+  block_type,
+  model_name='regnet',
+  include_top=True,
+  weights='imagenet',
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation='softmax'):
+  """ Instantiates RegNet architecture given specific configuration.
+  Args:
+    depths: An iterable containing depths for each individual stages. 
+    widths: An iterable containing output channel width of each individual 
+      stages
+    group_width: Number of channels to be used in each group. See grouped 
+      convolutions for more information.
+    block_type: Must be one of {'x', 'y', 'z'}. For more details see the
+      papers 'Designing network design spaces' and 'Fast and Accurate Model 
+      Scaling'
+    model_name: An optional name for the model.
+    include_top: Boolean denoting whether to include classification head to 
+      the model.
+    weights: one of `None` (random initialization),
+      'imagenet' (pre-training on ImageNet),
+      or the path to the weights file to be loaded.
+    input_tensor: optional Keras tensor
+      (i.e. output of `layers.Input()`)
+      to use as image input for the model.
+    input_shape: optional shape tuple, only to be specified
+      if `include_top` is False.
+      It should have exactly 3 inputs channels.
+    pooling: optional pooling mode for feature extraction
+      when `include_top` is `False`.
+      - `None` means that the output of the model will be
+          the 4D tensor output of the
+          last convolutional layer.
+      - `avg` means that global average pooling
+          will be applied to the output of the
+          last convolutional layer, and thus
+          the output of the model will be a 2D tensor.
+      - `max` means that global max pooling will
+          be applied.
+    classes: optional number of classes to classify images
+      into, only to be specified if `include_top` is True, and
+      if no `weights` argument is specified.
+    classifier_activation: A `str` or callable. The activation function to use
+      on the "top" layer. Ignored unless `include_top=True`. Set
+      `classifier_activation=None` to return the logits of the "top" layer.        
+  
+  Returns:
+  A `keras.Model` instance.
+  Raises:
+      ValueError: in case of invalid argument for `weights`,
+        or invalid input shape.
+      ValueError: if `classifier_activation` is not `softmax` or `None` when
+        using a pretrained top layer.
+      ValueError: if `include_top` is True but `num_classes` is not 1000.
+      ValueError: if `block_type` is not one of `{'x', 'y', 'z'}`
+  
+  """
+  pass
