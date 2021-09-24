@@ -935,6 +935,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       outputs = tf.nest.map_structure(
           keras_tensor.keras_tensor_from_tensor, outputs)
 
+    self._set_save_spec(inputs, args, kwargs)
     if hasattr(self, '_set_inputs') and not self.inputs:
       # TODO(kaftan): figure out if we need to do this at all
       # Subclassed network: explicitly set metadata normally set by
