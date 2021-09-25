@@ -265,6 +265,25 @@ BASE_DOCSTRING = """ Instantiates Regnet architecture.
     A `keras.Model` instance.
 """
 
+def PreStem(x):
+  """Rescales and normalizes inputs to [0,1] and ImageNet mean and std.
+  
+  Args:
+    x: Input tensor
+    
+  Returns:
+    Rescaled and normalized tensor
+  """
+
+  IMGNET_MEAN = tf.constant([0.485, 0.456, 0.406])
+
+  IMGNET_STD = tf.constant([0.229, 0.224, 0.225])
+
+  x = layers.Rescaling(scale=1./255., name="prestem_rescaling")(x)
+  x = layers.Normalization(mean=IMGNET_MEAN, 
+        variance=tf.math.square(IMGNET_STD), name="prestem_normalization")(x)
+
+  return x
 
 def Stem(x):
   """Implementation of RegNet stem. (Common to all model variants)
@@ -657,6 +676,7 @@ def RegNet(
     inputs = img_input
   
   x = inputs
+  x = PreStem(x)
   x = Stem(x)
 
   in_channels = 32 # Output from Stem
