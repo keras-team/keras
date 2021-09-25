@@ -227,6 +227,10 @@ class KerasInitializersTest(tf.test.TestCase):
     tn = initializers.get('truncated_normal')
     self.assertEqual(tn.mean, 0.0)
     self.assertEqual(tn.stddev, 0.05)
+      
+  def test_get_all_initializers(self):
+    init_list = initializers.get_all_initializers()
+    self.assertEqual(set(init_list), set(initializers.LOCAL.ALL_OBJECTS))
 
   def test_custom_initializer_saving(self):
 

@@ -191,3 +191,16 @@ def get(identifier):
   else:
     raise ValueError('Could not interpret initializer identifier: ' +
                      str(identifier))
+
+
+@keras_export('keras.initializers.get_all_initializers')
+def get_all_initializers():
+    """Retrieve all the Keras initializers in camel cases or snake cases.
+    They are in the form of strings.
+
+    Args: None
+
+    Returns:
+        List of initializers in the form of string with camel cases or snake cases.
+    """
+    return list(LOCAL.ALL_OBJECT.keys())
