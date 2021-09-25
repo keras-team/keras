@@ -230,7 +230,8 @@ class KerasInitializersTest(tf.test.TestCase):
       
   def test_get_all_initializers(self):
     init_list = initializers.get_all_initializers()
-    self.assertEqual(set(init_list), set(initializers.LOCAL.ALL_OBJECTS))
+    for init in init_list:
+        self.assertIn(init, globals())
 
   def test_custom_initializer_saving(self):
 
