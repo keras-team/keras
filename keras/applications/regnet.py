@@ -10,51 +10,201 @@ References:
 from keras.applications.efficientnet import BASE_DOCSTRING, BASE_WEIGHTS_PATH
 import tensorflow as tf
 
+from keras import backend
 from keras.applications import imagenet_utils
 from keras.engine import training
 from keras.layers import VersionAwareLayers
+from keras.utils import layer_utils
+from keras.utils import data_utils
 
 layers = VersionAwareLayers()
 
 BASE_WEIGHTS_PATH = ""
 
 WEIGHTS_HASHES = {
-    "x2": ("", ""),
-    "x4": ("", ""),
-    "x6": ("", ""),
-    "x8": ("", ""),
-    "x16": ("", ""),
-    "x32": ("", ""),
-    "x40": ("", ""),
-    "x64": ("", ""),
-    "x80": ("", ""),
+    "x002": ("", ""),
+    "x004": ("", ""),
+    "x006": ("", ""),
+    "x008": ("", ""),
+    "x016": ("", ""),
+    "x032": ("", ""),
+    "x040": ("", ""),
+    "x064": ("", ""),
+    "x080": ("", ""),
     "x120": ("", ""),
     "x160": ("", ""),
     "x320": ("", ""),
-    "y2": ("", ""),
-    "y4": ("", ""),
-    "y6": ("", ""),
-    "y8": ("", ""),
-    "y16": ("", ""),
-    "y32": ("", ""),
-    "y40": ("", ""),
-    "y64": ("", ""),
-    "y80": ("", ""),
+    "y002": ("", ""),
+    "y004": ("", ""),
+    "y006": ("", ""),
+    "y008": ("", ""),
+    "y016": ("", ""),
+    "y032": ("", ""),
+    "y040": ("", ""),
+    "y064": ("", ""),
+    "y080": ("", ""),
     "y120": ("", ""),
     "y160": ("", ""),
     "y320": ("", ""),
-    "z2": ("", ""),
-    "z4": ("", ""),
-    "z6": ("", ""),
-    "z8": ("", ""),
-    "z16": ("", ""),
-    "z32": ("", ""),
-    "z40": ("", ""),
-    "z64": ("", ""),
-    "z80": ("", ""),
+    "z002": ("", ""),
+    "z004": ("", ""),
+    "z006": ("", ""),
+    "z008": ("", ""),
+    "z016": ("", ""),
+    "z032": ("", ""),
+    "z040": ("", ""),
+    "z064": ("", ""),
+    "z080": ("", ""),
     "z120": ("", ""),
     "z160": ("", ""),
     "z320": ("", "")
+}
+
+MODEL_CONFIGS= {
+    "x002": {
+        "depths": [1, 1, 4, 7],
+        "widths": [24, 56, 152, 368],
+        "group_width": 8,
+        "default_size": 224
+    },
+    "x004": {
+        "depths": [1, 2, 7, 12],
+        "widths": [32, 64, 160, 384],
+        "group_width": 16,
+        "default_size": 224
+    },
+    "x006": {
+        "depths": [1, 3, 5, 7],
+        "widths": [48, 96, 240, 528],
+        "group_width": 24,
+        "default_size": 224
+    },
+    "x008": {
+        "depths": [1, 3, 7, 5],
+        "widths": [64, 128, 288, 672],
+        "group_width": 16,
+        "default_size": 224
+    },
+    "x016": {
+        "depths": [2, 4, 10, 2],
+        "widths": [72, 168, 408, 912],
+        "group_width": 24,
+        "default_size": 224
+    },
+    "x032": {
+        "depths": [2, 6, 15, 2],
+        "widths": [96, 192, 432, 1008],
+        "group_width": 48,
+        "default_size": 224
+    },
+    "x040": {
+        "depths": [2, 5, 14, 2],
+        "widths": [80, 240, 560, 1360],
+        "group_width": 40,
+        "default_size": 224
+    },
+    "x064": {
+        "depths": [2, 4, 10, 1],
+        "widths": [168, 392, 784, 1624],
+        "group_width": 56,
+        "default_size": 224
+    },
+    "x080": {
+        "depths": [2, 5, 15, 1],
+        "widths": [80, 240, 720, 1920],
+        "group_width": 120,
+        "default_size": 224
+    },
+    "x120": {
+        "depths": [2, 5, 11, 1],
+        "widths": [224, 448, 896, 2240],
+        "group_width": 112,
+        "default_size": 224
+    },
+    "x160": {
+        "depths": [2, 6, 13, 1],
+        "widths": [256, 512, 896, 2048],
+        "group_width": 128,
+        "default_size": 224
+    },
+    "x320": {
+        "depths": [2, 7, 13, 1],
+        "widths": [336, 672, 1344, 2520],
+        "group_width": 168,
+        "default_size": 224
+    },
+    "y002": {
+        "depths": [1, 1, 4, 7],
+        "widths": [24, 56, 152, 368],
+        "group_width": 8,
+        "default_size": 224
+    },
+    "y004": {
+        "depths": [1, 3, 6, 6],
+        "widths": [48, 104, 208, 440],
+        "group_width": 8,
+        "default_size": 224
+    },
+    "y006": {
+        "depths": [1, 3, 7, 4],
+        "widths": [48, 112, 256, 608],
+        "group_width": 16,
+        "default_size": 224
+    },
+    "y008": {
+        "depths": [1, 3, 8, 2],
+        "widths": [64, 128, 320, 768],
+        "group_width": 16,
+        "default_size": 224
+    },
+    "y016": {
+        "depths": [2, 6, 17, 2],
+        "widths": [48, 120, 336, 888],
+        "group_width": 24,
+        "default_size": 224
+    },
+    "y032": {
+        "depths": [2, 5, 13, 1],
+        "widths": [72, 216, 576, 1512],
+        "group_width": 24,
+        "default_size": 224
+    },
+    "y040": {
+        "depths": [2, 6, 12, 2],
+        "widths": [128, 192, 512, 1088],
+        "group_width": 64,
+        "default_size": 224
+    },
+    "y064": {
+        "depths": [2, 7, 14, 2],
+        "widths": [144, 288, 576, 1296],
+        "group_width": 72,
+        "default_size": 224
+    },
+    "y080": {
+        "depths": [2, 4, 10, 1],
+        "widths": [168, 448, 896, 2016],
+        "group_width": 56,
+        "default_size": 224
+    },
+    "y120": {
+        "depths": [2, 5, 11, 1],
+        "widths": [224, 448, 896, 2240],
+        "group_width": 112,
+        "default_size": 224
+    },
+    "y160": {
+        "depths": [2, 4, 11, 1],
+        "widths": [224, 448, 1232, 3024],
+        "group_width": 112,
+        "default_size": 224
+    },
+    "y320": {
+        "depths": [2, 5, 12, 1],
+        "widths": [232, 696, 1392, 3712],
+        "group_width": 232,
+        "default_size": 224
+    }
 }
 
 layers = VersionAwareLayers()
@@ -394,6 +544,7 @@ def RegNet(
   widths,
   group_width,
   block_type,
+  default_size,
   model_name='regnet',
   include_top=True,
   weights='imagenet',
@@ -412,6 +563,7 @@ def RegNet(
     block_type: Must be one of {'x', 'y', 'z'}. For more details see the
       papers 'Designing network design spaces' and 'Fast and Accurate Model 
       Scaling'
+    default_size: Default input image size. 
     model_name: An optional name for the model.
     include_top: Boolean denoting whether to include classification head to 
       the model.
@@ -453,4 +605,681 @@ def RegNet(
       ValueError: if `block_type` is not one of `{'x', 'y', 'z'}`
   
   """
-  pass
+  if not (weights in {'imagenet', None} or tf.io.gfile.exists(weights)):
+    raise ValueError('The `weights` argument should be either '
+                     '`None` (random initialization), `imagenet` '
+                     '(pre-training on ImageNet), '
+                     'or the path to the weights file to be loaded.')
+
+  if weights == 'imagenet' and include_top and classes != 1000:
+    raise ValueError('If using `weights` as `"imagenet"` with `include_top`'
+                     ' as true, `classes` should be 1000')
+
+  # Determine proper input shape
+  input_shape = imagenet_utils.obtain_input_shape(
+      input_shape,
+      default_size=default_size,
+      min_size=32,
+      data_format=backend.image_data_format(),
+      require_flatten=include_top,
+      weights=weights)
+
+  if input_tensor is None:
+    img_input = layers.Input(shape=input_shape)
+  else:
+    if not backend.is_keras_tensor(input_tensor):
+      img_input = layers.Input(tensor=input_tensor, shape=input_shape)
+    else:
+      img_input = input_tensor
+
+  if input_tensor is not None:
+    inputs = layer_utils.get_source_inputs(input_tensor)
+  else:
+    inputs = img_input
+  
+  x = inputs
+  x = Stem(x)
+
+  in_channels = 32 # Output from Stem
+
+  for num_stage in range(4):
+    depth = depths[num_stage]
+    out_channels = widths[num_stage]
+
+    x = Stage(x, block_type, depth, group_width, 
+              in_channels, out_channels) 
+    in_channels = out_channels
+
+  if include_top:
+    x = Head(x, num_classes=classes)
+    imagenet_utils.validate_activation(classifier_activation, weights)
+    
+  else:
+    if pooling == 'avg':
+      x = layers.GlobalAveragePooling2D()(x)
+    elif pooling == 'max':
+      x = layers.GlobalMaxPooling2D()(x)
+  
+  model = training.Model(inputs, x, name=model_name)
+
+  # Load weights.
+  if weights == 'imagenet':
+    if include_top:
+      file_suffix = '.h5'
+      file_hash = WEIGHTS_HASHES[model_name[-2:]][0]
+    else:
+      file_suffix = '_notop.h5'
+      file_hash = WEIGHTS_HASHES[model_name[-2:]][1]
+    file_name = model_name + file_suffix
+    weights_path = data_utils.get_file(
+        file_name,
+        BASE_WEIGHTS_PATH + file_name,
+        cache_subdir='models',
+        file_hash=file_hash)
+    model.load_weights(weights_path)
+  elif weights is not None:
+    model.load_weights(weights)
+  
+  return model
+
+
+## Instantiating variants ##
+
+def RegNetX002(model_name="regnetx002",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x002"]["depths"],
+      MODEL_CONFIGS["x002"]["widths"],
+      MODEL_CONFIGS["x002"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x002"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX004(model_name="regnetx004",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x004"]["depths"],
+      MODEL_CONFIGS["x004"]["widths"],
+      MODEL_CONFIGS["x004"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x004"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX006(model_name="regnetx006",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x006"]["depths"],
+      MODEL_CONFIGS["x006"]["widths"],
+      MODEL_CONFIGS["x006"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x006"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX008(model_name="regnetx008",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x008"]["depths"],
+      MODEL_CONFIGS["x008"]["widths"],
+      MODEL_CONFIGS["x008"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x008"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX016(model_name="regnetx016",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x016"]["depths"],
+      MODEL_CONFIGS["x016"]["widths"],
+      MODEL_CONFIGS["x016"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x016"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX032(model_name="regnetx032",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x032"]["depths"],
+      MODEL_CONFIGS["x032"]["widths"],
+      MODEL_CONFIGS["x032"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x032"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX040(model_name="regnetx040",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x040"]["depths"],
+      MODEL_CONFIGS["x040"]["widths"],
+      MODEL_CONFIGS["x040"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x040"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX064(model_name="regnetx064",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x064"]["depths"],
+      MODEL_CONFIGS["x064"]["widths"],
+      MODEL_CONFIGS["x064"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x064"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX080(model_name="regnetx080",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x080"]["depths"],
+      MODEL_CONFIGS["x080"]["widths"],
+      MODEL_CONFIGS["x080"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x080"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX120(model_name="regnetx120",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x120"]["depths"],
+      MODEL_CONFIGS["x120"]["widths"],
+      MODEL_CONFIGS["x120"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x120"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX160(model_name="regnetx160",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x160"]["depths"],
+      MODEL_CONFIGS["x160"]["widths"],
+      MODEL_CONFIGS["x160"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x160"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetX320(model_name="regnetx320",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["x320"]["depths"],
+      MODEL_CONFIGS["x320"]["widths"],
+      MODEL_CONFIGS["x320"]["group_width"],
+      "X",
+      MODEL_CONFIGS["x320"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY002(model_name="regnety002",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y002"]["depths"],
+      MODEL_CONFIGS["y002"]["widths"],
+      MODEL_CONFIGS["y002"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y002"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY004(model_name="regnety004",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y004"]["depths"],
+      MODEL_CONFIGS["y004"]["widths"],
+      MODEL_CONFIGS["y004"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y004"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY006(model_name="regnety006",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y006"]["depths"],
+      MODEL_CONFIGS["y006"]["widths"],
+      MODEL_CONFIGS["y006"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y006"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY008(model_name="regnety008",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y008"]["depths"],
+      MODEL_CONFIGS["y008"]["widths"],
+      MODEL_CONFIGS["y008"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y008"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY016(model_name="regnety016",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y016"]["depths"],
+      MODEL_CONFIGS["y016"]["widths"],
+      MODEL_CONFIGS["y016"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y016"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY032(model_name="regnety032",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y032"]["depths"],
+      MODEL_CONFIGS["y032"]["widths"],
+      MODEL_CONFIGS["y032"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y032"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY040(model_name="regnety040",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y040"]["depths"],
+      MODEL_CONFIGS["y040"]["widths"],
+      MODEL_CONFIGS["y040"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y040"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY064(model_name="regnety064",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y064"]["depths"],
+      MODEL_CONFIGS["y064"]["widths"],
+      MODEL_CONFIGS["y064"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y064"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY080(model_name="regnety080",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y080"]["depths"],
+      MODEL_CONFIGS["y080"]["widths"],
+      MODEL_CONFIGS["y080"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y080"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY120(model_name="regnety120",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y120"]["depths"],
+      MODEL_CONFIGS["y120"]["widths"],
+      MODEL_CONFIGS["y120"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y120"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY160(model_name="regnety160",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y160"]["depths"],
+      MODEL_CONFIGS["y160"]["widths"],
+      MODEL_CONFIGS["y160"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y160"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
+
+
+def RegNetY320(model_name="regnety320",
+               include_top=True,
+               weights=None,
+               input_tensor=None,
+               input_shape=None,
+               pooling=None,
+               classes=1000,
+               classifier_activation='softmax'):
+  return RegNet(
+      MODEL_CONFIGS["y320"]["depths"],
+      MODEL_CONFIGS["y320"]["widths"],
+      MODEL_CONFIGS["y320"]["group_width"],
+      "Y",
+      MODEL_CONFIGS["y320"]["default_size"],
+      model_name=model_name,
+      include_top=include_top,
+      weights=weights,
+      input_tensor=input_tensor,
+      input_shape=input_shape,
+      pooling=pooling,
+      classes=classes,
+      classifier_activation=classifier_activation
+  )
