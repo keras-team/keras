@@ -204,4 +204,4 @@ def get_all_initializers():
         List of initializers in the form of string with camel cases or snake cases.
     """
     populate_deserializable_objects()
-    return list(LOCAL.ALL_OBJECT.keys())
+    return list(LOCAL.ALL_OBJECTS.keys())
