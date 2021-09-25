@@ -1,4 +1,4 @@
-"""Regnet models in Keras.
+"""RegNet models in Keras.
 
 References:
   - [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
@@ -45,20 +45,12 @@ WEIGHTS_HASHES = {
     "y080": ("", ""),
     "y120": ("", ""),
     "y160": ("", ""),
-    "y320": ("", ""),
-    "z002": ("", ""),
-    "z004": ("", ""),
-    "z006": ("", ""),
-    "z008": ("", ""),
-    "z016": ("", ""),
-    "z032": ("", ""),
-    "z040": ("", ""),
-    "z064": ("", ""),
-    "z080": ("", ""),
-    "z120": ("", ""),
-    "z160": ("", ""),
-    "z320": ("", "")
+    "y320": ("", "")
 }
+
+# The widths and depths are deduced from a quantized linear function. For
+# more information, please refer to "Designing Network Design Spaces" by 
+# Radosavovic et al.
 
 MODEL_CONFIGS= {
     "x002": {
@@ -225,7 +217,7 @@ BASE_DOCSTRING = """ Instantiates Regnet architecture.
   [guide to transfer learning & fine-tuning](
     https://keras.io/guides/transfer_learning/).
 
-  Note: each Keras Application expects a specific kind of input preprocessing.
+  Note: Each Keras Application expects a specific kind of input preprocessing.
   For Regnets, preprocessing is included in the model using a `Rescaling` layer.
   RegNet models expect their inputs to be float or uint8 tensors of pixels with 
   values in the [0-255] range.
@@ -275,7 +267,7 @@ BASE_DOCSTRING = """ Instantiates Regnet architecture.
 
 
 def Stem(x):
-  """Implementation of Regnet stem. (Common to all models)
+  """Implementation of RegNet stem. (Common to all model variants)
   
   Args:
     x: Input tensor. Should be 224x224, rescaled and normalized to [0,1].   
@@ -283,9 +275,9 @@ def Stem(x):
   Returns:
     Output tensor of the Stem
   """
-  x = layers.Conv2D(32, (3, 3), strides=2, use_bias=False)(x)
-  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
-  x = layers.ReLU()(x)
+  x = layers.Conv2D(32, (3, 3), strides=2, use_bias=False, name="stem_conv")(x)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="stem_bn")(x)
+  x = layers.ReLU(name="stem_relu")(x)
 
   return x
 
@@ -294,7 +286,8 @@ def XBlock(inputs,
            filters_in,
            filters_out,
            group_width,
-           stride=1):
+           stride=1,
+           name=""):
   """
   Implementation of X Block. 
   Reference: [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
@@ -305,6 +298,7 @@ def XBlock(inputs,
     filters_out: Filters in the output tensor
     group_width: Group width
     stride: Stride
+    name: Name prefix
 
   Return:
     Output tensor of the block 
@@ -316,37 +310,41 @@ def XBlock(inputs,
 
   # Declare layers
   groups = filters_out // group_width
-
-  relu1x1 = layers.ReLU()
-  relu3x3 = layers.ReLU()
-  relu = layers.ReLU()
   
   if stride != 1:
-    skip = layers.Conv2D(filters_out, (1,1), strides=stride, use_bias=False)(inputs)
-    skip = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(skip)
+    skip = layers.Conv2D(filters_out, (1, 1),
+                         strides=stride, use_bias=False,
+                         name=name + "_skip_1x1")(inputs)
+    skip = layers.BatchNormalization(
+        momentum=0.9, epsilon=1e-5, name=name + "_skip_bn")(skip)
     conv_3x3 = layers.Conv2D(filters_out, (3, 3), use_bias=False, strides=stride,
-        groups=groups)
+                             groups=groups, name=name + "_conv_3x3")
   else:
     skip = inputs
     conv_3x3 = layers.Conv2D(filters_out, (3, 3), use_bias=False,
-                             groups=groups)
+                             groups=groups, name=name + "_conv_3x3")
   
-  # Build block
+    # Build block
   # conv_1x1_1
-  x = layers.Conv2D(filters_out, (1,1), use_bias=False)(inputs)
-  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
-  x = relu1x1(x)
-  
-  # conv_3x3
-  x = conv_3x3(x)
-  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
-  x = relu3x3(x)
-  
-  # conv_1x1_2
-  x = layers.Conv2D(filters_out, (1, 1), use_bias=False)(x)
-  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = layers.Conv2D(filters_out, (1, 1), use_bias=False,
+                    name=name + "_conv_1x1_1")(inputs)
+  x = layers.BatchNormalization(
+      momentum=0.9, epsilon=1e-5, name=name + "_conv_1x1_1_bn")(x)
+  x = layers.ReLU(name=name + "_conv_1x1_1_relu")(x)
 
-  x = relu(x + skip)
+  # # conv_3x3
+  x = conv_3x3(x)
+  x = layers.BatchNormalization(
+      momentum=0.9, epsilon=1e-5, name=name + "_conv_3x3_bn")(x)
+  x = layers.ReLU(name=name + "_conv_3x3_relu")(x)
+
+  # conv_1x1_2
+  x = layers.Conv2D(filters_out, (1, 1), use_bias=False,
+                    name=name + "_conv_1x1_2")(x)
+  x = layers.BatchNormalization(
+      momentum=0.9, epsilon=1e-5, name=name + "_conv_1x1_2-bn")(x)
+
+  x = layers.ReLU(name=name + "_exit_relu")(x + skip)
 
   return x
 
@@ -356,7 +354,8 @@ def YBlock(inputs,
            filters_out,
            group_width,
            stride=1,
-           se_ratio=0.25):
+           se_ratio=0.25,
+           name=""):
   """
   Implementation of Y Block. 
   Reference: [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
@@ -368,6 +367,7 @@ def YBlock(inputs,
     group_width: Group width
     stride: Stride
     se_ratio: Expansion ration for Squeeze and Excite block
+    name: Name prefix
 
   Return:
     Output tensor of the block 
@@ -380,46 +380,47 @@ def YBlock(inputs,
   groups = filters_out // group_width
   se_filters = int(filters_out * se_ratio)
 
-  relu1x1 = layers.ReLU()
-  relu3x3 = layers.ReLU()
-  relu = layers.ReLU()
-
-
-
   if stride != 1:
     skip = layers.Conv2D(filters_out, (1, 1),
-                         strides=stride, use_bias=False)(inputs)
-    skip = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(skip)
+                         strides=stride, use_bias=False, 
+                         name=name + "_skip_1x1")(inputs)
+    skip = layers.BatchNormalization(
+        momentum=0.9, epsilon=1e-5, name=name + "_skip_bn")(skip)
     conv_3x3 = layers.Conv2D(filters_out, (3, 3), use_bias=False, strides=stride,
-                             groups=groups)
+                             groups=groups, name=name + "_conv_3x3")
   else:
     skip = inputs
     conv_3x3 = layers.Conv2D(filters_out, (3, 3), use_bias=False,
-                             groups=groups)
+                             groups=groups, name=name + "_conv_3x3")
 
   # Build block
   # conv_1x1_1
-  x = layers.Conv2D(filters_out, (1, 1), use_bias=False)(inputs)
-  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
-  x = relu1x1(x)
+  x = layers.Conv2D(filters_out, (1, 1), use_bias=False,
+                    name=name + "_conv_1x1_1")(inputs)
+  x = layers.BatchNormalization(
+      momentum=0.9, epsilon=1e-5, name=name + "_conv_1x1_1_bn")(x)
+  x = layers.ReLU(name=name + "_conv_1x1_1_relu")(x)
 
   # # conv_3x3
   x = conv_3x3(x)
-  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
-  x = relu3x3(x)
+  x = layers.BatchNormalization(
+      momentum=0.9, epsilon=1e-5, name=name + "_conv_3x3_bn")(x)
+  x = layers.ReLU(name=name + "_conv_3x3_relu")(x)
 
-  # SE 
-  x = layers.GlobalAveragePooling2D()(x)
-  x = layers.Reshape((1, 1, filters_out))(x)
-  x = layers.Conv2D(se_filters, (1, 1), activation="relu")(x)
-  x = layers.Conv2D(filters_out, (1, 1), activation="sigmoid")(x)
+  # Squeeze-Excitation block (https://arxiv.org/abs/1709.01507)
+  x = layers.GlobalAveragePooling2D(name=name + "_se_gap")(x)
+  x = layers.Reshape((1, 1, filters_out), name=name + "_se_reshape")(x)
+  x = layers.Conv2D(se_filters, (1, 1), activation="relu",
+                    name=name + "_se_squeeze")(x)
+  x = layers.Conv2D(filters_out, (1, 1), activation="sigmoid",
+                    name=name + "_se_excite")(x)
 
 
   # conv_1x1_2
-  x = layers.Conv2D(filters_out, (1, 1), use_bias=False)(x)
-  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = layers.Conv2D(filters_out, (1, 1), use_bias=False, name=name + "_conv_1x1_2")(x)
+  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name=name + "_conv_1x1_2-bn")(x)
 
-  x = relu(x + skip)
+  x = layers.ReLU(name=name + "_exit_relu")(x + skip)
 
   return x
 
@@ -430,7 +431,8 @@ def ZBlock(inputs,
            group_width,
            stride=1,
            se_ratio=0.25,
-           b=0.25):
+           b=0.25,
+           name=""):
   """Implementation of Z block
   Reference: [Fast and Accurate Model Scaling](https://arxiv.org/abs/2103.06877)
   Note that Z block can be completely 
@@ -443,6 +445,8 @@ def ZBlock(inputs,
     stride: Stride
     se_ratio: Expansion ration for Squeeze and Excite block
     b: inverted bottleneck ratio 
+    name: Name prefix
+
   Return:
     Output tensor of the block 
   """
@@ -457,31 +461,38 @@ def ZBlock(inputs,
   inv_btlneck_filters = int(filters_out / b)
   if stride != 1:
     conv_3x3 = layers.Conv2D(inv_btlneck_filters, (3, 3), use_bias=False, strides=stride,
-                             groups=groups)
+                             groups=groups, name=name + "_conv_3x3")
   else:
     conv_3x3 = layers.Conv2D(inv_btlneck_filters, (3, 3), use_bias=False,
-                             groups=groups)
+                             groups=groups, name=name + "_conv_3x3")
 
   # Build block
   # conv_1x1_1
-  x = layers.Conv2D(inv_btlneck_filters, (1, 1), use_bias=False)(inputs)
-  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = layers.Conv2D(inv_btlneck_filters, (1, 1),
+                    use_bias=False, name=name + "_conv_1x1_1")(inputs)
+  x = layers.BatchNormalization(
+      momentum=0.9, epsilon=1e-5, name=name + "_conv_1x1_1_bn")(x)
   x = tf.nn.silu(x)
 
   # # conv_3x3
   x = conv_3x3(x)
-  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = layers.BatchNormalization(
+      momentum=0.9, epsilon=1e-5, name=name + "_conv_3x3_bn")(x)
   x = tf.nn.silu(x)
 
-  # SE
-  x = layers.GlobalAveragePooling2D(name="Y_GlobalAvgPool")(x)
-  x = layers.Reshape((1, 1, inv_btlneck_filters))(x)
-  x = layers.Conv2D(se_filters, (1, 1), activation=tf.nn.silu)(x)
-  x = layers.Conv2D(inv_btlneck_filters, (1, 1), activation="sigmoid")(x)
+  # Squeeze-Excitation block (https://arxiv.org/abs/1709.01507)
+  x = layers.GlobalAveragePooling2D(name=name + "_se_gap")(x)
+  x = layers.Reshape((1, 1, inv_btlneck_filters), name=name + "_se_reshape")(x)
+  x = layers.Conv2D(se_filters, (1, 1), activation=tf.nn.silu,
+                    name=name + "_se_squeeze")(x)
+  x = layers.Conv2D(inv_btlneck_filters, (1, 1),
+                    activation="sigmoid", name=name + "_se_excite")(x)
 
   # conv_1x1_2
-  x = layers.Conv2D(filters_out, (1, 1), use_bias=False)(x)
-  x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+  x = layers.Conv2D(filters_out, (1, 1), use_bias=False, 
+                    name=name + "_conv_1x1_2")(x)
+  x = layers.BatchNormalization(
+      momentum=0.9, epsilon=1e-5, name=name + "_conv_1x1_2_bn")(x)
 
   if stride != 1:
     return x
@@ -489,7 +500,13 @@ def ZBlock(inputs,
     return x + inputs
 
 
-def Stage(inputs,  block_type, depth, group_width, filters_in, filters_out):
+def Stage(inputs,
+          block_type,
+          depth,
+          group_width, 
+          filters_in, 
+          filters_out, 
+          name=""):
   """Implementation of Stage in RegNet.
 
   Args:
@@ -499,23 +516,25 @@ def Stage(inputs,  block_type, depth, group_width, filters_in, filters_out):
     group_width: Group width of all blocks in  this stage
     filters_in: Input filters to this stage
     filters_out: Output filters from this stage
+    name: Name prefix
 
   Returns:
     Output tensor of Stage
   """
   x = inputs
   if block_type == "X":
-    x = XBlock(x, filters_in, filters_out, group_width, stride=2)
-    for _ in range(depth - 1):
-      x = XBlock(x, filters_out, filters_out, group_width)
+    x = XBlock(x, filters_in, filters_out, group_width, stride=2, name=name + "_XBlock_0")
+    for i in range(depth - 1):
+      x = XBlock(x, filters_out, filters_out,
+                 group_width, name=name + "_XBlock_" + str(i))
   elif block_type == "Y":
-    x = YBlock(x, filters_in, filters_out, group_width, stride=2)
-    for _ in range(depth - 1):
-      x = YBlock(x, filters_out, filters_out, group_width)
+    x = YBlock(x, filters_in, filters_out, group_width, stride=2, name=name + "_YBlock_0")
+    for i in range(depth - 1):
+      x = YBlock(x, filters_out, filters_out, group_width, name=name + "_YBlock_" + str(i))
   elif block_type == "Z":
-    x = ZBlock(x, filters_in, filters_out, group_width, stride=2)
-    for _ in range(depth - 1):
-      x = ZBlock(x, filters_out, filters_out, group_width)
+    x = ZBlock(x, filters_in, filters_out, group_width, stride=2, name=name + "_ZBlock_0")
+    for i in range(depth - 1):
+      x = ZBlock(x, filters_out, filters_out, group_width, name=name + "_ZBlock_" + str(i))
   else:
     raise NotImplementedError(f"""Block type {block_type} not implemented. 
                               block_type must be one of ("X", "Y", "Z"). """)
@@ -533,8 +552,8 @@ def Head(x, num_classes=1000):
     Output logits tensor. 
   """
 
-  x = layers.GlobalAveragePooling2D()(x)
-  x = layers.Dense(num_classes)(x)
+  x = layers.GlobalAveragePooling2D(name="head_gap")(x)
+  x = layers.Dense(num_classes, name="head_dense")(x)
 
   return x
 
@@ -647,7 +666,7 @@ def RegNet(
     out_channels = widths[num_stage]
 
     x = Stage(x, block_type, depth, group_width, 
-              in_channels, out_channels) 
+              in_channels, out_channels, name=model_name + "_Stage_" + str(num_stage)) 
     in_channels = out_channels
 
   if include_top:
