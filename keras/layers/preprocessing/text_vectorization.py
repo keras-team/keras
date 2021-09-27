@@ -513,7 +513,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     lookup_data = self._lookup_layer(inputs)
 
     # For any non-int output, we can return directly from the underlying layer.
-    if self._output_mode is not INT:
+    if self._output_mode != INT:
       return lookup_data
 
     if self._ragged:
