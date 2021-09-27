@@ -1628,7 +1628,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
 
   def test_non_unique_vocab_fails(self):
     vocab_data = ["earth", "wind", "and", "fire", "fire"]
-    with self.assertRaisesRegex(ValueError, ".*repeated term.*fire.*"):
+    with self.assertRaisesRegex(ValueError, "repeated term.*fire"):
       _ = index_lookup.IndexLookup(
           vocabulary=vocab_data,
           max_tokens=None,
@@ -1636,39 +1636,6 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
           mask_token="",
           oov_token="[OOV]",
           dtype=tf.string)
-
-  def test_vocab_with_oov_and_wrong_mask_fails(self):
-    vocab_data = ["custom_mask", "[OOV]", "earth", "wind", "and", "fire"]
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        dtype=tf.string)
-    with self.assertRaisesRegex(ValueError, ".*does not have the mask token.*"):
-      layer.set_vocabulary(vocab_data)
-
-  def test_vocab_with_oov_and_no_mask_fails(self):
-    vocab_data = ["[OOV]", "earth", "wind", "and", "fire"]
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        dtype=tf.string)
-    with self.assertRaisesRegex(ValueError, ".*Reserved OOV.*"):
-      layer.set_vocabulary(vocab_data)
-
-  def test_vocab_with_mask_but_no_oov_fails(self):
-    vocab_data = ["", "earth", "wind", "and", "fire"]
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        dtype=tf.string)
-    with self.assertRaisesRegex(ValueError, ".*does not have the OOV token.*"):
-      layer.set_vocabulary(vocab_data)
 
   def test_vocab_with_repeated_element_fails(self):
     vocab_data = ["earth", "earth", "wind", "and", "fire"]
@@ -1678,18 +1645,19 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         dtype=tf.string)
-    with self.assertRaisesRegex(ValueError, ".*repeated term.*earth.*"):
+    with self.assertRaisesRegex(ValueError, "repeated term.*earth"):
       layer.set_vocabulary(vocab_data)
 
-  def test_vocab_with_reserved_oov_element_fails(self):
+  def test_vocab_with_reserved_oov_element_and_invert_true_fails(self):
     vocab_data = ["earth", "test", "[OOV]", "wind", "and", "fire"]
     layer = index_lookup.IndexLookup(
         max_tokens=None,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
+        invert=True,
         dtype=tf.string)
-    with self.assertRaisesRegex(ValueError, ".*Reserved OOV.*"):
+    with self.assertRaisesRegex(ValueError, "reserved OOV"):
       layer.set_vocabulary(vocab_data)
 
   def test_vocab_with_reserved_mask_element_fails(self):
@@ -1700,7 +1668,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token="mask_token",
         oov_token="[OOV]",
         dtype=tf.string)
-    with self.assertRaisesRegex(ValueError, ".*Reserved mask.*"):
+    with self.assertRaisesRegex(ValueError, "reserved mask"):
       layer.set_vocabulary(vocab_data)
 
   def test_vocab_size_changed_pad_to_max_false_fails(self):
@@ -1776,59 +1744,16 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
           oov_token=-1,
           dtype=tf.int64)
 
-  def test_int_vocab_with_oov_and_wrong_mask_fails(self):
-    vocab_data = [1234, -1, 11, 21, 13, 14]
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token=0,
-        oov_token=-1,
-        dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, "does not have the mask token `0`"):
-      layer.set_vocabulary(vocab_data)
-
-  def test_int_vocab_with_oov_and_no_mask_fails(self):
-    vocab_data = [-1, 11, 12, 13, 14]
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token=0,
-        oov_token=-1,
-        dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, "Reserved OOV"):
-      layer.set_vocabulary(vocab_data)
-
-  def test_int_vocab_with_mask_but_no_oov_fails(self):
-    vocab_data = [0, 11, 12, 13, 14]
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token=0,
-        oov_token=-1,
-        dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, "does not have the OOV token `-1`"):
-      layer.set_vocabulary(vocab_data)
-
-  def test_int_vocab_with_repeated_element_fails(self):
-    vocab_data = [11, 11, 34, 23, 124]
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token=0,
-        oov_token=-1,
-        dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, "repeated term.*11"):
-      layer.set_vocabulary(vocab_data)
-
-  def test_int_vocab_with_reserved_oov_element_fails(self):
+  def test_int_vocab_with_reserved_oov_element_and_invert_true_fails(self):
     vocab_data = [14, 38, -1, 34, 3, 84]
     layer = index_lookup.IndexLookup(
         max_tokens=None,
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1,
+        invert=True,
         dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, "Reserved OOV"):
+    with self.assertRaisesRegex(ValueError, "reserved OOV"):
       layer.set_vocabulary(vocab_data)
 
   def test_int_vocab_with_reserved_mask_element_fails(self):
@@ -1839,11 +1764,11 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token=0,
         oov_token=-1,
         dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, "Reserved mask"):
+    with self.assertRaisesRegex(ValueError, "reserved mask"):
       layer.set_vocabulary(vocab_data)
 
   def test_no_vocab_file_string_fails(self):
-    with self.assertRaisesRegex(ValueError, ".*non_existent_file.*"):
+    with self.assertRaisesRegex(ValueError, "non_existent_file"):
       _ = index_lookup.IndexLookup(
           vocabulary="non_existent_file",
           max_tokens=None,
@@ -1906,7 +1831,7 @@ class IndexLookupInverseVocabularyTest(
 
   def test_non_unique_vocab_fails(self):
     vocab_data = ["earth", "wind", "and", "fire", "fire"]
-    with self.assertRaisesRegex(ValueError, ".*repeated term.*fire.*"):
+    with self.assertRaisesRegex(ValueError, "repeated term.*fire"):
       _ = index_lookup.IndexLookup(
           vocabulary=vocab_data,
           max_tokens=None,
@@ -1936,7 +1861,7 @@ class IndexLookupInverseVocabularyTest(
         oov_token="[OOV]",
         dtype=tf.string,
         invert=True)
-    with self.assertRaisesRegex(ValueError, ".*repeated term.*earth.*"):
+    with self.assertRaisesRegex(ValueError, "repeated term.*earth"):
       layer.set_vocabulary(vocab_data)
 
   def test_vocab_with_reserved_mask_element_fails(self):
@@ -1948,12 +1873,12 @@ class IndexLookupInverseVocabularyTest(
         oov_token="[OOV]",
         dtype=tf.string,
         invert=True)
-    with self.assertRaisesRegex(ValueError, ".*Reserved mask.*"):
+    with self.assertRaisesRegex(ValueError, "reserved mask"):
       layer.set_vocabulary(vocab_data)
 
   def test_non_unique_int_vocab_fails(self):
     vocab_data = [12, 13, 14, 15, 15]
-    with self.assertRaisesRegex(ValueError, ".*repeated term.*15.*"):
+    with self.assertRaisesRegex(ValueError, "repeated term.*15"):
       _ = index_lookup.IndexLookup(
           vocabulary=vocab_data,
           max_tokens=None,
@@ -1972,7 +1897,7 @@ class IndexLookupInverseVocabularyTest(
         oov_token=-1,
         dtype=tf.int64,
         invert=True)
-    with self.assertRaisesRegex(ValueError, ".*repeated term.*11.*"):
+    with self.assertRaisesRegex(ValueError, "repeated term.*11"):
       layer.set_vocabulary(vocab_data)
 
 
@@ -1990,11 +1915,11 @@ class IndexLookupErrorTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         dtype=tf.string)
     with self.assertRaisesRegex(ValueError,
-                                "vocabulary larger than the maximum vocab.*"):
+                                "vocabulary larger than the maximum vocab"):
       layer.set_vocabulary(vocab_data)
 
   def test_zero_max_tokens_fails(self):
-    with self.assertRaisesRegex(ValueError, ".*max_tokens.*"):
+    with self.assertRaisesRegex(ValueError, "max_tokens"):
       _ = index_lookup.IndexLookup(
           max_tokens=0,
           num_oov_indices=1,
