@@ -1,4 +1,4 @@
-# Copyright 2021 Aditya Kane. All Rights Reserved.
+# Copyright 2021 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 """RegNet models for Keras.
 
 References:
-  - [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
-    (CVPR 2020)
-  - [Fast and Accurate Model Scaling](https://arxiv.org/abs/2103.06877)
-    (CVPR 2021)
+
+- [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
+  (CVPR 2020)
+- [Fast and Accurate Model Scaling](https://arxiv.org/abs/2103.06877)
+  (CVPR 2021)
 """
 
-from keras.applications.efficientnet import BASE_DOCSTRING, BASE_WEIGHTS_PATH
 import tensorflow as tf
 
 from keras import backend
@@ -281,41 +281,43 @@ BASE_DOCSTRING = """Instantiates Regnet architecture.
     A `keras.Model` instance.
 """
 
-def PreStem():
+def PreStem(name=None):
   """Rescales and normalizes inputs to [0,1] and ImageNet mean and std.
   
   Args:
-    x: input tensor
+    name: name prefix
     
   Returns:
     Rescaled and normalized tensor
   """
 
   def apply(x):
-    IMGNET_MEAN = tf.constant([0.485, 0.456, 0.406])
+    imagenet_mean = tf.constant([0.485, 0.456, 0.406])
 
-    IMGNET_STD = tf.constant([0.229, 0.224, 0.225])
+    imagenet_std = tf.constant([0.229, 0.224, 0.225])
 
-    x = layers.Rescaling(scale=1./255., name="prestem_rescaling")(x)
-    x = layers.Normalization(mean=IMGNET_MEAN, 
-          variance=tf.math.square(IMGNET_STD), name="prestem_normalization")(x)
+    x = layers.Rescaling(scale=1./255., name=name + "_prestem_rescaling")(x)
+    x = layers.Normalization(mean=imagenet_mean, 
+          variance=tf.math.square(imagenet_std), name=name + "_prestem_normalization")(x)
 
     return x
   return apply
 
-def Stem():
+def Stem(name=None):
   """Implementation of RegNet stem. (Common to all model variants)
   
   Args:
-    x: Input tensor. Should be 224x224, rescaled and normalized to [0,1].   
+    name: name prefix   
 
   Returns:
     Output tensor of the Stem
   """
   def apply(x):
-    x = layers.Conv2D(32, (3, 3), strides=2, use_bias=False, name="stem_conv")(x)
-    x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="stem_bn")(x)
-    x = layers.ReLU(name="stem_relu")(x)
+    x = layers.Conv2D(32, (3, 3), strides=2, use_bias=False,
+      name=name + "_stem_conv")(x)
+    x = layers.BatchNormalization(
+      momentum=0.9, epsilon=1e-5, name=name + "_stem_bn")(x)
+    x = layers.ReLU(name=name + "_stem_relu")(x)
 
     return x
   return apply
@@ -325,12 +327,11 @@ def XBlock(filters_in,
            filters_out,
            group_width,
            stride=1,
-           name=""):
+           name=None):
   """Implementation of X Block. 
   Reference: [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
 
   Args:
-    inputs: input tensor
     filters_in: filters in the input tensor
     filters_out: filters in the output tensor
     group_width: group width
@@ -391,18 +392,17 @@ def YBlock(filters_in,
            filters_out,
            group_width,
            stride=1,
-           se_ratio=0.25,
-           name=""):
+           squeeze_excite_ratio=0.25,
+           name=None):
   """Implementation of Y Block. 
   Reference: [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
 
   Args:
-    inputs: input tensor
     filters_in: filters in the input tensor
     filters_out: filters in the output tensor
     group_width: group width
     stride: stride
-    se_ratio: expansion ration for Squeeze and Excite block
+    squeeze_excite_ratio: expansion ration for Squeeze and Excite block
     name: name prefix
 
   Return:
@@ -410,11 +410,11 @@ def YBlock(filters_in,
   """
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
-      raise ValueError("""Input filters and output filters are not equal for stride
-                          1. Please check inputs and try again.""")
+      raise ValueError(f"""Input filters({filters_in}) and output filters({filters_out}) are not equal for stride
+                          {stride}. Input and output filters must be equal for stride={stride}.""")
 
     groups = filters_out // group_width
-    se_filters = int(filters_out * se_ratio)
+    se_filters = int(filters_out * squeeze_excite_ratio)
 
     if stride != 1:
       skip = layers.Conv2D(filters_out, (1, 1),
@@ -466,21 +466,20 @@ def ZBlock(filters_in,
            filters_out,
            group_width,
            stride=1,
-           se_ratio=0.25,
-           b=0.25,
-           name=""):
+           squeeze_excite_ratio=0.25,
+           bottleneck_ratio=0.25,
+           name=None):
   """Implementation of Z block
   Reference: [Fast and Accurate Model Scaling](https://arxiv.org/abs/2103.06877)
   Note that Z block can be completely 
   
   Args:
-    inputs: input tensor
     filters_in: filters in the input tensor
     filters_out: filters in the output tensor
     group_width: group width
     stride: stride
-    se_ratio: expansion ration for Squeeze and Excite block
-    b: inverted bottleneck ratio 
+    squeeze_excite_ratio: expansion ration for Squeeze and Excite block
+    bottleneck_ratio: inverted bottleneck ratio 
     name: name prefix
 
   Return:
@@ -488,13 +487,13 @@ def ZBlock(filters_in,
   """
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
-      raise ValueError("""Input filters and output filters are not equal for stride
-                          1. Please check inputs and try again.""")
+      raise ValueError(f"""Input filters({filters_in}) and output filters({filters_out}) are not equal for stride
+                          {stride}. Input and output filters must be equal for stride={stride}.""")
     
     groups = filters_out // group_width
-    se_filters = int(filters_out * se_ratio)
+    se_filters = int(filters_out * squeeze_excite_ratio)
 
-    inv_btlneck_filters = int(filters_out / b)
+    inv_btlneck_filters = int(filters_out / bottleneck_ratio)
     if stride != 1:
       conv_3x3 = layers.Conv2D(inv_btlneck_filters, (3, 3), use_bias=False, strides=stride,
                               groups=groups, name=name + "_conv_3x3")
@@ -542,11 +541,10 @@ def Stage(block_type,
           group_width, 
           filters_in, 
           filters_out, 
-          name=""):
+          name=None):
   """Implementation of Stage in RegNet.
 
   Args:
-    inputs: input tensor
     block_type: must be one of "X", "Y", "Z"
     depth: depth of stage, number of blocks to use
     group_width: group width of all blocks in  this stage
@@ -577,13 +575,13 @@ def Stage(block_type,
         x = ZBlock(filters_out, filters_out, group_width,
                    name=name + "_ZBlock_" + str(i))(x)
     else:
-      raise NotImplementedError(f"""Block type {block_type} not implemented. 
+      raise NotImplementedError(f"""Block type `{block_type}` not recognized. 
                                 block_type must be one of ("X", "Y", "Z"). """)
     return x
   return apply
 
 
-def Head(num_classes=1000):
+def Head(num_classes=1000, name=None):
   """Implementation of classification head of RegNet
   
   Args:
@@ -594,8 +592,8 @@ def Head(num_classes=1000):
     Output logits tensor. 
   """
   def apply(x):
-    x = layers.GlobalAveragePooling2D(name="head_gap")(x)
-    x = layers.Dense(num_classes, name="head_dense")(x)
+    x = layers.GlobalAveragePooling2D(name=name + "_head_gap")(x)
+    x = layers.Dense(num_classes, name=name + "head_dense")(x)
     return x
   
   return apply
