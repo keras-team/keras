@@ -68,6 +68,8 @@ WEIGHTS_HASHES = {
 # more information, please refer to "Designing Network Design Spaces" by 
 # Radosavovic et al.
 
+# BatchNorm momentum and epsilon values taken from original implementation.
+
 MODEL_CONFIGS= {
     "x002": {
         "depths": [1, 1, 4, 7],
@@ -323,6 +325,29 @@ def Stem(name=None):
   return apply
 
 
+def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
+  """Implements the Squeeze and excite block(https://arxiv.org/abs/1709.01507)
+  
+  Args:
+    filters_in: input filters to the block
+    se_filters: filters to squeeze to
+    name: name prefix
+  
+  Returns:
+    A function object   
+  """
+  def apply(x):
+    x = layers.GlobalAveragePooling2D(name=name + "_squeeze_and_excite_gap")(x)
+    x = layers.Reshape((1, 1, filters_in),
+                       name=name + "_squeeze_and_excite_reshape")(x)
+    x = layers.Conv2D(se_filters, (1, 1), activation=tf.nn.silu,
+                      name=name + "_squeeze_and_excite_squeeze")(x)
+    x = layers.Conv2D(filters_in, (1, 1),
+                      activation="sigmoid", name=name + "_squeeze_and_excite_excite")(x)
+    return x
+  return apply
+
+
 def XBlock(filters_in,
            filters_out,
            group_width,
@@ -354,7 +379,7 @@ def XBlock(filters_in,
                           strides=stride, use_bias=False,
                           name=name + "_skip_1x1")(inputs)
       skip = layers.BatchNormalization(
-          momentum=0.9, epsilon=1e-5, name=name + "_skip_bn")(skip)
+          momentum=0.9, epsilon=1e-5, name=name + "_skip_bn")(skip) 
       conv_3x3 = layers.Conv2D(filters_out, (3, 3), use_bias=False, strides=stride,
                               groups=groups, name=name + "_conv_3x3")
     else:
@@ -370,7 +395,7 @@ def XBlock(filters_in,
         momentum=0.9, epsilon=1e-5, name=name + "_conv_1x1_1_bn")(x)
     x = layers.ReLU(name=name + "_conv_1x1_1_relu")(x)
 
-    # # conv_3x3
+    # conv_3x3
     x = conv_3x3(x)
     x = layers.BatchNormalization(
         momentum=0.9, epsilon=1e-5, name=name + "_conv_3x3_bn")(x)
@@ -444,13 +469,7 @@ def YBlock(filters_in,
     x = layers.ReLU(name=name + "_conv_3x3_relu")(x)
 
     # Squeeze-Excitation block (https://arxiv.org/abs/1709.01507)
-    x = layers.GlobalAveragePooling2D(name=name + "_se_gap")(x)
-    x = layers.Reshape((1, 1, filters_out), name=name + "_se_reshape")(x)
-    x = layers.Conv2D(se_filters, (1, 1), activation="relu",
-                      name=name + "_se_squeeze")(x)
-    x = layers.Conv2D(filters_out, (1, 1), activation="sigmoid",
-                      name=name + "_se_excite")(x)
-  
+    x = SqueezeAndExciteBlock(filters_out, se_filters, name=name)(x)
 
     # conv_1x1_2
     x = layers.Conv2D(filters_out, (1, 1), use_bias=False, name=name + "_conv_1x1_2")(x)
@@ -509,19 +528,14 @@ def ZBlock(filters_in,
         momentum=0.9, epsilon=1e-5, name=name + "_conv_1x1_1_bn")(x)
     x = tf.nn.silu(x)
 
-    # # conv_3x3
+    # conv_3x3
     x = conv_3x3(x)
     x = layers.BatchNormalization(
         momentum=0.9, epsilon=1e-5, name=name + "_conv_3x3_bn")(x)
     x = tf.nn.silu(x)
 
     # Squeeze-Excitation block (https://arxiv.org/abs/1709.01507)
-    x = layers.GlobalAveragePooling2D(name=name + "_se_gap")(x)
-    x = layers.Reshape((1, 1, inv_btlneck_filters), name=name + "_se_reshape")(x)
-    x = layers.Conv2D(se_filters, (1, 1), activation=tf.nn.silu,
-                      name=name + "_se_squeeze")(x)
-    x = layers.Conv2D(inv_btlneck_filters, (1, 1),
-                      activation="sigmoid", name=name + "_se_excite")(x)
+    x = SqueezeAndExciteBlock(inv_btlneck_filters, se_filters, name=name)
 
     # conv_1x1_2
     x = layers.Conv2D(filters_out, (1, 1), use_bias=False, 
