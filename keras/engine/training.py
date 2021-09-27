@@ -90,6 +90,33 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   Note: Only dicts, lists, and tuples of input tensors are supported. Nested
   inputs are not supported (e.g. lists of list or dicts of dict).
 
+  A new Functional API model can also be created by using the
+  intermediate tensors. This enables you to quickly extract sub-components
+  of the model.
+
+  Example:
+
+  ```python
+  inputs = keras.Input(shape=(None, None, 3))
+  processed = keras.layers.RandomCrop(width=32, height=32)(inputs)
+  conv = keras.layers.Conv2D(filters=2, kernel_size=3)(processed)
+  pooling = keras.layers.GlobalAveragePooling2D()(conv)
+  feature = keras.layers.Dense(10)(pooling)
+
+  full_model = keras.Model(inputs, feature)
+  backbone = keras.Model(processed, conv)
+  activations = keras.Model(conv, feature)
+  ```
+
+  Note that the `backbone` and `activations` models are not
+  created with `keras.Input` objects, but with the tensors that are originated
+  from `keras.Inputs` objects. Under the hood, the layers and weights will
+  be shared across these models, so that user can train the `full_model`, and
+  use `backbone` or `activations` to do feature extraction.
+  The inputs and outputs of the model can be nested structures of tensors as
+  well, and the created models are standard Functional API models that support
+  all the existing APIs.
+
   2 - By subclassing the `Model` class: in that case, you should define your
   layers in `__init__()` and you should implement the model's forward pass
   in `call()`.
