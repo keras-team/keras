@@ -1734,7 +1734,7 @@ def disable_generator_for_rng():
   _USE_GENERATOR_FOR_RNG = False
 
 
-class RandomGenerator:
+class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
   """Random generator that selects appropriate random ops.
 
   This class contains the logic for legacy stateful random ops, as well as the
