@@ -1576,8 +1576,10 @@ class Layer(base_layer.Layer):
         RuntimeError: if called in Eager mode.
     """
     if not self._inbound_nodes:
-      raise AttributeError('The layer has never been called '
-                           'and thus has no defined input shape.')
+      raise AttributeError(f'The layer "{self.name}" has never been called '
+                           'and thus has no defined input shape. Note that the '
+                           '`input_shape` property is only available for '
+                           'Functional and Sequential models.')
     all_input_shapes = set(
         [str(node.input_shapes) for node in self._inbound_nodes])
     if len(all_input_shapes) == 1:
