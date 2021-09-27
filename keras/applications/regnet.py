@@ -30,7 +30,6 @@ from keras import backend
 from keras import layers
 from keras.applications import imagenet_utils
 from keras.engine import training
-from keras.layers import VersionAwareLayers
 from keras.utils import layer_utils
 from keras.utils import data_utils
 
@@ -217,7 +216,6 @@ MODEL_CONFIGS= {
     }
 }
 
-layers = VersionAwareLayers()
 
 BASE_DOCSTRING = """Instantiates Regnet architecture.
 
@@ -284,7 +282,8 @@ BASE_DOCSTRING = """Instantiates Regnet architecture.
 """
 
 def PreStem(name=None):
-  """Rescales and normalizes inputs to [0,1] and ImageNet mean and std.
+  """
+  Rescales and normalizes inputs to [0,1] and ImageNet mean and std.
   
   Args:
     name: name prefix
@@ -292,6 +291,8 @@ def PreStem(name=None):
   Returns:
     Rescaled and normalized tensor
   """
+  if name==None:
+    name = backend.get_uid("prestem")
 
   def apply(x):
     imagenet_mean = tf.constant([0.485, 0.456, 0.406])
@@ -306,7 +307,8 @@ def PreStem(name=None):
   return apply
 
 def Stem(name=None):
-  """Implementation of RegNet stem. (Common to all model variants)
+  """
+  Implementation of RegNet stem. (Common to all model variants)
   
   Args:
     name: name prefix   
@@ -314,6 +316,9 @@ def Stem(name=None):
   Returns:
     Output tensor of the Stem
   """
+  if name == None:
+    name = backend.get_uid("stem")
+
   def apply(x):
     x = layers.Conv2D(32, (3, 3), strides=2, use_bias=False,
       name=name + "_stem_conv")(x)
@@ -326,7 +331,8 @@ def Stem(name=None):
 
 
 def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
-  """Implements the Squeeze and excite block(https://arxiv.org/abs/1709.01507)
+  """
+  Implements the Squeeze and excite block(https://arxiv.org/abs/1709.01507)
   
   Args:
     filters_in: input filters to the block
@@ -336,6 +342,9 @@ def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
   Returns:
     A function object   
   """
+  if name == None:
+    name = backend.get_uid("squeeze_and_excite")
+
   def apply(x):
     x = layers.GlobalAveragePooling2D(name=name + "_squeeze_and_excite_gap")(x)
     x = layers.Reshape((1, 1, filters_in),
@@ -353,7 +362,8 @@ def XBlock(filters_in,
            group_width,
            stride=1,
            name=None):
-  """Implementation of X Block. 
+  """
+  Implementation of X Block. 
   Reference: [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
 
   Args:
@@ -366,6 +376,9 @@ def XBlock(filters_in,
   Return:
     Output tensor of the block 
   """
+  if name==None:
+    name = backend.get_uid("xblock")
+
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
       raise ValueError("""Input filters and output filters are not equal for stride
@@ -419,7 +432,8 @@ def YBlock(filters_in,
            stride=1,
            squeeze_excite_ratio=0.25,
            name=None):
-  """Implementation of Y Block. 
+  """
+  Implementation of Y Block. 
   Reference: [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
 
   Args:
@@ -433,6 +447,9 @@ def YBlock(filters_in,
   Return:
     Output tensor of the block 
   """
+  if name == None:
+    name = backend.get_uid("yblock")
+
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
       raise ValueError(f"""Input filters({filters_in}) and output filters({filters_out}) are not equal for stride
@@ -488,9 +505,9 @@ def ZBlock(filters_in,
            squeeze_excite_ratio=0.25,
            bottleneck_ratio=0.25,
            name=None):
-  """Implementation of Z block
-  Reference: [Fast and Accurate Model Scaling](https://arxiv.org/abs/2103.06877)
-  Note that Z block can be completely 
+  """
+  Implementation of Z block
+  Reference: [Fast and Accurate Model Scaling](https://arxiv.org/abs/2103.06877).
   
   Args:
     filters_in: filters in the input tensor
@@ -504,6 +521,9 @@ def ZBlock(filters_in,
   Return:
     Output tensor of the block 
   """
+  if name == None:
+    name = backend.get_uid("zblock")
+
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
       raise ValueError(f"""Input filters({filters_in}) and output filters({filters_out}) are not equal for stride
@@ -556,7 +576,8 @@ def Stage(block_type,
           filters_in, 
           filters_out, 
           name=None):
-  """Implementation of Stage in RegNet.
+  """
+  Implementation of Stage in RegNet.
 
   Args:
     block_type: must be one of "X", "Y", "Z"
@@ -569,6 +590,9 @@ def Stage(block_type,
   Returns:
     Output tensor of Stage
   """
+  if name == None:
+    name = backend.get_uid("stage")
+
   def apply(inputs):
     x = inputs
     if block_type == "X":
@@ -596,7 +620,8 @@ def Stage(block_type,
 
 
 def Head(num_classes=1000, name=None):
-  """Implementation of classification head of RegNet
+  """
+  Implementation of classification head of RegNet
   
   Args:
   x: Input tensor
@@ -605,6 +630,9 @@ def Head(num_classes=1000, name=None):
   Returns:
     Output logits tensor. 
   """
+  if name == None:
+    name = backend.get_uid("head")
+
   def apply(x):
     x = layers.GlobalAveragePooling2D(name=name + "_head_gap")(x)
     x = layers.Dense(num_classes, name=name + "head_dense")(x)
@@ -627,7 +655,8 @@ def RegNet(
   pooling=None,
   classes=1000,
   classifier_activation="softmax"):
-  """ Instantiates RegNet architecture given specific configuration.
+  """ 
+  Instantiates RegNet architecture given specific configuration.
 
   Args:
     depths: An iterable containing depths for each individual stages. 
