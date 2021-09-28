@@ -14,15 +14,13 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.image_preprocessing."""
 
-import tensorflow.compat.v2 as tf
-
-import numpy as np
-
 import keras
 from keras import keras_parameterized
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import preprocessing_test_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @tf.__internal__.distribute.combinations.generate(
@@ -57,7 +55,6 @@ class ImagePreprocessingDistributionTest(
       cls_layer = keras.layers.Dense(units=1, activation="sigmoid")
       output = cls_layer(output)
       model = keras.Model(inputs=input_data, outputs=output)
-    model.compile(loss="binary_crossentropy")
     _ = model.predict(image_dataset)
 
 

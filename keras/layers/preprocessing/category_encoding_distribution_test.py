@@ -14,15 +14,17 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.category_encoding."""
 
-import tensorflow.compat.v2 as tf
-
-import numpy as np
+# pylint: disable=g-direct-tensorflow-import
 
 import keras
+from keras import backend
 from keras import keras_parameterized
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import preprocessing_test_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.framework import test_util
 
 
 def batch_wrapper(dataset, batch_size, strategy, repeat=None):
@@ -30,8 +32,8 @@ def batch_wrapper(dataset, batch_size, strategy, repeat=None):
     dataset = dataset.repeat(repeat)
   # TPUs currently require fully defined input shapes, drop_remainder ensures
   # the input will have fully defined shapes.
-  if isinstance(strategy,
-                (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
+  if isinstance(strategy, (tf.distribute.experimental.TPUStrategy,
+                           tf.compat.v1.distribute.experimental.TPUStrategy)):
     return dataset.batch(batch_size, drop_remainder=True)
   else:
     return dataset.batch(batch_size)
@@ -39,15 +41,20 @@ def batch_wrapper(dataset, batch_size, strategy, repeat=None):
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
-        # (b/156783625): Outside compilation failed for eager mode only.
-        strategy=strategy_combinations.strategies_minus_tpu +
-        strategy_combinations.multi_worker_mirrored_strategies,
-        mode=["eager", "graph"]))
+        strategy=strategy_combinations.all_strategies +
+        strategy_combinations.multi_worker_mirrored_strategies +
+        strategy_combinations.parameter_server_strategies_single_worker +
+        strategy_combinations.parameter_server_strategies_multi_worker,
+        mode=["eager"]))
 class CategoryEncodingDistributionTest(
     keras_parameterized.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_strategy(self, strategy):
+    if (backend.is_tpu_strategy(strategy) and
+        not test_util.is_mlir_bridge_enabled()):
+      self.skipTest("TPU tests require MLIR bridge")
+
     input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
     inp_dataset = tf.data.Dataset.from_tensor_slices(input_array)
     inp_dataset = batch_wrapper(inp_dataset, 2, strategy)
