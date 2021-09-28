@@ -239,7 +239,7 @@ class SidecarEvaluator:
           ]))
 
       if (self.max_evaluations and
-          (self.max_evaluations == int(latest_checkpoint.split('-')[-1]))):
+          (self.max_evaluations <= int(latest_checkpoint.split('-')[-1]))):
         # Exit the loop because we have evaluated the final checkpoint file.
         logging.info('Last checkpoint evaluated. SidecarEvaluator stops.')
         return
