@@ -295,13 +295,8 @@ def PreStem(name=None):
     name = backend.get_uid("prestem")
 
   def apply(x):
-    imagenet_mean = tf.constant([0.485, 0.456, 0.406])
-
-    imagenet_std = tf.constant([0.229, 0.224, 0.225])
-
     x = layers.Rescaling(scale=1./255., name=name + "_prestem_rescaling")(x)
-    x = layers.Normalization(mean=imagenet_mean, 
-          variance=tf.math.square(imagenet_std), name=name + "_prestem_normalization")(x)
+    x = layers.Normalization()(x)
 
     return x
   return apply
