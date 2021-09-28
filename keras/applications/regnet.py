@@ -32,6 +32,7 @@ from keras.applications import imagenet_utils
 from keras.engine import training
 from keras.utils import layer_utils
 from keras.utils import data_utils
+from tensorflow.python.util.tf_export import keras_export
 
 
 BASE_WEIGHTS_PATH = ""
@@ -785,6 +786,9 @@ def RegNet(
 
 ## Instantiating variants ##
 
+
+@keras_export("keras.applications.regnet.RegNetX002",
+              "keras.applications.RegNetX002")
 def RegNetX002(model_name="regnetx002",
                include_top=True,
                weights=None,
@@ -792,7 +796,7 @@ def RegNetX002(model_name="regnetx002",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x002"]["depths"],
       MODEL_CONFIGS["x002"]["widths"],
@@ -810,6 +814,8 @@ def RegNetX002(model_name="regnetx002",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX004",
+              "keras.applications.RegNetX004")
 def RegNetX004(model_name="regnetx004",
                include_top=True,
                weights=None,
@@ -817,7 +823,7 @@ def RegNetX004(model_name="regnetx004",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x004"]["depths"],
       MODEL_CONFIGS["x004"]["widths"],
@@ -835,6 +841,8 @@ def RegNetX004(model_name="regnetx004",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX006",
+              "keras.applications.RegNetX006")
 def RegNetX006(model_name="regnetx006",
                include_top=True,
                weights=None,
@@ -842,7 +850,7 @@ def RegNetX006(model_name="regnetx006",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x006"]["depths"],
       MODEL_CONFIGS["x006"]["widths"],
@@ -860,6 +868,8 @@ def RegNetX006(model_name="regnetx006",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX008",
+              "keras.applications.RegNetX008")
 def RegNetX008(model_name="regnetx008",
                include_top=True,
                weights=None,
@@ -867,7 +877,7 @@ def RegNetX008(model_name="regnetx008",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x008"]["depths"],
       MODEL_CONFIGS["x008"]["widths"],
@@ -885,6 +895,8 @@ def RegNetX008(model_name="regnetx008",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX016",
+              "keras.applications.RegNetX016")
 def RegNetX016(model_name="regnetx016",
                include_top=True,
                weights=None,
@@ -892,7 +904,7 @@ def RegNetX016(model_name="regnetx016",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x016"]["depths"],
       MODEL_CONFIGS["x016"]["widths"],
@@ -910,6 +922,8 @@ def RegNetX016(model_name="regnetx016",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX032",
+              "keras.applications.RegNetX032")
 def RegNetX032(model_name="regnetx032",
                include_top=True,
                weights=None,
@@ -917,7 +931,7 @@ def RegNetX032(model_name="regnetx032",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x032"]["depths"],
       MODEL_CONFIGS["x032"]["widths"],
@@ -935,6 +949,8 @@ def RegNetX032(model_name="regnetx032",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX040",
+              "keras.applications.RegNetX040")
 def RegNetX040(model_name="regnetx040",
                include_top=True,
                weights=None,
@@ -942,7 +958,7 @@ def RegNetX040(model_name="regnetx040",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x040"]["depths"],
       MODEL_CONFIGS["x040"]["widths"],
@@ -960,6 +976,8 @@ def RegNetX040(model_name="regnetx040",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX064",
+              "keras.applications.RegNetX064")
 def RegNetX064(model_name="regnetx064",
                include_top=True,
                weights=None,
@@ -967,7 +985,7 @@ def RegNetX064(model_name="regnetx064",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x064"]["depths"],
       MODEL_CONFIGS["x064"]["widths"],
@@ -985,6 +1003,8 @@ def RegNetX064(model_name="regnetx064",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX080",
+              "keras.applications.RegNetX080")
 def RegNetX080(model_name="regnetx080",
                include_top=True,
                weights=None,
@@ -992,7 +1012,7 @@ def RegNetX080(model_name="regnetx080",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x080"]["depths"],
       MODEL_CONFIGS["x080"]["widths"],
@@ -1010,6 +1030,8 @@ def RegNetX080(model_name="regnetx080",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX120",
+              "keras.applications.RegNetX120")
 def RegNetX120(model_name="regnetx120",
                include_top=True,
                weights=None,
@@ -1017,7 +1039,7 @@ def RegNetX120(model_name="regnetx120",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x120"]["depths"],
       MODEL_CONFIGS["x120"]["widths"],
@@ -1035,6 +1057,8 @@ def RegNetX120(model_name="regnetx120",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX160",
+              "keras.applications.RegNetX160")
 def RegNetX160(model_name="regnetx160",
                include_top=True,
                weights=None,
@@ -1042,7 +1066,7 @@ def RegNetX160(model_name="regnetx160",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x160"]["depths"],
       MODEL_CONFIGS["x160"]["widths"],
@@ -1060,6 +1084,8 @@ def RegNetX160(model_name="regnetx160",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetX320",
+              "keras.applications.RegNetX320")
 def RegNetX320(model_name="regnetx320",
                include_top=True,
                weights=None,
@@ -1067,7 +1093,7 @@ def RegNetX320(model_name="regnetx320",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["x320"]["depths"],
       MODEL_CONFIGS["x320"]["widths"],
@@ -1085,6 +1111,8 @@ def RegNetX320(model_name="regnetx320",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY002",
+              "keras.applications.RegNetY002")
 def RegNetY002(model_name="regnety002",
                include_top=True,
                weights=None,
@@ -1092,7 +1120,7 @@ def RegNetY002(model_name="regnety002",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y002"]["depths"],
       MODEL_CONFIGS["y002"]["widths"],
@@ -1110,6 +1138,8 @@ def RegNetY002(model_name="regnety002",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY004",
+              "keras.applications.RegNetY004")
 def RegNetY004(model_name="regnety004",
                include_top=True,
                weights=None,
@@ -1117,7 +1147,7 @@ def RegNetY004(model_name="regnety004",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y004"]["depths"],
       MODEL_CONFIGS["y004"]["widths"],
@@ -1135,6 +1165,8 @@ def RegNetY004(model_name="regnety004",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY006",
+              "keras.applications.RegNetY006")
 def RegNetY006(model_name="regnety006",
                include_top=True,
                weights=None,
@@ -1142,7 +1174,7 @@ def RegNetY006(model_name="regnety006",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y006"]["depths"],
       MODEL_CONFIGS["y006"]["widths"],
@@ -1160,6 +1192,8 @@ def RegNetY006(model_name="regnety006",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY008",
+              "keras.applications.RegNetY008")
 def RegNetY008(model_name="regnety008",
                include_top=True,
                weights=None,
@@ -1167,7 +1201,7 @@ def RegNetY008(model_name="regnety008",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y008"]["depths"],
       MODEL_CONFIGS["y008"]["widths"],
@@ -1185,6 +1219,8 @@ def RegNetY008(model_name="regnety008",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY016",
+              "keras.applications.RegNetY016")
 def RegNetY016(model_name="regnety016",
                include_top=True,
                weights=None,
@@ -1192,7 +1228,7 @@ def RegNetY016(model_name="regnety016",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y016"]["depths"],
       MODEL_CONFIGS["y016"]["widths"],
@@ -1210,6 +1246,8 @@ def RegNetY016(model_name="regnety016",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY032",
+              "keras.applications.RegNetY032")
 def RegNetY032(model_name="regnety032",
                include_top=True,
                weights=None,
@@ -1217,7 +1255,7 @@ def RegNetY032(model_name="regnety032",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y032"]["depths"],
       MODEL_CONFIGS["y032"]["widths"],
@@ -1235,6 +1273,8 @@ def RegNetY032(model_name="regnety032",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY040",
+              "keras.applications.RegNetY040")
 def RegNetY040(model_name="regnety040",
                include_top=True,
                weights=None,
@@ -1242,7 +1282,7 @@ def RegNetY040(model_name="regnety040",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y040"]["depths"],
       MODEL_CONFIGS["y040"]["widths"],
@@ -1260,6 +1300,8 @@ def RegNetY040(model_name="regnety040",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY064",
+              "keras.applications.RegNetY064")
 def RegNetY064(model_name="regnety064",
                include_top=True,
                weights=None,
@@ -1267,7 +1309,7 @@ def RegNetY064(model_name="regnety064",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y064"]["depths"],
       MODEL_CONFIGS["y064"]["widths"],
@@ -1285,6 +1327,8 @@ def RegNetY064(model_name="regnety064",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY080",
+              "keras.applications.RegNetY080")
 def RegNetY080(model_name="regnety080",
                include_top=True,
                weights=None,
@@ -1292,7 +1336,7 @@ def RegNetY080(model_name="regnety080",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y080"]["depths"],
       MODEL_CONFIGS["y080"]["widths"],
@@ -1310,6 +1354,8 @@ def RegNetY080(model_name="regnety080",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY120",
+              "keras.applications.RegNetY120")
 def RegNetY120(model_name="regnety120",
                include_top=True,
                weights=None,
@@ -1317,7 +1363,7 @@ def RegNetY120(model_name="regnety120",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y120"]["depths"],
       MODEL_CONFIGS["y120"]["widths"],
@@ -1335,6 +1381,8 @@ def RegNetY120(model_name="regnety120",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY160",
+              "keras.applications.RegNetY160")
 def RegNetY160(model_name="regnety160",
                include_top=True,
                weights=None,
@@ -1342,7 +1390,7 @@ def RegNetY160(model_name="regnety160",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y160"]["depths"],
       MODEL_CONFIGS["y160"]["widths"],
@@ -1360,6 +1408,8 @@ def RegNetY160(model_name="regnety160",
   )
 
 
+@keras_export("keras.applications.regnet.RegNetY320",
+              "keras.applications.RegNetY320")
 def RegNetY320(model_name="regnety320",
                include_top=True,
                weights=None,
@@ -1367,7 +1417,7 @@ def RegNetY320(model_name="regnety320",
                input_shape=None,
                pooling=None,
                classes=1000,
-               classifier_activation="softmax"):
+               classifier_activation='softmax'):
   return RegNet(
       MODEL_CONFIGS["y320"]["depths"],
       MODEL_CONFIGS["y320"]["widths"],
