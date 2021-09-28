@@ -14,9 +14,7 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.text_vectorization."""
 
-import tensorflow.compat.v2 as tf
-
-import numpy as np
+# pylint: disable=g-direct-tensorflow-import
 
 import keras
 from keras import backend
@@ -24,21 +22,26 @@ from keras import keras_parameterized
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import text_vectorization
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.framework import test_util
 
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
-        strategy_combinations.multi_worker_mirrored_strategies,
+        strategy_combinations.multi_worker_mirrored_strategies +
+        strategy_combinations.parameter_server_strategies_single_worker +
+        strategy_combinations.parameter_server_strategies_multi_worker,
         mode=["eager"]))
 class TextVectorizationDistributionTest(
     keras_parameterized.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_distribution_strategy_output(self, strategy):
-    # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
-    if backend.is_tpu_strategy(strategy):
-      self.skipTest("This test needs MLIR bridge on TPU.")
+    if (backend.is_tpu_strategy(strategy) and
+        not test_util.is_mlir_bridge_enabled()):
+      self.skipTest("TPU tests require MLIR bridge")
 
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire"],

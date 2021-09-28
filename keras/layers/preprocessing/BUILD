@@ -277,6 +277,7 @@ distribute_py_test(
     disable_mlir_bridge = False,
     main = "category_encoding_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "no_oss",  # b/189866692
@@ -359,6 +360,7 @@ distribute_py_test(
     srcs = ["discretization_distribution_test.py"],
     main = "discretization_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "no_oss",  # TODO(b/189956080)
@@ -395,6 +397,7 @@ distribute_py_test(
     disable_mlir_bridge = False,
     main = "hashing_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
@@ -429,6 +432,7 @@ distribute_py_test(
     disable_mlir_bridge = False,
     main = "index_lookup_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
@@ -499,6 +503,7 @@ distribute_py_test(
     srcs = ["normalization_distribution_test.py"],
     main = "normalization_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "no_oss",
         "nomultivm",  # TODO(b/170502145)
@@ -530,8 +535,10 @@ tf_py_test(
 distribute_py_test(
     name = "text_vectorization_distribution_test",
     srcs = ["text_vectorization_distribution_test.py"],
+    disable_mlir_bridge = False,
     main = "text_vectorization_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)

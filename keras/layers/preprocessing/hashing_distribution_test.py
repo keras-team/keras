@@ -14,25 +14,34 @@
 # ==============================================================================
 """Tests for keras.layers.preprocessing.hashing."""
 
-import tensorflow.compat.v2 as tf
-
-import numpy as np
+# pylint: disable=g-direct-tensorflow-import
 
 import keras
+from keras import backend
 from keras import keras_parameterized
-from keras.distribute.strategy_combinations import all_strategies
+from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import hashing
 from keras.layers.preprocessing import preprocessing_test_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.framework import test_util
 
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
-        distribution=all_strategies,
-        mode=["eager", "graph"]))
+        strategy=strategy_combinations.all_strategies +
+        strategy_combinations.multi_worker_mirrored_strategies +
+        strategy_combinations.parameter_server_strategies_single_worker +
+        strategy_combinations.parameter_server_strategies_multi_worker,
+        mode=["eager"]))
 class HashingDistributionTest(keras_parameterized.TestCase,
                               preprocessing_test_utils.PreprocessingLayerTest):
 
-  def test_distribution(self, distribution):
+  def test_strategy(self, strategy):
+    if (backend.is_tpu_strategy(strategy) and
+        not test_util.is_mlir_bridge_enabled()):
+      self.skipTest("TPU tests require MLIR bridge")
+
     input_data = np.asarray([["omar"], ["stringer"], ["marlo"], ["wire"]])
     input_dataset = tf.data.Dataset.from_tensor_slices(input_data).batch(
         2, drop_remainder=True)
@@ -40,7 +49,7 @@ class HashingDistributionTest(keras_parameterized.TestCase,
 
     tf.config.set_soft_device_placement(True)
 
-    with distribution.scope():
+    with strategy.scope():
       input_data = keras.Input(shape=(None,), dtype=tf.string)
       layer = hashing.Hashing(num_bins=2)
       int_data = layer(input_data)
@@ -50,4 +59,5 @@ class HashingDistributionTest(keras_parameterized.TestCase,
 
 
 if __name__ == "__main__":
-  tf.test.main()
+  tf.compat.v1.enable_v2_behavior()
+  tf.__internal__.distribute.multi_process_runner.test_main()
