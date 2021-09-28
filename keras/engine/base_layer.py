@@ -90,8 +90,15 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
   A layer is a callable object that takes as input one or more tensors and
   that outputs one or more tensors. It involves *computation*, defined
-  in the `call()` method, and a *state* (weight variables), defined
-  either in the constructor `__init__()` or in the `build()` method.
+  in the `call()` method, and a *state* (weight variables). State can be
+  created in various places, at the convenience of the subclass implementer:
+
+  * in `__init__()`;
+  * in the optional `build()` method, which is invoked by the first
+    `__call__()` to the layer, and supplies the shape(s) of the input(s),
+    which may not have been known at initialization time;
+  * in the first invocation of `call()`, with some caveats discussed
+    below.
 
   Users will just instantiate a layer and then treat it as a callable.
 
@@ -134,15 +141,17 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
   We recommend that descendants of `Layer` implement the following methods:
 
-  * `__init__()`: Defines custom layer attributes, and creates layer state
-    variables that do not depend on input shapes, using `add_weight()`.
+  * `__init__()`: Defines custom layer attributes, and creates layer weights
+    that do not depend on input shapes, using `add_weight()`, or other state.
   * `build(self, input_shape)`: This method can be used to create weights that
-    depend on the shape(s) of the input(s), using `add_weight()`. `__call__()`
-    will automatically build the layer (if it has not been built yet) by
-    calling `build()`.
+    depend on the shape(s) of the input(s), using `add_weight()`, or other
+    state. `__call__()` will automatically build the layer (if it has not been
+    built yet) by calling `build()`.
   * `call(self, inputs, *args, **kwargs)`: Called in `__call__` after making
     sure `build()` has been called. `call()` performs the logic of applying the
-    layer to the input tensors (which should be passed in as argument).
+    layer to the `inputs`. The first invocation may additionally create state
+    that could not be conveniently created in `build()`; see its docstring
+    for details.
     Two reserved keyword arguments you can optionally use in `call()` are:
       - `training` (boolean, whether the call is in inference mode or training
         mode). See more details in [the layer/model subclassing guide](
@@ -345,7 +354,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # for instance stateful RNNs.
     self._stateful = False
     # Indicates whether `build` needs to be called upon layer call, to create
-    # the layer's weights.
+    # the layer's weights. (Note that the first call() may also create weights,
+    # independent of build().)
     self.built = False
     # Provides information about which inputs are compatible with the layer.
     self._input_spec = None
@@ -460,9 +470,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     This is a method that implementers of subclasses of `Layer` or `Model`
     can override if they need a state-creation step in-between
-    layer instantiation and layer call.
+    layer instantiation and layer call. It is invoked automatically before
+    the first execution of `call()`.
 
-    This is typically used to create the weights of `Layer` subclasses.
+    This is typically used to create the weights of `Layer` subclasses
+    (at the discretion of the subclass implementer).
 
     Args:
       input_shape: Instance of `TensorShape`, or list of instances of
@@ -482,6 +494,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     from `keras` API. In `keras` API, you can pass support masking for
     layers as additional arguments. Whereas `tf.keras` has `compute_mask()`
     method to support masking.
+
+    The `call()` method may not create state (except in its first invocation,
+    wrapping the creation of variables or other resources in `tf.init_scope()`).
+    It is recommended to create state in `__init__()`, or the `build()` method
+    that is called automatically before `call()` executes the first time.
 
     Args:
       inputs: Input tensor, or dict/list/tuple of input tensors.
@@ -786,9 +803,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   def compute_output_shape(self, input_shape):
     """Computes the output shape of the layer.
 
-    If the layer has not been built, this method will call `build` on the
-    layer. This assumes that the layer will later be used with inputs that
-    match the input shape provided here.
+    This method will cause the layer's state to be built, if that has not
+    happened before. This requires that the layer will later be used with
+    inputs that match the input shape provided here.
 
     Args:
         input_shape: Shape tuple (tuple of integers)
