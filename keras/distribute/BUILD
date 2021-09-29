@@ -869,6 +869,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/legacy_tf_layers:layers",
     ],
 )
 
