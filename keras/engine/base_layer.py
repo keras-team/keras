@@ -3414,6 +3414,42 @@ def _apply_name_scope_on_model_declaration(enable):
   _is_name_scope_on_model_declaration_enabled = enable
 
 
+class BaseRandomLayer(Layer):
+  """A layer handle the random nubmer creation and savemodel behavior."""
+
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  def __init__(self, seed=None, force_generator=False, **kwargs):
+    """Initialize the BaseRandomLayer.
+
+    Note that the constructor is annotated with
+    @no_automatic_dependency_tracking. This is to skip the auto
+    tracking of self._random_generator instance, which is an AutoTrackable.
+    The backend.RandomGenerator could contain a tf.random.Generator instance
+    which will have tf.Variable as the internal state. We want to avoid saving
+    that state into model.weights and checkpoints for backward compatibility
+    reason. In the meantime, we still need to make them visible to SavedModel
+    when it is tracing the tf.function for the `call()`.
+    See _list_extra_dependencies_for_serialization below for more details.
+
+    Args:
+      seed: optional integer, used to create RandomGenerator.
+      force_generator: boolean, default to False, whether to force the
+        RandomGenerator to use the code branch of tf.random.Generator.
+      **kwargs: other keyward arguements that will be passed to the parent class
+    """
+    super().__init__(**kwargs)
+    self._random_generator = backend.RandomGenerator(
+        seed, force_generator=force_generator)
+
+  def _list_extra_dependencies_for_serialization(self, serialization_cache):
+    # This method exposes the self._random_generator to SavedModel only
+    # (not layer.weights and checkpoint).
+    deps = super()._list_extra_dependencies_for_serialization(
+        serialization_cache)
+    deps['_random_generator'] = self._random_generator
+    return deps
+
+
 # Avoid breaking users who directly import this symbol from this file.
 # TODO(fchollet): remove this.
 InputSpec = input_spec.InputSpec  # pylint:disable=invalid-name

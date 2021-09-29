@@ -189,35 +189,9 @@ class CenterCrop(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-class BaseRandomLayer(base_layer.Layer):
-  """A layer handle the random nubmer creation and savemodel behavior."""
-
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
-  def __init__(self, seed=None, **kwargs):
-    # Note that the constructor is annotated with
-    # @no_automatic_dependency_tracking. This is to skip the auto
-    # tracking of self._random_generator instance, which is an AutoTrackable.
-    # The backend.RandomGenerator could contain a tf.random.Generator instance
-    # which will have tf.Variable as the internal state. We want to avoid saving
-    # that state into model.weights and checkpoints for backward compatibility
-    # reason. In the meantime, we still need to make them visible to SavedModel
-    # when it is tracing the tf.function for the `call()`.
-    # See _list_extra_dependencies_for_serialization below for more details.
-    super().__init__(**kwargs)
-    self._random_generator = backend.RandomGenerator(seed, force_generator=True)
-
-  def _list_extra_dependencies_for_serialization(self, serialization_cache):
-    # This method exposes the self._random_generator to SavedModel only
-    # (not layer.weights and checkpoint).
-    deps = super()._list_extra_dependencies_for_serialization(
-        serialization_cache)
-    deps['_random_generator'] = self._random_generator
-    return deps
-
-
 @keras_export('keras.layers.RandomCrop',
               'keras.layers.experimental.preprocessing.RandomCrop')
-class RandomCrop(BaseRandomLayer):
+class RandomCrop(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly crops images during training.
 
   During training, this layer will randomly choose a location to crop images
@@ -249,7 +223,8 @@ class RandomCrop(BaseRandomLayer):
 
   def __init__(self, height, width, seed=None, **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomCrop').set(True)
-    super(RandomCrop, self).__init__(**kwargs, autocast=False, seed=seed)
+    super(RandomCrop, self).__init__(**kwargs, autocast=False, seed=seed,
+                                     force_generator=True)
     self.height = height
     self.width = width
     self.seed = seed
@@ -354,7 +329,7 @@ HORIZONTAL_AND_VERTICAL = 'horizontal_and_vertical'
 
 @keras_export('keras.layers.RandomFlip',
               'keras.layers.experimental.preprocessing.RandomFlip')
-class RandomFlip(BaseRandomLayer):
+class RandomFlip(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly flips images during training.
 
   This layer will flip the images horizontally and or vertically based on the
@@ -384,7 +359,7 @@ class RandomFlip(BaseRandomLayer):
                mode=HORIZONTAL_AND_VERTICAL,
                seed=None,
                **kwargs):
-    super(RandomFlip, self).__init__(seed=seed, **kwargs)
+    super(RandomFlip, self).__init__(seed=seed, force_generator=True, **kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomFlip').set(True)
     self.mode = mode
     if mode == HORIZONTAL:
@@ -445,7 +420,7 @@ class RandomFlip(BaseRandomLayer):
 # TODO(tanzheny): Add examples, here and everywhere.
 @keras_export('keras.layers.RandomTranslation',
               'keras.layers.experimental.preprocessing.RandomTranslation')
-class RandomTranslation(BaseRandomLayer):
+class RandomTranslation(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly translates images during training.
 
   This layer will apply random translations to each image during training,
@@ -507,7 +482,8 @@ class RandomTranslation(BaseRandomLayer):
                **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomTranslation').set(
         True)
-    super(RandomTranslation, self).__init__(seed=seed, **kwargs)
+    super(RandomTranslation, self).__init__(seed=seed, force_generator=True,
+                                            **kwargs)
     self.height_factor = height_factor
     if isinstance(height_factor, (tuple, list)):
       self.height_lower = height_factor[0]
@@ -771,7 +747,7 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
 
 @keras_export('keras.layers.RandomRotation',
               'keras.layers.experimental.preprocessing.RandomRotation')
-class RandomRotation(BaseRandomLayer):
+class RandomRotation(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly rotates images during training.
 
   This layer will apply random rotations to each image, filling empty space
@@ -827,7 +803,8 @@ class RandomRotation(BaseRandomLayer):
                **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomRotation').set(
         True)
-    super(RandomRotation, self).__init__(seed=seed, **kwargs)
+    super(RandomRotation, self).__init__(seed=seed, force_generator=True,
+                                         **kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
       self.lower = factor[0]
@@ -897,7 +874,7 @@ class RandomRotation(BaseRandomLayer):
 
 @keras_export('keras.layers.RandomZoom',
               'keras.layers.experimental.preprocessing.RandomZoom')
-class RandomZoom(BaseRandomLayer):
+class RandomZoom(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly zooms images during training.
 
   This layer will randomly zoom in or out on each axis of an image
@@ -964,7 +941,7 @@ class RandomZoom(BaseRandomLayer):
                fill_value=0.0,
                **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomZoom').set(True)
-    super(RandomZoom, self).__init__(seed=seed, **kwargs)
+    super(RandomZoom, self).__init__(seed=seed, force_generator=True, **kwargs)
     self.height_factor = height_factor
     if isinstance(height_factor, (tuple, list)):
       self.height_lower = height_factor[0]
@@ -1103,7 +1080,7 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
 
 @keras_export('keras.layers.RandomContrast',
               'keras.layers.experimental.preprocessing.RandomContrast')
-class RandomContrast(BaseRandomLayer):
+class RandomContrast(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly adjusts contrast during training.
 
   This layer will randomly adjust the contrast of an image or images by a random
@@ -1136,7 +1113,8 @@ class RandomContrast(BaseRandomLayer):
   def __init__(self, factor, seed=None, **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomContrast').set(
         True)
-    super(RandomContrast, self).__init__(seed=seed, **kwargs)
+    super(RandomContrast, self).__init__(seed=seed, force_generator=True,
+                                         **kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
       self.lower = factor[0]
@@ -1181,7 +1159,7 @@ class RandomContrast(BaseRandomLayer):
 
 @keras_export('keras.layers.RandomHeight',
               'keras.layers.experimental.preprocessing.RandomHeight')
-class RandomHeight(BaseRandomLayer):
+class RandomHeight(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly varies image height during training.
 
   This layer adjusts the height of a batch of images by a random factor.
@@ -1222,7 +1200,8 @@ class RandomHeight(BaseRandomLayer):
                seed=None,
                **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomHeight').set(True)
-    super(RandomHeight, self).__init__(seed=seed, **kwargs)
+    super(RandomHeight, self).__init__(seed=seed, force_generator=True,
+                                       **kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
       self.height_lower = factor[0]
@@ -1283,7 +1262,7 @@ class RandomHeight(BaseRandomLayer):
 
 @keras_export('keras.layers.RandomWidth',
               'keras.layers.experimental.preprocessing.RandomWidth')
-class RandomWidth(BaseRandomLayer):
+class RandomWidth(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly varies image width during training.
 
   This layer will randomly adjusts the width of a batch of images of a
@@ -1324,7 +1303,7 @@ class RandomWidth(BaseRandomLayer):
                seed=None,
                **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomWidth').set(True)
-    super(RandomWidth, self).__init__(seed=seed, **kwargs)
+    super(RandomWidth, self).__init__(seed=seed, force_generator=True, **kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
       self.width_lower = factor[0]
