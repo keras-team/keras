@@ -139,14 +139,15 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.parameters(MODEL_LIST)
   def test_application_models_compute_output_shape(self, app, last_dim):
-    input_shape = (None, None, None, 4)
-    model = app(weights=None, include_top=False)
-    output_shape = model.compute_output_shape(input_shape)
-    if 'MobileNetV3' in app.__name__:
+    if tf.executing_eagerly():
+      input_shape = (None, None, None, 4)
+      model = app(weights=None, include_top=False)
+      output_shape = model.compute_output_shape(input_shape)
+      if 'MobileNetV3' in app.__name__:
         self.assertShapeEqual(output_shape, (None, 1, 1, last_dim))
-    else:
+      else:
         self.assertShapeEqual(output_shape, (None, None, None, last_dim))
-    backend.clear_session()
+      backend.clear_session()
 
 
 def _get_output_shape(model_fn):
