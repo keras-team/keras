@@ -320,6 +320,7 @@ def Stem(name=None):
     x = layers.Conv2D(32, (3, 3),
                       strides=2,
                       use_bias=False,
+                      padding="same",
                       name=name + "_stem_conv")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -344,7 +345,7 @@ def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
     A function object   
   """
   if name == None:
-    name = "squeeze_and_excite" + str(backend.get_uid("squeeze_and_excite"))
+    name = str(backend.get_uid("squeeze_and_excite"))
 
   def apply(x):
     x = layers.GlobalAveragePooling2D(name=name + "_squeeze_and_excite_gap")(x)
@@ -377,7 +378,7 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
     Output tensor of the block 
   """
   if name == None:
-    name = "xblock" + str(backend.get_uid("xblock"))
+    name = str(backend.get_uid("xblock"))
 
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
@@ -400,12 +401,14 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
                                use_bias=False,
                                strides=stride,
                                groups=groups,
+                               padding="same",
                                name=name + "_conv_3x3")
     else:
       skip = inputs
       conv_3x3 = layers.Conv2D(filters_out, (3, 3),
                                use_bias=False,
                                groups=groups,
+                               padding="same",
                                name=name + "_conv_3x3")
 
       # Build block
@@ -462,7 +465,7 @@ def YBlock(filters_in,
     Output tensor of the block 
   """
   if name == None:
-    name = "yblock" + str(backend.get_uid("yblock"))
+    name = str(backend.get_uid("yblock"))
 
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
@@ -486,12 +489,14 @@ def YBlock(filters_in,
                                use_bias=False,
                                strides=stride,
                                groups=groups,
+                               padding="same",
                                name=name + "_conv_3x3")
     else:
       skip = inputs
       conv_3x3 = layers.Conv2D(filters_out, (3, 3),
                                use_bias=False,
                                groups=groups,
+                               padding="same",
                                name=name + "_conv_3x3")
 
     # Build block
@@ -553,7 +558,7 @@ def ZBlock(filters_in,
     Output tensor of the block 
   """
   if name == None:
-    name = "zblock" + str(backend.get_uid("zblock"))
+    name = str(backend.get_uid("zblock"))
 
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
@@ -571,11 +576,13 @@ def ZBlock(filters_in,
                                use_bias=False,
                                strides=stride,
                                groups=groups,
+                               padding="same",
                                name=name + "_conv_3x3")
     else:
       conv_3x3 = layers.Conv2D(inv_btlneck_filters, (3, 3),
                                use_bias=False,
                                groups=groups,
+                               padding="same",
                                name=name + "_conv_3x3")
 
     # Build block
