@@ -15,18 +15,19 @@
 # ==============================================================================
 """Test covering sidecar_evaluator.py."""
 
-import tensorflow.compat.v2 as tf
 
 import enum
 import os
+import threading
+import time
 
 from absl import logging
 from absl.testing import parameterized
-import numpy as np
-
 import keras
 from keras.distribute import sidecar_evaluator as sidecar_evaluator_lib
 from keras.optimizer_v2 import gradient_descent
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 _BATCH_SIZE = 32
 
@@ -253,6 +254,37 @@ class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(sidecar_evaluator._iterations.numpy(), _BATCH_SIZE)
 
     self.assertSummaryEventsWritten(os.path.join(log_dir, 'validation'))
+
+  @tf.__internal__.distribute.combinations.generate(
+      tf.__internal__.test.combinations.combine(
+          mode=['eager'],
+          model_type=[ModelType.SEQUENTIAL, ModelType.SUBCLASS],
+          build_model=[True, False]))
+  def testTimeoutFunction(self, model_type, build_model):
+    checkpoint_dir = os.path.join(self.get_temp_dir(), 'checkpoints')
+    # Create a model with synthetic data, and fit for one epoch.
+    data = np.random.random((1000, 32))
+    labels = np.random.random((1000, 10))
+    dataset = tf.data.Dataset.from_tensor_slices((data, labels))
+    dataset = dataset.batch(_BATCH_SIZE)
+
+    # Create a new model used for evaluation.
+    eval_model = _test_model_builder(
+        model_type=model_type, compile_model=True, build_model=build_model)
+    # Have an sidecar_evaluator evaluate once.
+    sidecar_evaluator = sidecar_evaluator_lib.SidecarEvaluator(
+        eval_model,
+        data=dataset,
+        checkpoint_dir=checkpoint_dir,
+        max_evaluations=1)
+    with self.assertLogs() as cm:
+      threading.Thread(target=sidecar_evaluator.start, daemon=True).start()
+      time.sleep(50)
+
+    metrics_logging = [
+        l for l in cm.output if 'No checkpoints appear to be found' in l
+    ]
+    self.assertGreaterEqual(len(metrics_logging), 1)
 
 
 if __name__ == '__main__':
