@@ -45,7 +45,11 @@ jobs:
         run: |
           bazel build //keras/tools/pip_package:build_pip_package
           $GITHUB_WORKSPACE/keras/bazel-bin/keras/tools/pip_package/build_pip_package $GITHUB_WORKSPACE/keras_pkg
+          pip install -r $GITHUB_WORKSPACE/keras/requirements.txt
+          pip uninstall -y keras-nightly
+          pip install --upgrade tf-nightly
           pip install $GITHUB_WORKSPACE/keras_pkg/keras-2.7.0-py2.py3-none-any.whl
+          
       
       - name: Test
         run: |
