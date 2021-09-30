@@ -21,6 +21,7 @@ from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-d
 
 _PRINT_EVAL_STEP_EVERY_SEC = 60.0
 _ITERATIONS_UNINITIALIZED = -1
+_CHECKPOINT_TIMEOUT_SEC = 30
 
 
 def list_checkpoint_attributes(ckpt_dir_or_file):
@@ -173,13 +174,27 @@ class SidecarEvaluator:
     self.steps = steps
     self.callbacks = callbacks or []
 
+  def _timeout_fn(self):
+    logging.info(
+        f'No checkpoints appear to be found after {_CHECKPOINT_TIMEOUT_SEC} '
+        'seconds. Please check if you are properly using a '
+        '`tf.train.Checkpoint/CheckpointManager` or '
+        '`tf.keras.callbacks.ModelCheckpoint(save_weights_only=True)` to save '
+        'checkpoints by the training. See '
+        '`tf.keras.experimental.SidecarEvaluator` doc for recommended flows '
+        'of saving checkpoints.')
+    return False
+
   def start(self):
     """Starts the evaluation loop."""
     optimizer_checkpoint = tf.train.Checkpoint(iter=self._iterations)
     checkpoint = tf.train.Checkpoint(
         model=self.model, optimizer=optimizer_checkpoint)
 
-    for latest_checkpoint in tf.train.checkpoints_iterator(self.checkpoint_dir):
+    for latest_checkpoint in tf.train.checkpoints_iterator(
+        self.checkpoint_dir,
+        timeout=_CHECKPOINT_TIMEOUT_SEC,
+        timeout_fn=self._timeout_fn):
       try:
         # `expect_partial` because the checkpoint can have other `Trackable`s
         # such as `optimizer`.
