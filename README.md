@@ -7,19 +7,19 @@ Read the documentation at [keras.io](https://keras.io/).
 
 ## About Keras
 
-Keras is a deep learning API written in Python,
-running on top of the machine learning platform [TensorFlow](https://github.com/tensorflow/tensorflow).
+Keras is a deep learning API written in Python.
+It runs on top of the machine learning platform [TensorFlow](https://github.com/tensorflow/tensorflow).
 It was developed with a focus on enabling fast experimentation.
 *Being able to go from idea to result as fast as possible is key to doing good research.*
 
 Keras is:
 
-- **Simple** -- but not simplistic. Keras reduces developer *cognitive load*
+- **Simple** --> but not simplistic. Keras reduces developer *cognitive load*
 to free you to focus on the parts of the problem that really matter.
-- **Flexible** -- Keras adopts the principle of *progressive disclosure of complexity*:
+- **Flexible** --> Keras adopts the principle of *progressive disclosure of complexity*:
 simple workflows should be quick and easy, while arbitrarily advanced workflows
 should be *possible* via a clear path that builds upon what you've already learned.
-- **Powerful** -- Keras provides industry-strength performance and scalability:
+- **Powerful** --> Keras provides industry-strength performance and scalability:
 it is used by organizations and companies including NASA, YouTube, or Waymo.
 
 ---
