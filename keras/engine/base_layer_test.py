@@ -715,6 +715,21 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertTrue(layer.built)
     self.assertEqual([None, 3], layer._build_input_shape.as_list())
 
+  def test_build_input_shape_list_with_none(self):
+
+    class CustomLayer(base_layer.Layer):
+
+      def build(self, input_shape):
+        super().build(input_shape)
+        self.build_shape = input_shape
+
+      def call(self, inputs):
+        return inputs[0]
+
+    layer = CustomLayer()
+    layer([tf.constant([1.0]), None, tf.constant([2.0])])
+    self.assertEqual(layer.build_shape, [[1], None, [1]])
+
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_layer_input_shape_raises_error(self):
     layer = layers.Dense(3)
