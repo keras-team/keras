@@ -293,7 +293,7 @@ def PreStem(name=None):
     Rescaled and normalized tensor
   """
   if name==None:
-    name = backend.get_uid("prestem")
+    name = "prestem" + str(backend.get_uid("prestem"))
 
   def apply(x):
     x = layers.Rescaling(scale=1./255., name=name + "_prestem_rescaling")(x)
@@ -313,7 +313,7 @@ def Stem(name=None):
     Output tensor of the Stem
   """
   if name == None:
-    name = backend.get_uid("stem")
+    name = "stem" + str(backend.get_uid("stem"))
 
   def apply(x):
     x = layers.Conv2D(32, (3, 3), strides=2, use_bias=False,
@@ -339,7 +339,7 @@ def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
     A function object   
   """
   if name == None:
-    name = backend.get_uid("squeeze_and_excite")
+    name = "squeeze_and_excite" + str(backend.get_uid("squeeze_and_excite"))
 
   def apply(x):
     x = layers.GlobalAveragePooling2D(name=name + "_squeeze_and_excite_gap")(x)
@@ -373,7 +373,7 @@ def XBlock(filters_in,
     Output tensor of the block 
   """
   if name==None:
-    name = backend.get_uid("xblock")
+    name = "xblock" + str(backend.get_uid("xblock"))
 
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
@@ -444,7 +444,7 @@ def YBlock(filters_in,
     Output tensor of the block 
   """
   if name == None:
-    name = backend.get_uid("yblock")
+    name = "yblock" + str(backend.get_uid("yblock"))
 
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
@@ -518,7 +518,7 @@ def ZBlock(filters_in,
     Output tensor of the block 
   """
   if name == None:
-    name = backend.get_uid("zblock")
+    name = "zblock" + str(backend.get_uid("zblock"))
 
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
@@ -587,7 +587,7 @@ def Stage(block_type,
     Output tensor of Stage
   """
   if name == None:
-    name = backend.get_uid("stage")
+    name = str(backend.get_uid("stage"))
 
   def apply(inputs):
     x = inputs
@@ -738,8 +738,8 @@ def RegNet(
     inputs = img_input
   
   x = inputs
-  x = PreStem()(x)
-  x = Stem()(x)
+  x = PreStem(name=model_name)(x)
+  x = Stem(name=model_name)(x)
 
   in_channels = 32 # Output from Stem
 
