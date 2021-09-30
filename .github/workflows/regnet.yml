@@ -31,7 +31,8 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: Create environment
         run: |
-          sudo apt-get install python3.7-dev python3.7-venv
+          sudo apt-get install update
+          sudo apt-get install python3.7 python3.7-venv
           mkdir keras_env
           python3 -m venv keras_env
           source keras_env/bin/activate
