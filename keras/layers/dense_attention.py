@@ -17,16 +17,15 @@
 This file follows the terminology of https://arxiv.org/abs/1706.03762 Figure 2.
 Attention is formed by three tensors: Query, Key and Value.
 """
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from keras import backend
-from keras.engine import base_layer
-from keras.utils import control_flow_util
 import tensorflow.compat.v2 as tf
+from keras import backend
+from keras.engine.base_layer import Layer
+from keras.utils import control_flow_util
 from tensorflow.python.util.tf_export import keras_export
 
 
-class BaseDenseAttention(base_layer.BaseRandomLayer):
+class BaseDenseAttention(Layer):
   """Base Attention class for Dense networks.
 
   This class is suitable for Dense or CNN networks, and not for RNN networks.
@@ -68,12 +67,12 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
       `[batch_size, Tq, Tv]`.
   """
 
-  def __init__(self, causal=False, dropout=0.0, **kwargs):
+  def __init__(self, causal=False, dropout=0.0,
+               **kwargs):
     super(BaseDenseAttention, self).__init__(**kwargs)
     self.causal = causal
     self.dropout = dropout
     self.supports_masking = True
-    self._random_generator = backend.RandomGenerator()
 
   def _calculate_scores(self, query, key):
     """Calculates attention scores.
@@ -127,7 +126,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
     weights = tf.nn.softmax(scores)
 
     def dropped_weights():
-      return self._random_generator.dropout(weights, rate=self.dropout)
+      return tf.nn.dropout(weights, rate=self.dropout)
 
     weights = control_flow_util.smart_cond(training, dropped_weights,
                                            lambda: tf.identity(weights))

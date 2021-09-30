@@ -16,14 +16,14 @@
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 from keras import backend
-from keras.engine import base_layer
+from keras.engine.base_layer import Layer
 from keras.utils import control_flow_util
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.layers.Dropout')
-class Dropout(base_layer.BaseRandomLayer):
+class Dropout(Layer):
   """Applies Dropout to the input.
 
   The Dropout layer randomly sets input units to 0 with a frequency of `rate`
@@ -74,6 +74,7 @@ class Dropout(base_layer.BaseRandomLayer):
       training mode (adding dropout) or in inference mode (doing nothing).
   """
 
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
     # Note that the constructor is annotated with
     # @no_automatic_dependency_tracking. This is to skip the auto
@@ -84,7 +85,7 @@ class Dropout(base_layer.BaseRandomLayer):
     # reason. In the meantime, we still need to make them visible to SavedModel
     # when it is tracing the tf.function for the `call()`.
     # See _list_extra_dependencies_for_serialization below for more details.
-    super(Dropout, self).__init__(seed=seed, **kwargs)
+    super(Dropout, self).__init__(**kwargs)
     if isinstance(rate, (int, float)) and not 0 <= rate <= 1:
       raise ValueError(f'Invalid value {rate} received for '
                        f'`rate`, expected a value between 0 and 1.')
@@ -92,6 +93,7 @@ class Dropout(base_layer.BaseRandomLayer):
     self.noise_shape = noise_shape
     self.seed = seed
     self.supports_masking = True
+    self._random_generator = backend.RandomGenerator(seed)
 
   def build(self, input_shape):
     self._random_generator._maybe_init()  # pylint: disable=protected-access
@@ -132,3 +134,11 @@ class Dropout(base_layer.BaseRandomLayer):
     }
     base_config = super(Dropout, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
+
+  def _list_extra_dependencies_for_serialization(self, serialization_cache):
+    # This method exposes the self._random_generator to SavedModel only
+    # (not layer.weights and checkpoint).
+    deps = super()._list_extra_dependencies_for_serialization(
+        serialization_cache)
+    deps['_random_generator'] = self._random_generator
+    return deps
