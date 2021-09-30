@@ -618,6 +618,58 @@ class CoreLayersTest(keras_parameterized.TestCase):
     self.assertEqual(layer.kernel.constraint, k_constraint)
     self.assertEqual(layer.bias.constraint, b_constraint)
 
+  def test_dense_layer_ragged_tensor(self):
+    layer = keras.layers.Dense(2, kernel_initializer='ones', use_bias=False)
+
+    # a.shape = [2, None, 2]; a.ragged_rank=1
+    a = tf.ragged.constant([[[1., 2], [3, 4], [5, 6]], [[7, 8]]],
+                           ragged_rank=1)
+    a_out = layer(a)
+    keras.backend.get_value(layer.kernel)  # ensures var is built in TF 1.x.
+    self.assertAllEqual(a_out, [[[3., 3], [7, 7], [11, 11]], [[15, 15]]])
+
+    # b.shape = [4, 2]; b.ragged_rank=1
+    b = tf.RaggedTensor.from_uniform_row_length([1., 2, 3, 4, 5, 6, 7, 8], 2)
+    self.assertAllEqual(layer(b), [[3., 3], [7, 7], [11, 11], [15, 15]])
+
+    # c.shape = [2, 2, 2]; c.ragged_rank=2
+    c = tf.RaggedTensor.from_uniform_row_length(b, 2)
+    self.assertAllEqual(layer(c), [[[3., 3], [7, 7]], [[11, 11], [15, 15]]])
+
+  def test_dense_layer_ragged_tensor_savedmodel(self):
+    # Check that we don't get a deadlock when saving a Keras model with
+    # a dense layer that processes RaggedTensors.  (This happened because
+    # Dense.call() had a recursive call, which is not currently supported
+    # by the @tf.function decorator.)
+
+    class TestModel(keras.Model):
+
+      def __init__(self):
+        super().__init__()
+        self._layer = keras.layers.Dense(1, kernel_initializer='ones',
+                                         use_bias=False)
+
+      def call(self, inputs):
+        return self._layer(inputs)
+
+    model = TestModel()
+    result = model(tf.RaggedTensor.from_row_lengths([[1.], [2], [3]], [1, 2]))
+    keras.backend.get_value(model._layer.kernel)  # required in TF 1.x.
+    self.assertAllClose(result, [[[1.0]], [[2.0], [3.0]]])
+    model.save(os.path.join(self.get_temp_dir(), 'savedmodel'),
+               save_format='tf')
+
+  def test_dense_layer_unsupported_ragged_tensor_error(self):
+    layer = keras.layers.Dense(2)
+    with self.assertRaisesRegex(
+        ValueError, 'The last dimension of the inputs to a Dense layer should '
+        r'be defined. Found None. Full input shape received: .*'):
+      layer(tf.ragged.constant([[1., 2], [3, 4, 5]]))
+    with self.assertRaisesRegex(
+        ValueError, 'Dense layer only supports RaggedTensors when the '
+        r'innermost dimension is non-ragged. Received: inputs.shape=.*'):
+      layer.call(tf.ragged.constant([[1., 2], [3, 4, 5]]))
+
   def test_activity_regularization(self):
     layer = keras.layers.ActivityRegularization(l1=0.1)
     layer(keras.backend.variable(np.ones((2, 4))))
