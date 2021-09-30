@@ -27,11 +27,11 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: regnet
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7' # Version range or exact version of a Python version to use, using SemVer's version range syntax
+          architecture: 'x64' # optional x64 or x86. Defaults to x64 if not specified
 
-      # Runs a set of commands using the runners shell
-      - name: Install Python, pipenv and Pipfile packages
-        uses: palewire/install-python-pipenv-pipfile@v2
-        
       - name: Create environment
         run: |
           mkdir keras_env
