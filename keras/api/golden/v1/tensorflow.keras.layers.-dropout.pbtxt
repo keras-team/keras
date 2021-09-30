@@ -1,7 +1,6 @@
 path: "tensorflow.keras.layers.Dropout"
 tf_class {
   is_instance: "<class \'keras.layers.core.dropout.Dropout\'>"
-  is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.tracking.AutoTrackable\'>"

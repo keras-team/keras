@@ -1606,8 +1606,7 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
     # Test noise shape
     outputs = backend.dropout(inputs, 0.2, noise_shape=(200, 1))
     outputs_val = backend.eval(outputs)
-    # Make sure the whole column gets the same dropout
-    self.assertEqual(np.min(outputs_val[0, :]), np.max(outputs_val[0, :]))
+    self.assertAllClose(outputs_val[2, :], outputs_val[3, :], atol=1e-5)
 
 
 class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
