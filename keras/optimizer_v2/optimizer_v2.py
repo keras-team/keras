@@ -1348,10 +1348,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
   def _create_or_restore_slot_variable(
       self, slot_variable_position, slot_name, variable):
-    """Returns the slot variable that should have a value restored into it.
-
-    It is up to the caller to retore the value into the slot variable if a valid
-    slot variable is returned.
+    """Restore a slot variable's value, possibly creating it.
 
     Called when a variable which has an associated slot variable is created or
     restored. When executing eagerly, we create the slot variable with a
@@ -1369,10 +1366,6 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         indicating the slot variable `Trackable` object to be restored.
       slot_name: The name of this `Optimizer`'s slot to restore into.
       variable: The variable object this slot is being created for.
-
-    Returns:
-      A slot variable that should have a value restored into it, or None if a
-      slot variable should not be restored at this time.
     """
     variable_key = _var_key(variable)
     slot_dict = self._slots.get(variable_key, {})
@@ -1411,7 +1404,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     if slot_variable is not None:
       # If we've either made this slot variable, or if we've pulled out an
       # existing slot variable, we should restore it.
-      return slot_variable
+      slot_variable_position.restore(slot_variable)
     else:
       # We didn't make the slot variable. Defer restoring until it gets created
       # normally. We keep a list rather than the one with the highest restore
@@ -1420,7 +1413,6 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       self._deferred_slot_restorations.setdefault(
           slot_name, {}).setdefault(variable_key, []).append(
               slot_variable_position)
-    return None
 
   @contextlib.contextmanager
   def _distribution_strategy_scope(self):
