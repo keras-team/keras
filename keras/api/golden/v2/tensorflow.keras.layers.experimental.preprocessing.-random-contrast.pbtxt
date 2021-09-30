@@ -1,7 +1,7 @@
 path: "tensorflow.keras.layers.experimental.preprocessing.RandomContrast"
 tf_class {
   is_instance: "<class \'keras.layers.preprocessing.image_preprocessing.RandomContrast\'>"
-  is_instance: "<class \'keras.layers.preprocessing.image_preprocessing.BaseRandomLayer\'>"
+  is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.tracking.AutoTrackable\'>"
