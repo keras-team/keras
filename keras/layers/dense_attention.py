@@ -17,15 +17,16 @@
 This file follows the terminology of https://arxiv.org/abs/1706.03762 Figure 2.
 Attention is formed by three tensors: Query, Key and Value.
 """
+# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-import tensorflow.compat.v2 as tf
 from keras import backend
-from keras.engine.base_layer import Layer
+from keras.engine import base_layer
 from keras.utils import control_flow_util
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 
-class BaseDenseAttention(Layer):
+class BaseDenseAttention(base_layer.BaseRandomLayer):
   """Base Attention class for Dense networks.
 
   This class is suitable for Dense or CNN networks, and not for RNN networks.
@@ -67,8 +68,7 @@ class BaseDenseAttention(Layer):
       `[batch_size, Tq, Tv]`.
   """
 
-  def __init__(self, causal=False, dropout=0.0,
-               **kwargs):
+  def __init__(self, causal=False, dropout=0.0, **kwargs):
     super(BaseDenseAttention, self).__init__(**kwargs)
     self.causal = causal
     self.dropout = dropout
@@ -126,7 +126,7 @@ class BaseDenseAttention(Layer):
     weights = tf.nn.softmax(scores)
 
     def dropped_weights():
-      return tf.nn.dropout(weights, rate=self.dropout)
+      return self._random_generator.dropout(weights, rate=self.dropout)
 
     weights = control_flow_util.smart_cond(training, dropped_weights,
                                            lambda: tf.identity(weights))
