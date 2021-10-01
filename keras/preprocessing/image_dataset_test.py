@@ -84,7 +84,6 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
       else:
         ext = 'png'
       filename = os.path.join(path, 'image_%s.%s' % (i, ext))
-      print(os.path.join(temp_dir, filename))
       img.save(os.path.join(temp_dir, filename))
       i += 1
     return temp_dir
@@ -262,15 +261,11 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
     self.assertLen(batch, 2)
     self.assertAllClose(batch[1], [0, 1])
 
-  #efv
   def test_image_dataset_from_directory_scalar(self):
     if PIL is None:
       return
 
-    print("*****************AQUI")
     directory = self._prepare_directory(num_classes=0, count=2)
-    print(f"-->{directory}")
-    print("*****************")
     dataset = image_dataset.image_dataset_from_directory(
         directory, batch_size=8, image_size=(18, 18),
         labels=[0.1, 0.2], shuffle=False,

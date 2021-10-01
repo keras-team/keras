@@ -61,8 +61,6 @@ def index_directory(directory,
       labels: list of matching integer labels (same length as file_paths)
       class_names: names of the classes corresponding to these labels, in order.
   """
-  #efv
-  print("BORRA ESTO")
   if labels is None or label_mode == 'scalar':
     # in the no-label case, index from the parent directory down.
     subdirs = ['']
