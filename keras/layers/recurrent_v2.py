@@ -12,17 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-classes-have-attributes
+# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 """Recurrent layers for TF 2."""
 
-import tensorflow.compat.v2 as tf
 
 import uuid
-from tensorflow.python.eager.context import get_device_name
+
 from keras import activations
 from keras import backend
+from keras.engine import base_layer
 from keras.engine.input_spec import InputSpec
 from keras.layers import recurrent
+
+import tensorflow.compat.v2 as tf
+from tensorflow.python.eager.context import get_device_name
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -201,7 +204,8 @@ class GRUCell(recurrent.GRUCell):
 
 
 @keras_export('keras.layers.GRU', v1=[])
-class GRU(recurrent.DropoutRNNCellMixin, recurrent.GRU):
+class GRU(recurrent.DropoutRNNCellMixin,
+          recurrent.GRU, base_layer.BaseRandomLayer):
   """Gated Recurrent Unit - Cho et al. 2014.
 
   See [the Keras RNN API guide](https://www.tensorflow.org/guide/keras/rnn)
@@ -941,7 +945,8 @@ class LSTMCell(recurrent.LSTMCell):
 
 
 @keras_export('keras.layers.LSTM', v1=[])
-class LSTM(recurrent.DropoutRNNCellMixin, recurrent.LSTM):
+class LSTM(recurrent.DropoutRNNCellMixin,
+           recurrent.LSTM, base_layer.BaseRandomLayer):
   """Long Short-Term Memory layer - Hochreiter 1997.
 
   See [the Keras RNN API guide](https://www.tensorflow.org/guide/keras/rnn)
