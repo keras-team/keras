@@ -55,6 +55,7 @@ def index_directory(directory,
         'int', 'categorical' or 'binary': files should be on labeled 
         subdirectories with class names
         'scalar' or None: All files should be in `directory` 
+
   Returns:
     tuple (file_paths, labels, class_names).
       file_paths: list of file paths (strings).
