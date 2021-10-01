@@ -88,6 +88,9 @@ def image_dataset_from_directory(directory,
         - 'binary' means that the labels (there can be only 2)
             are encoded as `float32` scalars with values 0 or 1
             (e.g. for `binary_crossentropy`).
+        - 'scalar' means a real (float) value is assigned for each label. Use for
+            Regression problems. As there are no classes, all files should be at
+            root of `directory`.
         - None (no labels).
     class_names: Only valid if "labels" is "inferred". This is the explicit
         list of class names (must match names of subdirectories). Used
@@ -164,7 +167,7 @@ def image_dataset_from_directory(directory,
       raise ValueError('You can only pass `class_names` if '
                        f'`labels="inferred"`. Received: labels={labels}, and '
                        f'class_names={class_names}')
-  if label_mode not in {'int', 'categorical', 'binary', None}:
+  if label_mode not in {'int', 'categorical', 'binary', 'scalar', None}:
     raise ValueError(
         '`label_mode` argument must be one of "int", "categorical", "binary", '
         f'or None. Received: label_mode={label_mode}')
@@ -194,7 +197,8 @@ def image_dataset_from_directory(directory,
       class_names=class_names,
       shuffle=shuffle,
       seed=seed,
-      follow_links=follow_links)
+      follow_links=follow_links,
+      label_mode=label_mode)
 
   if label_mode == 'binary' and len(class_names) != 2:
     raise ValueError(

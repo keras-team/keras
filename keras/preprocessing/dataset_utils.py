@@ -29,7 +29,8 @@ def index_directory(directory,
                     class_names=None,
                     shuffle=True,
                     seed=None,
-                    follow_links=False):
+                    follow_links=False,
+                    label_mode="int"):
   """Make list of all files in the subdirs of `directory`, with their labels.
 
   Args:
@@ -50,14 +51,19 @@ def index_directory(directory,
         If set to False, sorts the data in alphanumeric order.
     seed: Optional random seed for shuffling.
     follow_links: Whether to visits subdirectories pointed to by symlinks.
-
+    label_mode: Indicates how the directory structure should be treated:
+        'int', 'categorical' or 'binary': files should be on labeled 
+        subdirectories with class names
+        'scalar' or None: All files should be in `directory` 
   Returns:
     tuple (file_paths, labels, class_names).
       file_paths: list of file paths (strings).
       labels: list of matching integer labels (same length as file_paths)
       class_names: names of the classes corresponding to these labels, in order.
   """
-  if labels is None:
+  #efv
+  print("BORRA ESTO")
+  if labels is None or label_mode == 'scalar':
     # in the no-label case, index from the parent directory down.
     subdirs = ['']
     class_names = subdirs
@@ -105,7 +111,7 @@ def index_directory(directory,
       labels[i:i + len(partial_labels)] = partial_labels
       i += len(partial_labels)
 
-  if labels is None:
+  if labels is None or label_mode == 'scalar':
     print('Found %d files.' % (len(filenames),))
   else:
     print('Found %d files belonging to %d classes.' %

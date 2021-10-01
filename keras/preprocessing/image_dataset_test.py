@@ -76,12 +76,15 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
     # Save images to the paths
     i = 0
     for img in self._get_images(color_mode=color_mode, count=count):
-      path = paths[i % len(paths)]
+      path = ""
+      if len(paths) > 0:
+        path = paths[i % len(paths)]
       if color_mode == 'rgb':
         ext = 'jpg'
       else:
         ext = 'png'
       filename = os.path.join(path, 'image_%s.%s' % (i, ext))
+      print(os.path.join(temp_dir, filename))
       img.save(os.path.join(temp_dir, filename))
       i += 1
     return temp_dir
@@ -258,6 +261,23 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
     batch = next(iter(dataset))
     self.assertLen(batch, 2)
     self.assertAllClose(batch[1], [0, 1])
+
+  #efv
+  def test_image_dataset_from_directory_scalar(self):
+    if PIL is None:
+      return
+
+    print("*****************AQUI")
+    directory = self._prepare_directory(num_classes=0, count=2)
+    print(f"-->{directory}")
+    print("*****************")
+    dataset = image_dataset.image_dataset_from_directory(
+        directory, batch_size=8, image_size=(18, 18),
+        labels=[0.1, 0.2], shuffle=False,
+        label_mode='scalar')
+    batch = next(iter(dataset))
+    self.assertLen(batch, 2)
+    self.assertAllClose(batch[1], [0.1, 0.2])
 
   def test_image_dataset_from_directory_follow_links(self):
     if PIL is None:
