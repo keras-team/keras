@@ -194,7 +194,9 @@ class Conv(Layer):
     kernel_shape = self.kernel_size + (input_channel // self.groups,
                                        self.filters)
 
-    output_shape = self.compute_output_shape(input_shape)
+    # compute_output_shape contains some validation logic for the input shape,
+    # and make sure the output shape has all positive dimentions.
+    self.compute_output_shape(input_shape)
 
     self.kernel = self.add_weight(
         name='kernel',
