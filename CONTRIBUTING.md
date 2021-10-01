@@ -211,3 +211,42 @@ command above.
   test outputs are in one file.
   However, it may slow down the tests for not running in parallel
   and may cause the test to timeout.
+
+## Contributing to Keras applications
+
+Contributions to the
+[pre-trained application library](https://keras.io/api/applications/)
+are welcome. Code for Keras applications is located in Keras repository in
+[keras/applications](https://github.com/keras-team/keras/blob/master/keras/applications).
+When contributing to Keras applications, please keep following checklist in
+mind.
+
+ - Keras applications must implement an established and widely used model.
+   Applications should include a link to a paper describing the architecture of
+   the model with at least 20 citations.
+ - Applications should be provided with pre-trained weights.
+   - When submitting a pull request for a Keras application, these weights can
+     be provided at any publically available URL (e.g. a personal Cloud Storage
+     bucket). The weights will be uploaded to a Keras storage bucket while
+     merging the pull request.
+   - Weights should be downloaded with the
+     [get_file()](https://keras.io/api/utils/python_utils/#getfile-function)
+     utility function. Be sure to include the `file_hash` argument, which allows
+     cache invalidation on the downloaded weights. The command line programs
+     `shasum` and `sha256sum` can compute a file hash.
+ - You should help us verify that the accuracy of the model with pre-trained
+   weighted matches the reported results of the cited paper.
+ - You should add any new applications to the unit tests defined in
+   `applications_test.py` and `applications_load_weight_test.py`.
+ - For backwards compatibility, all applications should provide a
+   `preprocess_input()` function. For new applciations, you should leave the
+   function empty (pass through inputs unaltered), and write the model so it
+   can handle raw inputs directly. Adding
+   [preprocessing layers](https://keras.io/guides/preprocessing_layers/) to the
+   application model may help with this. For image applications, a
+   [Rescaling](https://keras.io/api/layers/preprocessing_layers/image_preprocessing/rescaling/)
+   layer at the beginning of the model is often all that is needed.
+ - One the PR is approved, you should create a companion PR to the keras.io
+   [application page](https://keras.io/api/applications/) updating the
+   "Available Models" section. The contribution guide for keras.io can be found
+   [here](https://github.com/keras-team/keras-io/blob/master/contributor_guide.md).
