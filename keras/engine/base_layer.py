@@ -2727,7 +2727,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
           self._set_dtype_policy(policy.Policy(dtype))
       input_shapes = None
       # Converts Tensors / CompositeTensors to TensorShapes.
-      if all(hasattr(x, 'shape') for x in input_list):
+      if any(hasattr(x, 'shape') for x in input_list):
         input_shapes = tf_utils.get_shapes(inputs)
       else:
         # Converts input shape to TensorShapes.
