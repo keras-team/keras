@@ -402,14 +402,16 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
                                strides=stride,
                                groups=groups,
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1,1))
+      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
+                                          name=name + "_conv_3x3_pad")
     else:
       skip = inputs
       conv_3x3 = layers.Conv2D(filters_out, (3, 3),
                                use_bias=False,
                                groups=groups,
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1))
+      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
+                                          name=name + "_conv_3x3_pad")
 
       # Build block
     # conv_1x1_1
@@ -491,7 +493,8 @@ def YBlock(filters_in,
                                strides=stride,
                                groups=groups,
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1))
+      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
+                                          name=name + "_conv_3x3_pad")
 
     else:
       skip = inputs
@@ -499,7 +502,8 @@ def YBlock(filters_in,
                                use_bias=False,
                                groups=groups,
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1,1))
+      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
+                                          name=name + "_conv_3x3_pad")
 
     # Build block
     # conv_1x1_1
@@ -580,14 +584,16 @@ def ZBlock(filters_in,
                                strides=stride,
                                groups=groups,
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1))
+      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
+                                          name=name + "_conv_3x3_pad")
 
     else:
       conv_3x3 = layers.Conv2D(inv_btlneck_filters, (3, 3),
                                use_bias=False,
                                groups=groups,
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1))
+      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
+                                          name=name + "_conv_3x3_pad")
 
     # Build block
     # conv_1x1_1
