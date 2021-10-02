@@ -424,8 +424,8 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
     x = layers.ReLU(name=name + "_conv_1x1_1_relu")(x)
 
     # conv_3x3
-    x = conv_3x3(x)
     x = conv_3x3_pad(x)
+    x = conv_3x3(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
                                   name=name + "_conv_3x3_bn")(x)
@@ -516,8 +516,8 @@ def YBlock(filters_in,
     x = layers.ReLU(name=name + "_conv_1x1_1_relu")(x)
 
     # # conv_3x3
-    x = conv_3x3(x)
     x = conv_3x3_pad(x)
+    x = conv_3x3(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
                                   name=name + "_conv_3x3_bn")(x)
@@ -606,8 +606,8 @@ def ZBlock(filters_in,
     x = tf.nn.silu(x)
 
     # conv_3x3
-    x = conv_3x3(x)
     x = conv_3x3_pad(x)
+    x = conv_3x3(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
                                   name=name + "_conv_3x3_bn")(x)
