@@ -321,7 +321,7 @@ def Stem(name=None):
                       strides=2,
                       use_bias=False,
                       name=name + "_stem_conv")(x)
-    x = layers.ZeroPadding2D(padding=(1,1))(x)
+    x = layers.ZeroPadding2D(padding=(1, 1))(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
                                   name=name + "_stem_bn")(x)
@@ -437,7 +437,7 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
                       name=name + "_conv_1x1_2")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
-                                  name=name + "_conv_1x1_2-bn")(x)
+                                  name=name + "_conv_1x1_2_bn")(x)
 
     x = layers.ReLU(name=name + "_exit_relu")(x + skip)
 
@@ -532,7 +532,7 @@ def YBlock(filters_in,
                       name=name + "_conv_1x1_2")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
-                                  name=name + "_conv_1x1_2-bn")(x)
+                                  name=name + "_conv_1x1_2_bn")(x)
 
     x = layers.ReLU(name=name + "_exit_relu")(x + skip)
 
@@ -662,7 +662,7 @@ def Stage(block_type, depth, group_width, filters_in, filters_out, name=None):
         x = XBlock(filters_out,
                    filters_out,
                    group_width,
-                   name=name + "_XBlock_" + str(i))(x)
+                   name=name + "_XBlock_" + str(i+1))(x)
     elif block_type == "Y":
       x = YBlock(filters_in,
                  filters_out,
@@ -673,7 +673,7 @@ def Stage(block_type, depth, group_width, filters_in, filters_out, name=None):
         x = YBlock(filters_out,
                    filters_out,
                    group_width,
-                   name=name + "_YBlock_" + str(i))(x)
+                   name=name + "_YBlock_" + str(i+1))(x)
     elif block_type == "Z":
       x = ZBlock(filters_in,
                  filters_out,
@@ -684,7 +684,7 @@ def Stage(block_type, depth, group_width, filters_in, filters_out, name=None):
         x = ZBlock(filters_out,
                    filters_out,
                    group_width,
-                   name=name + "_ZBlock_" + str(i))(x)
+                   name=name + "_ZBlock_" + str(i+1))(x)
     else:
       raise NotImplementedError(f"""Block type `{block_type}` not recognized. 
                                 block_type must be one of ("X", "Y", "Z"). """)
@@ -705,7 +705,7 @@ def Head(num_classes=1000, name=None):
     Output logits tensor. 
   """
   if name == None:
-    name = backend.get_uid("head")
+    name = str(backend.get_uid("head"))
 
   def apply(x):
     x = layers.GlobalAveragePooling2D(name=name + "_head_gap")(x)
@@ -842,7 +842,7 @@ def RegNet(depths,
     elif pooling == "max":
       x = layers.GlobalMaxPooling2D()(x)
 
-  model = training.Model(inputs, name=model_name)
+  model = training.Model(inputs=inputs, outputs=x, name=model_name)
 
   # Load weights.
   if weights == "imagenet":
