@@ -721,6 +721,7 @@ def RegNet(depths,
            block_type,
            default_size,
            model_name="regnet",
+           include_preprocessing=True,
            include_top=True,
            weights="imagenet",
            input_tensor=None,
@@ -742,6 +743,8 @@ def RegNet(depths,
       Scaling"
     default_size: Default input image size. 
     model_name: An optional name for the model.
+    include_preprocessing: boolean denoting whther to include preprocessing in 
+      the model
     include_top: Boolean denoting whether to include classification head to 
       the model.
     weights: one of `None` (random initialization),
@@ -815,7 +818,8 @@ def RegNet(depths,
     inputs = img_input
 
   x = inputs
-  x = PreStem(name=model_name)(x)
+  if include_preprocessing:
+    x = PreStem(name=model_name)(x)
   x = Stem(name=model_name)(x)
 
   in_channels = 32  # Output from Stem
