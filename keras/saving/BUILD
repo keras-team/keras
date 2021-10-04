@@ -105,6 +105,7 @@ tf_py_test(
     shard_count = 4,
     tags = [
         "no_oss_py35",  # b/147011479
+        "no_pip",  # TODO(b/202022379)
         "no_windows",
     ],
     deps = [
@@ -122,6 +123,9 @@ tf_py_test(
     srcs = ["save_test.py"],
     python_version = "PY3",
     shard_count = 4,
+    tags = [
+        "no_pip",  # TODO(b/202022379)
+    ],
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
