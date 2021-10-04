@@ -296,7 +296,6 @@ def PreStem(name=None):
 
   def apply(x):
     x = layers.Rescaling(scale=1. / 255., name=name + "_prestem_rescaling")(x)
-    x = layers.Normalization()(x)
 
     return x
 
