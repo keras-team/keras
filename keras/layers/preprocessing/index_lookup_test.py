@@ -14,15 +14,12 @@
 # ==============================================================================
 """Tests for Keras text vectorization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
-
 import itertools
 import os
 import random
 import string
 
 from absl.testing import parameterized
-import numpy as np
 
 import keras
 from keras import keras_parameterized
@@ -30,6 +27,8 @@ from keras import testing_utils
 from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.utils.generic_utils import CustomObjectScope
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 def zip_and_sort(weight_values):
@@ -56,7 +55,7 @@ def _get_end_to_end_test_cases():
               "num_oov_indices": 1,
               "mask_token": "",
               "oov_token": "[OOV]",
-              "dtype": tf.string,
+              "vocabulary_dtype": tf.string,
           },
           "expected_output": [[2], [3], [4], [5], [5], [4], [2], [1]],
           "input_dtype":
@@ -78,7 +77,7 @@ def _get_end_to_end_test_cases():
               "num_oov_indices": 1,
               "mask_token": "",
               "oov_token": "[OOV]",
-              "dtype": tf.string,
+              "vocabulary_dtype": tf.string,
               "invert": True
           },
           "expected_output":
@@ -104,7 +103,7 @@ def _get_end_to_end_test_cases():
               "num_oov_indices": 1,
               "mask_token": "",
               "oov_token": "[OOV]",
-              "dtype": tf.string,
+              "vocabulary_dtype": tf.string,
           },
           "expected_output": [[2], [0], [3], [1], [4], [0], [5], [4], [1], [1]],
           "input_dtype":
@@ -128,7 +127,7 @@ def _get_end_to_end_test_cases():
               "num_oov_indices": 1,
               "mask_token": 0,
               "oov_token": -1,
-              "dtype": tf.int64,
+              "vocabulary_dtype": tf.int64,
           },
           "expected_output": [[2], [3], [4], [5], [5], [4], [2], [1]],
           "input_dtype":
@@ -152,7 +151,7 @@ def _get_end_to_end_test_cases():
               "num_oov_indices": 1,
               "mask_token": 0,
               "oov_token": -1,
-              "dtype": tf.int64,
+              "vocabulary_dtype": tf.int64,
           },
           "expected_output": [[2], [0], [3], [1], [4], [0], [5], [4], [1], [1]],
           "input_dtype":
@@ -175,7 +174,7 @@ def _get_end_to_end_test_cases():
               "num_oov_indices": 1,
               "mask_token": "",
               "oov_token": "[OOV]",
-              "dtype": tf.string,
+              "vocabulary_dtype": tf.string,
           },
           "expected_output": [[2], [3], [4], [1], [1], [4], [2], [1]],
           "input_dtype":
@@ -197,7 +196,7 @@ def _get_end_to_end_test_cases():
               "num_oov_indices": 1,
               "mask_token": "",
               "oov_token": "[OOV]",
-              "dtype": tf.string,
+              "vocabulary_dtype": tf.string,
               "invert": True
           },
           "expected_output":
@@ -224,7 +223,7 @@ def _get_end_to_end_test_cases():
               "num_oov_indices": 1,
               "mask_token": 0,
               "oov_token": -1,
-              "dtype": tf.int64,
+              "vocabulary_dtype": tf.int64,
           },
           "expected_output": [[2], [3], [4], [1], [1], [4], [2], [1]],
           "input_dtype":
@@ -245,7 +244,7 @@ def _get_end_to_end_test_cases():
               "mask_token": 0,
               "oov_token": -1,
               "output_mode": index_lookup.TF_IDF,
-              "dtype": tf.int64,
+              "vocabulary_dtype": tf.int64,
           },
           "expected_output": [[0, 1.098612, 0, 0, 0], [0, 0, 1.252763, 0, 0],
                               [0, 0, 0, 1.466337, 0], [0, 0, 0, 0, 1.7917595],
@@ -270,7 +269,7 @@ def _get_end_to_end_test_cases():
               "mask_token": "",
               "oov_token": "[OOV]",
               "output_mode": index_lookup.TF_IDF,
-              "dtype": tf.string,
+              "vocabulary_dtype": tf.string,
           },
           "expected_output": [[0, 1.098612, 0, 0, 0], [0, 0, 1.252763, 0, 0],
                               [0, 0, 0, 1.466337, 0], [0, 0, 0, 0, 1.7917595],
@@ -304,7 +303,7 @@ class IndexLookupLayerTest(keras_parameterized.TestCase,
                                        input_dtype):
     cls = index_lookup.IndexLookup
     if "invert" in kwargs and kwargs["invert"]:
-      expected_output_dtype = kwargs["dtype"]
+      expected_output_dtype = kwargs["vocabulary_dtype"]
     elif "output_mode" in kwargs and kwargs["output_mode"] != index_lookup.INT:
       expected_output_dtype = tf.float32
     else:
@@ -368,7 +367,7 @@ class CategoricalEncodingInputTest(
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -391,7 +390,7 @@ class CategoricalEncodingInputTest(
     input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
     layer = index_lookup.IndexLookup(
         max_tokens=None,
-        dtype=tf.int64,
+        vocabulary_dtype=tf.int64,
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1)
@@ -415,7 +414,7 @@ class CategoricalEncodingInputTest(
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -425,13 +424,13 @@ class CategoricalEncodingInputTest(
   def test_ragged_int_input(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
     input_array = tf.ragged.constant([[10, 11, 13], [13, 12, 10, 42]],
-                                              dtype=np.int64)
+                                     dtype=np.int64)
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
     layer = index_lookup.IndexLookup(
         max_tokens=None,
-        dtype=tf.int64,
+        vocabulary_dtype=tf.int64,
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1)
@@ -444,13 +443,13 @@ class CategoricalEncodingInputTest(
   def test_int32_input_with_int64_keys(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
     input_array = tf.ragged.constant([[10, 11, 13], [13, 12, 10, 42]],
-                                              dtype=np.int32)
+                                     dtype=np.int32)
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int32, ragged=True)
     layer = index_lookup.IndexLookup(
         max_tokens=None,
-        dtype=tf.int64,
+        vocabulary_dtype=tf.int64,
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1)
@@ -481,7 +480,7 @@ class CategoricalEncodingMultiOOVTest(
         num_oov_indices=2,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -504,7 +503,7 @@ class CategoricalEncodingMultiOOVTest(
     input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
     layer = index_lookup.IndexLookup(
         max_tokens=None,
-        dtype=tf.int64,
+        vocabulary_dtype=tf.int64,
         num_oov_indices=2,
         mask_token=0,
         oov_token=-1)
@@ -519,8 +518,7 @@ class CategoricalEncodingMultiOOVTest(
   def test_ragged_string_input_multi_bucket(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = tf.ragged.constant([["earth", "wind", "fire"],
-                                               ["fire", "and", "earth",
-                                                "ohio"]])
+                                      ["fire", "and", "earth", "ohio"]])
     expected_output = [[3, 4, 6], [6, 5, 3, 2]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.string, ragged=True)
@@ -529,7 +527,7 @@ class CategoricalEncodingMultiOOVTest(
         num_oov_indices=2,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -539,13 +537,13 @@ class CategoricalEncodingMultiOOVTest(
   def test_ragged_int_input_multi_bucket(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
     input_array = tf.ragged.constant([[10, 11, 13], [13, 12, 10, 133]],
-                                              dtype=np.int64)
+                                     dtype=np.int64)
     expected_output = [[3, 4, 6], [6, 5, 3, 2]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
     layer = index_lookup.IndexLookup(
         max_tokens=None,
-        dtype=tf.int64,
+        vocabulary_dtype=tf.int64,
         num_oov_indices=2,
         mask_token=0,
         oov_token=-1)
@@ -573,14 +571,14 @@ class CategoricalEncodingAdaptTest(
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.adapt(vocab_dataset)
     expected_vocabulary = ["", "[OOV]", "michigan", "fire"]
     self.assertAllEqual(expected_vocabulary, layer.get_vocabulary())
 
   def test_ragged_adapt(self):
     vocab_data = tf.ragged.constant([["michigan"],
-                                              ["fire", "michigan"]])
+                                     ["fire", "michigan"]])
     vocab_dataset = tf.data.Dataset.from_tensors(vocab_data)
 
     layer = index_lookup.IndexLookup(
@@ -588,7 +586,7 @@ class CategoricalEncodingAdaptTest(
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.adapt(vocab_dataset)
     expected_vocabulary = ["", "[OOV]", "michigan", "fire"]
     self.assertAllEqual(expected_vocabulary, layer.get_vocabulary())
@@ -607,7 +605,7 @@ class CategoricalEncodingAdaptTest(
     input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
     layer = index_lookup.IndexLookup(
         max_tokens=None,
-        dtype=tf.int64,
+        vocabulary_dtype=tf.int64,
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1)
@@ -631,7 +629,7 @@ class CategoricalEncodingAdaptTest(
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -641,13 +639,13 @@ class CategoricalEncodingAdaptTest(
   def test_ragged_int_input(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
     input_array = tf.ragged.constant([[10, 11, 13], [13, 12, 10, 42]],
-                                              dtype=np.int64)
+                                     dtype=np.int64)
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
     layer = index_lookup.IndexLookup(
         max_tokens=None,
-        dtype=tf.int64,
+        vocabulary_dtype=tf.int64,
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1)
@@ -664,7 +662,7 @@ class CategoricalEncodingAdaptTest(
         yield "".join(random.choice(string.ascii_letters) for i in range(2))
 
     ds = tf.data.Dataset.from_generator(word_gen, tf.string,
-                                            tf.TensorShape([]))
+                                        tf.TensorShape([]))
     batched_ds = ds.take(2)
     input_t = keras.Input(shape=(), dtype=tf.string)
     layer = index_lookup.IndexLookup(
@@ -672,7 +670,7 @@ class CategoricalEncodingAdaptTest(
         num_oov_indices=0,
         mask_token=None,
         oov_token=None,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     _ = layer(input_t)
     layer.adapt(batched_ds)
 
@@ -731,7 +729,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     output_dataset = layer(input_array)
     self.assertAllEqual(expected_output, output_dataset)
@@ -751,9 +749,35 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     int_data = layer(input_data)
     self.assertAllEqual(int_data.shape.as_list(), [16, 4])
+
+  @parameterized.named_parameters(
+      ("int32", tf.int32),
+      ("int64", tf.int64),
+  )
+  def test_int_output_dtype(self, dtype):
+    input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.string)
+    layer = index_lookup.IndexLookup(
+        max_tokens=2,
+        num_oov_indices=1,
+        mask_token="",
+        oov_token="[OOV]",
+        vocabulary_dtype=tf.string,
+        dtype=dtype)
+    int_data = layer(input_data)
+    self.assertAllEqual(int_data.dtype, dtype)
+
+  def test_int_output_float_dtype_fails(self):
+    with self.assertRaisesRegex(ValueError, "`dtype` should be an integer"):
+      index_lookup.IndexLookup(
+          max_tokens=2,
+          num_oov_indices=1,
+          mask_token="",
+          oov_token="[OOV]",
+          vocabulary_dtype=tf.string,
+          dtype=tf.float32)
 
   def test_int_output_no_reserved_zero(self):
     vocab_data = ["earth", "wind", "and", "fire"]
@@ -767,7 +791,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token=None,
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -788,7 +812,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=0,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -814,7 +838,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=0,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -840,7 +864,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=0,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -864,7 +888,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -891,7 +915,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         output_mode=index_lookup.ONE_HOT,
         pad_to_max_tokens=True,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     binary_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=binary_data)
@@ -918,7 +942,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         output_mode=index_lookup.ONE_HOT,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     binary_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=binary_data)
@@ -937,7 +961,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         output_mode=index_lookup.ONE_HOT,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     output_data = layer(input_data)
     self.assertAllEqual(expected_output, output_data)
@@ -951,9 +975,27 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         output_mode=index_lookup.ONE_HOT,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     outputs = layer(inputs)
     self.assertAllEqual(outputs.shape.as_list(), [16, 2])
+
+  @parameterized.named_parameters(
+      ("float32", tf.float32),
+      ("float64", tf.float64),
+  )
+  def test_one_hot_output_dtype(self, dtype):
+    inputs = keras.Input(batch_size=16, shape=(1,), dtype=tf.string)
+    layer = index_lookup.IndexLookup(
+        vocabulary=["earth"],
+        max_tokens=2,
+        num_oov_indices=1,
+        mask_token="",
+        oov_token="[OOV]",
+        output_mode=index_lookup.ONE_HOT,
+        vocabulary_dtype=tf.string,
+        dtype=dtype)
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.dtype, dtype)
 
   def test_multi_hot_output_hard_maximum(self):
     """Check binary output when pad_to_max_tokens=True."""
@@ -973,7 +1015,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         output_mode=index_lookup.MULTI_HOT,
         pad_to_max_tokens=True,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     binary_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=binary_data)
@@ -1000,7 +1042,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         output_mode=index_lookup.MULTI_HOT,
         pad_to_max_tokens=True,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     binary_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=binary_data)
@@ -1035,7 +1077,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         output_mode=index_lookup.MULTI_HOT,
         pad_to_max_tokens=True,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
 
@@ -1067,7 +1109,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         output_mode=index_lookup.MULTI_HOT,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     binary_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=binary_data)
@@ -1083,7 +1125,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         output_mode=index_lookup.MULTI_HOT,
         vocabulary=["foo"],
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     binary_data = layer(input_data)
     self.assertAllEqual(binary_data.shape.as_list(), [16, 2])
 
@@ -1105,7 +1147,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         output_mode=index_lookup.COUNT,
         pad_to_max_tokens=True,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     count_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=count_data)
@@ -1129,7 +1171,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         output_mode=index_lookup.COUNT,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     count_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=count_data)
@@ -1145,7 +1187,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         output_mode=index_lookup.COUNT,
         vocabulary=["foo"],
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     count_data = layer(input_data)
     self.assertAllEqual(count_data.shape.as_list(), [16, 2])
 
@@ -1173,7 +1215,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         output_mode=index_lookup.TF_IDF,
         pad_to_max_tokens=True,
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         sparse=sparse,
         vocabulary=vocab_data,
         idf_weights=idf_weights)
@@ -1207,7 +1249,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         output_mode=index_lookup.TF_IDF,
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         sparse=sparse,
         vocabulary=vocab_data,
         idf_weights=idf_weights)
@@ -1226,7 +1268,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         output_mode=index_lookup.TF_IDF,
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         vocabulary=["foo"],
         idf_weights=[1.0])
     layer_output = layer(input_data)
@@ -1247,7 +1289,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -1275,7 +1317,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
           mask_token="",
           oov_token="[OOV]",
           output_mode=index_lookup.MULTI_HOT,
-          dtype=tf.string)
+          vocabulary_dtype=tf.string)
       return layer(data)
 
     output_dataset = compute(input_array)
@@ -1292,7 +1334,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
 
     list_layer = index_lookup.IndexLookup(
         vocabulary=vocab_data,
@@ -1300,7 +1342,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
 
     expected_vocab = ["", "[OOV]", "earth", "wind", "and", "fire"]
     self.assertAllEqual(expected_vocab, list_layer.get_vocabulary())
@@ -1322,7 +1364,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=2,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
 
     list_layer = index_lookup.IndexLookup(
         vocabulary=vocab_data,
@@ -1330,7 +1372,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=2,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
 
     expected_vocab = ["", "[OOV]", "[OOV]", "earth", "wind", "and", "fire"]
     self.assertAllEqual(expected_vocab, list_layer.get_vocabulary())
@@ -1352,7 +1394,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=2,
         mask_token=None,
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
 
     list_layer = index_lookup.IndexLookup(
         vocabulary=vocab_data,
@@ -1360,7 +1402,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=2,
         mask_token=None,
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
 
     expected_vocab = ["[OOV]", "[OOV]", "earth", "wind", "and", "fire"]
     self.assertAllEqual(expected_vocab, list_layer.get_vocabulary())
@@ -1386,7 +1428,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token=None,
         num_oov_indices=1,
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -1407,7 +1449,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token=None,
         num_oov_indices=0,
         oov_token=None,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -1427,7 +1469,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token=None,
         num_oov_indices=1,
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     _ = layer(idata)
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64)
@@ -1439,7 +1481,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token=None,
         num_oov_indices=1,
         invert=True,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     int_data = invert_layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -1458,7 +1500,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1,
-        dtype=tf.int64)
+        vocabulary_dtype=tf.int64)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -1472,7 +1514,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token=None,
         oov_token="[OOV]",
         vocabulary=vocab_data,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     ds = tf.data.Dataset.from_tensor_slices([["earth"], ["wind"], ["and"]])
     ds = ds.map(layer)
     self.assertAllEqual(list(ds.as_numpy_iterator()), [[0], [1], [2]])
@@ -1487,7 +1529,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
           mask_token=None,
           oov_token="[OOV]",
           vocabulary=vocab_data,
-          dtype=tf.string)
+          vocabulary_dtype=tf.string)
       return layer(data)
 
     ds = tf.data.Dataset.from_tensor_slices([["earth"], ["wind"], ["and"]])
@@ -1513,7 +1555,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -1532,7 +1574,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -1545,7 +1587,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     returned_vocab = layer.get_vocabulary(include_special_tokens=False)
     self.assertAllEqual(returned_vocab, ["wind", "and", "fire"])
@@ -1558,7 +1600,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=2,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     returned_vocab = layer.get_vocabulary()
     self.assertAllEqual(returned_vocab, vocab_data)
@@ -1570,7 +1612,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=10,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     returned_vocab = layer.get_vocabulary()
     self.assertAllEqual(returned_vocab,
@@ -1583,7 +1625,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     returned_vocab = layer.get_vocabulary()
     self.assertAllEqual(vocab_data, returned_vocab)
@@ -1596,7 +1638,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1,
-        dtype=tf.int64)
+        vocabulary_dtype=tf.int64)
     layer.set_vocabulary(vocab_data)
     returned_vocab = layer.get_vocabulary()
     self.assertAllEqual(vocab_data, returned_vocab)
@@ -1609,7 +1651,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=3,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     returned_vocab = layer.get_vocabulary()
     self.assertAllEqual(vocab_data, returned_vocab)
@@ -1621,7 +1663,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=3,
         mask_token=0,
         oov_token=-1,
-        dtype=tf.int64)
+        vocabulary_dtype=tf.int64)
     layer.set_vocabulary(vocab_data)
     returned_vocab = layer.get_vocabulary()
     self.assertAllEqual(vocab_data, returned_vocab)
@@ -1635,7 +1677,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
           num_oov_indices=1,
           mask_token="",
           oov_token="[OOV]",
-          dtype=tf.string)
+          vocabulary_dtype=tf.string)
 
   def test_vocab_with_repeated_element_fails(self):
     vocab_data = ["earth", "earth", "wind", "and", "fire"]
@@ -1644,7 +1686,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     with self.assertRaisesRegex(ValueError, "repeated term.*earth"):
       layer.set_vocabulary(vocab_data)
 
@@ -1656,7 +1698,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         invert=True,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     with self.assertRaisesRegex(ValueError, "reserved OOV"):
       layer.set_vocabulary(vocab_data)
 
@@ -1667,7 +1709,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="mask_token",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     with self.assertRaisesRegex(ValueError, "reserved mask"):
       layer.set_vocabulary(vocab_data)
 
@@ -1680,7 +1722,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         pad_to_max_tokens=False,
         output_mode=index_lookup.MULTI_HOT,
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     # Calling the layer should lock the vocabulary size.
     _ = layer([["earth"]])
@@ -1701,7 +1743,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
           mask_token="",
           oov_token="[OOV]",
           output_mode=index_lookup.MULTI_HOT,
-          dtype=tf.string,
+          vocabulary_dtype=tf.string,
           vocabulary=vocab_data,
           idf_weights=weight_data)
 
@@ -1716,7 +1758,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
           mask_token="",
           oov_token="[OOV]",
           output_mode=index_lookup.TF_IDF,
-          dtype=tf.string,
+          vocabulary_dtype=tf.string,
           vocabulary=vocab_data,
           idf_weights=weight_data)
 
@@ -1730,7 +1772,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
           mask_token="",
           oov_token="[OOV]",
           output_mode=index_lookup.TF_IDF,
-          dtype=tf.string,
+          vocabulary_dtype=tf.string,
           vocabulary=vocab_data)
 
   def test_non_unique_int_vocab_fails(self):
@@ -1742,7 +1784,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
           num_oov_indices=1,
           mask_token=0,
           oov_token=-1,
-          dtype=tf.int64)
+          vocabulary_dtype=tf.int64)
 
   def test_int_vocab_with_reserved_oov_element_and_invert_true_fails(self):
     vocab_data = [14, 38, -1, 34, 3, 84]
@@ -1752,7 +1794,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token=0,
         oov_token=-1,
         invert=True,
-        dtype=tf.int64)
+        vocabulary_dtype=tf.int64)
     with self.assertRaisesRegex(ValueError, "reserved OOV"):
       layer.set_vocabulary(vocab_data)
 
@@ -1763,7 +1805,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1,
-        dtype=tf.int64)
+        vocabulary_dtype=tf.int64)
     with self.assertRaisesRegex(ValueError, "reserved mask"):
       layer.set_vocabulary(vocab_data)
 
@@ -1775,7 +1817,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
           num_oov_indices=1,
           mask_token=0,
           oov_token=-1,
-          dtype=tf.int64)
+          vocabulary_dtype=tf.int64)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -1796,7 +1838,7 @@ class IndexLookupInverseVocabularyTest(
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         invert=True)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -1810,7 +1852,7 @@ class IndexLookupInverseVocabularyTest(
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         invert=True)
     layer.set_vocabulary(vocab_data)
     returned_vocab = layer.get_vocabulary()
@@ -1823,7 +1865,7 @@ class IndexLookupInverseVocabularyTest(
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1,
-        dtype=tf.int64,
+        vocabulary_dtype=tf.int64,
         invert=True)
     layer.set_vocabulary(vocab_data)
     returned_vocab = layer.get_vocabulary()
@@ -1838,7 +1880,7 @@ class IndexLookupInverseVocabularyTest(
           num_oov_indices=1,
           mask_token="",
           oov_token="[OOV]",
-          dtype=tf.string,
+          vocabulary_dtype=tf.string,
           invert=True)
 
   def test_non_int_output_fails(self):
@@ -1848,7 +1890,7 @@ class IndexLookupInverseVocabularyTest(
           num_oov_indices=1,
           mask_token="",
           oov_token="[OOV]",
-          dtype=tf.string,
+          vocabulary_dtype=tf.string,
           output_mode=index_lookup.COUNT,
           invert=True)
 
@@ -1859,7 +1901,7 @@ class IndexLookupInverseVocabularyTest(
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         invert=True)
     with self.assertRaisesRegex(ValueError, "repeated term.*earth"):
       layer.set_vocabulary(vocab_data)
@@ -1871,7 +1913,7 @@ class IndexLookupInverseVocabularyTest(
         num_oov_indices=1,
         mask_token="mask_token",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         invert=True)
     with self.assertRaisesRegex(ValueError, "reserved mask"):
       layer.set_vocabulary(vocab_data)
@@ -1885,7 +1927,7 @@ class IndexLookupInverseVocabularyTest(
           num_oov_indices=1,
           mask_token=0,
           oov_token=-1,
-          dtype=tf.int64,
+          vocabulary_dtype=tf.int64,
           invert=True)
 
   def test_int_vocab_with_repeated_element_fails(self):
@@ -1895,7 +1937,7 @@ class IndexLookupInverseVocabularyTest(
         num_oov_indices=1,
         mask_token=0,
         oov_token=-1,
-        dtype=tf.int64,
+        vocabulary_dtype=tf.int64,
         invert=True)
     with self.assertRaisesRegex(ValueError, "repeated term.*11"):
       layer.set_vocabulary(vocab_data)
@@ -1913,7 +1955,7 @@ class IndexLookupErrorTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     with self.assertRaisesRegex(ValueError,
                                 "vocabulary larger than the maximum vocab"):
       layer.set_vocabulary(vocab_data)
@@ -1925,7 +1967,7 @@ class IndexLookupErrorTest(keras_parameterized.TestCase,
           num_oov_indices=1,
           mask_token="",
           oov_token="[OOV]",
-          dtype=tf.string)
+          vocabulary_dtype=tf.string)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -1954,7 +1996,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string)
+        vocabulary_dtype=tf.string)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -1993,7 +2035,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         vocabulary=vocab_file)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -2026,7 +2068,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         vocabulary=vocab_file)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -2066,7 +2108,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         vocabulary=vocab_file)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -2106,7 +2148,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         vocabulary=vocab_file)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -2173,7 +2215,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         vocabulary=vocab_file)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -2241,7 +2283,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         vocabulary=vocab_file)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -2308,7 +2350,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        dtype=tf.string,
+        vocabulary_dtype=tf.string,
         vocabulary=vocab_file)
     config = layer.get_config()
     weights = layer.get_weights()
@@ -2343,7 +2385,7 @@ class EagerExecutionDisabled(keras_parameterized.TestCase,
             num_oov_indices=1,
             mask_token=None,
             oov_token="[OOV]",
-            dtype=tf.string,
+            vocabulary_dtype=tf.string,
             vocabulary=vocab_data)
         int_data = layer(input_data)
         model = keras.Model(inputs=input_data, outputs=int_data)

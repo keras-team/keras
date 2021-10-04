@@ -301,6 +301,19 @@ class CategoryEncodingOutputTest(keras_parameterized.TestCase,
                                  preprocessing_test_utils.PreprocessingLayerTest
                                 ):
 
+  @parameterized.named_parameters(
+      ("float32", tf.float32),
+      ("float64", tf.float64),
+  )
+  def test_output_dtype(self, dtype):
+    inputs = keras.Input(shape=(1,), dtype=tf.int32)
+    layer = category_encoding.CategoryEncoding(
+        num_tokens=4,
+        output_mode=category_encoding.ONE_HOT,
+        dtype=dtype)
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.dtype, dtype)
+
   def test_one_hot_output(self):
     input_data = np.array([[3], [2], [0], [1]])
     expected_output = [
