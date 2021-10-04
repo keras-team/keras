@@ -32,8 +32,7 @@ def batch_wrapper(dataset, batch_size, strategy, repeat=None):
     dataset = dataset.repeat(repeat)
   # TPUs currently require fully defined input shapes, drop_remainder ensures
   # the input will have fully defined shapes.
-  if isinstance(strategy, (tf.distribute.experimental.TPUStrategy,
-                           tf.compat.v1.distribute.experimental.TPUStrategy)):
+  if backend.is_tpu_strategy(strategy):
     return dataset.batch(batch_size, drop_remainder=True)
   else:
     return dataset.batch(batch_size)
