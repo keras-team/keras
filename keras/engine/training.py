@@ -1705,13 +1705,23 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               use_multiprocessing=False):
     """Generates output predictions for the input samples.
 
-    Computation is done in batches. This method is designed for performance in
-    large scale inputs. For small amount of inputs that fit in one batch,
-    directly using `__call__()` is recommended for faster execution, e.g.,
+    Computation is done in batches. This method is designed for batch processing
+    of large numbers of inputs. It is not intended for use inside of loops
+    that iterate over your data and process small numbers of inputs at a time.
+
+    For small numbers of inputs that fit in one batch,
+    directly use `__call__()` for faster execution, e.g.,
     `model(x)`, or `model(x, training=False)` if you have layers such as
-    `tf.keras.layers.BatchNormalization` that behaves differently during
-    inference. Also, note the fact that test loss is not affected by
+    `tf.keras.layers.BatchNormalization` that behave differently during
+    inference. You may pair the individual model call with a `tf.function`
+    for additional performance inside your inner loop.
+    If you need access to numpy array values instead of tensors after your
+    model call, you can use `tensor.numpy()` to get the numpy array value of
+    an eager tensor.
+
+    Also, note the fact that test loss is not affected by
     regularization layers like noise and dropout.
+
 
     Args:
         x: Input samples. It could be:
