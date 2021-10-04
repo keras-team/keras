@@ -167,13 +167,13 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       self.adapt_mean = self.add_weight(
           name='mean',
           shape=mean_and_var_shape,
-          dtype=self.dtype,
+          dtype=self.compute_dtype,
           initializer='zeros',
           trainable=False)
       self.adapt_variance = self.add_weight(
           name='variance',
           shape=mean_and_var_shape,
-          dtype=self.dtype,
+          dtype=self.compute_dtype,
           initializer='ones',
           trainable=False)
       self.count = self.add_weight(
@@ -215,8 +215,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
     total_count = batch_count + self.count
     batch_weight = (
-        tf.cast(batch_count, dtype=self.dtype) /
-        tf.cast(total_count, dtype=self.dtype))
+        tf.cast(batch_count, dtype=self.compute_dtype) /
+        tf.cast(total_count, dtype=self.compute_dtype))
     existing_weight = 1. - batch_weight
 
     total_mean = self.adapt_mean * existing_weight + batch_mean * batch_weight
@@ -274,6 +274,6 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
   def _standardize_inputs(self, inputs):
     inputs = tf.convert_to_tensor(inputs)
-    if inputs.dtype != self.dtype:
-      inputs = tf.cast(inputs, self.dtype)
+    if inputs.dtype != self.compute_dtype:
+      inputs = tf.cast(inputs, self.compute_dtype)
     return inputs
