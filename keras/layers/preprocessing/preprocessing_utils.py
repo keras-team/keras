@@ -14,7 +14,6 @@
 # ==============================================================================
 """Utils for preprocessing layers."""
 
-from keras import backend
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -35,7 +34,7 @@ def listify_tensors(x):
   return x
 
 
-def sparse_bincount(inputs, depth, binary_output, count_weights=None):
+def sparse_bincount(inputs, depth, binary_output, dtype, count_weights=None):
   """Apply binary or count encoding to an input and return a sparse tensor."""
   result = tf.sparse.bincount(
       inputs,
@@ -44,7 +43,7 @@ def sparse_bincount(inputs, depth, binary_output, count_weights=None):
       maxlength=depth,
       axis=-1,
       binary_output=binary_output)
-  result = tf.cast(result, backend.floatx())
+  result = tf.cast(result, dtype)
   if inputs.shape.rank == 1:
     output_shape = (depth,)
   else:
@@ -55,14 +54,14 @@ def sparse_bincount(inputs, depth, binary_output, count_weights=None):
   return result
 
 
-def dense_bincount(inputs, depth, binary_output, count_weights=None):
+def dense_bincount(inputs, depth, binary_output, dtype, count_weights=None):
   """Apply binary or count encoding to an input."""
   result = tf.math.bincount(
       inputs,
       weights=count_weights,
       minlength=depth,
       maxlength=depth,
-      dtype=backend.floatx(),
+      dtype=dtype,
       axis=-1,
       binary_output=binary_output)
   if inputs.shape.rank == 1:
@@ -83,12 +82,13 @@ def expand_dims(inputs, axis):
 def encode_categorical_inputs(inputs,
                               output_mode,
                               depth,
+                              dtype="float32",
                               sparse=False,
                               count_weights=None,
                               idf_weights=None):
   """Encodes categoical inputs according to output_mode."""
   if output_mode == INT:
-    return inputs
+    return tf.cast(inputs, dtype)
 
   original_shape = inputs.shape
   # In all cases, we should uprank scalar input to a single sample.
@@ -108,9 +108,11 @@ def encode_categorical_inputs(inputs,
 
   binary_output = output_mode in (MULTI_HOT, ONE_HOT)
   if sparse:
-    bincounts = sparse_bincount(inputs, depth, binary_output, count_weights)
+    bincounts = sparse_bincount(inputs, depth, binary_output, dtype,
+                                count_weights)
   else:
-    bincounts = dense_bincount(inputs, depth, binary_output, count_weights)
+    bincounts = dense_bincount(inputs, depth, binary_output, dtype,
+                               count_weights)
 
   if output_mode != TF_IDF:
     return bincounts

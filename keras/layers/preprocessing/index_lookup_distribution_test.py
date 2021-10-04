@@ -74,7 +74,7 @@ class IndexLookupDistributionTest(
           num_oov_indices=1,
           mask_token="",
           oov_token="[OOV]",
-          dtype=tf.string)
+          vocabulary_dtype=tf.string)
       layer.adapt(vocab_dataset)
       int_data = layer(input_data)
       model = keras.Model(inputs=input_data, outputs=int_data)
@@ -105,7 +105,7 @@ class IndexLookupDistributionTest(
           num_oov_indices=1,
           mask_token="",
           oov_token="[OOV]",
-          dtype=tf.string,
+          vocabulary_dtype=tf.string,
           vocabulary=vocab_file)
       int_data = layer(input_data)
       model = keras.Model(inputs=input_data, outputs=int_data)
@@ -138,7 +138,7 @@ class IndexLookupDistributionTest(
           num_oov_indices=2,
           mask_token="",
           oov_token="[OOV]",
-          dtype=tf.string)
+          vocabulary_dtype=tf.string)
       layer.adapt(vocab_dataset)
       int_data = layer(input_data)
       model = keras.Model(inputs=input_data, outputs=int_data)
