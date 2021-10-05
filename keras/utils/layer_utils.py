@@ -108,7 +108,8 @@ def print_summary(model,
                   line_length=None,
                   positions=None,
                   print_fn=None,
-                  expand_nested=False):
+                  expand_nested=False,
+                  show_trainable=False):
   """Prints a summary of a model.
 
   Args:
@@ -124,6 +125,8 @@ def print_summary(model,
           in order to capture the string summary.
           It defaults to `print` (prints to stdout).
       expand_nested: Whether to expand the nested models.
+          If not provided, defaults to `False`.
+      show_trainable: Whether to show if a layer is trainable.
           If not provided, defaults to `False`.
   """
   if print_fn is None:
@@ -162,23 +165,43 @@ def print_summary(model,
         if not sequential_like:
           break
 
-  if sequential_like:
-    line_length = line_length or 65
-    positions = positions or [.45, .85, 1.]
-    if positions[-1] <= 1:
-      positions = [int(line_length * p) for p in positions]
-    # header names for the different log elements
-    to_display = ['Layer (type)', 'Output Shape', 'Param #']
+  if show_trainable:
+    # Add trainable column
+    if sequential_like:
+      line_length = line_length or 85
+      positions = positions or [.33, .70, .89, 1.]
+      if positions[-1] <= 1:
+        positions = [int(line_length * p) for p in positions]
+      # header names for the different log elements
+      to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Trainable']
+    else:
+      line_length = line_length or 110
+      positions = positions or [.33, .40, .55, .67, 1.]
+      if positions[-1] <= 1:
+        positions = [int(line_length * p) for p in positions]
+      # header names for the different log elements
+      to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Trainable', 'Connected to']
+      relevant_nodes = []
+      for v in model._nodes_by_depth.values():
+        relevant_nodes += v
   else:
-    line_length = line_length or 98
-    positions = positions or [.33, .55, .67, 1.]
-    if positions[-1] <= 1:
-      positions = [int(line_length * p) for p in positions]
-    # header names for the different log elements
-    to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
-    relevant_nodes = []
-    for v in model._nodes_by_depth.values():
-      relevant_nodes += v
+    if sequential_like:
+      line_length = line_length or 65
+      positions = positions or [.45, .85, 1.]
+      if positions[-1] <= 1:
+        positions = [int(line_length * p) for p in positions]
+      # header names for the different log elements
+      to_display = ['Layer (type)', 'Output Shape', 'Param #']
+    else:
+      line_length = line_length or 98
+      positions = positions or [.33, .55, .67, 1.]
+      if positions[-1] <= 1:
+        positions = [int(line_length * p) for p in positions]
+      # header names for the different log elements
+      to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
+      relevant_nodes = []
+      for v in model._nodes_by_depth.values():
+        relevant_nodes += v
 
   def print_row(fields, positions, nested_level=0):
     left_to_print = [str(x) for x in fields]
@@ -248,7 +271,12 @@ def print_summary(model,
       params = '0 (unused)'
     else:
       params = layer.count_params()
-    fields = [name + ' (' + cls_name + ')', output_shape, params]
+
+    if show_trainable:
+      fields = [name + ' (' + cls_name + ')', output_shape, params, "T" if layer.trainable else "F"]
+    else:
+      fields = [name + ' (' + cls_name + ')', output_shape, params]
+
     print_row(fields, positions, nested_level)
 
   def print_layer_summary_with_connections(layer, nested_level=0):
@@ -275,10 +303,18 @@ def print_summary(model,
 
     name = layer.name
     cls_name = layer.__class__.__name__
-    fields = [
+    if show_trainable:
+      fields = [
+        name + ' (' + cls_name + ')', output_shape,
+        layer.count_params(), 
+        "T" if layer.trainable else "F", 
+        connections
+      ]
+    else:
+      fields = [
         name + ' (' + cls_name + ')', output_shape,
         layer.count_params(), connections
-    ]
+      ]
     print_row(fields, positions, nested_level)
 
   def print_layer(layer, nested_level=0, is_nested_last=False):

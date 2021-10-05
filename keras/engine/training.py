@@ -2616,7 +2616,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               line_length=None,
               positions=None,
               print_fn=None,
-              expand_nested=False):
+              expand_nested=False,
+              show_trainable=False):
     """Prints a string summary of the network.
 
     Args:
@@ -2632,6 +2633,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             in order to capture the string summary.
         expand_nested: Whether to expand the nested models.
             If not provided, defaults to `False`.
+        show_trainable: Whether to show if a layer is trainable.
+            If not provided, defaults to `False`.
 
     Raises:
         ValueError: if `summary()` is called before the model is built.
@@ -2646,7 +2649,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         line_length=line_length,
         positions=positions,
         print_fn=print_fn,
-        expand_nested=expand_nested)
+        expand_nested=expand_nested,
+        show_trainable=show_trainable)
 
   @property
   def layers(self):
