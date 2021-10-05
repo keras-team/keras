@@ -28,6 +28,7 @@ from keras.applications import mobilenet
 from keras.applications import mobilenet_v2
 from keras.applications import mobilenet_v3
 from keras.applications import nasnet
+from keras.applications import regnet
 from keras.applications import resnet
 from keras.applications import resnet_v2
 from keras.applications import vgg16
@@ -59,7 +60,16 @@ ARG_TO_MODEL = {
                      [efficientnet.EfficientNetB0, efficientnet.EfficientNetB1,
                       efficientnet.EfficientNetB2, efficientnet.EfficientNetB3,
                       efficientnet.EfficientNetB4, efficientnet.EfficientNetB5,
-                      efficientnet.EfficientNetB6, efficientnet.EfficientNetB7])
+                      efficientnet.EfficientNetB6, efficientnet.EfficientNetB7]),
+    'regnet': (regnet,
+               [regnet.RegNetX002, regnet.RegNetX004, regnet.RegNetX006, 
+                regnet.RegNetX008, regnet.RegNetX016, regnet.RegNetX032, 
+                regnet.RegNetX040, regnet.RegNetX064, regnet.RegNetX080, 
+                regnet.RegNetX120, regnet.RegNetX160, regnet.RegNetX320, 
+                regnet.RegNetY002, regnet.RegNetY004, regnet.RegNetY006,
+                regnet.RegNetY008, regnet.RegNetY016, regnet.RegNetY032, 
+                regnet.RegNetY040, regnet.RegNetY064, regnet.RegNetY080, 
+                regnet.RegNetY120, regnet.RegNetY160, regnet.RegNetY320])
 }
 
 TEST_IMAGE_PATH = ('https://storage.googleapis.com/tensorflow/'
