@@ -27,6 +27,7 @@ from keras.applications import mobilenet
 from keras.applications import mobilenet_v2
 from keras.applications import mobilenet_v3
 from keras.applications import nasnet
+from keras.applications import regnet
 from keras.applications import resnet
 from keras.applications import resnet_v2
 from keras.applications import vgg16

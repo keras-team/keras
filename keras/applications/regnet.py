@@ -316,11 +316,11 @@ def Stem(name=None):
     name = "stem" + str(backend.get_uid("stem"))
 
   def apply(x):
+    x = layers.ZeroPadding2D(padding=(1, 1))(x)
     x = layers.Conv2D(32, (3, 3),
                       strides=2,
                       use_bias=False,
                       name=name + "_stem_conv")(x)
-    x = layers.ZeroPadding2D(padding=(1, 1))(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
                                   name=name + "_stem_bn")(x)
