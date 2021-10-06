@@ -156,6 +156,34 @@ To start using Keras, simply [install TensorFlow 2](https://www.tensorflow.org/i
 
 ---
 
+## Release and compatibility
+
+Keras has **nightly releases** (`keras-nightly` on PyPI)
+and **stable releases** (`keras` on PyPI).
+The nightly Keras releases are usually compatible with the corresponding version
+of the `tf-nightly` releases
+(e.g. `keras-nightly==2.7.0.dev2021100607` should be
+used with `tf-nightly==2.7.0.dev2021100607`).
+We don't maintain backward compatibility for nightly releases.
+For stable releases, each Keras
+version maps to a specific stable version of TensorFlow.
+
+The table below shows the compatibility version mapping
+between TensorFlow versions and Keras versions.
+
+All the release branches can be found on [Github](https://github.com/keras-team/keras/releases).
+
+All the release binaries can be found on [Pypi](https://pypi.org/project/keras/#history).
+
+| Keras release | Note      | Compatible Tensorflow version |
+| -----------   | ----------- | -----------        |
+| [2.4](https://github.com/keras-team/keras/releases/tag/2.4.0)  | Last stable release of multi-backend Keras | < 2.5
+| 2.5-pre| Pre-release (not formal) for standalone Keras repo | >= 2.5 < 2.6
+| [2.6](https://github.com/keras-team/keras/releases/tag/v2.6.0)    | First formal release of standalone Keras.  | >= 2.6 < 2.7
+| [2.7](https://github.com/keras-team/keras/releases/tag/v2.7.0-rc0)    | (Upcoming release) | >= 2.7 < 2.8
+| nightly|                                            | tf-nightly
+
+---
 ## Support
 
 You can ask questions and join the development discussion:
