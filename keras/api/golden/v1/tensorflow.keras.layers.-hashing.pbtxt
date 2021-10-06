@@ -129,7 +129,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'num_bins\', \'mask_value\', \'salt\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\'], "
+    argspec: "args=[\'self\', \'num_bins\', \'mask_value\', \'salt\', \'output_mode\', \'sparse\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'int\', \'False\'], "
   }
   member_method {
     name: "add_loss"
