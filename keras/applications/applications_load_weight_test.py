@@ -62,10 +62,10 @@ ARG_TO_MODEL = {
                       efficientnet.EfficientNetB4, efficientnet.EfficientNetB5,
                       efficientnet.EfficientNetB6, efficientnet.EfficientNetB7]),
     'efficientnet_v2': (efficientnet_v2,
-                        [efficientnet_v2.EfficientNetV2_B0, efficientnet_v2.EfficientNetV2_B1,
-                        efficientnet_v2.EfficientNetV2_B2, efficientnet_v2.EfficientNetV2_B3,
-                        efficientnet_v2.EfficientNetV2_S, efficientnet_v2.EfficientNetV2_M,
-                        efficientnet_v2.EfficientNetV2_L])
+                        [efficientnet_v2.EfficientNetV2B0, efficientnet_v2.EfficientNetV2B1,
+                         efficientnet_v2.EfficientNetV2B2, efficientnet_v2.EfficientNetV2B3,
+                         efficientnet_v2.EfficientNetV2S, efficientnet_v2.EfficientNetV2M,
+                         efficientnet_v2.EfficientNetV2L])
 }
 
 TEST_IMAGE_PATH = ('https://storage.googleapis.com/tensorflow/'
