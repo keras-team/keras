@@ -83,12 +83,15 @@ class Conv1D(keras_layers.Conv1D, base.Layer):
     name: A string, the name of the layer.
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Conv1D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv1D`.
 
 
   #### Structural Mapping to Native TF2
@@ -230,12 +233,15 @@ def conv1d(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Conv1D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv1D`.
 
 
   #### Structural Mapping to Native TF2
@@ -351,12 +357,15 @@ class Conv2D(keras_layers.Conv2D, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Conv2D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv2D`.
 
 
   #### Structural Mapping to Native TF2
@@ -505,12 +514,15 @@ def conv2d(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Conv2D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv2D`.
 
 
   #### Structural Mapping to Native TF2
@@ -627,12 +639,15 @@ class Conv3D(keras_layers.Conv3D, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Conv3D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv3D`.
 
 
   #### Structural Mapping to Native TF2
@@ -782,12 +797,15 @@ def conv3d(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Conv3D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv3D`.
 
 
   #### Structural Mapping to Native TF2
@@ -905,12 +923,16 @@ class SeparableConv1D(keras_layers.SeparableConv1D, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.SeparableConv1D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.SeparableConv1D`.
 
 
   #### Structural Mapping to Native TF2
@@ -1048,12 +1070,16 @@ class SeparableConv2D(keras_layers.SeparableConv2D, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.SeparableConv2D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.SeparableConv2D`.
 
 
   #### Structural Mapping to Native TF2
@@ -1217,12 +1243,16 @@ def separable_conv1d(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.SeparableConv1D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.SeparableConv1D`.
 
 
   #### Structural Mapping to Native TF2
@@ -1380,12 +1410,16 @@ def separable_conv2d(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.SeparableConv2D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.SeparableConv2D`.
 
 
   #### Structural Mapping to Native TF2
@@ -1495,12 +1529,16 @@ class Conv2DTranspose(keras_layers.Conv2DTranspose, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Conv2DTranspose`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.Conv2DTranspose`.
 
 
   #### Structural Mapping to Native TF2
@@ -1637,12 +1675,16 @@ def conv2d_transpose(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Conv2DTranspose`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.Conv2DTranspose`.
 
 
   #### Structural Mapping to Native TF2
@@ -1743,12 +1785,16 @@ class Conv3DTranspose(keras_layers.Conv3DTranspose, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Conv3DTranspose`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.Conv3DTranspose`.
 
 
   #### Structural Mapping to Native TF2
@@ -1880,12 +1926,16 @@ def conv3d_transpose(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Conv3DTranspose`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.Conv3DTranspose`.
 
 
   #### Structural Mapping to Native TF2
