@@ -787,6 +787,8 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
       ('no_unrolling', False)
   ])
   def testSaveStatefulRNN(self, unroll):
+    if not unroll:
+      self.skipTest('Disable the test due to b/202338039')
     batch = 12
     timesteps = 10
     input_dim = 8
@@ -821,6 +823,8 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
   @parameterized.named_parameters([('stateful', True), ('stateless', False)])
   def testSaveConvLSTM2D(self, stateful):
+    if stateful:
+      self.skipTest('Disable the test due to b/202338039')
     data_format = 'channels_first'
     batch, timesteps, channels, rows, cols = 12, 10, 8, 4, 4
     input_arr = np.ones(
