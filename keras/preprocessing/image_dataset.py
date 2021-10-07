@@ -240,7 +240,7 @@ def paths_and_labels_to_dataset(image_paths,
   path_ds = tf.data.Dataset.from_tensor_slices(image_paths)
   args = (image_size, num_channels, interpolation, crop_to_aspect_ratio)
   img_ds = path_ds.map(
-      lambda x: load_image(x, *args))
+      lambda x: load_image(x, *args), num_parallel_calls=tf.data.AUTOTUNE)
   if label_mode:
     label_ds = dataset_utils.labels_to_dataset(labels, label_mode, num_classes)
     img_ds = tf.data.Dataset.zip((img_ds, label_ds))
