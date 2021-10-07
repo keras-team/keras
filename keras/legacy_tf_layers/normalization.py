@@ -124,12 +124,16 @@ class BatchNormalization(batch_normalization_v1.BatchNormalization, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.BatchNormalization`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.BatchNormalization`.
 
 
   #### Structural Mapping to Native TF2
@@ -361,12 +365,16 @@ def batch_normalization(inputs,
       ([pdf](http://papers.nips.cc/paper/6790-batch-renormalization-towards-reducing-minibatch-dependence-in-batch-normalized-models.pdf))
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.BatchNormalization`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.BatchNormalization`.
 
   The batch updating pattern with
   `tf.control_dependencies(tf.GraphKeys.UPDATE_OPS)` should not be used in
