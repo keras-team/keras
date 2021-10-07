@@ -25,7 +25,6 @@ import os
 PIP_EXCLUDED_FILES = frozenset([
     'keras/api/create_python_api_wrapper.py',
     'keras/applications/efficientnet_weight_update_util.py',
-    'keras/applications/efficientnet_v2_weight_update_util.py',
     'keras/distribute/tpu_strategy_test_utils.py',
     'keras/saving/saved_model/create_test_saved_model.py',
     'keras/tools/pip_package/setup.py',

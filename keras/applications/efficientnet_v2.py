@@ -1,4 +1,4 @@
-# Copyright 2019 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2021 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,18 +17,17 @@
 """EfficientNet V2 models for Keras.
 
 Reference:
-  - [EfficientNetV2: Smaller Models and Faster Training](
-      https://arxiv.org/abs/2104.00298) (ICML 2021)
+- [EfficientNetV2: Smaller Models and Faster Training](
+    https://arxiv.org/abs/2104.00298) (ICML 2021)
 """
 import tensorflow.compat.v2 as tf
 
 import copy
 import math
 
-from keras import backend
+from keras import backend, layers
 from keras.applications import imagenet_utils
 from keras.engine import training
-from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
 from tensorflow.python.util.tf_export import keras_export
@@ -531,8 +530,9 @@ DENSE_KERNEL_INITIALIZER = {
 }
 
 BASE_DOCSTRING = """Instantiates the {name} architecture.
+  
   Reference:
-    - [EfficientNetV2: Smaller Models and Faster Training](
+  - [EfficientNetV2: Smaller Models and Faster Training](
       https://arxiv.org/abs/2104.00298) (ICML 2021)
 
   This function returns a Keras image classification model,
@@ -546,54 +546,73 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
   [guide to transfer learning & fine-tuning](
     https://keras.io/guides/transfer_learning/).
 
-  Note: each Keras Application expects a specific kind of input preprocessing.
-  For EfficientNetV2, call `keras.applications.efficientnet_v2.preprocess_input` on 
-    your inputs before passing them to the model.  
-    `efficientnet_v2.preprocess_input` will scale input pixels between -1 and 1.
+  Note: each Keras Application expects a specific kind of input preprocessing. 
+  For EfficientNetV2, by default input preprocessing is included as a part of the
+  model (as a `Rescaling` layer), and thus
+  `tf.keras.applications.efficientnet_v2.preprocess_input` is actually a
+  pass-through function. In this use case, EfficientNetV2 models expect their inputs
+  to be float tensors of pixels with values in the [0-255] range.
+  At the same time, preprocessing as a part of the model (i.e. `Rescaling`
+  layer) can be disabled by setting `include_preprocessing` argument to False.
+  With preprocessing disabled EfficientNetV2 models expect their inputs to be float
+  tensors of pixels with values in the [-1, 1] range. 
 
   Args:
-    include_top: Whether to include the fully-connected
-        layer at the top of the network. Defaults to True.
+    include_top: Boolean, whether to include the fully-connected
+      layer at the top of the network. Defaults to True.
     weights: One of `None` (random initialization),
-          'imagenet' (pre-training on ImageNet),
-          or the path to the weights file to be loaded. Defaults to 'imagenet'.
+      `'imagenet'` (pre-training on ImageNet),
+      or the path to the weights file to be loaded. Defaults to `'imagenet'`.
     input_tensor: Optional Keras tensor
-        (i.e. output of `layers.Input()`)
-        to use as image input for the model.
+      (i.e. output of `layers.Input()`)
+      to use as image input for the model.
     input_shape: Optional shape tuple, only to be specified
-        if `include_top` is False.
-        It should have exactly 3 inputs channels.
+      if `include_top` is False.
+      It should have exactly 3 inputs channels.
     pooling: Optional pooling mode for feature extraction
-        when `include_top` is `False`. Defaults to None.
-        - `None` means that the output of the model will be
-            the 4D tensor output of the
-            last convolutional layer.
-        - `avg` means that global average pooling
-            will be applied to the output of the
-            last convolutional layer, and thus
-            the output of the model will be a 2D tensor.
-        - `max` means that global max pooling will
-            be applied.
+      when `include_top` is `False`. Defaults to None.
+      - `None` means that the output of the model will be
+          the 4D tensor output of the
+          last convolutional layer.
+      - `'avg'` means that global average pooling
+          will be applied to the output of the
+          last convolutional layer, and thus
+          the output of the model will be a 2D tensor.
+      - `'max'` means that global max pooling will
+          be applied.
     classes: Optional number of classes to classify images
-        into, only to be specified if `include_top` is True, and
-        if no `weights` argument is specified. Defaults to 1000 (number of
-        ImageNet classes).
-    classifier_activation: A `str` or callable. The activation function to use
-        on the "top" layer. Ignored unless `include_top=True`. Set
-        `classifier_activation=None` to return the logits of the "top" layer.
-        Defaults to 'softmax'.
-        When loading pretrained weights, `classifier_activation` can only
-        be `None` or `"softmax"`.
+      into, only to be specified if `include_top` is True, and
+      if no `weights` argument is specified. Defaults to 1000 (number of
+      ImageNet classes).
+    classifier_activation: A string or callable. The activation function to use
+      on the `"top"` layer. Ignored unless `include_top=True`. Set
+      `classifier_activation=None` to return the logits of the "top" layer.
+      Defaults to `'softmax'`.
+      When loading pretrained weights, `classifier_activation` can only
+      be `None` or `'softmax'`.
 
   Returns:
     A `keras.Model` instance.
 """
 
-layers = VersionAwareLayers()
+
+def round_filters(filters, width_coefficient, min_depth, depth_divisor):
+    """Round number of filters based on depth multiplier."""
+    filters *= width_coefficient
+    minimum_depth = min_depth or depth_divisor
+    new_filters = max(
+        minimum_depth,
+        int(filters + depth_divisor / 2) // depth_divisor * depth_divisor,
+    )
+    return int(new_filters)
 
 
-def block_0(
-    inputs,
+def round_repeats(repeats, depth_coefficient):
+    """Round number of repeats based on depth multiplier."""
+    return int(math.ceil(depth_coefficient * repeats))
+
+
+def Block0(
     input_filters: int,
     output_filters: int,
     expand_ratio=1,
@@ -601,107 +620,110 @@ def block_0(
     strides=1,
     se_ratio=0.0,
     bn_momentum=0.9,
-    activation="swish",
+    activation='swish',
     survival_probability: float = 0.8,
-    name: str = "",
+    name=None,
 ):
     """MBConv block: Mobile Inverted Residual Bottleneck."""
-    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+    bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
 
-    # Expansion phase
-    filters = input_filters * expand_ratio
-    if expand_ratio != 1:
-      x = layers.Conv2D(
-          filters=filters,
-          kernel_size=1,
-          strides=1,
-          kernel_initializer=CONV_KERNEL_INITIALIZER,
-          padding="same",
-          data_format="channels_last",
-          use_bias=False,
-          name=name + "expand_conv",
-      )(inputs)
-      x = layers.BatchNormalization(
-          axis=bn_axis,
-          momentum=bn_momentum,
-          name=name + "expand_bn",
-      )(x)
-      x = layers.Activation(activation, name=name + "expand_activation")(x)
-    else:
-      x = inputs
+    if name is None:
+        name = backend.get_uid('block0')
 
-    # Depthwise conv
-    x = layers.DepthwiseConv2D(
-        kernel_size=kernel_size,
-        strides=strides,
-        depthwise_initializer=CONV_KERNEL_INITIALIZER,
-        padding="same",
-        data_format="channels_last",
-        use_bias=False,
-        name=name + "dwconv2",
-    )(x)
-    x = layers.BatchNormalization(
-        axis=bn_axis, momentum=bn_momentum, name=name + "bn"
-    )(x)
-    x = layers.Activation(activation, name=name + "activation")(x)
+    def apply(inputs):
+        # Expansion phase
+        filters = input_filters * expand_ratio
+        if expand_ratio != 1:
+          x = layers.Conv2D(
+              filters=filters,
+              kernel_size=1,
+              strides=1,
+              kernel_initializer=CONV_KERNEL_INITIALIZER,
+              padding='same',
+              data_format='channels_last',
+              use_bias=False,
+              name=name + 'expand_conv',
+          )(inputs)
+          x = layers.BatchNormalization(
+              axis=bn_axis,
+              momentum=bn_momentum,
+              name=name + 'expand_bn',
+          )(x)
+          x = layers.Activation(activation, name=name + 'expand_activation')(x)
+        else:
+          x = inputs
 
-    # Squeeze and excite
-    if 0 < se_ratio <= 1:
-      filters_se = max(1, int(input_filters * se_ratio))
-      se = layers.GlobalAveragePooling2D(name=name + "se_squeeze")(x)
-      if bn_axis == 1:
-          se_shape = (filters, 1, 1)
-      else:
-          se_shape = (1, 1, filters)
-      se = layers.Reshape(se_shape, name=name + "se_reshape")(se)
+        # Depthwise conv
+        x = layers.DepthwiseConv2D(
+            kernel_size=kernel_size,
+            strides=strides,
+            depthwise_initializer=CONV_KERNEL_INITIALIZER,
+            padding='same',
+            data_format='channels_last',
+            use_bias=False,
+            name=name + 'dwconv2',
+        )(x)
+        x = layers.BatchNormalization(
+            axis=bn_axis, momentum=bn_momentum, name=name + 'bn'
+        )(x)
+        x = layers.Activation(activation, name=name + 'activation')(x)
 
-      # Warning. Is local pooling always false?
-      se = layers.Conv2D(
-          filters_se,
-          1,
-          padding="same",
-          activation=activation,
-          kernel_initializer=CONV_KERNEL_INITIALIZER,
-          name=name + "se_reduce",
-      )(se)
-      se = layers.Conv2D(
-          filters,
-          1,
-          padding="same",
-          activation="sigmoid",
-          kernel_initializer=CONV_KERNEL_INITIALIZER,
-          name=name + "se_expand",
-      )(se)
+        # Squeeze and excite
+        if 0 < se_ratio <= 1:
+          filters_se = max(1, int(input_filters * se_ratio))
+          se = layers.GlobalAveragePooling2D(name=name + 'se_squeeze')(x)
+          if bn_axis == 1:
+              se_shape = (filters, 1, 1)
+          else:
+              se_shape = (1, 1, filters)
+          se = layers.Reshape(se_shape, name=name + 'se_reshape')(se)
 
-      x = layers.multiply([x, se], name=name + "se_excite")
+          se = layers.Conv2D(
+              filters_se,
+              1,
+              padding='same',
+              activation=activation,
+              kernel_initializer=CONV_KERNEL_INITIALIZER,
+              name=name + 'se_reduce',
+          )(se)
+          se = layers.Conv2D(
+              filters,
+              1,
+              padding='same',
+              activation='sigmoid',
+              kernel_initializer=CONV_KERNEL_INITIALIZER,
+              name=name + 'se_expand',
+          )(se)
 
-    # Output phase
-    x = layers.Conv2D(
-        filters=output_filters,
-        kernel_size=1,
-        strides=1,
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
-        padding="same",
-        data_format="channels_last",
-        use_bias=False,
-        name=name + "project_conv",
-    )(x)
-    x = layers.BatchNormalization(
-        axis=bn_axis, momentum=bn_momentum, name=name + "project_bn"
-    )(x)
+          x = layers.multiply([x, se], name=name + 'se_excite')
 
-    if strides == 1 and input_filters == output_filters:
-      if survival_probability:
-        x = layers.Dropout(
-          survival_probability, noise_shape=(None, 1, 1, 1), name=name + "drop"
+        # Output phase
+        x = layers.Conv2D(
+            filters=output_filters,
+            kernel_size=1,
+            strides=1,
+            kernel_initializer=CONV_KERNEL_INITIALIZER,
+            padding='same',
+            data_format='channels_last',
+            use_bias=False,
+            name=name + 'project_conv',
+        )(x)
+        x = layers.BatchNormalization(
+            axis=bn_axis, momentum=bn_momentum, name=name + 'project_bn'
         )(x)
 
-      x = layers.add([x, inputs], name=name + "add")
-    return x   
+        if strides == 1 and input_filters == output_filters:
+          if survival_probability:
+            x = layers.Dropout(
+              survival_probability, noise_shape=(None, 1, 1, 1), name=name + 'drop'
+            )(x)
+
+          x = layers.add([x, inputs], name=name + 'add')
+        return x
+    return apply
 
 
-def block_1(
-    inputs,
+def Block1(
     input_filters: int,
     output_filters: int,
     expand_ratio=1,
@@ -709,91 +731,95 @@ def block_1(
     strides=1,
     se_ratio=0.0,
     bn_momentum=0.9,
-    activation="swish",
+    activation='swish',
     survival_probability: float = 0.8,
-    name: str = "",
+    name=None,
 ):
     """Fused MBConv Block: Fusing the proj conv1x1 and depthwise_conv into a conv2d."""
+    bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
 
-    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+    if name is None:
+        name = backend.get_uid('block0')
 
-    filters = input_filters * expand_ratio
-    if expand_ratio != 1:
-      x = layers.Conv2D(
-          filters,
-          kernel_size=kernel_size,
-          strides=strides,
-          kernel_initializer=CONV_KERNEL_INITIALIZER,
-          data_format="channels_last",
-          padding="same",
-          use_bias=False,
-          name=name + "expand_conv",
-      )(inputs)
-      x = layers.BatchNormalization(
-          axis=bn_axis, momentum=bn_momentum, name=name + "expand_bn"
-      )(x)
-      x = layers.Activation(
-          activation=activation, name=name + "expand_activation"
-      )(x)
-    else:
-      x = inputs
+    def apply(inputs):
+        filters = input_filters * expand_ratio
+        if expand_ratio != 1:
+          x = layers.Conv2D(
+              filters,
+              kernel_size=kernel_size,
+              strides=strides,
+              kernel_initializer=CONV_KERNEL_INITIALIZER,
+              data_format='channels_last',
+              padding='same',
+              use_bias=False,
+              name=name + 'expand_conv',
+          )(inputs)
+          x = layers.BatchNormalization(
+              axis=bn_axis, momentum=bn_momentum, name=name + 'expand_bn'
+          )(x)
+          x = layers.Activation(
+              activation=activation, name=name + 'expand_activation'
+          )(x)
+        else:
+          x = inputs
 
-    # Squeeze and excite
-    if 0 < se_ratio <= 1:
-      filters_se = max(1, int(input_filters * se_ratio))
-      se = layers.GlobalAveragePooling2D(name=name + "se_squeeze")(x)
-      if bn_axis == 1:
-        se_shape = (filters, 1, 1)
-      else:
-        se_shape = (1, 1, filters)
+        # Squeeze and excite
+        if 0 < se_ratio <= 1:
+          filters_se = max(1, int(input_filters * se_ratio))
+          se = layers.GlobalAveragePooling2D(name=name + 'se_squeeze')(x)
+          if bn_axis == 1:
+            se_shape = (filters, 1, 1)
+          else:
+            se_shape = (1, 1, filters)
 
-      se = layers.Reshape(se_shape, name=name + "se_reshape")(se)
+          se = layers.Reshape(se_shape, name=name + 'se_reshape')(se)
 
-      se = layers.Conv2D(
-          filters_se,
-          1,
-          padding="same",
-          activation=activation,
-          kernel_initializer=CONV_KERNEL_INITIALIZER,
-          name=name + "se_reduce",
-      )(se)
-      se = layers.Conv2D(
-          filters,
-          1,
-          padding="same",
-          activation="sigmoid",
-          kernel_initializer=CONV_KERNEL_INITIALIZER,
-          name=name + "se_expand",
-      )(se)
+          se = layers.Conv2D(
+              filters_se,
+              1,
+              padding='same',
+              activation=activation,
+              kernel_initializer=CONV_KERNEL_INITIALIZER,
+              name=name + 'se_reduce',
+          )(se)
+          se = layers.Conv2D(
+              filters,
+              1,
+              padding='same',
+              activation='sigmoid',
+              kernel_initializer=CONV_KERNEL_INITIALIZER,
+              name=name + 'se_expand',
+          )(se)
 
-      x = layers.multiply([x, se], name=name + "se_excite")
+          x = layers.multiply([x, se], name=name + 'se_excite')
 
-    # Output phase:
-    x = layers.Conv2D(
-        output_filters,
-        kernel_size=1 if expand_ratio != 1 else kernel_size,
-        strides=1 if expand_ratio != 1 else strides,
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
-        padding="same",
-        use_bias=False,
-        name=name + "project_conv",
-    )(x)
-    x = layers.BatchNormalization(
-        axis=bn_axis, momentum=bn_momentum, name=name + "project_bn"
-    )(x)
-    if expand_ratio == 1:
-      x = layers.Activation(activation=activation, name=name + "project_activation")(x)
+        # Output phase:
+        x = layers.Conv2D(
+            output_filters,
+            kernel_size=1 if expand_ratio != 1 else kernel_size,
+            strides=1 if expand_ratio != 1 else strides,
+            kernel_initializer=CONV_KERNEL_INITIALIZER,
+            padding='same',
+            use_bias=False,
+            name=name + 'project_conv',
+        )(x)
+        x = layers.BatchNormalization(
+            axis=bn_axis, momentum=bn_momentum, name=name + 'project_bn'
+        )(x)
+        if expand_ratio == 1:
+          x = layers.Activation(
+              activation=activation, name=name + 'project_activation'
+          )(x)
 
-    # Residual:
-    if strides == 1 and input_filters == output_filters:
-      if survival_probability:
-        x = layers.Dropout(
-              survival_probability, noise_shape=(None, 1, 1, 1), name=name + "drop"
-            )(x)
-
-      x = layers.add([x, inputs], name=name + "add")
-    
-    return x
+        # Residual:
+        if strides == 1 and input_filters == output_filters:
+          if survival_probability:
+            x = layers.Dropout(
+                  survival_probability, noise_shape=(None, 1, 1, 1), name=name + 'drop'
+                )(x)
+          x = layers.add([x, inputs], name=name + 'add')
+        return x
+    return apply
 
 
 def EfficientNetV2(
@@ -805,16 +831,17 @@ def EfficientNetV2(
     depth_divisor=8,
     min_depth=8,
     bn_momentum=0.9,
-    activation="swish",
-    blocks_args="default",
-    model_name="efficientnetv2",
+    activation='swish',
+    blocks_args='default',
+    model_name='efficientnetv2',
     include_top=True,
-    weights="imagenet",
+    weights='imagenet',
     input_tensor=None,
     input_shape=None,
     pooling=None,
     classes=1000,
-    classifier_activation="softmax",
+    classifier_activation='softmax',
+    include_preprocessing=True,
 ):
   """Instantiates the EfficientNetV2 architecture using given scaling coefficients.
     
@@ -826,18 +853,17 @@ def EfficientNetV2(
     drop_connect_rate: float, dropout rate at skip connections.
     depth_divisor: integer, a unit of network width.
     min_depth: integer, minimum number of filters.
-    bn_momentu: float. Momentum parameter for Batch Normalization layers.
+    bn_momentum: float. Momentum parameter for Batch Normalization layers.
     activation: activation function.
     blocks_args: list of dicts, parameters to construct block modules.
     model_name: string, model name.
     include_top: whether to include the fully-connected
         layer at the top of the network.
     weights: one of `None` (random initialization),
-        'imagenet' (pre-training on ImageNet),
+        `'imagenet'` (pre-training on ImageNet),
         or the path to the weights file to be loaded.
-    input_tensor: optional Keras tensor
-        (i.e. output of `layers.Input()`)
-        to use as image input for the model.
+    input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
+      or numpy array to use as image input for the model.
     input_shape: optional shape tuple, only to be specified
         if `include_top` is False.
         It should have exactly 3 inputs channels.
@@ -846,25 +872,27 @@ def EfficientNetV2(
         - `None` means that the output of the model will be
             the 4D tensor output of the
             last convolutional layer.
-        - `avg` means that global average pooling
+        - ''avg'' means that global average pooling
             will be applied to the output of the
             last convolutional layer, and thus
             the output of the model will be a 2D tensor.
-        - `max` means that global max pooling will
+        - `'max'` means that global max pooling will
             be applied.
     classes: optional number of classes to classify images
         into, only to be specified if `include_top` is True, and
         if no `weights` argument is specified.
-    classifier_activation: A `str` or callable. The activation function to use
-        on the "top" layer. Ignored unless `include_top=True`. Set
-        `classifier_activation=None` to return the logits of the "top" layer.
+    classifier_activation: A string or callable. The activation function to use
+        on the `"top"` layer. Ignored unless `include_top=True`. Set
+        `classifier_activation=None` to return the logits of the `"top"` layer.
+    include_preprocessing: Boolean, whether to include the preprocessing
+        layer (`Rescaling`) at the bottom of the network. Defaults to `True`.
   Returns:
     A `keras.Model` instance.
 
   Raises:
     ValueError: in case of invalid argument for `weights`,
       or invalid input shape.
-    ValueError: if `classifier_activation` is not `softmax` or `None` when
+    ValueError: if `classifier_activation` is not `'softmax'` or `None` when
       using a pretrained top layer.
   """
 
@@ -875,11 +903,13 @@ def EfficientNetV2(
     raise ValueError('The `weights` argument should be either '
                      '`None` (random initialization), `imagenet` '
                      '(pre-training on ImageNet), '
-                     'or the path to the weights file to be loaded.')
+                     'or the path to the weights file to be loaded.'
+                     f'Received: weights={weights}')
 
   if weights == 'imagenet' and include_top and classes != 1000:
     raise ValueError('If using `weights` as `"imagenet"` with `include_top`'
-                     ' as true, `classes` should be 1000')
+                     ' as true, `classes` should be 1000'
+                     f'Received: classes={classes}')
   
   # Determine proper input shape
   input_shape = imagenet_utils.obtain_input_shape(
@@ -900,87 +930,98 @@ def EfficientNetV2(
 
   bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
 
-  def round_filters(filters):
-    """Round number of filters based on depth multiplier."""
-    filters *= width_coefficient
-    minimum_depth = min_depth or depth_divisor
-    new_filters = max(
-      minimum_depth,
-      int(filters + depth_divisor / 2) // depth_divisor * depth_divisor,
-    )
-    return int(new_filters)
-
-  def round_repeats(repeats):
-    """Round number of filters based on depth multiplier."""
-    return int(math.ceil(depth_coefficient * repeats))
-  
-  # Build stem
   x = img_input
-  
-  stem_filters = blocks_args[0]["input_filters"]
+
+  if include_preprocessing:
+    x = layers.Rescaling(scale=1./128.0, offset=-1)(x)
+
+  # Build stem
+  stem_filters = round_filters(
+    filters=blocks_args[0]['input_filters'],
+    width_coefficient=width_coefficient,
+    min_depth=min_depth,
+    depth_divisor=depth_divisor,
+  )
   x = layers.Conv2D(
-    filters=round_filters(stem_filters),
+    filters=stem_filters,
     kernel_size=3,
     strides=2,
     kernel_initializer=CONV_KERNEL_INITIALIZER,
-    padding="same",
+    padding='same',
     use_bias=False,
-    name="stem_conv",
+    name='stem_conv',
   )(x)
   x = layers.BatchNormalization(
     axis=bn_axis,
     momentum=bn_momentum,
-    name="stem_bn",
+    name='stem_bn',
   )(x)
-  x = layers.Activation(activation, name="stem_activation")(x)
+  x = layers.Activation(activation, name='stem_activation')(x)
 
   # Build blocks
   blocks_args = copy.deepcopy(blocks_args)
   b = 0
-  blocks = float(sum(args["num_repeat"] for args in blocks_args))
+  blocks = float(sum(args['num_repeat'] for args in blocks_args))
 
   for (i, args) in enumerate(blocks_args):
-    assert args["num_repeat"] > 0
+    assert args['num_repeat'] > 0
 
     # Update block input and output filters based on depth multiplier.
-    args["input_filters"] = round_filters(args["input_filters"])
-    args["output_filters"] = round_filters(args["output_filters"])
+    args['input_filters'] = round_filters(
+      filters=args['input_filters'],
+      width_coefficient=width_coefficient,
+      min_depth=min_depth,
+      depth_divisor=depth_divisor
+    )
+    args['output_filters'] = round_filters(
+      filters=args['output_filters'],
+      width_coefficient=width_coefficient,
+      min_depth=min_depth,
+      depth_divisor=depth_divisor
+    )
 
     # Determine which conv type to use:
-    block = {0: block_0, 1: block_1}[args.pop("conv_type")]
-
-    for j in range(round_repeats(args.pop("num_repeat"))):
+    block = {0: Block0, 1: Block1}[args.pop('conv_type')]
+    repeats = round_repeats(
+      repeats=args.pop('num_repeat'), depth_coefficient=depth_coefficient
+    )
+    for j in range(repeats):
       # The first block needs to take care of stride and filter size increase.
       if j > 0:
-        args["strides"] = 1
-        args["input_filters"] = args["output_filters"]
+        args['strides'] = 1
+        args['input_filters'] = args['output_filters']
       
       x = block(
-        inputs=x,
         activation=activation,
         bn_momentum=bn_momentum,
-        survival_probability=drop_connect_rate * b / blocks,  # Is this ok? Copied from V1.
-        name="block{}{}_".format(i + 1, chr(j + 97)),
+        survival_probability=drop_connect_rate * b / blocks,
+        name='block{}{}_'.format(i + 1, chr(j + 97)),
         **args,
-      )
+      )(x)
   
   # Build top
+  top_filters = round_filters(
+    filters=1280,
+    width_coefficient=width_coefficient,
+    min_depth=min_depth,
+    depth_divisor=depth_divisor
+  )
   x = layers.Conv2D(
-    filters=round_filters(1280),
+    filters=top_filters,
     kernel_size=1,
     strides=1,
     kernel_initializer=CONV_KERNEL_INITIALIZER,
-    padding="same",
-    data_format="channels_last",
+    padding='same',
+    data_format='channels_last',
     use_bias=False,
-    name="top_conv",
+    name='top_conv',
   )(x)
   x = layers.BatchNormalization(
     axis=bn_axis,
     momentum=bn_momentum,
-    name="top_bn",
+    name='top_bn',
   )(x)
-  x = layers.Activation(activation=activation, name="top_activation")(x)
+  x = layers.Activation(activation=activation, name='top_activation')(x)
   
   if include_top:
     x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
@@ -988,11 +1029,12 @@ def EfficientNetV2(
       x = layers.Dropout(dropout_rate, name='top_dropout')(x)
     imagenet_utils.validate_activation(classifier_activation, weights)
     x = layers.Dense(
-        classes,
-        activation=classifier_activation,
-        kernel_initializer=DENSE_KERNEL_INITIALIZER,
-        bias_initializer=tf.constant_initializer(0),
-        name='predictions')(x)
+      classes,
+      activation=classifier_activation,
+      kernel_initializer=DENSE_KERNEL_INITIALIZER,
+      bias_initializer=tf.constant_initializer(0),
+      name='predictions'
+    )(x)
   else:
     if pooling == 'avg':
       x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
@@ -1019,10 +1061,10 @@ def EfficientNetV2(
       file_hash = WEIGHTS_HASHES[model_name[-2:]][1]
     file_name = model_name + file_suffix
     weights_path = data_utils.get_file(
-        file_name,
-        BASE_WEIGHTS_PATH + file_name,
-        cache_subdir='models',
-        file_hash=file_hash)
+      file_name,
+      BASE_WEIGHTS_PATH + file_name,
+      cache_subdir='models',
+      file_hash=file_hash)
     model.load_weights(weights_path)
   elif weights is not None:
     model.load_weights(weights)
@@ -1030,201 +1072,228 @@ def EfficientNetV2(
   return model
 
 
-@keras_export('keras.applications.efficientnetv2.EfficientNetV2_B0',
-              'keras.applications.EfficientNetV2_B0')
-def EfficientNetV2_B0(include_top=True,
-                      weights='imagenet',
-                      input_tensor=None,
-                      input_shape=None,
-                      pooling=None,
-                      classes=1000,
-                      classifier_activation='softmax',
-                      **kwargs):
+@keras_export('keras.applications.efficientnet_v2.EfficientNetV2B0',
+              'keras.applications.EfficientNetV2B0')
+def EfficientNetV2B0(
+  include_top=True,
+  weights='imagenet',
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation='softmax',
+  include_preprocessing=True,
+):
   return EfficientNetV2(
-      width_coefficient=1.0,
-      depth_coefficient=1.0,
-      default_size=224,
-      model_name="efficientnetv2-b0",
-      include_top=include_top,
-      weights=weights,
-      input_tensor=input_tensor,
-      input_shape=input_shape,
-      pooling=pooling,
-      classes=classes,
-      classifier_activation=classifier_activation,
-      **kwargs)
+    width_coefficient=1.0,
+    depth_coefficient=1.0,
+    default_size=224,
+    model_name='efficientnetv2-b0',
+    include_top=include_top,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation,
+    include_preprocessing=include_preprocessing
+  )
 
 
-@keras_export('keras.applications.efficientnetv2.EfficientNetV2_B1',
-              'keras.applications.EfficientNetV2_B1')
-def EfficientNetV2_B1(include_top=True,
-                      weights='imagenet',
-                      input_tensor=None,
-                      input_shape=None,
-                      pooling=None,
-                      classes=1000,
-                      classifier_activation='softmax',
-                      **kwargs):
-
+@keras_export('keras.applications.efficientnet_v2.EfficientNetV2B1',
+              'keras.applications.EfficientNetV2B1')
+def EfficientNetV2B1(
+  include_top=True,
+  weights='imagenet',
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation='softmax',
+  include_preprocessing=True,
+):
   return EfficientNetV2(
-      width_coefficient=1.0,
-      depth_coefficient=1.1,
-      default_size=240,
-      model_name="efficientnetv2-b1",
-      include_top=include_top,
-      weights=weights,
-      input_tensor=input_tensor,
-      input_shape=input_shape,
-      pooling=pooling,
-      classes=classes,
-      classifier_activation=classifier_activation,
-      **kwargs)
+    width_coefficient=1.0,
+    depth_coefficient=1.1,
+    default_size=240,
+    model_name='efficientnetv2-b1',
+    include_top=include_top,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation,
+    include_preprocessing=include_preprocessing,
+  )
 
 
-@keras_export('keras.applications.efficientnetv2.EfficientNetV2_B2',
-              'keras.applications.EfficientNetV2_B2')
-def EfficientNetV2_B2(include_top=True,
-                      weights='imagenet',
-                      input_tensor=None,
-                      input_shape=None,
-                      pooling=None,
-                      classes=1000,
-                      classifier_activation='softmax',
-                      **kwargs):
+@keras_export('keras.applications.efficientnet_v2.EfficientNetV2B2',
+              'keras.applications.EfficientNetV2B2')
+def EfficientNetV2B2(
+  include_top=True,
+  weights='imagenet',
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation='softmax',
+  include_preprocessing=True,
+):
   return EfficientNetV2(        
-      width_coefficient=1.1,
-      depth_coefficient=1.2,
-      default_size=260,
-      model_name="efficientnetv2-b2",
-      include_top=include_top,
-      weights=weights,
-      input_tensor=input_tensor,
-      input_shape=input_shape,
-      pooling=pooling,
-      classes=classes,
-      classifier_activation=classifier_activation,
-      **kwargs)
+    width_coefficient=1.1,
+    depth_coefficient=1.2,
+    default_size=260,
+    model_name='efficientnetv2-b2',
+    include_top=include_top,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation,
+    include_preprocessing=include_preprocessing,
+  )
 
-@keras_export('keras.applications.efficientnetv2.EfficientNetV2_B3',
-              'keras.applications.EfficientNetV2_B3')
-def EfficientNetV2_B3(include_top=True,
-                      weights='imagenet',
-                      input_tensor=None,
-                      input_shape=None,
-                      pooling=None,
-                      classes=1000,
-                      classifier_activation='softmax',
-                      **kwargs):
+
+@keras_export('keras.applications.efficientnet_v2.EfficientNetV2B3',
+              'keras.applications.EfficientNetV2B3')
+def EfficientNetV2B3(
+  include_top=True,
+  weights='imagenet',
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation='softmax',
+  include_preprocessing=True,
+):
   return EfficientNetV2(
-      width_coefficient=1.2,
-      depth_coefficient=1.4,
-      default_size=300,
-      model_name="efficientnetv2-b3",
-      include_top=include_top,
-      weights=weights,
-      input_tensor=input_tensor,
-      input_shape=input_shape,
-      pooling=pooling,
-      classes=classes,
-      classifier_activation=classifier_activation,
-      **kwargs)
+    width_coefficient=1.2,
+    depth_coefficient=1.4,
+    default_size=300,
+    model_name='efficientnetv2-b3',
+    include_top=include_top,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation,
+    include_preprocessing=include_preprocessing,
+  )
 
 
-@keras_export('keras.applications.efficientnetv2.EfficientNetV2_S',
-              'keras.applications.EfficientNetV2_S')
-def EfficientNetV2_S(include_top=True,
-                      weights='imagenet',
-                      input_tensor=None,
-                      input_shape=None,
-                      pooling=None,
-                      classes=1000,
-                      classifier_activation='softmax',
-                      **kwargs):
+@keras_export('keras.applications.efficientnet_v2.EfficientNetV2S',
+              'keras.applications.EfficientNetV2S')
+def EfficientNetV2S(
+  include_top=True,
+  weights='imagenet',
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation='softmax',
+  include_preprocessing=True,
+):
   return EfficientNetV2(
-      width_coefficient=1.0,
-      depth_coefficient=1.0,
-      default_size=384,
-      model_name="efficientnetv2-s",
-      include_top=include_top,
-      weights=weights,
-      input_tensor=input_tensor,
-      input_shape=input_shape,
-      pooling=pooling,
-      classes=classes,
-      classifier_activation=classifier_activation,
-      **kwargs)
+    width_coefficient=1.0,
+    depth_coefficient=1.0,
+    default_size=384,
+    model_name='efficientnetv2-s',
+    include_top=include_top,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation,
+    include_preprocessing=include_preprocessing,
+  )
 
-@keras_export('keras.applications.efficientnetv2.EfficientNetV2_M',
-              'keras.applications.EfficientNetV2_M')
-def EfficientNetV2_M(include_top=True,
-                      weights='imagenet',
-                      input_tensor=None,
-                      input_shape=None,
-                      pooling=None,
-                      classes=1000,
-                      classifier_activation='softmax',
-                      **kwargs):
+
+@keras_export('keras.applications.efficientnet_v2.EfficientNetV2M',
+              'keras.applications.EfficientNetV2M')
+def EfficientNetV2M(
+  include_top=True,
+  weights='imagenet',
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation='softmax',
+  include_preprocessing=True,
+):
   return EfficientNetV2(
-      width_coefficient=1.0,
-      depth_coefficient=1.0,
-      default_size=480,
-      model_name="efficientnetv2-m",
-      include_top=include_top,
-      weights=weights,
-      input_tensor=input_tensor,
-      input_shape=input_shape,
-      pooling=pooling,
-      classes=classes,
-      classifier_activation=classifier_activation,
-      **kwargs)
+    width_coefficient=1.0,
+    depth_coefficient=1.0,
+    default_size=480,
+    model_name='efficientnetv2-m',
+    include_top=include_top,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation,
+    include_preprocessing=include_preprocessing,
+  )
 
 
-@keras_export('keras.applications.efficientnetv2.EfficientNetV2_L',
-              'keras.applications.EfficientNetV2_L')
-def EfficientNetV2_L(include_top=True,
-                      weights='imagenet',
-                      input_tensor=None,
-                      input_shape=None,
-                      pooling=None,
-                      classes=1000,
-                      classifier_activation='softmax',
-                      **kwargs):
+@keras_export('keras.applications.efficientnet_v2.EfficientNetV2L',
+              'keras.applications.EfficientNetV2L')
+def EfficientNetV2L(
+  include_top=True,
+  weights='imagenet',
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation='softmax',
+  include_preprocessing=True,
+):
   return EfficientNetV2(
-      width_coefficient=1.0,
-      depth_coefficient=1.0,
-      default_size=480,
-      model_name="efficientnetv2-l",
-      include_top=include_top,
-      weights=weights,
-      input_tensor=input_tensor,
-      input_shape=input_shape,
-      pooling=pooling,
-      classes=classes,
-      classifier_activation=classifier_activation,
-      **kwargs)
+    width_coefficient=1.0,
+    depth_coefficient=1.0,
+    default_size=480,
+    model_name='efficientnetv2-l',
+    include_top=include_top,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation,
+    include_preprocessing=include_preprocessing,
+  )
 
 
-EfficientNetV2_B0.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2_B0')
-EfficientNetV2_B1.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2_B1')
-EfficientNetV2_B2.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2_B2')
-EfficientNetV2_B3.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2_B3')
-EfficientNetV2_S.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2_S')
-EfficientNetV2_M.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2_M')
-EfficientNetV2_L.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2_L')
+EfficientNetV2B0.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2B0')
+EfficientNetV2B1.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2B1')
+EfficientNetV2B2.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2B2')
+EfficientNetV2B3.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2B3')
+EfficientNetV2S.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2S')
+EfficientNetV2M.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2M')
+EfficientNetV2L.__doc__ = BASE_DOCSTRING.format(name='EfficientNetV2L')
 
 
 @keras_export('keras.applications.efficientnet_v2.preprocess_input')
 def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
-  """
-  Scale the values from 0-255 to values in range [-1, +1].
+  """A placeholder method for backward compatibility.
+
+  The preprocessing logic has been included in the EfficientNetV2 model
+  implementation. Users are no longer required to call this method to normalize
+  the input data. This method does nothing and only kept as a placeholder to
+  align the API surface between old and new version of model.
 
   Args:
     x: A floating point `numpy.array` or a `tf.Tensor`.
     data_format: Optional data format of the image tensor/array. Defaults to
       None, in which case the global setting
       `tf.keras.backend.image_data_format()` is used (unless you changed it,
-      it defaults to "channels_last").{mode}
+      it defaults to 'channels_last').{mode}
+
   Returns:
-    Rescaled `numpy.array` or `tf.Tensor`.
+    Unchanged `numpy.array` or `tf.Tensor`.
   """
-  return (tf.cast(x, tf.float32) - 128.0) / 128.0
+  return x
