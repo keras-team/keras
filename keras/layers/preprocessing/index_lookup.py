@@ -518,7 +518,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           idf_weights, (front_padding, back_padding),
           "constant",
           constant_values=(front_padding_value, back_padding_value))
-      weights = tf.convert_to_tensor(weights, dtype=backend.floatx())
+      weights = tf.convert_to_tensor(weights, dtype=self.compute_dtype)
       self.idf_weights.assign(weights)
       self.idf_weights_const = self.idf_weights.value()
 
@@ -530,9 +530,10 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
     data = self._standardize_inputs(data, self.vocabulary_dtype)
     if data.shape.rank == 0:
-      data = tf.expand_dims(data, -1)
+      data = tf.expand_dims(data, 0)
     if data.shape.rank == 1:
-      data = tf.expand_dims(data, -1)
+      # Expand dims on axis 0 for tf-idf. A 1-d tensor is a single document.
+      data = tf.expand_dims(data, 0)
 
     tokens, counts = self._num_tokens(data)
     self.token_counts.insert(tokens, counts + self.token_counts.lookup(tokens))
@@ -581,12 +582,17 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       token_document_counts = self.token_document_counts.lookup(tokens)
       idf_weights = self._inverse_document_frequency(token_document_counts,
                                                      self.num_documents)
-      idf_weights = tf.cast(idf_weights, backend.floatx())
+      idf_weights = tf.cast(idf_weights, self.compute_dtype)
       # Pad the front of idf_weights with the average idf weight for OOV tokens.
       # We cannot compute the real idf weight of OOV in a single pass.
       idf_weights = tf.pad(
           idf_weights, [[self._token_start_index(), 0]],
           constant_values=tf.reduce_mean(idf_weights))
+      if self.pad_to_max_tokens and self.max_tokens is not None:
+        # Pad the back of idf_weights with zeros.
+        idf_weights = tf.pad(
+            idf_weights, [[0, self.max_tokens - tf.size(idf_weights)]],
+            constant_values=0)
       self.idf_weights.assign(idf_weights)
       self.idf_weights_const = self.idf_weights.value()
 
