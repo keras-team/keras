@@ -174,7 +174,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
 
     `tf.keras.Model` example with multiple adapts:
 
-    >>> layer = tf.keras.layers.experimental.preprocessing.Normalization(
+    >>> layer = tf.keras.layers.Normalization(
     ...     axis=None)
     >>> layer.adapt([0, 2])
     >>> model = tf.keras.Sequential(layer)
@@ -187,7 +187,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
 
     `tf.data.Dataset` example with multiple adapts:
 
-    >>> layer = tf.keras.layers.experimental.preprocessing.Normalization(
+    >>> layer = tf.keras.layers.Normalization(
     ...     axis=None)
     >>> layer.adapt([0, 2])
     >>> input_ds = tf.data.Dataset.range(3)
