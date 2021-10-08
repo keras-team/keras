@@ -386,7 +386,8 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     model = testing_utils.get_model_from_layers(
         [layer], input_shape=[3], model_type='functional')
     model.save(saved_model_dir, save_format='tf')
-    with self.assertRaisesRegex(RuntimeError, 'Unable to restore a layer of'):
+    with self.assertRaisesRegex(ValueError,
+                                'Unknown layer: LayerThatShouldFailIfNotAdded'):
       _ = keras_load.load(saved_model_dir)
 
   def test_must_restore_from_config_custom_object_scope(self):
