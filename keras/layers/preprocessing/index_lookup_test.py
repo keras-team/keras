@@ -2365,6 +2365,30 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     new_output_dataset = model.predict(input_array)
     self.assertAllEqual(new_output_dataset, expected_output)
 
+  def test_sparse_output_across_saving(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+    input_array = np.array([["earth", "wind", "and", "fire"],
+                            ["fire", "and", "earth", "michigan"]])
+
+    expected_output = [[0., 1., 1., 1., 1.], [1., 1., 0., 1., 1.]]
+
+    layer_cls = index_lookup.IndexLookup
+    layer = layer_cls(
+        max_tokens=None,
+        num_oov_indices=1,
+        mask_token="",
+        oov_token="[OOV]",
+        vocabulary_dtype=tf.string,
+        vocabulary=vocab_data,
+        output_mode="multi_hot",
+        sparse=True)
+    config = layer.get_config()
+    layer = layer_cls.from_config(config)
+
+    output = layer(input_array)
+    self.assertIsInstance(output, tf.SparseTensor)
+    self.assertAllEqual(tf.sparse.to_dense(output), expected_output)
+
 
 class EagerExecutionDisabled(keras_parameterized.TestCase,
                              preprocessing_test_utils.PreprocessingLayerTest):

@@ -363,6 +363,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         "oov_token": self.oov_token,
         "mask_token": self.mask_token,
         "output_mode": self.output_mode,
+        "sparse": self.sparse,
         "pad_to_max_tokens": self.pad_to_max_tokens,
         "vocabulary": utils.listify_tensors(self.input_vocabulary),
         "vocabulary_dtype": self.vocabulary_dtype,
