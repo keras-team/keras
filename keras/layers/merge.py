@@ -257,6 +257,61 @@ class Add(_Merge):
     return output
 
 
+@keras_export('keras.layers.WeightedAdd')
+class WeightedAdd(_Merge):
+    
+    """Layer that adds a list of inputs in a weighted manner, i.e. W1*Input1 + W2*Input2 + ...
+      It takes as input a list of tensors, all of the same shape, and returns a single tensor (also of the same shape).
+      
+      Examples:
+      >>> input_shape = (2, 3, 4)
+      >>> x1 = tf.random.normal(input_shape)
+      >>> x2 = tf.random.normal(input_shape)
+      >>> y = tf.keras.layers.WeightedAdd()([x1, x2])
+      >>> print(y.shape)
+      (2, 3, 4)
+      
+      Used in a functional model:
+      >>> input1 = tf.keras.layers.Input(shape=(16,))
+      >>> x1 = tf.keras.layers.Dense(8, activation='relu')(input1)
+      >>> input2 = tf.keras.layers.Input(shape=(32,))
+      >>> x2 = tf.keras.layers.Dense(8, activation='relu')(input2)
+      >>> wadded = tf.keras.layers.WeightedAdd()([x1, x2])
+      >>> out = tf.keras.layers.Dense(4)(wadded)
+      >>> model = tf.keras.models.Model(inputs=[input1, input2], outputs=out)
+    """
+
+    def build(self, input_shapes):
+        super(WeightedAdd, self).build()
+        
+        for input_index, input_shape in enumerate(input_shapes):
+            w_left = self.add_weight(shape=(input_shape[-2], input_shape[-2]), initializer="random_normal", trainable=True)
+            w_right = self.add_weight(shape=(input_shape[-1], input_shape[-1]), initializer="random_normal", trainable=True)
+            b = self.add_weight(shape=(input_shape[-1],), initializer="zeros", trainable=True)
+            
+            setattr(self, f"weight_{input_index+1}_left", w_left)
+            setattr(self, f"weight_{input_index+1}_right", w_right)
+            setattr(self, f"bias_{input_index+1}", b)
+            
+    def _merge_function(self, inputs):
+        outputs = None
+        for input_index, input_ in enumerate(inputs):
+            w_left = getattr(self, f"weight_{input_index+1}_left")
+            w_right = getattr(self, f"weight_{input_index+1}_right")
+            b = getattr(self, f"bias_{input_index+1}")
+        
+            first_mul = tf.matmul(w_left, input_)
+            second_mul = tf.matmul(first_mul, w_right)
+            second_mul = second_mul + b
+        
+            if outputs is None:
+                outputs = second_mul
+            else:
+                outputs = tf.math.add(outputs, second_mul)
+        
+        return outputs
+  
+
 @keras_export('keras.layers.Subtract')
 class Subtract(_Merge):
   """Layer that subtracts two inputs.
