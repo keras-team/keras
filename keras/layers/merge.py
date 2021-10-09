@@ -285,29 +285,30 @@ class WeightedAdd(_Merge):
         super(WeightedAdd, self).build()
         
         for input_index, input_shape in enumerate(input_shapes):
-            w_left = self.add_weight(shape=(input_shape[-2], input_shape[-2]), initializer="random_normal", trainable=True)
-            w_right = self.add_weight(shape=(input_shape[-1], input_shape[-1]), initializer="random_normal", trainable=True)
-            b = self.add_weight(shape=(input_shape[-1],), initializer="zeros", trainable=True)
+            if len(input_shapes[0]) == 3: # for 3D inputs
+                w = self.add_weight(shape=(input_shape[-2], input_shape[-2]), initializer="random_normal", trainable=True)
+                b = self.add_weight(shape=(input_shape[-1],), initializer="zeros", trainable=True)
+            elif len(input_shapes[0]) == 2: # for 2D inputs
+                w = self.add_weight(shape=(1, input_shape[-1]), initializer="random_normal", trainable=True)
+                b = self.add_weight(shape=(1, input_shape[-1]), initializer="zeros", trainable=True)
+            else:
+                raise Exception("Error! Shapes of output of previous layer is not correct!")
             
-            setattr(self, f"weight_{input_index+1}_left", w_left)
-            setattr(self, f"weight_{input_index+1}_right", w_right)
+            setattr(self, f"weight_{input_index+1}_left", w)
             setattr(self, f"bias_{input_index+1}", b)
             
     def _merge_function(self, inputs):
         outputs = None
         for input_index, input_ in enumerate(inputs):
-            w_left = getattr(self, f"weight_{input_index+1}_left")
-            w_right = getattr(self, f"weight_{input_index+1}_right")
+            w = getattr(self, f"weight_{input_index+1}_left")
             b = getattr(self, f"bias_{input_index+1}")
-        
-            first_mul = tf.matmul(w_left, input_)
-            second_mul = tf.matmul(first_mul, w_right)
-            second_mul = second_mul + b
+            
+            mul = tf.matmul(w, input_) + b
         
             if outputs is None:
-                outputs = second_mul
+                outputs = mul
             else:
-                outputs = tf.math.add(outputs, second_mul)
+                outputs = tf.math.add(outputs, mul)
         
         return outputs
   
