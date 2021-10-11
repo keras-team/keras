@@ -17,6 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 import itertools
+import math
 import os
 import random
 import string
@@ -955,33 +956,67 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     outputs = layer(inputs)
     self.assertAllEqual(outputs.shape.as_list(), [16, 2])
 
-  def test_multi_hot_output_hard_maximum(self):
-    """Check binary output when pad_to_max_tokens=True."""
-    vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = np.array([["earth", "wind", "and", "fire", ""],
-                            ["fire", "fire", "and", "earth", "michigan"]])
-    expected_output = [
-        [0, 1, 1, 1, 1, 0],
-        [1, 1, 0, 1, 1, 0],
-    ]
+  @parameterized.product(
+      sparse=[True, False],
+      adapt=[True, False],
+      pad_to_max=[True, False],
+      mode=["multi_hot", "count", "tf_idf"],
+  )
+  def test_binned_output(self, sparse, adapt, pad_to_max, mode):
+    """Check "multi_hot", "count", and "tf_idf" output."""
+    # Adapt breaks ties with sort order.
+    vocab_data = ["wind", "fire", "earth", "and"]
+    # IDF weight for a term in 1 out of 1 document is log(1 + 1/2).
+    idf_data = [math.log(1.5)] * 4
+    input_data = np.array([["and", "earth", "fire", "and", ""],
+                           ["michigan", "wind", "and", "ohio", ""]])
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    if mode == "count":
+      expected_output = np.array([
+          [0, 0, 1, 1, 2],
+          [2, 1, 0, 0, 1],
+      ])
+    elif mode == "tf_idf":
+      expected_output = np.array([
+          [0, 0, 1, 1, 2],
+          [2, 1, 0, 0, 1],
+      ]) * math.log(1.5)
+    else:
+      expected_output = np.array([
+          [0, 0, 1, 1, 1],
+          [1, 1, 0, 0, 1],
+      ])
+    expected_output_shape = [None, 5]
+    if pad_to_max:
+      expected_output = np.concatenate((expected_output, [[0], [0]]), axis=1)
+      expected_output_shape = [None, 6]
+
+    inputs = keras.Input(shape=(None,), dtype=tf.string)
     layer = index_lookup.IndexLookup(
         max_tokens=6,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        output_mode=index_lookup.MULTI_HOT,
-        pad_to_max_tokens=True,
+        output_mode=mode,
+        pad_to_max_tokens=pad_to_max,
+        sparse=sparse,
+        vocabulary=None if adapt else vocab_data,
+        idf_weights=None if adapt or mode != "tf_idf" else idf_data,
         dtype=tf.string)
-    layer.set_vocabulary(vocab_data)
-    binary_data = layer(input_data)
-    model = keras.Model(inputs=input_data, outputs=binary_data)
-    output_dataset = model.predict(input_array)
-    self.assertAllEqual(expected_output, output_dataset)
+    if adapt:
+      layer.adapt(vocab_data)
+    outputs = layer(inputs)
+    model = keras.Model(inputs, outputs)
+    output_data = model.predict(input_data)
+    if sparse:
+      output_data = tf.sparse.to_dense(output_data)
+    # Check output data.
+    self.assertAllClose(expected_output, output_data)
+    # Check symbolic output shape.
+    self.assertAllEqual(expected_output_shape, outputs.shape.as_list())
 
   def test_multi_hot_output_no_oov(self):
-    """Check binary output when pad_to_max_tokens=True."""
+    """Check multi hot output when num_oov_indices=0."""
     vocab_data = ["earth", "wind", "and", "fire"]
     valid_input = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", ""]])
@@ -1049,188 +1084,6 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     second_output = model.predict(input_array)
     self.assertAllEqual(first_expected_output, first_output)
     self.assertAllEqual(second_expected_output, second_output)
-
-  def test_multi_hot_output_soft_maximum(self):
-    """Check multi_hot output when pad_to_max_tokens=False."""
-    vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = np.array([["earth", "wind", "and", "fire", ""],
-                            ["fire", "and", "earth", "michigan", ""]])
-    expected_output = [
-        [0, 1, 1, 1, 1],
-        [1, 1, 0, 1, 1],
-    ]
-
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        output_mode=index_lookup.MULTI_HOT,
-        dtype=tf.string)
-    layer.set_vocabulary(vocab_data)
-    binary_data = layer(input_data)
-    model = keras.Model(inputs=input_data, outputs=binary_data)
-    output_dataset = model.predict(input_array)
-    self.assertAllEqual(expected_output, output_dataset)
-
-  def test_multi_hot_output_shape(self):
-    input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.string)
-    layer = index_lookup.IndexLookup(
-        max_tokens=2,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        output_mode=index_lookup.MULTI_HOT,
-        vocabulary=["foo"],
-        dtype=tf.string)
-    binary_data = layer(input_data)
-    self.assertAllEqual(binary_data.shape.as_list(), [16, 2])
-
-  def test_count_output_hard_maxiumum(self):
-    """Check count output when pad_to_max_tokens=True."""
-    vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = np.array([["earth", "wind", "and", "wind", ""],
-                            ["fire", "fire", "fire", "michigan", ""]])
-    expected_output = [
-        [0, 1, 2, 1, 0, 0],
-        [1, 0, 0, 0, 3, 0],
-    ]
-
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
-    layer = index_lookup.IndexLookup(
-        max_tokens=6,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        output_mode=index_lookup.COUNT,
-        pad_to_max_tokens=True,
-        dtype=tf.string)
-    layer.set_vocabulary(vocab_data)
-    count_data = layer(input_data)
-    model = keras.Model(inputs=input_data, outputs=count_data)
-    output_dataset = model.predict(input_array)
-    self.assertAllEqual(expected_output, output_dataset)
-
-  def test_count_output_soft_maximum(self):
-    """Check count output when pad_to_max_tokens=False."""
-    vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = np.array([["earth", "wind", "and", "wind", ""],
-                            ["fire", "fire", "fire", "michigan", ""]])
-    expected_output = [
-        [0, 1, 2, 1, 0],
-        [1, 0, 0, 0, 3],
-    ]
-
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        output_mode=index_lookup.COUNT,
-        dtype=tf.string)
-    layer.set_vocabulary(vocab_data)
-    count_data = layer(input_data)
-    model = keras.Model(inputs=input_data, outputs=count_data)
-    output_dataset = model.predict(input_array)
-    self.assertAllEqual(expected_output, output_dataset)
-
-  def test_count_output_shape(self):
-    input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.string)
-    layer = index_lookup.IndexLookup(
-        max_tokens=2,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        output_mode=index_lookup.COUNT,
-        vocabulary=["foo"],
-        dtype=tf.string)
-    count_data = layer(input_data)
-    self.assertAllEqual(count_data.shape.as_list(), [16, 2])
-
-  @parameterized.named_parameters(
-      ("sparse", True),
-      ("dense", False),
-  )
-  def test_ifidf_output_hard_maximum(self, sparse):
-    """Check tf-idf output when pad_to_max_tokens=True."""
-    vocab_data = ["earth", "wind", "and", "fire"]
-    # OOV idf weight (bucket 0) should 0.5, the average of passed weights.
-    idf_weights = [.4, .25, .75, .6]
-    input_array = np.array([["earth", "wind", "and", "earth", ""],
-                            ["ohio", "fire", "earth", "michigan", ""]])
-    expected_output = [
-        [0.00, 0.80, 0.25, 0.75, 0.00, 0.00],
-        [1.00, 0.40, 0.00, 0.00, 0.60, 0.00],
-    ]
-
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
-    layer = index_lookup.IndexLookup(
-        max_tokens=6,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        output_mode=index_lookup.TF_IDF,
-        pad_to_max_tokens=True,
-        dtype=tf.string,
-        sparse=sparse,
-        vocabulary=vocab_data,
-        idf_weights=idf_weights)
-    layer_output = layer(input_data)
-    model = keras.Model(inputs=input_data, outputs=layer_output)
-    output_dataset = model.predict(input_array)
-    if sparse:
-      output_dataset = tf.sparse.to_dense(output_dataset)
-    self.assertAllClose(expected_output, output_dataset)
-
-  @parameterized.named_parameters(
-      ("sparse", True),
-      ("dense", False),
-  )
-  def test_ifidf_output_soft_maximum(self, sparse):
-    """Check tf-idf output when pad_to_max_tokens=False."""
-    vocab_data = ["earth", "wind", "and", "fire"]
-    # OOV idf weight (bucket 0) should 0.5, the average of passed weights.
-    idf_weights = [.4, .25, .75, .6]
-    input_array = np.array([["earth", "wind", "and", "earth", ""],
-                            ["ohio", "fire", "earth", "michigan", ""]])
-    expected_output = [
-        [0.00, 0.80, 0.25, 0.75, 0.00],
-        [1.00, 0.40, 0.00, 0.00, 0.60],
-    ]
-
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        output_mode=index_lookup.TF_IDF,
-        dtype=tf.string,
-        sparse=sparse,
-        vocabulary=vocab_data,
-        idf_weights=idf_weights)
-    layer_output = layer(input_data)
-    model = keras.Model(inputs=input_data, outputs=layer_output)
-    output_dataset = model.predict(input_array)
-    if sparse:
-      output_dataset = tf.sparse.to_dense(output_dataset)
-    self.assertAllClose(expected_output, output_dataset)
-
-  def test_ifidf_output_shape(self):
-    input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.string)
-    layer = index_lookup.IndexLookup(
-        max_tokens=2,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        output_mode=index_lookup.TF_IDF,
-        dtype=tf.string,
-        vocabulary=["foo"],
-        idf_weights=[1.0])
-    layer_output = layer(input_data)
-    self.assertAllEqual(layer_output.shape.as_list(), [16, 2])
 
   def test_int_output_file_vocab(self):
     vocab_data = ["earth", "wind", "and", "fire"]
