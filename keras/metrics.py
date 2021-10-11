@@ -121,7 +121,7 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
     calling `self.add_weight()` like: `self.var = self.add_weight(...)`
   * `update_state()`: Has all updates to the state variables like:
     self.var.assign_add(...).
-  * `result()`: Computes and returns a value for the metric
+  * `result()`: Computes and returns a scalar value for the metric
     from the state variables.
 
   Example subclass implementation:
@@ -323,10 +323,13 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def result(self):
-    """Computes and returns the metric value tensor.
+    """Computes and returns the scalar metric value tensor.
 
     Result computation is an idempotent operation that simply calculates the
     metric value using the state variables.
+
+    Returns:
+      A scalar tensor, or a dictionary of scalar tensors.
     """
     raise NotImplementedError('Must be implemented in subclasses.')
 
