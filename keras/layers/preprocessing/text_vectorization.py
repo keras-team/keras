@@ -17,11 +17,9 @@
 # pylint: disable=g-classes-have-attributes
 # pylint: disable=g-direct-tensorflow-import
 
-from keras import backend
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.layers.preprocessing import string_lookup
-from keras.saving.saved_model import layer_serialization
 from keras.utils import layer_utils
 from keras.utils import tf_utils
 import numpy as np
@@ -46,7 +44,7 @@ DEFAULT_STRIP_REGEX = r'[!"#$%&()\*\+,-\./:;<=>?@\[\\\]^_`{|}~\']'
     "keras.layers.TextVectorization",
     "keras.layers.experimental.preprocessing.TextVectorization",
     v1=[])
-class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
+class TextVectorization(string_lookup.StringLookup):
   """A preprocessing layer which maps text features to integer sequences.
 
   This layer has basic options for managing text in a Keras model. It transforms
@@ -236,16 +234,6 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
                sparse=False,
                ragged=False,
                **kwargs):
-
-    # This layer only applies to string processing, and so should only have
-    # a dtype of 'string'.
-    if "dtype" in kwargs and kwargs["dtype"] != tf.string:
-      raise ValueError(
-          f"`TextVectorization` may only have a dtype of string. "
-          f"Received dtype: {kwargs['dtype']}.")
-    elif "dtype" not in kwargs:
-      kwargs["dtype"] = tf.string
-
     # 'standardize' must be one of (None, LOWER_AND_STRIP_PUNCTUATION, callable)
     layer_utils.validate_string_arg(
         standardize,
@@ -274,8 +262,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         output_mode,
         allowable_strings=(INT, COUNT, MULTI_HOT, TF_IDF),
         layer_name="TextVectorization",
-        arg_name="output_mode",
-        allow_none=True)
+        arg_name="output_mode")
 
     # 'ngrams' must be one of (None, int, tuple(int))
     if not (ngrams is None or
@@ -318,34 +305,23 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
       self._ngrams = ngrams
     self._ragged = ragged
 
-    self._output_mode = output_mode
     self._output_sequence_length = output_sequence_length
+    self._output_tokens = kwargs.pop("_output_tokens", False)
 
-    # VocabularySavedModelSaver will clear the config vocabulary to restore the
-    # lookup table ops directly. We persist this hidden option to persist the
-    # fact that we have have a non-adaptable layer with a manually set vocab.
-    self._has_input_vocabulary = kwargs.pop("has_input_vocabulary",
-                                            (vocabulary is not None))
-
-    # Drop deprecated config options.
-    kwargs.pop("vocabulary_size", None)
-
-    super().__init__(**kwargs)
-    base_preprocessing_layer.keras_kpl_gauge.get_cell("TextVectorization").set(
-        True)
-
-    self._lookup_layer = string_lookup.StringLookup(
+    super().__init__(
+        output_mode=output_mode,
         max_tokens=max_tokens,
         vocabulary=vocabulary,
         idf_weights=idf_weights,
         pad_to_max_tokens=pad_to_max_tokens,
         mask_token="",
-        output_mode=output_mode if output_mode is not None else INT,
         sparse=sparse,
-        has_input_vocabulary=self._has_input_vocabulary)
+        **kwargs)
+    base_preprocessing_layer.keras_kpl_gauge.get_cell("TextVectorization").set(
+        True)
 
   def compute_output_shape(self, input_shape):
-    if self._output_mode == INT:
+    if self.output_mode == INT:
       return tf.TensorShape([input_shape[0], self._output_sequence_length])
 
     if self._split is None:
@@ -353,88 +329,27 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         input_shape = tuple(input_shape) + (1,)
     else:
       input_shape = tuple(input_shape) + (None,)
-    return self._lookup_layer.compute_output_shape(input_shape)
-
-  def compute_output_signature(self, input_spec):
-    output_shape = self.compute_output_shape(input_spec.shape.as_list())
-    output_dtype = (tf.int64 if self._output_mode == INT
-                    else backend.floatx())
-    return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
+    return super().compute_output_shape(input_shape)
 
   def update_state(self, data):
-    self._lookup_layer.update_state(self._preprocess(data))
-
-  def finalize_state(self):
-    self._lookup_layer.finalize_state()
-
-  def reset_state(self):  # pylint: disable=method-hidden
-    self._lookup_layer.reset_state()
-
-  def get_vocabulary(self, include_special_tokens=True):
-    """Returns the current vocabulary of the layer.
-
-    Args:
-      include_special_tokens: If True, the returned vocabulary will include
-        the padding and OOV tokens, and a term's index in the vocabulary will
-        equal the term's index when calling the layer. If False, the returned
-        vocabulary will not include any padding or OOV tokens.
-    """
-    return self._lookup_layer.get_vocabulary(include_special_tokens)
-
-  def vocabulary_size(self):
-    """Gets the current size of the layer's vocabulary.
-
-    Returns:
-      The integer size of the voculary, including optional mask and oov indices.
-    """
-    return self._lookup_layer.vocabulary_size()
+    super().update_state(self._preprocess(data))
 
   def get_config(self):
-    vocab = self._lookup_layer.input_vocabulary
-    idf_weights = self._lookup_layer.input_idf_weights
-    config = {
-        "max_tokens": self._lookup_layer.max_tokens,
+    config = super().get_config()
+    # Delete options we do not expose for TextVectorization.
+    del config["oov_token"]
+    del config["mask_token"]
+    del config["num_oov_indices"]
+    del config["invert"]
+    del config["encoding"]
+    config.update({
         "standardize": self._standardize,
         "split": self._split,
         "ngrams": self._ngrams_arg,
-        "output_mode": self._output_mode,
         "output_sequence_length": self._output_sequence_length,
-        "pad_to_max_tokens": self._lookup_layer.pad_to_max_tokens,
-        "sparse": self._lookup_layer.sparse,
         "ragged": self._ragged,
-        "vocabulary": utils.listify_tensors(vocab),
-        "idf_weights": utils.listify_tensors(idf_weights),
-    }
-    base_config = super(TextVectorization, self).get_config()
-    return dict(list(base_config.items()) + list(config.items()))
-
-  def set_vocabulary(self, vocabulary, idf_weights=None):
-    """Sets vocabulary (and optionally document frequency) data for this layer.
-
-    This method sets the vocabulary and idf weights for this layer directly,
-    instead of analyzing a dataset through 'adapt'. It should be used whenever
-    the vocab (and optionally document frequency) information is already known.
-    If vocabulary data is already present in the layer, this method will replace
-    it.
-
-    Args:
-      vocabulary: Either an array or a string path to a text file. If passing an
-        array, can pass a tuple, list, 1D numpy array, or 1D tensor containing
-        the vocbulary terms. If passing a file path, the file should contain one
-        line per term in the vocabulary.
-      idf_weights: A tuple, list, 1D numpy array, or 1D tensor of inverse
-        document frequency weights with equal length to vocabulary. Must be set
-        if `output_mode` is `"tf_idf"`. Should not be set otherwise.
-
-    Raises:
-      ValueError: If there are too many inputs, the inputs do not match, or
-        input data is missing.
-      RuntimeError: If the vocabulary cannot be set when this function is
-        called. This happens when `"multi_hot"`, `"count"`, and "tf_idf" modes,
-        if `pad_to_max_tokens` is False and the layer itself has already been
-        called.
-    """
-    self._lookup_layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
+    })
+    return config
 
   def build(self, input_shape):
     # We have to use 'and not ==' here, because input_shape[1] !/== 1 can result
@@ -448,7 +363,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             "dimension of the input array must be 1, got shape "
             "{}".format(input_shape))
 
-    super(TextVectorization, self).build(input_shape)
+    super().build(input_shape)
 
   def _preprocess(self, inputs):
     if self._standardize == LOWER_AND_STRIP_PUNCTUATION:
@@ -503,44 +418,32 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
   def call(self, inputs):
     if isinstance(inputs, (list, tuple, np.ndarray)):
       inputs = tf.convert_to_tensor(inputs)
-
     inputs = self._preprocess(inputs)
 
-    # If we're not doing any output processing, return right away.
-    if self._output_mode is None:
-      return inputs
+    outputs = super().call(inputs)
 
-    lookup_data = self._lookup_layer(inputs)
-
-    # For any non-int output, we can return directly from the underlying layer.
-    if self._output_mode != INT:
-      return lookup_data
-
-    if self._ragged:
-      return lookup_data
+    # For non-int or ragged output, return directly from the lookup layer.
+    if self.output_mode != INT or self._ragged:
+      return outputs
 
     # If we have a ragged tensor, we can pad during the conversion to dense.
-    if tf_utils.is_ragged(lookup_data):
-      shape = lookup_data.shape.as_list()
+    if tf_utils.is_ragged(outputs):
+      shape = outputs.shape.as_list()
       # If output sequence length is None, to_tensor will pad the last dimension
       # to the bounding shape of the ragged dimension.
       shape[-1] = self._output_sequence_length
-      return lookup_data.to_tensor(default_value=0, shape=shape)
+      return outputs.to_tensor(default_value=0, shape=shape)
 
     # If we have a dense tensor, we need to pad/trim directly.
     if self._output_sequence_length is not None:
       # Maybe trim the output.
-      lookup_data = lookup_data[..., :self._output_sequence_length]
+      outputs = outputs[..., :self._output_sequence_length]
 
       # Maybe pad the output. We need to be careful to use dynamic shape here as
       # required_space_to_batch_paddings requires a fully known shape.
-      shape = tf.shape(lookup_data)
+      shape = tf.shape(outputs)
       padded_shape = tf.concat((shape[:-1], [self._output_sequence_length]), 0)
       padding, _ = tf.required_space_to_batch_paddings(shape, padded_shape)
-      return tf.pad(lookup_data, padding)
+      return tf.pad(outputs, padding)
 
-    return lookup_data
-
-  @property
-  def _trackable_saved_model_saver(self):
-    return layer_serialization.VocabularySavedModelSaver(self)
+    return outputs

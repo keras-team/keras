@@ -1,6 +1,8 @@
 path: "tensorflow.keras.layers.experimental.preprocessing.TextVectorization"
 tf_class {
   is_instance: "<class \'keras.layers.preprocessing.text_vectorization.TextVectorization\'>"
+  is_instance: "<class \'keras.layers.preprocessing.string_lookup.StringLookup\'>"
+  is_instance: "<class \'keras.layers.preprocessing.index_lookup.IndexLookup\'>"
   is_instance: "<class \'keras.engine.base_preprocessing_layer.PreprocessingLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
@@ -263,6 +265,10 @@ tf_class {
   member_method {
     name: "update_state"
     argspec: "args=[\'self\', \'data\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "vocab_size"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "vocabulary_size"

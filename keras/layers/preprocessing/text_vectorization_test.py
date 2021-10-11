@@ -490,8 +490,8 @@ class TextVectorizationPreprocessingTest(
   def test_normalization(self):
     input_array = np.array([["Earth", "wInD", "aNd", "firE"],
                             ["fire|", "an<>d", "{earth}", "michigan@%$"]])
-    expected_output = np.array([[b"earth", b"wind", b"and", b"fire"],
-                                [b"fire", b"and", b"earth", b"michigan"]])
+    expected_output = np.array([[2, 3, 4, 5],
+                                [5, 4, 2, 1]])
 
     input_data = keras.Input(shape=(None,), dtype=tf.string)
     layer = text_vectorization.TextVectorization(
@@ -499,7 +499,7 @@ class TextVectorizationPreprocessingTest(
         standardize=text_vectorization.LOWER_AND_STRIP_PUNCTUATION,
         split=None,
         ngrams=None,
-        output_mode=None)
+        vocabulary=["earth", "wind", "and", "fire"])
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -507,9 +507,9 @@ class TextVectorizationPreprocessingTest(
 
   def test_normalization_ragged_inputs(self):
     input_array = tf.ragged.constant([["Earth", "wInD", "aNd", "firE"],
-                                               ["fire|", "an<>d", "{earth}"]])
-    expected_output = [[b"earth", b"wind", b"and", b"fire"],
-                       [b"fire", b"and", b"earth"]]
+                                      ["fire|", "an<>d", "{earth}"]])
+    expected_output = np.array([[2, 3, 4, 5],
+                                [5, 4, 2, 0]])
 
     input_data = keras.Input(shape=(None,), ragged=True, dtype=tf.string)
     layer = text_vectorization.TextVectorization(
@@ -517,18 +517,18 @@ class TextVectorizationPreprocessingTest(
         standardize=text_vectorization.LOWER_AND_STRIP_PUNCTUATION,
         split=None,
         ngrams=None,
-        output_mode=None)
+        vocabulary=["earth", "wind", "and", "fire"])
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
   def test_custom_normalization(self):
-    input_array = np.array([["Earth", "wInD", "aNd", "firE"],
-                            ["fire|", "an<>d", "{earth}", "michigan@%$"]])
+    input_array = np.array([["Earth,", "wInD.", "aNd?", "firE!"],
+                            ["fire!", "and?", "earth", "michigan@%$"]])
     expected_output = np.array(
-        [[b"earth", b"wind", b"and", b"fire"],
-         [b"fire|", b"an<>d", b"{earth}", b"michigan@%$"]])
+        [[2, 3, 4, 5],
+         [5, 4, 1, 1]])
 
     custom_standardization = tf.strings.lower
     input_data = keras.Input(shape=(None,), dtype=tf.string)
@@ -537,7 +537,7 @@ class TextVectorizationPreprocessingTest(
         standardize=custom_standardization,
         split=None,
         ngrams=None,
-        output_mode=None)
+        vocabulary=["earth,", "wind.", "and?", "fire!"])
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -546,8 +546,8 @@ class TextVectorizationPreprocessingTest(
   def test_string_splitting(self):
     input_array = np.array([["earth wind and fire"],
                             ["\tfire\tand\nearth    michigan  "]])
-    expected_output = [[b"earth", b"wind", b"and", b"fire"],
-                       [b"fire", b"and", b"earth", b"michigan"]]
+    expected_output = [[2, 3, 4, 5],
+                       [5, 4, 2, 1]]
 
     input_data = keras.Input(shape=(1,), dtype=tf.string)
     layer = text_vectorization.TextVectorization(
@@ -555,7 +555,7 @@ class TextVectorizationPreprocessingTest(
         standardize=None,
         split=text_vectorization.SPLIT_ON_WHITESPACE,
         ngrams=None,
-        output_mode=None)
+        vocabulary=["earth", "wind", "and", "fire"])
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -564,8 +564,8 @@ class TextVectorizationPreprocessingTest(
   def test_custom_string_splitting(self):
     input_array = np.array([["earth>wind>and fire"],
                             ["\tfire>and\nearth>michigan"]])
-    expected_output = [[b"earth", b"wind", b"and fire"],
-                       [b"\tfire", b"and\nearth", b"michigan"]]
+    expected_output = [[2, 3, 1],
+                       [1, 1, 1]]
 
     custom_split = lambda x: tf.strings.split(x, sep=">")
     input_data = keras.Input(shape=(1,), dtype=tf.string)
@@ -574,7 +574,7 @@ class TextVectorizationPreprocessingTest(
         standardize=None,
         split=custom_split,
         ngrams=None,
-        output_mode=None)
+        vocabulary=["earth", "wind", "and", "fire"])
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -582,15 +582,9 @@ class TextVectorizationPreprocessingTest(
 
   def test_single_ngram_value_ragged_inputs(self):
     input_array = tf.ragged.constant([["earth", "wind", "and", "fire"],
-                                               ["fire", "and", "earth"]])
-    # pyformat: disable
-    expected_output = [[b"earth", b"wind", b"and", b"fire",
-                        b"earth wind", b"wind and", b"and fire",
-                        b"earth wind and", b"wind and fire"],
-                       [b"fire", b"and", b"earth",
-                        b"fire and", b"and earth",
-                        b"fire and earth"]]
-    # pyformat: enable
+                                      ["fire", "and", "earth"]])
+    expected_output = [[2, 3, 4, 1, 5, 1, 1, 6, 1],
+                       [1, 4, 2, 1, 1, 1, 0, 0, 0]]
 
     input_data = keras.Input(shape=(None,), ragged=True, dtype=tf.string)
     layer = text_vectorization.TextVectorization(
@@ -598,7 +592,7 @@ class TextVectorizationPreprocessingTest(
         standardize=None,
         split=None,
         ngrams=3,
-        output_mode=None)
+        vocabulary=["earth", "wind", "and", "earth wind", "earth wind and"])
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -607,14 +601,8 @@ class TextVectorizationPreprocessingTest(
   def test_single_ngram_value(self):
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
-    # pyformat: disable
-    expected_output = [[b"earth", b"wind", b"and", b"fire",
-                        b"earth wind", b"wind and", b"and fire",
-                        b"earth wind and", b"wind and fire"],
-                       [b"fire", b"and", b"earth", b"michigan",
-                        b"fire and", b"and earth", b"earth michigan",
-                        b"fire and earth", b"and earth michigan"]]
-    # pyformat: enable
+    expected_output = [[2, 3, 4, 1, 5, 1, 1, 6, 1],
+                       [1, 4, 2, 1, 1, 1, 1, 1, 1]]
 
     input_data = keras.Input(shape=(4,), dtype=tf.string)
     layer = text_vectorization.TextVectorization(
@@ -622,7 +610,7 @@ class TextVectorizationPreprocessingTest(
         standardize=None,
         split=None,
         ngrams=3,
-        output_mode=None)
+        vocabulary=["earth", "wind", "and", "earth wind", "earth wind and"])
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -631,12 +619,8 @@ class TextVectorizationPreprocessingTest(
   def test_multiple_ngram_values(self):
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
-    # pyformat: disable
-    expected_output = [[b"earth wind", b"wind and", b"and fire",
-                        b"earth wind and", b"wind and fire"],
-                       [b"fire and", b"and earth", b"earth michigan",
-                        b"fire and earth", b"and earth michigan"]]
-    # pyformat: enable
+    expected_output = [[2, 3, 4, 5, 1],
+                       [1, 1, 1, 1, 1]]
 
     input_data = keras.Input(shape=(4,), dtype=tf.string)
     layer = text_vectorization.TextVectorization(
@@ -644,7 +628,7 @@ class TextVectorizationPreprocessingTest(
         standardize=None,
         split=None,
         ngrams=(2, 3),
-        output_mode=None)
+        vocabulary=["earth wind", "wind and", "and fire", "earth wind and"])
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -653,24 +637,8 @@ class TextVectorizationPreprocessingTest(
   def test_string_multiple_preprocessing_steps(self):
     input_array = np.array([["earth wInD and firE"],
                             ["\tfire\tand\nearth!!    michig@n  "]])
-    expected_output = [[
-        b"earth",
-        b"wind",
-        b"and",
-        b"fire",
-        b"earth wind",
-        b"wind and",
-        b"and fire",
-    ],
-                       [
-                           b"fire",
-                           b"and",
-                           b"earth",
-                           b"michign",
-                           b"fire and",
-                           b"and earth",
-                           b"earth michign",
-                       ]]
+    expected_output = [[2, 3, 4, 5, 6, 7, 1],
+                       [5, 4, 2, 1, 1, 1, 1]]
 
     input_data = keras.Input(shape=(1,), dtype=tf.string)
     layer = text_vectorization.TextVectorization(
@@ -678,7 +646,7 @@ class TextVectorizationPreprocessingTest(
         standardize=text_vectorization.LOWER_AND_STRIP_PUNCTUATION,
         split=text_vectorization.SPLIT_ON_WHITESPACE,
         ngrams=2,
-        output_mode=None)
+        vocabulary=["earth", "wind", "and", "fire", "earth wind", "wind and"])
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
@@ -687,10 +655,10 @@ class TextVectorizationPreprocessingTest(
   def test_string_splitting_with_non_1d_array_fails(self):
     input_data = keras.Input(shape=(None,), dtype=tf.string)
     layer = text_vectorization.TextVectorization(
+        vocabulary=["a"],
         max_tokens=None,
         standardize=None,
-        split=text_vectorization.SPLIT_ON_WHITESPACE,
-        output_mode=None)
+        split=text_vectorization.SPLIT_ON_WHITESPACE)
     with self.assertRaisesRegex(RuntimeError,
                                 ".*tokenize strings, the innermost dime.*"):
       _ = layer(input_data)
@@ -701,8 +669,7 @@ class TextVectorizationPreprocessingTest(
         vocabulary=["a"],
         max_tokens=None,
         standardize=None,
-        split=text_vectorization.SPLIT_ON_WHITESPACE,
-        output_mode=None)
+        split=text_vectorization.SPLIT_ON_WHITESPACE)
     with self.assertRaisesRegex(RuntimeError,
                                 ".*tokenize strings, the innermost dime.*"):
       _ = layer(input_data)
@@ -1562,10 +1529,6 @@ class TextVectorizationErrorTest(keras_parameterized.TestCase,
     with self.assertRaisesRegex(ValueError, "max_tokens.*"):
       _ = text_vectorization.TextVectorization(max_tokens=0)
 
-  def test_non_string_dtype_fails(self):
-    with self.assertRaisesRegex(ValueError, "dtype of string.*"):
-      _ = text_vectorization.TextVectorization(dtype=tf.int64)
-
   def test_unknown_standardize_arg_fails(self):
     with self.assertRaisesRegex(ValueError,
                                 "`standardize` arg.*unsupported_value"):
@@ -1793,8 +1756,8 @@ class TextVectorizationSavingTest(
   def test_serialization_with_custom_callables(self):
     input_array = np.array([["earth>wind>and Fire"],
                             ["\tfire>And\nearth>michigan"]])
-    expected_output = [[b"earth", b"wind", b"and fire"],
-                       [b"\tfire", b"and\nearth", b"michigan"]]
+    expected_output = [[2, 3, 1],
+                       [1, 1, 1]]
 
     input_data = keras.Input(shape=(1,), dtype=tf.string)
     layer = text_vectorization.TextVectorization(
@@ -1802,7 +1765,7 @@ class TextVectorizationSavingTest(
         standardize=custom_standardize_fn,
         split=custom_split_fn,
         ngrams=None,
-        output_mode=None)
+        vocabulary=["earth", "wind", "and", "fire"])
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
