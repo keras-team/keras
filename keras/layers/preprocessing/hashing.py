@@ -167,6 +167,9 @@ class Hashing(base_layer.Layer):
     # By default, output int64 when output_mode='int' and floats otherwise.
     if 'dtype' not in kwargs:
       kwargs['dtype'] = tf.int64 if output_mode == INT else backend.floatx()
+    elif output_mode == 'int' and not tf.as_dtype(kwargs['dtype']).is_integer:
+      # Compat for when dtype was alwyas floating and ingored by the layer.
+      kwargs['dtype'] = tf.int64
 
     super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Hashing').set(True)
