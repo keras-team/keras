@@ -17,13 +17,20 @@
 # pylint: disable=g-classes-have-attributes
 # pylint: disable=g-direct-tensorflow-import
 
+from keras import backend
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
+from keras.utils import layer_utils
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
+
+INT = utils.INT
+MULTI_HOT = utils.MULTI_HOT
+ONE_HOT = utils.ONE_HOT
+COUNT = utils.COUNT
 
 
 def summarize(values, epsilon):
@@ -149,6 +156,25 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
       0.01). Higher values of epsilon increase the quantile approximation, and
       hence result in more unequal buckets, but could improve performance
       and resource consumption.
+    output_mode: Specification for the output of the layer. Defaults to `"int"`.
+      Values can be `"int"`, `"one_hot"`, `"multi_hot"`, or `"count"`
+      configuring the layer as follows:
+        - `"int"`: Return the discritized bin indices directly.
+        - `"one_hot"`: Encodes each individual element in the input into an
+          array the same size as `num_bins`, containing a 1 at the input's bin
+          index. If the last dimension is size 1, will encode on that dimension.
+          If the last dimension is not size 1, will append a new dimension for
+          the encoded output.
+        - `"multi_hot"`: Encodes each sample in the input into a single array
+          the same size as `num_bins`, containing a 1 for each bin index
+          index present in the sample. Treats the last dimension as the sample
+          dimension, if input shape is `(..., sample_length)`, output shape will
+          be `(..., num_tokens)`.
+        - `"count"`: As `"multi_hot"`, but the int array contains a count of the
+          number of times the bin index appeared in the sample.
+    sparse: Boolean. Only applicable to `"one_hot"`, `"multi_hot"`,
+      and `"count"` output modes. If True, returns a `SparseTensor` instead of
+      a dense `Tensor`. Defaults to False.
 
   Examples:
 
@@ -174,6 +200,8 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
                bin_boundaries=None,
                num_bins=None,
                epsilon=0.01,
+               output_mode="int",
+               sparse=False,
                **kwargs):
     # bins is a deprecated arg for setting bin_boundaries or num_bins that still
     # has some usage.
@@ -185,9 +213,37 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
       elif bin_boundaries is None:
         bin_boundaries = kwargs["bins"]
       del kwargs["bins"]
+
+    # By default, output int64 when output_mode='int' and floats otherwise.
+    if "dtype" not in kwargs:
+      kwargs["dtype"] = tf.int64 if output_mode == INT else backend.floatx()
+    elif output_mode == "int" and not tf.as_dtype(kwargs["dtype"]).is_integer:
+      # Compat for when dtype was alwyas floating and ingored by the layer.
+      kwargs["dtype"] = tf.int64
+
     super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell("Discretization").set(
         True)
+
+    # Check dtype only after base layer parses it; dtype parsing is complex.
+    if output_mode == INT and not tf.as_dtype(self.compute_dtype).is_integer:
+      input_dtype = kwargs["dtype"]
+      raise ValueError("When `output_mode='int'`, `dtype` should be an integer "
+                       f"type. Received: dtype={input_dtype}")
+
+    # 'output_mode' must be one of (INT, ONE_HOT, MULTI_HOT, COUNT)
+    layer_utils.validate_string_arg(
+        output_mode,
+        allowable_strings=(INT, ONE_HOT, MULTI_HOT, COUNT),
+        layer_name=self.__class__.__name__,
+        arg_name="output_mode")
+
+    if sparse and output_mode == INT:
+      raise ValueError(f"`sparse` may only be true if `output_mode` is "
+                       f"`'one_hot'`, `'multi_hot'`, or `'count'`. "
+                       f"Received: sparse={sparse} and "
+                       f"output_mode={output_mode}")
+
     if num_bins is not None and num_bins < 0:
       raise ValueError("`num_bins` must be greater than or equal to 0. "
                        "You passed `num_bins={}`".format(num_bins))
@@ -200,6 +256,8 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     self.bin_boundaries = bin_boundaries if bin_boundaries is not None else []
     self.num_bins = num_bins
     self.epsilon = epsilon
+    self.output_mode = output_mode
+    self.sparse = sparse
 
   def build(self, input_shape):
     super().build(input_shape)
@@ -252,6 +310,8 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
         "bin_boundaries": self.input_bin_boundaries,
         "num_bins": self.num_bins,
         "epsilon": self.epsilon,
+        "output_mode": self.output_mode,
+        "sparse": self.sparse,
     })
     return config
 
@@ -260,30 +320,28 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
 
   def compute_output_signature(self, input_spec):
     output_shape = self.compute_output_shape(input_spec.shape.as_list())
-    output_dtype = tf.int64
     if isinstance(input_spec, tf.SparseTensorSpec):
       return tf.SparseTensorSpec(
-          shape=output_shape, dtype=output_dtype)
-    return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
+          shape=output_shape, dtype=self.compute_dtype)
+    return tf.TensorSpec(shape=output_shape, dtype=self.compute_dtype)
 
   def call(self, inputs):
     def bucketize(inputs):
-      outputs = tf.raw_ops.Bucketize(
-          input=inputs, boundaries=self.bin_boundaries)
-      # All other preprocessing layers use int64 for int output, so we conform
-      # here. Sadly the underlying op only supports int32, so we need to cast.
-      return tf.cast(outputs, tf.int64)
+      return tf.raw_ops.Bucketize(input=inputs, boundaries=self.bin_boundaries)
 
     if tf_utils.is_ragged(inputs):
-      integer_buckets = tf.ragged.map_flat_values(bucketize, inputs)
-      # Ragged map_flat_values doesn't touch the non-values tensors in the
-      # ragged composite tensor. If this op is the only op a Keras model,
-      # this can cause errors in Graph mode, so wrap the tensor in an identity.
-      return tf.identity(integer_buckets)
+      indices = tf.ragged.map_flat_values(bucketize, inputs)
     elif tf_utils.is_sparse(inputs):
-      return tf.SparseTensor(
+      indices = tf.SparseTensor(
           indices=tf.identity(inputs.indices),
           values=bucketize(inputs.values),
           dense_shape=tf.identity(inputs.dense_shape))
     else:
-      return bucketize(inputs)
+      indices = bucketize(inputs)
+
+    return utils.encode_categorical_inputs(
+        indices,
+        output_mode=self.output_mode,
+        depth=len(self.bin_boundaries) + 1,
+        sparse=self.sparse,
+        dtype=self.compute_dtype)

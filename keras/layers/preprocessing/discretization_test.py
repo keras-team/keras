@@ -14,11 +14,9 @@
 # ==============================================================================
 """Tests for Keras discretization preprocessing layer."""
 
-
 import os
 
 from absl.testing import parameterized
-
 import keras
 from keras import keras_parameterized
 from keras import testing_utils
@@ -121,17 +119,92 @@ class DiscretizationTest(keras_parameterized.TestCase,
     self.assertAllEqual(indices, output_dataset.indices)
     self.assertAllEqual(expected_output, output_dataset.values)
 
-  def test_output_shape(self):
-    input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.int64)
-    layer = discretization.Discretization(bin_boundaries=[-.5, 0.5, 1.5])
-    output = layer(input_data)
-    self.assertAllEqual(output.shape.as_list(), [16, 4])
+  def test_one_hot_output(self):
+    input_data = np.array([-1.5, 1.0, 3.4, 3.5])
 
-  def test_output_dtype(self):
-    input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.int64)
+    expected_output = [[1., 0., 0., 0.],
+                       [0., 0., 1., 0.],
+                       [0., 0., 0., 1.],
+                       [0., 0., 0., 1.]]
+    expected_output_shape = [None, 4]
+
+    inputs = keras.Input(shape=(1,))
+    layer = discretization.Discretization(bin_boundaries=[0., 1., 2.],
+                                          output_mode="one_hot")
+    outputs = layer(inputs)
+    self.assertAllEqual(expected_output_shape, outputs.shape.as_list())
+
+    model = keras.Model(inputs, outputs)
+    output_data = model(input_data)
+    self.assertAllEqual(expected_output, output_data)
+
+  def test_multi_hot_output(self):
+    input_data = np.array([-1.5, 1.0, 3.4, 3.5])
+
+    expected_output = [1., 0., 1., 1.]
+    expected_output_shape = [None, 4]
+
+    inputs = keras.Input(shape=(4,))
+    layer = discretization.Discretization(bin_boundaries=[0., 1., 2.],
+                                          output_mode="multi_hot")
+    outputs = layer(inputs)
+    self.assertAllEqual(expected_output_shape, outputs.shape.as_list())
+
+    model = keras.Model(inputs, outputs)
+    output_data = model(input_data)
+    self.assertAllEqual(expected_output, output_data)
+
+  def test_count_output(self):
+    input_data = np.array([-1.5, 1.0, 3.4, 3.5])
+
+    expected_output = [1., 0., 1., 2.]
+    expected_output_shape = [None, 4]
+
+    inputs = keras.Input(shape=(4,))
+    layer = discretization.Discretization(bin_boundaries=[0., 1., 2.],
+                                          output_mode="count")
+    outputs = layer(inputs)
+    self.assertAllEqual(expected_output_shape, outputs.shape.as_list())
+
+    model = keras.Model(inputs, outputs)
+    output_data = model(input_data)
+    self.assertAllEqual(expected_output, output_data)
+
+  def test_output_shape(self):
+    inputs = keras.Input(batch_size=16, shape=(4,), dtype=tf.int64)
     layer = discretization.Discretization(bin_boundaries=[-.5, 0.5, 1.5])
-    output = layer(input_data)
-    self.assertAllEqual(output.dtype, tf.int64)
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.shape.as_list(), [16, 4])
+
+  @parameterized.named_parameters(
+      ("int32", tf.int32),
+      ("int64", tf.int64),
+  )
+  def test_output_dtype(self, dtype):
+    inputs = keras.Input(batch_size=16, shape=(4,), dtype="float32")
+    layer = discretization.Discretization(bin_boundaries=[-.5, 0.5, 1.5],
+                                          dtype=dtype)
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.dtype, dtype)
+
+  def test_legacy_dtype_compat(self):
+    inputs = keras.Input(batch_size=16, shape=(4,), dtype="float32")
+    layer = discretization.Discretization(bin_boundaries=[-.5, 0.5, 1.5],
+                                          dtype="float32")
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.dtype, tf.int64)
+
+  @parameterized.named_parameters(
+      ("float32", tf.float32),
+      ("float64", tf.float64),
+  )
+  def test_one_hot_output_dtype(self, dtype):
+    inputs = keras.Input(batch_size=16, shape=(1,), dtype="float32")
+    layer = discretization.Discretization(bin_boundaries=[-.5, 0.5, 1.5],
+                                          output_mode="one_hot",
+                                          dtype=dtype)
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.dtype, dtype)
 
   def test_num_bins_negative_fails(self):
     with self.assertRaisesRegex(ValueError, "`num_bins` must be.*num_bins=-7"):
