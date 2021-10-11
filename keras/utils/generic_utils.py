@@ -919,17 +919,24 @@ class Progbar:
 
       if self.target is not None:
         numdigits = int(np.log10(self.target)) + 1
-        bar = ('%' + str(numdigits) + 'd/%d [') % (current, self.target)
+        bar = ('%' + str(numdigits) + 'd/%d |') % (current, self.target)
         prog = float(current) / self.target
-        prog_width = int(self.width * prog)
+        prog_width = int(self.width * prog * 8)
         if prog_width > 0:
-          bar += ('=' * (prog_width - 1))
+          bar += ('█' * (prog_width // 8))  # prog_width - 1
           if current < self.target:
-            bar += '>'
+            if prog_width % 8 == 0: bar += ' '
+            if prog_width % 8 == 1: bar += '▏'
+            if prog_width % 8 == 2: bar += '▎'
+            if prog_width % 8 == 3: bar += '▍'
+            if prog_width % 8 == 4: bar += '▌'
+            if prog_width % 8 == 5: bar += '▋'
+            if prog_width % 8 == 6: bar += '▊'
+            if prog_width % 8 == 7: bar += '▉'
           else:
-            bar += '='
-        bar += ('.' * (self.width - prog_width))
-        bar += ']'
+            bar += '█'
+        bar += (' ' * (self.width - prog_width // 8))
+        bar += '|'
       else:
         bar = '%7d/Unknown' % current
 
