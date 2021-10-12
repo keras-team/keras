@@ -313,9 +313,11 @@ class HashingTest(keras_parameterized.TestCase):
     output = layer(input_data)
     self.assertAllEqual(output.dtype, dtype)
 
-  def test_int_output_float_dtype_fails(self):
-    with self.assertRaisesRegex(ValueError, '`dtype` should be an integer'):
-      hashing.Hashing(num_bins=3, dtype='string')
+  def test_legacy_dtype_compat(self):
+    inputs = keras.Input(batch_size=16, shape=(4,), dtype='string')
+    layer = hashing.Hashing(num_bins=3, dtype='float32')
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.dtype, tf.int64)
 
   @parameterized.named_parameters(
       ('float32', tf.float32),
