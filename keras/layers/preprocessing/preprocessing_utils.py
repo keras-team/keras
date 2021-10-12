@@ -88,7 +88,7 @@ def encode_categorical_inputs(inputs,
                               idf_weights=None):
   """Encodes categoical inputs according to output_mode."""
   if output_mode == INT:
-    return tf.cast(inputs, dtype)
+    return tf.identity(tf.cast(inputs, dtype))
 
   original_shape = inputs.shape
   # In all cases, we should uprank scalar input to a single sample.
