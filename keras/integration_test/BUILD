@@ -183,6 +183,25 @@ distribute_py_test(
     ],
 )
 
+distribute_py_test(
+    name = "mwms_multi_process_runner_test",
+    srcs = ["mwms_multi_process_runner_test.py"],
+    python_version = "PY3",
+    tags = [
+        "multi_gpu",
+        "no_rocm",
+        "noasan",  # TODO(b/184542721)
+        "nomsan",  # TODO(b/184542721)
+        "nomultivm",  # TODO(b/170502145)
+        "notpu",
+        "notsan",  # TODO(b/184542721)
+    ],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+    ],
+)
+
 py_library(
     name = "preprocessing_test_utils",
     srcs = ["preprocessing_test_utils.py"],
