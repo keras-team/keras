@@ -777,6 +777,36 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def run_eagerly(self, value):
     self._run_eagerly = value
 
+  def _validate_target_and_loss(self, y, loss):
+    """Raises error if target or loss is not found.
+
+    This method verifies that the target and loss are properly populated
+    when applicable, or raises errors.
+
+    Args:
+      y: the target for training.
+      loss: the total loss tensor including loss added via `compile` and
+        `add_loss`.
+    """
+
+    # `self.loss` references the loss added via `compile` call. If users have
+    # provided such, the target must be provided; otherwise it's a user error.
+    # Note that `self.loss` does not include losses added via `add_loss`, and it
+    # is a valid use when such loss from `add_loss` exists and target does not.
+    if self.loss and y is None:
+      raise ValueError(
+          'Target data is missing. Your model was compiled with '
+          f'loss={self.loss}, '
+          'and therefore expects target data to be provided in `fit()`.')
+
+    # For training, there must be compiled loss or regularization loss to exist
+    # in order to apply the gradients. If one is not found, it means no loss
+    # was supplied via `compile` or `add_loss`.
+    elif loss is None:
+      raise ValueError(
+          'No loss found. You may have forgotten to provide a `loss` argument '
+          'in the `compile()` method.')
+
   def train_step(self, data):
     """The logic for one training step.
 
@@ -808,10 +838,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       y_pred = self(x, training=True)
       loss = self.compiled_loss(
           y, y_pred, sample_weight, regularization_losses=self.losses)
-    if self.loss and y is None:
-      raise TypeError(
-          f'Target data is missing. Your model has `loss`: {self.loss}, '
-          'and therefore expects target data to be passed in `fit()`.')
+    self._validate_target_and_loss(y, loss)
     # Run backwards pass.
     self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
     self.compiled_metrics.update_state(y, y_pred, sample_weight)
