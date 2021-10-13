@@ -22,6 +22,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 _PARTITION_SHAPE = 'partition_shape'
 _PARTITION_OFFSET = 'partition_offset'
+_ALLOWED_INITIALIZER_KWARGS = [_PARTITION_SHAPE, _PARTITION_OFFSET]
 
 
 @keras_export('keras.initializers.Initializer')
@@ -141,6 +142,12 @@ class Zeros(Initializer):
       raise ValueError(f'Expected numeric or boolean dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
+    return self._call(shape, dtype, **kwargs)
+
+  def _call(self, shape, dtype, **kwargs):
+    # TODO(scottzhu): remove this extra level of _call when layout is part of
+    # the public API.
+    del kwargs
     return tf.zeros(shape, dtype)
 
 
@@ -178,6 +185,10 @@ class Ones(Initializer):
       raise ValueError(f'Expected numeric or boolean dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
+    return self._call(shape, dtype, **kwargs)
+
+  def _call(self, shape, dtype, **kwargs):
+    del kwargs
     return tf.ones(shape, dtype)
 
 
@@ -997,11 +1008,10 @@ def _compute_fans(shape):
 
 
 def _validate_kwargs(cls_name, kwargs, support_partition=True):
-  allowed_kwargs = [_PARTITION_SHAPE, _PARTITION_OFFSET]
   for kwarg in kwargs:
-    if kwarg not in allowed_kwargs:
+    if kwarg not in _ALLOWED_INITIALIZER_KWARGS:
       raise TypeError(f'Unknown keyword arguments: {kwarg}. Allowed keyword '
-                      f'arguments: {allowed_kwargs}.')
+                      f'arguments: {_ALLOWED_INITIALIZER_KWARGS}.')
     elif not support_partition:
       raise ValueError(f'{cls_name} initializer doesn\'t support '
                        'partition-related arguments.')
