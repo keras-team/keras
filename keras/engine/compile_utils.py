@@ -175,7 +175,7 @@ class LossesContainer(Container):
       regularization_losses: Additional losses to be added to the total loss.
 
     Returns:
-      Tuple of `(total_loss, per_output_loss_list)`
+      The total loss as a `tf.Tensor`, or `None` if no loss results.
     """
     y_true = self._conform_to_outputs(y_pred, y_true)
     sample_weight = self._conform_to_outputs(y_pred, sample_weight)
