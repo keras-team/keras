@@ -90,13 +90,6 @@ def gen_api_init_files(
             " --compat_init_template=$(location %s)" % compat_init_template
         )
 
-    # copybara:uncomment_begin(google-only)
-    # native.vardef("TF_API_INIT_LOADING", "default")
-    # loading_flag = " --loading=$(TF_API_INIT_LOADING)"
-    # copybara:uncomment_end_and_comment_begin
-    loading_flag = " --loading=default"
-    # copybara:comment_end
-
     # The Keras package within tf project is accessible via both paths below
     # Disable them for now so that we don't get SymbolExposedTwiceError
     # from create_python_api.py
@@ -109,7 +102,7 @@ def gen_api_init_files(
             root_init_template_flag + " --apidir=$(@D)" + output_dir +
             " --apiname=" + api_name + " --apiversion=" + str(api_version) +
             compat_api_version_flags + " " + compat_init_template_flags +
-            loading_flag + " --packages=" + ",".join(packages) +
+            " --packages=" + ",".join(packages) +
             " --packages_to_ignore=" + ",".join(packages_to_ignore) +
             " --output_package=" + output_package + " $(OUTS)"
         ),
