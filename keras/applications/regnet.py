@@ -349,9 +349,7 @@ def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
     name = str(backend.get_uid("squeeze_and_excite"))
 
   def apply(x):
-    x = layers.GlobalAveragePooling2D(name=name + "_squeeze_and_excite_gap")(x)
-    x = layers.Reshape((1, 1, filters_in),
-                       name=name + "_squeeze_and_excite_reshape")(x)
+    x = layers.GlobalAveragePooling2D(name=name + "_squeeze_and_excite_gap", keepdims=True)(x)
     x = layers.Conv2D(se_filters, (1, 1),
                       activation="relu",
                       kernel_initializer=initializers.HeNormal(),
