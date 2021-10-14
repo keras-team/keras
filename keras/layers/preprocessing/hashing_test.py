@@ -318,6 +318,10 @@ class HashingTest(keras_parameterized.TestCase):
     layer = hashing.Hashing(num_bins=3, dtype='float32')
     outputs = layer(inputs)
     self.assertAllEqual(outputs.dtype, tf.int64)
+    # In TF1 we sometimes face an explicit dtype=None in the config.
+    layer = hashing.Hashing(num_bins=3, dtype=None)
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.dtype, tf.int64)
 
   @parameterized.named_parameters(
       ('float32', tf.float32),
