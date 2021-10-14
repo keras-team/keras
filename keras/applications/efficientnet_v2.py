@@ -938,7 +938,16 @@ def EfficientNetV2(
   x = img_input
 
   if include_preprocessing:
-    x = layers.Rescaling(scale=1./128.0, offset=-1)(x)
+    # V1 preprocessing for Bx variants
+    if model_name.split('-')[-1].startswith('b'):
+      x = layers.Rescaling(scale=1./255)(x)
+      x = layers.Normalization(
+        mean=[0.485, 0.456, 0.406],
+        variance=[0.229 ** 2, 0.224 ** 2, 0.225 ** 2],
+        axis=bn_axis
+      )(x)
+    else:
+      x = layers.Rescaling(scale=1./128.0, offset=-1)(x)
 
   # Build stem
   stem_filters = round_filters(
