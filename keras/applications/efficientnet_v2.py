@@ -37,496 +37,496 @@ from tensorflow.python.util.tf_export import keras_export
 BASE_WEIGHTS_PATH = "https://storage.googleapis.com/sebastian-sz-weights/efficientnet-v2/"
 
 WEIGHTS_HASHES = {
-    'b0': ('42016207e946245a808dc807e21e2334',
-           '953eb10b448fc338a0206deb1a0228c8'),
-    'b1': ('fda7eaf4fe84f9ab1aab43ab0b7ffd26',
-           'fa1764f91f33620586b628e18f265ed4'),
-    'b2': ('c991196606d604057d3b713ed41087d9',
-           'd3ff2c5f2ae01882452d0d8f1b38c3d7'),
-    'b3': ('0e02aea454e5735908f321f3946daf0a',
-           '0e8a2ed23f6c14cf1a4dddfcd2682cc9'),
-    '-s': ('5c0a6e0d26188ab9a1dbe81fcf6a8a2b',
-           '36ec622752444b5b96942d5c6d8845dc'),
-    '-m': ('4063c4fbcf08a22a49949f1314abbe67',
-           'ee4aa57b3e0ece509d8e17e5c50f06a9'),
-    '-l': ('938d235ec40bfd60b8b1e075ded6ffd0',
+  'b0': ('42016207e946245a808dc807e21e2334',
+         '953eb10b448fc338a0206deb1a0228c8'),
+  'b1': ('fda7eaf4fe84f9ab1aab43ab0b7ffd26',
+         'fa1764f91f33620586b628e18f265ed4'),
+  'b2': ('c991196606d604057d3b713ed41087d9',
+         'd3ff2c5f2ae01882452d0d8f1b38c3d7'),
+  'b3': ('0e02aea454e5735908f321f3946daf0a',
+         '0e8a2ed23f6c14cf1a4dddfcd2682cc9'),
+  '-s': ('5c0a6e0d26188ab9a1dbe81fcf6a8a2b',
+         '36ec622752444b5b96942d5c6d8845dc'),
+  '-m': ('4063c4fbcf08a22a49949f1314abbe67',
+         'ee4aa57b3e0ece509d8e17e5c50f06a9'),
+  '-l': ('938d235ec40bfd60b8b1e075ded6ffd0',
            '3a032f50516a9eaaf1b5ebf2a2304657'),
 }
 
 
 DEFAULT_BLOCKS_ARGS = {
-    "efficientnetv2-s": [
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 24,
-            "output_filters": 24,
-            "expand_ratio": 1,
-            "se_ratio": 0.0,
-            "strides": 1,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 4,
-            "input_filters": 24,
-            "output_filters": 48,
-            "expand_ratio": 4,
-            "se_ratio": 0.0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "conv_type": 1,
-            "expand_ratio": 4,
-            "input_filters": 48,
-            "kernel_size": 3,
-            "num_repeat": 4,
-            "output_filters": 64,
-            "se_ratio": 0,
-            "strides": 2,
-        },
-        {
-            "conv_type": 0,
-            "expand_ratio": 4,
-            "input_filters": 64,
-            "kernel_size": 3,
-            "num_repeat": 6,
-            "output_filters": 128,
-            "se_ratio": 0.25,
-            "strides": 2,
-        },
-        {
-            "conv_type": 0,
-            "expand_ratio": 6,
-            "input_filters": 128,
-            "kernel_size": 3,
-            "num_repeat": 9,
-            "output_filters": 160,
-            "se_ratio": 0.25,
-            "strides": 1,
-        },
-        {
-            "conv_type": 0,
-            "expand_ratio": 6,
-            "input_filters": 160,
-            "kernel_size": 3,
-            "num_repeat": 15,
-            "output_filters": 256,
-            "se_ratio": 0.25,
-            "strides": 2,
-        },
-    ],
-    "efficientnetv2-m": [
-        {
-            "kernel_size": 3,
-            "num_repeat": 3,
-            "input_filters": 24,
-            "output_filters": 24,
-            "expand_ratio": 1,
-            "se_ratio": 0,
-            "strides": 1,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 5,
-            "input_filters": 24,
-            "output_filters": 48,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 5,
-            "input_filters": 48,
-            "output_filters": 80,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 7,
-            "input_filters": 80,
-            "output_filters": 160,
-            "expand_ratio": 4,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 14,
-            "input_filters": 160,
-            "output_filters": 176,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 18,
-            "input_filters": 176,
-            "output_filters": 304,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 5,
-            "input_filters": 304,
-            "output_filters": 512,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-    ],
-    "efficientnetv2-l": [
-        {
-            "kernel_size": 3,
-            "num_repeat": 4,
-            "input_filters": 32,
-            "output_filters": 32,
-            "expand_ratio": 1,
-            "se_ratio": 0,
-            "strides": 1,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 7,
-            "input_filters": 32,
-            "output_filters": 64,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 7,
-            "input_filters": 64,
-            "output_filters": 96,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 10,
-            "input_filters": 96,
-            "output_filters": 192,
-            "expand_ratio": 4,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 19,
-            "input_filters": 192,
-            "output_filters": 224,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 25,
-            "input_filters": 224,
-            "output_filters": 384,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 7,
-            "input_filters": 384,
-            "output_filters": 640,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-    ],
-    "efficientnetv2-b0": [
-        {
-            "kernel_size": 3,
-            "num_repeat": 1,
-            "input_filters": 32,
-            "output_filters": 16,
-            "expand_ratio": 1,
-            "se_ratio": 0,
-            "strides": 1,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 16,
-            "output_filters": 32,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 32,
-            "output_filters": 48,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 3,
-            "input_filters": 48,
-            "output_filters": 96,
-            "expand_ratio": 4,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 5,
-            "input_filters": 96,
-            "output_filters": 112,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 8,
-            "input_filters": 112,
-            "output_filters": 192,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-    ],
-    "efficientnetv2-b1": [
-        {
-            "kernel_size": 3,
-            "num_repeat": 1,
-            "input_filters": 32,
-            "output_filters": 16,
-            "expand_ratio": 1,
-            "se_ratio": 0,
-            "strides": 1,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 16,
-            "output_filters": 32,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 32,
-            "output_filters": 48,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 3,
-            "input_filters": 48,
-            "output_filters": 96,
-            "expand_ratio": 4,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 5,
-            "input_filters": 96,
-            "output_filters": 112,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 8,
-            "input_filters": 112,
-            "output_filters": 192,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-    ],
-    "efficientnetv2-b2": [
-        {
-            "kernel_size": 3,
-            "num_repeat": 1,
-            "input_filters": 32,
-            "output_filters": 16,
-            "expand_ratio": 1,
-            "se_ratio": 0,
-            "strides": 1,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 16,
-            "output_filters": 32,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 32,
-            "output_filters": 48,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 3,
-            "input_filters": 48,
-            "output_filters": 96,
-            "expand_ratio": 4,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 5,
-            "input_filters": 96,
-            "output_filters": 112,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 8,
-            "input_filters": 112,
-            "output_filters": 192,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-    ],
-    "efficientnetv2-b3": [
-        {
-            "kernel_size": 3,
-            "num_repeat": 1,
-            "input_filters": 32,
-            "output_filters": 16,
-            "expand_ratio": 1,
-            "se_ratio": 0,
-            "strides": 1,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 16,
-            "output_filters": 32,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 32,
-            "output_filters": 48,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 3,
-            "input_filters": 48,
-            "output_filters": 96,
-            "expand_ratio": 4,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 5,
-            "input_filters": 96,
-            "output_filters": 112,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 8,
-            "input_filters": 112,
-            "output_filters": 192,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-    ],
+  "efficientnetv2-s": [
+    {
+      "kernel_size": 3,
+      "num_repeat": 2,
+      "input_filters": 24,
+      "output_filters": 24,
+      "expand_ratio": 1,
+      "se_ratio": 0.0,
+      "strides": 1,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 4,
+      "input_filters": 24,
+      "output_filters": 48,
+      "expand_ratio": 4,
+      "se_ratio": 0.0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "conv_type": 1,
+      "expand_ratio": 4,
+      "input_filters": 48,
+      "kernel_size": 3,
+      "num_repeat": 4,
+      "output_filters": 64,
+      "se_ratio": 0,
+      "strides": 2,
+    },
+    {
+      "conv_type": 0,
+      "expand_ratio": 4,
+      "input_filters": 64,
+      "kernel_size": 3,
+      "num_repeat": 6,
+      "output_filters": 128,
+      "se_ratio": 0.25,
+      "strides": 2,
+    },
+    {
+      "conv_type": 0,
+      "expand_ratio": 6,
+      "input_filters": 128,
+      "kernel_size": 3,
+      "num_repeat": 9,
+      "output_filters": 160,
+      "se_ratio": 0.25,
+      "strides": 1,
+    },
+    {
+      "conv_type": 0,
+      "expand_ratio": 6,
+      "input_filters": 160,
+      "kernel_size": 3,
+      "num_repeat": 15,
+      "output_filters": 256,
+      "se_ratio": 0.25,
+      "strides": 2,
+    }
+  ],
+  "efficientnetv2-m": [
+    {
+      "kernel_size": 3,
+      "num_repeat": 3,
+      "input_filters": 24,
+      "output_filters": 24,
+      "expand_ratio": 1,
+      "se_ratio": 0,
+      "strides": 1,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 5,
+      "input_filters": 24,
+      "output_filters": 48,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 5,
+      "input_filters": 48,
+      "output_filters": 80,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 7,
+      "input_filters": 80,
+      "output_filters": 160,
+      "expand_ratio": 4,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 14,
+      "input_filters": 160,
+      "output_filters": 176,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 1,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 18,
+      "input_filters": 176,
+      "output_filters": 304,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 5,
+      "input_filters": 304,
+      "output_filters": 512,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 1,
+      "conv_type": 0,
+    },
+  ],
+  "efficientnetv2-l": [
+    {
+      "kernel_size": 3,
+      "num_repeat": 4,
+      "input_filters": 32,
+      "output_filters": 32,
+      "expand_ratio": 1,
+      "se_ratio": 0,
+      "strides": 1,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 7,
+      "input_filters": 32,
+      "output_filters": 64,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 7,
+      "input_filters": 64,
+      "output_filters": 96,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 10,
+      "input_filters": 96,
+      "output_filters": 192,
+      "expand_ratio": 4,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 19,
+      "input_filters": 192,
+      "output_filters": 224,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 1,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 25,
+      "input_filters": 224,
+      "output_filters": 384,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 7,
+      "input_filters": 384,
+      "output_filters": 640,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 1,
+      "conv_type": 0,
+    },
+  ],
+  "efficientnetv2-b0": [
+    {
+      "kernel_size": 3,
+      "num_repeat": 1,
+      "input_filters": 32,
+      "output_filters": 16,
+      "expand_ratio": 1,
+      "se_ratio": 0,
+      "strides": 1,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 2,
+      "input_filters": 16,
+      "output_filters": 32,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 2,
+      "input_filters": 32,
+      "output_filters": 48,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 3,
+      "input_filters": 48,
+      "output_filters": 96,
+      "expand_ratio": 4,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 5,
+      "input_filters": 96,
+      "output_filters": 112,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 1,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 8,
+      "input_filters": 112,
+      "output_filters": 192,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+  ],
+  "efficientnetv2-b1": [
+    {
+      "kernel_size": 3,
+      "num_repeat": 1,
+      "input_filters": 32,
+      "output_filters": 16,
+      "expand_ratio": 1,
+      "se_ratio": 0,
+      "strides": 1,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 2,
+      "input_filters": 16,
+      "output_filters": 32,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 2,
+      "input_filters": 32,
+      "output_filters": 48,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 3,
+      "input_filters": 48,
+      "output_filters": 96,
+      "expand_ratio": 4,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 5,
+      "input_filters": 96,
+      "output_filters": 112,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 1,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 8,
+      "input_filters": 112,
+      "output_filters": 192,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+  ],
+  "efficientnetv2-b2": [
+    {
+      "kernel_size": 3,
+      "num_repeat": 1,
+      "input_filters": 32,
+      "output_filters": 16,
+      "expand_ratio": 1,
+      "se_ratio": 0,
+      "strides": 1,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 2,
+      "input_filters": 16,
+      "output_filters": 32,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 2,
+      "input_filters": 32,
+      "output_filters": 48,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 3,
+      "input_filters": 48,
+      "output_filters": 96,
+      "expand_ratio": 4,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 5,
+      "input_filters": 96,
+      "output_filters": 112,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 1,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 8,
+      "input_filters": 112,
+      "output_filters": 192,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+  ],
+  "efficientnetv2-b3": [
+    {
+      "kernel_size": 3,
+      "num_repeat": 1,
+      "input_filters": 32,
+      "output_filters": 16,
+      "expand_ratio": 1,
+      "se_ratio": 0,
+      "strides": 1,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 2,
+      "input_filters": 16,
+      "output_filters": 32,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 2,
+      "input_filters": 32,
+      "output_filters": 48,
+      "expand_ratio": 4,
+      "se_ratio": 0,
+      "strides": 2,
+      "conv_type": 1,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 3,
+      "input_filters": 48,
+      "output_filters": 96,
+      "expand_ratio": 4,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 5,
+      "input_filters": 96,
+      "output_filters": 112,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 1,
+      "conv_type": 0,
+    },
+    {
+      "kernel_size": 3,
+      "num_repeat": 8,
+      "input_filters": 112,
+      "output_filters": 192,
+      "expand_ratio": 6,
+      "se_ratio": 0.25,
+      "strides": 2,
+      "conv_type": 0,
+    },
+  ],
 }
 
 CONV_KERNEL_INITIALIZER = {
-    'class_name': 'VarianceScaling',
-    'config': {
-        'scale': 2.0,
-        'mode': 'fan_out',
-        'distribution': 'truncated_normal'
-    }
+  'class_name': 'VarianceScaling',
+  'config': {
+    'scale': 2.0,
+    'mode': 'fan_out',
+    'distribution': 'truncated_normal'
+  }
 }
 
 DENSE_KERNEL_INITIALIZER = {
-    'class_name': 'VarianceScaling',
-    'config': {
-        'scale': 1. / 3.,
-        'mode': 'fan_out',
-        'distribution': 'uniform'
-    }
+  'class_name': 'VarianceScaling',
+  'config': {
+    'scale': 1. / 3.,
+    'mode': 'fan_out',
+    'distribution': 'uniform'
+  }
 }
 
 BASE_DOCSTRING = """Instantiates the {name} architecture.
@@ -597,251 +597,255 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
 
 
 def round_filters(filters, width_coefficient, min_depth, depth_divisor):
-    """Round number of filters based on depth multiplier."""
-    filters *= width_coefficient
-    minimum_depth = min_depth or depth_divisor
-    new_filters = max(
-        minimum_depth,
-        int(filters + depth_divisor / 2) // depth_divisor * depth_divisor,
-    )
-    return int(new_filters)
+  """Round number of filters based on depth multiplier."""
+  filters *= width_coefficient
+  minimum_depth = min_depth or depth_divisor
+  new_filters = max(
+    minimum_depth,
+    int(filters + depth_divisor / 2) // depth_divisor * depth_divisor,
+  )
+  return int(new_filters)
 
 
 def round_repeats(repeats, depth_coefficient):
-    """Round number of repeats based on depth multiplier."""
-    return int(math.ceil(depth_coefficient * repeats))
+  """Round number of repeats based on depth multiplier."""
+  return int(math.ceil(depth_coefficient * repeats))
 
 
 def Block0(
-    input_filters: int,
-    output_filters: int,
-    expand_ratio=1,
-    kernel_size=3,
-    strides=1,
-    se_ratio=0.0,
-    bn_momentum=0.9,
-    activation='swish',
-    survival_probability: float = 0.8,
-    name=None,
+  input_filters: int,
+  output_filters: int,
+  expand_ratio=1,
+  kernel_size=3,
+  strides=1,
+  se_ratio=0.0,
+  bn_momentum=0.9,
+  activation='swish',
+  survival_probability: float = 0.8,
+  name=None,
 ):
-    """MBConv block: Mobile Inverted Residual Bottleneck."""
-    bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
+  """MBConv block: Mobile Inverted Residual Bottleneck."""
+  bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
 
-    if name is None:
-        name = backend.get_uid('block0')
+  if name is None:
+    name = backend.get_uid('block0')
 
-    def apply(inputs):
-        # Expansion phase
-        filters = input_filters * expand_ratio
-        if expand_ratio != 1:
-          x = layers.Conv2D(
-              filters=filters,
-              kernel_size=1,
-              strides=1,
-              kernel_initializer=CONV_KERNEL_INITIALIZER,
-              padding='same',
-              data_format='channels_last',
-              use_bias=False,
-              name=name + 'expand_conv',
-          )(inputs)
-          x = layers.BatchNormalization(
-              axis=bn_axis,
-              momentum=bn_momentum,
-              name=name + 'expand_bn',
+  def apply(inputs):
+    # Expansion phase
+    filters = input_filters * expand_ratio
+    if expand_ratio != 1:
+      x = layers.Conv2D(
+        filters=filters,
+        kernel_size=1,
+        strides=1,
+        kernel_initializer=CONV_KERNEL_INITIALIZER,
+        padding='same',
+        data_format='channels_last',
+        use_bias=False,
+        name=name + 'expand_conv',
+      )(inputs)
+      x = layers.BatchNormalization(
+        axis=bn_axis,
+        momentum=bn_momentum,
+        name=name + 'expand_bn',
+      )(x)
+      x = layers.Activation(activation, name=name + 'expand_activation')(x)
+    else:
+      x = inputs
+
+    # Depthwise conv
+    x = layers.DepthwiseConv2D(
+      kernel_size=kernel_size,
+      strides=strides,
+      depthwise_initializer=CONV_KERNEL_INITIALIZER,
+      padding='same',
+      data_format='channels_last',
+      use_bias=False,
+      name=name + 'dwconv2',
+      )(x)
+    x = layers.BatchNormalization(
+      axis=bn_axis, momentum=bn_momentum, name=name + 'bn'
+    )(x)
+    x = layers.Activation(activation, name=name + 'activation')(x)
+
+    # Squeeze and excite
+    if 0 < se_ratio <= 1:
+      filters_se = max(1, int(input_filters * se_ratio))
+      se = layers.GlobalAveragePooling2D(name=name + 'se_squeeze')(x)
+      if bn_axis == 1:
+        se_shape = (filters, 1, 1)
+      else:
+        se_shape = (1, 1, filters)
+      se = layers.Reshape(se_shape, name=name + 'se_reshape')(se)
+
+      se = layers.Conv2D(
+        filters_se,
+        1,
+        padding='same',
+        activation=activation,
+        kernel_initializer=CONV_KERNEL_INITIALIZER,
+        name=name + 'se_reduce',
+      )(se)
+      se = layers.Conv2D(
+        filters,
+        1,
+        padding='same',
+        activation='sigmoid',
+        kernel_initializer=CONV_KERNEL_INITIALIZER,
+        name=name + 'se_expand',
+      )(se)
+
+      x = layers.multiply([x, se], name=name + 'se_excite')
+
+      # Output phase
+      x = layers.Conv2D(
+        filters=output_filters,
+        kernel_size=1,
+        strides=1,
+        kernel_initializer=CONV_KERNEL_INITIALIZER,
+        padding='same',
+        data_format='channels_last',
+        use_bias=False,
+        name=name + 'project_conv',
+      )(x)
+      x = layers.BatchNormalization(
+        axis=bn_axis, momentum=bn_momentum, name=name + 'project_bn'
+      )(x)
+
+      if strides == 1 and input_filters == output_filters:
+        if survival_probability:
+          x = layers.Dropout(
+            survival_probability,
+            noise_shape=(None, 1, 1, 1),
+            name=name + 'drop'
           )(x)
-          x = layers.Activation(activation, name=name + 'expand_activation')(x)
-        else:
-          x = inputs
 
-        # Depthwise conv
-        x = layers.DepthwiseConv2D(
-            kernel_size=kernel_size,
-            strides=strides,
-            depthwise_initializer=CONV_KERNEL_INITIALIZER,
-            padding='same',
-            data_format='channels_last',
-            use_bias=False,
-            name=name + 'dwconv2',
-        )(x)
-        x = layers.BatchNormalization(
-            axis=bn_axis, momentum=bn_momentum, name=name + 'bn'
-        )(x)
-        x = layers.Activation(activation, name=name + 'activation')(x)
-
-        # Squeeze and excite
-        if 0 < se_ratio <= 1:
-          filters_se = max(1, int(input_filters * se_ratio))
-          se = layers.GlobalAveragePooling2D(name=name + 'se_squeeze')(x)
-          if bn_axis == 1:
-              se_shape = (filters, 1, 1)
-          else:
-              se_shape = (1, 1, filters)
-          se = layers.Reshape(se_shape, name=name + 'se_reshape')(se)
-
-          se = layers.Conv2D(
-              filters_se,
-              1,
-              padding='same',
-              activation=activation,
-              kernel_initializer=CONV_KERNEL_INITIALIZER,
-              name=name + 'se_reduce',
-          )(se)
-          se = layers.Conv2D(
-              filters,
-              1,
-              padding='same',
-              activation='sigmoid',
-              kernel_initializer=CONV_KERNEL_INITIALIZER,
-              name=name + 'se_expand',
-          )(se)
-
-          x = layers.multiply([x, se], name=name + 'se_excite')
-
-        # Output phase
-        x = layers.Conv2D(
-            filters=output_filters,
-            kernel_size=1,
-            strides=1,
-            kernel_initializer=CONV_KERNEL_INITIALIZER,
-            padding='same',
-            data_format='channels_last',
-            use_bias=False,
-            name=name + 'project_conv',
-        )(x)
-        x = layers.BatchNormalization(
-            axis=bn_axis, momentum=bn_momentum, name=name + 'project_bn'
-        )(x)
-
-        if strides == 1 and input_filters == output_filters:
-          if survival_probability:
-            x = layers.Dropout(
-              survival_probability, noise_shape=(None, 1, 1, 1), name=name + 'drop'
-            )(x)
-
-          x = layers.add([x, inputs], name=name + 'add')
-        return x
-    return apply
+        x = layers.add([x, inputs], name=name + 'add')
+    return x
+  return apply
 
 
 def Block1(
-    input_filters: int,
-    output_filters: int,
-    expand_ratio=1,
-    kernel_size=3,
-    strides=1,
-    se_ratio=0.0,
-    bn_momentum=0.9,
-    activation='swish',
-    survival_probability: float = 0.8,
-    name=None,
+  input_filters: int,
+  output_filters: int,
+  expand_ratio=1,
+  kernel_size=3,
+  strides=1,
+  se_ratio=0.0,
+  bn_momentum=0.9,
+  activation='swish',
+  survival_probability: float = 0.8,
+  name=None,
 ):
-    """Fused MBConv Block: Fusing the proj conv1x1 and depthwise_conv into a conv2d."""
-    bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
+  """Fused MBConv Block: Fusing the proj conv1x1 and depthwise_conv into a conv2d."""
+  bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
 
-    if name is None:
-        name = backend.get_uid('block0')
+  if name is None:
+    name = backend.get_uid('block0')
 
-    def apply(inputs):
-        filters = input_filters * expand_ratio
-        if expand_ratio != 1:
-          x = layers.Conv2D(
-              filters,
-              kernel_size=kernel_size,
-              strides=strides,
-              kernel_initializer=CONV_KERNEL_INITIALIZER,
-              data_format='channels_last',
-              padding='same',
-              use_bias=False,
-              name=name + 'expand_conv',
-          )(inputs)
-          x = layers.BatchNormalization(
-              axis=bn_axis, momentum=bn_momentum, name=name + 'expand_bn'
-          )(x)
-          x = layers.Activation(
-              activation=activation, name=name + 'expand_activation'
-          )(x)
-        else:
-          x = inputs
+  def apply(inputs):
+    filters = input_filters * expand_ratio
+    if expand_ratio != 1:
+      x = layers.Conv2D(
+        filters,
+        kernel_size=kernel_size,
+        strides=strides,
+        kernel_initializer=CONV_KERNEL_INITIALIZER,
+        data_format='channels_last',
+        padding='same',
+        use_bias=False,
+        name=name + 'expand_conv',
+      )(inputs)
+      x = layers.BatchNormalization(
+        axis=bn_axis, momentum=bn_momentum, name=name + 'expand_bn'
+      )(x)
+      x = layers.Activation(
+        activation=activation, name=name + 'expand_activation'
+      )(x)
+    else:
+      x = inputs
 
-        # Squeeze and excite
-        if 0 < se_ratio <= 1:
-          filters_se = max(1, int(input_filters * se_ratio))
-          se = layers.GlobalAveragePooling2D(name=name + 'se_squeeze')(x)
-          if bn_axis == 1:
-            se_shape = (filters, 1, 1)
-          else:
-            se_shape = (1, 1, filters)
+    # Squeeze and excite
+    if 0 < se_ratio <= 1:
+      filters_se = max(1, int(input_filters * se_ratio))
+      se = layers.GlobalAveragePooling2D(name=name + 'se_squeeze')(x)
+      if bn_axis == 1:
+        se_shape = (filters, 1, 1)
+      else:
+        se_shape = (1, 1, filters)
 
-          se = layers.Reshape(se_shape, name=name + 'se_reshape')(se)
+      se = layers.Reshape(se_shape, name=name + 'se_reshape')(se)
 
-          se = layers.Conv2D(
-              filters_se,
-              1,
-              padding='same',
-              activation=activation,
-              kernel_initializer=CONV_KERNEL_INITIALIZER,
-              name=name + 'se_reduce',
-          )(se)
-          se = layers.Conv2D(
-              filters,
-              1,
-              padding='same',
-              activation='sigmoid',
-              kernel_initializer=CONV_KERNEL_INITIALIZER,
-              name=name + 'se_expand',
-          )(se)
+      se = layers.Conv2D(
+          filters_se,
+          1,
+          padding='same',
+          activation=activation,
+          kernel_initializer=CONV_KERNEL_INITIALIZER,
+          name=name + 'se_reduce',
+      )(se)
+      se = layers.Conv2D(
+          filters,
+          1,
+          padding='same',
+          activation='sigmoid',
+          kernel_initializer=CONV_KERNEL_INITIALIZER,
+          name=name + 'se_expand',
+      )(se)
 
-          x = layers.multiply([x, se], name=name + 'se_excite')
+      x = layers.multiply([x, se], name=name + 'se_excite')
 
-        # Output phase:
-        x = layers.Conv2D(
-            output_filters,
-            kernel_size=1 if expand_ratio != 1 else kernel_size,
-            strides=1 if expand_ratio != 1 else strides,
-            kernel_initializer=CONV_KERNEL_INITIALIZER,
-            padding='same',
-            use_bias=False,
-            name=name + 'project_conv',
-        )(x)
-        x = layers.BatchNormalization(
-            axis=bn_axis, momentum=bn_momentum, name=name + 'project_bn'
-        )(x)
-        if expand_ratio == 1:
-          x = layers.Activation(
-              activation=activation, name=name + 'project_activation'
-          )(x)
+    # Output phase:
+    x = layers.Conv2D(
+        output_filters,
+        kernel_size=1 if expand_ratio != 1 else kernel_size,
+        strides=1 if expand_ratio != 1 else strides,
+        kernel_initializer=CONV_KERNEL_INITIALIZER,
+        padding='same',
+        use_bias=False,
+        name=name + 'project_conv',
+    )(x)
+    x = layers.BatchNormalization(
+        axis=bn_axis, momentum=bn_momentum, name=name + 'project_bn'
+    )(x)
+    if expand_ratio == 1:
+      x = layers.Activation(
+          activation=activation, name=name + 'project_activation'
+      )(x)
 
-        # Residual:
-        if strides == 1 and input_filters == output_filters:
-          if survival_probability:
-            x = layers.Dropout(
-                  survival_probability, noise_shape=(None, 1, 1, 1), name=name + 'drop'
-                )(x)
-          x = layers.add([x, inputs], name=name + 'add')
-        return x
-    return apply
+    # Residual:
+    if strides == 1 and input_filters == output_filters:
+      if survival_probability:
+        x = layers.Dropout(
+              survival_probability,
+              noise_shape=(None, 1, 1, 1),
+              name=name + 'drop'
+            )(x)
+      x = layers.add([x, inputs], name=name + 'add')
+    return x
+  return apply
 
 
 def EfficientNetV2(
-    width_coefficient,
-    depth_coefficient,
-    default_size,
-    dropout_rate=0.2,
-    drop_connect_rate=0.2,
-    depth_divisor=8,
-    min_depth=8,
-    bn_momentum=0.9,
-    activation='swish',
-    blocks_args='default',
-    model_name='efficientnetv2',
-    include_top=True,
-    weights='imagenet',
-    input_tensor=None,
-    input_shape=None,
-    pooling=None,
-    classes=1000,
-    classifier_activation='softmax',
-    include_preprocessing=True,
+  width_coefficient,
+  depth_coefficient,
+  default_size,
+  dropout_rate=0.2,
+  drop_connect_rate=0.2,
+  depth_divisor=8,
+  min_depth=8,
+  bn_momentum=0.9,
+  activation='swish',
+  blocks_args='default',
+  model_name='efficientnetv2',
+  include_top=True,
+  weights='imagenet',
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation='softmax',
+  include_preprocessing=True,
 ):
   """Instantiates the EfficientNetV2 architecture using given scaling coefficients.
     
@@ -858,34 +862,34 @@ def EfficientNetV2(
     blocks_args: list of dicts, parameters to construct block modules.
     model_name: string, model name.
     include_top: whether to include the fully-connected
-        layer at the top of the network.
+      layer at the top of the network.
     weights: one of `None` (random initialization),
-        `'imagenet'` (pre-training on ImageNet),
-        or the path to the weights file to be loaded.
+      `'imagenet'` (pre-training on ImageNet),
+      or the path to the weights file to be loaded.
     input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
       or numpy array to use as image input for the model.
     input_shape: optional shape tuple, only to be specified
-        if `include_top` is False.
-        It should have exactly 3 inputs channels.
+      if `include_top` is False.
+      It should have exactly 3 inputs channels.
     pooling: optional pooling mode for feature extraction
-        when `include_top` is `False`.
-        - `None` means that the output of the model will be
-            the 4D tensor output of the
-            last convolutional layer.
-        - ''avg'' means that global average pooling
-            will be applied to the output of the
-            last convolutional layer, and thus
-            the output of the model will be a 2D tensor.
-        - `'max'` means that global max pooling will
-            be applied.
+      when `include_top` is `False`.
+      - `None` means that the output of the model will be
+          the 4D tensor output of the
+          last convolutional layer.
+      - ''avg'' means that global average pooling
+          will be applied to the output of the
+          last convolutional layer, and thus
+          the output of the model will be a 2D tensor.
+      - `'max'` means that global max pooling will
+          be applied.
     classes: optional number of classes to classify images
-        into, only to be specified if `include_top` is True, and
-        if no `weights` argument is specified.
+      into, only to be specified if `include_top` is True, and
+      if no `weights` argument is specified.
     classifier_activation: A string or callable. The activation function to use
-        on the `"top"` layer. Ignored unless `include_top=True`. Set
-        `classifier_activation=None` to return the logits of the `"top"` layer.
+      on the `"top"` layer. Ignored unless `include_top=True`. Set
+      `classifier_activation=None` to return the logits of the `"top"` layer.
     include_preprocessing: Boolean, whether to include the preprocessing
-        layer (`Rescaling`) at the bottom of the network. Defaults to `True`.
+      layer (`Rescaling`) at the bottom of the network. Defaults to `True`.
   Returns:
     A `keras.Model` instance.
 
@@ -913,12 +917,13 @@ def EfficientNetV2(
   
   # Determine proper input shape
   input_shape = imagenet_utils.obtain_input_shape(
-      input_shape,
-      default_size=default_size,
-      min_size=32,
-      data_format=backend.image_data_format(),
-      require_flatten=include_top,
-      weights=weights)
+    input_shape,
+    default_size=default_size,
+    min_size=32,
+    data_format=backend.image_data_format(),
+    require_flatten=include_top,
+    weights=weights
+  )
   
   if input_tensor is None:
     img_input = layers.Input(shape=input_shape)
