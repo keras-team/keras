@@ -612,7 +612,7 @@ def round_repeats(repeats, depth_coefficient):
   return int(math.ceil(depth_coefficient * repeats))
 
 
-def Block0(
+def MBConvBlock(
   input_filters: int,
   output_filters: int,
   expand_ratio=1,
@@ -725,7 +725,7 @@ def Block0(
   return apply
 
 
-def Block1(
+def FusedMBConvBlock(
   input_filters: int,
   output_filters: int,
   expand_ratio=1,
@@ -986,7 +986,7 @@ def EfficientNetV2(
     )
 
     # Determine which conv type to use:
-    block = {0: Block0, 1: Block1}[args.pop("conv_type")]
+    block = {0: MBConvBlock, 1: FusedMBConvBlock}[args.pop("conv_type")]
     repeats = round_repeats(
       repeats=args.pop("num_repeat"), depth_coefficient=depth_coefficient
     )
