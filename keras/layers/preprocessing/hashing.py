@@ -165,7 +165,7 @@ class Hashing(base_layer.Layer):
           f'values. Received: num_bins={num_bins}.')
 
     # By default, output int64 when output_mode='int' and floats otherwise.
-    if 'dtype' not in kwargs:
+    if 'dtype' not in kwargs or kwargs['dtype'] is None:
       kwargs['dtype'] = tf.int64 if output_mode == INT else backend.floatx()
     elif output_mode == 'int' and not tf.as_dtype(kwargs['dtype']).is_integer:
       # Compat for when dtype was alwyas floating and ingored by the layer.
