@@ -317,10 +317,10 @@ def Stem(name=None):
     name = "stem" + str(backend.get_uid("stem"))
 
   def apply(x):
-    x = layers.ZeroPadding2D(padding=(1, 1))(x)
     x = layers.Conv2D(32, (3, 3),
                       strides=2,
                       use_bias=False,
+                      padding="same",
                       kernel_initializer=initializers.HeNormal(),
                       name=name + "_stem_conv")(x)
     x = layers.BatchNormalization(momentum=0.9,
@@ -403,19 +403,17 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
                                use_bias=False,
                                strides=stride,
                                groups=groups,
+                               padding="same",
                                kernel_initializer=initializers.HeNormal(),
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
-                                          name=name + "_conv_3x3_pad")
     else:
       skip = inputs
       conv_3x3 = layers.Conv2D(filters_out, (3, 3),
                                use_bias=False,
                                groups=groups,
+                               padding="same",
                                kernel_initializer=initializers.HeNormal(),
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
-                                          name=name + "_conv_3x3_pad")
 
       # Build block
     # conv_1x1_1
@@ -429,7 +427,6 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
     x = layers.ReLU(name=name + "_conv_1x1_1_relu")(x)
 
     # conv_3x3
-    x = conv_3x3_pad(x)
     x = conv_3x3(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -498,20 +495,19 @@ def YBlock(filters_in,
                                use_bias=False,
                                strides=stride,
                                groups=groups,
+                               padding="same",
                                kernel_initializer=initializers.HeNormal(),
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
-                                          name=name + "_conv_3x3_pad")
+      
 
     else:
       skip = inputs
       conv_3x3 = layers.Conv2D(filters_out, (3, 3),
                                use_bias=False,
                                groups=groups,
+                               padding="same",
                                kernel_initializer=initializers.HeNormal(),
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
-                                          name=name + "_conv_3x3_pad")
 
     # Build block
     # conv_1x1_1
@@ -525,7 +521,6 @@ def YBlock(filters_in,
     x = layers.ReLU(name=name + "_conv_1x1_1_relu")(x)
 
     # # conv_3x3
-    x = conv_3x3_pad(x)
     x = conv_3x3(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -593,19 +588,18 @@ def ZBlock(filters_in,
                                use_bias=False,
                                strides=stride,
                                groups=groups,
+                               padding="same",
                                kernel_initializer=initializers.HeNormal(),
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
-                                          name=name + "_conv_3x3_pad")
+     
 
     else:
       conv_3x3 = layers.Conv2D(inv_btlneck_filters, (3, 3),
                                use_bias=False,
                                groups=groups,
+                               padding="same",
                                kernel_initializer=initializers.HeNormal(),
                                name=name + "_conv_3x3")
-      conv_3x3_pad = layers.ZeroPadding2D(padding=(1, 1),
-                                          name=name + "_conv_3x3_pad")
 
     # Build block
     # conv_1x1_1
@@ -619,7 +613,6 @@ def ZBlock(filters_in,
     x = tf.nn.silu(x)
 
     # conv_3x3
-    x = conv_3x3_pad(x)
     x = conv_3x3(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
