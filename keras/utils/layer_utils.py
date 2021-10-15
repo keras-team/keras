@@ -80,9 +80,18 @@ def validate_string_arg(input_data,
     allowed_args = '`None`, ' if allow_none else ''
     allowed_args += 'a `Callable`, ' if allow_callables else ''
     allowed_args += 'or one of the following values: %s' % (allowable_strings,)
+    if allow_callables:
+      callable_note = (
+          f'If restoring a model and `{arg_name}` is a custom callable, '
+          'please ensure the callable is registered as a custom object. '
+          'See https://www.tensorflow.org/guide/keras/save_and_serialize'
+          '#registering_the_custom_object for details. ')
+    else:
+      callable_note = ''
     raise ValueError(
-        f'The `{arg_name}` argument of layer {layer_name} received an invalid '
-        f'value `{input_data}`. Allowed values are: {allowed_args}.')
+        f'Unkown value for `{arg_name}` argument of layer {layer_name}. '
+        f'{callable_note}Allowed values are: {allowed_args}. Received: '
+        f'{input_data}')
 
 
 def count_params(weights):
@@ -207,13 +216,15 @@ def print_summary(model,
           cutoff = min(candidate_cutoffs)
           fit_into_line = fit_into_line[:cutoff]
 
+        if col == 0:
+          line += '|' * nested_level + ' '
         line += fit_into_line
         line += ' ' * space if space else ''
         left_to_print[col] = left_to_print[col][cutoff:]
 
         # Pad out to the next position
         if nested_level:
-          line += ' ' * (positions[col] - len(line) - (2 * nested_level) - 1)
+          line += ' ' * (positions[col] - len(line) - nested_level)
         else:
           line += ' ' * (positions[col] - len(line))
       line += '|' * nested_level
@@ -294,14 +305,13 @@ def print_summary(model,
       for i in range(len(nested_layer)):
         if i == len(nested_layer) - 1:
           is_nested_last = True
-        print_fn('|' * (nested_level + 1), end=' ')
         print_layer(nested_layer[i], nested_level + 1, is_nested_last)
 
       print_fn('|' * nested_level + '¯' * (line_length - 2 * nested_level) +
                '|' * nested_level)
 
     if not is_nested_last:
-      print_fn('|' * nested_level + '_' * (line_length - 2 * nested_level) +
+      print_fn('|' * nested_level + ' ' * (line_length - 2 * nested_level) +
                '|' * nested_level)
 
   layers = model.layers

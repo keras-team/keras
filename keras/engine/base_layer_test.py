@@ -715,6 +715,31 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertTrue(layer.built)
     self.assertEqual([None, 3], layer._build_input_shape.as_list())
 
+  def test_build_input_shape_list_with_none(self):
+
+    class CustomLayer(base_layer.Layer):
+
+      def build(self, input_shape):
+        super().build(input_shape)
+        self.build_shape = input_shape
+
+      def call(self, inputs):
+        return inputs[0]
+
+    layer = CustomLayer()
+    layer([tf.constant([1.0]), None, tf.constant([2.0])])
+    self.assertEqual(layer.build_shape, [[1], None, [1]])
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_layer_input_shape_raises_error(self):
+    layer = layers.Dense(3)
+    with self.assertRaisesRegex(AttributeError, 'no defined input shape'):
+      _ = layer.input_shape
+
+    layer(tf.ones((10, 1)))
+    with self.assertRaisesRegex(AttributeError, 'no defined input shape'):
+      _ = layer.input_shape
+
   @combinations.generate(combinations.combine(mode=['eager']))
   def test_custom_layer_training_arg(self):
     class CustomLayerNoTrainingArg(base_layer.Layer):
@@ -999,14 +1024,14 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
     with tf.Graph().as_default():
       x1 = tf.ones((3, 3))
     x2 = tf.ones((3, 3))
-    with self.assertRaisesRegex(TypeError, 'Graph tensors'):
+    with self.assertRaises(TypeError):
       tf.matmul(x1, x2)
 
   def test_mixing_numpy_arrays_and_graph_tensors(self):
     with tf.Graph().as_default():
       x1 = tf.ones((3, 3))
     x2 = np.ones((3, 3), dtype='float32')
-    with self.assertRaisesRegex(TypeError, 'Graph tensors'):
+    with self.assertRaises(TypeError):
       tf.matmul(x1, x2)
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))

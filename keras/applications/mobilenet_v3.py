@@ -33,17 +33,17 @@ BASE_WEIGHT_PATH = ('https://storage.googleapis.com/tensorflow/'
                     'keras-applications/mobilenet_v3/')
 WEIGHTS_HASHES = {
     'large_224_0.75_float': ('765b44a33ad4005b3ac83185abf1d0eb',
-                             'e7b4d1071996dd51a2c2ca2424570e20'),
+                             '40af19a13ebea4e2ee0c676887f69a2e'),
     'large_224_1.0_float': ('59e551e166be033d707958cf9e29a6a7',
-                            '037116398e07f018c0005ffcb0406831'),
+                            '07fb09a5933dd0c8eaafa16978110389'),
     'large_minimalistic_224_1.0_float': ('675e7b876c45c57e9e63e6d90a36599c',
-                                         'a2c33aed672524d1d0b4431808177695'),
+                                         'ec5221f64a2f6d1ef965a614bdae7973'),
     'small_224_0.75_float': ('cb65d4e5be93758266aa0a7f2c6708b7',
-                             '4d2fe46f1c1f38057392514b0df1d673'),
+                             'ebdb5cc8e0b497cd13a7c275d475c819'),
     'small_224_1.0_float': ('8768d4c2e7dee89b9d02b2d03d65d862',
-                            'be7100780f875c06bcab93d76641aa26'),
+                            'd3e8ec802a04aa4fc771ee12a9a9b836'),
     'small_minimalistic_224_1.0_float': ('99cd97fb2fcdad2bf028eb838de69e37',
-                                         '20d4e357df3f7a6361f3a288857b1051'),
+                                         'cde8136e733e811080d9fcd8a252f7e4'),
 }
 
 layers = VersionAwareLayers()
@@ -310,16 +310,16 @@ def MobileNetV3(stack_fn,
       axis=channel_axis, epsilon=1e-3,
       momentum=0.999, name='Conv_1/BatchNorm')(x)
   x = activation(x)
-  x = layers.GlobalAveragePooling2D(keepdims=True)(x)
-  x = layers.Conv2D(
-      last_point_ch,
-      kernel_size=1,
-      padding='same',
-      use_bias=True,
-      name='Conv_2')(x)
-  x = activation(x)
-
   if include_top:
+    x = layers.GlobalAveragePooling2D(keepdims=True)(x)
+    x = layers.Conv2D(
+        last_point_ch,
+        kernel_size=1,
+        padding='same',
+        use_bias=True,
+        name='Conv_2')(x)
+    x = activation(x)
+
     if dropout_rate > 0:
       x = layers.Dropout(dropout_rate)(x)
     x = layers.Conv2D(classes, kernel_size=1, padding='same', name='Logits')(x)
@@ -350,7 +350,7 @@ def MobileNetV3(stack_fn,
       file_name = 'weights_mobilenet_v3_' + model_name + '.h5'
       file_hash = WEIGHTS_HASHES[model_name][0]
     else:
-      file_name = 'weights_mobilenet_v3_' + model_name + '_no_top.h5'
+      file_name = 'weights_mobilenet_v3_' + model_name + '_no_top_v2.h5'
       file_hash = WEIGHTS_HASHES[model_name][1]
     weights_path = data_utils.get_file(
         file_name,

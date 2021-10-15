@@ -38,6 +38,7 @@ from keras.engine import sequential
 from keras.feature_column import dense_features
 from keras.feature_column import sequence_feature_column as ksfc
 from keras.layers import core
+from keras.premade.linear import LinearModel
 from keras.saving import model_config
 from keras.saving import save
 from keras.utils import generic_utils
@@ -324,6 +325,42 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
       # Make sure the model can be correctly load back.
       _ = save.load_model(filepath, compile=True)
+
+  def test_saving_model_with_name_conflict(self):
+
+    class Sequential(keras.Model):
+
+      def __init__(self):
+        super(Sequential, self).__init__()
+        self.layer = keras.layers.Dense(1)
+
+      def call(self, x):
+        return self.layer(x)
+
+    model = Sequential()
+    model(tf.ones((10, 10)))
+    temp_dir = self.get_temp_dir()
+    filepath = os.path.join(temp_dir, 'Sequential')
+
+    with self.assertLogs() as logs:
+      model.save(filepath, save_format='tf')
+
+    expected_substring = 'has the same name \'Sequential\' as a built-in Keras'
+    matched = [log for log in logs.output if expected_substring in log]
+    self.assertNotEmpty(matched)
+
+  def test_saving_built_in_model(self):
+    model = LinearModel()
+    model(tf.constant([[5.]]))
+    temp_dir = self.get_temp_dir()
+    filepath = os.path.join(temp_dir, 'LinearModel')
+    with self.assertLogs() as logs:
+      model.save(filepath, save_format='tf')
+
+    expected_substring = 'has the same name \'LinearModel\' as a built-in Keras'
+    matched = [log for log in logs.output if expected_substring in log]
+    # Check that a warning is *not* logged for a premade model.
+    self.assertEmpty(matched)
 
 
 @keras_parameterized.run_with_all_saved_model_formats

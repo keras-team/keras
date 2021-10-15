@@ -22,7 +22,6 @@ import collections
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.engine import base_preprocessing_layer
-from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.saving.saved_model import layer_serialization
 from keras.utils import layer_utils
@@ -31,11 +30,11 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 
-INT = "int"
-MULTI_HOT = "multi_hot"
-ONE_HOT = "one_hot"
-COUNT = "count"
-TF_IDF = "tf_idf"
+INT = utils.INT
+MULTI_HOT = utils.MULTI_HOT
+ONE_HOT = utils.ONE_HOT
+COUNT = utils.COUNT
+TF_IDF = utils.TF_IDF
 
 _VOCAB_NAME = "vocab"
 _IDF_WEIGHTS_NAME = "idf_weights"
@@ -74,7 +73,7 @@ class VocabWeightHandler(base_layer_utils.TrackableWeightHandler):
 
   def __init__(self, lookup_layer):
     self._layer = lookup_layer
-    self._dtype = lookup_layer.dtype
+    self._dtype = lookup_layer.vocabulary_dtype
     self._distribute_strategy = tf.distribute.get_strategy()
 
   @property
@@ -119,6 +118,8 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       containing the vocbulary terms. If passing a file path, the file should
       contain one line per term in the vocabulary. If this argument is set,
       there is no need to `adapt` the layer.
+    vocabulary_dtype: The dtype of the vocabulary terms. For example, `"int64"`
+      or `"string"`.
     idf_weights: Only valid when `output_mode` is `"tf_idf"`. A tuple, list, 1D
       numpy array, or 1D tensor or the same length as the vocabulary, containing
       the floating point inverse document frequency weights, which will be
@@ -161,6 +162,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                num_oov_indices,
                mask_token,
                oov_token,
+               vocabulary_dtype,
                vocabulary=None,
                idf_weights=None,
                invert=False,
@@ -217,6 +219,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     self.output_mode = output_mode
     self.sparse = sparse
     self.pad_to_max_tokens = pad_to_max_tokens
+    self.vocabulary_dtype = vocabulary_dtype
     self._frozen_vocab_size = None
 
     self.input_vocabulary = vocabulary
@@ -231,21 +234,31 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     kwargs.pop("vocabulary_size", None)
     kwargs.pop("has_static_table", None)
 
+    # By default, output int64 when output_mode='int' and floats otherwise.
+    if "dtype" not in kwargs:
+      kwargs["dtype"] = tf.int64 if output_mode == INT else backend.floatx()
+
     super().__init__(**kwargs)
 
+    # Check dtype only after base layer parses it; dtype parsing is complex.
+    if output_mode == INT and not tf.as_dtype(self.compute_dtype).is_integer:
+      input_dtype = kwargs["dtype"]
+      raise ValueError("When `output_mode='int'`, `dtype` should be an integer "
+                       f"type. Received: dtype={input_dtype}")
+
     if invert:
-      self._key_dtype = tf.int64
-      self._value_dtype = tf.as_dtype(self.dtype)
+      self._key_dtype = self.dtype if output_mode == INT else tf.int64
+      self._value_dtype = tf.as_dtype(self.vocabulary_dtype)
       mask_key = 0
       mask_value = mask_token
       self._default_value = self.oov_token
     else:
-      self._key_dtype = tf.as_dtype(self.dtype)
-      self._value_dtype = tf.int64
+      self._key_dtype = tf.as_dtype(self.vocabulary_dtype)
+      self._value_dtype = self.dtype if output_mode == INT else tf.int64
       mask_key = mask_token
       # Masks should map to 0 for int output and be dropped otherwise. Max ints
       # will be dropped from the bincount op.
-      mask_value = 0 if self.output_mode == INT else tf.int64.max
+      mask_value = 0 if self.output_mode == INT else self._value_dtype.max
       if self.num_oov_indices == 0:
         # If there are no OOV indices, we map OOV tokens to -1 and error out
         # during call if we find a negative index.
@@ -268,7 +281,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       self.idf_weights = tf.Variable(
           [0] * self._token_start_index(),
           shape=(None,),
-          dtype=backend.floatx(),
+          dtype=self.compute_dtype,
           trainable=False)
       self.idf_weights_const = self.idf_weights.value()
 
@@ -286,25 +299,22 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       self._add_trackable(VocabWeightHandler(self), False)
       # Set adapt state.
       self.token_counts = tf.lookup.experimental.MutableHashTable(
-          key_dtype=self.dtype, value_dtype=tf.int64, default_value=0)
+          key_dtype=vocabulary_dtype, value_dtype=tf.int64, default_value=0)
       if self.output_mode == TF_IDF:
         self.token_document_counts = tf.lookup.experimental.MutableHashTable(
-            key_dtype=self.dtype, value_dtype=tf.int64, default_value=0)
+            key_dtype=vocabulary_dtype, value_dtype=tf.int64, default_value=0)
         self.num_documents = tf.Variable(0, dtype=tf.int64, trainable=False)
 
   def compute_output_shape(self, input_shape):
     if self.output_mode == INT:
       return input_shape
-    if self.pad_to_max_tokens:
-      out_depth = self.max_tokens
-    else:
-      out_depth = self.vocabulary_size()
-    return tf.TensorShape([input_shape[0], out_depth])
+    depth = (
+        self.max_tokens if self.pad_to_max_tokens else self._frozen_vocab_size)
+    return tf.TensorShape([input_shape[0], depth])
 
   def compute_output_signature(self, input_spec):
     output_shape = self.compute_output_shape(input_spec.shape.as_list())
-    output_dtype = (
-        self._value_dtype if self.output_mode == INT else backend.floatx())
+    output_dtype = self.vocabulary_dtype if self.invert else self.compute_dtype
     return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
 
   def get_vocabulary(self, include_special_tokens=True):
@@ -353,8 +363,10 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         "oov_token": self.oov_token,
         "mask_token": self.mask_token,
         "output_mode": self.output_mode,
+        "sparse": self.sparse,
         "pad_to_max_tokens": self.pad_to_max_tokens,
         "vocabulary": utils.listify_tensors(self.input_vocabulary),
+        "vocabulary_dtype": self.vocabulary_dtype,
         "idf_weights": utils.listify_tensors(self.input_idf_weights),
     }
 
@@ -428,45 +440,10 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
     oov_start = self._oov_start_index()
     token_start = self._token_start_index()
-    should_have_mask = (oov_start > 0)
-    has_mask = should_have_mask and vocabulary[0] == self.mask_token
-
-    should_have_oov = (self.num_oov_indices > 0)
-    expected_oov = [self.oov_token] * self.num_oov_indices
-    found_oov = vocabulary[oov_start:token_start]
-    has_oov = should_have_oov and np.array_equal(found_oov, expected_oov)
-
-    if all([should_have_mask, has_mask, should_have_oov]) and not has_oov:
-      raise ValueError(
-          "Invalid vocabulary format. The layer was created with "
-          "`mask_token={mask}` and `oov_token={oov}`. These tokens should be "
-          "included in the provided vocabulary. The passed vocabulary has the "
-          "correct mask token `{mask}` at index 0, but does not have the OOV "
-          "token `{oov}` in indices [{start}:{end}]. Instead, we found "
-          "`{found}`. Was this vocabulary generated by a layer with "
-          "incompatible settings?".format(
-              mask=self.mask_token,
-              oov=self.oov_token,
-              start=oov_start,
-              end=token_start,
-              found=found_oov))
-
-    if all([should_have_oov, has_oov, should_have_mask]) and not has_mask:
-      raise ValueError(
-          "Invalid vocabulary format. The layer was created with "
-          "`mask_token={mask}` and `oov_token={oov}`. These tokens should be "
-          "included in the provided vocabulary. The passed vocabulary has the "
-          "correct OOV token `{oov}` at indices [{start}:{end}], but does not "
-          "have the mask token `{mask}` in index 0. Instead, we found "
-          "`{found}`. Was this vocabulary generated by a layer with "
-          "incompatible settings?".format(
-              mask=self.mask_token,
-              oov=self.oov_token,
-              start=oov_start,
-              end=token_start,
-              found=vocabulary[0]))
-
-    found_special_tokens = has_oov or has_mask
+    special_tokens = (
+        [self.mask_token] * oov_start + [self.oov_token] * self.num_oov_indices)
+    found_special_tokens = np.array_equal(
+        special_tokens, vocabulary[:token_start])
     if found_special_tokens:
       tokens = vocabulary[token_start:]
     else:
@@ -478,20 +455,26 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                        "term. Please uniquify your dataset. The repeated terms "
                        "are {}".format(repeated_tokens))
 
-    if self.mask_token in tokens:
-      mask_index = np.argwhere(tokens == self.mask_token)[0]
-      raise ValueError("Reserved mask token {} was found in the passed "
-                       "vocabulary at index {}. Please either remove the "
-                       "reserved token from the vocabulary or change the "
-                       "mask token for this layer.".format(
-                           self.mask_token, mask_index))
-    if self.oov_token in tokens:
-      oov_index = np.argwhere(tokens == self.oov_token)[0]
-      raise ValueError("Reserved OOV token {} was found in the passed "
-                       "vocabulary at index {}. Please either remove the "
-                       "reserved token from the vocabulary or change the "
-                       "OOV token for this layer.".format(
-                           self.oov_token, oov_index))
+    if self.mask_token is not None and self.mask_token in tokens:
+      mask_index = np.argwhere(vocabulary == self.mask_token)[-1]
+      raise ValueError(
+          "Found reserved mask token at unexpected location in `vocabulary`. "
+          "Note that passed `vocabulary` does not need to include the OOV and "
+          "mask tokens. Either remove all mask and OOV tokens, or include them "
+          "only at the start of the vocabulary in precisely this order: "
+          f"{special_tokens}. Received: mask_token={self.mask_token} at "
+          f"vocabulary index {mask_index}")
+    # Only error out for oov_token when invert=True. When invert=False,
+    # oov_token is unused during lookup.
+    if self.oov_token is not None and self.invert and self.oov_token in tokens:
+      oov_index = np.argwhere(vocabulary == self.oov_token)[-1]
+      raise ValueError(
+          "Found reserved OOV token at unexpected location in `vocabulary`. "
+          "Note that passed `vocabulary` does not need to include the OOV and "
+          "mask tokens. Either remove all mask and OOV tokens, or include them "
+          "only at the start of the vocabulary in precisely this order: "
+          f"{special_tokens}. Received: oov_token={self.oov_token} at "
+          f"vocabulary index {oov_index}")
 
     new_vocab_size = token_start + len(tokens)
     if self.max_tokens is not None and (new_vocab_size > self.max_tokens):
@@ -535,7 +518,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           idf_weights, (front_padding, back_padding),
           "constant",
           constant_values=(front_padding_value, back_padding_value))
-      weights = tf.convert_to_tensor(weights, dtype=backend.floatx())
+      weights = tf.convert_to_tensor(weights, dtype=self.compute_dtype)
       self.idf_weights.assign(weights)
       self.idf_weights_const = self.idf_weights.value()
 
@@ -545,11 +528,12 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           "Cannot adapt {} layer after setting a static vocabulary via init "
           "argument or `set_vocabulary`.".format(self.__class__.__name__))
 
-    data = self._standardize_inputs(data, self.dtype)
+    data = self._standardize_inputs(data, self.vocabulary_dtype)
     if data.shape.rank == 0:
-      data = tf.expand_dims(data, -1)
+      data = tf.expand_dims(data, 0)
     if data.shape.rank == 1:
-      data = tf.expand_dims(data, -1)
+      # Expand dims on axis 0 for tf-idf. A 1-d tensor is a single document.
+      data = tf.expand_dims(data, 0)
 
     tokens, counts = self._num_tokens(data)
     self.token_counts.insert(tokens, counts + self.token_counts.lookup(tokens))
@@ -577,10 +561,10 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     # Remove special tokens from our counts.
     if self.mask_token is not None:
       self.token_counts.remove(
-          tf.convert_to_tensor([self.mask_token], self.dtype))
+          tf.convert_to_tensor([self.mask_token], self.vocabulary_dtype))
     if self.oov_token is not None:
       self.token_counts.remove(
-          tf.convert_to_tensor([self.oov_token], self.dtype))
+          tf.convert_to_tensor([self.oov_token], self.vocabulary_dtype))
 
     tokens, counts = self.token_counts.export()
     # To keep vocabs deterministic, we sort our tokens by count and break ties
@@ -598,12 +582,17 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       token_document_counts = self.token_document_counts.lookup(tokens)
       idf_weights = self._inverse_document_frequency(token_document_counts,
                                                      self.num_documents)
-      idf_weights = tf.cast(idf_weights, backend.floatx())
+      idf_weights = tf.cast(idf_weights, self.compute_dtype)
       # Pad the front of idf_weights with the average idf weight for OOV tokens.
       # We cannot compute the real idf weight of OOV in a single pass.
       idf_weights = tf.pad(
           idf_weights, [[self._token_start_index(), 0]],
           constant_values=tf.reduce_mean(idf_weights))
+      if self.pad_to_max_tokens and self.max_tokens is not None:
+        # Pad the back of idf_weights with zeros.
+        idf_weights = tf.pad(
+            idf_weights, [[0, self.max_tokens - tf.size(idf_weights)]],
+            constant_values=0)
       self.idf_weights.assign(idf_weights)
       self.idf_weights_const = self.idf_weights.value()
 
@@ -644,42 +633,16 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         lookups = tf.squeeze(lookups, -1)
       return lookups
 
-    # One hot will unprank only if the final output dimension is not already 1.
-    if self.output_mode == ONE_HOT:
-      if lookups.shape[-1] != 1:
-        lookups = self._expand_dims(lookups, -1)
-
-    # TODO(b/190445202): remove output rank restriction.
-    if lookups.shape.rank > 2:
-      raise ValueError(
-          "Received input shape {}, which would result in output rank {}. "
-          "Currently only outputs up to rank 2 are supported for "
-          "`output_mode={}`.".format(original_shape, lookups.shape.rank,
-                                     self.output_mode))
-
-    binary_output = self.output_mode in (MULTI_HOT, ONE_HOT)
-    if self.pad_to_max_tokens:
-      out_depth = self.max_tokens
-    else:
-      out_depth = self._frozen_vocab_size
-    if self.sparse:
-      bincounts = category_encoding.sparse_bincount(lookups, out_depth,
-                                                    binary_output)
-    else:
-      bincounts = category_encoding.dense_bincount(lookups, out_depth,
-                                                   binary_output)
-
-    if self.output_mode == TF_IDF:
-      if self.sparse:
-        value_weights = tf.gather(self.idf_weights_const,
-                                  bincounts.indices[:, -1])
-        return tf.SparseTensor(bincounts.indices,
-                               value_weights * bincounts.values,
-                               bincounts.dense_shape)
-      else:
-        return tf.multiply(bincounts, self.idf_weights_const)
-
-    return bincounts
+    depth = (
+        self.max_tokens if self.pad_to_max_tokens else self._frozen_vocab_size)
+    idf_weights = self.idf_weights_const if self.output_mode == TF_IDF else None
+    return utils.encode_categorical_inputs(
+        lookups,
+        output_mode=self.output_mode,
+        depth=depth,
+        dtype=self.compute_dtype,
+        sparse=self.sparse,
+        idf_weights=idf_weights)
 
   def _lookup_dense(self, inputs):
     """Lookup table values for a dense Tensor, handling masking and OOV."""
@@ -725,9 +688,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     with tf.control_dependencies(lookup_checks):
       return tf.identity(lookups)
 
-  def _encode_output(self, lookups):
-    """Encode the lookup result to the final output depending on output_mode."""
-
   def _uninitialized_lookup_table(self):
     with tf.init_scope():
       initializer = NullInitializer(self._key_dtype, self._value_dtype)
@@ -737,7 +697,8 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     with tf.init_scope():
       token_start = self._token_start_index()
       token_end = token_start + tf.size(tokens)
-      indices = tf.range(token_start, token_end, dtype=tf.int64)
+      indices_dtype = self._key_dtype if self.invert else self._value_dtype
+      indices = tf.range(token_start, token_end, dtype=indices_dtype)
       keys, values = (indices, tokens) if self.invert else (tokens, indices)
       initializer = tf.lookup.KeyValueTensorInitializer(keys, values,
                                                         self._key_dtype,
@@ -789,7 +750,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     with tf.init_scope():
       if not tf.executing_eagerly():
         raise RuntimeError(
-            "When using `output_mode={}` eager mode execution must be enabled."
+            "When using `output_mode={}` eager execution must be enabled."
             .format(self.output_mode))
       new_vocab_size = self.vocabulary_size()
     if new_vocab_size == self._token_start_index():

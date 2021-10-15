@@ -90,8 +90,15 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
   A layer is a callable object that takes as input one or more tensors and
   that outputs one or more tensors. It involves *computation*, defined
-  in the `call()` method, and a *state* (weight variables), defined
-  either in the constructor `__init__()` or in the `build()` method.
+  in the `call()` method, and a *state* (weight variables). State can be
+  created in various places, at the convenience of the subclass implementer:
+
+  * in `__init__()`;
+  * in the optional `build()` method, which is invoked by the first
+    `__call__()` to the layer, and supplies the shape(s) of the input(s),
+    which may not have been known at initialization time;
+  * in the first invocation of `call()`, with some caveats discussed
+    below.
 
   Users will just instantiate a layer and then treat it as a callable.
 
@@ -134,15 +141,17 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
   We recommend that descendants of `Layer` implement the following methods:
 
-  * `__init__()`: Defines custom layer attributes, and creates layer state
-    variables that do not depend on input shapes, using `add_weight()`.
+  * `__init__()`: Defines custom layer attributes, and creates layer weights
+    that do not depend on input shapes, using `add_weight()`, or other state.
   * `build(self, input_shape)`: This method can be used to create weights that
-    depend on the shape(s) of the input(s), using `add_weight()`. `__call__()`
-    will automatically build the layer (if it has not been built yet) by
-    calling `build()`.
+    depend on the shape(s) of the input(s), using `add_weight()`, or other
+    state. `__call__()` will automatically build the layer (if it has not been
+    built yet) by calling `build()`.
   * `call(self, inputs, *args, **kwargs)`: Called in `__call__` after making
     sure `build()` has been called. `call()` performs the logic of applying the
-    layer to the input tensors (which should be passed in as argument).
+    layer to the `inputs`. The first invocation may additionally create state
+    that could not be conveniently created in `build()`; see its docstring
+    for details.
     Two reserved keyword arguments you can optionally use in `call()` are:
       - `training` (boolean, whether the call is in inference mode or training
         mode). See more details in [the layer/model subclassing guide](
@@ -345,7 +354,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # for instance stateful RNNs.
     self._stateful = False
     # Indicates whether `build` needs to be called upon layer call, to create
-    # the layer's weights.
+    # the layer's weights. (Note that the first call() may also create weights,
+    # independent of build().)
     self.built = False
     # Provides information about which inputs are compatible with the layer.
     self._input_spec = None
@@ -460,9 +470,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     This is a method that implementers of subclasses of `Layer` or `Model`
     can override if they need a state-creation step in-between
-    layer instantiation and layer call.
+    layer instantiation and layer call. It is invoked automatically before
+    the first execution of `call()`.
 
-    This is typically used to create the weights of `Layer` subclasses.
+    This is typically used to create the weights of `Layer` subclasses
+    (at the discretion of the subclass implementer).
 
     Args:
       input_shape: Instance of `TensorShape`, or list of instances of
@@ -482,6 +494,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     from `keras` API. In `keras` API, you can pass support masking for
     layers as additional arguments. Whereas `tf.keras` has `compute_mask()`
     method to support masking.
+
+    The `call()` method may not create state (except in its first invocation,
+    wrapping the creation of variables or other resources in `tf.init_scope()`).
+    It is recommended to create state in `__init__()`, or the `build()` method
+    that is called automatically before `call()` executes the first time.
 
     Args:
       inputs: Input tensor, or dict/list/tuple of input tensors.
@@ -786,9 +803,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   def compute_output_shape(self, input_shape):
     """Computes the output shape of the layer.
 
-    If the layer has not been built, this method will call `build` on the
-    layer. This assumes that the layer will later be used with inputs that
-    match the input shape provided here.
+    This method will cause the layer's state to be built, if that has not
+    happened before. This requires that the layer will later be used with
+    inputs that match the input shape provided here.
 
     Args:
         input_shape: Shape tuple (tuple of integers)
@@ -935,6 +952,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       outputs = tf.nest.map_structure(
           keras_tensor.keras_tensor_from_tensor, outputs)
 
+    self._set_save_spec(inputs, args, kwargs)
     if hasattr(self, '_set_inputs') and not self.inputs:
       # TODO(kaftan): figure out if we need to do this at all
       # Subclassed network: explicitly set metadata normally set by
@@ -2172,7 +2190,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     if not self._inbound_nodes:
       raise AttributeError(f'The layer "{self.name}" has never been called '
-                           'and thus has no defined input shape.')
+                           'and thus has no defined input shape. Note that the '
+                           '`input_shape` property is only available for '
+                           'Functional and Sequential models.')
     all_input_shapes = set(
         [str(node.input_shapes) for node in self._inbound_nodes])
     if len(all_input_shapes) == 1:
@@ -2707,7 +2727,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
           self._set_dtype_policy(policy.Policy(dtype))
       input_shapes = None
       # Converts Tensors / CompositeTensors to TensorShapes.
-      if all(hasattr(x, 'shape') for x in input_list):
+      if any(hasattr(x, 'shape') for x in input_list):
         input_shapes = tf_utils.get_shapes(inputs)
       else:
         # Converts input shape to TensorShapes.
@@ -3392,6 +3412,42 @@ def _apply_name_scope_on_model_declaration(enable):
 
   global _is_name_scope_on_model_declaration_enabled
   _is_name_scope_on_model_declaration_enabled = enable
+
+
+class BaseRandomLayer(Layer):
+  """A layer handle the random nubmer creation and savemodel behavior."""
+
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  def __init__(self, seed=None, force_generator=False, **kwargs):
+    """Initialize the BaseRandomLayer.
+
+    Note that the constructor is annotated with
+    @no_automatic_dependency_tracking. This is to skip the auto
+    tracking of self._random_generator instance, which is an AutoTrackable.
+    The backend.RandomGenerator could contain a tf.random.Generator instance
+    which will have tf.Variable as the internal state. We want to avoid saving
+    that state into model.weights and checkpoints for backward compatibility
+    reason. In the meantime, we still need to make them visible to SavedModel
+    when it is tracing the tf.function for the `call()`.
+    See _list_extra_dependencies_for_serialization below for more details.
+
+    Args:
+      seed: optional integer, used to create RandomGenerator.
+      force_generator: boolean, default to False, whether to force the
+        RandomGenerator to use the code branch of tf.random.Generator.
+      **kwargs: other keyward arguements that will be passed to the parent class
+    """
+    super().__init__(**kwargs)
+    self._random_generator = backend.RandomGenerator(
+        seed, force_generator=force_generator)
+
+  def _list_extra_dependencies_for_serialization(self, serialization_cache):
+    # This method exposes the self._random_generator to SavedModel only
+    # (not layer.weights and checkpoint).
+    deps = super()._list_extra_dependencies_for_serialization(
+        serialization_cache)
+    deps['_random_generator'] = self._random_generator
+    return deps
 
 
 # Avoid breaking users who directly import this symbol from this file.

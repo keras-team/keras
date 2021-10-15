@@ -14,27 +14,29 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.discretization."""
 
-import tensorflow.compat.v2 as tf
-
-import numpy as np
+# pylint: disable=g-direct-tensorflow-import
 
 import keras
 from keras import keras_parameterized
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import discretization
 from keras.layers.preprocessing import preprocessing_test_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
-        strategy_combinations.multi_worker_mirrored_strategies,
-        mode=["eager", "graph"]))
+        strategy_combinations.multi_worker_mirrored_strategies +
+        strategy_combinations.parameter_server_strategies_single_worker +
+        strategy_combinations.parameter_server_strategies_multi_worker,
+        mode=["eager"]))
 class DiscretizationDistributionTest(
     keras_parameterized.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
-  def test_distribution(self, strategy):
+  def test_strategy(self, strategy):
     input_array = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
 
     expected_output = [[0, 2, 3, 1], [1, 3, 2, 1]]

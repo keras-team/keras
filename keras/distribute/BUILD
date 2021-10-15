@@ -276,7 +276,7 @@ distribute_py_test(
     disable_mlir_bridge = False,
     full_precision = True,
     main = "keras_premade_models_test.py",
-    shard_count = 4,
+    shard_count = 8,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
@@ -450,6 +450,7 @@ distribute_py_test(
     main = "keras_models_test.py",
     tags = [
         "multi_and_single_gpu",
+        "no_oss",  # TODO(b/202850066)
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
@@ -579,10 +580,7 @@ distribute_py_test(
     main = "minimize_loss_test.py",
     tags = [
         "multi_and_single_gpu",
-        "no_oss",  # TODO(b/139815303): enable after this is fixed.
-        "noguitar",  # TODO(b/140755528): enable after this is fixed.
         "nomultivm",  # TODO(b/170502145)
-        "notap",  # TODO(b/139815303): enable after this is fixed.
     ],
     deps = [
         ":optimizer_combinations",
@@ -869,6 +867,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/legacy_tf_layers:layers",
     ],
 )
 

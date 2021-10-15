@@ -238,6 +238,7 @@ class MultiHeadAttention(Layer):
     self._bias_initializer = initializers.get(bias_initializer)
     self._kernel_regularizer = regularizers.get(kernel_regularizer)
     self._bias_regularizer = regularizers.get(bias_regularizer)
+    self._activity_regularizer = regularizers.get(activity_regularizer)
     self._kernel_constraint = constraints.get(kernel_constraint)
     self._bias_constraint = constraints.get(bias_constraint)
     if attention_axes is not None and not isinstance(attention_axes,

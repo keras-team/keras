@@ -135,7 +135,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'max_tokens\', \'num_oov_indices\', \'mask_token\', \'oov_token\', \'vocabulary\', \'idf_weights\', \'invert\', \'output_mode\', \'sparse\', \'pad_to_max_tokens\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'1\', \'None\', \'-1\', \'None\', \'None\', \'False\', \'int\', \'False\', \'False\'], "
+    argspec: "args=[\'self\', \'max_tokens\', \'num_oov_indices\', \'mask_token\', \'oov_token\', \'vocabulary\', \'vocabulary_dtype\', \'idf_weights\', \'invert\', \'output_mode\', \'sparse\', \'pad_to_max_tokens\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'1\', \'None\', \'-1\', \'None\', \'int64\', \'None\', \'False\', \'int\', \'False\', \'False\'], "
   }
   member_method {
     name: "adapt"

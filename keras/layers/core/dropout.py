@@ -16,21 +16,14 @@
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 from keras import backend
-from keras.engine.base_layer import Layer
+from keras.engine import base_layer
 from keras.utils import control_flow_util
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
-# TODO(b/168039935): track dropout rate to decide whether/how to make a
-# dropout rate fastpath.
-keras_temporary_dropout_rate = tf.__internal__.monitoring.BoolGauge(
-    '/tensorflow/api/keras/dropout/temp_rate_is_zero',
-    'Temporarily record if Keras dropout layer was created w/'
-    'constant rate = 0')
-
 
 @keras_export('keras.layers.Dropout')
-class Dropout(Layer):
+class Dropout(base_layer.BaseRandomLayer):
   """Applies Dropout to the input.
 
   The Dropout layer randomly sets input units to 0 with a frequency of `rate`
@@ -82,18 +75,26 @@ class Dropout(Layer):
   """
 
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
-    super(Dropout, self).__init__(**kwargs)
+    # Note that the constructor is annotated with
+    # @no_automatic_dependency_tracking. This is to skip the auto
+    # tracking of self._random_generator instance, which is an AutoTrackable.
+    # The backend.RandomGenerator could contain a tf.random.Generator instance
+    # which will have tf.Variable as the internal state. We want to avoid saving
+    # that state into model.weights and checkpoints for backward compatibility
+    # reason. In the meantime, we still need to make them visible to SavedModel
+    # when it is tracing the tf.function for the `call()`.
+    # See _list_extra_dependencies_for_serialization below for more details.
+    super(Dropout, self).__init__(seed=seed, **kwargs)
     if isinstance(rate, (int, float)) and not 0 <= rate <= 1:
       raise ValueError(f'Invalid value {rate} received for '
                        f'`rate`, expected a value between 0 and 1.')
     self.rate = rate
-    if isinstance(rate, (int, float)) and not rate:
-      keras_temporary_dropout_rate.get_cell().set(True)
-    else:
-      keras_temporary_dropout_rate.get_cell().set(False)
     self.noise_shape = noise_shape
     self.seed = seed
     self.supports_masking = True
+
+  def build(self, input_shape):
+    self._random_generator._maybe_init()  # pylint: disable=protected-access
 
   def _get_noise_shape(self, inputs):
     # Subclasses of `Dropout` may implement `_get_noise_shape(self, inputs)`,
@@ -113,11 +114,8 @@ class Dropout(Layer):
       training = backend.learning_phase()
 
     def dropped_inputs():
-      return tf.nn.dropout(
-          inputs,
-          noise_shape=self._get_noise_shape(inputs),
-          seed=self.seed,
-          rate=self.rate)
+      return self._random_generator.dropout(
+          inputs, self.rate, noise_shape=self._get_noise_shape(inputs))
 
     output = control_flow_util.smart_cond(training, dropped_inputs,
                                           lambda: tf.identity(inputs))
@@ -134,4 +132,3 @@ class Dropout(Layer):
     }
     base_config = super(Dropout, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
-

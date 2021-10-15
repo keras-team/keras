@@ -209,3 +209,10 @@ def deserialize(config, custom_objects=None):
       module_objects=LOCAL.ALL_OBJECTS,
       custom_objects=custom_objects,
       printable_module_name='layer')
+
+
+def get_builtin_layer(class_name):
+  """Returns class if `class_name` is registered, else returns None."""
+  if not hasattr(LOCAL, 'ALL_OBJECTS'):
+    populate_deserializable_objects()
+  return LOCAL.ALL_OBJECTS.get(class_name)

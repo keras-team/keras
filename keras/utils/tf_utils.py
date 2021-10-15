@@ -164,7 +164,8 @@ def map_structure_with_atomic(is_atomic_fn, map_fn, nested):
 
 def get_shapes(tensors):
   """Gets shapes from tensors."""
-  return tf.nest.map_structure(lambda x: x.shape, tensors)
+  return tf.nest.map_structure(
+      lambda x: x.shape if hasattr(x, 'shape') else None, tensors)
 
 
 #  pylint: enable=protected-access

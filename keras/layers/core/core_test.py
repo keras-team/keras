@@ -13,9 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for Keras core layers."""
-# pylint: disable=g-bad-import-order
-import tensorflow.compat.v2 as tf
 
+import os
 import textwrap
 
 import keras
@@ -24,6 +23,8 @@ from keras import testing_utils
 from keras.layers import core
 from keras.mixed_precision import policy
 import numpy as np
+
+import tensorflow.compat.v2 as tf
 
 
 @keras_parameterized.run_all_keras_modes
@@ -88,6 +89,44 @@ class DropoutLayersTest(keras_parameterized.TestCase):
     out_np = keras.backend.get_value(out)
     # Test that dropout mask is shared across second dim.
     self.assertAllClose(out_np[:, 0, :], out_np[:, 1, :])
+
+  def test_dropout_with_savemodel(self):
+    inputs = keras.Input(shape=(5, 10))
+    layer = keras.layers.Dropout(0.5)
+    layer._random_generator._force_generator = True
+    outputs = layer(inputs)
+    model = keras.Model(inputs, outputs)
+    train = model(np.ones((20, 5, 10)), training=True)
+    predict = model(np.ones((20, 5, 10)))
+    # Make sure the weights from tf.random.Generator is not present in the model
+    # which will cause weight loading issue for existing application models if
+    # it contains dropout layer.
+    self.assertEmpty(layer.get_weights())
+    self.assertEmpty(model.get_weights())
+
+    # Make sure the layer does dropout value when training
+    self.assertNotAllClose(train, predict)
+
+    model.save(os.path.join(self.get_temp_dir(), 'savedmodel'),
+               save_format='tf')
+    loaded_model = keras.models.load_model(
+        os.path.join(self.get_temp_dir(), 'savedmodel'))
+    predict2 = loaded_model(np.ones((20, 5, 10)))
+
+    self.assertAllClose(predict, predict2)
+    # Make sure the model droput different value after loading
+    train2 = loaded_model(np.ones((20, 5, 10)), training=True)
+    self.assertNotAllClose(train, train2)
+    self.assertIsNotNone(loaded_model.layers[1]._random_generator)
+
+    # Also make sure the checkpoint doesn't contain any variable from the
+    # dropout layer, to keep the backward compatibility.
+    checkpoint = tf.train.Checkpoint(model)
+    save_path = checkpoint.save(os.path.join(self.get_temp_dir(), 'checkpoint'))
+    checkpoint_var_names = [name_value_tuple[0] for name_value_tuple in
+                            tf.train.list_variables(save_path)]
+    for name in checkpoint_var_names:
+      self.assertNotIn('dropout', name)
 
 
 @keras_parameterized.run_all_keras_modes
@@ -578,6 +617,58 @@ class CoreLayersTest(keras_parameterized.TestCase):
     layer(keras.backend.variable(np.ones((2, 4))))
     self.assertEqual(layer.kernel.constraint, k_constraint)
     self.assertEqual(layer.bias.constraint, b_constraint)
+
+  def test_dense_layer_ragged_tensor(self):
+    layer = keras.layers.Dense(2, kernel_initializer='ones', use_bias=False)
+
+    # a.shape = [2, None, 2]; a.ragged_rank=1
+    a = tf.ragged.constant([[[1., 2], [3, 4], [5, 6]], [[7, 8]]],
+                           ragged_rank=1)
+    a_out = layer(a)
+    keras.backend.get_value(layer.kernel)  # ensures var is built in TF 1.x.
+    self.assertAllEqual(a_out, [[[3., 3], [7, 7], [11, 11]], [[15, 15]]])
+
+    # b.shape = [4, 2]; b.ragged_rank=1
+    b = tf.RaggedTensor.from_uniform_row_length([1., 2, 3, 4, 5, 6, 7, 8], 2)
+    self.assertAllEqual(layer(b), [[3., 3], [7, 7], [11, 11], [15, 15]])
+
+    # c.shape = [2, 2, 2]; c.ragged_rank=2
+    c = tf.RaggedTensor.from_uniform_row_length(b, 2)
+    self.assertAllEqual(layer(c), [[[3., 3], [7, 7]], [[11, 11], [15, 15]]])
+
+  def test_dense_layer_ragged_tensor_savedmodel(self):
+    # Check that we don't get a deadlock when saving a Keras model with
+    # a dense layer that processes RaggedTensors.  (This happened because
+    # Dense.call() had a recursive call, which is not currently supported
+    # by the @tf.function decorator.)
+
+    class TestModel(keras.Model):
+
+      def __init__(self):
+        super().__init__()
+        self._layer = keras.layers.Dense(1, kernel_initializer='ones',
+                                         use_bias=False)
+
+      def call(self, inputs):
+        return self._layer(inputs)
+
+    model = TestModel()
+    result = model(tf.RaggedTensor.from_row_lengths([[1.], [2], [3]], [1, 2]))
+    keras.backend.get_value(model._layer.kernel)  # required in TF 1.x.
+    self.assertAllClose(result, [[[1.0]], [[2.0], [3.0]]])
+    model.save(os.path.join(self.get_temp_dir(), 'savedmodel'),
+               save_format='tf')
+
+  def test_dense_layer_unsupported_ragged_tensor_error(self):
+    layer = keras.layers.Dense(2)
+    with self.assertRaisesRegex(
+        ValueError, 'The last dimension of the inputs to a Dense layer should '
+        r'be defined. Found None. Full input shape received: .*'):
+      layer(tf.ragged.constant([[1., 2], [3, 4, 5]]))
+    with self.assertRaisesRegex(
+        ValueError, 'Dense layer only supports RaggedTensors when the '
+        r'innermost dimension is non-ragged. Received: inputs.shape=.*'):
+      layer.call(tf.ragged.constant([[1., 2], [3, 4, 5]]))
 
   def test_activity_regularization(self):
     layer = keras.layers.ActivityRegularization(l1=0.1)

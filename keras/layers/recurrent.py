@@ -28,7 +28,7 @@ from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
-from keras.engine.base_layer import Layer
+from keras.engine import base_layer
 from keras.engine.input_spec import InputSpec
 from keras.saving.saved_model import layer_serialization
 from keras.utils import control_flow_util
@@ -45,7 +45,7 @@ RECURRENT_DROPOUT_WARNING_MSG = (
 
 
 @keras_export('keras.layers.StackedRNNCells')
-class StackedRNNCells(Layer):
+class StackedRNNCells(base_layer.Layer):
   """Wrapper allowing a stack of RNN cells to behave as a single cell.
 
   Used to implement efficient stacked RNNs.
@@ -158,7 +158,7 @@ class StackedRNNCells(Layer):
       return tuple([batch_size] + shape)
 
     for cell in self.cells:
-      if isinstance(cell, Layer) and not cell.built:
+      if isinstance(cell, base_layer.Layer) and not cell.built:
         with backend.name_scope(cell.name):
           cell.build(input_shape)
           cell.built = True
@@ -196,7 +196,7 @@ class StackedRNNCells(Layer):
 
 
 @keras_export('keras.layers.RNN')
-class RNN(Layer):
+class RNN(base_layer.Layer):
   """Base class for recurrent layers.
 
   See [the Keras RNN API guide](https://www.tensorflow.org/guide/keras/rnn)
@@ -587,7 +587,7 @@ class RNN(Layer):
       step_input_shape = tf.nest.map_structure(get_step_input_shape, input_shape)
 
     # allow cell (if layer) to build before we set or validate state_spec.
-    if isinstance(self.cell, Layer) and not self.cell.built:
+    if isinstance(self.cell, base_layer.Layer) and not self.cell.built:
       with backend.name_scope(self.cell.name):
         self.cell.build(step_input_shape)
         self.cell.built = True
@@ -1025,7 +1025,7 @@ class RNN(Layer):
 
 
 @keras_export('keras.layers.AbstractRNNCell')
-class AbstractRNNCell(Layer):
+class AbstractRNNCell(base_layer.Layer):
   """Abstract object representing an RNN cell.
 
   See [the Keras RNN API guide](https://www.tensorflow.org/guide/keras/rnn)
@@ -1126,6 +1126,8 @@ class DropoutRNNCellMixin:
       tensor need to dropout.
     recurrent_dropout: a float number within range [0, 1). The ratio that the
       recurrent state weights need to dropout.
+    _random_generator: A backend.RandomGenerator instance, which will be used
+      to produce outputs based on the inputs and dropout rate.
   This object will create and cache created dropout masks, and reuse them for
   the incoming data, so that the same mask is used for every batch input.
   """
@@ -1181,6 +1183,7 @@ class DropoutRNNCellMixin:
 
   def _create_dropout_mask(self, inputs, training, count=1):
     return _generate_dropout_mask(
+        self._random_generator,
         tf.ones_like(inputs),
         self.dropout,
         training=training,
@@ -1188,6 +1191,7 @@ class DropoutRNNCellMixin:
 
   def _create_recurrent_dropout_mask(self, inputs, training, count=1):
     return _generate_dropout_mask(
+        self._random_generator,
         tf.ones_like(inputs),
         self.recurrent_dropout,
         training=training,
@@ -1252,7 +1256,7 @@ class DropoutRNNCellMixin:
 
 
 @keras_export('keras.layers.SimpleRNNCell')
-class SimpleRNNCell(DropoutRNNCellMixin, Layer):
+class SimpleRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
   """Cell class for SimpleRNN.
 
   See [the Keras RNN API guide](https://www.tensorflow.org/guide/keras/rnn)
@@ -1711,7 +1715,7 @@ class SimpleRNN(RNN):
 
 
 @keras_export(v1=['keras.layers.GRUCell'])
-class GRUCell(DropoutRNNCellMixin, Layer):
+class GRUCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
   """Cell class for the GRU layer.
 
   Args:
@@ -2271,7 +2275,7 @@ class GRU(RNN):
 
 
 @keras_export(v1=['keras.layers.LSTMCell'])
-class LSTMCell(DropoutRNNCellMixin, Layer):
+class LSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
   """Cell class for the LSTM layer.
 
   Args:
@@ -2945,9 +2949,9 @@ class LSTM(RNN):
     return cls(**config)
 
 
-def _generate_dropout_mask(ones, rate, training=None, count=1):
+def _generate_dropout_mask(generator, ones, rate, training=None, count=1):
   def dropped_inputs():
-    return backend.dropout(ones, rate)
+    return generator.dropout(ones, rate)
 
   if count > 1:
     return [

@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 
 import keras
+from keras import backend
 from keras import keras_parameterized
 from keras.distribute.strategy_combinations import all_strategies
 from keras.layers.preprocessing import category_crossing
@@ -30,8 +31,7 @@ def batch_wrapper(dataset, batch_size, distribution, repeat=None):
     dataset = dataset.repeat(repeat)
   # TPUs currently require fully defined input shapes, drop_remainder ensures
   # the input will have fully defined shapes.
-  if isinstance(distribution,
-                (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
+  if backend.is_tpu_strategy(distribution):
     return dataset.batch(batch_size, drop_remainder=True)
   else:
     return dataset.batch(batch_size)

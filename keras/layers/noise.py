@@ -13,19 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 """Layers that operate regularization via the addition of noise."""
-
-import tensorflow.compat.v2 as tf
-
-import numpy as np
+# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 from keras import backend
-from keras.engine.base_layer import Layer
+from keras.engine import base_layer
 from keras.utils import tf_utils
+
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.layers.GaussianNoise')
-class GaussianNoise(Layer):
+class GaussianNoise(base_layer.BaseRandomLayer):
   """Apply additive zero-centered Gaussian noise.
 
   This is useful to mitigate overfitting
@@ -54,11 +55,10 @@ class GaussianNoise(Layer):
   """
 
   def __init__(self, stddev, seed=None, **kwargs):
-    super(GaussianNoise, self).__init__(**kwargs)
+    super(GaussianNoise, self).__init__(seed=seed, **kwargs)
     self.supports_masking = True
     self.stddev = stddev
     self.seed = seed
-    self._random_generator = backend.RandomGenerator(seed)
 
   def call(self, inputs, training=None):
 
@@ -82,7 +82,7 @@ class GaussianNoise(Layer):
 
 
 @keras_export('keras.layers.GaussianDropout')
-class GaussianDropout(Layer):
+class GaussianDropout(base_layer.BaseRandomLayer):
   """Apply multiplicative 1-centered Gaussian noise.
 
   As it is a regularization layer, it is only active at training time.
@@ -108,11 +108,10 @@ class GaussianDropout(Layer):
   """
 
   def __init__(self, rate, seed=None, **kwargs):
-    super(GaussianDropout, self).__init__(**kwargs)
+    super(GaussianDropout, self).__init__(seed=seed, **kwargs)
     self.supports_masking = True
     self.rate = rate
     self.seed = seed
-    self._random_generator = backend.RandomGenerator(seed)
 
   def call(self, inputs, training=None):
     if 0 < self.rate < 1:
@@ -139,7 +138,7 @@ class GaussianDropout(Layer):
 
 
 @keras_export('keras.layers.AlphaDropout')
-class AlphaDropout(Layer):
+class AlphaDropout(base_layer.BaseRandomLayer):
   """Applies Alpha Dropout to the input.
 
   Alpha Dropout is a `Dropout` that keeps mean and variance of inputs
@@ -169,12 +168,11 @@ class AlphaDropout(Layer):
   """
 
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
-    super(AlphaDropout, self).__init__(**kwargs)
+    super(AlphaDropout, self).__init__(seed=seed, **kwargs)
     self.rate = rate
     self.noise_shape = noise_shape
     self.seed = seed
     self.supports_masking = True
-    self._random_generator = backend.RandomGenerator(seed)
 
   def _get_noise_shape(self, inputs):
     return self.noise_shape if self.noise_shape else tf.shape(inputs)

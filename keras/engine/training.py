@@ -90,6 +90,33 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   Note: Only dicts, lists, and tuples of input tensors are supported. Nested
   inputs are not supported (e.g. lists of list or dicts of dict).
 
+  A new Functional API model can also be created by using the
+  intermediate tensors. This enables you to quickly extract sub-components
+  of the model.
+
+  Example:
+
+  ```python
+  inputs = keras.Input(shape=(None, None, 3))
+  processed = keras.layers.RandomCrop(width=32, height=32)(inputs)
+  conv = keras.layers.Conv2D(filters=2, kernel_size=3)(processed)
+  pooling = keras.layers.GlobalAveragePooling2D()(conv)
+  feature = keras.layers.Dense(10)(pooling)
+
+  full_model = keras.Model(inputs, feature)
+  backbone = keras.Model(processed, conv)
+  activations = keras.Model(conv, feature)
+  ```
+
+  Note that the `backbone` and `activations` models are not
+  created with `keras.Input` objects, but with the tensors that are originated
+  from `keras.Inputs` objects. Under the hood, the layers and weights will
+  be shared across these models, so that user can train the `full_model`, and
+  use `backbone` or `activations` to do feature extraction.
+  The inputs and outputs of the model can be nested structures of tensors as
+  well, and the created models are standard Functional API models that support
+  all the existing APIs.
+
   2 - By subclassing the `Model` class: in that case, you should define your
   layers in `__init__()` and you should implement the model's forward pass
   in `call()`.
@@ -750,6 +777,36 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def run_eagerly(self, value):
     self._run_eagerly = value
 
+  def _validate_target_and_loss(self, y, loss):
+    """Raises error if target or loss is not found.
+
+    This method verifies that the target and loss are properly populated
+    when applicable, or raises errors.
+
+    Args:
+      y: the target for training.
+      loss: the total loss tensor including loss added via `compile` and
+        `add_loss`.
+    """
+
+    # `self.loss` references the loss added via `compile` call. If users have
+    # provided such, the target must be provided; otherwise it's a user error.
+    # Note that `self.loss` does not include losses added via `add_loss`, and it
+    # is a valid use when such loss from `add_loss` exists and target does not.
+    if self.loss and y is None:
+      raise ValueError(
+          'Target data is missing. Your model was compiled with '
+          f'loss={self.loss}, '
+          'and therefore expects target data to be provided in `fit()`.')
+
+    # For training, there must be compiled loss or regularization loss to exist
+    # in order to apply the gradients. If one is not found, it means no loss
+    # was supplied via `compile` or `add_loss`.
+    elif loss is None:
+      raise ValueError(
+          'No loss found. You may have forgotten to provide a `loss` argument '
+          'in the `compile()` method.')
+
   def train_step(self, data):
     """The logic for one training step.
 
@@ -781,10 +838,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       y_pred = self(x, training=True)
       loss = self.compiled_loss(
           y, y_pred, sample_weight, regularization_losses=self.losses)
-    if self.loss and y is None:
-      raise TypeError(
-          f'Target data is missing. Your model has `loss`: {self.loss}, '
-          'and therefore expects target data to be passed in `fit()`.')
+    self._validate_target_and_loss(y, loss)
     # Run backwards pass.
     self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
     self.compiled_metrics.update_state(y, y_pred, sample_weight)
@@ -843,27 +897,57 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       write_scalar_summaries(outputs, step=model._train_counter)  # pylint: disable=protected-access
       return outputs
 
-    def train_function(iterator, steps_per_execution):
-      """Runs a training execution with multiple steps."""
-      outputs = step_function(self, iterator)
-      if steps_per_execution > 1:
-        for _ in tf.range(steps_per_execution - 1):
+    # Special case if steps_per_execution is one.
+    if (self._steps_per_execution is None or
+        self._steps_per_execution.numpy().item() == 1):
+
+      def train_function(iterator):
+        """Runs a training execution with a single step."""
+        return step_function(self, iterator)
+
+      if not self.run_eagerly:
+        train_function = tf.function(
+            train_function, experimental_relax_shapes=True)
+        self.train_tf_function = train_function
+
+      if self._cluster_coordinator:
+        self.train_function = lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
+            train_function, args=(it,))
+      else:
+        self.train_function = train_function
+
+    # If we're using a coordinator, use the value of self._steps_per_execution
+    # at the time the function is called/scheduled, and not when it is actually
+    # executed.
+    elif self._cluster_coordinator:
+
+      def train_function(iterator, steps_per_execution):
+        """Runs a training execution with multiple steps."""
+        for _ in tf.range(steps_per_execution):
           outputs = step_function(self, iterator)
-      return outputs
+        return outputs
 
-    if not self.run_eagerly:
-      train_function = tf.function(
-          train_function, experimental_relax_shapes=True)
-      self.train_tf_function = train_function
+      if not self.run_eagerly:
+        train_function = tf.function(
+            train_function, experimental_relax_shapes=True)
+        self.train_tf_function = train_function
 
-    if self._cluster_coordinator:
       self.train_function = lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
           train_function,
-          args=(it, self._steps_per_execution.numpy().item()))
+          args=(it, self._steps_per_execution.value()))
     else:
-      self.train_function = lambda it: train_function(  # pylint: disable=g-long-lambda
-          it,
-          self._steps_per_execution.numpy().item())
+
+      def train_function(iterator):
+        """Runs a training execution with multiple steps."""
+        for _ in tf.range(self._steps_per_execution):
+          outputs = step_function(self, iterator)
+        return outputs
+
+      if not self.run_eagerly:
+        train_function = tf.function(
+            train_function, experimental_relax_shapes=True)
+        self.train_tf_function = train_function
+      self.train_function = train_function
 
     return self.train_function
 
@@ -1109,6 +1193,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         verbose = 2  # Default to epoch-level logging for PSStrategy.
       else:
         verbose = 1  # Default to batch-level logging otherwise.
+    elif verbose == 1 and self.distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
+      raise ValueError(
+          '`verbose=1` is not allowed with `ParameterServerStrategy` for '
+          f'performance reasons. Received: `verbose`={verbose}')
 
     if validation_split:
       # Create the validation data using the training data. Only supported for
@@ -1323,26 +1411,54 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           outputs, self.distribute_strategy, reduction='first')
       return outputs
 
-    def test_function(iterator, steps_per_execution):
-      """Runs an evaluation execution with multiple steps."""
-      outputs = step_function(self, iterator)
-      if steps_per_execution > 1:
-        for _ in tf.range(steps_per_execution - 1):
+    # Special case if steps_per_execution is one.
+    if (self._steps_per_execution is None or
+        self._steps_per_execution.numpy().item() == 1):
+
+      def test_function(iterator):
+        """Runs a test execution with a single step."""
+        return step_function(self, iterator)
+
+      if not self.run_eagerly:
+        test_function = tf.function(
+            test_function, experimental_relax_shapes=True)
+
+      if self._cluster_coordinator:
+        self.test_function = lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
+            test_function, args=(it,))
+      else:
+        self.test_function = test_function
+
+    # If we're using a coordinator, use the value of self._steps_per_execution
+    # at the time the function is called/scheduled, and not when it is actually
+    # executed.
+    elif self._cluster_coordinator:
+
+      def test_function(iterator, steps_per_execution):
+        """Runs a test execution with multiple steps."""
+        for _ in tf.range(steps_per_execution):
           outputs = step_function(self, iterator)
-      return outputs
+        return outputs
 
-    if not self.run_eagerly:
-      test_function = tf.function(
-          test_function, experimental_relax_shapes=True)
+      if not self.run_eagerly:
+        test_function = tf.function(
+            test_function, experimental_relax_shapes=True)
 
-    if self._cluster_coordinator:
       self.test_function = lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
           test_function,
-          args=(it, self._steps_per_execution.numpy().item()))
+          args=(it, self._steps_per_execution.value()))
     else:
-      self.test_function = lambda it: test_function(  # pylint: disable=g-long-lambda
-          it,
-          self._steps_per_execution.numpy().item())
+
+      def test_function(iterator):
+        """Runs a test execution with multiple steps."""
+        for _ in tf.range(self._steps_per_execution):
+          outputs = step_function(self, iterator)
+        return outputs
+
+      if not self.run_eagerly:
+        test_function = tf.function(
+            test_function, experimental_relax_shapes=True)
+      self.test_function = test_function
 
     return self.test_function
 
@@ -1574,11 +1690,20 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           outputs, self.distribute_strategy, reduction='concat')
       return outputs
 
-    def predict_function(iterator, steps_per_execution):
-      """Runs an evaluation execution with multiple steps."""
-      outputs = step_function(self, iterator)
-      if steps_per_execution > 1:
-        for _ in tf.range(steps_per_execution - 1):
+    # Special case if steps_per_execution is one.
+    if (self._steps_per_execution is None or
+        self._steps_per_execution.numpy().item() == 1):
+
+      def predict_function(iterator):
+        """Runs an evaluation execution with a single step."""
+        return step_function(self, iterator)
+
+    else:
+
+      def predict_function(iterator):
+        """Runs an evaluation execution with multiple steps."""
+        outputs = step_function(self, iterator)
+        for _ in tf.range(self._steps_per_execution - 1):
           tf.autograph.experimental.set_loop_options(
               shape_invariants=[(
                   t, tf_utils.get_tensor_spec(t, dynamic_batch=True).shape)
@@ -1586,17 +1711,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           step_outputs = step_function(self, iterator)
           outputs = tf.nest.map_structure(lambda t1, t2: concat([t1, t2]),
                                           outputs, step_outputs)
-      return outputs
+        return outputs
 
     if not self.run_eagerly:
       predict_function = tf.function(
           predict_function, experimental_relax_shapes=True)
-
-    steps_per_execution = (
-        lambda: self._steps_per_execution.numpy().item()  # pylint: disable=g-long-lambda
-        if self._steps_per_execution is not None else 1)
-    self.predict_function = lambda it: predict_function(  # pylint: disable=g-long-lambda
-        it, steps_per_execution())
+    self.predict_function = predict_function
 
     return self.predict_function
 
@@ -1612,13 +1732,23 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               use_multiprocessing=False):
     """Generates output predictions for the input samples.
 
-    Computation is done in batches. This method is designed for performance in
-    large scale inputs. For small amount of inputs that fit in one batch,
-    directly using `__call__()` is recommended for faster execution, e.g.,
+    Computation is done in batches. This method is designed for batch processing
+    of large numbers of inputs. It is not intended for use inside of loops
+    that iterate over your data and process small numbers of inputs at a time.
+
+    For small numbers of inputs that fit in one batch,
+    directly use `__call__()` for faster execution, e.g.,
     `model(x)`, or `model(x, training=False)` if you have layers such as
-    `tf.keras.layers.BatchNormalization` that behaves differently during
-    inference. Also, note the fact that test loss is not affected by
+    `tf.keras.layers.BatchNormalization` that behave differently during
+    inference. You may pair the individual model call with a `tf.function`
+    for additional performance inside your inner loop.
+    If you need access to numpy array values instead of tensors after your
+    model call, you can use `tensor.numpy()` to get the numpy array value of
+    an eager tensor.
+
+    Also, note the fact that test loss is not affected by
     regularization layers like noise and dropout.
+
 
     Args:
         x: Input samples. It could be:
@@ -1847,6 +1977,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._assert_compile_was_called()
     self._check_call_args('train_on_batch')
     _disallow_inside_tf_function('train_on_batch')
+    if reset_metrics:
+      self.reset_metrics()
     with self.distribute_strategy.scope(), \
          training_utils.RespectCompiledTrainableState(self):
       iterator = data_adapter.single_batch_iterator(self.distribute_strategy, x,
@@ -1855,8 +1987,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       self.train_function = self.make_train_function()
       logs = self.train_function(iterator)
 
-    if reset_metrics:
-      self.reset_metrics()
     logs = tf_utils.sync_to_numpy_or_python_type(logs)
     if return_dict:
       return logs
@@ -1906,14 +2036,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._assert_compile_was_called()
     self._check_call_args('test_on_batch')
     _disallow_inside_tf_function('test_on_batch')
+    if reset_metrics:
+      self.reset_metrics()
     with self.distribute_strategy.scope():
       iterator = data_adapter.single_batch_iterator(self.distribute_strategy, x,
                                                     y, sample_weight)
       self.test_function = self.make_test_function()
       logs = self.test_function(iterator)
 
-    if reset_metrics:
-      self.reset_metrics()
     logs = tf_utils.sync_to_numpy_or_python_type(logs)
     if return_dict:
       return logs
