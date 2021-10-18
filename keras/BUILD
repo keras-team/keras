@@ -242,6 +242,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
+        "//keras/optimizer_experimental:optimizer",
         "//keras/optimizer_v2",
         "//keras/utils:engine_utils",
     ],
