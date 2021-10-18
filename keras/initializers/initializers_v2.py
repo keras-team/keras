@@ -142,12 +142,6 @@ class Zeros(Initializer):
       raise ValueError(f'Expected numeric or boolean dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
-    return self._call(shape, dtype, **kwargs)
-
-  def _call(self, shape, dtype, **kwargs):
-    # TODO(scottzhu): remove this extra level of _call when layout is part of
-    # the public API.
-    del kwargs
     return tf.zeros(shape, dtype)
 
 
@@ -185,10 +179,6 @@ class Ones(Initializer):
       raise ValueError(f'Expected numeric or boolean dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
-    return self._call(shape, dtype, **kwargs)
-
-  def _call(self, shape, dtype, **kwargs):
-    del kwargs
     return tf.ones(shape, dtype)
 
 
