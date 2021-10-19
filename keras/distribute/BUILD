@@ -69,6 +69,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/optimizer_experimental:optimizer",
         "//keras/optimizer_v2",
     ],
 )

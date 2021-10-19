@@ -14,14 +14,12 @@
 # ==============================================================================
 """Custom Training Loop correctness test."""
 
-import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
-import numpy as np
-
 import keras
 from keras.distribute import optimizer_combinations
 from keras.distribute import strategy_combinations
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 _NUM_SAMPLES = 66
 _BATCH_SIZE = 32
@@ -235,7 +233,8 @@ class TestDistributionStrategyDnnCorrectness(tf.test.TestCase,
               distribution=strategy_combinations.multiworker_strategies,
               optimizer_fn=[
                   optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
-                  optimizer_combinations.adagrad_optimizer_keras_v2_fn
+                  optimizer_combinations.adagrad_optimizer_keras_v2_fn,
+                  optimizer_combinations.adam_experimental_fn,
               ],
               mode=['eager'],
               iteration_type=['iterator', 'dataset'],
