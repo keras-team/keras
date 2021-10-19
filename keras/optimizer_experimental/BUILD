@@ -30,6 +30,7 @@ distribute_py_test(
     tags = [
         "multi_gpu",
         "no_windows",
+        "nomultivm",  # TODO(b/203558991): Re-enable.
     ],
     deps = [
         ":optimizer",
