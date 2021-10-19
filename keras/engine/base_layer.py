@@ -490,11 +490,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   def call(self, inputs, *args, **kwargs):  # pylint: disable=unused-argument
     """This is where the layer's logic lives.
 
-    Note here that `call()` method in `tf.keras` is little bit different
-    from `keras` API. In `keras` API, you can pass support masking for
-    layers as additional arguments. Whereas `tf.keras` has `compute_mask()`
-    method to support masking.
-
     The `call()` method may not create state (except in its first invocation,
     wrapping the creation of variables or other resources in `tf.init_scope()`).
     It is recommended to create state in `__init__()`, or the `build()` method
