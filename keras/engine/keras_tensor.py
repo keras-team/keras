@@ -14,7 +14,6 @@
 # ==============================================================================
 """Keras Input Tensor used to track functional API Topology."""
 
-import copy
 from keras.utils import object_identity
 import tensorflow.compat.v2 as tf
 
@@ -284,12 +283,7 @@ class KerasTensor:
           f"Keras symbolic input/output's shape {self.shape} is not "
           f"compatible with supplied shape {shape}.")
     else:
-      if isinstance(self._type_spec, tf.TensorSpec):
-        # Note: this mutates self._type_spec in place -- if any other code has
-        # a reference to self._type_spec, then they will also see this change.
-        self._type_spec._shape = shape  # pylint: disable=protected-access
-      else:
-        self._type_spec = type_spec_with_shape(self._type_spec, shape)
+      self._type_spec = type_spec_with_shape(self._type_spec, shape)
 
   def __str__(self):
     symbolic_description = ''
@@ -641,11 +635,14 @@ def keras_tensor_from_type_spec(type_spec, name=None):
 
 def type_spec_with_shape(spec, shape):
   """Returns a copy of TypeSpec `spec` with its shape set to `shape`."""
-  if isinstance(spec,
-                (tf.TensorSpec, tf.RaggedTensorSpec, tf.SparseTensorSpec)):
-    result = copy.deepcopy(spec)
-    result._shape = shape  # pylint: disable=protected-access
-    return result
+  if isinstance(spec, tf.TensorSpec):
+    return tf.TensorSpec(shape, spec.dtype, spec.name)
+  elif isinstance(spec, tf.RaggedTensorSpec):
+    return tf.RaggedTensorSpec(shape, spec.dtype, spec.ragged_rank,
+                               spec.row_splits_dtype,
+                               spec.flat_values_spec)
+  elif isinstance(spec, tf.SparseTensorSpec):
+    return tf.SparseTensorSpec(shape, spec.dtype)
   elif hasattr(spec, 'with_shape'):
     # TODO(edloper): Consider adding .with_shape method to TensorSpec,
     # RaggedTensorSpec, and SparseTensorSpec.
