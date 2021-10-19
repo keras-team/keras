@@ -246,7 +246,7 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
         if value is not None and shape_as_list[int(axis)] not in {value, None}:
           raise ValueError(
               f'Input {input_index} of layer "{layer_name}" is '
-              f'incompatible with the layer: expected axis {axis}'
+              f'incompatible with the layer: expected axis {axis} '
               f'of input shape to have value {value}, '
               f'but received input with shape {display_shape(x.shape)}')
     # Check shape.
