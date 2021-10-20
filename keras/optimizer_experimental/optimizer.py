@@ -48,8 +48,8 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     self._global_clipnorm = global_clipnorm
     if self._clipnorm is not None and self._global_clipnorm is not None:
       raise ValueError(f"At most one of `clipnorm` and `global_clipnorm` can "
-                       f"be set. Received: clipnorm={self.clipnorm}, "
-                       f"global_clipnorm={self.global_clipnorm}.")
+                       f"be set. Received: clipnorm={self._clipnorm}, "
+                       f"global_clipnorm={self._global_clipnorm}.")
     self._clipvalue = clipvalue
     with tf.init_scope():
       # Lift the variable creation to init scope to avoid environment issue.
@@ -99,14 +99,18 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
       return clipped_grads
 
     if self._global_clipnorm is not None and self._global_clipnorm > 0:
-      return tf.clip_by_global_norm(grads, self._global_clipnorm)
+      return tf.clip_by_global_norm(grads, self._global_clipnorm)[0]
 
     if self._clipvalue is not None and self._clipvalue > 0:
       for g in grads:
         if g is None:
           clipped_grads.append(g)
         else:
-          clipped_grads.append(tf.clip_by_value(g, self._clipvalue))
+          clipped_grads.append(
+              tf.clip_by_value(
+                  g,
+                  clip_value_min=-self._clipvalue,  # pylint: disable=invalid-unary-operand-type
+                  clip_value_max=self._clipvalue))
       return clipped_grads
 
     return grads
@@ -464,7 +468,7 @@ class RestoredOptimizer(Optimizer):
 
 # Register the optimizer for loading from saved_model purpose.
 tf.__internal__.saved_model.load.register_revived_type(
-    "optimizerV3",
+    "experimentalOptimizer",
     lambda obj: isinstance(obj, Optimizer),
     versions=[
         tf.__internal__.saved_model.load.VersionedTypeRegistration(
