@@ -52,6 +52,44 @@ class OptimizerFuntionalityTest(tf.test.TestCase):
     optimizer._build_index_dict(var_list)
     self.assertEqual(optimizer._index_dict[optimizer._var_key(var_list[7])], 7)
 
+  def testClipNorm(self):
+    optimizer = adam_new.Adam(clipnorm=1)
+    grad = [tf.convert_to_tensor([100.0, 100.0])]
+    clipped_grad = optimizer._clip_gradients(grad)
+    self.assertAllClose(clipped_grad[0], [2**0.5/2, 2**0.5/2])
+
+  def testClipValue(self):
+    optimizer = adam_new.Adam(clipvalue=1)
+    grad = [tf.convert_to_tensor([100.0, 100.0])]
+    clipped_grad = optimizer._clip_gradients(grad)
+    self.assertAllEqual(clipped_grad[0], [1.0, 1.0])
+
+  def testClipGlobalNorm(self):
+    optimizer = adam_new.Adam(global_clipnorm=1)
+    grad = [tf.cast([100.0, 100.0], dtype=tf.float32),
+            tf.cast([100.0, 100.0], dtype=tf.float32)]
+    clipped_grad = optimizer._clip_gradients(grad)
+    self.assertAllClose(clipped_grad[0], [0.5, 0.5])
+
+    with self.assertRaisesRegex(ValueError, "At most one of*"):
+      _ = adam_new.Adam(
+          learning_rate=1, epsilon=0, global_clipnorm=1, clipnorm=1)
+
+  def testSetLearningRate(self):
+    optimizer = adam_new.Adam(learning_rate=1.0)
+    self.assertIsInstance(optimizer._learning_rate, tf.Variable)
+    self.assertEqual(self.evaluate(optimizer.learning_rate), 1.0)
+    optimizer.learning_rate = 2.0
+    self.assertEqual(self.evaluate(optimizer.learning_rate), 2.0)
+
+    lr_schedule = learning_rate_schedule.ExponentialDecay(
+        initial_learning_rate=1e-2, decay_steps=10000, decay_rate=0.9)
+    optimizer = adam_new.Adam(learning_rate=lr_schedule)
+    self.assertIsInstance(optimizer._learning_rate,
+                          learning_rate_schedule.ExponentialDecay)
+    with self.assertRaisesRegex(TypeError, "This optimizer was created with*"):
+      optimizer.learning_rate = 2.0
+
   def testGetConfig(self):
     optimizer = adam_new.Adam(
         learning_rate=np.float64(0.05),
@@ -100,7 +138,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase):
         self.evaluate(optimizer_1._iterations),
         self.evaluate(optimizer_2._iterations))
 
-  def disabletestSaveAndLoadOptimizerWithModel(self):
+  def testSaveAndLoadOptimizerWithModel(self):
     model = keras.Sequential(
         [keras.layers.Input(shape=(1,)),
          keras.layers.Dense(1)])
