@@ -13,9 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Version 2 of class Optimizer."""
-
-import tensorflow.compat.v2 as tf
 # pylint: disable=g-bad-name
+
 
 import abc
 import contextlib
@@ -30,6 +29,7 @@ from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -668,18 +668,13 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         grads_and_vars = self._aggregate_gradients(grads_and_vars)
       grads_and_vars = self._transform_gradients(grads_and_vars)
 
-      if optimizer_utils.strategy_supports_no_merge_call():
-        return self._distributed_apply(strategy, grads_and_vars, name,
-                                       apply_state)
-      else:
-        return tf.distribute.get_replica_context().merge_call(
-            functools.partial(self._distributed_apply, apply_state=apply_state),
-            args=(grads_and_vars,),
-            kwargs={
-                "name": name,
-            })
+      return tf.__internal__.distribute.interim.maybe_merge_call(
+          functools.partial(self._distributed_apply, apply_state=apply_state),
+          strategy,
+          grads_and_vars,
+          name=name)
 
-  def _distributed_apply(self, distribution, grads_and_vars, name, apply_state):
+  def _distributed_apply(self, distribution, grads_and_vars, apply_state, name):
     """`apply_gradients` using a `DistributionStrategy`."""
 
     def apply_grad_to_update_var(var, grad):

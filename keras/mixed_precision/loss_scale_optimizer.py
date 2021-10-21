@@ -619,7 +619,7 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
       else:
         return (tf.no_op(), True)
 
-    if optimizer_utils.strategy_supports_no_merge_call():
+    if tf.__internal__.distribute.strategy_supports_no_merge_call():
       loss_scale_update_op, should_apply_grads = _if_should_apply_grads(grads)
       def apply_fn():
         return self._apply_gradients(grads, wrapped_vars, name)
