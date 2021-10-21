@@ -166,6 +166,21 @@ class KerasTensorTest(keras_parameterized.TestCase):
         ValueError, "Keras requires TypeSpec to have a `with_shape` method"):
       kt.set_shape([3, 3])
 
+  def test_set_shape_equals_expected_shape(self):
+    # Tests b/203201161: DenseSpec has both a _shape and a _shape_tuple field,
+    # and we need to be sure both get updated.
+    kt = keras_tensor.KerasTensor(tf.TensorSpec([8, None], tf.int32))
+    kt.set_shape([8, 3])
+    self.assertEqual(kt.type_spec, tf.TensorSpec([8, 3], tf.int32))
+
+  def test_type_spec_with_shape_equals_expected_shape(self):
+    # Tests b/203201161: DenseSpec has both a _shape and a _shape_tuple field,
+    # and we need to be sure both get updated.
+    spec1 = tf.TensorSpec([8, None], tf.int32)
+    spec2 = keras_tensor.type_spec_with_shape(spec1, [8, 3])
+    expected = tf.TensorSpec([8, 3], tf.int32)
+    self.assertEqual(spec2, expected)
+
   def test_missing_shape_error(self):
     spec = CustomTypeSpec(None, tf.int32)
     del spec.shape
