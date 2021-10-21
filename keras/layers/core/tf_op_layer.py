@@ -243,6 +243,9 @@ class TFOpLambda(Layer):
     self._expects_training_arg = False
     self._expects_mask_arg = False
 
+  def compute_output_shape(self, input_shape=None):
+      return self.output_shape
+  
   def _call_wrapper(self, *args, **kwargs):
     created_variables = []
 

@@ -703,6 +703,30 @@ class TFOpLambdaTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'was generated from .*dummy_func'):
       layer.get_config()
 
+  def test_compute_output_shape(self):
+
+    def dummy_func(a, b):
+        return a + b
+
+    def dummy_func1(a):
+        return tf.math.reduce_sum(a)
+
+    def dummy_func2(a):
+        return tf.math.reduce_sum(a, axis=1)
+
+    input_layer = keras.Input(batch_shape=(10, None))
+    input_layer1 = keras.Input(batch_shape=(10, None))
+    layer = core.TFOpLambda(dummy_func)(input_layer, input_layer1).node.layer
+    self.assertEqual(layer.compute_output_shape(), (10, None))
+
+    input_layer = keras.Input(batch_shape=(10, None))
+    layer = core.TFOpLambda(dummy_func1)(input_layer).node.layer
+    self.assertEqual(layer.compute_output_shape(), ())
+
+    input_layer = keras.Input(batch_shape=(10, None))
+    layer = core.TFOpLambda(dummy_func2)(input_layer).node.layer
+    self.assertEqual(layer.compute_output_shape(), (10, ))
+
 
 if __name__ == '__main__':
   tf.test.main()
