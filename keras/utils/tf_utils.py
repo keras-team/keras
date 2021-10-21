@@ -15,6 +15,7 @@
 """TensorFlow-related utilities."""
 
 import collections
+import copy
 import random
 
 from keras import backend
@@ -518,6 +519,9 @@ def get_tensor_spec(t, dynamic_batch=False, name=None):
 
   shape_list = shape.as_list()
   shape_list[0] = None
+  # TODO(b/203201161) Remove this deepcopy one type_spec_with_shape has been
+  # updated to not mutate spec.
+  spec = copy.deepcopy(spec)
   return keras_tensor.type_spec_with_shape(spec, tf.TensorShape(shape_list))
 
 
