@@ -18,7 +18,6 @@ This is under development, and subject to interface/implementation changes.
 """
 
 import abc
-import functools
 
 from keras import backend
 from keras import initializers
@@ -433,16 +432,12 @@ class Optimizer(_BaseOptimizer):
     super().apply_gradients(grads_and_vars)
 
   def _internal_apply_gradients(self, grads_and_vars):
-    # TODO(b/202332404): create a tf.distribute util to handle the if-else.
-    if optimizer_utils.strategy_supports_no_merge_call():
-      self._distributed_apply_gradients(self._distribution_strategy,
-                                        grads_and_vars)
-    else:
-      tf.distribute.get_replica_context().merge_call(
-          functools.partial(self._distributed_apply_gradients),
-          args=(grads_and_vars,))
+    tf.__internal__.distribute.interim.maybe_merge_call(
+        self._distributed_apply_gradients_fn, self._distribution_strategy,
+        grads_and_vars)
 
-  def _distributed_apply_gradients(self, distribution, grads_and_vars):
+  def _distributed_apply_gradients_fn(self, distribution, grads_and_vars,
+                                      **kwargs):
     """`apply_gradients` using a `DistributionStrategy`."""
 
     def apply_grad_to_update_var(var, grad):
