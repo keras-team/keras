@@ -272,17 +272,12 @@ class KerasTensor:
     """Updates the shape of this KerasTensor. Mimics `tf.Tensor.set_shape()`."""
     if not isinstance(shape, tf.TensorShape):
       shape = tf.TensorShape(shape)
-    if shape.dims is not None:
-      dim_list = [dim.value for dim in shape.dims]
-      for dim in range(len(dim_list)):
-        if dim_list[dim] is None and self.shape.dims is not None:
-          dim_list[dim] = self.shape.dims[dim]
-      shape = tf.TensorShape(dim_list)
     if not self.shape.is_compatible_with(shape):
       raise ValueError(
           f"Keras symbolic input/output's shape {self.shape} is not "
           f"compatible with supplied shape {shape}.")
     else:
+      shape = self.shape.merge_with(shape)
       self._type_spec = type_spec_with_shape(self._type_spec, shape)
 
   def __str__(self):

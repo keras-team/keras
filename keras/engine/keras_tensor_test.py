@@ -141,22 +141,23 @@ class KerasTensorTest(keras_parameterized.TestCase):
     self.assertEqual(kt.shape.as_list(), expected_shape)
 
   @parameterized.parameters([
-      (tf.TensorSpec([8, 3], tf.int32), [8, 3]),
-      (tf.TensorSpec([None, 3], tf.int32), [8, 3]),
-      (tf.TensorSpec(None, tf.int32), [8, 3]),
-      (tf.TensorSpec(None, tf.int32), [8, None]),
-      (tf.TensorSpec(None, tf.int32), None),
-      (tf.RaggedTensorSpec([2, None, None]), [2, None, 5]),
-      (tf.SparseTensorSpec([8]), [8]),
-      (CustomTypeSpec2([3, None], tf.int32), [3, 8]),
+      (tf.TensorSpec([8, 3], tf.int32), [8, 3], [8, 3]),
+      (tf.TensorSpec([None, 3], tf.int32), [8, 3], [8, 3]),
+      (tf.TensorSpec([8, 3], tf.int32), [None, 3], [8, 3]),
+      (tf.TensorSpec(None, tf.int32), [8, 3], [8, 3]),
+      (tf.TensorSpec(None, tf.int32), [8, None], [8, None]),
+      (tf.TensorSpec(None, tf.int32), None, None),
+      (tf.RaggedTensorSpec([2, None, None]), [2, None, 5], [2, None, 5]),
+      (tf.SparseTensorSpec([8]), [8], [8]),
+      (CustomTypeSpec2([3, None], tf.int32), [3, 8], [3, 8]),
   ])
-  def test_set_shape(self, spec, new_shape):
+  def test_set_shape(self, spec, new_shape, expected_shape):
     kt = keras_tensor.KerasTensor(spec)
     kt.set_shape(new_shape)
-    if new_shape is None:
+    if expected_shape is None:
       self.assertIsNone(kt.type_spec.shape.rank)
     else:
-      self.assertEqual(kt.type_spec.shape.as_list(), new_shape)
+      self.assertEqual(kt.type_spec.shape.as_list(), expected_shape)
     self.assertTrue(kt.type_spec.is_compatible_with(spec))
 
   def test_set_shape_error(self):
