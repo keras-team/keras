@@ -62,9 +62,12 @@ ARG_TO_MODEL = {
                       efficientnet.EfficientNetB4, efficientnet.EfficientNetB5,
                       efficientnet.EfficientNetB6, efficientnet.EfficientNetB7]),
     'efficientnet_v2': (efficientnet_v2,
-                        [efficientnet_v2.EfficientNetV2B0, efficientnet_v2.EfficientNetV2B1,
-                         efficientnet_v2.EfficientNetV2B2, efficientnet_v2.EfficientNetV2B3,
-                         efficientnet_v2.EfficientNetV2S, efficientnet_v2.EfficientNetV2M,
+                        [efficientnet_v2.EfficientNetV2B0,
+                         efficientnet_v2.EfficientNetV2B1,
+                         efficientnet_v2.EfficientNetV2B2,
+                         efficientnet_v2.EfficientNetV2B3,
+                         efficientnet_v2.EfficientNetV2S,
+                         efficientnet_v2.EfficientNetV2M,
                          efficientnet_v2.EfficientNetV2L])
 }
 
