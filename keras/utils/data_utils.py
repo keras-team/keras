@@ -156,7 +156,8 @@ def get_file(fname=None,
              hash_algorithm='auto',
              extract=False,
              archive_format='auto',
-             cache_dir=None):
+             cache_dir=None,
+             verbose=True):
   """Downloads a file from a URL if it not already in the cache.
 
   By default the file at the url `origin` is downloaded to the
@@ -255,7 +256,8 @@ def get_file(fname=None,
     download = True
 
   if download:
-    print('Downloading data from', origin)
+    if verbose:
+      print('Downloading data from', origin)
 
     class ProgressTracker:
       # Maintain progbar for the lifetime of download.
