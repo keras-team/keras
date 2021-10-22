@@ -37,20 +37,20 @@ from tensorflow.python.util.tf_export import keras_export
 BASE_WEIGHTS_PATH = "https://storage.googleapis.com/sebastian-sz-weights/efficientnet-v2/"
 
 WEIGHTS_HASHES = {
-  "b0": ("42016207e946245a808dc807e21e2334",
-         "953eb10b448fc338a0206deb1a0228c8"),
-  "b1": ("fda7eaf4fe84f9ab1aab43ab0b7ffd26",
-         "fa1764f91f33620586b628e18f265ed4"),
-  "b2": ("c991196606d604057d3b713ed41087d9",
-         "d3ff2c5f2ae01882452d0d8f1b38c3d7"),
-  "b3": ("0e02aea454e5735908f321f3946daf0a",
-         "0e8a2ed23f6c14cf1a4dddfcd2682cc9"),
-  "-s": ("5c0a6e0d26188ab9a1dbe81fcf6a8a2b",
-         "36ec622752444b5b96942d5c6d8845dc"),
-  "-m": ("4063c4fbcf08a22a49949f1314abbe67",
-         "ee4aa57b3e0ece509d8e17e5c50f06a9"),
-  "-l": ("938d235ec40bfd60b8b1e075ded6ffd0",
-           "3a032f50516a9eaaf1b5ebf2a2304657"),
+  "b0": ("21ecbf6da12460d5c40bb2f29ceb2188",
+         "893217f2bb855e2983157299931e43ff"),
+  "b1": ("069f0534ff22adf035c89e2d9547a9dc",
+         "0e80663031ca32d657f9caa404b6ec37"),
+  "b2": ("424e49f28180edbde1e94797771950a7",
+         "1dfe2e7a5d45b6632553a8961ea609eb"),
+  "b3": ("1f1fc43bd98a6e4fd8fdfd551e02c7a0",
+         "f6abf7b5849ac99a89b50dd3fd532856"),
+  "-s": ("e1d88a8495beba45748fedd0cecbe016",
+         "af0682fb74e8c54910f2d4393339c070"),
+  "-m": ("a3bf6aa3276309f4fc6a34aa114c95cd",
+         "1b8dc055df72dde80d614482840fe342"),
+  "-l": ("27e6d408b53c7ebc868fefa357689935",
+         "b0b66b5c863aef5b46e8608fe1711615"),
 }
 
 
