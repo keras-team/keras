@@ -668,7 +668,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         return autocast_variable.create_autocast_variable(variable)
       # Also the caching_device does not work with the mixed precision API,
       # disable it if it is specified.
-      # TODO(b/142020079): Reenable it once the bug is fixed.
+      # TODO(b/142020079): Re-enable it once the bug is fixed.
       if caching_device is not None:
         tf_logging.warning(
             '`caching_device` does not work with mixed precision API. Ignoring '
@@ -3410,7 +3410,7 @@ def _apply_name_scope_on_model_declaration(enable):
 
 
 class BaseRandomLayer(Layer):
-  """A layer handle the random nubmer creation and savemodel behavior."""
+  """A layer handle the random number creation and savemodel behavior."""
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, seed=None, force_generator=False, **kwargs):
@@ -3430,7 +3430,7 @@ class BaseRandomLayer(Layer):
       seed: optional integer, used to create RandomGenerator.
       force_generator: boolean, default to False, whether to force the
         RandomGenerator to use the code branch of tf.random.Generator.
-      **kwargs: other keyward arguements that will be passed to the parent class
+      **kwargs: other keyword arguments that will be passed to the parent class
     """
     super().__init__(**kwargs)
     self._random_generator = backend.RandomGenerator(

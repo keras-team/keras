@@ -516,7 +516,7 @@ tf_py_test(
     srcs = ["training_utils_v1_test.py"],
     python_version = "PY3",
     tags = [
-        "no_oss",  # TODO(b/135021748) reenable
+        "no_oss",  # TODO(b/135021748) re-enable
         "notsan",
     ],
     deps = [

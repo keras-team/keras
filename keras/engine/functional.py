@@ -715,7 +715,7 @@ class Functional(training_lib.Model):
         return model
       # The config does not contain all the information necessary to revive a
       # Functional model. This happens when the user creates subclassed models
-      # with a Functional constructor and has overriden the `get_config` method
+      # with a Functional constructor and has overridden the `get_config` method
       # to return a completely new dictionary.
       try:
         return cls(**config)
@@ -769,7 +769,7 @@ class Functional(training_lib.Model):
         for x in self.inputs])
     input_batch_sizes.discard(None)
     if len(input_batch_sizes) > 1:
-      logging.warning('Found incompatiable static batch sizes among the '
+      logging.warning('Found incompatible static batch sizes among the '
                       f'inputs. Batch sizes: {sorted(input_batch_sizes)}')
 
     for x in self.outputs:

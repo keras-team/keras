@@ -128,7 +128,7 @@ class AntirectifierBenchmark(tf.test.Benchmark):
 
 
 class Antirectifier(tf.keras.layers.Layer):
-  """Build simple custome layer."""
+  """Build simple custom layer."""
 
   def __init__(self, initializer="he_normal", **kwargs):
     super(Antirectifier, self).__init__(**kwargs)

@@ -74,7 +74,7 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
     """Whether the current DataAdapter could handle the input x and y.
 
     Structure wise, x and y can be single object, or list of objects if there
-    multiple input/output, or dictionary of objects when the intput/output are
+    multiple input/output, or dictionary of objects when the input/output are
     named.
 
     Args:

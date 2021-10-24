@@ -74,7 +74,7 @@ def get_layer_index_bound_by_layer_name(model, layer_names):
     layer_names: unique name of layer of the model, type(str)
 
   Returns:
-    retun the index value of layer based on its unique name (layer_names)
+    return the index value of layer based on its unique name (layer_names)
   """
   lower_index = []
   upper_index = []
@@ -186,7 +186,7 @@ def model_to_dot(model,
     layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
     if layer_range[0] < 0 or layer_range[1] > len(model.layers):
       raise ValueError('Both values in layer_range should be in range (0, '
-                       f'{len(model.layers)}. Recieved: {layer_range}')
+                       f'{len(model.layers)}. Received: {layer_range}')
 
   sub_n_first_node = {}
   sub_n_last_node = {}

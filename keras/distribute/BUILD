@@ -771,7 +771,7 @@ distribute_py_test(
     shard_count = 50,
     tags = [
         "multi_gpu",
-        "no_oss",  # TODO(b/183640564): Reenable
+        "no_oss",  # TODO(b/183640564): Re-enable
         "no_rocm",
         "nomultivm",  # TODO(b/170502145)
         "notsan",  # TODO(b/184542721)
@@ -795,7 +795,7 @@ distribute_py_test(
     shard_count = 21,
     tags = [
         "multi_gpu",
-        "no_oss",  # TODO(b/183640564): Reenable
+        "no_oss",  # TODO(b/183640564): Re-enable
         "no_rocm",
         "nomultivm",  # TODO(b/170502145)
         "notsan",  # TODO(b/184542721)

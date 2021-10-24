@@ -195,7 +195,7 @@ class Conv(Layer):
                                        self.filters)
 
     # compute_output_shape contains some validation logic for the input shape,
-    # and make sure the output shape has all positive dimentions.
+    # and make sure the output shape has all positive dimensions.
     self.compute_output_shape(input_shape)
 
     self.kernel = self.add_weight(
