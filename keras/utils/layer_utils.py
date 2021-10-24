@@ -117,7 +117,8 @@ def print_summary(model,
                   line_length=None,
                   positions=None,
                   print_fn=None,
-                  expand_nested=False):
+                  expand_nested=False,
+                  show_trainable=False):
   """Prints a summary of a model.
 
   Args:
@@ -133,6 +134,8 @@ def print_summary(model,
           in order to capture the string summary.
           It defaults to `print` (prints to stdout).
       expand_nested: Whether to expand the nested models.
+          If not provided, defaults to `False`.
+      show_trainable: Whether to show if a layer is trainable.
           If not provided, defaults to `False`.
   """
   if print_fn is None:
@@ -188,6 +191,11 @@ def print_summary(model,
     relevant_nodes = []
     for v in model._nodes_by_depth.values():
       relevant_nodes += v
+
+  if show_trainable:
+    line_length += 11
+    positions.append(line_length)
+    to_display.append('Trainable')
 
   def print_row(fields, positions, nested_level=0):
     left_to_print = [str(x) for x in fields]
@@ -258,6 +266,10 @@ def print_summary(model,
     else:
       params = layer.count_params()
     fields = [name + ' (' + cls_name + ')', output_shape, params]
+
+    if show_trainable:
+      fields.append('Y' if layer.trainable else 'N')
+
     print_row(fields, positions, nested_level)
 
   def print_layer_summary_with_connections(layer, nested_level=0):
@@ -288,6 +300,10 @@ def print_summary(model,
         name + ' (' + cls_name + ')', output_shape,
         layer.count_params(), connections
     ]
+
+    if show_trainable:
+      fields.append('Y' if layer.trainable else 'N')
+
     print_row(fields, positions, nested_level)
 
   def print_layer(layer, nested_level=0, is_nested_last=False):
