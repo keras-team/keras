@@ -1345,7 +1345,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       self, slot_variable_position, slot_name, variable):
     """Returns the slot variable that should have a value restored into it.
 
-    It is up to the caller to retore the value into the slot variable if a valid
+    It is up to the caller to restore the value into the slot variable if a valid
     slot variable is returned.
 
     Called when a variable which has an associated slot variable is created or
@@ -1463,7 +1463,7 @@ class RestoredOptimizer(OptimizerV2):
   Holds slot variables and hyperparameters when an optimizer is restored from a
   SavedModel. These variables may be referenced in functions along with ops
   created by the original optimizer, but currently we do not support using the
-  optimizer object iself (e.g. through `apply_gradients`).
+  optimizer object itself (e.g. through `apply_gradients`).
   """
   # TODO(allenl): Make the restored optimizer functional by tracing its apply
   # methods.

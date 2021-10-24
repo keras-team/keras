@@ -481,7 +481,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
 
   x = layers.ReLU(6., name=prefix + 'depthwise_relu')(x)
 
-  # Project wiht a pointwise 1x1 convolution.
+  # Project with a pointwise 1x1 convolution.
   x = layers.Conv2D(
       pointwise_filters,
       kernel_size=1,

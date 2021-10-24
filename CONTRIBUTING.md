@@ -136,7 +136,7 @@ python3 -m venv venv_dir
 ```
 
 You can activate the venv with the following command. You should always run the
-tests with the venv activated. You need to activate the venv everytime you open
+tests with the venv activated. You need to activate the venv every time you open
 a new shell.
 
 ```shell
@@ -185,11 +185,11 @@ in the `BUILD` file.
 ### Run a single test case
 
 The best way to run a single test case is to comment out the rest of the test
-cases in a file before runing the test file.
+cases in a file before running the test file.
 
 ### Run all tests
 
-You can run all the tests locally by running the following commmand
+You can run all the tests locally by running the following command
 in the repo root directory.
 
 ```

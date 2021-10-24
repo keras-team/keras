@@ -466,7 +466,7 @@ def is_evenly_distributed_thresholds(thresholds):
 
   We could leverage evenly distributed thresholds to use less memory when
   calculate metrcis like AUC where each individual threshold need to be
-  evaluted.
+  evaluated.
 
   Args:
     thresholds: A python list or tuple, or 1D numpy array whose value is ranged

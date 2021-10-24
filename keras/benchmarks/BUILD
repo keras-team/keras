@@ -27,7 +27,7 @@ filegroup(
 # to the regular expression is executed.
 # e.g. --benchmarks=".*lstm*." will run all lstm layer related benchmarks.
 
-# Add all benchmarks related utils here for pip testing dependencis.
+# Add all benchmarks related utils here for pip testing dependencies.
 py_library(
     name = "keras_benchmark_lib_pip",
     srcs_version = "PY3",

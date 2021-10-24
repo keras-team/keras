@@ -599,7 +599,7 @@ class Callback:
 
   1. You should pack all your callbacks into a single `callbacks.CallbackList`
      so they can all be called together.
-  2. You will need to manually call all the `on_*` methods at the apropriate
+  2. You will need to manually call all the `on_*` methods at the appropriate
      locations in your loop. Like this:
 
      ```
@@ -2360,7 +2360,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         of positive integers signify a range of batches to profile.
 
     Raises:
-      ValueError: If profile_batch is not an integer or a comma seperated pair
+      ValueError: If profile_batch is not an integer or a comma separated pair
                   of positive integers.
 
     """

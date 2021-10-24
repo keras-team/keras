@@ -593,7 +593,7 @@ class Bidirectional(Wrapper):
     additional_inputs = []
     additional_specs = []
     if initial_state is not None:
-      # Check if `initial_state` can be splitted into half
+      # Check if `initial_state` can be split into half
       num_states = len(initial_state)
       if num_states % 2 > 0:
         raise ValueError(
