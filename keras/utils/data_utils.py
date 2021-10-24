@@ -584,7 +584,7 @@ class SequenceEnqueuer:
       enqueuer.stop()
   ```
 
-  The `enqueuer.get()` should be an infinite stream of datas.
+  The `enqueuer.get()` should be an infinite stream of data.
   """
 
   def __init__(self, sequence,

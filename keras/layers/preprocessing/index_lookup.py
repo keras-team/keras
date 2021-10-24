@@ -268,7 +268,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         # value of the index_lookup table.
         self._default_value = self._oov_start_index()
       else:
-        # If we hav multiple OOV values, we need to do a further hashing step;
+        # If we have multiple OOV values, we need to do a further hashing step;
         # to make this easier, we set the OOV value to -1. (This lets us do a
         # vectorized add and cast to boolean to determine locations where we
         # need to do extra hashing.)
@@ -293,7 +293,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       # to be uninitialized as a StaticHashTable cannot be initialized twice.
       self.lookup_table = self._uninitialized_lookup_table()
 
-    # Only set up adapt state if we did not recieve a vocab on construction.
+    # Only set up adapt state if we did not receive a vocab on construction.
     if not self._has_input_vocabulary:
       # Add a custom weight handler to return the layers vocab as it's weight.
       self._add_trackable(VocabWeightHandler(self), False)
@@ -648,8 +648,8 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     """Lookup table values for a dense Tensor, handling masking and OOV."""
     # When executing eagerly and tracing keras.Inputs, do not call lookup. This
     # is critical for restoring SavedModel, which will first trace layer.call
-    # and then attempt to restore the table. We need the table to be unitialized
-    # for the restore to work, but calling the table unitialized would error.
+    # and then attempt to restore the table. We need the table to be uninitialized
+    # for the restore to work, but calling the table uninitialized would error.
     if tf.executing_eagerly() and backend.is_keras_tensor(inputs):
       lookups = tf.zeros_like(inputs, dtype=self._value_dtype)
     else:

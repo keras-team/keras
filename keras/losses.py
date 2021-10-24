@@ -1695,7 +1695,7 @@ def _ragged_tensor_categorical_crossentropy(y_true,
   When used by CategoricalCrossentropy() with the default reduction
   (SUM_OVER_BATCH_SIZE), the reduction averages the loss over the
   number of elements independent of the batch. E.g. if the RaggedTensor
-  has 2 batches with [2, 1] values respectivly the resulting loss is
+  has 2 batches with [2, 1] values respectively the resulting loss is
   the sum of the individual loss values divided by 3.
   """
   fn = functools.partial(

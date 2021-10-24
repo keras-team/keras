@@ -138,7 +138,7 @@ class FunctionalModelSlideTest(keras_parameterized.TestCase):
     loaded_model = models.load_model(output_path)
     self.assertEqual(model.summary(), loaded_model.summary())
 
-    # Also make sure the orignal inputs and y can still be used to build model
+    # Also make sure the original inputs and y can still be used to build model
     new_model = models.Model(inputs, y)
     # Make sure no new node is attached to layer2
     self.assertLen(layer2.inbound_nodes, 2)
