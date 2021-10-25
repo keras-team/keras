@@ -209,9 +209,10 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):  # py
             if h5py is None:
               raise ImportError(
                   'Filepath looks like a hdf5 file but h5py is not available.'
-                  f' filepath={filepath}')
-            return hdf5_format.load_model_from_hdf5(filepath, custom_objects,
-                                                    compile)
+                  f' filepath={filepath_str}')
+            return hdf5_format.load_model_from_hdf5(
+                tf.io.gfile.GFile(filepath_str, mode='rb'), custom_objects,
+                compile)
         elif h5py is not None and isinstance(filepath, h5py.File):
           return hdf5_format.load_model_from_hdf5(filepath, custom_objects,
                                                   compile)
