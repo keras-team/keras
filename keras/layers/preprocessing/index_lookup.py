@@ -528,7 +528,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           "Cannot adapt {} layer after setting a static vocabulary via init "
           "argument or `set_vocabulary`.".format(self.__class__.__name__))
 
-    data = self._standardize_inputs(data, self.vocabulary_dtype)
+    data = utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
     if data.shape.rank == 0:
       data = tf.expand_dims(data, 0)
     if data.shape.rank == 1:
@@ -612,7 +612,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
   def call(self, inputs):
     self._maybe_freeze_vocab_size()
 
-    inputs = self._standardize_inputs(inputs, self._key_dtype)
+    inputs = utils.ensure_tensor(inputs, dtype=self._key_dtype)
     original_shape = inputs.shape
     # Some ops will not handle scalar input, so uprank to rank 1.
     if inputs.shape.rank == 0:
@@ -721,13 +721,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           value_index=value_index,
           value_index_offset=self._token_start_index())
       return tf.lookup.StaticHashTable(initializer, self._default_value)
-
-  def _standardize_inputs(self, inputs, dtype):
-    if not isinstance(inputs, (tf.Tensor, tf.RaggedTensor, tf.SparseTensor)):
-      inputs = tf.convert_to_tensor(inputs, dtype)
-    elif inputs.dtype != dtype:
-      inputs = tf.cast(inputs, dtype)
-    return inputs
 
   def _convert_to_ndarray(self, x):
     return np.array(x) if isinstance(x, (list, tuple)) else x

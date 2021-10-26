@@ -436,21 +436,8 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     """
     self._lookup_layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
 
-  def build(self, input_shape):
-    # We have to use 'and not ==' here, because input_shape[1] !/== 1 can result
-    # in None for undefined shape axes. If using 'and !=', this causes the
-    # expression to evaluate to False instead of True if the shape is undefined;
-    # the expression needs to evaluate to True in that case.
-    if self._split is not None:
-      if input_shape.ndims > 1 and not input_shape[-1] == 1:  # pylint: disable=g-comparison-negation
-        raise RuntimeError(
-            "When using TextVectorization to tokenize strings, the innermost "
-            "dimension of the input array must be 1, got shape "
-            "{}".format(input_shape))
-
-    super(TextVectorization, self).build(input_shape)
-
   def _preprocess(self, inputs):
+    inputs = utils.ensure_tensor(inputs, dtype=tf.string)
     if self._standardize == LOWER_AND_STRIP_PUNCTUATION:
       if tf_utils.is_ragged(inputs):
         lowercase_inputs = tf.ragged.map_flat_values(
@@ -477,8 +464,14 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
       # If we are splitting, we validate that the 1st axis is of dimension 1 and
       # so can be squeezed out. We do this here instead of after splitting for
       # performance reasons - it's more expensive to squeeze a ragged tensor.
-      if inputs.shape.ndims > 1:
-        inputs = tf.squeeze(inputs, axis=-1)
+      if inputs.shape.rank > 1:
+        if inputs.shape[-1] != 1:
+          raise ValueError(
+              "When using `TextVectorization` to tokenize strings, the input "
+              "rank must be 1 or the last shape dimension must be 1. Received: "
+              f"inputs.shape={inputs.shape} with rank={inputs.shape.rank}")
+        else:
+          inputs = tf.squeeze(inputs, axis=-1)
       if self._split == SPLIT_ON_WHITESPACE:
         # This treats multiple whitespaces as one whitespace, and strips leading
         # and trailing whitespace.
