@@ -206,7 +206,7 @@ def get_timestamped_export_dir(export_dir_base):
   while attempts < MAX_DIRECTORY_CREATION_ATTEMPTS:
     timestamp = int(time.time())
 
-    result_dir = os.path.join(
+    result_dir = tf.io.gfile.join(
         tf.compat.as_bytes(export_dir_base), tf.compat.as_bytes(str(timestamp)))
     if not tf.compat.v1.gfile.Exists(result_dir):
       # Collisions are still possible (though extremely unlikely): this
@@ -241,7 +241,7 @@ def get_temp_export_dir(timestamped_export_dir):
     str_name = basename.decode('utf-8')
   else:
     str_name = str(basename)
-  temp_export_dir = os.path.join(
+  temp_export_dir = tf.io.gfile.join(
       tf.compat.as_bytes(dirname),
       tf.compat.as_bytes('temp-{}'.format(str_name)))
   return temp_export_dir

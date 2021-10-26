@@ -39,7 +39,7 @@ def deserialize_model_from_bytecode(serialized_model):
   b = io.BytesIO(serialized_model)
   with tarfile.open(fileobj=b, mode="r") as archive:
     for name in archive.getnames():
-      dest_path = os.path.join(temp_dir, name)
+      dest_path = tf.io.gfile.join(temp_dir, name)
       member = archive.getmember(name)
       tf.io.gfile.makedirs(os.path.dirname(dest_path))
       if member.isfile():
@@ -66,12 +66,12 @@ def serialize_model_as_bytecode(model):
   with tarfile.open(fileobj=b, mode="w") as archive:
     for root, dirs, filenames in tf.io.gfile.walk(temp_dir):
       for dirname in dirs:
-        dest_path = os.path.join(root, dirname)
+        dest_path = tf.io.gfile.join(root, dirname)
         t = tarfile.TarInfo(dest_path)
         t.type = tarfile.DIRTYPE
         archive.addfile(t)
       for filename in filenames:
-        dest_path = os.path.join(root, filename)
+        dest_path = tf.io.gfile.join(root, filename)
         with tf.io.gfile.GFile(dest_path, "rb") as f:
           info = tarfile.TarInfo(name=os.path.relpath(dest_path, temp_dir))
           info.size = f.size()

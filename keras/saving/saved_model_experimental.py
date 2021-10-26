@@ -139,7 +139,7 @@ def export_saved_model(model,
 def _export_model_json(model, saved_model_path):
   """Saves model configuration as a json string under assets folder."""
   model_json = model.to_json()
-  model_json_filepath = os.path.join(
+  model_json_filepath = tf.io.gfile.join(
       _get_or_create_assets_dir(saved_model_path),
       tf.compat.as_text(SAVED_MODEL_FILENAME_JSON))
   with tf.io.gfile.GFile(model_json_filepath, 'w') as f:
@@ -406,7 +406,7 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
       'Please switch to `tf.keras.models.load_model`.',
       stacklevel=2)
   # restore model topology from json string
-  model_json_filepath = os.path.join(
+  model_json_filepath = tf.io.gfile.join(
       tf.compat.as_bytes(saved_model_path),
       tf.compat.as_bytes(tf.saved_model.ASSETS_DIRECTORY),
       tf.compat.as_bytes(SAVED_MODEL_FILENAME_JSON))
@@ -416,7 +416,7 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
       model_json, custom_objects=custom_objects)
 
   # restore model weights
-  checkpoint_prefix = os.path.join(
+  checkpoint_prefix = tf.io.gfile.join(
       tf.compat.as_text(saved_model_path),
       tf.compat.as_text(tf.saved_model.VARIABLES_DIRECTORY),
       tf.compat.as_text(tf.saved_model.VARIABLES_FILENAME))
@@ -436,14 +436,14 @@ def _get_or_create_variables_dir(export_dir):
 
 def _get_variables_dir(export_dir):
   """Return variables sub-directory in the SavedModel."""
-  return os.path.join(
+  return tf.io.gfile.join(
       tf.compat.as_text(export_dir),
       tf.compat.as_text(tf.saved_model.VARIABLES_DIRECTORY))
 
 
 def _get_variables_path(export_dir):
   """Return the variables path, used as the prefix for checkpoint files."""
-  return os.path.join(
+  return tf.io.gfile.join(
       tf.compat.as_text(_get_variables_dir(export_dir)),
       tf.compat.as_text(tf.saved_model.VARIABLES_FILENAME))
 
@@ -459,6 +459,6 @@ def _get_or_create_assets_dir(export_dir):
 
 def _get_assets_dir(export_dir):
   """Return path to asset directory in the SavedModel."""
-  return os.path.join(
+  return tf.io.gfile.join(
       tf.compat.as_text(export_dir),
       tf.compat.as_text(tf.saved_model.ASSETS_DIRECTORY))
