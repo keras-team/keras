@@ -14,7 +14,6 @@
 # ==============================================================================
 """Utilities for `Model.compile`."""
 
-import tensorflow.compat.v2 as tf
 
 import copy
 from keras import losses as losses_mod
@@ -22,6 +21,7 @@ from keras import metrics as metrics_mod
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import tf_utils
+import tensorflow.compat.v2 as tf
 
 
 class Container:
@@ -175,7 +175,7 @@ class LossesContainer(Container):
       regularization_losses: Additional losses to be added to the total loss.
 
     Returns:
-      Tuple of `(total_loss, per_output_loss_list)`
+      The total loss as a `tf.Tensor`, or `None` if no loss results.
     """
     y_true = self._conform_to_outputs(y_pred, y_true)
     sample_weight = self._conform_to_outputs(y_pred, sample_weight)
@@ -243,8 +243,7 @@ class LossesContainer(Container):
       total_loss = tf.add_n(loss_values)
       return total_loss
     else:
-      # Ok for a model to have no compiled loss.
-      return tf.zeros(shape=())
+      return None
 
   def reset_state(self):
     """Resets the state of loss metrics."""

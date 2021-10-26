@@ -141,22 +141,23 @@ class KerasTensorTest(keras_parameterized.TestCase):
     self.assertEqual(kt.shape.as_list(), expected_shape)
 
   @parameterized.parameters([
-      (tf.TensorSpec([8, 3], tf.int32), [8, 3]),
-      (tf.TensorSpec([None, 3], tf.int32), [8, 3]),
-      (tf.TensorSpec(None, tf.int32), [8, 3]),
-      (tf.TensorSpec(None, tf.int32), [8, None]),
-      (tf.TensorSpec(None, tf.int32), None),
-      (tf.RaggedTensorSpec([2, None, None]), [2, None, 5]),
-      (tf.SparseTensorSpec([8]), [8]),
-      (CustomTypeSpec2([3, None], tf.int32), [3, 8]),
+      (tf.TensorSpec([8, 3], tf.int32), [8, 3], [8, 3]),
+      (tf.TensorSpec([None, 3], tf.int32), [8, 3], [8, 3]),
+      (tf.TensorSpec([8, 3], tf.int32), [None, 3], [8, 3]),
+      (tf.TensorSpec(None, tf.int32), [8, 3], [8, 3]),
+      (tf.TensorSpec(None, tf.int32), [8, None], [8, None]),
+      (tf.TensorSpec(None, tf.int32), None, None),
+      (tf.RaggedTensorSpec([2, None, None]), [2, None, 5], [2, None, 5]),
+      (tf.SparseTensorSpec([8]), [8], [8]),
+      (CustomTypeSpec2([3, None], tf.int32), [3, 8], [3, 8]),
   ])
-  def test_set_shape(self, spec, new_shape):
+  def test_set_shape(self, spec, new_shape, expected_shape):
     kt = keras_tensor.KerasTensor(spec)
     kt.set_shape(new_shape)
-    if new_shape is None:
+    if expected_shape is None:
       self.assertIsNone(kt.type_spec.shape.rank)
     else:
-      self.assertEqual(kt.type_spec.shape.as_list(), new_shape)
+      self.assertEqual(kt.type_spec.shape.as_list(), expected_shape)
     self.assertTrue(kt.type_spec.is_compatible_with(spec))
 
   def test_set_shape_error(self):
@@ -165,6 +166,21 @@ class KerasTensorTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, "Keras requires TypeSpec to have a `with_shape` method"):
       kt.set_shape([3, 3])
+
+  def test_set_shape_equals_expected_shape(self):
+    # Tests b/203201161: DenseSpec has both a _shape and a _shape_tuple field,
+    # and we need to be sure both get updated.
+    kt = keras_tensor.KerasTensor(tf.TensorSpec([8, None], tf.int32))
+    kt.set_shape([8, 3])
+    self.assertEqual(kt.type_spec, tf.TensorSpec([8, 3], tf.int32))
+
+  def test_type_spec_with_shape_equals_expected_shape(self):
+    # Tests b/203201161: DenseSpec has both a _shape and a _shape_tuple field,
+    # and we need to be sure both get updated.
+    spec1 = tf.TensorSpec([8, None], tf.int32)
+    spec2 = keras_tensor.type_spec_with_shape(spec1, [8, 3])
+    expected = tf.TensorSpec([8, 3], tf.int32)
+    self.assertEqual(spec2, expected)
 
   def test_missing_shape_error(self):
     spec = CustomTypeSpec(None, tf.int32)

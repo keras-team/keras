@@ -12,7 +12,7 @@ package(
         "//third_party/tensorflow/python/feature_column:__pkg__",
         "//third_party/tensorflow/python/training/tracking:__pkg__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
-        "//third_party/tensorflow_models/official/vision/beta/projects/residual_mobilenet/modeling/backbones:__pkg__",
+        "//third_party/tensorflow_models/official/projects/residual_mobilenet/modeling/backbones:__pkg__",
     ],
     licenses = ["notice"],
 )

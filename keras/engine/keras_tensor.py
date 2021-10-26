@@ -14,7 +14,6 @@
 # ==============================================================================
 """Keras Input Tensor used to track functional API Topology."""
 
-import copy
 from keras.utils import object_identity
 import tensorflow.compat.v2 as tf
 
@@ -273,23 +272,13 @@ class KerasTensor:
     """Updates the shape of this KerasTensor. Mimics `tf.Tensor.set_shape()`."""
     if not isinstance(shape, tf.TensorShape):
       shape = tf.TensorShape(shape)
-    if shape.dims is not None:
-      dim_list = [dim.value for dim in shape.dims]
-      for dim in range(len(dim_list)):
-        if dim_list[dim] is None and self.shape.dims is not None:
-          dim_list[dim] = self.shape.dims[dim]
-      shape = tf.TensorShape(dim_list)
     if not self.shape.is_compatible_with(shape):
       raise ValueError(
           f"Keras symbolic input/output's shape {self.shape} is not "
           f"compatible with supplied shape {shape}.")
     else:
-      if isinstance(self._type_spec, tf.TensorSpec):
-        # Note: this mutates self._type_spec in place -- if any other code has
-        # a reference to self._type_spec, then they will also see this change.
-        self._type_spec._shape = shape  # pylint: disable=protected-access
-      else:
-        self._type_spec = type_spec_with_shape(self._type_spec, shape)
+      shape = self.shape.merge_with(shape)
+      self._type_spec = type_spec_with_shape(self._type_spec, shape)
 
   def __str__(self):
     symbolic_description = ''
@@ -641,11 +630,24 @@ def keras_tensor_from_type_spec(type_spec, name=None):
 
 def type_spec_with_shape(spec, shape):
   """Returns a copy of TypeSpec `spec` with its shape set to `shape`."""
-  if isinstance(spec,
-                (tf.TensorSpec, tf.RaggedTensorSpec, tf.SparseTensorSpec)):
-    result = copy.deepcopy(spec)
-    result._shape = shape  # pylint: disable=protected-access
-    return result
+  if isinstance(spec, tf.TensorSpec):
+    # pylint: disable=protected-access
+    # TODO(b/203201161) Figure out why mutation is needed here, and remove it.
+    # (TensorSpec objects should be immutable; and we should not be modifying
+    # private fields.)
+    shape = tf.TensorShape(shape)
+    spec._shape = shape
+    if shape.rank is None:
+      spec._shape_tuple = None
+    else:
+      spec._shape_tuple = tuple(shape.as_list())
+    return spec
+  elif isinstance(spec, tf.RaggedTensorSpec):
+    return tf.RaggedTensorSpec(shape, spec.dtype, spec.ragged_rank,
+                               spec.row_splits_dtype,
+                               spec.flat_values_spec)
+  elif isinstance(spec, tf.SparseTensorSpec):
+    return tf.SparseTensorSpec(shape, spec.dtype)
   elif hasattr(spec, 'with_shape'):
     # TODO(edloper): Consider adding .with_shape method to TensorSpec,
     # RaggedTensorSpec, and SparseTensorSpec.

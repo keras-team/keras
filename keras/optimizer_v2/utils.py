@@ -30,7 +30,7 @@ def all_reduce_sum_gradients(grads_and_vars):
   grads_and_vars = list(grads_and_vars)
   filtered_grads_and_vars = filter_empty_gradients(grads_and_vars)
   if filtered_grads_and_vars:
-    if strategy_supports_no_merge_call():
+    if tf.__internal__.distribute.strategy_supports_no_merge_call():
       grads = [pair[0] for pair in filtered_grads_and_vars]
       reduced = tf.distribute.get_replica_context().all_reduce(
           tf.distribute.ReduceOp.SUM, grads)
@@ -150,11 +150,3 @@ def make_gradient_clipvalue_fn(clipvalue):
 def _all_reduce_sum_fn(distribution, grads_and_vars):
   return distribution.extended.batch_reduce_to(tf.distribute.ReduceOp.SUM,
                                                grads_and_vars)
-
-
-def strategy_supports_no_merge_call():
-  """Returns if the current Strategy can operate in pure replica context."""
-  if not tf.distribute.has_strategy():
-    return True
-  strategy = tf.distribute.get_strategy()
-  return not strategy.extended._use_merge_call()  # pylint: disable=protected-access

@@ -165,10 +165,30 @@ class Dense(Layer):
     if inputs.dtype.base_dtype != self._compute_dtype_object.base_dtype:
       inputs = tf.cast(inputs, dtype=self._compute_dtype_object)
 
-    if isinstance(inputs, tf.RaggedTensor) and inputs.shape[-1] is not None:
+    is_ragged = isinstance(inputs, tf.RaggedTensor)
+    if is_ragged:
       # In case we encounter a RaggedTensor with a fixed last dimension (last
-      # dimension not ragged), we can map the call method to the flat values.
-      return tf.ragged.map_flat_values(self.call, inputs)
+      # dimension not ragged), we can flatten the input and restore the ragged
+      # dimensions at the end.
+      if tf.compat.dimension_value(inputs.shape[-1]) is None:
+        raise ValueError('Dense layer only supports RaggedTensors when the '
+                         'innermost dimension is non-ragged. Received: '
+                         f'inputs.shape={inputs.shape}.')
+      original_inputs = inputs
+      if inputs.flat_values.shape.rank > 1:
+        inputs = inputs.flat_values
+      else:
+        # Innermost partition is encoded using uniform_row_length.
+        # (This is unusual, but we can handle it.)
+        if inputs.shape.rank == 2:
+          inputs = inputs.to_tensor()
+          is_ragged = False
+        else:
+          for _ in range(original_inputs.ragged_rank - 1):
+            inputs = inputs.values
+          inputs = inputs.to_tensor()
+          original_inputs = tf.RaggedTensor.from_nested_row_splits(
+              inputs, original_inputs.nested_row_splits[:-1])
 
     rank = inputs.shape.rank
     if rank == 2 or rank is None:
@@ -211,6 +231,10 @@ class Dense(Layer):
 
     if self.activation is not None:
       outputs = self.activation(outputs)
+
+    if is_ragged:
+      outputs = original_inputs.with_flat_values(outputs)
+
     return outputs
 
   def compute_output_shape(self, input_shape):

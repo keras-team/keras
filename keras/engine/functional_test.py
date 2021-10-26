@@ -1476,6 +1476,26 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
     y = fn(x)
     self.assertEqual(y.shape.as_list(), [10, 1])
 
+  def test_save_spec(self):
+    """Tests that functional model generates the correct save spec."""
+
+    class MultiInputModel(training_lib.Model):
+
+      def call(self, x, y):
+        return x
+
+    inp = input_layer_lib.Input(shape=(1,))
+    inp2 = input_layer_lib.Input(shape=(1,), batch_size=5, dtype=tf.int32)
+    out = MultiInputModel()(inp, inp2)
+    m = training_lib.Model(inputs={'x': inp, 'y': inp2}, outputs=out)
+    input_spec = m.save_spec(dynamic_batch=False)[0][0]
+    self.assertIn('x', input_spec)
+    self.assertIn('y', input_spec)
+    self.assertAllEqual([None, 1], input_spec['x'].shape.as_list())
+    self.assertAllEqual(tf.float32, input_spec['x'].dtype)
+    self.assertAllEqual([5, 1], input_spec['y'].shape.as_list())
+    self.assertAllEqual(tf.int32, input_spec['y'].dtype)
+
 
 class DeferredModeTest(keras_parameterized.TestCase):
 

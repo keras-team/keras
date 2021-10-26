@@ -133,7 +133,8 @@ class LocallyConnected1D(Layer):
     super(LocallyConnected1D, self).__init__(**kwargs)
     self.filters = filters
     self.kernel_size = conv_utils.normalize_tuple(kernel_size, 1, 'kernel_size')
-    self.strides = conv_utils.normalize_tuple(strides, 1, 'strides')
+    self.strides = conv_utils.normalize_tuple(
+        strides, 1, 'strides', allow_zero=True)
     self.padding = conv_utils.normalize_padding(padding)
     if self.padding != 'valid' and implementation == 1:
       raise ValueError('Invalid border mode for LocallyConnected1D '
@@ -171,6 +172,15 @@ class LocallyConnected1D(Layer):
                                                        self.kernel_size[0],
                                                        self.padding,
                                                        self.strides[0])
+
+    if self.output_length <= 0:
+      raise ValueError(
+          f'One of the dimensions in the output is <= 0 '
+          f'due to downsampling in {self.name}. Consider '
+          f'increasing the input size. '
+          f'Received input shape {input_shape} which would produce '
+          f'output shape with a zero or negative value in a '
+          f'dimension.')
 
     if self.implementation == 1:
       self.kernel_shape = (self.output_length, self.kernel_size[0] * input_dim,
@@ -440,7 +450,8 @@ class LocallyConnected2D(Layer):
     super(LocallyConnected2D, self).__init__(**kwargs)
     self.filters = filters
     self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
-    self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
+    self.strides = conv_utils.normalize_tuple(
+        strides, 2, 'strides', allow_zero=True)
     self.padding = conv_utils.normalize_padding(padding)
     if self.padding != 'valid' and implementation == 1:
       raise ValueError('Invalid border mode for LocallyConnected2D '
@@ -482,6 +493,15 @@ class LocallyConnected2D(Layer):
                                                self.padding, self.strides[1])
     self.output_row = output_row
     self.output_col = output_col
+
+    if self.output_row <= 0 or self.output_col <= 0:
+      raise ValueError(
+          f'One of the dimensions in the output is <= 0 '
+          f'due to downsampling in {self.name}. Consider '
+          f'increasing the input size. '
+          f'Received input shape {input_shape} which would produce '
+          f'output shape with a zero or negative value in a '
+          f'dimension.')
 
     if self.implementation == 1:
       self.kernel_shape = (output_row * output_col, self.kernel_size[0] *

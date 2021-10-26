@@ -508,6 +508,10 @@ class Bidirectional(Wrapper):
     self._num_constants = 0
     self.input_spec = layer.input_spec
 
+  @property
+  def _use_input_spec_as_call_signature(self):
+    return self.layer._use_input_spec_as_call_signature
+
   def _verify_layer_config(self):
     """Ensure the forward and backward layers have valid common property."""
     if self.forward_layer.go_backwards == self.backward_layer.go_backwards:

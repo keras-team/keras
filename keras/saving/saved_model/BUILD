@@ -33,6 +33,12 @@ py_library(
 )
 
 py_library(
+    name = "load_context",
+    srcs = ["load_context.py"],
+    visibility = ["//third_party/tensorflow/python/distribute:__pkg__"],
+)
+
+py_library(
     name = "saved_model",
     srcs = [
         "base_serialization.py",
@@ -93,6 +99,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
+        "no_pip",  # TODO(b/202022379)
         "no_rocm",
         "no_windows",
         "notsan",  #TODO(b/181771982): it is flaky

@@ -1291,8 +1291,9 @@ class TextVectorizationOutputTest(
         split=None,
         output_mode=text_vectorization.TF_IDF,
         pad_to_max_tokens=True,
-        sparse=sparse)
-    layer.set_vocabulary(vocab_data, idf_weights=idf_weights)
+        sparse=sparse,
+        vocabulary=vocab_data,
+        idf_weights=idf_weights)
     int_data = layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
 
@@ -1329,8 +1330,9 @@ class TextVectorizationOutputTest(
         split=None,
         output_mode=text_vectorization.TF_IDF,
         pad_to_max_tokens=False,
-        sparse=sparse)
-    layer.set_vocabulary(vocab_data, idf_weights=idf_weights)
+        sparse=sparse,
+        vocabulary=vocab_data,
+        idf_weights=idf_weights)
     int_data = layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
 
@@ -1366,8 +1368,9 @@ class TextVectorizationOutputTest(
         split=None,
         output_mode=text_vectorization.TF_IDF,
         pad_to_max_tokens=False,
-        sparse=sparse)
-    layer.set_vocabulary(vocab_data, idf_weights=idf_weights)
+        sparse=sparse,
+        vocabulary=vocab_data,
+        idf_weights=idf_weights)
     int_data = layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
 
@@ -1419,7 +1422,10 @@ class TextVectorizationModelBuildingTest(
       })
   def test_end_to_end_bagged_modeling(self, output_mode, pad_to_max_tokens):
     vocab_data = ["earth", "wind", "and", "fire"]
-    idf_weights = [.5, .25, .2, .125]
+    if output_mode == text_vectorization.TF_IDF:
+      idf_weights = [.5, .25, .2, .125]
+    else:
+      idf_weights = None
     input_array = np.array([["earth", "wind", "and", "earth"],
                             ["ohio", "and", "earth", "michigan"]])
 
@@ -1429,11 +1435,9 @@ class TextVectorizationModelBuildingTest(
         standardize=None,
         split=None,
         output_mode=output_mode,
-        pad_to_max_tokens=pad_to_max_tokens)
-    if output_mode == text_vectorization.TF_IDF:
-      layer.set_vocabulary(vocab_data, idf_weights=idf_weights)
-    else:
-      layer.set_vocabulary(vocab_data)
+        pad_to_max_tokens=pad_to_max_tokens,
+        vocabulary=vocab_data,
+        idf_weights=idf_weights)
 
     int_data = layer(input_data)
     float_data = backend.cast(int_data, dtype="float32")
@@ -1519,38 +1523,40 @@ class TextVectorizationErrorTest(keras_parameterized.TestCase,
   def test_setting_vocab_without_idf_weights_fails_in_tfidf_mode(self):
     vocab_data = ["earth", "wind", "and", "fire"]
 
-    layer = text_vectorization.TextVectorization(
-        max_tokens=5,
-        standardize=None,
-        split=None,
-        output_mode=text_vectorization.TF_IDF)
     with self.assertRaisesRegex(
         ValueError, "`idf_weights` must be set if output_mode is TF_IDF"):
-      layer.set_vocabulary(vocab_data)
+      text_vectorization.TextVectorization(
+          max_tokens=5,
+          standardize=None,
+          split=None,
+          output_mode=text_vectorization.TF_IDF,
+          vocabulary=vocab_data)
 
   def test_idf_weights_length_mismatch_fails(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     idf_weights = [1, 2, 3]
-    layer = text_vectorization.TextVectorization(
-        max_tokens=5,
-        standardize=None,
-        split=None,
-        output_mode=text_vectorization.TF_IDF)
     with self.assertRaisesRegex(
         ValueError, "`idf_weights` must be the same length as vocab"):
-      layer.set_vocabulary(vocab_data, idf_weights)
+      text_vectorization.TextVectorization(
+          max_tokens=5,
+          standardize=None,
+          split=None,
+          output_mode=text_vectorization.TF_IDF,
+          vocabulary=vocab_data,
+          idf_weights=idf_weights)
 
   def test_set_tfidf_in_non_tfidf_fails(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     idf_weights = [1, 2, 3, 4]
-    layer = text_vectorization.TextVectorization(
-        max_tokens=5,
-        standardize=None,
-        split=None,
-        output_mode=text_vectorization.MULTI_HOT)
     with self.assertRaisesRegex(ValueError,
                                 "`idf_weights` should only be set if"):
-      layer.set_vocabulary(vocab_data, idf_weights)
+      text_vectorization.TextVectorization(
+          max_tokens=5,
+          standardize=None,
+          split=None,
+          output_mode=text_vectorization.MULTI_HOT,
+          vocabulary=vocab_data,
+          idf_weights=idf_weights)
 
   def test_zero_max_tokens_fails(self):
     with self.assertRaisesRegex(ValueError, "max_tokens.*"):

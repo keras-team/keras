@@ -131,8 +131,10 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
 
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.combine(
-          mode=["eager"], use_adapt=[True, False]))
-  def testTrainAndServe(self, use_adapt):
+          mode=["eager"],
+          use_adapt=[True, False],
+          load_under_strategy=[True, False]))
+  def testTrainAndServe(self, use_adapt, load_under_strategy):
 
     with self.coordinator.strategy.scope():
 
@@ -231,18 +233,33 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
     saved_model_dir = tempfile.mkdtemp(dir=self.get_temp_dir())
     model.save(saved_model_dir, signatures={"serving_default": serving_fn})
 
-    # Test the saved_model.
-    loaded_serving_fn = tf.keras.models.load_model(
-        saved_model_dir).signatures["serving_default"]
+    if load_under_strategy:
+      with self.coordinator.strategy.scope():
 
-    # check the result w/ and w/o avenger.
-    prediction0 = loaded_serving_fn(
-        tf.constant(["avenger", "ironman", "avenger"]))["output_0"]
-    self.assertIn(prediction0, ("yes", "no"))
+        loaded_serving_fn = tf.keras.models.load_model(
+            saved_model_dir).signatures["serving_default"]
 
-    prediction1 = loaded_serving_fn(
-        tf.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
-    self.assertIn(prediction1, ("yes", "no"))
+      outputs = []
+      for _ in range(7):
+        outputs.append(
+            self.coordinator.schedule(
+                loaded_serving_fn,
+                args=(tf.constant(["avenger", "ironman", "avenger"]),)))
+      self.coordinator.join()
+      for prediction0 in outputs:
+        self.assertIn(prediction0._get_values()["output_0"], ("yes", "no"))
+    else:
+      loaded_serving_fn = tf.keras.models.load_model(
+          saved_model_dir).signatures["serving_default"]
+
+      # check the result w/ and w/o avenger.
+      prediction0 = loaded_serving_fn(
+          tf.constant(["avenger", "ironman", "avenger"]))["output_0"]
+      self.assertIn(prediction0, ("yes", "no"))
+
+      prediction1 = loaded_serving_fn(
+          tf.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
+      self.assertIn(prediction1, ("yes", "no"))
 
 
 class KPLCreatedInDatasetsFromFunctionTest(tf.test.TestCase,

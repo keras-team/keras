@@ -14,24 +14,24 @@
 # ==============================================================================
 # pylint: disable=protected-access
 # pylint: disable=g-classes-have-attributes
+# pylint: disable=g-direct-tensorflow-import
 """Convolutional-recurrent layers."""
-
-import tensorflow.compat.v2 as tf
-
-import numpy as np
 
 from keras import activations
 from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
-from keras.engine.base_layer import Layer
+from keras.engine import base_layer
 from keras.engine.input_spec import InputSpec
 from keras.layers.recurrent import DropoutRNNCellMixin
 from keras.layers.recurrent import RNN
 from keras.utils import conv_utils
 from keras.utils import generic_utils
 from keras.utils import tf_utils
+
+import numpy as np
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -209,7 +209,7 @@ class ConvRNN(RNN):
         shape=(batch_size, None) + input_shape[2:self.rank + 3])
 
     # allow cell (if layer) to build before we set or validate state_spec
-    if isinstance(self.cell, Layer):
+    if isinstance(self.cell, base_layer.Layer):
       step_input_shape = (input_shape[0],) + input_shape[2:]
       if constants_shape is not None:
         self.cell.build([step_input_shape] + constants_shape)
@@ -397,7 +397,7 @@ class ConvRNN(RNN):
         backend.set_value(state, value)
 
 
-class ConvLSTMCell(DropoutRNNCellMixin, Layer):
+class ConvLSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
   """Cell class for the ConvLSTM layer.
 
   Args:
@@ -489,7 +489,8 @@ class ConvLSTMCell(DropoutRNNCellMixin, Layer):
     self.filters = filters
     self.kernel_size = conv_utils.normalize_tuple(kernel_size, self.rank,
                                                   'kernel_size')
-    self.strides = conv_utils.normalize_tuple(strides, self.rank, 'strides')
+    self.strides = conv_utils.normalize_tuple(
+        strides, self.rank, 'strides', allow_zero=True)
     self.padding = conv_utils.normalize_padding(padding)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, self.rank,
@@ -644,7 +645,8 @@ class ConvLSTMCell(DropoutRNNCellMixin, Layer):
     return conv_out
 
   def recurrent_conv(self, x, w):
-    strides = conv_utils.normalize_tuple(1, self.rank, 'strides')
+    strides = conv_utils.normalize_tuple(
+        1, self.rank, 'strides', allow_zero=True)
     conv_out = self._conv_func(
         x, w, strides=strides, padding='same', data_format=self.data_format)
     return conv_out

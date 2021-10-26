@@ -193,6 +193,12 @@ class FunctionalSubclassModelWrongConfig(FunctionalSubclassModel):
     return {}
 
 
+# The WideDeepModel, whose name conflicts with a Keras built-in model, is
+# registered in these tests.
+class WideDeepModel(SubclassedModelWithConfig):
+  pass
+
+
 class ReviveTestBase(keras_parameterized.TestCase):
 
   def setUp(self):
@@ -409,6 +415,24 @@ class TestModelRevive(ReviveTestBase):
         model._get_save_spec(dynamic_batch=False),
         revived._get_save_spec(dynamic_batch=False))
 
+  def test_load_model_with_name_conflict_raises_error(self):
+
+    class LinearModel(SubclassedModelWithConfig):
+      pass
+
+    model = LinearModel(2, 3)
+    model(np.random.random((5, 10)).astype(np.float32))
+    model.save(self.path, save_format='tf')
+    with self.assertRaisesRegex(
+        RuntimeError, 'Unable to restore object of class \'LinearModel\''):
+      keras_load.load(self.path, compile=True)
+
+  def test_load_model_with_name_conflict_registered_works(self):
+    model = WideDeepModel(2, 3)
+    model(np.random.random((5, 10)).astype(np.float32))
+    model.save(self.path, save_format='tf')
+    keras_load.load(self.path, compile=True)
+
 
 if __name__ == '__main__':
   tf.compat.v1.enable_eager_execution()
@@ -418,6 +442,7 @@ if __name__ == '__main__':
       'CustomNetworkWithConfigName': CustomNetworkWithConfigName,
       'SubclassedModelWithConfig': SubclassedModelWithConfig,
       'FunctionalSubclassModel': FunctionalSubclassModel,
-      'FunctionalSubclassModelWrongConfig': FunctionalSubclassModelWrongConfig
+      'FunctionalSubclassModelWrongConfig': FunctionalSubclassModelWrongConfig,
+      'WideDeepModel': WideDeepModel
   }):
     tf.test.main()

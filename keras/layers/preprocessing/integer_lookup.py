@@ -15,6 +15,7 @@
 """Keras string lookup preprocessing layer."""
 
 # pylint: disable=g-classes-have-attributes
+# pylint: disable=g-direct-tensorflow-import
 
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup
@@ -85,6 +86,14 @@ class IntegerLookup(index_lookup.IndexLookup):
       tensor containing the integer vocbulary terms. If passing a file path, the
       file should contain one line per term in the vocabulary. If this argument
       is set, there is no need to `adapt` the layer.
+    vocabulary_dtype: The dtype of the vocabulary terms, for example
+      `"int64"` or `"int32"`. Defaults to `"int64"`.
+    idf_weights: Only valid when `output_mode` is `"tf_idf"`. A tuple, list, 1D
+      numpy array, or 1D tensor or the same length as the vocabulary, containing
+      the floating point inverse document frequency weights, which will be
+      multiplied by per sample term counts for the final `tf_idf` weight. If the
+      `vocabulary` argument is set, and `output_mode` is `"tf_idf"`, this
+      argument must be supplied.
     invert: Only valid when `output_mode` is `"int"`. If True, this layer will
       map indices to vocabulary items instead of mapping vocabulary items to
       indices. Default to False.
@@ -233,8 +242,8 @@ class IntegerLookup(index_lookup.IndexLookup):
   >>> vocab = [12, 36, 1138, 42]
   >>> idf_weights = [0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([[12, 1138, 42, 42], [42, 7, 36, 7]]) # Note OOV tokens
-  >>> layer = tf.keras.layers.IntegerLookup(output_mode='tf_idf')
-  >>> layer.set_vocabulary(vocab, idf_weights=idf_weights)
+  >>> layer = tf.keras.layers.IntegerLookup(
+  ...     output_mode='tf_idf', vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0.  , 0.25, 0.  , 0.6 , 0.8 ],
@@ -246,8 +255,8 @@ class IntegerLookup(index_lookup.IndexLookup):
   >>> vocab = [-1, 12, 36, 1138, 42]
   >>> idf_weights = [0.9, 0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([[12, 1138, 42, 42], [42, 7, 36, 7]]) # Note OOV tokens
-  >>> layer = tf.keras.layers.IntegerLookup(output_mode='tf_idf')
-  >>> layer.set_vocabulary(vocab, idf_weights=idf_weights)
+  >>> layer = tf.keras.layers.IntegerLookup(
+  ...     output_mode='tf_idf', vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0.  , 0.25, 0.  , 0.6 , 0.8 ],
@@ -303,12 +312,23 @@ class IntegerLookup(index_lookup.IndexLookup):
                mask_token=None,
                oov_token=-1,
                vocabulary=None,
+               vocabulary_dtype="int64",
+               idf_weights=None,
                invert=False,
                output_mode="int",
                sparse=False,
                pad_to_max_tokens=False,
                **kwargs):
-    allowed_dtypes = [tf.int64]
+    if not tf.dtypes.as_dtype(vocabulary_dtype).is_integer:
+      raise ValueError("`vocabulary_dtype` must be an integer dtype. "
+                       f"Received: {vocabulary_dtype}")
+
+    # Legacy versions of the IntegerLookup layer set layer dtype to int64,
+    # instead of the output type. If we see this and output mode is not "int",
+    # clear the setting so we don't switch types for old SavedModels.
+    if output_mode != "int" and "dtype" in kwargs and (
+        kwargs["dtype"] == tf.int64 or kwargs["dtype"] == "int64"):
+      del kwargs["dtype"]
 
     # Support deprecated args for this layer.
     if "max_values" in kwargs:
@@ -328,13 +348,6 @@ class IntegerLookup(index_lookup.IndexLookup):
                           "oov_value is deprecated, use oov_token instead.", 1)
       oov_token = kwargs["oov_value"]
       del kwargs["oov_value"]
-
-    if "dtype" in kwargs and kwargs["dtype"] not in allowed_dtypes:
-      raise ValueError("The value of the dtype argument for IntegerLookup may "
-                       "only be one of %s." % (allowed_dtypes,))
-
-    if "dtype" not in kwargs:
-      kwargs["dtype"] = tf.int64
 
     # If max_tokens is set, the token must be greater than 1 - otherwise we
     # are creating a 0-element vocab, which doesn't make sense.
@@ -359,6 +372,8 @@ class IntegerLookup(index_lookup.IndexLookup):
         mask_token=mask_token,
         oov_token=oov_token,
         vocabulary=vocabulary,
+        vocabulary_dtype=vocabulary_dtype,
+        idf_weights=idf_weights,
         invert=invert,
         output_mode=output_mode,
         sparse=sparse,
