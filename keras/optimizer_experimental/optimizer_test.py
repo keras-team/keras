@@ -7,7 +7,11 @@ import os
 
 from absl.testing import parameterized
 import keras
+from keras.optimizer_experimental import adadelta as adadelta_new
+from keras.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizer_experimental import adam as adam_new
+from keras.optimizer_v2 import adadelta as adadelta_old
+from keras.optimizer_v2 import adagrad as adagrad_old
 from keras.optimizer_v2 import adam as adam_old
 from keras.optimizer_v2 import learning_rate_schedule
 from keras.utils import losses_utils
@@ -28,15 +32,21 @@ STRATEGIES = [
     ds_combinations.central_storage_strategy_with_two_gpus,
 ]
 
+adadelta_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "experimentaladadelta", lambda: adadelta_new.Adadelta(0.002))
+adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "experimentaladagrad", lambda: adagrad_new.Adagrad(0.002))
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
-    "AdamExperimental", adam_new.Adam)
+    "experimentaladam", lambda: adam_new.Adam(0.002))
 
 OPTIMIZER_FN = [
+    adadelta_new_fn,
+    adagrad_new_fn,
     adam_new_fn,
 ]
 
 
-class OptimizerFuntionalityTest(tf.test.TestCase):
+class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
   """Test the functionality of optimizer."""
 
   def testAddVariableFromReference(self):
@@ -106,6 +116,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase):
             "epsilon": 0.001,
             "amsgrad": True,
             "clipnorm": None,
+            "global_clipnorm": None,
             "clipvalue": None,
         })
 
@@ -138,12 +149,13 @@ class OptimizerFuntionalityTest(tf.test.TestCase):
         self.evaluate(optimizer_1._iterations),
         self.evaluate(optimizer_2._iterations))
 
-  def testSaveAndLoadOptimizerWithModel(self):
+  @parameterized.product(optimizer_fn=OPTIMIZER_FN)
+  def testSaveAndLoadOptimizerWithModel(self, optimizer_fn):
     model = keras.Sequential(
         [keras.layers.Input(shape=(1,)),
          keras.layers.Dense(1)])
-    optimizer = adam_new.Adam(
-        learning_rate=0.02, beta_1=0.8, beta_2=0.888)
+    optimizer = optimizer_fn()
+    optimizer._clipnorm = 0.1
     x = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
     y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
     model.compile(loss="mse", optimizer=optimizer)
@@ -152,7 +164,9 @@ class OptimizerFuntionalityTest(tf.test.TestCase):
     model.save(path)
     loaded_model = keras.models.load_model(path)
     loaded_model.load_weights(path)
-    self.assertEqual(loaded_model.optimizer.learning_rate, 0.02)
+    self.assertEqual(loaded_model.optimizer.learning_rate, 0.002)
+    self.assertEqual(loaded_model.optimizer._clipnorm, 0.1)
+    model.fit(x, y)
 
 
 class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
@@ -181,6 +195,14 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
     self._compare_numerical(
         adam_old.Adam(amsgrad=True), adam_new.Adam(amsgrad=True))
 
+  def testAdadelta(self):
+    self._compare_numerical(
+        adadelta_old.Adadelta(), adadelta_new.Adadelta())
+
+  def testAdagrad(self):
+    self._compare_numerical(
+        adagrad_old.Adagrad(), adagrad_new.Adagrad())
+
 
 class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -198,8 +220,17 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
       y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
       model.compile(loss="mse", optimizer=optimizer)
     model.fit(x, y, epochs=1, steps_per_epoch=5)
-    # Assert the momentum variable is not 0.
-    self.assertNotEqual(self.evaluate(optimizer._momentums._storage[0]), 0)
+    if optimizer._name == "Adam":
+      # Assert the momentum variable is not 0.
+      self.assertNotEqual(self.evaluate(optimizer._momentums._storage[0]), 0)
+    elif optimizer._name == "Adadelta":
+      # Assert the accumulated variable is not 0.
+      self.assertNotEqual(
+          self.evaluate(optimizer._accumulated_grads._storage[0]), 0)
+    elif optimizer._name == "Adagrad":
+      # Assert the accumulated variable is not 0.
+      self.assertNotEqual(
+          self.evaluate(optimizer._accumulators._storage[0]), 0)
 
   @ds_combinations.generate(
       tf.__internal__.test.combinations.combine(
