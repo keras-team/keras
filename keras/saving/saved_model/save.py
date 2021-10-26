@@ -97,7 +97,7 @@ def save(model, filepath, overwrite, include_optimizer, signatures=None,
     metadata = generate_keras_metadata(saved_nodes, node_paths)
 
   with tf.io.gfile.GFile(
-      os.path.join(filepath, constants.SAVED_METADATA_PATH), "wb") as w:
+      tf.io.gfile.join(filepath, constants.SAVED_METADATA_PATH), "wb") as w:
     w.write(metadata.SerializeToString(deterministic=True))
 
   if not include_optimizer:
