@@ -48,14 +48,14 @@ class Adam(optimizer.Optimizer):
       1e-7.
     amsgrad: Boolean. Whether to apply AMSGrad variant of this algorithm from
       the paper "On the Convergence of Adam and beyond". Defaults to `False`.
-    name: Optional name for the operations created when applying gradients.
-      Defaults to `"Adam"`.
     clipnorm: float. If set, the gradient of each weight is individually
       clipped so that its norm is no higher than this value.
     clipvalue: float. If set, the gradient of each weight is clipped to be
       no higher than this value.
     global_clipnorm: float. If set, the gradient of all weights is clipped
       so that their global norm is no higher than this value.
+    name: Optional name for the operations created when applying gradients.
+      Defaults to `"Adam"`.
 
   Reference:
     - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980)
@@ -112,8 +112,9 @@ class Adam(optimizer.Optimizer):
       var_list: list of model variables to build Adam variables on.
     """
     super().build(var_list)
-    if hasattr(self, '_momentums'):
+    if hasattr(self, '_built') and self._built:
       return
+    self._built = True
     self._momentums = []
     self._velocities = []
     for var in var_list:
@@ -133,17 +134,16 @@ class Adam(optimizer.Optimizer):
   def update_step(self, gradient, variable):
     """Update step given gradient and the associated model variable."""
     if self._var_key(variable) not in self._index_dict:
-      return
+      raise KeyError(f'Optimizer cannot recognize variable {variable.name}, '
+                     f'this usually means you are calling an optimizer '
+                     f'previously used on a different model. Please try '
+                     f'creating a new optimizer instance.')
     beta_1_power = None
     beta_2_power = None
     lr = tf.cast(self.learning_rate, variable.dtype)
     local_step = tf.cast(self.iterations + 1, variable.dtype)
     beta_1_power = tf.pow(tf.cast(self.beta_1, variable.dtype), local_step)
     beta_2_power = tf.pow(tf.cast(self.beta_2, variable.dtype), local_step)
-
-    if gradient is None:
-      # Skip updating if gradient is none.
-      return
 
     var_key = self._var_key(variable)
     m = self._momentums[self._index_dict[var_key]]
@@ -167,7 +167,7 @@ class Adam(optimizer.Optimizer):
         v = v_hat
       variable.assign_sub((m * alpha) / (tf.sqrt(v) + self.epsilon))
     else:
-      # Dense gradients
+      # Dense gradients.
       m.assign_add((gradient - m) * (1 - self.beta_1))
       v.assign_add((tf.square(gradient) - v) * (1 - self.beta_2))
       if self.amsgrad:

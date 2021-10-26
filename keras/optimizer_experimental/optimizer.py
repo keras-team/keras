@@ -274,6 +274,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     Raises:
       TypeError: If `grads_and_vars` is malformed.
     """
+    grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
     grads, trainable_variables = zip(*grads_and_vars)
     scope_name = self._name or "optimizer"
     with tf.name_scope(scope_name):
@@ -324,7 +325,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     if hasattr(self, "_clipnorm"):
       config["clipnorm"] = self._clipnorm
     if hasattr(self, "_global_clipnorm"):
-      config["clipnorm"] = self._global_clipnorm
+      config["global_clipnorm"] = self._global_clipnorm
     if hasattr(self, "_clipvalue"):
       config["clipvalue"] = self._clipvalue
     return config
