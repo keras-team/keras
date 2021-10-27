@@ -938,8 +938,10 @@ def EfficientNetV2(
   x = img_input
 
   if include_preprocessing:
-    # V1 preprocessing for Bx variants
-    if model_name.split('-')[-1].startswith('b'):
+    # Apply original V1 preprocessing for Bx variants
+    # if number of channels allows it
+    num_channels = input_shape[bn_axis-1]
+    if model_name.split('-')[-1].startswith('b') and num_channels == 3:
       x = layers.Rescaling(scale=1./255)(x)
       x = layers.Normalization(
         mean=[0.485, 0.456, 0.406],
