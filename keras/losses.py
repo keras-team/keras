@@ -1761,6 +1761,24 @@ def _ragged_tensor_sparse_categorical_crossentropy(y_true,
       sparse_categorical_crossentropy, from_logits=from_logits, axis=axis)
   return _ragged_tensor_apply_loss(fn, y_true, y_pred, y_pred_extra_dim=True)
 
+def _check_ground_truth_label_range(y_true):
+  """Checks whether ground truth label lies inside of the range i.e.,
+  either 0 or 1.
+  
+  Args:
+    y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
+
+  Returns:
+    Boolean value `True` if ground truth labels lie inside of the range,
+    `False` otherwise.
+  """
+  flatten_y_true_unpacked = tf.unstack(tf.reshape(y_true, [-1]))
+  for label in flatten_y_true_unpacked:
+    if tf.equal(label, 0) or tf.equal(label, 1):
+      continue
+    else:
+      return False
+  return True
 
 @keras_export('keras.metrics.binary_crossentropy',
               'keras.losses.binary_crossentropy')
@@ -1794,6 +1812,8 @@ def binary_crossentropy(y_true,
   Returns:
     Binary crossentropy loss value. shape = `[batch_size, d0, .. dN-1]`.
   """
+  if not _check_ground_truth_label_range(y_true):
+    raise ValueError('Ground truth label can be either 0 or 1.')
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(
