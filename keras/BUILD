@@ -7,6 +7,8 @@ package(
     default_visibility = [
         ":friends",
         "//third_party/py/tensorflow:__subpackages__",
+        "//third_party/tensorflow/python/feature_column:__subpackages__",  # For unit test
+        "//third_party/tensorflow/python/tpu:__subpackages__",  # For unit test
         "//third_party/tensorflow_estimator:__subpackages__",
     ],
     licenses = ["notice"],
