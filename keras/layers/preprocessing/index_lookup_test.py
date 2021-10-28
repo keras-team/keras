@@ -676,15 +676,6 @@ class CategoricalEncodingAdaptTest(
     layer.adapt(batched_ds)
 
 
-class ArrayLike:
-
-  def __init__(self, values):
-    self.values = values
-
-  def __array__(self):
-    return np.array(self.values)
-
-
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class IndexLookupOutputTest(keras_parameterized.TestCase,
                             preprocessing_test_utils.PreprocessingLayerTest):
@@ -698,50 +689,40 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
       writer.close()
     return vocab_path
 
-  @parameterized.named_parameters(
-      ("array_2d", [None],
-       np.array([["earth", "wind", "and", "fire"],
-                 ["fire", "and", "earth", "michigan"]]),
-       [[2, 3, 4, 5],
-        [5, 4, 2, 1]]),
-      ("array_1d", [],
-       np.array(["earth", "wind", "and", "fire"]),
-       [2, 3, 4, 5]),
-      ("array_0", [],
-       lambda: tf.constant("earth"),
-       2),
-      ("str", [],
-       "earth",
-       2),
-      ("list", [None],
-       ["earth", "wind", "and", "fire"],
-       [2, 3, 4, 5]),
-      ("array_like", [None],
-       ArrayLike(["earth", "wind", "and", "fire"]),
-       [2, 3, 4, 5]),
-  )  # pyformat: disable
-  def test_int_output(self, shape, input_array, expected_output):
-    vocab_data = ["earth", "wind", "and", "fire"]
-    if callable(input_array):
-      input_array = input_array()
+  @parameterized.product(
+      rank=[0, 1, 2],
+      # Check lists, numpy arrays, tensors, and objects convertable to tensor.
+      data_fn=[None, np.array, tf.constant, preprocessing_test_utils.ArrayLike]
+  )
+  def test_input_types(self, rank, data_fn):
+    input_data = vocab = ["earth", "wind", "and", "fire"]
+    expected_output = [2, 3, 4, 5]
+    if rank == 0:
+      input_data = input_data[0]
+      expected_output = expected_output[0]
+    elif rank == 2:
+      input_data = [input_data]
+      expected_output = [expected_output]
+    if data_fn is not None:
+      input_data = data_fn(input_data)
+    input_shape = [] if rank == 0 else [None]
 
     layer = index_lookup.IndexLookup(
         max_tokens=None,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
+        vocabulary=vocab,
         vocabulary_dtype=tf.string)
-    layer.set_vocabulary(vocab_data)
-    output_dataset = layer(input_array)
-    self.assertAllEqual(expected_output, output_dataset)
+    output_data = layer(input_data)
+    self.assertAllEqual(expected_output, output_data)
 
     # Again in a keras.Model
-    inputs = keras.Input(shape=shape, dtype=tf.string)
+    inputs = keras.Input(shape=input_shape, dtype=tf.string)
     outputs = layer(inputs)
     model = keras.Model(inputs=inputs, outputs=outputs)
-    output_dataset = model(tf.constant(input_array))
-
-    self.assertAllEqual(expected_output, output_dataset)
+    output_data = model(tf.constant(input_data))
+    self.assertAllEqual(expected_output, output_data)
 
   def test_int_output_shape(self):
     input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.string)
@@ -2260,4 +2241,6 @@ class EagerExecutionDisabled(keras_parameterized.TestCase,
 
 
 if __name__ == "__main__":
+  # IndexLookup is only exported as a TF2 API.
+  tf.compat.v1.enable_v2_behavior()
   tf.test.main()
