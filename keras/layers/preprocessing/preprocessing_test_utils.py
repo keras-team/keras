@@ -19,6 +19,15 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 
+class ArrayLike:
+
+  def __init__(self, values):
+    self.values = values
+
+  def __array__(self):
+    return np.array(self.values)
+
+
 class PreprocessingLayerTest(tf.test.TestCase):
   """Base test class for preprocessing layer API validation."""
   # TODO(b/137303934): Consider incorporating something like this Close vs All
