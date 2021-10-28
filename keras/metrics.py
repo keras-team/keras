@@ -16,13 +16,11 @@
 # pylint: disable=g-doc-return-or-yield
 """Built-in metrics."""
 
-import tensorflow.compat.v2 as tf
-
 import abc
 import types
+from typing import List, Tuple, Union
 import warnings
 
-import numpy as np
 from keras import activations
 from keras import backend
 from keras.engine import base_layer
@@ -49,6 +47,9 @@ from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
 from keras.utils.generic_utils import to_list
 from keras.utils.tf_utils import is_tensor_or_variable
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -2998,57 +2999,37 @@ class KLDivergence(MeanMetricWrapper):
         kullback_leibler_divergence, name, dtype=dtype)
 
 
-@keras_export('keras.metrics.MeanIoU')
-class MeanIoU(Metric):
-  """Computes the mean Intersection-Over-Union metric.
+class _IoUBase(Metric):
+  """Computes the confusion matrix for Intersection-Over-Union metrics.
 
-  Mean Intersection-Over-Union is a common evaluation metric for semantic image
-  segmentation, which first computes the IOU for each semantic class and then
-  computes the average over classes. IOU is defined as follows:
-    IOU = true_positive / (true_positive + false_positive + false_negative).
-  The predictions are accumulated in a confusion matrix, weighted by
-  `sample_weight` and the metric is then calculated from it.
+  Intersection-Over-Union is a common evaluation metric for semantic image
+  segmentation.
+
+  For an individual class, the IoU metric is defined as follows:
+
+  ```
+  iou = true_positives / (true_positives + false_positives + false_negatives)
+  ```
+
+  From IoUs of individual classes, the MeanIoU can be computed as the mean of
+  the individual IoUs.
+
+  To compute IoUs, the predictions are accumulated in a confusion matrix,
+  weighted by `sample_weight` and the metric is then calculated from it.
 
   If `sample_weight` is `None`, weights default to 1.
   Use `sample_weight` of 0 to mask values.
 
   Args:
     num_classes: The possible number of labels the prediction task can have.
-      This value must be provided, since a confusion matrix of dimension =
-      [num_classes, num_classes] will be allocated.
+      This value must be provided, since a confusion matrix of size
+      `(num_classes, num_classes)` will be allocated.
     name: (Optional) string name of the metric instance.
     dtype: (Optional) data type of the metric result.
-
-  Standalone usage:
-
-  >>> # cm = [[1, 1],
-  >>> #        [1, 1]]
-  >>> # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
-  >>> # iou = true_positives / (sum_row + sum_col - true_positives))
-  >>> # result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2 = 0.33
-  >>> m = tf.keras.metrics.MeanIoU(num_classes=2)
-  >>> m.update_state([0, 0, 1, 1], [0, 1, 0, 1])
-  >>> m.result().numpy()
-  0.33333334
-
-  >>> m.reset_state()
-  >>> m.update_state([0, 0, 1, 1], [0, 1, 0, 1],
-  ...                sample_weight=[0.3, 0.3, 0.3, 0.1])
-  >>> m.result().numpy()
-  0.23809525
-
-  Usage with `compile()` API:
-
-  ```python
-  model.compile(
-    optimizer='sgd',
-    loss='mse',
-    metrics=[tf.keras.metrics.MeanIoU(num_classes=2)])
-  ```
   """
 
   def __init__(self, num_classes, name=None, dtype=None):
-    super(MeanIoU, self).__init__(name=name, dtype=dtype)
+    super(_IoUBase, self).__init__(name=name, dtype=dtype)
     self.num_classes = num_classes
 
     # Variable to accumulate the predictions in the confusion matrix.
@@ -3095,6 +3076,182 @@ class MeanIoU(Metric):
         dtype=self._dtype)
     return self.total_cm.assign_add(current_cm)
 
+  def reset_state(self):
+    backend.set_value(
+        self.total_cm, np.zeros((self.num_classes, self.num_classes)))
+
+
+@keras_export('keras.metrics.IoU')
+class IoU(_IoUBase):
+  """Computes the Intersection-Over-Union metric for a specific target classes.
+
+  Intersection-Over-Union is a common evaluation metric for semantic image
+  segmentation.
+
+  For an individual class, the IoU metric is defined as follows:
+
+  ```
+  iou = true_positives / (true_positives + false_positives + false_negatives)
+  ```
+
+  To compute IoUs, the predictions are accumulated in a confusion matrix,
+  weighted by `sample_weight` and the metric is then calculated from it.
+
+  If `sample_weight` is `None`, weights default to 1.
+  Use `sample_weight` of 0 to mask values.
+
+  Note, this class first computes IoUs for all individual classes, then returns
+  a 1D tensor of IoUs for the classes that are specified by `target_class_ids`.
+
+  Args:
+    num_classes: The possible number of labels the prediction task can have.
+      A confusion matrix of dimension = [num_classes, num_classes] will be
+      allocated to accumulate predictions from which the metric is calculated.
+    target_class_ids: A tuple or list of target class ids for which the metric
+      is returned.
+    name: (Optional) string name of the metric instance.
+    dtype: (Optional) data type of the metric result.
+
+  Standalone usage:
+
+  >>> # cm = [[1, 1],
+  >>> #        [1, 1]]
+  >>> # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
+  >>> # iou = true_positives / (sum_row + sum_col - true_positives))
+  >>> # iou = [0.33, 0.33]
+  >>> m = tf.keras.metrics.IoU(num_classes=2, target_class_id=0)
+  >>> m.update_state([0, 0, 1, 1], [0, 1, 0, 1])
+  >>> m.result().numpy()
+  0.33333334
+
+  >>> m.reset_state()
+  >>> m.update_state([0, 0, 1, 1], [0, 1, 0, 1],
+  ...                sample_weight=[0.3, 0.3, 0.3, 0.1])
+  >>> # cm = [[0.3, 0.3],
+  >>> #        [0.3, 0.1]]
+  >>> # sum_row = [0.6, 0.4], sum_col = [0.6, 0.4], true_positives = [0.3, 0.1]
+  >>> # iou = [0.33, 0.14]
+  >>> m.result().numpy()
+  0.33
+
+  Usage with `compile()` API:
+
+  ```python
+  model.compile(
+    optimizer='sgd',
+    loss='mse',
+    metrics=[tf.keras.metrics.IoU(num_classes=2, target_class_id=0)])
+  ```
+  """
+
+  def __init__(
+      self,
+      num_classes: int,
+      target_class_ids: Union[List[int], Tuple[int, ...]],
+      name=None,
+      dtype=None,
+  ):
+    super(IoU, self).__init__(
+        name=name,
+        num_classes=num_classes,
+        dtype=dtype,
+    )
+    if max(target_class_ids) >= num_classes:
+      raise ValueError(
+          f'Target class id {max(target_class_ids)} is out of range, which is '
+          f'[{0}, {num_classes}).')
+    self.target_class_ids = list(target_class_ids)
+
+  def result(self):
+    """Compute the intersection-over-union via the confusion matrix."""
+    sum_over_row = tf.cast(
+        tf.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+    sum_over_col = tf.cast(
+        tf.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+    true_positives = tf.cast(
+        tf.linalg.tensor_diag_part(self.total_cm), dtype=self._dtype)
+
+    # sum_over_row + sum_over_col =
+    #     2 * true_positives + false_positives + false_negatives.
+    denominator = sum_over_row + sum_over_col - true_positives
+
+    iou = tf.math.divide_no_nan(true_positives, denominator)
+
+    return tf.gather(iou, self.target_class_ids, name='iou')
+
+  def get_config(self):
+    config = {
+        'num_classes': self.num_classes,
+        'target_class_ids': self.target_class_ids,
+    }
+    base_config = super(IoU, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@keras_export('keras.metrics.MeanIoU')
+class MeanIoU(_IoUBase):
+  """Computes the mean Intersection-Over-Union metric.
+
+  Intersection-Over-Union is a common evaluation metric for semantic image
+  segmentation.
+
+  For an individual class, the IoU metric is defined as follows:
+
+  ```
+  iou = true_positives / (true_positives + false_positives + false_negatives)
+  ```
+
+  To compute IoUs, the predictions are accumulated in a confusion matrix,
+  weighted by `sample_weight` and the metric is then calculated from it.
+
+  If `sample_weight` is `None`, weights default to 1.
+  Use `sample_weight` of 0 to mask values.
+
+  Note that this class first computes IoUs for all individual classes, then
+  returns the mean of these values.
+
+  Args:
+    num_classes: The possible number of labels the prediction task can have.
+      This value must be provided, since a confusion matrix of dimension =
+      [num_classes, num_classes] will be allocated.
+    name: (Optional) string name of the metric instance.
+    dtype: (Optional) data type of the metric result.
+
+  Standalone usage:
+
+  >>> # cm = [[1, 1],
+  >>> #        [1, 1]]
+  >>> # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
+  >>> # iou = true_positives / (sum_row + sum_col - true_positives))
+  >>> # result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2 = 0.33
+  >>> m = tf.keras.metrics.MeanIoU(num_classes=2)
+  >>> m.update_state([0, 0, 1, 1], [0, 1, 0, 1])
+  >>> m.result().numpy()
+  0.33333334
+
+  >>> m.reset_state()
+  >>> m.update_state([0, 0, 1, 1], [0, 1, 0, 1],
+  ...                sample_weight=[0.3, 0.3, 0.3, 0.1])
+  >>> m.result().numpy()
+  0.23809525
+
+  Usage with `compile()` API:
+
+  ```python
+  model.compile(
+    optimizer='sgd',
+    loss='mse',
+    metrics=[tf.keras.metrics.MeanIoU(num_classes=2)])
+  ```
+  """
+
+  def __init__(self, num_classes, name=None, dtype=None):
+    super(MeanIoU, self).__init__(
+        name=name,
+        num_classes=num_classes,
+        dtype=dtype,
+    )
+
   def result(self):
     """Compute the mean intersection-over-union via the confusion matrix."""
     sum_over_row = tf.cast(
@@ -3118,10 +3275,6 @@ class MeanIoU(Metric):
 
     return tf.math.divide_no_nan(
         tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
-
-  def reset_state(self):
-    backend.set_value(
-        self.total_cm, np.zeros((self.num_classes, self.num_classes)))
 
   def get_config(self):
     config = {'num_classes': self.num_classes}
