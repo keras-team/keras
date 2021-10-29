@@ -10,9 +10,11 @@ import keras
 from keras.optimizer_experimental import adadelta as adadelta_new
 from keras.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizer_experimental import adam as adam_new
+from keras.optimizer_experimental import sgd as sgd_new
 from keras.optimizer_v2 import adadelta as adadelta_old
 from keras.optimizer_v2 import adagrad as adagrad_old
 from keras.optimizer_v2 import adam as adam_old
+from keras.optimizer_v2 import gradient_descent as sgd_old
 from keras.optimizer_v2 import learning_rate_schedule
 from keras.utils import losses_utils
 import numpy as np
@@ -38,11 +40,14 @@ adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladagrad", lambda: adagrad_new.Adagrad(0.002))
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladam", lambda: adam_new.Adam(0.002))
+sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "experimentalsgd", lambda: sgd_new.SGD(0.002))
 
 OPTIMIZER_FN = [
     adadelta_new_fn,
     adagrad_new_fn,
     adam_new_fn,
+    sgd_new_fn,
 ]
 
 
@@ -202,6 +207,9 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
   def testAdagrad(self):
     self._compare_numerical(
         adagrad_old.Adagrad(), adagrad_new.Adagrad())
+
+  def testSgd(self):
+    self._compare_numerical(sgd_old.SGD(), sgd_new.SGD())
 
 
 class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):

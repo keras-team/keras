@@ -25,6 +25,7 @@ from keras.optimizer_experimental import optimizer as optimizer_experimental
 from keras.optimizer_experimental import adadelta as adadelta_experimental
 from keras.optimizer_experimental import adagrad as adagrad_experimental
 from keras.optimizer_experimental import adam as adam_experimental
+from keras.optimizer_experimental import sgd as sgd_experimental
 from keras.optimizer_v1 import Optimizer
 from keras.optimizer_v1 import TFOptimizer
 from keras.optimizer_v2 import adadelta as adadelta_v2
@@ -85,6 +86,7 @@ def deserialize(config, custom_objects=None):
       'experimentaladadelta': adadelta_experimental.Adadelta,
       'experimentaladagrad': adagrad_experimental.Adagrad,
       'experimentaladam': adam_experimental.Adam,
+      'experimentalsgd': sgd_experimental.SGD,
       'nadam': nadam_v2.Nadam,
       'rmsprop': rmsprop_v2.RMSprop,
       'sgd': gradient_descent_v2.SGD,
