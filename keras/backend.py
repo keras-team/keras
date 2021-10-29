@@ -1719,6 +1719,15 @@ def identity(x, name=None):
 # tf.random.uniform.
 _USE_GENERATOR_FOR_RNG = False
 
+# The global generator to create the seed when initializing the
+# tf.random.Genrator used by RandomGenerator. When tf.random.Generator becomes
+# the default solution, we would like the it to be initialized in a controlable
+# way, so that each client of the program could start with same seed. This is
+# very important for certain use case that requires all the client to have their
+# state in sync. This instance will be set when user call
+# `tf.keras.util.set_random_seed()`
+_SEED_GENERATOR = threading.local()
+
 
 def use_generator_for_rng():
   return _USE_GENERATOR_FOR_RNG
@@ -1770,8 +1779,11 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         if self._seed is not None:
           self._generator = tf.random.Generator.from_seed(self._seed)
         else:
-          self._generator = tf.random.Generator.from_seed(
-              random.randint(1, 1e9))
+          if getattr(_SEED_GENERATOR, 'generator', None):
+            seed = _SEED_GENERATOR.generator.randint(1, 1e9)
+          else:
+            seed = random.randint(1, 1e9)
+          self._generator = tf.random.Generator.from_seed(seed)
     else:
       # In the v1 case, we use stateful op, regardless whether user provide a
       # seed or not. Seeded stateful op will ensure generating same sequences.
