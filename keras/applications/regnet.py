@@ -359,7 +359,7 @@ def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
                       kernel_initializer=initializers.HeNormal(),
                       name=name + "_squeeze_and_excite_excite")(x)
     x = tf.math.multiply(x, inputs)
-    return 
+    return x
 
   return apply
 
