@@ -21,6 +21,7 @@ from absl.testing import parameterized
 from keras import backend
 from keras.applications import densenet
 from keras.applications import efficientnet
+from keras.applications import efficientnet_v2
 from keras.applications import inception_resnet_v2
 from keras.applications import inception_v3
 from keras.applications import mobilenet
@@ -61,6 +62,13 @@ MODEL_LIST_NO_NASNET = [
     (efficientnet.EfficientNetB5, 2048),
     (efficientnet.EfficientNetB6, 2304),
     (efficientnet.EfficientNetB7, 2560),
+    (efficientnet_v2.EfficientNetV2B0, 1280),
+    (efficientnet_v2.EfficientNetV2B1, 1280),
+    (efficientnet_v2.EfficientNetV2B2, 1408),
+    (efficientnet_v2.EfficientNetV2B3, 1536),
+    (efficientnet_v2.EfficientNetV2S, 1280),
+    (efficientnet_v2.EfficientNetV2M, 1280),
+    (efficientnet_v2.EfficientNetV2L, 1280),
 ]
 
 NASNET_LIST = [

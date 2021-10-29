@@ -23,6 +23,7 @@ keras_packages = [
     "keras.activations",
     "keras.applications.densenet",
     "keras.applications.efficientnet",
+    "keras.applications.efficientnet_v2",
     "keras.applications.imagenet_utils",
     "keras.applications.inception_resnet_v2",
     "keras.applications.inception_v3",
