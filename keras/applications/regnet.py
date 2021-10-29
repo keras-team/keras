@@ -348,8 +348,8 @@ def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
   if name is None:
     name = str(backend.get_uid("squeeze_and_excite"))
 
-  def apply(x):
-    x = layers.GlobalAveragePooling2D(name=name + "_squeeze_and_excite_gap", keepdims=True)(x)
+  def apply(inputs):
+    x = layers.GlobalAveragePooling2D(name=name + "_squeeze_and_excite_gap", keepdims=True)(inputs)
     x = layers.Conv2D(se_filters, (1, 1),
                       activation="relu",
                       kernel_initializer=initializers.HeNormal(),
@@ -358,7 +358,8 @@ def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
                       activation="sigmoid",
                       kernel_initializer=initializers.HeNormal(),
                       name=name + "_squeeze_and_excite_excite")(x)
-    return x
+    x = tf.math.multiply(x, inputs)
+    return 
 
   return apply
 
