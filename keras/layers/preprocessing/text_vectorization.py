@@ -29,7 +29,11 @@ import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 LOWER_AND_STRIP_PUNCTUATION = "lower_and_strip_punctuation"
-SPLIT_ON_WHITESPACE = "whitespace"
+STRIP_PUNCTUATION = "strip_punctuation"
+LOWER = "lower"
+
+WHITESPACE = "whitespace"
+CHARACTER = "character"
 
 TF_IDF = utils.TF_IDF
 INT = utils.INT
@@ -101,12 +105,20 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
       contains 1 OOV token, so the effective number of tokens is `(max_tokens -
       1 - (1 if output_mode == "int" else 0))`.
     standardize: Optional specification for standardization to apply to the
-      input text. Values can be None (no standardization),
-      `"lower_and_strip_punctuation"` (lowercase and remove punctuation) or a
-      Callable. Default is `"lower_and_strip_punctuation"`.
-    split: Optional specification for splitting the input text. Values can be
-      None (no splitting), `"whitespace"` (split on ASCII whitespace), or a
-      Callable. The default is `"whitespace"`.
+      input text. Values can be:
+        - `None`: No standardization.
+        - `lower_and_strip_punctuation`: Text will be lowercased and all
+          punctuation removed.
+        - `lower`: Text will be lowercased.
+        - `trip_punctuation`: All punctuation will be removed.
+        - Callable: Inputs will passed to the callable function, which should
+          standardized and returned.
+    split: Optional specification for splitting the input text. Values can be:
+        - `None`: No splitting.
+        - `"whitespace"`: Split on whitespace.
+        - `"character"`: Split on each unicode character.
+        - Callable: Standardized inputs will passed to the callable function,
+          which should split and returned.
     ngrams: Optional specification for ngrams to create from the possibly-split
       input text. Values can be None, an integer or tuple of integers; passing
       an integer will create ngrams up to that integer, and passing a tuple of
@@ -246,19 +258,21 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     elif "dtype" not in kwargs:
       kwargs["dtype"] = tf.string
 
-    # 'standardize' must be one of (None, LOWER_AND_STRIP_PUNCTUATION, callable)
+    # 'standardize' must be one of
+    # (None, LOWER_AND_STRIP_PUNCTUATION, LOWER, STRIP_PUNCTUATION, callable)
     layer_utils.validate_string_arg(
         standardize,
-        allowable_strings=(LOWER_AND_STRIP_PUNCTUATION),
+        allowable_strings=(LOWER_AND_STRIP_PUNCTUATION, LOWER,
+                           STRIP_PUNCTUATION),
         layer_name="TextVectorization",
         arg_name="standardize",
         allow_none=True,
         allow_callables=True)
 
-    # 'split' must be one of (None, SPLIT_ON_WHITESPACE, callable)
+    # 'split' must be one of (None, WHITESPACE, CHARACTER, callable)
     layer_utils.validate_string_arg(
         split,
-        allowable_strings=(SPLIT_ON_WHITESPACE),
+        allowable_strings=(WHITESPACE, CHARACTER),
         layer_name="TextVectorization",
         arg_name="split",
         allow_none=True,
@@ -438,27 +452,20 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
 
   def _preprocess(self, inputs):
     inputs = utils.ensure_tensor(inputs, dtype=tf.string)
-    if self._standardize == LOWER_AND_STRIP_PUNCTUATION:
+    if self._standardize in (LOWER, LOWER_AND_STRIP_PUNCTUATION):
       if tf_utils.is_ragged(inputs):
-        lowercase_inputs = tf.ragged.map_flat_values(
-            tf.strings.lower, inputs)
+        inputs = tf.ragged.map_flat_values(tf.strings.lower, inputs)
         # Depending on configuration, we may never touch the non-data tensor
         # in the ragged inputs tensor. If that is the case, and this is the
         # only layer in the keras model, running it will throw an error.
         # To get around this, we wrap the result in an identity.
-        lowercase_inputs = tf.identity(lowercase_inputs)
+        inputs = tf.identity(inputs)
       else:
-        lowercase_inputs = tf.strings.lower(inputs)
-      inputs = tf.strings.regex_replace(lowercase_inputs, DEFAULT_STRIP_REGEX,
-                                        "")
-    elif callable(self._standardize):
+        inputs = tf.strings.lower(inputs)
+    if self._standardize in (STRIP_PUNCTUATION, LOWER_AND_STRIP_PUNCTUATION):
+      inputs = tf.strings.regex_replace(inputs, DEFAULT_STRIP_REGEX, "")
+    if callable(self._standardize):
       inputs = self._standardize(inputs)
-    elif self._standardize is not None:
-      raise ValueError(("%s is not a supported standardization. "
-                        "TextVectorization supports the following options "
-                        "for `standardize`: None, "
-                        "'lower_and_strip_punctuation', or a "
-                        "Callable.") % self._standardize)
 
     if self._split is not None:
       # If we are splitting, we validate that the 1st axis is of dimension 1 and
@@ -472,10 +479,12 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
               f"inputs.shape={inputs.shape} with rank={inputs.shape.rank}")
         else:
           inputs = tf.squeeze(inputs, axis=-1)
-      if self._split == SPLIT_ON_WHITESPACE:
+      if self._split == WHITESPACE:
         # This treats multiple whitespaces as one whitespace, and strips leading
         # and trailing whitespace.
         inputs = tf.strings.split(inputs)
+      elif self._split == CHARACTER:
+        inputs = tf.strings.unicode_split(inputs, "UTF-8")
       elif callable(self._split):
         inputs = self._split(inputs)
       else:
