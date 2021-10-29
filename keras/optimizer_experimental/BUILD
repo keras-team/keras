@@ -16,6 +16,7 @@ py_library(
         "adagrad.py",
         "adam.py",
         "optimizer.py",
+        "sgd.py",
     ],
     srcs_version = "PY3",
     deps = [
