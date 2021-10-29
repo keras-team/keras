@@ -472,8 +472,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         A tensor if there is a single output, or
         a list of tensors if there are more than one outputs.
     """
-    raise NotImplementedError('When subclassing the `Model` class, you should '
-                              'implement a `call()` method.')
+    raise NotImplementedError('Unimplemented `tf.keras.Model.call()`: if you '
+                              'intend to create a `Model` with the Functional '
+                              'API, please provide `inputs` and `outputs` '
+                              'arguments. Otherwise, subclass `Model` with an '
+                              'overridden `call()` method.')
 
   @traceback_utils.filter_traceback
   def compile(self,
