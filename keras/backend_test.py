@@ -32,6 +32,7 @@ from keras.engine import input_layer
 from keras.layers import advanced_activations
 from keras.layers.normalization import batch_normalization_v1
 from keras.utils import tf_inspect
+from keras.utils import tf_utils
 
 
 def compare_single_input_op_to_numpy(keras_op,
@@ -2311,6 +2312,38 @@ class RandomGeneratorTest(tf.test.TestCase):
       # graph mode.
       self.assertIsNone(seeded._generator)
       self.assertIsNone(unseeded._generator)
+
+  def test_unseeded_with_utils_set_random_seed(self):
+    keras_seed = 1337
+    tf_utils.set_random_seed(keras_seed)
+    gen1 = backend.RandomGenerator(seed=None, force_generator=True)
+    output1 = gen1.random_normal(shape=[2, 3])
+    output2 = gen1.random_normal(shape=[2, 3])
+
+    self.assertNotAllClose(output1, output2)
+
+    # Make sure even with unseeded backend generator, as long as we set the
+    # keras random seed, it will make the generator to produce the same
+    # sequence. This will ensure all the client are in sync in the multi-client
+    # setting, when they all set the keras seed.
+    tf_utils.set_random_seed(keras_seed)
+    gen2 = backend.RandomGenerator(seed=None, force_generator=True)
+    output3 = gen2.random_normal(shape=[2, 3])
+    output4 = gen2.random_normal(shape=[2, 3])
+
+    gen3 = backend.RandomGenerator(seed=None, force_generator=True)
+    output5 = gen3.random_normal(shape=[2, 3])
+    output6 = gen3.random_normal(shape=[2, 3])
+
+    if tf.compat.v1.executing_eagerly():
+      # The generator is only used in the tf2 with eager.
+      self.assertAllEqual(output1, output3)
+      self.assertAllEqual(output2, output4)
+
+      # Also make sure different generator instance are still producing
+      # different result
+      self.assertNotAllEqual(output3, output5)
+      self.assertNotAllEqual(output4, output6)
 
 
 if __name__ == '__main__':

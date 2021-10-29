@@ -62,6 +62,7 @@ def set_random_seed(seed):
   random.seed(seed)
   np.random.seed(seed)
   tf.random.set_seed(seed)
+  backend._SEED_GENERATOR.generator = random.Random(seed)  # pylint:disable=protected-access
 
 
 def is_tensor_or_tensor_list(v):
