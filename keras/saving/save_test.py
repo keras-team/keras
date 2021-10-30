@@ -105,7 +105,8 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
     path = os.path.join(self.get_temp_dir(), 'model')
     save.save_model(self.model, path, save_format='tf')
     self.assert_saved_model(path)
-    with self.assertRaisesRegex(ValueError, 'input shapes have not been set'):
+    with self.assertRaisesRegex(
+        ValueError, r'Model.*cannot be saved.*as opposed to `model.call\(\).*'):
       save.save_model(self.subclassed_model, path, save_format='tf')
     self.subclassed_model.predict(np.random.random((3, 5)))
     save.save_model(self.subclassed_model, path, save_format='tf')
