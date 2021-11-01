@@ -16,9 +16,11 @@
 
 from keras import initializers
 from keras.optimizer_experimental import optimizer
+from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
 
 
+@generic_utils.register_keras_serializable()
 class Adagrad(optimizer.Optimizer):
   r"""Optimizer that implements the Adagrad algorithm.
 

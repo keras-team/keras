@@ -165,13 +165,25 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
     model.compile(loss="mse", optimizer=optimizer)
     model.fit(x, y)
+
+    # Save in h5 format.
+    path = os.path.join(self.get_temp_dir(), "model.h5")
+    model.save(path)
+    loaded_model = keras.models.load_model(path)
+    loaded_model.load_weights(path)
+    self.assertEqual(type(optimizer), type(loaded_model.optimizer))
+    self.assertEqual(loaded_model.optimizer.learning_rate, 0.002)
+    self.assertEqual(loaded_model.optimizer._clipnorm, 0.1)
+
+    # Save in Keras SavedModel format.
+    model.fit(x, y)
     path = os.path.join(self.get_temp_dir(), "model")
     model.save(path)
     loaded_model = keras.models.load_model(path)
     loaded_model.load_weights(path)
+    self.assertEqual(type(optimizer), type(loaded_model.optimizer))
     self.assertEqual(loaded_model.optimizer.learning_rate, 0.002)
     self.assertEqual(loaded_model.optimizer._clipnorm, 0.1)
-    model.fit(x, y)
 
 
 class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):

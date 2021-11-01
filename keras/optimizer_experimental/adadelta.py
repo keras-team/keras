@@ -15,9 +15,11 @@
 """Adadelta optimizer implementation."""
 
 from keras.optimizer_experimental import optimizer
+from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
 
 
+@generic_utils.register_keras_serializable()
 class Adadelta(optimizer.Optimizer):
   r"""Optimizer that implements the Adadelta algorithm.
 

@@ -15,9 +15,11 @@
 """Adam optimizer implementation."""
 
 from keras.optimizer_experimental import optimizer
-import tensorflow as tf
+from keras.utils import generic_utils
+import tensorflow.compat.v2 as tf
 
 
+@generic_utils.register_keras_serializable()
 class Adam(optimizer.Optimizer):
   r"""Optimizer that implements the Adam algorithm.
 
