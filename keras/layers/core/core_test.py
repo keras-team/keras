@@ -114,7 +114,7 @@ class DropoutLayersTest(keras_parameterized.TestCase):
     predict2 = loaded_model(np.ones((20, 5, 10)))
 
     self.assertAllClose(predict, predict2)
-    # Make sure the model droput different value after loading
+    # Make sure the model dropout different value after loading
     train2 = loaded_model(np.ones((20, 5, 10)), training=True)
     self.assertNotAllClose(train, train2)
     self.assertIsNotNone(loaded_model.layers[1]._random_generator)

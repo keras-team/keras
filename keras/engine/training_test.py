@@ -1125,7 +1125,7 @@ class TrainingTest(keras_parameterized.TestCase):
       training_module.Model([input1, input2], outputs)
       self.assertEqual(
           mock_warn.call_args_list[0][0][0],
-          'Found incompatiable static batch sizes among the inputs. '
+          'Found incompatible static batch sizes among the inputs. '
           'Batch sizes: [2, 3]')
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -3511,7 +3511,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def DISABLED_test_add_metric_invalid_aggregation(self):
-    # TODO(psv): Reenable test once it is fixed.
+    # TODO(psv): Re-enable test once it is fixed.
     x = layers_module.Input(shape=(1,))
     y = layers_module.Dense(1, kernel_initializer='ones')(x)
     model = training_module.Model(x, y)
