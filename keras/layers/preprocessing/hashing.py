@@ -168,7 +168,7 @@ class Hashing(base_layer.Layer):
     if 'dtype' not in kwargs or kwargs['dtype'] is None:
       kwargs['dtype'] = tf.int64 if output_mode == INT else backend.floatx()
     elif output_mode == 'int' and not tf.as_dtype(kwargs['dtype']).is_integer:
-      # Compat for when dtype was alwyas floating and ingored by the layer.
+      # Compat for when dtype was always floating and ignored by the layer.
       kwargs['dtype'] = tf.int64
 
     super().__init__(**kwargs)

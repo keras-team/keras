@@ -170,7 +170,7 @@ class VocabularySavedModelSaver(LayerSavedModelSaver):
   vocab as part of the config until saving, when we need to clear it to avoid
   initializing a StaticHashTable twice (once when restoring the config and once
   when restoring restoring module resources). After clearing the vocab, we
-  presist a property to the layer indicating it was constructed with a vocab.
+  persist a property to the layer indicating it was constructed with a vocab.
   """
 
   @property

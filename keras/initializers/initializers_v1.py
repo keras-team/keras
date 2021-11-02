@@ -77,7 +77,7 @@ class RandomNormal(tf.compat.v1.random_normal_initializer):
   Random seed behavior:
   Also be aware that if you pass a seed to the TF2 initializer
   API it will reuse that same seed for every single initialization
-  (unlike the TF1 intializer)
+  (unlike the TF1 initializer)
 
   #### Structural Mapping to Native TF2
 
@@ -192,7 +192,7 @@ class RandomUniform(tf.compat.v1.random_uniform_initializer):
 
   Also be aware that if you pass a seed to the TF2 initializer
   API it will reuse that same seed for every single initialization
-  (unlike the TF1 intializer)
+  (unlike the TF1 initializer)
 
   #### Structural Mapping to Native TF2
 
@@ -313,7 +313,7 @@ class TruncatedNormal(tf.compat.v1.truncated_normal_initializer):
   Random seed behavior:
   Also be aware that if you pass a seed to the TF2 initializer
   API it will reuse that same seed for every single initialization
-  (unlike the TF1 intializer)
+  (unlike the TF1 initializer)
 
   #### Structural Mapping to Native TF2
 

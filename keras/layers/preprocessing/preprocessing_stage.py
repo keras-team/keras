@@ -123,7 +123,7 @@ class FunctionalPreprocessingStage(functional.Functional,
 
   Args:
     inputs: An input tensor (must be created via `tf.keras.Input()`), or a list,
-      a dict, or a nested strcture of input tensors.
+      a dict, or a nested structure of input tensors.
     outputs: An output tensor, or a list, a dict or a nested structure of output
       tensors.
     name: String, optional. Name of the preprocessing stage.

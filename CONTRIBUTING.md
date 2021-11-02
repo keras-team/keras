@@ -136,7 +136,7 @@ python3 -m venv venv_dir
 ```
 
 You can activate the venv with the following command. You should always run the
-tests with the venv activated. You need to activate the venv everytime you open
+tests with the venv activated. You need to activate the venv every time you open
 a new shell.
 
 ```shell
@@ -185,12 +185,12 @@ in the `BUILD` file.
 ### Run a single test case
 
 The best way to run a single test case is to comment out the rest of the test
-cases in a file before runing the test file.
+cases in a file before running the test file.
 
 ### Run all tests
 
-You can run all the tests locally by running the following commmand
-in the repo root directory.
+You can run all the tests locally by running the following command in the repo
+root directory.
 
 ```
 bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going --define=use_fast_cpp_protos=false --build_tests_only --build_tag_filters=-no_oss --test_tag_filters=-no_oss keras/...

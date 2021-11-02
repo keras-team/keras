@@ -258,7 +258,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
       self.assertIn(prediction0, ("yes", "no"))
 
       prediction1 = loaded_serving_fn(
-          tf.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
+          tf.constant(["ironman", "ironman", "unknown"]))["output_0"]
       self.assertIn(prediction1, ("yes", "no"))
 
 

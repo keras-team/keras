@@ -291,7 +291,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     scope_name = self._name or "optimizer"
     with tf.name_scope(scope_name):
       with tf.init_scope():
-        # Lift variable creation to init scope to avoid enviroment issues.
+        # Lift variable creation to init scope to avoid environment issues.
         self.build(trainable_variables)
     grads = self._clip_gradients(grads)
     grads_and_vars = list(zip(grads, trainable_variables))

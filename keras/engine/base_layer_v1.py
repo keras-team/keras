@@ -413,7 +413,7 @@ class Layer(base_layer.Layer):
         return autocast_variable.create_autocast_variable(variable)
       # Also the caching_device does not work with the mixed precision API,
       # disable it if it is specified.
-      # TODO(b/142020079): Reenable it once the bug is fixed.
+      # TODO(b/142020079): Re-enable it once the bug is fixed.
       if caching_device is not None:
         tf_logging.warning(
             '`caching_device` does not work with mixed precision API. Ignoring '
