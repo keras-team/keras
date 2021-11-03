@@ -155,14 +155,21 @@ class SGD(optimizer.Optimizer):
       if m is not None:
         m.assign(m * momentum)
         m.scatter_add(add_value)
-        variable.assign_add(m)
+        if self.nesterov:
+          variable.scatter_add(add_value)
+          variable.assign_add(m * momentum)
+        else:
+          variable.assign_add(m)
       else:
         variable.scatter_add(add_value)
     else:
       # Dense gradients
       if m is not None:
         m.assign(-gradient * lr + m * momentum)
-        variable.assign_add(m)
+        if self.nesterov:
+          variable.assign_add(-gradient * lr + m * momentum)
+        else:
+          variable.assign_add(m)
       else:
         variable.assign_add(-gradient * lr)
 

@@ -220,8 +220,10 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
     self._compare_numerical(
         adagrad_old.Adagrad(), adagrad_new.Adagrad())
 
-  def testSgd(self):
-    self._compare_numerical(sgd_old.SGD(), sgd_new.SGD())
+  @parameterized.product(nesterov=[True, False])
+  def testSgd(self, nesterov):
+    self._compare_numerical(
+        sgd_old.SGD(nesterov=True), sgd_new.SGD(nesterov=True))
 
 
 class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
