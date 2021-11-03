@@ -5,7 +5,7 @@ load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
     ],
     licenses = ["notice"],  # Apache 2.0
 )

@@ -1,5 +1,5 @@
 package(
-    default_visibility = ["//keras:__subpackages__"],
+    default_visibility = ["//keras:friends"],
     licenses = ["notice"],
 )
 

@@ -9,7 +9,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-or
 package(
     # TODO(scottzhu): Remove this deps when distribute test are converted to integration test.
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],

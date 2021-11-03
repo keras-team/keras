@@ -35,14 +35,14 @@ py_library(
     name = "run_xprof",
     srcs = ["run_xprof.py"],
     srcs_version = "PY3",
-    visibility = ["//keras:__subpackages__"],
+    visibility = ["//keras:friends"],
 )
 
 py_library(
     name = "layer_benchmarks_test_base",
     srcs = ["layer_benchmarks_test_base.py"],
     srcs_version = "PY3",
-    visibility = ["//keras:__subpackages__"],
+    visibility = ["//keras:friends"],
     deps = [
         ":run_xprof",
         "//:expect_tensorflow_installed",

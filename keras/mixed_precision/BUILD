@@ -23,7 +23,7 @@ package(
     default_visibility = [
         # TODO(scottzhu): Remove these two deps and convert the test to integration test.
         "//third_party/tensorflow/python/distribute:__pkg__",  # For collective_all_reduce_strategy_test
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
     licenses = ["notice"],
