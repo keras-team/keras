@@ -5,11 +5,19 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     default_visibility = [
-        ":__subpackages__",
+        ":friends",
         "//third_party/py/tensorflow:__subpackages__",
         "//third_party/tensorflow_estimator:__subpackages__",
     ],
     licenses = ["notice"],
+)
+
+# Keras code that doesn't live in core Keras directory, but still
+# need to directly access the keras code.
+# We shouldn't add any client side package to this list.
+package_group(
+    name = "friends",
+    packages = ["//keras/..."],
 )
 
 exports_files(["LICENSE"])

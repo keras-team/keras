@@ -6,7 +6,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 package(
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/python/distribute:__pkg__",
     ],
     licenses = ["notice"],

@@ -4,7 +4,7 @@ load("@org_keras//keras:keras.bzl", "distribute_py_test")
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
     ],
     licenses = ["notice"],
 )
