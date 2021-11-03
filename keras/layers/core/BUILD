@@ -4,7 +4,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/py/tensorflow_gnn:__subpackages__",
         "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/python/feature_column:__pkg__",

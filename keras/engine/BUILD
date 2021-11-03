@@ -10,7 +10,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 package(
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/python:__pkg__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
     ],

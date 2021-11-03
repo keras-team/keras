@@ -6,7 +6,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 package(
     default_visibility = [
         # Remove this deps to integration test.
-        "//keras:__subpackages__",
+        "//keras:friends",
     ],
     licenses = ["notice"],
 )
