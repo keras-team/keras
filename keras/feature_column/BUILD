@@ -2,7 +2,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/python/feature_column:__subpackages__",
     ],
     licenses = ["notice"],

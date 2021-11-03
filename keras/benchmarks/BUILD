@@ -37,7 +37,7 @@ py_library(
     name = "profiler_lib",
     srcs_version = "PY3",
     visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//learning/brain/contrib/keras_benchmark:__subpackages__",
     ],
 )
