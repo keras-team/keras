@@ -12,12 +12,6 @@ package(
     licenses = ["notice"],
 )
 
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
-)
-
 tf_py_test(
     name = "category_encoding_benchmark",
     srcs = ["category_encoding_benchmark.py"],
