@@ -8,12 +8,6 @@ package(
     licenses = ["notice"],
 )
 
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
-)
-
 BECHMARK_TAGS = [
     "no_oss_py38",  # TODO(b/162044699)
     "no_pip",  # TODO(b/161253163)

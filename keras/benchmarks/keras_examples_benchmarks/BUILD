@@ -8,12 +8,6 @@ package(
     licenses = ["notice"],
 )
 
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
-)
-
 # To run CPU benchmarks:
 #   bazel run -c opt benchmarks_test -- --benchmarks=.
 

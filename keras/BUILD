@@ -14,14 +14,6 @@ package(
 
 exports_files(["LICENSE"])
 
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = [
-        "//keras/google/private_tf_api_test:__pkg__",
-    ],
-)
-
 config_setting(
     name = "no_keras_py_deps",
     define_values = {"no_keras_py_deps": "true"},
