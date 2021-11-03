@@ -1205,7 +1205,7 @@ class ModelCheckpoint(Callback):
 
   Args:
       filepath: string or `PathLike`, path to save the model file. e.g.
-        filepath = tf.io.gfile.join(working_dir, 'ckpt', file_name). `filepath`
+        filepath = os.path.join(working_dir, 'ckpt', file_name). `filepath`
         can contain named formatting options, which will be filled the value of
         `epoch` and keys in `logs` (passed in `on_epoch_end`). For example: if
         `filepath` is `weights.{epoch:02d}-{val_loss:.2f}.hdf5`, then the model
@@ -1515,9 +1515,9 @@ class ModelCheckpoint(Callback):
     ```python
     file_pattern = 'f.batch{batch:02d}epoch{epoch:02d}.h5'
     test_dir = self.get_temp_dir()
-    path_pattern = tf.io.gfile.join(test_dir, file_pattern)
+    path_pattern = os.path.join(test_dir, file_pattern)
     file_paths = [
-        tf.io.gfile.join(test_dir, file_name) for file_name in
+        os.path.join(test_dir, file_name) for file_name in
         ['f.batch03epoch02.h5', 'f.batch02epoch02.h5', 'f.batch01epoch01.h5']
     ]
     for file_path in file_paths:
@@ -1557,7 +1557,7 @@ class ModelCheckpoint(Callback):
       for file_name in os.listdir(dir_name):
         # Only consider if `file_name` matches the pattern.
         if re.match(base_name_regex, file_name):
-          file_path = tf.io.gfile.join(dir_name, file_name)
+          file_path = os.path.join(dir_name, file_name)
           mod_time = os.path.getmtime(file_path)
           if (file_path_with_largest_file_name is None or
               file_path > file_path_with_largest_file_name):
@@ -1642,7 +1642,7 @@ class BackupAndRestore(Callback):
 
   Args:
       backup_dir: String, path to store the checkpoint.
-        e.g. backup_dir = tf.io.gfile.join(working_dir, 'backup')
+        e.g. backup_dir = os.path.join(working_dir, 'backup')
         This is the directory in which the system stores temporary files to
         recover the model from jobs terminated unexpectedly. The directory
         cannot be reused elsewhere to store other files, e.g. by
@@ -2061,7 +2061,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   Args:
       log_dir: the path of the directory where to save the log files to be
-        parsed by TensorBoard. e.g. log_dir = tf.io.gfile.join(working_dir, 'logs')
+        parsed by TensorBoard. e.g. log_dir = os.path.join(working_dir, 'logs')
         This directory should not be reused by any other callbacks.
       histogram_freq: frequency (in epochs) at which to compute activation and
         weight histograms for the layers of the model. If set to 0, histograms
@@ -2229,10 +2229,10 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     self.model = model
     self._log_write_dir = self._get_log_write_dir()
 
-    self._train_dir = tf.io.gfile.join(self._log_write_dir, 'train')
+    self._train_dir = os.path.join(self._log_write_dir, 'train')
     self._train_step = self.model._train_counter  # pylint: disable=protected-access
 
-    self._val_dir = tf.io.gfile.join(self._log_write_dir, 'validation')
+    self._val_dir = os.path.join(self._log_write_dir, 'validation')
     self._val_step = self.model._test_counter  # pylint: disable=protected-access
 
     self._writers = {}  # Resets writers.
@@ -2316,7 +2316,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                        f'argument: {self.embeddings_metadata.keys()}')
 
     config_pbtxt = text_format.MessageToString(config)
-    path = tf.io.gfile.join(self._log_write_dir, 'projector_config.pbtxt')
+    path = os.path.join(self._log_write_dir, 'projector_config.pbtxt')
     with tf.io.gfile.GFile(path, 'w') as f:
       f.write(config_pbtxt)
 
@@ -2563,7 +2563,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
       tf.summary.image(weight_name, w_img, step=epoch)
 
   def _log_embeddings(self, epoch):
-    embeddings_ckpt = tf.io.gfile.join(self._log_write_dir, 'train',
+    embeddings_ckpt = os.path.join(self._log_write_dir, 'train',
                                    'keras_embedding.ckpt-{}'.format(epoch))
     self.model.save_weights(embeddings_ckpt)
 
