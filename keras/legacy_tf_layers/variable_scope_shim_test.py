@@ -18,14 +18,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import gc
 import threading
 
 from absl.testing import parameterized
-import numpy
-from tensorflow.python.framework import test_util
 from keras import combinations
 from keras import regularizers
 from keras.engine import input_layer as input_layer_module
@@ -33,7 +29,11 @@ from keras.engine import training as training_module
 from keras.layers import core
 from keras.legacy_tf_layers import core as core_layers
 from keras.legacy_tf_layers import variable_scope_shim
-from tensorflow.python.ops import variable_scope
+import numpy
+import tensorflow as tf
+
+from tensorflow.python.framework import test_util   # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.ops import variable_scope   # pylint: disable=g-direct-tensorflow-import
 
 
 def run_inside_wrap_function_in_eager_mode(graph_function):
@@ -1424,6 +1424,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     with self.assertRaisesRegex(ValueError, "does not extend"):
       foo(tf.ones(shape=(4, 4)))
+
 
 if __name__ == "__main__":
   tf.test.main()
