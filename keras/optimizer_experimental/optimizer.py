@@ -143,7 +143,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                        " optimizer creation time.")
     lr = self._learning_rate
     if isinstance(lr, learning_rate_schedule.LearningRateSchedule):
-      return lr(self.iterations)  # pylint: disable=not-callable
+      # If the optimizer takes in LearningRateSchedule, then each call to
+      # learning_rate would return `self._current_learning_rate`, which is
+      # updated at each call to `apply_gradients`.
+      return self._current_learning_rate
     return lr
 
   @learning_rate.setter
@@ -159,6 +162,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 
   def _build_learning_rate(self, learning_rate):
     if isinstance(learning_rate, learning_rate_schedule.LearningRateSchedule):
+      self._current_learning_rate = learning_rate(self.iterations)
       return learning_rate
     return tf.Variable(learning_rate, dtype=backend.floatx())
 
@@ -286,6 +290,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     Raises:
       TypeError: If `grads_and_vars` is malformed.
     """
+    if isinstance(self._learning_rate,
+                  learning_rate_schedule.LearningRateSchedule):
+      # Compute the current learning rate at the beginning of variable update.
+      self._current_learning_rate = self._learning_rate(self.iterations)
     grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
     grads, trainable_variables = zip(*grads_and_vars)
     scope_name = self._name or "optimizer"
