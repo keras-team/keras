@@ -3394,6 +3394,113 @@ class MeanIoU(IoU):
     }
 
 
+@keras_export('keras.metrics.OneHotIoU')
+class OneHotIoU(IoU):
+  """Computes the Intersection-Over-Union metric for one-hot encoded labels.
+
+  General definition and computation:
+
+  Intersection-Over-Union is a common evaluation metric for semantic image
+  segmentation.
+
+  For an individual class, the IoU metric is defined as follows:
+
+  ```
+  iou = true_positives / (true_positives + false_positives + false_negatives)
+  ```
+
+  To compute IoUs, the predictions are accumulated in a confusion matrix,
+  weighted by `sample_weight` and the metric is then calculated from it.
+
+  If `sample_weight` is `None`, weights default to 1.
+  Use `sample_weight` of 0 to mask values.
+
+  This class can be used to compute IoU for multi-class classification tasks
+  where the labels are one-hot encoded (the last axis should have one dimension
+  per class). Note that the predictions should also have the same shape. To
+  compute the IoU, first the labels and predictions are converted back into
+  integer format by taking the argmax over the class axis. Then the same
+  computation steps as for the base `IoU` class apply.
+
+  Note, if there is only one channel in the labels and predictions, this class
+  is the same as class `IoU`. In this case, use `IoU` instead.
+
+  Also, make sure that `num_classes` is equal to the number of classes in the
+  data, to avoid a "labels out of bound" error when the confusion matrix is
+  computed.
+
+  Args:
+    num_classes: The possible number of labels the prediction task can have.
+      A confusion matrix of shape `(num_classes, num_classes)` will be
+      allocated to accumulate predictions from which the metric is calculated.
+    target_class_ids: A tuple or list of target class ids for which the metric
+      is returned. To compute IoU for a specific class, a list (or tuple) of a
+      single id value should be provided.
+    name: (Optional) string name of the metric instance.
+    dtype: (Optional) data type of the metric result.
+
+  Standalone usage:
+
+  >>> y_true = tf.constant([[0, 0, 1], [1, 0, 0], [0, 1, 0], [1, 0, 0]])
+  >>> y_pred = tf.constant([[0.2, 0.3, 0.5], [0.1, 0.2, 0.7], [0.5, 0.3, 0.1],
+  >>>                       [0.1, 0.4, 0.5]])
+  >>> sample_weight = [0.1, 0.2, 0.3, 0.4]
+  >>> m = metrics.OneHotIoU(num_classes=3, target_class_ids=[0, 2])
+  >>> m.update_state(y_true=y_true, y_pred=y_pred, sample_weight=sample_weight)
+  >>> # cm = [[0, 0, 0.2+0.4],
+  >>> #       [0.3, 0, 0],
+  >>> #       [0, 0, 0.1]]
+  >>> # sum_row = [0.3, 0, 0.7], sum_col = [0.6, 0.3, 0.1]
+  >>> # true_positives = [0, 0, 0.1]
+  >>> # single_iou = true_positives / (sum_row + sum_col - true_positives))
+  >>> # mean_iou = (0 / (0.3 + 0.6 - 0) + 0.1 / (0.7 + 0.1 - 0.1)) / 2
+  >>> m.result().numpy()
+  0.071
+
+  Usage with `compile()` API:
+
+  ```python
+  model.compile(
+    optimizer='sgd',
+    loss='mse',
+    metrics=[tf.keras.metrics.OneHotIoU(num_classes=3, target_class_id=[1])])
+  ```
+  """
+
+  def __init__(
+      self,
+      num_classes: int,
+      target_class_ids: Union[List[int], Tuple[int, ...]],
+      name=None,
+      dtype=None,
+  ):
+    super(OneHotIoU, self).__init__(
+        num_classes=num_classes,
+        target_class_ids=target_class_ids,
+        name=name,
+        dtype=dtype,
+    )
+
+  def update_state(self, y_true, y_pred, sample_weight=None):
+    """Accumulates the confusion matrix statistics.
+
+    Args:
+      y_true: The ground truth values.
+      y_pred: The predicted values.
+      sample_weight: Optional weighting of each example. Defaults to 1. Can be a
+        `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
+        be broadcastable to `y_true`.
+
+    Returns:
+      Update op.
+    """
+    # Select max hot-encoding channels to convert into all-class format
+    y_true = tf.argmax(y_true, axis=-1, output_type=tf.int32)
+    y_pred = tf.argmax(y_pred, axis=-1, output_type=tf.int32)
+
+    return super().update_state(y_true, y_pred, sample_weight)
+
+
 @keras_export('keras.metrics.MeanTensor')
 class MeanTensor(Metric):
   """Computes the element-wise (weighted) mean of the given tensors.
