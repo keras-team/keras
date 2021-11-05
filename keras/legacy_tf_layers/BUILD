@@ -14,10 +14,7 @@ package(
 
 py_library(
     name = "layers",
-    srcs = [
-        "__init__.py",
-        "migration_utils.py",
-    ],
+    srcs = ["__init__.py"],
     deps = [
         ":convolutional",
         ":core",
@@ -150,7 +147,6 @@ cuda_py_test(
     shard_count = 10,
     deps = [
         ":convolutional",
-        ":layers_base",
         ":normalization",
         "//:expect_tensorflow_installed",
     ],
@@ -166,21 +162,6 @@ tf_py_test(
     deps = [
         ":core",
         ":layers_base",
-        "//:expect_tensorflow_installed",
-        "//keras:combinations",
-        "//keras/engine:base_layer",
-        "//keras/engine:input_spec",
-    ],
-)
-
-tf_py_test(
-    name = "migration_utils_test",
-    size = "small",
-    srcs = ["migration_utils_test.py"],
-    main = "migration_utils_test.py",
-    python_version = "PY3",
-    deps = [
-        ":layers",
         "//:expect_tensorflow_installed",
         "//keras:combinations",
         "//keras/engine:base_layer",
