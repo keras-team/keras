@@ -1311,7 +1311,7 @@ class IoUTest(tf.test.TestCase):
     #       [1, 1]]
     # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
     # iou = true_positives / (sum_row + sum_col - true_positives))
-    expected_result = tf.constant([1 / (2 + 2 - 1), 1 / (2 + 2 - 1)])
+    expected_result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
   def test_weighted(self):
@@ -1328,8 +1328,7 @@ class IoUTest(tf.test.TestCase):
     #       [0.4, 0.1]]
     # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
     # iou = true_positives / (sum_row + sum_col - true_positives))
-    expected_result = tf.constant(
-        [0.1 / (0.4 + 0.5 - 0.1), 0.2 / (0.6 + 0.5 - 0.2)])
+    expected_result = (0.1 / (0.4 + 0.5 - 0.1) + 0.2 / (0.6 + 0.5 - 0.2)) / 2
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
   def test_multi_dim_input(self):
@@ -1346,15 +1345,14 @@ class IoUTest(tf.test.TestCase):
     #       [0.4, 0.1]]
     # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
     # iou = true_positives / (sum_row + sum_col - true_positives))
-    expected_result = tf.constant(
-        [0.2 / (0.6 + 0.5 - 0.2), 0.1 / (0.4 + 0.5 - 0.1)])
+    expected_result = (0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)) / 2
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
   def test_zero_valid_entries(self):
     obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
     self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
     self.assertAllClose(
-        self.evaluate(obj.result()), tf.constant([0, 0]), atol=1e-3)
+        self.evaluate(obj.result()), 0, atol=1e-3)
 
   def test_zero_and_non_zero_entries(self):
     y_pred = tf.constant([1], dtype=tf.float32)
@@ -1368,7 +1366,7 @@ class IoUTest(tf.test.TestCase):
     #       [0, 1]]
     # sum_row = [0, 1], sum_col = [0, 1], true_positives = [0, 1]
     # iou = true_positives / (sum_row + sum_col - true_positives))
-    expected_result = tf.constant([0, 1 / (1 + 1 - 1)])
+    expected_result = (1 / (1 + 1 - 1)) / 1
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
 
