@@ -331,14 +331,40 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     layer = text_vectorization.TextVectorization(
         vocabulary=["earth", "wind", "and", "fire"])
     output_data = layer(input_data)
-    self.assertAllEqual(expected_output, output_data)
+    self.assertAllEqual(output_data, expected_output)
 
     # Again in a keras.Model
     inputs = keras.Input(shape=input_shape, dtype=tf.string)
     outputs = layer(inputs)
     model = keras.Model(inputs=inputs, outputs=outputs)
     output_data = model(tf.constant(input_data))
-    self.assertAllEqual(expected_output, output_data)
+    self.assertAllEqual(output_data, expected_output)
+
+  @parameterized.named_parameters([
+      {
+          "testcase_name": "ragged_tensor1",
+          "input_data": [[["0 a b"], ["c d"]], [["e a"], ["b c d"]], [["f"]]],
+          "expected_output": [[[1, 2, 3], [4, 5]], [[6, 2], [3, 4, 5]], [[7]]],
+      },
+      {
+          "testcase_name": "ragged_tensor2",
+          "input_data": [[["0 a b"], [""]], [], [["e a"], ["b c d"]], [["f"]]],
+          "expected_output": [[[1, 2, 3], []], [], [[6, 2], [3, 4, 5]], [[7]]],
+      },
+  ])
+  def test_ragged_input_and_ragged_output(self, input_data, expected_output):
+    input_data = tf.ragged.constant(input_data, inner_shape=(1,))
+    layer = text_vectorization.TextVectorization(
+        vocabulary=["a", "b", "c", "d", "e", "f"], ragged=True)
+    output_data = layer(input_data)
+    self.assertAllEqual(output_data, expected_output)
+
+    # Again in a keras.Model
+    inputs = keras.Input(shape=(1,), dtype=tf.string)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+    output_data = model.predict(input_data)
+    self.assertAllEqual(output_data, expected_output)
 
   def test_scalar_input_int_mode_no_len_limit(self):
     vocab_data = [
