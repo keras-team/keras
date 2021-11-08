@@ -453,15 +453,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
   def _preprocess(self, inputs):
     inputs = utils.ensure_tensor(inputs, dtype=tf.string)
     if self._standardize in (LOWER, LOWER_AND_STRIP_PUNCTUATION):
-      if tf_utils.is_ragged(inputs):
-        inputs = tf.ragged.map_flat_values(tf.strings.lower, inputs)
-        # Depending on configuration, we may never touch the non-data tensor
-        # in the ragged inputs tensor. If that is the case, and this is the
-        # only layer in the keras model, running it will throw an error.
-        # To get around this, we wrap the result in an identity.
-        inputs = tf.identity(inputs)
-      else:
-        inputs = tf.strings.lower(inputs)
+      inputs = tf.strings.lower(inputs)
     if self._standardize in (STRIP_PUNCTUATION, LOWER_AND_STRIP_PUNCTUATION):
       inputs = tf.strings.regex_replace(inputs, DEFAULT_STRIP_REGEX, "")
     if callable(self._standardize):
