@@ -26,10 +26,13 @@ ABSL_LOGGING.enable = False
 
 
 def print_msg(message):
+  """Print the message to absl logging or stdout."""
   if ABSL_LOGGING.enable:
     absl.logging.info(message)
   else:
-    sys.stdout.write(message)
+    # Simulate the print function,
+    # which has a new line at the end.
+    sys.stdout.write(message + '\n')
     sys.stdout.flush()
 
 
