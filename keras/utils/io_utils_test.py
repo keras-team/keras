@@ -70,7 +70,7 @@ class TestIOUtils(keras_parameterized.TestCase):
     io_utils.ABSL_LOGGING.enable = False
     with self.captureWritesToStream(sys.stdout) as printed:
       io_utils.print_msg('Testing Message')
-    self.assertIn('Testing Message', printed.contents())
+    self.assertEqual('Testing Message\n', printed.contents())
 
     io_utils.ABSL_LOGGING.enable = enabled
 
