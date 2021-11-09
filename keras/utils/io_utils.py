@@ -16,6 +16,21 @@
 """Utilities related to disk I/O."""
 
 import os
+import sys
+import threading
+
+import absl
+
+ABSL_LOGGING = threading.local()
+ABSL_LOGGING.enable = False
+
+
+def print_msg(message):
+  if ABSL_LOGGING.enable:
+    absl.logging.info(message)
+  else:
+    sys.stdout.write(message)
+    sys.stdout.flush()
 
 
 def path_to_string(path):
