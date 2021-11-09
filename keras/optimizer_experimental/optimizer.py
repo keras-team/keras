@@ -162,7 +162,9 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 
   def _build_learning_rate(self, learning_rate):
     if isinstance(learning_rate, learning_rate_schedule.LearningRateSchedule):
-      self._current_learning_rate = learning_rate(self.iterations)
+      # Create a variable to hold the current learning rate.
+      self._current_learning_rate = tf.Variable(
+          learning_rate(self.iterations), dtype=tf.float32)
       return learning_rate
     return tf.Variable(learning_rate, dtype=backend.floatx())
 
@@ -293,7 +295,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     if isinstance(self._learning_rate,
                   learning_rate_schedule.LearningRateSchedule):
       # Compute the current learning rate at the beginning of variable update.
-      self._current_learning_rate = self._learning_rate(self.iterations)
+      self._current_learning_rate.assign(self._learning_rate(self.iterations))
     grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
     grads, trainable_variables = zip(*grads_and_vars)
     scope_name = self._name or "optimizer"
