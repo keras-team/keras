@@ -22,7 +22,7 @@ import os
 import sys
 import re
 from keras import activations
-from keras.utils.io_utils import path_to_string
+from keras.utils import io_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -157,7 +157,7 @@ def model_to_dot(model,
     if 'IPython.core.magics.namespace' in sys.modules:
       # We don't raise an exception here in order to avoid crashing notebook
       # tests where graphviz is not available.
-      print(message)
+      io_utils.print_msg(message)
       return
     else:
       raise ImportError(message)
@@ -422,7 +422,7 @@ def plot_model(model,
       dpi=dpi,
       layer_range=layer_range,
       show_layer_activations=show_layer_activations)
-  to_file = path_to_string(to_file)
+  to_file = io_utils.path_to_string(to_file)
   if dot is None:
     return
   _, extension = os.path.splitext(to_file)
