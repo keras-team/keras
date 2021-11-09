@@ -98,7 +98,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         tape.watch(var_list)
         loss = loss()
     grads = tape.gradient(loss, var_list)
-    return zip(grads, var_list)
+    return list(zip(grads, var_list))
 
   def _clip_gradients(self, grads):
     clipped_grads = []
