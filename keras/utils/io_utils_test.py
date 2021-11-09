@@ -14,6 +14,8 @@
 # ==============================================================================
 """Tests for io_utils."""
 
+import sys
+
 import tensorflow.compat.v2 as tf
 
 import builtins
@@ -57,6 +59,20 @@ class TestIOUtils(keras_parameterized.TestCase):
     self.assertEqual(io_utils.path_to_string('path'), 'path')
     self.assertIs(io_utils.path_to_string(dummy), dummy)
 
+  def test_print_msg(self):
+    enabled = io_utils.ABSL_LOGGING.enable
+
+    io_utils.ABSL_LOGGING.enable = True
+    with self.assertLogs(level='INFO') as logged:
+      io_utils.print_msg('Testing Message')
+    self.assertIn('Testing Message', logged.output[0])
+
+    io_utils.ABSL_LOGGING.enable = False
+    with self.captureWritesToStream(sys.stdout) as printed:
+      io_utils.print_msg('Testing Message')
+    self.assertIn('Testing Message', printed.contents())
+
+    io_utils.ABSL_LOGGING.enable = enabled
 
 if __name__ == '__main__':
   tf.test.main()

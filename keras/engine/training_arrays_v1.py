@@ -26,6 +26,7 @@ from keras.distribute import distributed_training_utils_v1
 from keras.engine import training_utils_v1
 from keras.utils.generic_utils import make_batches
 from keras.utils.generic_utils import slice_arrays
+from keras.utils import io_utils
 from keras.utils.mode_keys import ModeKeys
 from tensorflow.python.platform import tf_logging as logging
 
@@ -464,7 +465,7 @@ def _print_train_info(num_samples_or_steps, val_samples_or_steps, is_dataset):
   if val_samples_or_steps:
     msg += ', validate on {0} {increment}'.format(
         val_samples_or_steps, increment=increment)
-  print(msg)
+  io_utils.print_msg(msg)
 
 
 def _get_num_samples_or_steps(ins, batch_size, steps_per_epoch):
