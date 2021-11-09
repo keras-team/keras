@@ -20,10 +20,10 @@ from __future__ import print_function
 
 import contextlib
 import functools
+
 from keras.engine import base_layer
 from keras.utils import layer_utils
 from keras.utils import tf_inspect
-
 import tensorflow.compat.v2 as tf
 
 from tensorflow.python.ops import variable_scope as vs  # pylint: disable=g-direct-tensorflow-import
