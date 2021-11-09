@@ -897,7 +897,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       outputs = model.distribute_strategy.run(run_step, args=(data,))
       outputs = reduce_per_replica(
           outputs, self.distribute_strategy, reduction='first')
-      write_scalar_summaries(outputs, step=model._train_counter)  # pylint: disable=protected-access
       return outputs
 
     # Special case if steps_per_execution is one.
@@ -3142,12 +3141,6 @@ def _multi_worker_concat(v, strategy):
 
 def _is_scalar(x):
   return isinstance(x, (tf.Tensor, tf.Variable)) and x.shape.rank == 0
-
-
-def write_scalar_summaries(logs, step):
-  for name, value in logs.items():
-    if _is_scalar(value):
-      tf.summary.scalar('batch_' + name, value, step=step)
 
 
 def _minimum_control_deps(outputs):
