@@ -7,6 +7,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 package(
     default_visibility = [
         "//keras:friends",
+        "//learning/brain/contrib:__subpackages__",
         "//third_party/tensorflow:__subpackages__",
     ],
     licenses = ["notice"],
