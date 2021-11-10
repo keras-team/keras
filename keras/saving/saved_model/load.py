@@ -124,7 +124,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
                     'with model.save() or tf.keras.models.save_model(), *NOT* '
                     'tf.saved_model.save(). To confirm, there should be a file '
                     'named "keras_metadata.pb" in the SavedModel directory.')
-    _read_legacy_metadata(object_graph_def, metadata)
+    _read_legacy_metadata(object_graph_def, metadata, path)
 
   if not metadata.nodes:
     # When there are no Keras objects, return the results from the core loader
@@ -193,7 +193,7 @@ def _update_to_current_version(metadata):
   return metadata
 
 
-def _read_legacy_metadata(object_graph_def, metadata):
+def _read_legacy_metadata(object_graph_def, metadata, path):
   """Builds a KerasMetadata proto from the SavedModel ObjectGraphDef."""
   # Older SavedModels store the metadata directly in the proto instead of the
   # separate pb file.
@@ -202,11 +202,12 @@ def _read_legacy_metadata(object_graph_def, metadata):
     if (proto.WhichOneof('kind') == 'user_object' and
         proto.user_object.identifier in constants.KERAS_OBJECT_IDENTIFIERS):
       if not proto.user_object.metadata:
-        raise ValueError('Unable to create a Keras model from this SavedModel. '
-                         'This SavedModel was created with '
-                         '`tf.saved_model.save`, and lacks the Keras metadata.'
-                         'Please save your Keras model by calling `model.save`'
-                         'or `tf.keras.models.save_model`.')
+        raise ValueError(
+            f'Unable to create a Keras model from SavedModel at {path}. '
+            'This SavedModel was exported with `tf.saved_model.save`, and '
+            'lacks the Keras metadata file. Please save your Keras model by '
+            'calling `model.save`or `tf.keras.models.save_model`. Note that '
+            'you can still load this SavedModel with `tf.saved_model.load`.')
       metadata.nodes.add(
           node_id=node_id,
           node_path=node_paths[node_id],
