@@ -27,8 +27,7 @@ ABSL_LOGGING.enable = False
 
 def print_msg(message):
   """Print the message to absl logging or stdout."""
-  # Checking have the attribute before accessing as a temporary bug fix.
-  # Need to drill down for the cause. (b/154647185)
+  # Use `getattr` in case `ABSL_LOGGING` does not have the `enable` attribute.
   if getattr(ABSL_LOGGING, 'enable', False):
     absl.logging.info(message)
   else:

@@ -20,6 +20,7 @@ import tensorflow.compat.v2 as tf
 import functools
 import weakref
 
+from keras.utils import io_utils
 import numpy as np
 from tensorflow.python.util.tf_export import keras_export
 
@@ -139,7 +140,7 @@ def print_summary(model,
           If not provided, defaults to `False`.
   """
   if print_fn is None:
-    print_fn = print
+    print_fn = io_utils.print_msg
 
   if model.__class__.__name__ == 'Sequential':
     sequential_like = True

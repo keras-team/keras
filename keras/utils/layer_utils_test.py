@@ -23,6 +23,7 @@ import multiprocessing.dummy
 import os
 import pickle
 import shutil
+import sys
 import time
 import timeit
 
@@ -76,6 +77,13 @@ class LayerUtilsTest(tf.test.TestCase):
       self.assertEqual(len(lines), 15)
     except ImportError:
       pass
+
+  def test_print_summary_without_print_fn(self):
+    model = keras.Sequential([
+        keras.layers.Dense(5, input_shape=(10,), name='dense')])
+    with self.captureWritesToStream(sys.stdout) as printed:
+      layer_utils.print_summary(model)
+    self.assertIn('dense (Dense)', printed.contents())
 
   def test_print_summary_expand_nested(self):
     shape = (None, None, 3)
