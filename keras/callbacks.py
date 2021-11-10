@@ -16,8 +16,6 @@
 # pylint: disable=g-classes-have-attributes
 """Callbacks: utilities called at certain points during model training."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import copy
 import csv
@@ -27,18 +25,20 @@ import re
 import sys
 import time
 
-import numpy as np
 from keras import backend
 from keras.distribute import distributed_file_utils
 from keras.distribute import worker_training_state
 from keras.optimizer_v2 import learning_rate_schedule
 from keras.utils import generic_utils
+from keras.utils import io_utils
 from keras.utils import tf_utils
 from keras.utils import version_utils
 from keras.utils.data_utils import Sequence
 from keras.utils.generic_utils import Progbar
-from keras.utils.io_utils import path_to_string
 from keras.utils.mode_keys import ModeKeys
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
@@ -943,7 +943,7 @@ class TerminateOnNaN(Callback):
     if loss is not None:
       loss = tf_utils.sync_to_numpy_or_python_type(loss)
       if np.isnan(loss) or np.isinf(loss):
-        print('Batch %d: Invalid loss, terminating training' % (batch))
+        io_utils.print_msg(f'Batch {batch}: Invalid loss, terminating training')
         self.model.stop_training = True
 
 
@@ -1026,7 +1026,7 @@ class ProgbarLogger(Callback):
     self._reset_progbar()
     self._maybe_init_progbar()
     if self.verbose and self.epochs > 1:
-      print('Epoch %d/%d' % (epoch + 1, self.epochs))
+      io_utils.print_msg(f'Epoch {epoch + 1}/{self.epochs}')
 
   def on_train_batch_end(self, batch, logs=None):
     self._batch_update_progbar(batch, logs)
@@ -1271,7 +1271,7 @@ class ModelCheckpoint(Callback):
     self._supports_tf_logs = True
     self.monitor = monitor
     self.verbose = verbose
-    self.filepath = path_to_string(filepath)
+    self.filepath = io_utils.path_to_string(filepath)
     self.save_best_only = save_best_only
     self.save_weights_only = save_weights_only
     self.save_freq = save_freq
@@ -1419,9 +1419,10 @@ class ModelCheckpoint(Callback):
           else:
             if self.monitor_op(current, self.best):
               if self.verbose > 0:
-                print('\nEpoch %05d: %s improved from %0.5f to %0.5f,'
-                      ' saving model to %s' % (epoch + 1, self.monitor,
-                                               self.best, current, filepath))
+                io_utils.print_msg(
+                    f'\nEpoch {epoch + 1}: {self.monitor} improved '
+                    f'from {self.best:.5f} to {current:.5f}, '
+                    f'saving model to {filepath}')
               self.best = current
               if self.save_weights_only:
                 self.model.save_weights(
@@ -1430,11 +1431,13 @@ class ModelCheckpoint(Callback):
                 self.model.save(filepath, overwrite=True, options=self._options)
             else:
               if self.verbose > 0:
-                print('\nEpoch %05d: %s did not improve from %0.5f' %
-                      (epoch + 1, self.monitor, self.best))
+                io_utils.print_msg(
+                    f'\nEpoch {epoch + 1}: '
+                    f'{self.monitor} did not improve from {self.best:.5f}')
         else:
           if self.verbose > 0:
-            print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
+            io_utils.print_msg(
+                f'\nEpoch {epoch + 1}: saving model to {filepath}')
           if self.save_weights_only:
             self.model.save_weights(
                 filepath, overwrite=True, options=self._options)
@@ -1834,13 +1837,15 @@ class EarlyStopping(Callback):
       self.model.stop_training = True
       if self.restore_best_weights and self.best_weights is not None:
         if self.verbose > 0:
-          print('Restoring model weights from the end of the best epoch: '
-                f'{self.best_epoch + 1}.')
+          io_utils.print_msg(
+              'Restoring model weights from the end of the best epoch: '
+              f'{self.best_epoch + 1}.')
         self.model.set_weights(self.best_weights)
 
   def on_train_end(self, logs=None):
     if self.stopped_epoch > 0 and self.verbose > 0:
-      print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
+      io_utils.print_msg(
+          f'Epoch {self.stopped_epoch + 1}: early stopping')
 
   def get_monitor_value(self, logs):
     logs = logs or {}
@@ -1977,8 +1982,9 @@ class LearningRateScheduler(Callback):
           f'The dtype of `lr` Tensor should be float. Got: {lr.dtype}')
     backend.set_value(self.model.optimizer.lr, backend.get_value(lr))
     if self.verbose > 0:
-      print('\nEpoch %05d: LearningRateScheduler setting learning '
-            'rate to %s.' % (epoch + 1, lr))
+      io_utils.print_msg(
+          f'\nEpoch {epoch + 1}: LearningRateScheduler setting learning '
+          'rate to {lr}.')
 
   def on_epoch_end(self, epoch, logs=None):
     logs = logs or {}
@@ -2022,8 +2028,8 @@ def keras_model_summary(name, data, step=None):
     logging.warning('Model failed to serialize as JSON. Ignoring... %s', exc)
     return False
 
-  with tf.summary.experimental.summary_scope(name, 'graph_keras_model',
-                                    [data, step]) as (tag, _):
+  with tf.summary.experimental.summary_scope(
+      name, 'graph_keras_model', [data, step]) as (tag, _):
     with tf.device('cpu:0'):
       tensor = tf.constant(json_string, dtype=tf.string)
     return tf.summary.write(
@@ -2175,7 +2181,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     self._supports_tf_logs = True
     self._validate_kwargs(kwargs)
 
-    self.log_dir = path_to_string(log_dir)
+    self.log_dir = io_utils.path_to_string(log_dir)
     self.histogram_freq = histogram_freq
     self.write_graph = write_graph
     self.write_images = write_images
@@ -2350,6 +2356,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   def _init_profile_batch(self, profile_batch):
     """Validate profile_batch value and set the range of batches to profile.
+
     Sets values of _start_batch and _stop_batch attributes,
     specifying the start and stop batch to profile.
     Setting `profile_batch=0` disables profiling.
@@ -2715,8 +2722,9 @@ class ReduceLROnPlateau(Callback):
             new_lr = max(new_lr, self.min_lr)
             backend.set_value(self.model.optimizer.lr, new_lr)
             if self.verbose > 0:
-              print('\nEpoch %05d: ReduceLROnPlateau reducing learning '
-                    'rate to %s.' % (epoch + 1, new_lr))
+              io_utils.print_msg(
+                  f'\nEpoch {epoch +1}: '
+                  f'ReduceLROnPlateau reducing learning rate to {new_lr}.')
             self.cooldown_counter = self.cooldown
             self.wait = 0
 
@@ -2747,7 +2755,7 @@ class CSVLogger(Callback):
 
   def __init__(self, filename, separator=',', append=False):
     self.sep = separator
-    self.filename = path_to_string(filename)
+    self.filename = io_utils.path_to_string(filename)
     self.append = append
     self.writer = None
     self.keys = None
