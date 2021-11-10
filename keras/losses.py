@@ -374,7 +374,7 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
 
   `loss = 100 * abs((y_true - y_pred) / y_true)`
   
-  Note that to avoid division by zero error, a small value epsilon is added to the denominator.
+  Note that to avoid dividing by zero, a small epsilon value is added to the denominator.
 
   Standalone usage:
 
