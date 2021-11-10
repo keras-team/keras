@@ -152,7 +152,7 @@ def model_to_dot(model,
     message = (
         'You must install pydot (`pip install pydot`) '
         'and install graphviz '
-        '(see instructions at https://graphviz.gitlab.io/download/) ',
+        '(see instructions at https://graphviz.gitlab.io/download/) '
         'for plot_model/model_to_dot to work.')
     if 'IPython.core.magics.namespace' in sys.modules:
       # We don't raise an exception here in order to avoid crashing notebook
