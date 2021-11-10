@@ -283,7 +283,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           shape=(None,),
           dtype=self.compute_dtype,
           trainable=False)
-      self.idf_weights_const = self.idf_weights.value()
 
     if vocabulary is not None:
       self.set_vocabulary(vocabulary, idf_weights)
@@ -520,7 +519,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           constant_values=(front_padding_value, back_padding_value))
       weights = tf.convert_to_tensor(weights, dtype=self.compute_dtype)
       self.idf_weights.assign(weights)
-      self.idf_weights_const = self.idf_weights.value()
 
   def update_state(self, data):
     if self._has_input_vocabulary:
@@ -552,10 +550,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
   def finalize_state(self):
     if self._has_input_vocabulary or tf.equal(self.token_counts.size(), 0):
-      # Finalize idf_weights to a const for call even if we don't need to
-      # compute a new vocabulary.
-      if self.output_mode == TF_IDF:
-        self.idf_weights_const = self.idf_weights.value()
       return
 
     # Remove special tokens from our counts.
@@ -594,11 +588,14 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
             idf_weights, [[0, self.max_tokens - tf.size(idf_weights)]],
             constant_values=0)
       self.idf_weights.assign(idf_weights)
-      self.idf_weights_const = self.idf_weights.value()
 
     # We call this here to save memory, now that we've built our vocabulary, we
     # don't want to keep every token we've seen in separate lookup tables.
     self.reset_state()
+
+  @property
+  def idf_weights_const(self):
+    return self.idf_weights.value()
 
   def reset_state(self):  # pylint: disable=method-hidden
     if self._has_input_vocabulary:
