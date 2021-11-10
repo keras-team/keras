@@ -220,7 +220,7 @@ class _Merge(Layer):
         backend.concatenate(masks, axis=0), axis=0, keepdims=False)
 
   def get_config(self):
-    return super(_Merge, self).get_config()
+    return super().get_config()
 
 
 @keras_export('keras.layers.Add')
