@@ -355,7 +355,7 @@ def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
                       kernel_initializer=initializers.HeNormal(),
                       name=name + "_squeeze_and_excite_squeeze")(x)
     x = layers.Conv2D(filters_in, (1, 1),
-                      activation="sigmoid",
+                      activation="sigmoid", 
                       kernel_initializer=initializers.HeNormal(),
                       name=name + "_squeeze_and_excite_excite")(x)
     x = tf.math.multiply(x, inputs)
@@ -437,6 +437,7 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
     # conv_1x1_2
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
+                      kernel_initializer=initializers.HeNormal(),
                       name=name + "_conv_1x1_2")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -481,7 +482,7 @@ def YBlock(filters_in,
       )
 
     groups = filters_out // group_width
-    se_filters = int(filters_out * squeeze_excite_ratio)
+    se_filters = int(filters_in * squeeze_excite_ratio)
 
     if stride != 1:
       skip = layers.Conv2D(filters_out, (1, 1),
