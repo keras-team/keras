@@ -26,7 +26,7 @@ from keras.optimizer_v2 import utils as optimizer_utils
 import tensorflow.compat.v2 as tf
 
 
-class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
+class _BaseOptimizer(tf.Module):
   """Optimizer base class, which only supports non-distribute use case."""
 
   def __init__(self, name, clipnorm=None, clipvalue=None, global_clipnorm=None):
@@ -164,9 +164,12 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     if isinstance(learning_rate, learning_rate_schedule.LearningRateSchedule):
       # Create a variable to hold the current learning rate.
       self._current_learning_rate = tf.Variable(
-          learning_rate(self.iterations), dtype=tf.float32)
+          learning_rate(self.iterations),
+          name="learning_rate",
+          dtype=tf.float32)
       return learning_rate
-    return tf.Variable(learning_rate, dtype=backend.floatx())
+    return tf.Variable(
+        learning_rate, name="learning_rate", dtype=backend.floatx())
 
   @abc.abstractmethod
   def build(self, var_list):
