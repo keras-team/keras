@@ -83,8 +83,8 @@ class DeterministicRandomTestTool(object):
       else:
         if op_seed in self._observed_seeds:
           raise ValueError(
-              "This `DeterministicTestTool` object is trying to re-use the " +
-              "already-used operation seed {}. ".format(op_seed) +
+              "This `DeterministicRandomTestTool` object is trying to re-use the "
+              + "already-used operation seed {}. ".format(op_seed) +
               "It cannot guarantee random numbers will match between eager " +
               "and sessions when an operation seed is reused. " +
               "You most likely set " +
