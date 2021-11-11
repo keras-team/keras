@@ -17,6 +17,7 @@
 from keras import backend
 from keras import optimizers
 from keras.mixed_precision import loss_scale as keras_loss_scale_module
+from keras.optimizer_experimental import optimizer as optimizer_experimental
 from keras.optimizer_v2 import optimizer_v2
 from keras.optimizer_v2 import utils as optimizer_utils
 
@@ -383,6 +384,17 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
   def __init__(self, inner_optimizer, dynamic=True, initial_scale=None,
                dynamic_growth_steps=None):
     if not isinstance(inner_optimizer, optimizer_v2.OptimizerV2):
+      if isinstance(inner_optimizer, optimizer_experimental.Optimizer):
+        # Give better error message if the new experimental optimizer is passed.
+        raise TypeError(
+            f'You passed an instance of the new experimental optimizer, '
+            f'`optimizer_experimental.Optimizer`, to LossScaleOptimizer, but '
+            f'only the classic optimizers subclassing from '
+            f'`tf.keras.optimizers.Optimizer` can be passed. Please use '
+            f'`loss_scale_optimizer.LossScaleOptimizerV3` instead of '
+            f'`tf.keras.mixed_precision.LossScaleOptimizer`, as the former '
+            f'supports wrapping instances of the new experimental optimizer. '
+            f'Got optimizer: {inner_optimizer}')
       msg = ('"inner_optimizer" must be an instance of '
              '`tf.keras.optimizers.Optimizer`, but got: %s. ' % inner_optimizer)
       if isinstance(inner_optimizer, legacy_optimizer.OptimizerV2):
@@ -400,7 +412,7 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
     if isinstance(inner_optimizer, LossScaleOptimizer):
       raise TypeError('LossScaleOptimizer cannot wrap another '
                       'LossScaleOptimizer, but got: %s' % (inner_optimizer,))
-    self._raise_if_strategy_unsupported()
+    _raise_if_strategy_unsupported()
     if getattr(inner_optimizer, '_is_wrapped_by_loss_scale_optimizer', False):
       # TODO(reedwm): Maybe support this. The difficulty is that LSO has the
       # same checkpoint format as the inner optimizer, so multiple LSOs wrapping
@@ -584,7 +596,7 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
       raise ValueError('apply_gradients() must be called in a replica context.')
     # We check for the strategy here despite already checking in the constructor
     # as frequently the optimizer is created outside the strategy's scope.
-    self._raise_if_strategy_unsupported()
+    _raise_if_strategy_unsupported()
 
     grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
     if experimental_aggregate_gradients:
@@ -698,23 +710,6 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
     config['inner_optimizer'] = optimizers.deserialize(
         config['inner_optimizer'], custom_objects=custom_objects)
     return cls(**config)
-
-  def _raise_if_strategy_unsupported(self):
-    if not strategy_supports_loss_scaling():
-      strategy = tf.distribute.get_strategy()
-      if isinstance(strategy,
-                    (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy,
-                     tf.distribute.TPUStrategy)):
-        raise ValueError(
-            'Loss scaling is not supported with TPUStrategy. Loss scaling is '
-            'unnecessary with TPUs, since they support bfloat16 instead of '
-            'float16 and bfloat16 does not require loss scaling. You should '
-            'remove the use of the LossScaleOptimizer when TPUs are used.')
-      else:
-        raise ValueError('Loss scaling is not supported with the '
-                         'tf.distribute.Strategy: %s. Try using a different '
-                         'Strategy, e.g. a MirroredStrategy' %
-                         strategy.__class__.__name__)
 
   # Delegations: We delegate most OptimizerV2 methods to the wrapped optimizer
   # below.
@@ -1037,6 +1032,316 @@ class LossScaleOptimizerV1(LossScaleOptimizer):
     return cls(**config)
 
 
+class LossScaleOptimizerV3(tf.__internal__.tracking.DelegatingTrackableMixin,
+                           optimizer_experimental.Optimizer):
+  """An optimizer that applies loss scaling to prevent numeric underflow.
+
+  This is a copy of the `tf.keras.mixed_precision.LossScaleOptimizer` class
+  defined above, except it subclasses and wraps the new experimental Optimizer
+  class instead of the `tf.keras.optimizers.Optimizer` class. Some of the
+  methods this class defines and calls are different compared to
+  LossScaleOptimizer due to the differences between the two Optimizer base
+  classes. Additionally, this class does not support the legacy graph mode, but
+  LossScaleOptimizer does.
+
+  Since the new experimental Optimizer does not have a hyperparameter concept,
+  LossScaleOptimizerV3 does not delegate arbitrary hyperparameter accesses to
+  the inner optimizer, unlike LossScaleOptimizer. LossScaleOptimizerV3 does
+  delegate the "learning_rate" attribute, however.
+  """
+
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  def __init__(self, inner_optimizer, dynamic=True, initial_scale=None,
+               dynamic_growth_steps=None):
+    if not isinstance(inner_optimizer, optimizer_experimental.Optimizer):
+      if isinstance(inner_optimizer, optimizer_v2.OptimizerV2):
+        # Give better error message if the OptimizerV2 class is passed instead
+        # of the new experimental optimizer.
+        raise TypeError(
+            f'You passed a `tf.keras.optimizer.Optimizer` instance to '
+            f'LossScaleOptimizerV3, but only the new experimental optimizer '
+            f'defined in keras/optimizer_expeirmental/optimizer.py can be '
+            f'passed. Please use `tf.keras.mixed_precision.LossScaleOptimizer` '
+            f'instead of LossScaleOptimizerV3, as the former supports '
+            f'`tf.keras.optimizer.Optimizer`s. Got optimizer: '
+            f'{inner_optimizer}')
+      raise TypeError(f'"inner_optimizer" must be an instance of '
+                      f'Optimizer, but got: {inner_optimizer}.')
+    if not isinstance(dynamic, bool):
+      # Catch errors if a user incorrectly passes a string or float to the
+      # second argument argument, as this is commonly done for
+      # LossScaleOptimizerV1.
+      raise TypeError(f'"dynamic" argument to LossScaleOptimizer.__init__ must '
+                      f'be a bool, but got: {repr(dynamic)}')
+    if isinstance(inner_optimizer, LossScaleOptimizerV3):
+      raise TypeError(f'LossScaleOptimizer cannot wrap another '
+                      f'LossScaleOptimizer, but got: {inner_optimizer}')
+    _raise_if_strategy_unsupported()
+    if getattr(inner_optimizer, '_is_wrapped_by_loss_scale_optimizer', False):
+      # TODO(reedwm): Maybe support this. The difficulty is that LSO has the
+      # same checkpoint format as the inner optimizer, so multiple LSOs wrapping
+      # the same optimizer causes the checkpointing logic to become confused.
+      raise ValueError('"inner_optimizer" is already wrapped by a '
+                       'LossScaleOptimizer. An optimizer can only be wrapped '
+                       'by a single LossScaleOptimizer')
+    self._optimizer = inner_optimizer
+    self._optimizer._is_wrapped_by_loss_scale_optimizer = True
+
+    # We don't call super().__init__, since we do not want to call Optimizer's
+    # constructor.
+    tf.__internal__.tracking.DelegatingTrackableMixin.__init__(self,
+                                                               self._optimizer)
+
+    if dynamic:
+      if initial_scale is None:
+        initial_scale = _DEFAULT_INITIAL_SCALE
+      if dynamic_growth_steps is None:
+        dynamic_growth_steps = _DEFAULT_GROWTH_STEPS
+      self._loss_scale = _DynamicLossScaleState(
+          initial_scale, dynamic_growth_steps, multiplier=2)
+      self._track_trackable(self._loss_scale, 'loss_scale')
+    else:
+      if initial_scale is None:
+        raise ValueError('"initial_scale" must be specified if "dynamic" is '
+                         'False')
+      self._loss_scale = float(initial_scale)
+      if dynamic_growth_steps is not None:
+        raise ValueError(f'"dynamic_growth_steps" must be None if "dynamic" '
+                         f'is False, but got: {dynamic_growth_steps}')
+
+  @property
+  def dynamic(self):
+    """Bool indicating whether dynamic loss scaling is used."""
+    return isinstance(self._loss_scale, _DynamicLossScaleState)
+
+  @property
+  def loss_scale(self):
+    """The current loss scale as a float32 scalar tensor."""
+    if isinstance(self._loss_scale, _DynamicLossScaleState):
+      return tf.convert_to_tensor(
+          self._loss_scale.current_loss_scale)
+    else:
+      return tf.convert_to_tensor(self._loss_scale)
+
+  @property
+  def dynamic_counter(self):
+    """The number of steps since the loss scale was last increased or decreased.
+
+    This is None if `LossScaleOptimizer.dynamic` is False.
+
+    The counter is incremented every step. Once it reaches
+    `LossScaleOptimizer.dynamic_growth_steps`, the loss scale will be doubled
+    and the counter will be reset back to zero. If nonfinite gradients are
+    encountered, the loss scale will be halved and the counter will be reset
+    back to zero.
+    """
+    if isinstance(self._loss_scale, _DynamicLossScaleState):
+      return self._loss_scale.counter
+    else:
+      return None
+
+  @property
+  def initial_scale(self):
+    """The initial loss scale.
+
+    If `LossScaleOptimizer.dynamic` is False, this is the same number as
+    `LossScaleOptimizer.loss_scale`, as the loss scale never changes.
+    """
+    if isinstance(self._loss_scale, _DynamicLossScaleState):
+      return self._loss_scale.initial_loss_scale
+    else:
+      return self._loss_scale
+
+  @property
+  def dynamic_growth_steps(self):
+    """The number of steps it takes to increase the loss scale.
+
+    This is None if `LossScaleOptimizer.dynamic` is False.
+
+    Every `dynamic_growth_steps` consecutive steps with finite gradients, the
+    loss scale is increased.
+    """
+    if isinstance(self._loss_scale, _DynamicLossScaleState):
+      return self._loss_scale.growth_steps
+    else:
+      return None
+
+  @property
+  def inner_optimizer(self):
+    """The optimizer that this LossScaleOptimizer is wrapping."""
+    return self._optimizer
+
+  def get_scaled_loss(self, loss):
+    """Scales the loss by the loss scale.
+
+    This method is only needed if you compute gradients manually, e.g. with
+    `tf.GradientTape`. In that case, call this method to scale the loss before
+    passing the loss to `tf.GradientTape`. If you use
+    `LossScaleOptimizer.minimize` or `LossScaleOptimizer.get_gradients`, loss
+    scaling is automatically applied and this method is unneeded.
+
+    If this method is called, `get_unscaled_gradients` should also be called.
+    See the `tf.keras.mixed_precision.LossScaleOptimizer` doc for
+    an example.
+
+    Args:
+      loss: The loss, which will be multiplied by the loss scale. Can either be
+        a tensor or a callable returning a tensor.
+
+    Returns:
+      `loss` multiplied by `LossScaleOptimizer.loss_scale`.
+    """
+    if callable(loss):
+      def new_loss():
+        loss_val = loss()
+        return loss_val * tf.cast(self.loss_scale, loss_val.dtype)
+      return new_loss
+    else:
+      return loss * tf.cast(self.loss_scale, loss.dtype)
+
+  def get_unscaled_gradients(self, grads):
+    """Unscales the gradients by the loss scale.
+
+    This method is only needed if you compute gradients manually, e.g. with
+    `tf.GradientTape`. In that case, call this method to unscale the gradients
+    after computing them with `tf.GradientTape`. If you use
+    `LossScaleOptimizer.minimize` or `LossScaleOptimizer.get_gradients`, loss
+    scaling is automatically applied and this method is unneeded.
+
+    If this method is called, `get_scaled_loss` should also be called. See
+    the `tf.keras.mixed_precision.LossScaleOptimizer` doc for an
+    example.
+
+    Args:
+      grads: A list of tensors, each which will be divided by the loss scale.
+        Can have None values, which are ignored.
+
+    Returns:
+      A new list the same size as `grads`, where every non-None value in `grads`
+      is divided by `LossScaleOptimizer.loss_scale`.
+    """
+    loss_scale_reciprocal = 1. / self.loss_scale
+    return [
+        _multiply_gradient(g, loss_scale_reciprocal) if g is not None else None
+        for g in grads
+    ]
+
+  def compute_gradients(self, loss, var_list, tape=None):
+    tape = tf.GradientTape() if tape is None else tape
+    with tape:
+      loss = self.get_scaled_loss(loss)
+    grads_and_vars = self._optimizer.compute_gradients(  # pylint: disable=protected-access
+        loss,
+        var_list,
+        tape=tape)
+    grads = [g for g, _ in grads_and_vars]
+    weights = [v for _, v in grads_and_vars]
+    unscaled_grads = self.get_unscaled_gradients(grads)
+    return list(zip(unscaled_grads, weights))
+
+  def apply_gradients(self,
+                      grads_and_vars,
+                      skip_gradients_aggregation=False):
+    if tf.distribute.in_cross_replica_context():
+      raise ValueError('apply_gradients() must be called in a replica context.')
+    # We check for the strategy here despite already checking in the constructor
+    # as frequently the optimizer is created outside the strategy's scope.
+    _raise_if_strategy_unsupported()
+
+    grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
+    if not skip_gradients_aggregation:
+      # We must aggregate the gradients here instead of in
+      # self.optimizer.apply_gradients, so that any NaN or Inf gradients are
+      # propagated to each replica. If any replica has a NaN or Inf gradient,
+      # they must all have a NaN or Inf gradient so that they all skip the step.
+      # pylint: disable=protected-access
+      grads_and_vars = self._optimizer.aggregate_gradients(grads_and_vars)
+      # pylint: enable=protected-access
+
+    grads_and_vars = tuple(grads_and_vars)
+    grads = [g for g, _ in grads_and_vars]
+    # We do not want DistributionStrategy to unwrap any MirroredVariables in
+    # grads_and_vars, because even in a replica context, the wrapped
+    # optimizer expects mirrored variables. So we wrap the variables with an
+    # _UnwrapPreventer, preventing DistributionStrategy from unwrapping the
+    # MirroredVariables.
+    wrapped_vars = _UnwrapPreventer([v for _, v in grads_and_vars])
+
+    def do_not_apply_fn():
+      # Normally self._optimizer.iterations is incremented in
+      # self._optimizer.apply_gradients(). Since that is not called in this
+      # branch, we increment it here instead.
+      self._optimizer.iterations.assign_add(1, read_value=False)
+
+    def _if_should_apply_grads(grads):
+      if isinstance(self._loss_scale, _DynamicLossScaleState):
+        _, should_apply_grad = self._loss_scale.update(grads)
+        return should_apply_grad
+      else:
+        return True
+
+    if tf.__internal__.distribute.strategy_supports_no_merge_call():
+      should_apply_grads = _if_should_apply_grads(grads)
+      def apply_fn():
+        return self._apply_gradients(grads, wrapped_vars)
+      tf.__internal__.smart_cond.smart_cond(should_apply_grads, apply_fn,
+                                            do_not_apply_fn)
+    else:
+
+      def _apply_gradients_cross_replica(distribution, grads, wrapped_vars):
+        should_apply_grads = _if_should_apply_grads(grads)
+
+        def apply_fn():
+          distribution.extended.call_for_each_replica(
+              self._apply_gradients,
+              args=(grads, wrapped_vars))
+
+        # Note: We must call this cond() in a cross-replica context.
+        # DistributionStrategy does not support having a cond in a replica
+        # context with a branch that calls `merge_call`, and
+        # self._optimizer.apply_gradients calls `merge_call`.
+        tf.__internal__.smart_cond.smart_cond(should_apply_grads, apply_fn,
+                                              do_not_apply_fn)
+      tf.distribute.get_replica_context().merge_call(
+          _apply_gradients_cross_replica,
+          args=(grads, wrapped_vars))
+
+  def _apply_gradients(self, grads, wrapped_vars):
+    # Pass skip_gradients_aggregation=True since LossScaleOptimizer
+    # already aggregated the gradients.
+    self._optimizer.apply_gradients(
+        list(zip(grads, wrapped_vars.value)),
+        skip_gradients_aggregation=True)
+
+  def get_config(self):
+    serialized_optimizer = optimizers.serialize(self._optimizer)
+    return {
+        'inner_optimizer': serialized_optimizer,
+        'dynamic': self.dynamic,
+        'initial_scale': self.initial_scale,
+        'dynamic_growth_steps': self.dynamic_growth_steps,
+    }
+
+  @classmethod
+  def from_config(cls, config, custom_objects=None):
+    config = config.copy()  # Make a copy, since we mutate config
+    config['inner_optimizer'] = optimizers.deserialize(
+        config['inner_optimizer'], custom_objects=custom_objects)
+    return cls(**config)
+
+  @property
+  def iterations(self):
+    return self._optimizer.iterations
+
+  @property
+  def learning_rate(self):
+    return self._optimizer.learning_rate
+
+  @learning_rate.setter
+  def learning_rate(self, learning_rate):
+    self._optimizer.learning_rate = learning_rate
+
+
 class FakeOptimizerForRestoration(tf.__internal__.tracking.Trackable):
   """A fake optimizer used to support restoring TensorFlow 2.2 checkpoints.
 
@@ -1113,3 +1418,23 @@ def strategy_supports_loss_scaling():
       tf.distribute.MirroredStrategy,
       tf.compat.v1.distribute.MirroredStrategy,
   ))
+
+
+def _raise_if_strategy_unsupported():
+  """Raise an exception if the current strategy doesn't support loss scaling."""
+  if not strategy_supports_loss_scaling():
+    strategy = tf.distribute.get_strategy()
+    if isinstance(strategy,
+                  (tf.distribute.experimental.TPUStrategy,
+                   tf.compat.v1.distribute.experimental.TPUStrategy,
+                   tf.distribute.TPUStrategy)):
+      raise ValueError(
+          'Loss scaling is not supported with TPUStrategy. Loss scaling is '
+          'unnecessary with TPUs, since they support bfloat16 instead of '
+          'float16 and bfloat16 does not require loss scaling. You should '
+          'remove the use of the LossScaleOptimizer when TPUs are used.')
+    else:
+      raise ValueError(f'Loss scaling is not supported with the '
+                       f'tf.distribute.Strategy: '
+                       f'{strategy.__class__.__name__}. Try using a different '
+                       f'Strategy, e.g. a MirroredStrategy')
