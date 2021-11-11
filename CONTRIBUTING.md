@@ -34,9 +34,8 @@ tag is then added to the pull request.
 
 ### Step 5. Code review
 
-A reviewer will review the pull request and provide comments.
-The reviewer may add a `kokoro:force-run` label to trigger the 
-continuous integration tests.
+A reviewer will review the pull request and provide comments. The reviewer may
+add a `kokoro:force-run` label to trigger the continuous integration tests.
 
 ![CI tests tag](https://i.imgur.com/58NOCB0.png)
 
@@ -147,7 +146,7 @@ venv_dir\Scripts\activate.bat  # for Windows
 Clone your forked repo to your local machine. Go to the cloned directory to
 install the dependencies into the venv. Since `tf-nightly` uses `keras-nightly`
 as a dependency, we need to uninstall `keras-nightly` so that tests will run
-against keras code in local workspace.
+against Keras code in local workspace.
 
 ```shell
 git clone https://github.com/YOUR_GITHUB_USERNAME/keras.git
@@ -177,10 +176,9 @@ we can run the following command at the root directory of the repo.
 bazel test keras/engine:base_layer_test
 ```
 
-`keras/engine` is the relative path to the directory
-containing the `BUILD` file defing the test.
-`base_layer_test` is the test target name defined  with `tf_py_test`
-in the `BUILD` file.
+`keras/engine` is the relative path to the directory containing the `BUILD` file
+defining the test. `base_layer_test` is the test target name defined with
+`tf_py_test` in the `BUILD` file.
 
 ### Run a single test case
 
@@ -246,7 +244,7 @@ mind.
     application model may help with this. For image applications, a
     [Rescaling](https://keras.io/api/layers/preprocessing_layers/image_preprocessing/rescaling/)
     layer at the beginning of the model is often all that is needed.
--   One the PR is approved, you should create a companion PR to the keras.io
+-   Once the PR is approved, you should create a companion PR to the keras.io
     [application page](https://keras.io/api/applications/) updating the
     "Available Models" section. The contribution guide for keras.io can be found
     [here](https://github.com/keras-team/keras-io/blob/master/contributor_guide.md).
