@@ -90,6 +90,18 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
       _ = adam_new.Adam(
           learning_rate=1, epsilon=0, global_clipnorm=1, clipnorm=1)
 
+  def testReturnAllOptimizerVariables(self):
+    x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)
+    optimizer = adam_new.Adam()
+    grads = tf.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]])
+    optimizer.apply_gradients(zip([grads], [x]))
+    optimizer_variables = optimizer.variables
+    all_names = [var._shared_name for var in optimizer_variables]
+    self.assertLen(optimizer_variables, 4)
+    self.assertCountEqual(
+        all_names,
+        ["iteration", "learning_rate", "Adam/m/Variable", "Adam/v/Variable"])
+
   def testSetLearningRate(self):
     optimizer = adam_new.Adam(learning_rate=1.0)
     self.assertIsInstance(optimizer._learning_rate, tf.Variable)
