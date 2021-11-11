@@ -2713,8 +2713,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     if index is not None:
       if len(self.layers) <= index:
-        raise ValueError(f'Was asked to retrieve layer at index {str(index)}'
-                         f' but model only has {str(len(self.layers))}'
+        raise ValueError(f'Was asked to retrieve layer at index {index}'
+                         f' but model only has {len(self.layers)}'
                          ' layers.')
       else:
         return self.layers[index]
@@ -2723,8 +2723,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       for layer in self.layers:
         if layer.name == name:
           return layer
-      raise ValueError(f'No such layer: {name}. Existing layers are '
-                       f'{self.layers}.')
+      raise ValueError(f'No such layer: {name}. Existing layers are: '
+                       f'{list(layer.name for layer in self.layers)}.')
     raise ValueError('Provide either a layer name or layer index at '
                      '`get_layer`.')
 
@@ -2850,7 +2850,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       raise ValueError(
           f'Models passed to `{method_name}` can only have `training` '
           'and the first argument in `call()` as positional arguments, '
-          f'found: {str(extra_args)}.')
+          f'found: {extra_args}.')
 
   def _validate_compile(self, optimizer, metrics, **kwargs):
     """Performs validation checks for the default `compile()`."""
