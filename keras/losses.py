@@ -372,7 +372,12 @@ class MeanAbsoluteError(LossFunctionWrapper):
 class MeanAbsolutePercentageError(LossFunctionWrapper):
   """Computes the mean absolute percentage error between `y_true` and `y_pred`.
 
-  `loss = 100 * abs(y_true - y_pred) / y_true`
+  Formula:
+
+  `loss = 100 * abs((y_true - y_pred) / y_true)`
+
+  Note that to avoid dividing by zero, a small epsilon value
+  is added to the denominator.
 
   Standalone usage:
 
