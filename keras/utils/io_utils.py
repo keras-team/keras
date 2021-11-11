@@ -25,15 +25,16 @@ ABSL_LOGGING = threading.local()
 ABSL_LOGGING.enable = False
 
 
-def print_msg(message):
+def print_msg(message, line_break=True):
   """Print the message to absl logging or stdout."""
   # Use `getattr` in case `ABSL_LOGGING` does not have the `enable` attribute.
   if getattr(ABSL_LOGGING, 'enable', False):
     absl.logging.info(message)
   else:
-    # Simulate the print function,
-    # which has a new line at the end.
-    sys.stdout.write(message + '\n')
+    if line_break:
+      sys.stdout.write(message + '\n')
+    else:
+      sys.stdout.write(message)
     sys.stdout.flush()
 
 
