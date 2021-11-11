@@ -14,7 +14,6 @@
 # ==============================================================================
 """Keras SavedModel deserialization."""
 
-import os
 import re
 import types
 
@@ -108,7 +107,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
   meta_graph_def = tf.__internal__.saved_model.parse_saved_model(
       path).meta_graphs[0]
   object_graph_def = meta_graph_def.object_graph_def
-  path_to_metadata_pb = os.path.join(path, constants.SAVED_METADATA_PATH)
+  path_to_metadata_pb = tf.io.gfile.join(path, constants.SAVED_METADATA_PATH)
   if tf.compat.v1.gfile.Exists(path_to_metadata_pb):
     try:
       with tf.io.gfile.GFile(path_to_metadata_pb, 'rb') as f:
