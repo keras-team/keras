@@ -582,7 +582,7 @@ def ZBlock(filters_in,
       )
 
     groups = filters_out // group_width
-    se_filters = int(filters_out * squeeze_excite_ratio)
+    se_filters = int(filters_in * squeeze_excite_ratio)
 
     inv_btlneck_filters = int(filters_out / bottleneck_ratio)
     if stride != 1:
