@@ -321,7 +321,7 @@ def Stem(name=None):
                       strides=2,
                       use_bias=False,
                       padding="same",
-                      kernel_initializer="he_normal",
+                      kernel_initializer=initializers.HeNormal(),
                       name=name + "_stem_conv")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -349,14 +349,15 @@ def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
     name = str(backend.get_uid("squeeze_and_excite"))
 
   def apply(inputs):
-    x = layers.GlobalAveragePooling2D(name=name + "_squeeze_and_excite_gap", keepdims=True)(inputs)
+    x = layers.GlobalAveragePooling2D(
+        name=name + "_squeeze_and_excite_gap", keepdims=True)(inputs)
     x = layers.Conv2D(se_filters, (1, 1),
                       activation="relu",
-                      kernel_initializer="he_normal",
+                      kernel_initializer=initializers.HeNormal(),
                       name=name + "_squeeze_and_excite_squeeze")(x)
     x = layers.Conv2D(filters_in, (1, 1),
-                      activation="sigmoid", 
-                      kernel_initializer="he_normal",
+                      activation="sigmoid",
+                      kernel_initializer=initializers.HeNormal(),
                       name=name + "_squeeze_and_excite_excite")(x)
     x = tf.math.multiply(x, inputs)
     return x
@@ -395,32 +396,19 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
       skip = layers.Conv2D(filters_out, (1, 1),
                            strides=stride,
                            use_bias=False,
-                           kernel_initializer="he_normal",
+                           kernel_initializer=initializers.HeNormal(),
                            name=name + "_skip_1x1")(inputs)
       skip = layers.BatchNormalization(momentum=0.9,
                                        epsilon=1e-5,
                                        name=name + "_skip_bn")(skip)
-      conv_3x3 = layers.Conv2D(filters_out, (3, 3),
-                               use_bias=False,
-                               strides=stride,
-                               groups=groups,
-                               padding="same",
-                               kernel_initializer="he_normal",
-                               name=name + "_conv_3x3")
     else:
       skip = inputs
-      conv_3x3 = layers.Conv2D(filters_out, (3, 3),
-                               use_bias=False,
-                               groups=groups,
-                               padding="same",
-                               kernel_initializer="he_normal",
-                               name=name + "_conv_3x3")
 
-      # Build block
+    # Build block
     # conv_1x1_1
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
-                      kernel_initializer="he_normal",
+                      kernel_initializer=initializers.HeNormal(),
                       name=name + "_conv_1x1_1")(inputs)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -428,7 +416,13 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
     x = layers.ReLU(name=name + "_conv_1x1_1_relu")(x)
 
     # conv_3x3
-    x = conv_3x3(x)
+    x = layers.Conv2D(filters_out, (3, 3),
+                      use_bias=False,
+                      strides=stride,
+                      groups=groups,
+                      padding="same",
+                      kernel_initializer=initializers.HeNormal(),
+                      name=name + "_conv_3x3")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
                                   name=name + "_conv_3x3_bn")(x)
@@ -437,7 +431,7 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
     # conv_1x1_2
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
-                      kernel_initializer="he_normal",
+                      kernel_initializer=initializers.HeNormal(),
                       name=name + "_conv_1x1_2")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -488,42 +482,33 @@ def YBlock(filters_in,
       skip = layers.Conv2D(filters_out, (1, 1),
                            strides=stride,
                            use_bias=False,
-                           kernel_initializer="he_normal",
+                           kernel_initializer=initializers.HeNormal(),
                            name=name + "_skip_1x1")(inputs)
       skip = layers.BatchNormalization(momentum=0.9,
                                        epsilon=1e-5,
                                        name=name + "_skip_bn")(skip)
-      conv_3x3 = layers.Conv2D(filters_out, (3, 3),
-                               use_bias=False,
-                               strides=stride,
-                               groups=groups,
-                               padding="same",
-                               kernel_initializer="he_normal",
-                               name=name + "_conv_3x3")
-      
-
     else:
       skip = inputs
-      conv_3x3 = layers.Conv2D(filters_out, (3, 3),
-                               use_bias=False,
-                               groups=groups,
-                               padding="same",
-                               kernel_initializer="he_normal",
-                               name=name + "_conv_3x3")
 
     # Build block
     # conv_1x1_1
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
-                      kernel_initializer="he_normal",
+                      kernel_initializer=initializers.HeNormal(),
                       name=name + "_conv_1x1_1")(inputs)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
                                   name=name + "_conv_1x1_1_bn")(x)
     x = layers.ReLU(name=name + "_conv_1x1_1_relu")(x)
 
-    # # conv_3x3
-    x = conv_3x3(x)
+    # conv_3x3
+    x = layers.Conv2D(filters_out, (3, 3),
+                      use_bias=False,
+                      strides=stride,
+                      groups=groups,
+                      padding="same",
+                      kernel_initializer=initializers.HeNormal(),
+                      name=name + "_conv_3x3")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
                                   name=name + "_conv_3x3_bn")(x)
@@ -535,7 +520,7 @@ def YBlock(filters_in,
     # conv_1x1_2
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
-                      kernel_initializer="he_normal",
+                      kernel_initializer=initializers.HeNormal(),
                       name=name + "_conv_1x1_2")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -582,32 +567,15 @@ def ZBlock(filters_in,
       )
 
     groups = filters_out // group_width
-    se_filters = int(filters_out * squeeze_excite_ratio)
+    se_filters = int(filters_in * squeeze_excite_ratio)
 
     inv_btlneck_filters = int(filters_out / bottleneck_ratio)
-    if stride != 1:
-      conv_3x3 = layers.Conv2D(inv_btlneck_filters, (3, 3),
-                               use_bias=False,
-                               strides=stride,
-                               groups=groups,
-                               padding="same",
-                               kernel_initializer="he_normal",
-                               name=name + "_conv_3x3")
-     
-
-    else:
-      conv_3x3 = layers.Conv2D(inv_btlneck_filters, (3, 3),
-                               use_bias=False,
-                               groups=groups,
-                               padding="same",
-                               kernel_initializer="he_normal",
-                               name=name + "_conv_3x3")
 
     # Build block
     # conv_1x1_1
     x = layers.Conv2D(inv_btlneck_filters, (1, 1),
                       use_bias=False,
-                      kernel_initializer="he_normal",
+                      kernel_initializer=initializers.HeNormal(),
                       name=name + "_conv_1x1_1")(inputs)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -615,7 +583,13 @@ def ZBlock(filters_in,
     x = tf.nn.silu(x)
 
     # conv_3x3
-    x = conv_3x3(x)
+    x = layers.Conv2D(inv_btlneck_filters, (3, 3),
+                      use_bias=False,
+                      strides=stride,
+                      groups=groups,
+                      padding="same",
+                      kernel_initializer=initializers.HeNormal(),
+                      name=name + "_conv_3x3")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
                                   name=name + "_conv_3x3_bn")(x)
@@ -627,7 +601,7 @@ def ZBlock(filters_in,
     # conv_1x1_2
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
-                      kernel_initializer="he_normal",
+                      kernel_initializer=initializers.HeNormal(),
                       name=name + "_conv_1x1_2")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
