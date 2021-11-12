@@ -321,7 +321,7 @@ def Stem(name=None):
                       strides=2,
                       use_bias=False,
                       padding="same",
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_stem_conv")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -353,11 +353,11 @@ def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
         name=name + "_squeeze_and_excite_gap", keepdims=True)(inputs)
     x = layers.Conv2D(se_filters, (1, 1),
                       activation="relu",
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_squeeze_and_excite_squeeze")(x)
     x = layers.Conv2D(filters_in, (1, 1),
                       activation="sigmoid",
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_squeeze_and_excite_excite")(x)
     x = tf.math.multiply(x, inputs)
     return x
@@ -396,7 +396,7 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
       skip = layers.Conv2D(filters_out, (1, 1),
                            strides=stride,
                            use_bias=False,
-                           kernel_initializer=initializers.HeNormal(),
+                           kernel_initializer="he_normal",
                            name=name + "_skip_1x1")(inputs)
       skip = layers.BatchNormalization(momentum=0.9,
                                        epsilon=1e-5,
@@ -408,7 +408,7 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
     # conv_1x1_1
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_conv_1x1_1")(inputs)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -421,7 +421,7 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
                       strides=stride,
                       groups=groups,
                       padding="same",
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_conv_3x3")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -431,7 +431,7 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
     # conv_1x1_2
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_conv_1x1_2")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -482,7 +482,7 @@ def YBlock(filters_in,
       skip = layers.Conv2D(filters_out, (1, 1),
                            strides=stride,
                            use_bias=False,
-                           kernel_initializer=initializers.HeNormal(),
+                           kernel_initializer="he_normal",
                            name=name + "_skip_1x1")(inputs)
       skip = layers.BatchNormalization(momentum=0.9,
                                        epsilon=1e-5,
@@ -494,7 +494,7 @@ def YBlock(filters_in,
     # conv_1x1_1
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_conv_1x1_1")(inputs)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -507,7 +507,7 @@ def YBlock(filters_in,
                       strides=stride,
                       groups=groups,
                       padding="same",
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_conv_3x3")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -520,7 +520,7 @@ def YBlock(filters_in,
     # conv_1x1_2
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_conv_1x1_2")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -575,7 +575,7 @@ def ZBlock(filters_in,
     # conv_1x1_1
     x = layers.Conv2D(inv_btlneck_filters, (1, 1),
                       use_bias=False,
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_conv_1x1_1")(inputs)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -588,7 +588,7 @@ def ZBlock(filters_in,
                       strides=stride,
                       groups=groups,
                       padding="same",
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_conv_3x3")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
@@ -601,7 +601,7 @@ def ZBlock(filters_in,
     # conv_1x1_2
     x = layers.Conv2D(filters_out, (1, 1),
                       use_bias=False,
-                      kernel_initializer=initializers.HeNormal(),
+                      kernel_initializer="he_normal",
                       name=name + "_conv_1x1_2")(x)
     x = layers.BatchNormalization(momentum=0.9,
                                   epsilon=1e-5,
