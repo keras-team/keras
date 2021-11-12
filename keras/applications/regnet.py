@@ -27,7 +27,6 @@ References:
 import tensorflow as tf
 
 from keras import backend
-from keras import initializers
 from keras import layers
 from keras.applications import imagenet_utils
 from keras.engine import training
