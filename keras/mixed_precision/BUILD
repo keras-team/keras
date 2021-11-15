@@ -165,6 +165,7 @@ cuda_py_test(
     size = "medium",
     srcs = ["loss_scale_optimizer_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     deps = [
         ":loss_scale_optimizer",
         ":test_util",

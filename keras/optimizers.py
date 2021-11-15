@@ -92,6 +92,7 @@ def deserialize(config, custom_objects=None):
       'sgd': gradient_descent_v2.SGD,
       'ftrl': ftrl.Ftrl,
       'lossscaleoptimizer': loss_scale_optimizer.LossScaleOptimizer,
+      'lossscaleoptimizerv3': loss_scale_optimizer.LossScaleOptimizerV3,
       # LossScaleOptimizerV1 deserializes into LossScaleOptimizer, as
       # LossScaleOptimizerV1 will be removed soon but deserializing it will
       # still be supported.
