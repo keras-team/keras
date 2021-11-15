@@ -29,7 +29,14 @@ import tensorflow.compat.v2 as tf
 class _BaseOptimizer(tf.Module):
   """Optimizer base class, which only supports non-distribute use case."""
 
-  def __init__(self, name, clipnorm=None, clipvalue=None, global_clipnorm=None):
+  def __init__(self,
+               name,
+               clipnorm=None,
+               clipvalue=None,
+               global_clipnorm=None,
+               use_ema=False,
+               ema_momentum=0.99,
+               ema_overwrite_frequency=100):
     """Create a new Optimizer.
 
     Args:
@@ -37,14 +44,43 @@ class _BaseOptimizer(tf.Module):
         the optimizer.
       clipnorm: float. If set, the gradient of each weight is individually
         clipped so that its norm is no higher than this value.
-      clipvalue: float. If set, the gradient of each weight is clipped to be
-        no higher than this value.
-      global_clipnorm: float. If set, the gradient of all weights is clipped
-        so that their global norm is no higher than this value.
+      clipvalue: float. If set, the gradient of each weight is clipped to be no
+        higher than this value.
+      global_clipnorm: float. If set, the gradient of all weights is clipped so
+        that their global norm is no higher than this value.
+      use_ema: boolean, default to False. If True, exponential moving average
+        (EMA) is applied. EMA consists of computing an exponential moving
+        average of the weights of the model (as the weight values change after
+        each training batch), and periodically overwriting the weights with
+        their moving average.
+      ema_momentum: float, default to 0.99. Only used if `use_ema=True`. This is
+        the momentum to use when computing the EMA of the model's weights:
+          `new_average = ema_momentum * old_average + (1 - ema_momentum) *
+          current_variable_value`.
+      ema_overwrite_frequency: int or None, default to 100. Only used if
+        `use_ema=True`. Every ema_overwrite_frequency steps of iterations, we
+        overwrite the model variable by its stored moving average. If None, we
+        do not overwrite model variables in the middle of training, and users
+        need to explicitly overwrite the model variable by calling
+        `finalize_variable_update()`.
     """
     self._name = name
     self._clipnorm = clipnorm
     self._global_clipnorm = global_clipnorm
+    self._use_ema = use_ema
+    if use_ema:
+      # Verify the arguments related to EMA.
+      if ema_momentum > 1 or ema_momentum < 0:
+        raise ValueError("`ema_momentum` must be in the range [0, 1]. "
+                         f"Received: ema_momentum={ema_momentum}")
+      if ema_overwrite_frequency and not isinstance(
+          ema_overwrite_frequency, int) or ema_overwrite_frequency < 1:
+        raise ValueError(
+            "`ema_overwrite_frequency` must be an integer > 1 or None. "
+            f"Received: ema_overwrite_frequency={ema_overwrite_frequency}")
+    self._ema_momentum = ema_momentum
+    self._ema_overwrite_frequency = ema_overwrite_frequency
+
     if self._clipnorm is not None and self._global_clipnorm is not None:
       raise ValueError(f"At most one of `clipnorm` and `global_clipnorm` can "
                        f"be set. Received: clipnorm={self._clipnorm}, "
@@ -179,12 +215,20 @@ class _BaseOptimizer(tf.Module):
     optimizers need to call `super().build(var_list)`.
 
     Args:
-      var_list: List of model variables to build optimizers on. For example,
-        SGD optimizer with momentum will store one momentum variable
-        corresponding to each model variable.
+      var_list: List of model variables to build optimizers on. For example, SGD
+        optimizer with momentum will store one momentum variable corresponding
+        to each model variable.
     """
-    if not hasattr(self, "_index_dict"):
-      self._build_index_dict(var_list)
+    if getattr(self, "_built", False):
+      return
+    self._build_index_dict(var_list)
+    if self._use_ema:
+      self._model_variables_moving_average = []
+      for var in var_list:
+        # Make a copy of the model variables, we will use the copy to store the
+        # moving average of model variables.
+        self._model_variables_moving_average.append(
+            self.add_variable_from_reference(var, "average", initial_value=var))
 
   def _build_index_dict(self, var_list):
     """Build variable to index dictionary.
@@ -203,11 +247,7 @@ class _BaseOptimizer(tf.Module):
       var_key = self._var_key(var)
       self._index_dict[var_key] = i
 
-  def add_variable(self,
-                   shape,
-                   dtype=None,
-                   initializer="zeros",
-                   name=None):
+  def add_variable(self, shape, dtype=None, initializer="zeros", name=None):
     """Create an optimizer variable.
 
     Args:
@@ -322,6 +362,39 @@ class _BaseOptimizer(tf.Module):
       self.update_step(grad, var)
     self.iterations.assign_add(1)
 
+  def _update_model_variables_moving_average(self, var_list):
+    """Update the stored moving average using the latest value."""
+    if self._use_ema:
+      for (var, average) in zip(var_list, self._model_variables_moving_average):
+        average.assign(self._ema_momentum * average +
+                       (1 - self._ema_momentum) * var)
+
+  def _overwrite_model_variables_with_average_value(self, var_list):
+    """Overwrite model variables with its moving average."""
+    if len(var_list) != len(self._model_variables_moving_average):
+      raise ValueError(f"The length of model variables ({len(var_list)}) to "
+                       f"override does not match the length of model variables "
+                       f"stored in the optimizer "
+                       f"({len(self._model_variables_moving_average)}). Please "
+                       f"check if the optimizer was called on your model.")
+    self._overwrite_model_variables_with_average_value_helper(var_list)
+
+  def _overwrite_model_variables_with_average_value_helper(self, var_list):
+    """Helper function that overwrites model variables."""
+    for var, average_var in zip(var_list, self._model_variables_moving_average):
+      var.assign(average_var)
+
+  def finalize_variable_values(self, var_list):
+    """Set the final value of model's trainable variables.
+
+    Sometimes there are some extra steps before ending the variable updates,
+    such as overriding the model variables with its average value.
+
+    Args:
+      var_list: list of model variables.
+    """
+    self._overwrite_model_variables_with_average_value(var_list)
+
   def _serialize_hyperparameter(self, hyperparameter):
     """Serialize a hyperparameter that can be a numeric or callable."""
     if isinstance(hyperparameter, learning_rate_schedule.LearningRateSchedule):
@@ -382,7 +455,14 @@ class Optimizer(_BaseOptimizer):
   optimizer, please subclass this class instead of _BaseOptimizer.
   """
 
-  def __init__(self, name, clipnorm=None, clipvalue=None, global_clipnorm=None):
+  def __init__(self,
+               name,
+               clipnorm=None,
+               clipvalue=None,
+               global_clipnorm=None,
+               use_ema=False,
+               ema_momentum=0.99,
+               ema_overwrite_frequency=100):
     """Create a new Optimizer.
 
     Args:
@@ -390,12 +470,28 @@ class Optimizer(_BaseOptimizer):
         the optimizer.
       clipnorm: float. If set, the gradient of each weight is individually
         clipped so that its norm is no higher than this value.
-      clipvalue: float. If set, the gradient of each weight is clipped to be
-        no higher than this value.
-      global_clipnorm: float. If set, the gradient of all weights is clipped
-        so that their global norm is no higher than this value.
+      clipvalue: float. If set, the gradient of each weight is clipped to be no
+        higher than this value.
+      global_clipnorm: float. If set, the gradient of all weights is clipped so
+        that their global norm is no higher than this value.
+      use_ema: boolean, default to False. If True, exponential moving average
+        (EMA) is applied. EMA consists of computing an exponential moving
+        average of the weights of the model (as the weight values change after
+        each training batch), and periodically overwriting the weights with
+        their moving average.
+      ema_momentum: float, default to 0.99. Only used if `use_ema=True`. This is
+        the momentum to use when computing the EMA of the model's weights:
+          `new_average = ema_momentum * old_average + (1 - ema_momentum) *
+          current_variable_value`.
+      ema_overwrite_frequency: int or None, default to 100. Only used if
+        `use_ema=True`. Every ema_overwrite_frequency steps of iterations, we
+        overwrite the model variable by its stored moving average. If None, we
+        do not overwrite model variables in the middle of training, and users
+        need to explicitly overwrite the model variable by calling
+        `finalize_variable_update()`.
     """
-    super().__init__(name, clipnorm, clipvalue, global_clipnorm)
+    super().__init__(name, clipnorm, clipvalue, global_clipnorm, use_ema,
+                     ema_momentum, ema_overwrite_frequency)
     self._distribution_strategy = tf.distribute.get_strategy()
 
   def add_variable_from_reference(self,
@@ -473,6 +569,19 @@ class Optimizer(_BaseOptimizer):
         self._distributed_apply_gradients_fn, self._distribution_strategy,
         grads_and_vars)
 
+  def _overwrite_model_variables_with_average_value_helper(self, var_list):
+    """Helper function to _overwrite_model_variables_with_average_value.
+
+    This function overwrites variables on each device.
+    Args:
+      var_list: list of model variables.
+    """
+    strategy = self._distribution_strategy
+    # Override model variable by the stored average value on all devices.
+    for var, average_var in zip(var_list, self._model_variables_moving_average):
+      strategy.extended.update(
+          var, lambda a, b: a.assign(b), args=(average_var,))
+
   def _distributed_apply_gradients_fn(self, distribution, grads_and_vars,
                                       **kwargs):
     """`apply_gradients` using a `DistributionStrategy`."""
@@ -484,6 +593,18 @@ class Optimizer(_BaseOptimizer):
       distribution.extended.update(
           var, apply_grad_to_update_var, args=(grad,), group=False)
     self.iterations.assign_add(1)
+
+    if self._use_ema:
+      _, var_list = zip(*grads_and_vars)
+      self._update_model_variables_moving_average(var_list)
+      should_overwrite_model_vars = (
+          self._ema_overwrite_frequency and
+          self.iterations % self._ema_overwrite_frequency == 0)
+      tf.cond(
+          should_overwrite_model_vars,
+          true_fn=lambda: self._overwrite_model_variables_with_average_value(  # pylint: disable=g-long-lambda
+              var_list),
+          false_fn=lambda: None)
 
 
 class RestoredOptimizer(Optimizer):

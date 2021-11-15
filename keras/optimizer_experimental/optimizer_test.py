@@ -41,7 +41,7 @@ adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladam", lambda: adam_new.Adam(0.002))
 sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
-    "experimentalsgd", lambda: sgd_new.SGD(0.002))
+    "experimentalsgdaverage", lambda: sgd_new.SGD(0.002, use_ema=True))
 
 OPTIMIZER_FN = [
     adadelta_new_fn,
@@ -71,7 +71,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     optimizer = adam_new.Adam(clipnorm=1)
     grad = [tf.convert_to_tensor([100.0, 100.0])]
     clipped_grad = optimizer._clip_gradients(grad)
-    self.assertAllClose(clipped_grad[0], [2**0.5/2, 2**0.5/2])
+    self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
 
   def testClipValue(self):
     optimizer = adam_new.Adam(clipvalue=1)
@@ -81,8 +81,10 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
 
   def testClipGlobalNorm(self):
     optimizer = adam_new.Adam(global_clipnorm=1)
-    grad = [tf.cast([100.0, 100.0], dtype=tf.float32),
-            tf.cast([100.0, 100.0], dtype=tf.float32)]
+    grad = [
+        tf.cast([100.0, 100.0], dtype=tf.float32),
+        tf.cast([100.0, 100.0], dtype=tf.float32)
+    ]
     clipped_grad = optimizer._clip_gradients(grad)
     self.assertAllClose(clipped_grad[0], [0.5, 0.5])
 
@@ -124,6 +126,23 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
                     optimizer.learning_rate > 0.00999)
     with self.assertRaisesRegex(TypeError, "This optimizer was created with*"):
       optimizer.learning_rate = 2.0
+
+  def testMovingAverageOptimizer(self):
+    # We set polyak averaging with ema_momentum = 1 so that the
+    #  moving average is always the original value of the variables.
+    optimizer = adam_new.Adam(
+        use_ema=True, ema_momentum=1, ema_overwrite_frequency=2)
+    x = tf.Variable([1.0, 2.0], dtype=tf.float32)
+    x_origin = tf.Variable(x)
+    grads = tf.convert_to_tensor([1.0, 2.0])
+    # First iteration, we store the moving average, and do not do overriding.
+    optimizer.apply_gradients(zip([grads], [x]))
+    self.assertAllEqual(optimizer._model_variables_moving_average[0], x_origin)
+    self.assertNotAllEqual(x, x_origin)
+
+    # Second iteration, we store the moving average, and override model vars.
+    optimizer.apply_gradients(zip([grads], [x]))
+    self.assertAllEqual(x, x_origin)
 
   def testGetConfig(self):
     optimizer = adam_new.Adam(
@@ -216,7 +235,8 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
     grads = tf.convert_to_tensor(np.arange(0.1, 1.1, 0.1))
     sparse_grads = tf.IndexedSlices(
         tf.convert_to_tensor([0, 0.2, 0.4, 0.8], dtype=tf.float64),
-        [0, 2, 4, 6], dense_shape=[len(grads)])
+        [0, 2, 4, 6],
+        dense_shape=[len(grads)])
 
     for _ in range(5):
       self.assertAllClose(x1, x2)
@@ -233,12 +253,10 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
         adam_old.Adam(amsgrad=True), adam_new.Adam(amsgrad=True))
 
   def testAdadelta(self):
-    self._compare_numerical(
-        adadelta_old.Adadelta(), adadelta_new.Adadelta())
+    self._compare_numerical(adadelta_old.Adadelta(), adadelta_new.Adadelta())
 
   def testAdagrad(self):
-    self._compare_numerical(
-        adagrad_old.Adagrad(), adagrad_new.Adagrad())
+    self._compare_numerical(adagrad_old.Adagrad(), adagrad_new.Adagrad())
 
   @parameterized.product(nesterov=[True, False])
   def testSgd(self, nesterov):
@@ -250,8 +268,7 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
 
   @ds_combinations.generate(
       tf.__internal__.test.combinations.combine(
-          strategy=STRATEGIES,
-          optimizer_fn=OPTIMIZER_FN))
+          strategy=STRATEGIES, optimizer_fn=OPTIMIZER_FN))
   def testGetGradientsInModel(self, strategy, optimizer_fn):
     with strategy.scope():
       model = keras.Sequential(
@@ -271,13 +288,11 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
           self.evaluate(optimizer._accumulated_grads._storage[0]), 0)
     elif optimizer._name == "Adagrad":
       # Assert the accumulated variable is not 0.
-      self.assertNotEqual(
-          self.evaluate(optimizer._accumulators._storage[0]), 0)
+      self.assertNotEqual(self.evaluate(optimizer._accumulators._storage[0]), 0)
 
   @ds_combinations.generate(
       tf.__internal__.test.combinations.combine(
-          strategy=STRATEGIES,
-          optimizer_fn=OPTIMIZER_FN))
+          strategy=STRATEGIES, optimizer_fn=OPTIMIZER_FN))
   def testGetGradientsInCustomTrainingLoop(self, strategy, optimizer_fn):
     with strategy.scope():
       model = keras.Sequential(
@@ -286,16 +301,20 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
       optimizer = optimizer_fn()
 
       def per_worker_dataset_fn():
+
         def dataset_fn(_):
           x, y = [1, 1, 1, 0, 0, 0], [1, 1, 1, 0, 0, 0]
           ds = tf.data.Dataset.from_tensor_slices((x, y))
           ds = ds.repeat().batch(6)
           return ds
+
         return strategy.distribute_datasets_from_function(dataset_fn)
+
       ds = per_worker_dataset_fn()
 
       @tf.function
       def train_step(ds):
+
         def replica_fn(data):
           features, labels = data
           with tf.GradientTape() as tape:
