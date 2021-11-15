@@ -43,7 +43,7 @@ class ReductionV2:
      `Reduction.NONE` just means that no **additional** reduction is applied by
      the class wrapper. For categorical losses with an example input shape of
      `[batch, W, H, n_classes]` the `n_classes` dimension is reduced. For
-     pointwise losses your must include a dummy axis so that `[batch, W, H, 1]`
+     pointwise losses you must include a dummy axis so that `[batch, W, H, 1]`
      is reduced to `[batch, W, H]`. Without the dummy axis `[batch, W, H]`
      will be incorrectly reduced to `[batch, W]`.
 
