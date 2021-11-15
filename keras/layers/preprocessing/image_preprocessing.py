@@ -20,6 +20,7 @@
 from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
+from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.preprocessing.image import smart_resize
 from keras.utils import control_flow_util
 import numpy as np
@@ -93,6 +94,14 @@ class Resizing(base_layer.Layer):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Resizing').set(True)
 
   def call(self, inputs):
+    # tf.image.resize will always output float32 and operate more efficiently on
+    # float32 unless interpolation is nearest, in which case ouput type matches
+    # input type.
+    if self.interpolation == 'nearest':
+      input_dtype = self.compute_dtype
+    else:
+      input_dtype = tf.float32
+    inputs = utils.ensure_tensor(inputs, dtype=input_dtype)
     if self.crop_to_aspect_ratio:
       outputs = smart_resize(
           inputs,
@@ -103,6 +112,7 @@ class Resizing(base_layer.Layer):
           inputs,
           size=[self.height, self.width],
           method=self._interpolation_method)
+    outputs = tf.cast(outputs, self.compute_dtype)
     return outputs
 
   def compute_output_shape(self, input_shape):
@@ -158,7 +168,7 @@ class CenterCrop(base_layer.Layer):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('CenterCrop').set(True)
 
   def call(self, inputs):
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
     input_shape = tf.shape(inputs)
     h_diff = input_shape[H_AXIS] - self.height
     w_diff = input_shape[W_AXIS] - self.width
@@ -169,10 +179,13 @@ class CenterCrop(base_layer.Layer):
       return tf.image.crop_to_bounding_box(inputs, h_start, w_start,
                                            self.height, self.width)
 
-    outputs = tf.cond(
-        tf.reduce_all((h_diff >= 0, w_diff >= 0)), center_crop,
-        lambda: smart_resize(inputs, [self.height, self.width]))
-    return tf.cast(outputs, inputs.dtype)
+    def upsize():
+      outputs = smart_resize(inputs, [self.height, self.width])
+      # smart_resize will always output float32, so we need to re-cast.
+      return tf.cast(outputs, self.compute_dtype)
+
+    return tf.cond(
+        tf.reduce_all((h_diff >= 0, w_diff >= 0)), center_crop, upsize)
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
@@ -232,7 +245,7 @@ class RandomCrop(base_layer.BaseRandomLayer):
   def call(self, inputs, training=True):
     if training is None:
       training = backend.learning_phase()
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = utils.ensure_tensor(inputs)
     input_shape = tf.shape(inputs)
     h_diff = input_shape[H_AXIS] - self.height
     w_diff = input_shape[W_AXIS] - self.width
@@ -248,7 +261,7 @@ class RandomCrop(base_layer.BaseRandomLayer):
     outputs = tf.cond(
         tf.reduce_all((training, h_diff >= 0, w_diff >= 0)), random_crop,
         lambda: smart_resize(inputs, [self.height, self.width]))
-    return tf.cast(outputs, inputs.dtype)
+    return tf.cast(outputs, self.compute_dtype)
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
@@ -305,7 +318,7 @@ class Rescaling(base_layer.Layer):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Rescaling').set(True)
 
   def call(self, inputs):
-    dtype = self._compute_dtype
+    dtype = self.compute_dtype
     scale = tf.cast(self.scale, dtype)
     offset = tf.cast(self.offset, dtype)
     return tf.cast(inputs, dtype) * scale + offset
@@ -379,6 +392,7 @@ class RandomFlip(base_layer.BaseRandomLayer):
   def call(self, inputs, training=True):
     if training is None:
       training = backend.learning_phase()
+    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
 
     def random_flipped_inputs():
       flipped_outputs = inputs
@@ -523,7 +537,7 @@ class RandomTranslation(base_layer.BaseRandomLayer):
     if training is None:
       training = backend.learning_phase()
 
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
     original_shape = inputs.shape
     unbatched = inputs.shape.rank == 3
     # The transform op only accepts rank 4 inputs, so if we have an unbatched
@@ -825,7 +839,7 @@ class RandomRotation(base_layer.BaseRandomLayer):
     if training is None:
       training = backend.learning_phase()
 
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
     original_shape = inputs.shape
     unbatched = inputs.shape.rank == 3
     # The transform op only accepts rank 4 inputs, so if we have an unbatched
@@ -978,7 +992,7 @@ class RandomZoom(base_layer.BaseRandomLayer):
     if training is None:
       training = backend.learning_phase()
 
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
     original_shape = inputs.shape
     unbatched = inputs.shape.rank == 3
     # The transform op only accepts rank 4 inputs, so if we have an unbatched
@@ -1130,6 +1144,7 @@ class RandomContrast(base_layer.BaseRandomLayer):
     if training is None:
       training = backend.learning_phase()
 
+    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
     def random_contrasted_inputs():
       seed = self._random_generator.make_seed_for_stateless_op()
       if seed is not None:
@@ -1224,6 +1239,8 @@ class RandomHeight(base_layer.BaseRandomLayer):
     if training is None:
       training = backend.learning_phase()
 
+    inputs = utils.ensure_tensor(inputs)
+
     def random_height_inputs():
       """Inputs height-adjusted with random ops."""
       inputs_shape = tf.shape(inputs)
@@ -1237,13 +1254,16 @@ class RandomHeight(base_layer.BaseRandomLayer):
       adjusted_size = tf.stack([adjusted_height, img_wd])
       output = tf.image.resize(
           images=inputs, size=adjusted_size, method=self._interpolation_method)
+      # tf.resize will output float32 in many cases regardless of input type.
+      output = tf.cast(output, self.compute_dtype)
       output_shape = inputs.shape.as_list()
       output_shape[H_AXIS] = None
       output.set_shape(output_shape)
       return output
 
-    return control_flow_util.smart_cond(training, random_height_inputs,
-                                        lambda: inputs)
+    return control_flow_util.smart_cond(
+        training, random_height_inputs,
+        lambda: tf.cast(inputs, self.compute_dtype))
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
@@ -1325,6 +1345,8 @@ class RandomWidth(base_layer.BaseRandomLayer):
     if training is None:
       training = backend.learning_phase()
 
+    inputs = utils.ensure_tensor(inputs)
+
     def random_width_inputs():
       """Inputs width-adjusted with random ops."""
       inputs_shape = tf.shape(inputs)
@@ -1338,13 +1360,16 @@ class RandomWidth(base_layer.BaseRandomLayer):
       adjusted_size = tf.stack([img_hd, adjusted_width])
       output = tf.image.resize(
           images=inputs, size=adjusted_size, method=self._interpolation_method)
+      # tf.resize will output float32 in many cases regardless of input type.
+      output = tf.cast(output, self.compute_dtype)
       output_shape = inputs.shape.as_list()
       output_shape[W_AXIS] = None
       output.set_shape(output_shape)
       return output
 
-    return control_flow_util.smart_cond(training, random_width_inputs,
-                                        lambda: inputs)
+    return control_flow_util.smart_cond(
+        training, random_width_inputs,
+        lambda: tf.cast(inputs, self.compute_dtype))
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
