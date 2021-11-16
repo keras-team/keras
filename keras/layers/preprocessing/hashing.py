@@ -22,7 +22,6 @@ from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.utils import layer_utils
-import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
@@ -210,8 +209,7 @@ class Hashing(base_layer.Layer):
             f'integers, or a single integer. Received: salt={salt}.')
 
   def call(self, inputs):
-    if isinstance(inputs, (list, tuple, np.ndarray)):
-      inputs = tf.convert_to_tensor(inputs)
+    inputs = utils.ensure_tensor(inputs)
     if isinstance(inputs, tf.SparseTensor):
       indices = tf.SparseTensor(
           indices=inputs.indices,
