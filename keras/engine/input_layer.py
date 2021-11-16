@@ -133,7 +133,7 @@ class InputLayer(base_layer.Layer):
         batch_size = batch_input_shape[0]
         input_shape = batch_input_shape[1:]
     if kwargs:
-      raise ValueError('Unrecognized keyword arguments:', kwargs.keys())
+      raise ValueError(f'Unrecognized keyword arguments: {list(kwargs.keys())}')
 
     if sparse and ragged:
       raise ValueError(
@@ -149,8 +149,10 @@ class InputLayer(base_layer.Layer):
       else:
         dtype = backend.dtype(input_tensor)
     elif input_tensor is not None and input_tensor.dtype != dtype:
-      raise ValueError('`input_tensor.dtype` differs from `dtype`: %s vs. %s' %
-                       (input_tensor.dtype, dtype))
+      raise ValueError(
+          '`input_tensor.dtype` differs from `dtype`. Received: '
+          f'input_tensor.dtype={input_tensor.dtype} '
+          f'but expected dtype={dtype}')
     super(InputLayer, self).__init__(dtype=dtype, name=name)
     self.built = True
     self.sparse = True if sparse else False
@@ -212,8 +214,8 @@ class InputLayer(base_layer.Layer):
         if not tf_utils.is_symbolic_tensor(input_tensor):
           raise ValueError('You should not pass an EagerTensor to `Input`. '
                            'For example, instead of creating an '
-                           'InputLayer, you should instantiate your model and '
-                           'directly call it on your input.')
+                           '`InputLayer`, you should instantiate your model '
+                           'and directly call it on your input.')
       self.is_placeholder = False
       try:
         self._batch_input_shape = tuple(input_tensor.shape.as_list())
@@ -357,7 +359,7 @@ def Input(  # pylint: disable=invalid-name
   """
   if sparse and ragged:
     raise ValueError(
-        'Cannot set both sparse and ragged to True in a Keras input.')
+        'Cannot set both `sparse` and `ragged` to `True` in a Keras `Input`.')
 
   input_layer_config = {'name': name, 'dtype': dtype, 'sparse': sparse,
                         'ragged': ragged, 'input_tensor': tensor,
@@ -370,12 +372,12 @@ def Input(  # pylint: disable=invalid-name
                      'to Input, not both at the same time.')
   if (batch_input_shape is None and shape is None and tensor is None
       and type_spec is None):
-    raise ValueError('Please provide to Input a `shape`'
-                     ' or a `tensor` or a `type_spec` argument. Note that '
+    raise ValueError('Please provide to Input a `shape` '
+                     'or a `tensor` or a `type_spec` argument. Note that '
                      '`shape` does not include the batch '
                      'dimension.')
   if kwargs:
-    raise ValueError('Unrecognized keyword arguments:', kwargs.keys())
+    raise ValueError(f'Unrecognized keyword arguments: {list(kwargs.keys())}')
 
   if batch_input_shape:
     shape = batch_input_shape[1:]

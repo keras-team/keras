@@ -374,8 +374,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       return
 
     if input_shape is None:
-      raise ValueError('Input shape must be defined when calling `build` on a '
-                       'model subclass network.')
+      raise ValueError('Input shape must be defined when calling `build()` on '
+                       'a `Model` subclass.')
     valid_types = (tuple, list, tf.TensorShape, dict)
     if not isinstance(input_shape, valid_types):
       raise ValueError('Specified input shape is not one of the valid types. '
@@ -1566,7 +1566,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     _disallow_inside_tf_function('evaluate')
     use_cached_eval_dataset = kwargs.pop('_use_cached_eval_dataset', False)
     if kwargs:
-      raise TypeError(f'Invalid keyword arguments: {(kwargs,)}')
+      raise TypeError(f'Invalid keyword arguments: {list(kwargs.keys())}')
 
     if self.distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
       self._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
