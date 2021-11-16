@@ -417,7 +417,7 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
 
     # conv_3x3
     x = layers.Conv2D(filters_out, (3, 3),
-                      use_bias=False,
+                      use_bias=False, 
                       strides=stride,
                       groups=groups,
                       padding="same",
