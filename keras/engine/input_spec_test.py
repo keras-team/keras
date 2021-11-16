@@ -29,7 +29,7 @@ class InputSpecTest(tf.test.TestCase):
     input_spec.InputSpec(shape=[1, None, 2, 3], axes={3: 5, '2': 2})
     with self.assertRaisesRegex(ValueError, 'Axis 4 is greater than'):
       input_spec.InputSpec(shape=[1, None, 2, 3], axes={4: 5})
-    with self.assertRaisesRegex(TypeError, 'keys in axes must be integers'):
+    with self.assertRaisesRegex(TypeError, 'Argument `axes` must be a dict'):
       input_spec.InputSpec(shape=[1, None, 2, 3], axes={'string': 5})
 
 

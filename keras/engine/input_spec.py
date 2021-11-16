@@ -96,7 +96,8 @@ class InputSpec:
       axes = axes or {}
       self.axes = {int(k): axes[k] for k in axes}
     except (ValueError, TypeError):
-      raise TypeError('The keys in axes must be integers.')
+      raise TypeError('Argument `axes` must be a dict with integer keys. '
+                      f'Received: axes={axes}')
 
     if self.axes and (self.ndim is not None or self.max_ndim is not None):
       max_dim = (self.ndim if self.ndim else self.max_ndim) - 1
