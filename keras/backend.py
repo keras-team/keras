@@ -284,9 +284,12 @@ def clear_session():
   graph = get_graph()
   with graph.as_default():
     _DUMMY_EAGER_GRAPH.learning_phase_is_set = False
-    _GRAPH_LEARNING_PHASES.clear()
-    # Create the learning phase placeholder in graph using the default factory.
-    _GRAPH_LEARNING_PHASES.setdefault(graph)
+
+    _GRAPH_LEARNING_PHASES = {}
+    # Create the learning phase placeholder in graph using the default factory
+    phase = _default_learning_phase()
+    _internal_set_learning_phase(graph, phase)
+
     _GRAPH_VARIABLES.pop(graph, None)
     _GRAPH_TF_OPTIMIZERS.pop(graph, None)
   if tf.executing_eagerly():
@@ -342,7 +345,14 @@ def learning_phase():
       # This is because functions & defuns (both in graph & in eager mode)
       # will always execute non-eagerly using a function-specific default
       # subgraph.
-      learning_phase = _GRAPH_LEARNING_PHASES[None]
+      if context.executing_eagerly():
+        if _DUMMY_EAGER_GRAPH.key not in _GRAPH_LEARNING_PHASES:
+          phase = _default_learning_phase()
+          _internal_set_learning_phase(_DUMMY_EAGER_GRAPH.key, phase)
+          _DUMMY_EAGER_GRAPH.learning_phase_is_set = True
+        return _internal_get_learning_phase(_DUMMY_EAGER_GRAPH.key)
+      else:
+        learning_phase = symbolic_learning_phase()
   _mark_func_graph_as_unsaveable(graph, learning_phase)
   return learning_phase
 
@@ -373,11 +383,38 @@ def _mark_func_graph_as_unsaveable(graph, learning_phase):
 def symbolic_learning_phase():
   graph = get_graph()
   with graph.as_default():
-    return _GRAPH_LEARNING_PHASES[graph]
+    if graph not in _GRAPH_LEARNING_PHASES:
+        phase = _default_learning_phase()
+        _internal_set_learning_phase(graph, phase)
+
+    return _internal_get_learning_phase(graph)
+
+
+def _internal_set_learning_phase(graph, value):
+  global _GRAPH_LEARNING_PHASES  # pylint: disable=global-variable-not-assigned
+
+  if isinstance(value, tf.Tensor):
+    """The 'value' here is a tf.Tensor with attribute 'graph'.
+    There is a circular reference between key 'graph' and attribute 'graph'.
+    So we need use a weakref.ref to refer to the 'value' tensor here.
+    Otherwise, it would lead to memory leak.
+    """
+    value_ref = weakref.ref(value)
+    _GRAPH_LEARNING_PHASES[graph] = value_ref
+  else:
+    _GRAPH_LEARNING_PHASES[graph] = value
+
+
+def _internal_get_learning_phase(graph):
+  phase = _GRAPH_LEARNING_PHASES.get(graph, None)
+  if isinstance(phase, weakref.ref):
+    return phase()
+  else:
+    return phase
 
 
 def _default_learning_phase():
-  if tf.executing_eagerly():
+  if context.executing_eagerly():
     return 0
   else:
     with name_scope(''):
@@ -439,7 +476,6 @@ def deprecated_internal_set_learning_phase(value):
   Raises:
       ValueError: if `value` is neither `0` nor `1`.
   """
-  global _GRAPH_LEARNING_PHASES  # pylint: disable=global-variable-not-assigned
   if value not in {0, 1}:
     raise ValueError('Expected learning phase to be 0 or 1.')
   with tf.init_scope():
@@ -447,8 +483,9 @@ def deprecated_internal_set_learning_phase(value):
       # In an eager context, the learning phase values applies to both the eager
       # context and the internal Keras graph.
       _DUMMY_EAGER_GRAPH.learning_phase_is_set = True
-      _GRAPH_LEARNING_PHASES[_DUMMY_EAGER_GRAPH.key] = value
-    _GRAPH_LEARNING_PHASES[get_graph()] = value
+      _internal_set_learning_phase(_DUMMY_EAGER_GRAPH.key, value)
+
+    _internal_set_learning_phase(get_graph(), value)
 
 
 @keras_export('keras.backend.learning_phase_scope')
@@ -510,9 +547,9 @@ def deprecated_internal_learning_phase_scope(value):
 
   with tf.init_scope():
     if tf.executing_eagerly():
-      previous_eager_value = _GRAPH_LEARNING_PHASES.get(
-          _DUMMY_EAGER_GRAPH.key, None)
-    previous_graph_value = _GRAPH_LEARNING_PHASES.get(get_graph(), None)
+      previous_eager_value = _internal_get_learning_phase(
+        _DUMMY_EAGER_GRAPH.key)
+    previous_graph_value = _internal_get_learning_phase(get_graph())
 
   learning_phase_previously_set = _DUMMY_EAGER_GRAPH.learning_phase_is_set
   try:
@@ -525,13 +562,14 @@ def deprecated_internal_learning_phase_scope(value):
     with tf.init_scope():
       if tf.executing_eagerly():
         if previous_eager_value is not None:
-          _GRAPH_LEARNING_PHASES[_DUMMY_EAGER_GRAPH.key] = previous_eager_value
+          _internal_set_learning_phase(_DUMMY_EAGER_GRAPH.key,
+                                       previous_eager_value)
         elif _DUMMY_EAGER_GRAPH.key in _GRAPH_LEARNING_PHASES:
           del _GRAPH_LEARNING_PHASES[_DUMMY_EAGER_GRAPH.key]
 
       graph = get_graph()
       if previous_graph_value is not None:
-        _GRAPH_LEARNING_PHASES[graph] = previous_graph_value
+        _internal_set_learning_phase(graph, previous_graph_value)
       elif graph in _GRAPH_LEARNING_PHASES:
         del _GRAPH_LEARNING_PHASES[graph]
 
@@ -557,12 +595,12 @@ def eager_learning_phase_scope(value):
   if global_learning_phase_was_set:
     previous_value = learning_phase()
   try:
-    _GRAPH_LEARNING_PHASES[_DUMMY_EAGER_GRAPH.key] = value
+    _internal_set_learning_phase(_DUMMY_EAGER_GRAPH.key, value)
     yield
   finally:
     # Restore learning phase to initial value or unset.
     if global_learning_phase_was_set:
-      _GRAPH_LEARNING_PHASES[_DUMMY_EAGER_GRAPH.key] = previous_value
+      _internal_set_learning_phase(_DUMMY_EAGER_GRAPH.key, previous_value)
     else:
       del _GRAPH_LEARNING_PHASES[_DUMMY_EAGER_GRAPH.key]
 
@@ -6889,7 +6927,7 @@ class ContextValueCache(weakref.WeakKeyDictionary):
 # dummy object is used.
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
-_GRAPH_LEARNING_PHASES = ContextValueCache(_default_learning_phase)
+_GRAPH_LEARNING_PHASES = ContextValueCache(object_identity.ObjectIdentityWeakSet)
 
 # This dictionary holds a mapping between a graph and variables to initialize
 # in the graph.
