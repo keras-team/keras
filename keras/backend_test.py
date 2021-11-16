@@ -1804,6 +1804,65 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
       self.assertLen(w, 1)
       self.assertIn('received `from_logits=True`', str(w[0].message))
 
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_binary_focal_crossentropy_with_sigmoid(self):
+    t = backend.constant([[0, 1, 0]])
+    logits = backend.constant([[8., 1., 1.]])
+    p = backend.sigmoid(logits)
+    p = tf.identity(tf.identity(p))
+    result = self.evaluate(backend.binary_focal_crossentropy(t, p, gamma=2.0))
+    self.assertArrayNear(result[0], [7.995, 0.022, 0.701], 1e-3)
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_binary_focal_crossentropy_from_logits(self):
+    t = backend.constant([[0, 1, 0]])
+    logits = backend.constant([[8., 1., 1.]])
+    result = self.evaluate(
+        backend.binary_focal_crossentropy(
+            target=t,
+            output=logits,
+            gamma=2.0,
+            from_logits=True,
+        ))
+    self.assertArrayNear(result[0], [7.995, 0.022, 0.701], 1e-3)
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_binary_focal_crossentropy_no_focal_effect_with_zero_gamma(self):
+    t = backend.constant([[0, 1, 0]])
+    logits = backend.constant([[8., 1., 1.]])
+    p = backend.sigmoid(logits)
+    p = tf.identity(tf.identity(p))
+    gamma = 0
+    focal_result = self.evaluate(
+        backend.binary_focal_crossentropy(
+            target=t,
+            output=p,
+            gamma=gamma,
+        ))
+    non_focal_result = self.evaluate(backend.binary_crossentropy(t, p))
+    self.assertArrayNear(focal_result[0], non_focal_result[0], 1e-3)
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_binary_weighted_focal_crossentropy_with_sigmoid(self):
+    t = backend.constant([[0, 1, 0]])
+    logits = backend.constant([[8., 1., 1.]])
+    p = backend.sigmoid(logits)
+    p = tf.identity(tf.identity(p))
+    result = self.evaluate(backend.binary_weighted_focal_crossentropy(t, p))
+    self.assertArrayNear(result[0], [5.996, 0.006, 0.526], 1e-3)
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_binary_weighted_focal_crossentropy_from_logits(self):
+    t = backend.constant([[0, 1, 0]])
+    logits = backend.constant([[8., 1., 1.]])
+    result = self.evaluate(
+        backend.binary_weighted_focal_crossentropy(
+            target=t,
+            output=logits,
+            from_logits=True,
+        ))
+    self.assertArrayNear(result[0], [5.996, 0.006, 0.526], 1e-3)
+
 
 @test_util.with_control_flow_v2
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
