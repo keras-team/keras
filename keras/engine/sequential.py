@@ -358,12 +358,13 @@ class Sequential(functional.Functional):
         # invalid use case of Sequential, but we tolerate it for backwards
         # compatibility.
         self._use_legacy_deferred_behavior = True
-        self._build_input_shape = tf.nest.map_structure(_get_shape_tuple, inputs)
+        self._build_input_shape = tf.nest.map_structure(
+            _get_shape_tuple, inputs)
         if tf.__internal__.tf2.enabled():
           logging.warning('Layers in a Sequential model should only have a '
-                          'single input tensor, but we receive a %s input: %s'
-                          '\nConsider rewriting this model with the Functional '
-                          'API.' % (type(inputs), inputs))
+                          f'single input tensor. Received: inputs={inputs}. '
+                          'Consider rewriting this model with the Functional '
+                          'API.')
       else:
         self._build_graph_network_for_inferred_shape(inputs.shape, inputs.dtype)
 
