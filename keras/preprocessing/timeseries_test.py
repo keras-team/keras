@@ -174,7 +174,15 @@ class TimeseriesDatasetTest(tf.test.TestCase):
       _ = timeseries.timeseries_dataset_from_array(
           np.arange(10), None, 3, sequence_stride=0)
 
-
+  def test_not_batched(self):
+    data = np.arange(100)
+    
+    dataset = timeseries.timeseries_dataset_from_array(
+        data, None,
+        sequence_length=9, batch_size=None, shuffle=True)
+    sample = next(iter(dataset))
+    self.assertEqual(len(sample.shape), 1)
+    
 if __name__ == '__main__':
   tf.compat.v1.enable_v2_behavior()
   tf.test.main()
