@@ -83,6 +83,8 @@ def text_dataset_from_directory(directory,
         to control the order of the classes
         (otherwise alphanumerical order is used).
     batch_size: Size of the batches of data. Default: 32.
+      If `None`, the data will not be batched
+      (the dataset will yield individual samples).
     max_length: Maximum size of a text string. Texts longer than this will
       be truncated to `max_length`.
     shuffle: Whether to shuffle the data. Default: True.
@@ -163,10 +165,16 @@ def text_dataset_from_directory(directory,
       label_mode=label_mode,
       num_classes=len(class_names),
       max_length=max_length)
-  if shuffle:
-    # Shuffle locally at each iteration
-    dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-  dataset = dataset.prefetch(tf.data.AUTOTUNE).batch(batch_size)
+  dataset = dataset.prefetch(tf.data.AUTOTUNE)
+  if batch_size is not None:
+    if shuffle:
+      # Shuffle locally at each iteration
+      dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
+    dataset = dataset.batch(batch_size)
+  else:
+    if shuffle:
+      dataset = dataset.shuffle(buffer_size=len(dataset), seed=seed)
+
   # Users may need to reference `class_names`.
   dataset.class_names = class_names
   return dataset

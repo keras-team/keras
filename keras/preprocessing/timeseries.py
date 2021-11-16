@@ -61,7 +61,8 @@ def timeseries_dataset_from_array(
       `data[i], data[i + r], ... data[i + sequence_length]`
       are used for create a sample sequence.
     batch_size: Number of timeseries samples in each batch
-      (except maybe the last one). If `None`, it doesn't make batches.
+      (except maybe the last one). If `None`, the data will not be batched
+      (the dataset will yield individual samples).
     shuffle: Whether to shuffle output samples,
       or instead draw them in chronological order.
     seed: Optional int; random seed for shuffling.
@@ -224,12 +225,15 @@ def timeseries_dataset_from_array(
     target_ds = sequences_from_indices(
         targets, indices, start_index, end_index)
     dataset = tf.data.Dataset.zip((dataset, target_ds))
-  if shuffle:
-    # Shuffle locally at each iteration
-    dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
   dataset = dataset.prefetch(tf.data.AUTOTUNE)
   if batch_size is not None:
+    if shuffle:
+      # Shuffle locally at each iteration
+      dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
     dataset = dataset.batch(batch_size)
+  else:
+    if shuffle:
+      dataset = dataset.shuffle(buffer_size=len(dataset), seed=seed)
   return dataset
 
 
