@@ -49,6 +49,10 @@ tf_module {
     argspec: "args=[\'fname\', \'origin\', \'untar\', \'md5_hash\', \'file_hash\', \'cache_subdir\', \'hash_algorithm\', \'extract\', \'archive_format\', \'cache_dir\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'False\', \'None\', \'None\', \'datasets\', \'auto\', \'False\', \'auto\', \'None\'], "
   }
   member_method {
+    name: "get_or_create_layer"
+    argspec: "args=[\'name\', \'create_layer_method\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "get_registered_name"
     argspec: "args=[\'obj\'], varargs=None, keywords=None, defaults=None"
   }
