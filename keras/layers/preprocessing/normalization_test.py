@@ -342,17 +342,17 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
     new_output_data = f(tf.constant(input_data))["normalization"]
     self.assertAllClose(new_output_data, expected_output)
 
-  @parameterized.parameters(
-      {"adapted": True},
-      {"adapted": False},
+  @parameterized.product(
+      save_format=["tf", "h5"],
+      adapt=[True, False],
   )
-  def test_saved_model_keras(self, adapted):
+  def test_saved_model_keras(self, save_format, adapt):
     input_data = [[0.], [2.], [0.], [2.]]
     expected_output = [[-1.], [1.], [-1.], [1.]]
 
     cls = normalization.Normalization
     inputs = keras.Input(shape=(1,), dtype=tf.float32)
-    if adapted:
+    if adapt:
       layer = cls(axis=-1)
       layer.adapt(input_data)
     else:
@@ -365,7 +365,7 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
 
     # Save the model to disk.
     output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
-    model.save(output_path, save_format="tf")
+    model.save(output_path, save_format=format)
     loaded_model = keras.models.load_model(
         output_path, custom_objects={"Normalization": cls})
 

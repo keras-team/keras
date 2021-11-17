@@ -762,6 +762,10 @@ def load_weights_from_hdf5_group(f, model):
     weight_value_tuples += zip(symbolic_weights, weight_values)
   backend.batch_set_value(weight_value_tuples)
 
+  # Perform any layer defined finalization of the layer state.
+  for layer in model._flatten_layers():
+    layer.finalize_state()
+
 
 def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
   """Implements name-based weight loading (instead of topological loading).
@@ -882,6 +886,10 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
           weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
 
   backend.batch_set_value(weight_value_tuples)
+
+  # Perform any layer defined finalization of the layer state.
+  for layer in model._flatten_layers():
+    layer.finalize_state()
 
 
 def save_attributes_to_hdf5_group(group, name, data):
