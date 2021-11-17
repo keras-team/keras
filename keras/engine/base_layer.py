@@ -1925,6 +1925,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     This function can be subclassed in a layer and will be called after updating
     a layer weights. It can be overridden to finalize any additional layer state
     after a weight update.
+
+    This function will be called after weights of a layer have been restored
+    from a loaded model.
     """
     pass
 
