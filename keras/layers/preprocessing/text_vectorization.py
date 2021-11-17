@@ -107,10 +107,10 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     standardize: Optional specification for standardization to apply to the
       input text. Values can be:
         - `None`: No standardization.
-        - `lower_and_strip_punctuation`: Text will be lowercased and all
+        - `"lower_and_strip_punctuation"`: Text will be lowercased and all
           punctuation removed.
-        - `lower`: Text will be lowercased.
-        - `trip_punctuation`: All punctuation will be removed.
+        - `"lower"`: Text will be lowercased.
+        - `"strip_punctuation"`: All punctuation will be removed.
         - Callable: Inputs will passed to the callable function, which should
           standardized and returned.
     split: Optional specification for splitting the input text. Values can be:
