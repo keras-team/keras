@@ -385,9 +385,20 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       if testing_utils.get_save_format() == 'tf':
         # TODO(b/153110928): Keras TF format doesn't restore optimizer weights
         # currently.
-        return
-      self.assertAllClose(model.optimizer.weights,
-                          loaded_model.optimizer.weights)
+        try:
+          self.assertAllClose(model.optimizer.weights,
+                            loaded_model.optimizer.weights)
+        except (AssertionError, ValueError):
+          # Both errors can be raised, depending on the if shapes happen to be the same or not
+          return  # expected failure, but the test can't continue
+        else:
+          raise AssertionError(
+            "This test should have failed since SavedModel does not support restoring"
+            " optimizer weights"
+          )
+      else:
+        self.assertAllClose(model.optimizer.weights,
+                            loaded_model.optimizer.weights)
 
     # In V1/Graph mode, the model isn't built, so the metrics are not loaded
     # immediately (requires model to be called on some data before building
