@@ -2283,7 +2283,6 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
     self.assertEqual(
         summary_file.scalars,
         {
-            _ObservedSummary(logdir=self.train_dir, tag='batch_loss'),
             _ObservedSummary(logdir=self.train_dir, tag='epoch_loss'),
             _ObservedSummary(logdir=self.validation_dir, tag='epoch_loss'),
             _ObservedSummary(
@@ -2341,7 +2340,6 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         summary_file.scalars,
         {
             _ObservedSummary(logdir=self.train_dir, tag='epoch_loss'),
-            _ObservedSummary(logdir=self.train_dir, tag='batch_loss'),
             _ObservedSummary(logdir=self.train_dir, tag='epoch_learning_rate'),
             _ObservedSummary(
                 logdir=self.train_dir, tag='epoch_steps_per_second'),
@@ -2509,7 +2507,6 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
             _ObservedSummary(
                 logdir=self.validation_dir,
                 tag='evaluation_loss_vs_iterations'),
-            _ObservedSummary(logdir=self.train_dir, tag='batch_loss'),
             _ObservedSummary(
                 logdir=self.train_dir,
                 tag='model/layer_with_summary/custom_summary'),
