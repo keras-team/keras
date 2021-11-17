@@ -143,12 +143,17 @@ class _EagerVariableStore(tf.Module):
   Attributes:
     vars: a dictionary with string names (same as passed in GetVar) as keys and
       the corresponding TensorFlow Variables as values.
+    regularizers: a dictionary with string names as keys and the corresponding
+      callables that return losses as values.
+    layers: a dictionary with string names as keys and the corresponding
+      nested keras layers as values.
   """
 
   def __init__(self):
     """Create a variable store."""
     self._vars = {}  # A dictionary of the stored TensorFlow variables.
     self._regularizers = {}  # A dict mapping var names to their regularizers.
+    self._layers = {}  # A dictionary of stored keras layers.
     self._store_eager_variables = True
 
   @contextlib.contextmanager
@@ -516,6 +521,14 @@ class _EagerVariableStore(tf.Module):
 
     return v
 
+  def get_or_create_layer(self, name, create_layer_method):
+    if name not in self._layers:
+      layer = create_layer_method()
+      self._layers[name] = layer
+      if isinstance(layer, base_layer.Layer):
+        self._regularizers[name] = lambda: layer.losses
+    return self._layers[name]
+
   def add_regularizer(self, var, regularizer):
     self._regularizers[var.name] = functools.partial(regularizer, var)
 
@@ -718,7 +731,10 @@ def track_tf1_style_variables(method):
       assign them as attributes of your layer so that Keras/Module's standard
       object-oriented weights (and loss tracking for layers) will kick in.
       See the intro to modules, layers, and models
-      [guide](https://www.tensorflow.org/guide/intro_to_modules) for more info
+      [guide](https://www.tensorflow.org/guide/intro_to_modules) for more info.
+      As a backup, the `compat.v1.keras.utils.get_or_create_layer` method will
+      ease tracking nested keras model weights and losses for existing TF1 code,
+      but new code should use explicit tracking.
 
   Args:
     method: The method to decorate. This should belong to a custom tf.Module,
@@ -932,3 +948,64 @@ class VariableScopeLayer(base_layer.Layer):
   @track_tf1_style_variables
   def call(self, *args, **kwargs):
     return self.forward_pass(*args, **kwargs)
+
+
+@keras_export(v1=["keras.utils.get_or_create_layer"])
+def get_or_create_layer(name, create_layer_method):
+  """Use this method to track nested keras models in a shim-decorated method.
+
+  This method can be used within a `tf.keras.Layer`'s methods decorated by
+  the`track_tf1_style_variables` shim, to additionally track inner keras Model
+  objects created within the same method. The inner model's variables and losses
+  will be accessible via the outer model's `variables` and `losses` attributes.
+
+  This enables tracking of inner keras models using TF2 behaviors, with minimal
+  changes to existing TF1-style code.
+
+  Example:
+
+  ```python
+  class NestedLayer(tf.keras.layers.Layer):
+
+    def __init__(self, units, *args, **kwargs):
+      super().__init__(*args, **kwargs)
+      self.units = units
+
+    def build_model(self):
+      inp = tf.keras.Input(shape=(5, 5))
+      dense_layer = tf.keras.layers.Dense(
+          10, name="dense", kernel_regularizer="l2",
+          kernel_initializer=tf.compat.v1.ones_initializer())
+      model = tf.keras.Model(inputs=inp, outputs=dense_layer(inp))
+      return model
+
+    @tf.compat.v1.keras.utils.track_tf1_style_variables
+    def call(self, inputs):
+      model = tf.compat.v1.keras.utils.get_or_create_layer(
+          "dense_model", self.build_model)
+      return model(inputs)
+  ```
+  The inner model creation should be confined to its own zero-arg function,
+  which should be passed into this method. In TF1, this method will immediately
+  create and return the desired model, without any tracking.
+
+  Args:
+    name: A name to give the nested layer to track.
+    create_layer_method: a Callable that takes no args and returns the nested
+    layer.
+
+  Returns:
+    The created layer.
+  """
+  store = vs._get_default_variable_store()  # pylint: disable=protected-access
+  if not isinstance(store, _EagerVariableStore):
+    if not tf.compat.v1.executing_eagerly_outside_functions():
+      # tf1 case; just create and return layer
+      return create_layer_method()
+    else:
+      raise ValueError(
+          "Tried to call get_or_create_layer in eager mode from a method not"
+          "decorated with @tf.compat.v1.keras.utils.track_tf1_style_variables.")
+  vs_name = tf.compat.v1.get_variable_scope().name
+  name = f"{vs_name}/{name}"
+  return store.get_or_create_layer(name, create_layer_method)

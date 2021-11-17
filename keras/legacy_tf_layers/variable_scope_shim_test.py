@@ -1426,5 +1426,124 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
       foo(tf.ones(shape=(4, 4)))
 
 
+class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
+
+  @combinations.generate(combinations.combine(mode=["eager"]))
+  def test_get_or_create_layer_eager(self):
+
+    class NestedLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def build_model(self):
+        inp = input_layer_module.Input(shape=(5, 5))
+        dense_layer = core.Dense(
+            10, name="dense", kernel_regularizer="l2",
+            kernel_initializer=tf.compat.v1.ones_initializer())
+        model = training_module.Model(inputs=inp, outputs=dense_layer(inp))
+        return model
+
+      def forward_pass(self, inputs):
+        model = variable_scope_shim.get_or_create_layer(
+            "dense_model", self.build_model)
+        return model(inputs)
+
+    # enter a variable scope to check module key naming
+    with tf.compat.v1.variable_scope("test_scope"):
+      layer = NestedLayer(10)
+      x = tf.ones(shape=(5, 5))
+
+      out1 = layer(tf.expand_dims(x, 0))
+
+      model1 = layer.submodules[0]._layers["test_scope/dense_model"]
+
+      out2 = layer(tf.expand_dims(x, 0))
+      # Verify model produces same output on successive calls with same input
+      self.assertAllEqual(out1, out2)
+
+      # Verify the model used on subsequent calls is the same
+      model2 = layer.submodules[0]._layers["test_scope/dense_model"]
+      self.assertIs(model1, model2)
+
+      # Verify that stored layer computes outputs and losses correctly
+      weights = {x.name: x for x in layer.variables}
+      self.assertEqual(weights.keys(), {"dense/bias:0", "dense/kernel:0"})
+      self.assertAllEqual(out2, tf.ones(shape=(1, 5, 10)) * 5)
+      self.assertAllEqual(tf.add_n(layer.losses), [0.5])
+
+  @combinations.generate(combinations.combine(mode=["eager"]))
+  def test_get_or_create_layer_tf_function(self):
+
+    class NestedLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def build_model(self):
+        inp = input_layer_module.Input(shape=(5, 5))
+        dense_layer = core.Dense(
+            10, name="dense", kernel_regularizer="l2",
+            )
+        model = training_module.Model(inputs=inp, outputs=dense_layer(inp))
+        return model
+
+      def forward_pass(self, inputs):
+        model = variable_scope_shim.get_or_create_layer(
+            "dense_model", self.build_model)
+        return model(inputs)
+
+    layer = NestedLayer(10)
+
+    @tf.function
+    def foo(x):
+      return layer(x), tf.add_n(layer.losses)
+
+    # Verify inner model is reused
+    out1, loss1 = foo(tf.ones(shape=(5, 5)))
+    out2, loss2 = foo(tf.ones(shape=(5, 5)))
+    self.assertAllEqual(out1, out2)
+    self.assertAllEqual(loss1, loss2)
+
+  @test_util.run_deprecated_v1
+  def test_get_or_create_layer_graph(self):
+
+    class NestedLayer(object):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def build_model(self):
+        inp = input_layer_module.Input(shape=(5, 5))
+        dense_layer = core.Dense(
+            10, name="dense", kernel_regularizer="l2",
+            kernel_initializer=tf.compat.v1.ones_initializer())
+        model = training_module.Model(inputs=inp, outputs=dense_layer(inp))
+        return model
+
+      def __call__(self, inputs):
+        model = variable_scope_shim.get_or_create_layer(
+            "dense_model", self.build_model)
+        return model(inputs)
+
+    with self.cached_session():
+      layer = NestedLayer(10)
+      x = tf.ones(shape=(5, 5))
+
+      out1 = layer(tf.expand_dims(x, 0))
+      self.evaluate(tf.compat.v1.global_variables_initializer())
+
+      # verify output
+      self.assertEqual(out1.shape, tf.TensorShape([1, 5, 10]))
+      self.assertAllEqual(out1, tf.ones(shape=(1, 5, 10)) * 5)
+
+      # verify variables are tracked
+      weights = {var.name for var in tf.compat.v1.trainable_variables()}
+      self.assertEqual(weights, {"dense/bias:0", "dense/kernel:0"})
+
+
 if __name__ == "__main__":
   tf.test.main()
