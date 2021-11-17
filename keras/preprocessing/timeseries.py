@@ -233,7 +233,7 @@ def timeseries_dataset_from_array(
     dataset = dataset.batch(batch_size)
   else:
     if shuffle:
-      dataset = dataset.shuffle(buffer_size=len(dataset), seed=seed)
+      dataset = dataset.shuffle(buffer_size=1024, seed=seed)
   return dataset
 
 

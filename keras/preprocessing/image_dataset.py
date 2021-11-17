@@ -226,7 +226,7 @@ def image_dataset_from_directory(directory,
     dataset = dataset.batch(batch_size)
   else:
     if shuffle:
-      dataset = dataset.shuffle(buffer_size=len(dataset), seed=seed)
+      dataset = dataset.shuffle(buffer_size=1024, seed=seed)
 
   # Users may need to reference `class_names`.
   dataset.class_names = class_names
