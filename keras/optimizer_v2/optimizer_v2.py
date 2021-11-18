@@ -1345,8 +1345,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       self, slot_variable_position, slot_name, variable):
     """Returns the slot variable that should have a value restored into it.
 
-    It is up to the caller to restore the value into the slot variable if a valid
-    slot variable is returned.
+
+    It is up to the caller to restore the value into the slot variable if a
+    valid slot variable is returned.
 
     Called when a variable which has an associated slot variable is created or
     restored. When executing eagerly, we create the slot variable with a

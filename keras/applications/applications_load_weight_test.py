@@ -41,20 +41,22 @@ from keras.utils import data_utils
 
 ARG_TO_MODEL = {
     'resnet': (resnet, [resnet.ResNet50, resnet.ResNet101, resnet.ResNet152]),
-    'resnet_v2': (resnet_v2, [resnet_v2.ResNet50V2, resnet_v2.ResNet101V2,
-                              resnet_v2.ResNet152V2]),
+    'resnet_v2':
+        (resnet_v2,
+         [resnet_v2.ResNet50V2, resnet_v2.ResNet101V2, resnet_v2.ResNet152V2]),
     'vgg16': (vgg16, [vgg16.VGG16]),
     'vgg19': (vgg19, [vgg19.VGG19]),
     'xception': (xception, [xception.Xception]),
     'inception_v3': (inception_v3, [inception_v3.InceptionV3]),
-    'inception_resnet_v2': (inception_resnet_v2,
-                            [inception_resnet_v2.InceptionResNetV2]),
+    'inception_resnet_v2':
+        (inception_resnet_v2, [inception_resnet_v2.InceptionResNetV2]),
     'mobilenet': (mobilenet, [mobilenet.MobileNet]),
     'mobilenet_v2': (mobilenet_v2, [mobilenet_v2.MobileNetV2]),
     'mobilenet_v3_small': (mobilenet_v3, [mobilenet_v3.MobileNetV3Small]),
     'mobilenet_v3_large': (mobilenet_v3, [mobilenet_v3.MobileNetV3Large]),
-    'densenet': (densenet, [densenet.DenseNet121,
-                            densenet.DenseNet169, densenet.DenseNet201]),
+    'densenet':
+        (densenet,
+         [densenet.DenseNet121, densenet.DenseNet169, densenet.DenseNet201]),
     'nasnet_mobile': (nasnet, [nasnet.NASNetMobile]),
     'nasnet_large': (nasnet, [nasnet.NASNetLarge]),
     'efficientnet': (efficientnet,
@@ -76,6 +78,7 @@ ARG_TO_MODEL = {
                 regnet.RegNetY008, regnet.RegNetY016, regnet.RegNetY032, 
                 regnet.RegNetY040, regnet.RegNetY064, regnet.RegNetY080, 
                 regnet.RegNetY120, regnet.RegNetY160, regnet.RegNetY320])
+
 }
 
 TEST_IMAGE_PATH = ('https://storage.googleapis.com/tensorflow/'

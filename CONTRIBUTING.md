@@ -34,9 +34,8 @@ tag is then added to the pull request.
 
 ### Step 5. Code review
 
-A reviewer will review the pull request and provide comments.
-The reviewer may add a `kokoro:force-run` label to trigger the
-continuous integration tests.
+A reviewer will review the pull request and provide comments. The reviewer may
+add a `kokoro:force-run` label to trigger the continuous integration tests.
 
 ![CI tests tag](https://i.imgur.com/58NOCB0.png)
 
@@ -177,10 +176,9 @@ we can run the following command at the root directory of the repo.
 bazel test keras/engine:base_layer_test
 ```
 
-`keras/engine` is the relative path to the directory
-containing the `BUILD` file defining the test.
-`base_layer_test` is the test target name defined  with `tf_py_test`
-in the `BUILD` file.
+`keras/engine` is the relative path to the directory containing the `BUILD` file
+defining the test. `base_layer_test` is the test target name defined with
+`tf_py_test` in the `BUILD` file.
 
 ### Run a single test case
 
@@ -189,8 +187,8 @@ cases in a file before running the test file.
 
 ### Run all tests
 
-You can run all the tests locally by running the following command
-in the repo root directory.
+You can run all the tests locally by running the following command in the repo
+root directory.
 
 ```
 bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going --define=use_fast_cpp_protos=false --build_tests_only --build_tag_filters=-no_oss --test_tag_filters=-no_oss keras/...
@@ -215,8 +213,8 @@ command above.
 ## Contributing to Keras applications
 
 Contributions to the
-[pre-trained application library](https://keras.io/api/applications/)
-are welcome. Code for Keras applications is located in Keras repository in
+[pre-trained application library](https://keras.io/api/applications/) are
+welcome. Code for Keras applications is located in Keras repository in
 [keras/applications](https://github.com/keras-team/keras/blob/master/keras/applications).
 When contributing to Keras applications, please keep following checklist in
 mind.
