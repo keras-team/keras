@@ -487,6 +487,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               weighted_metrics=None,
               run_eagerly=None,
               steps_per_execution=None,
+              jit_compile=None,
               **kwargs):
     """Configures the model for training.
 
@@ -554,17 +555,28 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           this as `None` unless your `Model` cannot be run inside a
           `tf.function`. `run_eagerly=True` is not supported when using
           `tf.distribute.experimental.ParameterServerStrategy`.
-        steps_per_execution: Int. Defaults to 1. The number of batches to
-          run during each `tf.function` call. Running multiple batches
-          inside a single `tf.function` call can greatly improve performance
-          on TPUs or small models with a large Python overhead.
-          At most, one full epoch will be run each
-          execution. If a number larger than the size of the epoch is passed,
-          the execution will be truncated to the size of the epoch.
-          Note that if `steps_per_execution` is set to `N`,
-          `Callback.on_batch_begin` and `Callback.on_batch_end` methods
-          will only be called every `N` batches
-          (i.e. before/after each `tf.function` execution).
+        steps_per_execution: Int. Defaults to 1. The number of batches to run
+          during each `tf.function` call. Running multiple batches inside a
+          single `tf.function` call can greatly improve performance on TPUs or
+          small models with a large Python overhead. At most, one full epoch
+          will be run each execution. If a number larger than the size of the
+          epoch is passed, the execution will be truncated to the size of the
+          epoch. Note that if `steps_per_execution` is set to `N`,
+          `Callback.on_batch_begin` and `Callback.on_batch_end` methods will
+          only be called every `N` batches (i.e. before/after each `tf.function`
+          execution).
+        jit_compile: If `True`, compile the model training step with XLA.
+          [XLA](https://www.tensorflow.org/xla) is an optimizing compiler for
+          machine learning.
+          `jit_compile` is not enabled for by default.
+          This option cannot be enabled with `run_eagerly=True`.
+          Note that `jit_compile=True` is
+          may not necessarily work for all models.
+          For more information on supported operations please refer to the
+          [XLA documentation](https://www.tensorflow.org/xla).
+          Also refer to
+          [known XLA issues](https://www.tensorflow.org/xla/known_issues) for
+          more details.
         **kwargs: Arguments supported for backwards compatibility only.
     """
     base_layer.keras_api_gauge.get_cell('compile').set(True)
@@ -597,6 +609,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       self._reset_compile_cache()
       self._is_compiled = True
       self.loss = loss or {}
+      if (self._run_eagerly or self.dynamic) and jit_compile:
+        raise ValueError(
+            'You cannot enable `run_eagerly` and `jit_compile` '
+            'at the same time.')
+      else:
+        self._jit_compile = jit_compile
 
   def _get_optimizer(self, optimizer):
     """Wraps `optimizer` in `LossScaleOptimizer` if necessary."""
@@ -985,6 +1003,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           model._train_counter.assign_add(1)  # pylint: disable=protected-access
         return outputs
 
+      if self._jit_compile:
+        run_step = tf.function(
+            run_step, jit_compile=True, experimental_relax_shapes=True)
       data = next(iterator)
       outputs = model.distribute_strategy.run(run_step, args=(data,))
       outputs = reduce_per_replica(
