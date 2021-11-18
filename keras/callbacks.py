@@ -1253,9 +1253,9 @@ class ModelCheckpoint(Callback):
       options: Optional `tf.train.CheckpointOptions` object if
         `save_weights_only` is true or optional `tf.saved_model.SaveOptions`
         object if `save_weights_only` is false.
-      initial_best: Initial best value of the metric to be monitored before
-        training begins. Only overwrites the model weights already saved, if the
-        performance of current model is better than the previous saved model.
+      initial_best: Initial "best" value of the metric to be monitored.
+        Only overwrites the model weights already saved if the
+        performance of current model is better than this value.
       **kwargs: Additional arguments for backwards compatibility. Possible key
         is `period`.
   """
@@ -1269,7 +1269,7 @@ class ModelCheckpoint(Callback):
                mode='auto',
                save_freq='epoch',
                options=None,
-               initial_best= None,
+               initial_best=None,
                **kwargs):
     super(ModelCheckpoint, self).__init__()
     self._supports_tf_logs = True
