@@ -25,7 +25,7 @@
 These are benchmark tests running on keras models: models from
 [keras/examples](https://github.com/keras-team/keras/tree/master/examples).
 Benchmarks in the current folder
-(`tensorflow/python/keras/benchmarks/keras_examples_benchmarks`) use Keras
+(`https://github.com/keras-team/keras/blob/master/keras/benchmarks/keras_examples_benchmarks`) use Keras
 [built-in dataset](https://keras.io/api/datasets/). In addition, these
 benchmarks support different
 [distribution strategies](https://www.tensorflow.org/guide/distributed_training)
@@ -37,27 +37,27 @@ These examples are implemented by Functional API and Sequential API.
 
 #### Computer Vision examples
 
--   [cifar10_cnn_benchmark_test.py](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/benchmarks/keras_examples_benchmarks/cifar10_cnn_benchmark_test.py):
+-   [cifar10_cnn_benchmark_test.py](https://github.com/keras-team/keras/blob/master/keras/benchmarks/keras_examples_benchmarks/cifar10_cnn_benchmark_test.py):
     Simple CNN on CIFAR10 image dataset.
--   [mnist_conv_benchmark_test.py](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/benchmarks/keras_examples_benchmarks/mnist_conv_benchmark_test.py):
+-   [mnist_conv_benchmark_test.py](https://github.com/keras-team/keras/blob/master/keras/benchmarks/keras_examples_benchmarks/mnist_conv_benchmark_test.py):
     Simple Convnet that achieves ~99% test accuracy on MNIST.
--   [mnist_hierarchical_rnn_benchmark_test.py](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/benchmarks/keras_examples_benchmarks/mnist_hierarchical_rnn_benchmark_test.py):
+-   [mnist_hierarchical_rnn_benchmark_test.py](https://github.com/keras-team/keras/blob/master/keras/benchmarks/keras_examples_benchmarks/mnist_hierarchical_rnn_benchmark_test.py):
     Hierarchical RNN (HRNN) to classify MNIST digits.
 
 #### Text & Sequence examples
 
--   [Bidirectional_lstm_benchmark_test.py](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/benchmarks/keras_examples_benchmarks/bidirectional_lstm_benchmark_test.py):
+-   [Bidirectional_lstm_benchmark_test.py](https://github.com/keras-team/keras/blob/master/keras/benchmarks/keras_examples_benchmarks/bidirectional_lstm_benchmark_test.py):
     2-layer bidirectional LSTM on IMDB movie review dataset.
--   [text_classification_transformer_benchmark_test.py](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/benchmarks/keras_examples_benchmarks/text_classification_transformer_benchmark_test.py):
+-   [text_classification_transformer_benchmark_test.py](https://github.com/keras-team/keras/blob/master/keras/benchmarks/keras_examples_benchmarks/text_classification_transformer_benchmark_test.py):
     Text classification with custom transformer block.
--   [reuters_mlp_benchmark_test.py](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/benchmarks/keras_examples_benchmarks/reuters_mlp_benchmark_test.py):
+-   [reuters_mlp_benchmark_test.py](https://github.com/keras-team/keras/blob/master/keras/benchmarks/keras_examples_benchmarks/reuters_mlp_benchmark_test.py):
     Simple MLP on Reuters newswire topic classification dataset.
 
 #### Other examples
 
--   [antirectifier_benchmark_test.py](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/benchmarks/keras_examples_benchmarks/antirectifier_benchmark_test.py):
+-   [antirectifier_benchmark_test.py](https://github.com/keras-team/keras/blob/master/keras/benchmarks/keras_examples_benchmarks/antirectifier_benchmark_test.py):
     Simple custom layer example.
--   [mnist_irnn_benchmark_test.py](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/benchmarks/keras_examples_benchmarks/mnist_irnn_benchmark_test.py):Reproduction
+-   [mnist_irnn_benchmark_test.py](https://github.com/keras-team/keras/blob/master/keras/benchmarks/keras_examples_benchmarks/mnist_irnn_benchmark_test.py):Reproduction
     of the IRNN experiment with pixel-by-pixel sequential MNIST in
     ["A Simple Way to Initialize Recurrent Networks of Rectified Linear Units"](https://arxiv.org/abs/1504.00941)
     by Le et al.
@@ -222,9 +222,9 @@ To add a new benchmark, please take the following steps:
 6.  Define the benchmark_xxx method to measure the performance of benchmarks
     with different hyper parameters, such as `batch_size`, `run_iters`,
     `distribution_strategy` and etc. You can check examples from
-    [here](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/benchmarks/keras_examples_benchmarks/bidirectional_lstm_benchmark_test.py#L60).
+    [here](https://github.com/keras-team/keras/blob/master/keras/benchmarks/keras_examples_benchmarks/bidirectional_lstm_benchmark_test.py#L60).
 7.  Add the benchmark target to the
-    [BUILD](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/benchmarks/BUILD)
+    [BUILD](https://github.com/keras-team/keras/blob/master/keras/benchmarks/BUILD)
     file.
 
 ## Troubleshooting

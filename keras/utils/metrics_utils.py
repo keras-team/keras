@@ -15,18 +15,15 @@
 # pylint: disable=protected-access
 """Utils related to keras metrics."""
 
-import tensorflow.compat.v2 as tf
-
+from enum import Enum
 import functools
 import weakref
-
-from enum import Enum
-
-import numpy as np
 from keras import backend
 from keras.utils import losses_utils
 from keras.utils import tf_utils
 from keras.utils.generic_utils import to_list
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 NEG_INF = -1e10
 
@@ -99,7 +96,6 @@ def result_wrapper(result_fn):
 
   def decorated(metric_obj, *args):
     """Decorated function with merge_call."""
-    has_strategy = tf.distribute.has_strategy()
     replica_context = tf.distribute.get_replica_context()
 
     # The purpose of using `merge_call` to call `result()` is to trigger cross
@@ -120,14 +116,12 @@ def result_wrapper(result_fn):
     #    if NCCL is used to do the aggregation, the program will hang because
     #    NCCL ops are only launched on the non-pruned first replica.
     #
-    # We condition on strategy.extended._use_merge_call() since we know if it is
-    # false, the program uses `jit_compile` to compile replica fn, meaning it is
+    # We condition on strategy_supports_no_merge_call() since we know if it is
+    # True, the program uses `jit_compile` to compile replica fn, meaning it is
     # not V1 training (hence #1 is okay), and no pruning will happen as
     # compiled functions are not inlined (hence #2 is okay).
-
-    if (not has_strategy or replica_context is None or
-        not tf.distribute.get_strategy(
-        ).extended._use_merge_call()):
+    if (replica_context is None or
+        tf.__internal__.distribute.strategy_supports_no_merge_call()):
       with tf.__internal__.distribute.variable_sync_on_read_context():
         raw_result = result_fn(*args)
         # Results need to be wrapped in a `tf.identity` op to ensure
@@ -472,7 +466,7 @@ def is_evenly_distributed_thresholds(thresholds):
 
   We could leverage evenly distributed thresholds to use less memory when
   calculate metrcis like AUC where each individual threshold need to be
-  evaluted.
+  evaluated.
 
   Args:
     thresholds: A python list or tuple, or 1D numpy array whose value is ranged

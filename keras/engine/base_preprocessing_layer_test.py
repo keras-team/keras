@@ -186,7 +186,8 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
     output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
     model.save(output_path, save_format="tf")
 
-    with self.assertRaisesRegex(RuntimeError, "Unable to restore a layer of"):
+    with self.assertRaisesRegex(ValueError,
+                                "Unknown layer: AddingPreprocessingLayer"):
       _ = keras.models.load_model(output_path)
 
   def test_adapt_sets_input_shape_rank(self):

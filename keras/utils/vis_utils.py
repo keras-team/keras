@@ -22,7 +22,7 @@ import os
 import sys
 import re
 from keras import activations
-from keras.utils.io_utils import path_to_string
+from keras.utils import io_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -74,7 +74,7 @@ def get_layer_index_bound_by_layer_name(model, layer_names):
     layer_names: unique name of layer of the model, type(str)
 
   Returns:
-    retun the index value of layer based on its unique name (layer_names)
+    return the index value of layer based on its unique name (layer_names)
   """
   lower_index = []
   upper_index = []
@@ -152,12 +152,12 @@ def model_to_dot(model,
     message = (
         'You must install pydot (`pip install pydot`) '
         'and install graphviz '
-        '(see instructions at https://graphviz.gitlab.io/download/) ',
+        '(see instructions at https://graphviz.gitlab.io/download/) '
         'for plot_model/model_to_dot to work.')
     if 'IPython.core.magics.namespace' in sys.modules:
       # We don't raise an exception here in order to avoid crashing notebook
       # tests where graphviz is not available.
-      print(message)
+      io_utils.print_msg(message)
       return
     else:
       raise ImportError(message)
@@ -186,7 +186,7 @@ def model_to_dot(model,
     layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
     if layer_range[0] < 0 or layer_range[1] > len(model.layers):
       raise ValueError('Both values in layer_range should be in range (0, '
-                       f'{len(model.layers)}. Recieved: {layer_range}')
+                       f'{len(model.layers)}. Received: {layer_range}')
 
   sub_n_first_node = {}
   sub_n_last_node = {}
@@ -422,7 +422,7 @@ def plot_model(model,
       dpi=dpi,
       layer_range=layer_range,
       show_layer_activations=show_layer_activations)
-  to_file = path_to_string(to_file)
+  to_file = io_utils.path_to_string(to_file)
   if dot is None:
     return
   _, extension = os.path.splitext(to_file)

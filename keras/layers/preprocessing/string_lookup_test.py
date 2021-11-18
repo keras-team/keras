@@ -388,4 +388,6 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
       fn()
 
 if __name__ == "__main__":
+  # StringLookup is only exported as a TF2 API.
+  tf.compat.v1.enable_v2_behavior()
   tf.test.main()

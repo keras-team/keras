@@ -5,22 +5,24 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     default_visibility = [
-        ":__subpackages__",
+        ":friends",
         "//third_party/py/tensorflow:__subpackages__",
+        "//third_party/tensorflow/python/feature_column:__subpackages__",  # For unit test
+        "//third_party/tensorflow/python/tpu:__subpackages__",  # For unit test
         "//third_party/tensorflow_estimator:__subpackages__",
     ],
     licenses = ["notice"],
 )
 
-exports_files(["LICENSE"])
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = [
-        "//keras/google/private_tf_api_test:__pkg__",
-    ],
+# Keras code that doesn't live in core Keras directory, but still
+# need to directly access the keras code.
+# We shouldn't add any client side package to this list.
+package_group(
+    name = "friends",
+    packages = ["//keras/..."],
 )
+
+exports_files(["LICENSE"])
 
 config_setting(
     name = "no_keras_py_deps",
@@ -242,6 +244,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
+        "//keras/optimizer_experimental:optimizer",
         "//keras/optimizer_v2",
         "//keras/utils:engine_utils",
     ],

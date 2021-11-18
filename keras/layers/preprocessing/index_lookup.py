@@ -268,7 +268,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         # value of the index_lookup table.
         self._default_value = self._oov_start_index()
       else:
-        # If we hav multiple OOV values, we need to do a further hashing step;
+        # If we have multiple OOV values, we need to do a further hashing step;
         # to make this easier, we set the OOV value to -1. (This lets us do a
         # vectorized add and cast to boolean to determine locations where we
         # need to do extra hashing.)
@@ -293,7 +293,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       # to be uninitialized as a StaticHashTable cannot be initialized twice.
       self.lookup_table = self._uninitialized_lookup_table()
 
-    # Only set up adapt state if we did not recieve a vocab on construction.
+    # Only set up adapt state if we did not receive a vocab on construction.
     if not self._has_input_vocabulary:
       # Add a custom weight handler to return the layers vocab as it's weight.
       self._add_trackable(VocabWeightHandler(self), False)
@@ -528,7 +528,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           "Cannot adapt {} layer after setting a static vocabulary via init "
           "argument or `set_vocabulary`.".format(self.__class__.__name__))
 
-    data = self._standardize_inputs(data, self.vocabulary_dtype)
+    data = utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
     if data.shape.rank == 0:
       data = tf.expand_dims(data, 0)
     if data.shape.rank == 1:
@@ -612,7 +612,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
   def call(self, inputs):
     self._maybe_freeze_vocab_size()
 
-    inputs = self._standardize_inputs(inputs, self._key_dtype)
+    inputs = utils.ensure_tensor(inputs, dtype=self._key_dtype)
     original_shape = inputs.shape
     # Some ops will not handle scalar input, so uprank to rank 1.
     if inputs.shape.rank == 0:
@@ -648,8 +648,9 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     """Lookup table values for a dense Tensor, handling masking and OOV."""
     # When executing eagerly and tracing keras.Inputs, do not call lookup. This
     # is critical for restoring SavedModel, which will first trace layer.call
-    # and then attempt to restore the table. We need the table to be unitialized
-    # for the restore to work, but calling the table unitialized would error.
+    # and then attempt to restore the table. We need the table to be
+    # uninitialized for the restore to work, but calling the table uninitialized
+    # would error.
     if tf.executing_eagerly() and backend.is_keras_tensor(inputs):
       lookups = tf.zeros_like(inputs, dtype=self._value_dtype)
     else:
@@ -721,13 +722,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           value_index=value_index,
           value_index_offset=self._token_start_index())
       return tf.lookup.StaticHashTable(initializer, self._default_value)
-
-  def _standardize_inputs(self, inputs, dtype):
-    if not isinstance(inputs, (tf.Tensor, tf.RaggedTensor, tf.SparseTensor)):
-      inputs = tf.convert_to_tensor(inputs, dtype)
-    elif inputs.dtype != dtype:
-      inputs = tf.cast(inputs, dtype)
-    return inputs
 
   def _convert_to_ndarray(self, x):
     return np.array(x) if isinstance(x, (list, tuple)) else x

@@ -25,6 +25,15 @@ COUNT = "count"
 TF_IDF = "tf_idf"
 
 
+def ensure_tensor(inputs, dtype=None):
+  """Ensures the input is a Tensor, SparseTensor or RaggedTensor."""
+  if not isinstance(inputs, (tf.Tensor, tf.RaggedTensor, tf.SparseTensor)):
+    inputs = tf.convert_to_tensor(inputs, dtype)
+  if dtype is not None and inputs.dtype != dtype:
+    inputs = tf.cast(inputs, dtype)
+  return inputs
+
+
 def listify_tensors(x):
   """Convert any tensors or numpy arrays to lists for config serialization."""
   if tf.is_tensor(x):
@@ -88,7 +97,7 @@ def encode_categorical_inputs(inputs,
                               idf_weights=None):
   """Encodes categoical inputs according to output_mode."""
   if output_mode == INT:
-    return tf.cast(inputs, dtype)
+    return tf.identity(tf.cast(inputs, dtype))
 
   original_shape = inputs.shape
   # In all cases, we should uprank scalar input to a single sample.

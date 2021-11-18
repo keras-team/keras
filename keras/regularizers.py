@@ -35,7 +35,7 @@ def _check_penalty_number(x):
   if math.isinf(x) or math.isnan(x):
     raise ValueError(
         f'Value: {x} is not a valid regularization penalty number, '
-        'an infinity nubmer or NaN are not valid value')
+        'an infinity number or NaN are not valid value')
 
 
 def _none_to_default(inputs, default):

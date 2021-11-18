@@ -8,7 +8,7 @@ load("@org_keras//keras:keras.bzl", "distribute_py_test")
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
     licenses = ["notice"],
@@ -170,11 +170,30 @@ distribute_py_test(
     shard_count = 50,
     tags = [
         "multi_gpu",
-        "no_oss",  # TODO(b/183640564): Reenable
+        "no_oss",  # TODO(b/183640564): Re-enable
         "no_rocm",
         "noasan",  # TODO(b/184542721)
         "nomsan",  # TODO(b/184542721)
         "nomultivm",  # TODO(b/170502145)
+        "notsan",  # TODO(b/184542721)
+    ],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+    ],
+)
+
+distribute_py_test(
+    name = "mwms_multi_process_runner_test",
+    srcs = ["mwms_multi_process_runner_test.py"],
+    python_version = "PY3",
+    tags = [
+        "multi_gpu",
+        "no_rocm",
+        "noasan",  # TODO(b/184542721)
+        "nomsan",  # TODO(b/184542721)
+        "nomultivm",  # TODO(b/170502145)
+        "notpu",
         "notsan",  # TODO(b/184542721)
     ],
     deps = [
@@ -197,7 +216,7 @@ distribute_py_test(
     shard_count = 50,
     tags = [
         "multi_gpu",
-        "no_oss",  # TODO(b/183640564): Reenable
+        "no_oss",  # TODO(b/183640564): Re-enable
         "no_rocm",
         "noasan",  # TODO(b/184542721)
         "nomsan",  # TODO(b/184542721)
@@ -218,7 +237,7 @@ distribute_py_test(
     shard_count = 50,
     tags = [
         "multi_gpu",
-        "no_oss",  # TODO(b/183640564): Reenable
+        "no_oss",  # TODO(b/183640564): Re-enable
         "no_rocm",
         "noasan",  # TODO(b/184542721)
         "nomsan",  # TODO(b/184542721)
@@ -239,7 +258,7 @@ distribute_py_test(
     shard_count = 50,
     tags = [
         "multi_gpu",
-        "no_oss",  # TODO(b/183640564): Reenable
+        "no_oss",  # TODO(b/183640564): Re-enable
         "no_rocm",
         "noasan",  # TODO(b/184542721)
         "nomsan",  # TODO(b/184542721)
@@ -259,7 +278,7 @@ distribute_py_test(
     python_version = "PY3",
     tags = [
         "multi_gpu",
-        "no_oss",  # TODO(b/183640564): Reenable
+        "no_oss",  # TODO(b/183640564): Re-enable
         "no_rocm",
         "noasan",  # TODO(b/184542721)
         "nomsan",  # TODO(b/184542721)

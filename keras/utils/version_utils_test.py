@@ -14,11 +14,7 @@
 # ==============================================================================
 """Tests for Keras utilities to split v1 and v2 classes."""
 
-import tensorflow.compat.v2 as tf
-
 import abc
-
-import numpy as np
 
 import keras
 from keras import keras_parameterized
@@ -26,6 +22,8 @@ from keras.engine import base_layer
 from keras.engine import base_layer_v1
 from keras.engine import training
 from keras.engine import training_v1
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @keras_parameterized.run_all_keras_modes
@@ -178,7 +176,6 @@ class SplitUtilsTest(keras_parameterized.TestCase):
       with self.assertRaisesRegex(
           ValueError, 'instance was constructed with eager mode enabled'):
         model.fit(x, y, batch_size=2)
-
 
 if __name__ == '__main__':
   tf.test.main()

@@ -24,6 +24,7 @@ import numpy as np
 
 from keras import backend
 from keras import optimizer_v1
+from keras.optimizer_experimental import optimizer as optimizer_experimental
 from keras.saving import model_config as model_config_lib
 from keras.saving import saving_utils
 from keras.saving.saved_model import json_utils
@@ -121,8 +122,12 @@ def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
 
     # TODO(b/128683857): Add integration tests between tf.keras and external
     # Keras, to avoid breaking TF.js users.
-    if (include_optimizer and model.optimizer and
-        not isinstance(model.optimizer, optimizer_v1.TFOptimizer)):
+    if isinstance(model.optimizer, optimizer_experimental.Optimizer):
+      logging.warning('HDF5 format does not save weights of'
+                      ' `optimizer_experimental.Optimizer`, your optimizer will'
+                      ' be recompiled at loading time.')
+    elif (include_optimizer and model.optimizer and
+          not isinstance(model.optimizer, optimizer_v1.TFOptimizer)):
       save_optimizer_weights_to_hdf5_group(f, model.optimizer)
 
     f.flush()
@@ -201,7 +206,11 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):  # pylint
       saving_utils.try_build_compiled_arguments(model)
 
       # Set optimizer weights.
-      if 'optimizer_weights' in f:
+      if isinstance(model.optimizer, optimizer_experimental.Optimizer):
+        logging.warning('Loading model from HDF5 will not restore the '
+                        'optimizer\'s weights, since the optimizer is an '
+                        'instance of `optimizer_experimental.Optimizer`')
+      elif 'optimizer_weights' in f:
         try:
           model.optimizer._create_all_weights(model.trainable_variables)
         except (NotImplementedError, AttributeError):
@@ -753,6 +762,10 @@ def load_weights_from_hdf5_group(f, model):
     weight_value_tuples += zip(symbolic_weights, weight_values)
   backend.batch_set_value(weight_value_tuples)
 
+  # Perform any layer defined finalization of the layer state.
+  for layer in model._flatten_layers():
+    layer.finalize_state()
+
 
 def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
   """Implements name-based weight loading (instead of topological loading).
@@ -873,6 +886,10 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
           weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
 
   backend.batch_set_value(weight_value_tuples)
+
+  # Perform any layer defined finalization of the layer state.
+  for layer in model._flatten_layers():
+    layer.finalize_state()
 
 
 def save_attributes_to_hdf5_group(group, name, data):

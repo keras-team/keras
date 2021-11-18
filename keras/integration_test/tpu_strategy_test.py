@@ -232,7 +232,7 @@ class TpuStrategyTest(tf.test.TestCase):
     self.assertIn(prediction1, ("yes", "no"))
 
     prediction2 = loaded_serving_fn(
-        tf.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
+        tf.constant(["ironman", "ironman", "unknown"]))["output_0"]
     self.assertIn(prediction2, ("yes", "no"))
 
 

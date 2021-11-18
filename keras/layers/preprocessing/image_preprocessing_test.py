@@ -159,6 +159,14 @@ class ResizingTest(keras_parameterized.TestCase):
       expected_output = np.reshape(expected_output, (2, 2, 1))
       self.assertAllEqual(expected_output, output_image)
 
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.Resizing(2, 2)
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.Resizing(2, 2, dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
+
   @parameterized.named_parameters(
       ('batch_crop_to_aspect_ratio', True, True),
       ('batch_dont_crop_to_aspect_ratio', False, True),
@@ -273,6 +281,14 @@ class CenterCropTest(keras_parameterized.TestCase):
       expected_output = np.reshape(expected_output, (2, 2, 1))
       self.assertAllEqual(expected_output, output_image)
 
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.CenterCrop(2, 2)
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.CenterCrop(2, 2, dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class RandomCropTest(keras_parameterized.TestCase):
@@ -382,6 +398,14 @@ class RandomCropTest(keras_parameterized.TestCase):
         actual_output = layer(inp, training=True)
         self.assertAllClose(inp[2:10, 2:10, :], actual_output)
 
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.RandomCrop(2, 2)
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.RandomCrop(2, 2, dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
+
 
 class RescalingTest(keras_parameterized.TestCase):
 
@@ -421,6 +445,14 @@ class RescalingTest(keras_parameterized.TestCase):
     inputs = tf.random.uniform((4, 5, 3))
     outputs = layer(inputs)
     self.assertAllClose(outputs.numpy(), inputs.numpy() * (1. / 127.5) - 1)
+
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.Rescaling(0.5)
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.Rescaling(0.5, dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -521,6 +553,14 @@ class RandomFlipTest(keras_parameterized.TestCase):
         actual_output = layer(input_image, training=True)
         self.assertAllClose(expected_output, actual_output)
 
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.RandomFlip()
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.RandomFlip(dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class RandomContrastTest(keras_parameterized.TestCase):
@@ -612,6 +652,14 @@ class RandomContrastTest(keras_parameterized.TestCase):
         layer = image_preprocessing.RandomContrast((0.2, 0.5))
         actual_output = layer(inp, training=True)
         self.assertAllClose(expected_output, actual_output)
+
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.RandomContrast((.5, .6))
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.RandomContrast((.5, .6), dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -799,6 +847,14 @@ class RandomTranslationTest(keras_parameterized.TestCase):
       ]).astype(np.int64)
       expected_output = np.reshape(expected_output, (5, 5, 1))
       self.assertAllEqual(expected_output, output_image)
+
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.RandomTranslation(.5, .6)
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.RandomTranslation(.5, .6, dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -1230,6 +1286,14 @@ class RandomRotationTest(keras_parameterized.TestCase):
       expected_output = np.reshape(expected_output, (5, 5, 1))
       self.assertAllClose(expected_output, output_image)
 
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.RandomRotation(.5)
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.RandomRotation(.5, dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class RandomZoomTest(keras_parameterized.TestCase):
@@ -1344,6 +1408,14 @@ class RandomZoomTest(keras_parameterized.TestCase):
       expected_output = np.reshape(expected_output, (5, 5, 1))
       self.assertAllEqual(expected_output, output_image)
 
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.RandomZoom(.5, .5)
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.RandomZoom(.5, .5, dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class RandomHeightTest(keras_parameterized.TestCase):
@@ -1445,6 +1517,14 @@ class RandomHeightTest(keras_parameterized.TestCase):
         img_out = layer(img, training=True)
         self.assertEqual(img_out.shape[0], 3)
 
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.RandomHeight(.2)
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.RandomHeight(.2, dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class RandomWidthTest(keras_parameterized.TestCase):
@@ -1544,6 +1624,14 @@ class RandomWidthTest(keras_parameterized.TestCase):
           layer._random_generator, 'random_uniform', return_value=mock_factor):
         img_out = layer(img, training=True)
         self.assertEqual(img_out.shape[1], 3)
+
+  @testing_utils.run_v2_only
+  def test_output_dtypes(self):
+    inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
+    layer = image_preprocessing.RandomWidth(.2)
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
+    layer = image_preprocessing.RandomWidth(.2, dtype='uint8')
+    self.assertAllEqual(layer(inputs).dtype, 'uint8')
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)

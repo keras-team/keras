@@ -8,12 +8,6 @@ package(
     licenses = ["notice"],
 )
 
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
-)
-
 # To run CPU benchmarks:
 #   bazel run -c opt benchmarks_test -- --benchmarks=.
 
@@ -27,7 +21,7 @@ filegroup(
 # to the regular expression is executed.
 # e.g. --benchmarks=".*lstm*." will run all lstm layer related benchmarks.
 
-# Add all benchmarks related utils here for pip testing dependencis.
+# Add all benchmarks related utils here for pip testing dependencies.
 py_library(
     name = "keras_benchmark_lib_pip",
     srcs_version = "PY3",
@@ -43,7 +37,7 @@ py_library(
     name = "profiler_lib",
     srcs_version = "PY3",
     visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//learning/brain/contrib/keras_benchmark:__subpackages__",
     ],
 )

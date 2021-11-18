@@ -96,7 +96,8 @@ class InputSpec:
       axes = axes or {}
       self.axes = {int(k): axes[k] for k in axes}
     except (ValueError, TypeError):
-      raise TypeError('The keys in axes must be integers.')
+      raise TypeError('Argument `axes` must be a dict with integer keys. '
+                      f'Received: axes={axes}')
 
     if self.axes and (self.ndim is not None or self.max_ndim is not None):
       max_dim = (self.ndim if self.ndim else self.max_ndim) - 1
@@ -246,7 +247,7 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
         if value is not None and shape_as_list[int(axis)] not in {value, None}:
           raise ValueError(
               f'Input {input_index} of layer "{layer_name}" is '
-              f'incompatible with the layer: expected axis {axis}'
+              f'incompatible with the layer: expected axis {axis} '
               f'of input shape to have value {value}, '
               f'but received input with shape {display_shape(x.shape)}')
     # Check shape.

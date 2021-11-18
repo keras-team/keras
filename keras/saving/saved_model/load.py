@@ -14,7 +14,6 @@
 # ==============================================================================
 """Keras SavedModel deserialization."""
 
-import os
 import re
 import types
 
@@ -108,7 +107,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
   meta_graph_def = tf.__internal__.saved_model.parse_saved_model(
       path).meta_graphs[0]
   object_graph_def = meta_graph_def.object_graph_def
-  path_to_metadata_pb = os.path.join(path, constants.SAVED_METADATA_PATH)
+  path_to_metadata_pb = tf.io.gfile.join(path, constants.SAVED_METADATA_PATH)
   if tf.compat.v1.gfile.Exists(path_to_metadata_pb):
     try:
       with tf.io.gfile.GFile(path_to_metadata_pb, 'rb') as f:
@@ -124,7 +123,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
                     'with model.save() or tf.keras.models.save_model(), *NOT* '
                     'tf.saved_model.save(). To confirm, there should be a file '
                     'named "keras_metadata.pb" in the SavedModel directory.')
-    _read_legacy_metadata(object_graph_def, metadata)
+    _read_legacy_metadata(object_graph_def, metadata, path)
 
   if not metadata.nodes:
     # When there are no Keras objects, return the results from the core loader
@@ -193,7 +192,7 @@ def _update_to_current_version(metadata):
   return metadata
 
 
-def _read_legacy_metadata(object_graph_def, metadata):
+def _read_legacy_metadata(object_graph_def, metadata, path):
   """Builds a KerasMetadata proto from the SavedModel ObjectGraphDef."""
   # Older SavedModels store the metadata directly in the proto instead of the
   # separate pb file.
@@ -202,11 +201,12 @@ def _read_legacy_metadata(object_graph_def, metadata):
     if (proto.WhichOneof('kind') == 'user_object' and
         proto.user_object.identifier in constants.KERAS_OBJECT_IDENTIFIERS):
       if not proto.user_object.metadata:
-        raise ValueError('Unable to create a Keras model from this SavedModel. '
-                         'This SavedModel was created with '
-                         '`tf.saved_model.save`, and lacks the Keras metadata.'
-                         'Please save your Keras model by calling `model.save`'
-                         'or `tf.keras.models.save_model`.')
+        raise ValueError(
+            f'Unable to create a Keras model from SavedModel at {path}. '
+            'This SavedModel was exported with `tf.saved_model.save`, and '
+            'lacks the Keras metadata file. Please save your Keras model by '
+            'calling `model.save`or `tf.keras.models.save_model`. Note that '
+            'you can still load this SavedModel with `tf.saved_model.load`.')
       metadata.nodes.add(
           node_id=node_id,
           node_path=node_paths[node_id],
@@ -524,7 +524,7 @@ class KerasObjectLoader:
           generic_utils.serialize_keras_class_and_config(
               class_name, config, shared_object_id=shared_object_id))
     except (TypeError, KeyError) as e:
-      # A name conflict has occured. The `class_name` is in the Keras native
+      # A name conflict has occurred. The `class_name` is in the Keras native
       # framework; however, the value in the framework is different from the
       # user's class definition which confuses the KerasObjectLoader.
       builtin_layer = layers_module.get_builtin_layer(class_name)
@@ -538,16 +538,9 @@ class KerasObjectLoader:
             '`keras.utils.CustomObjectScope` that wraps this load call.') from e
       else:
         raise
-    except ValueError:
+    except ValueError as e:
       if must_restore_from_config:
-        raise RuntimeError(
-            f'Unable to restore a layer of class {class_name}. Layers of '
-            f'class {class_name} require that the class be provided to '
-            'the model loading code, either by registering the '
-            'class using `@keras.utils.register_keras_serializable` '
-            'on the class def and including that file in your '
-            'program, or by passing the class in a '
-            '`keras.utils.CustomObjectScope` that wraps this load call.')
+        raise e
       else:
         return None
 
@@ -791,7 +784,6 @@ class KerasObjectLoader:
 
   def _infer_inputs(self, layer_node_id, convert_to_shapes=False):
     """Infers input shape of layer from SavedModel functions."""
-    coder = tf.__internal__.saved_model.StructureCoder()
     call_fn_id = self._search_for_child_node(
         layer_node_id, ['call_and_return_all_conditional_losses'])
     if call_fn_id is None:
@@ -803,7 +795,7 @@ class KerasObjectLoader:
       return None
     call_fn_name = concrete_functions[0]
     call_fn_proto = self._proto.concrete_functions[call_fn_name]
-    structured_input_signature = coder.decode_proto(
+    structured_input_signature = tf.__internal__.saved_model.decode_proto(
         call_fn_proto.canonicalized_input_signature)
     inputs = structured_input_signature[0][0]
     if convert_to_shapes:

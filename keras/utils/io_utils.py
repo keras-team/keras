@@ -16,6 +16,26 @@
 """Utilities related to disk I/O."""
 
 import os
+import sys
+import threading
+
+import absl
+
+ABSL_LOGGING = threading.local()
+ABSL_LOGGING.enable = False
+
+
+def print_msg(message, line_break=True):
+  """Print the message to absl logging or stdout."""
+  # Use `getattr` in case `ABSL_LOGGING` does not have the `enable` attribute.
+  if getattr(ABSL_LOGGING, 'enable', False):
+    absl.logging.info(message)
+  else:
+    if line_break:
+      sys.stdout.write(message + '\n')
+    else:
+      sys.stdout.write(message)
+    sys.stdout.flush()
 
 
 def path_to_string(path):
@@ -55,5 +75,5 @@ def ask_to_proceed_with_overwrite(filepath):
                       '(cancel).').strip().lower()
   if overwrite == 'n':
     return False
-  print('[TIP] Next time specify overwrite=True!')
+  print_msg('[TIP] Next time specify overwrite=True!')
   return True
