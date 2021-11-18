@@ -4,7 +4,7 @@ tf_class {
   is_instance: "<class \'keras.engine.training.Model\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
-  is_instance: "<class \'tensorflow.python.training.tracking.tracking.AutoTrackable\'>"
+  is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.base.Trackable\'>"
   is_instance: "<class \'keras.utils.version_utils.LayerVersionSelector\'>"
   is_instance: "<class \'keras.utils.version_utils.ModelVersionSelector\'>"
@@ -331,7 +331,7 @@ tf_class {
   }
   member_method {
     name: "summary"
-    argspec: "args=[\'self\', \'line_length\', \'positions\', \'print_fn\', \'expand_nested\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\', \'False\'], "
+    argspec: "args=[\'self\', \'line_length\', \'positions\', \'print_fn\', \'expand_nested\', \'show_trainable\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\', \'False\', \'False\'], "
   }
   member_method {
     name: "test_on_batch"

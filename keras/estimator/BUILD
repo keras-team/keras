@@ -3,7 +3,7 @@
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
     ],
     licenses = ["notice"],
 )

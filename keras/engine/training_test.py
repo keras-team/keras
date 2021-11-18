@@ -14,16 +14,12 @@
 # ==============================================================================
 """Tests for training routines."""
 
-import tensorflow.compat.v2 as tf
 
 import collections
 import io
-import tempfile
 import sys
-
+import tempfile
 from absl.testing import parameterized
-import numpy as np
-from tensorflow.python.framework import test_util as tf_test_util
 from keras import backend
 from keras import combinations
 from keras import keras_parameterized
@@ -39,6 +35,9 @@ from keras.engine import training as training_module
 from keras.engine import training_utils_v1
 from keras.utils import data_utils
 from keras.utils import np_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.framework import test_util as tf_test_util
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
@@ -90,6 +89,28 @@ class TrainingTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError,
                                 'Unexpected result of `train_function`.*'):
       model.fit(x=np.array([]), y=np.array([]))
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_fit_without_loss_at_compile(self):
+    model = sequential.Sequential([layers_module.Dense(1)])
+    model.compile('sgd', run_eagerly=testing_utils.should_run_eagerly())
+    x, y = np.ones((10, 1)), np.ones((10, 1))
+    with self.assertRaisesRegex(ValueError, 'No loss found..*'):
+      model.fit(x, y, epochs=2)
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_fit_without_loss_at_compile_but_with_add_loss(self):
+
+    class MyModel(sequential.Sequential):
+
+      def call(self, x):
+        self.add_loss(tf.reduce_sum(x))
+        return x
+
+    model = MyModel([layers_module.Dense(1)])
+    model.compile('sgd', run_eagerly=testing_utils.should_run_eagerly())
+    x, y = np.ones((10, 1)), np.ones((10, 1))
+    model.fit(x, y, epochs=2)
 
   @keras_parameterized.run_all_keras_modes
   def test_run_eagerly_setting(self):
@@ -1104,7 +1125,7 @@ class TrainingTest(keras_parameterized.TestCase):
       training_module.Model([input1, input2], outputs)
       self.assertEqual(
           mock_warn.call_args_list[0][0][0],
-          'Found incompatiable static batch sizes among the inputs. '
+          'Found incompatible static batch sizes among the inputs. '
           'Batch sizes: [2, 3]')
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -1723,7 +1744,7 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
     model = training_module.Model(inputs, outputs)
     model.compile('rmsprop', 'mse')
     x = np.zeros((32, 3))
-    with self.assertRaisesRegex(TypeError, 'Target data is missing..*'):
+    with self.assertRaisesRegex(ValueError, 'Target data is missing..*'):
       model.fit(x)
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -1737,7 +1758,7 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
     model.compile('rmsprop', 'mse')
     x = np.zeros((32, 3))
     y = np.zeros((32, 2))
-    with self.assertRaisesRegex(TypeError, 'Target data is missing..*'):
+    with self.assertRaisesRegex(ValueError, 'Target data is missing..*'):
       model.fit({'a': x, 'b': x, 'c': y})
 
   @keras_parameterized.run_all_keras_modes
@@ -3490,7 +3511,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def DISABLED_test_add_metric_invalid_aggregation(self):
-    # TODO(psv): Reenable test once it is fixed.
+    # TODO(psv): Re-enable test once it is fixed.
     x = layers_module.Input(shape=(1,))
     y = layers_module.Dense(1, kernel_initializer='ones')(x)
     model = training_module.Model(x, y)

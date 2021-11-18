@@ -31,6 +31,7 @@ import weakref
 
 import numpy as np
 
+from keras.utils import io_utils
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 from tensorflow.python.util.tf_export import keras_export
@@ -902,6 +903,7 @@ class Progbar:
         self._values[k] = [v, 1]
     self._seen_so_far = current
 
+    message = ''
     now = time.time()
     info = ' - %.0fs' % (now - self._start)
     if current == self.target:
@@ -912,10 +914,10 @@ class Progbar:
 
       prev_total_width = self._total_width
       if self._dynamic_display:
-        sys.stdout.write('\b' * prev_total_width)
-        sys.stdout.write('\r')
+        message += '\b' * prev_total_width
+        message += '\r'
       else:
-        sys.stdout.write('\n')
+        message += '\n'
 
       if self.target is not None:
         numdigits = int(np.log10(self.target)) + 1
@@ -934,7 +936,7 @@ class Progbar:
         bar = '%7d/Unknown' % current
 
       self._total_width = len(bar)
-      sys.stdout.write(bar)
+      message += bar
 
       time_per_unit = self._estimate_step_duration(current, now)
 
@@ -970,8 +972,9 @@ class Progbar:
       if finalize:
         info += '\n'
 
-      sys.stdout.write(info)
-      sys.stdout.flush()
+      message += info
+      io_utils.print_msg(message, line_break=False)
+      message = ''
 
     elif self.verbose == 2:
       if finalize:
@@ -993,8 +996,9 @@ class Progbar:
           info += ' -' + self._format_time(time_per_epoch, 'epoch')
           info += ' -' + self._format_time(avg_time_per_step, self.unit_name)
           info += '\n'
-        sys.stdout.write(info)
-        sys.stdout.flush()
+        message += info
+        io_utils.print_msg(message, line_break=False)
+        message = ''
 
     self._last_update = now
 
@@ -1038,7 +1042,7 @@ class Progbar:
     if current:
       # there are a few special scenarios here:
       # 1) somebody is calling the progress bar without ever supplying step 1
-      # 2) somebody is calling the progress bar and supplies step one mulitple
+      # 2) somebody is calling the progress bar and supplies step one multiple
       #    times, e.g. as part of a finalizing call
       # in these cases, we just fall back to the simple calculation
       if self._time_after_first_step is not None and current > 1:

@@ -6,7 +6,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 package(
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
         "//third_party/tensorflow/python/training/tracking:__pkg__",
@@ -14,12 +14,6 @@ package(
         "//third_party/tensorflow_models/official/projects/residual_mobilenet/modeling/backbones:__pkg__",
     ],
     licenses = ["notice"],
-)
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
 )
 
 py_library(

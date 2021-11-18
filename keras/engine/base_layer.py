@@ -490,11 +490,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   def call(self, inputs, *args, **kwargs):  # pylint: disable=unused-argument
     """This is where the layer's logic lives.
 
-    Note here that `call()` method in `tf.keras` is little bit different
-    from `keras` API. In `keras` API, you can pass support masking for
-    layers as additional arguments. Whereas `tf.keras` has `compute_mask()`
-    method to support masking.
-
     The `call()` method may not create state (except in its first invocation,
     wrapping the creation of variables or other resources in `tf.init_scope()`).
     It is recommended to create state in `__init__()`, or the `build()` method
@@ -673,7 +668,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         return autocast_variable.create_autocast_variable(variable)
       # Also the caching_device does not work with the mixed precision API,
       # disable it if it is specified.
-      # TODO(b/142020079): Reenable it once the bug is fixed.
+      # TODO(b/142020079): Re-enable it once the bug is fixed.
       if caching_device is not None:
         tf_logging.warning(
             '`caching_device` does not work with mixed precision API. Ignoring '
@@ -1930,6 +1925,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     This function can be subclassed in a layer and will be called after updating
     a layer weights. It can be overridden to finalize any additional layer state
     after a weight update.
+
+    This function will be called after weights of a layer have been restored
+    from a loaded model.
     """
     pass
 
@@ -3415,7 +3413,7 @@ def _apply_name_scope_on_model_declaration(enable):
 
 
 class BaseRandomLayer(Layer):
-  """A layer handle the random nubmer creation and savemodel behavior."""
+  """A layer handle the random number creation and savemodel behavior."""
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, seed=None, force_generator=False, **kwargs):
@@ -3435,7 +3433,7 @@ class BaseRandomLayer(Layer):
       seed: optional integer, used to create RandomGenerator.
       force_generator: boolean, default to False, whether to force the
         RandomGenerator to use the code branch of tf.random.Generator.
-      **kwargs: other keyward arguements that will be passed to the parent class
+      **kwargs: other keyword arguments that will be passed to the parent class
     """
     super().__init__(**kwargs)
     self._random_generator = backend.RandomGenerator(

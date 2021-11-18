@@ -21,6 +21,11 @@ For more examples see the base class `tf.keras.optimizers.Optimizer`.
 import tensorflow.compat.v2 as tf
 
 from keras import backend
+from keras.optimizer_experimental import optimizer as optimizer_experimental
+from keras.optimizer_experimental import adadelta as adadelta_experimental
+from keras.optimizer_experimental import adagrad as adagrad_experimental
+from keras.optimizer_experimental import adam as adam_experimental
+from keras.optimizer_experimental import sgd as sgd_experimental
 from keras.optimizer_v1 import Optimizer
 from keras.optimizer_v1 import TFOptimizer
 from keras.optimizer_v2 import adadelta as adadelta_v2
@@ -78,11 +83,16 @@ def deserialize(config, custom_objects=None):
       'adagrad': adagrad_v2.Adagrad,
       'adam': adam_v2.Adam,
       'adamax': adamax_v2.Adamax,
+      'experimentaladadelta': adadelta_experimental.Adadelta,
+      'experimentaladagrad': adagrad_experimental.Adagrad,
+      'experimentaladam': adam_experimental.Adam,
+      'experimentalsgd': sgd_experimental.SGD,
       'nadam': nadam_v2.Nadam,
       'rmsprop': rmsprop_v2.RMSprop,
       'sgd': gradient_descent_v2.SGD,
       'ftrl': ftrl.Ftrl,
       'lossscaleoptimizer': loss_scale_optimizer.LossScaleOptimizer,
+      'lossscaleoptimizerv3': loss_scale_optimizer.LossScaleOptimizerV3,
       # LossScaleOptimizerV1 deserializes into LossScaleOptimizer, as
       # LossScaleOptimizerV1 will be removed soon but deserializing it will
       # still be supported.
@@ -116,7 +126,9 @@ def get(identifier):
   Raises:
       ValueError: If `identifier` cannot be interpreted.
   """
-  if isinstance(identifier, (Optimizer, optimizer_v2.OptimizerV2)):
+  if isinstance(
+      identifier,
+      (Optimizer, optimizer_v2.OptimizerV2, optimizer_experimental.Optimizer)):
     return identifier
   # Wrap legacy TF optimizer instances
   elif isinstance(identifier, tf.compat.v1.train.Optimizer):

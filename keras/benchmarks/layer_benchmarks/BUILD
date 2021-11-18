@@ -8,12 +8,6 @@ package(
     licenses = ["notice"],
 )
 
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
-)
-
 BECHMARK_TAGS = [
     "no_oss_py38",  # TODO(b/162044699)
     "no_pip",  # TODO(b/161253163)
@@ -41,14 +35,14 @@ py_library(
     name = "run_xprof",
     srcs = ["run_xprof.py"],
     srcs_version = "PY3",
-    visibility = ["//keras:__subpackages__"],
+    visibility = ["//keras:friends"],
 )
 
 py_library(
     name = "layer_benchmarks_test_base",
     srcs = ["layer_benchmarks_test_base.py"],
     srcs_version = "PY3",
-    visibility = ["//keras:__subpackages__"],
+    visibility = ["//keras:friends"],
     deps = [
         ":run_xprof",
         "//:expect_tensorflow_installed",

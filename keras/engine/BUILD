@@ -10,17 +10,11 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 package(
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/python:__pkg__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
     ],
     licenses = ["notice"],
-)
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
 )
 
 py_library(
@@ -516,7 +510,7 @@ tf_py_test(
     srcs = ["training_utils_v1_test.py"],
     python_version = "PY3",
     tags = [
-        "no_oss",  # TODO(b/135021748) reenable
+        "no_oss",  # TODO(b/135021748) re-enable
         "notsan",
     ],
     deps = [

@@ -66,7 +66,7 @@ def make_preprocessing_model(file_dir):
   normalization = preprocessing.Normalization()
   normalization.adapt(ds.map(lambda features, labels: features["float_col"]))
   float_out = normalization(float_in)
-  # Lookup ints by adapting a vocab of interger IDs.
+  # Lookup ints by adapting a vocab of integer IDs.
   int_lookup = preprocessing.IntegerLookup()
   int_lookup.adapt(ds.map(lambda features, labels: features["int_col"]))
   int_out = int_lookup(int_in)

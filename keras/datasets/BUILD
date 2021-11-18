@@ -3,15 +3,9 @@
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
     ],
     licenses = ["notice"],
-)
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
 )
 
 py_library(

@@ -374,8 +374,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       return
 
     if input_shape is None:
-      raise ValueError('Input shape must be defined when calling `build` on a '
-                       'model subclass network.')
+      raise ValueError('Input shape must be defined when calling `build()` on '
+                       'a `Model` subclass.')
     valid_types = (tuple, list, tf.TensorShape, dict)
     if not isinstance(input_shape, valid_types):
       raise ValueError('Specified input shape is not one of the valid types. '
@@ -472,8 +472,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         A tensor if there is a single output, or
         a list of tensors if there are more than one outputs.
     """
-    raise NotImplementedError('When subclassing the `Model` class, you should '
-                              'implement a `call()` method.')
+    raise NotImplementedError('Unimplemented `tf.keras.Model.call()`: if you '
+                              'intend to create a `Model` with the Functional '
+                              'API, please provide `inputs` and `outputs` '
+                              'arguments. Otherwise, subclass `Model` with an '
+                              'overridden `call()` method.')
 
   @traceback_utils.filter_traceback
   def compile(self,
@@ -777,6 +780,36 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def run_eagerly(self, value):
     self._run_eagerly = value
 
+  def _validate_target_and_loss(self, y, loss):
+    """Raises error if target or loss is not found.
+
+    This method verifies that the target and loss are properly populated
+    when applicable, or raises errors.
+
+    Args:
+      y: the target for training.
+      loss: the total loss tensor including loss added via `compile` and
+        `add_loss`.
+    """
+
+    # `self.loss` references the loss added via `compile` call. If users have
+    # provided such, the target must be provided; otherwise it's a user error.
+    # Note that `self.loss` does not include losses added via `add_loss`, and it
+    # is a valid use when such loss from `add_loss` exists and target does not.
+    if self.loss and y is None:
+      raise ValueError(
+          'Target data is missing. Your model was compiled with '
+          f'loss={self.loss}, '
+          'and therefore expects target data to be provided in `fit()`.')
+
+    # For training, there must be compiled loss or regularization loss to exist
+    # in order to apply the gradients. If one is not found, it means no loss
+    # was supplied via `compile` or `add_loss`.
+    elif loss is None:
+      raise ValueError(
+          'No loss found. You may have forgotten to provide a `loss` argument '
+          'in the `compile()` method.')
+
   def train_step(self, data):
     """The logic for one training step.
 
@@ -808,10 +841,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       y_pred = self(x, training=True)
       loss = self.compiled_loss(
           y, y_pred, sample_weight, regularization_losses=self.losses)
-    if self.loss and y is None:
-      raise TypeError(
-          f'Target data is missing. Your model has `loss`: {self.loss}, '
-          'and therefore expects target data to be passed in `fit()`.')
+    self._validate_target_and_loss(y, loss)
     # Run backwards pass.
     self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
     self.compiled_metrics.update_state(y, y_pred, sample_weight)
@@ -867,7 +897,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       outputs = model.distribute_strategy.run(run_step, args=(data,))
       outputs = reduce_per_replica(
           outputs, self.distribute_strategy, reduction='first')
-      write_scalar_summaries(outputs, step=model._train_counter)  # pylint: disable=protected-access
       return outputs
 
     # Special case if steps_per_execution is one.
@@ -1536,7 +1565,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     _disallow_inside_tf_function('evaluate')
     use_cached_eval_dataset = kwargs.pop('_use_cached_eval_dataset', False)
     if kwargs:
-      raise TypeError(f'Invalid keyword arguments: {(kwargs,)}')
+      raise TypeError(f'Invalid keyword arguments: {list(kwargs.keys())}')
 
     if self.distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
       self._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
@@ -1722,6 +1751,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     Also, note the fact that test loss is not affected by
     regularization layers like noise and dropout.
 
+    Note: See [this FAQ entry](
+    https://keras.io/getting_started/faq/#whats-the-difference-between-model-methods-predict-and-call)
+    for more details about the difference between `Model` methods `predict()`
+    and `__call__()`.
 
     Args:
         x: Input samples. It could be:
@@ -2616,7 +2649,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               line_length=None,
               positions=None,
               print_fn=None,
-              expand_nested=False):
+              expand_nested=False,
+              show_trainable=False):
     """Prints a string summary of the network.
 
     Args:
@@ -2632,6 +2666,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             in order to capture the string summary.
         expand_nested: Whether to expand the nested models.
             If not provided, defaults to `False`.
+        show_trainable: Whether to show if a layer is trainable.
+            If not provided, defaults to `False`.
 
     Raises:
         ValueError: if `summary()` is called before the model is built.
@@ -2646,7 +2682,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         line_length=line_length,
         positions=positions,
         print_fn=print_fn,
-        expand_nested=expand_nested)
+        expand_nested=expand_nested,
+        show_trainable=show_trainable)
 
   @property
   def layers(self):
@@ -2679,8 +2716,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     if index is not None:
       if len(self.layers) <= index:
-        raise ValueError(f'Was asked to retrieve layer at index {str(index)}'
-                         f' but model only has {str(len(self.layers))}'
+        raise ValueError(f'Was asked to retrieve layer at index {index}'
+                         f' but model only has {len(self.layers)}'
                          ' layers.')
       else:
         return self.layers[index]
@@ -2689,8 +2726,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       for layer in self.layers:
         if layer.name == name:
           return layer
-      raise ValueError(f'No such layer: {name}. Existing layers are '
-                       f'{self.layers}.')
+      raise ValueError(f'No such layer: {name}. Existing layers are: '
+                       f'{list(layer.name for layer in self.layers)}.')
     raise ValueError('Provide either a layer name or layer index at '
                      '`get_layer`.')
 
@@ -2816,7 +2853,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       raise ValueError(
           f'Models passed to `{method_name}` can only have `training` '
           'and the first argument in `call()` as positional arguments, '
-          f'found: {str(extra_args)}.')
+          f'found: {extra_args}.')
 
   def _validate_compile(self, optimizer, metrics, **kwargs):
     """Performs validation checks for the default `compile()`."""
@@ -3104,12 +3141,6 @@ def _multi_worker_concat(v, strategy):
 
 def _is_scalar(x):
   return isinstance(x, (tf.Tensor, tf.Variable)) and x.shape.rank == 0
-
-
-def write_scalar_summaries(logs, step):
-  for name, value in logs.items():
-    if _is_scalar(value):
-      tf.summary.scalar('batch_' + name, value, step=step)
 
 
 def _minimum_control_deps(outputs):

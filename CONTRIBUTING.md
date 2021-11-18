@@ -34,9 +34,8 @@ tag is then added to the pull request.
 
 ### Step 5. Code review
 
-A reviewer will review the pull request and provide comments.
-The reviewer may add a `kokoro:force-run` label to trigger the 
-continuous integration tests.
+A reviewer will review the pull request and provide comments. The reviewer may
+add a `kokoro:force-run` label to trigger the continuous integration tests.
 
 ![CI tests tag](https://i.imgur.com/58NOCB0.png)
 
@@ -136,7 +135,7 @@ python3 -m venv venv_dir
 ```
 
 You can activate the venv with the following command. You should always run the
-tests with the venv activated. You need to activate the venv everytime you open
+tests with the venv activated. You need to activate the venv every time you open
 a new shell.
 
 ```shell
@@ -147,7 +146,7 @@ venv_dir\Scripts\activate.bat  # for Windows
 Clone your forked repo to your local machine. Go to the cloned directory to
 install the dependencies into the venv. Since `tf-nightly` uses `keras-nightly`
 as a dependency, we need to uninstall `keras-nightly` so that tests will run
-against keras code in local workspace.
+against Keras code in local workspace.
 
 ```shell
 git clone https://github.com/YOUR_GITHUB_USERNAME/keras.git
@@ -177,20 +176,19 @@ we can run the following command at the root directory of the repo.
 bazel test keras/engine:base_layer_test
 ```
 
-`keras/engine` is the relative path to the directory
-containing the `BUILD` file defing the test.
-`base_layer_test` is the test target name defined  with `tf_py_test`
-in the `BUILD` file.
+`keras/engine` is the relative path to the directory containing the `BUILD` file
+defining the test. `base_layer_test` is the test target name defined with
+`tf_py_test` in the `BUILD` file.
 
 ### Run a single test case
 
 The best way to run a single test case is to comment out the rest of the test
-cases in a file before runing the test file.
+cases in a file before running the test file.
 
 ### Run all tests
 
-You can run all the tests locally by running the following commmand
-in the repo root directory.
+You can run all the tests locally by running the following command in the repo
+root directory.
 
 ```
 bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going --define=use_fast_cpp_protos=false --build_tests_only --build_tag_filters=-no_oss --test_tag_filters=-no_oss keras/...
@@ -211,3 +209,42 @@ command above.
   test outputs are in one file.
   However, it may slow down the tests for not running in parallel
   and may cause the test to timeout.
+
+## Contributing to Keras applications
+
+Contributions to the
+[pre-trained application library](https://keras.io/api/applications/) are
+welcome. Code for Keras applications is located in Keras repository in
+[keras/applications](https://github.com/keras-team/keras/blob/master/keras/applications).
+When contributing to Keras applications, please keep following checklist in
+mind.
+
+-   Keras applications must implement an established and widely used model.
+    Applications should include a link to a paper describing the architecture of
+    the model with at least 20 citations.
+-   Applications should be provided with pre-trained weights.
+    -   When submitting a pull request for a Keras application, these weights
+        can be provided at any publically available URL (e.g. a personal Cloud
+        Storage bucket). The weights will be uploaded to a Keras storage bucket
+        while merging the pull request.
+    -   Weights should be downloaded with the
+        [get_file()](https://keras.io/api/utils/python_utils/#getfile-function)
+        utility function. Be sure to include the `file_hash` argument, which
+        allows cache invalidation on the downloaded weights. The command line
+        programs `shasum` and `sha256sum` can compute a file hash.
+-   You should help us verify that the accuracy of the model with pre-trained
+    weighted matches the reported results of the cited paper.
+-   You should add any new applications to the unit tests defined in
+    `applications_test.py` and `applications_load_weight_test.py`.
+-   For backwards compatibility, all applications should provide a
+    `preprocess_input()` function. For new applciations, you should leave the
+    function empty (pass through inputs unaltered), and write the model so it
+    can handle raw inputs directly. Adding
+    [preprocessing layers](https://keras.io/guides/preprocessing_layers/) to the
+    application model may help with this. For image applications, a
+    [Rescaling](https://keras.io/api/layers/preprocessing_layers/image_preprocessing/rescaling/)
+    layer at the beginning of the model is often all that is needed.
+-   Once the PR is approved, you should create a companion PR to the keras.io
+    [application page](https://keras.io/api/applications/) updating the
+    "Available Models" section. The contribution guide for keras.io can be found
+    [here](https://github.com/keras-team/keras-io/blob/master/contributor_guide.md).
