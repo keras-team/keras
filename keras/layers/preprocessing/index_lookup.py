@@ -651,7 +651,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     # and then attempt to restore the table. We need the table to be
     # uninitialized for the restore to work, but calling the table uninitialized
     # would error.
-
     if tf.executing_eagerly() and backend.is_keras_tensor(inputs):
       lookups = tf.zeros_like(inputs, dtype=self._value_dtype)
     else:
