@@ -82,6 +82,7 @@ def dense_bincount(inputs, depth, binary_output, dtype, count_weights=None):
 
 
 def expand_dims(inputs, axis):
+  """Expand dims on sparse, ragged, or dense tensors."""
   if tf_utils.is_sparse(inputs):
     return tf.sparse.expand_dims(inputs, axis)
   else:
@@ -138,3 +139,15 @@ def encode_categorical_inputs(inputs,
                            bincounts.dense_shape)
   else:
     return tf.multiply(bincounts, idf_weights)
+
+
+def compute_shape_for_encode_categorical(shape, output_mode, depth):
+  """Computes the output shape of `encode_categorical_inputs`."""
+  if output_mode == INT:
+    return tf.TensorShape(shape)
+  if not shape:
+    return tf.TensorShape([depth])
+  if output_mode == ONE_HOT and shape[-1] != 1:
+    return tf.TensorShape(shape + [depth])
+  else:
+    return tf.TensorShape(shape[:-1] + [depth])

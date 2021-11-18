@@ -24,6 +24,7 @@ py_library(
     deps = [
         ":category_crossing",
         ":discretization",
+        ":hashed_crossing",
         ":hashing",
         ":image_preprocessing",
         ":integer_lookup",
@@ -74,6 +75,22 @@ py_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/engine",
+    ],
+)
+
+py_library(
+    name = "hashed_crossing",
+    srcs = [
+        "hashed_crossing.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":preprocessing_utils",
+        "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras/engine:base_layer",
+        "//keras/engine:base_preprocessing_layer",
+        "//keras/utils:layer_utils",
     ],
 )
 
@@ -403,6 +420,21 @@ distribute_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/distribute:strategy_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "hashed_crossing_test",
+    srcs = ["hashed_crossing_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":hashing",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras:testing_utils",
+        "//keras/engine",
     ],
 )
 

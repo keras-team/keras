@@ -44,6 +44,7 @@ from keras.layers.preprocessing.category_crossing import CategoryCrossing
 from keras.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.layers.preprocessing.discretization import Discretization
 from keras.layers.preprocessing.hashing import Hashing
+from keras.layers.preprocessing.hashed_crossing import HashedCrossing
 from keras.layers.preprocessing.integer_lookup import IntegerLookup
 from keras.layers.preprocessing.normalization import Normalization
 from keras.layers.preprocessing.string_lookup import StringLookup

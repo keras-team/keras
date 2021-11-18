@@ -46,6 +46,7 @@ from keras.layers.preprocessing import category_crossing
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import discretization
 from keras.layers.preprocessing import hashing
+from keras.layers.preprocessing import hashed_crossing
 from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import integer_lookup
 from keras.layers.preprocessing import normalization as preprocessing_normalization
@@ -60,8 +61,8 @@ ALL_MODULES = (base_layer, input_layer, advanced_activations, convolutional,
                embeddings, einsum_dense, local, merge, noise,
                batch_normalization_v1, layer_normalization, pooling,
                image_preprocessing, recurrent, wrappers, hashing,
-               category_crossing, category_encoding, discretization,
-               multi_head_attention, integer_lookup,
+               hashed_crossing, category_crossing, category_encoding,
+               discretization, multi_head_attention, integer_lookup,
                preprocessing_normalization, string_lookup, text_vectorization)
 ALL_V2_MODULES = (rnn_cell_wrapper_v2, batch_normalization, layer_normalization,
                   recurrent_v2)
