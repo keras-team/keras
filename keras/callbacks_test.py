@@ -873,10 +873,10 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     assert os.path.exists(filepath)
     os.remove(filepath)
     
-    # Case 13: ModelCheckpoint saves model with initial_best param
+    # Case 13: ModelCheckpoint saves model with initial_value_threshold param
     mode = 'auto'
     monitor = 'val_loss'
-    initial_best = None
+    initial_value_threshold = None
     cbks = [
         keras.callbacks.ModelCheckpoint(
             filepath,
