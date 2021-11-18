@@ -849,16 +849,16 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     os.remove(filepath.format(epoch=5, batch=1))
     os.remove(filepath.format(epoch=5, batch=2))
     
-    # Case 12: ModelCheckpoint saves model with initial_best param
+    # Case 12: ModelCheckpoint saves model with initial_value_threshold param
     mode = 'max'
     monitor = 'val_acc'
-    initial_best = 0
+    initial_value_threshold = 0
     cbks = [
         keras.callbacks.ModelCheckpoint(
             filepath,
             monitor=monitor,
             save_best_only=save_best_only,
-            initial_best=initial_best,
+            initial_value_threshold=initial_value_threshold,
             save_best_only=True,
             mode=mode)
     ]
@@ -882,7 +882,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
             filepath,
             monitor=monitor,
             save_best_only=save_best_only,
-            initial_best=initial_best,
+            initial_value_threshold=initial_value_threshold,
             save_best_only=True,
             mode=mode)
     ]
@@ -900,13 +900,13 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     # Case 14: ModelCheckpoint doesnt save model if loss was minimum earlier
     mode = 'min'
     monitor = 'val_loss'
-    initial_best = 0
+    initial_value_threshold = 0
     cbks = [
         keras.callbacks.ModelCheckpoint(
             filepath,
             monitor=monitor,
             save_best_only=save_best_only,
-            initial_best=initial_best,
+            initial_value_threshold=initial_value_threshold,
             save_best_only=True,
             mode=mode)
     ]
@@ -923,13 +923,13 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     # Case 15: ModelCheckpoint doesnt save model if loss was min earlier in auto mode
     mode = 'auto'
     monitor = 'val_loss'
-    initial_best = 0
+    initial_value_threshold = 0
     cbks = [
         keras.callbacks.ModelCheckpoint(
             filepath,
             monitor=monitor,
             save_best_only=save_best_only,
-            initial_best=initial_best,
+            initial_value_threshold=initial_value_threshold,
             save_best_only=True,
             mode=mode)
     ]
