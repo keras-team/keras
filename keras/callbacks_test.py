@@ -848,6 +848,101 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     os.remove(filepath.format(epoch=4, batch=2))
     os.remove(filepath.format(epoch=5, batch=1))
     os.remove(filepath.format(epoch=5, batch=2))
+    
+    # Case 12: ModelCheckpoint saves model with initial_best param
+    mode = 'max'
+    monitor = 'val_acc'
+    initial_best = 0
+    cbks = [
+        keras.callbacks.ModelCheckpoint(
+            filepath,
+            monitor=monitor,
+            save_best_only=save_best_only,
+            initial_best=initial_best,
+            save_best_only=True,
+            mode=mode)
+    ]
+    model.fit(
+        x_train,
+        y_train,
+        batch_size=BATCH_SIZE,
+        validation_data=(x_test, y_test),
+        callbacks=cbks,
+        epochs=1,
+        verbose=0)
+    assert os.path.exists(filepath)
+    os.remove(filepath)
+    
+    # Case 13: ModelCheckpoint saves model with initial_best param
+    mode = 'auto'
+    monitor = 'val_loss'
+    initial_best = None
+    cbks = [
+        keras.callbacks.ModelCheckpoint(
+            filepath,
+            monitor=monitor,
+            save_best_only=save_best_only,
+            initial_best=initial_best,
+            save_best_only=True,
+            mode=mode)
+    ]
+    model.fit(
+        x_train,
+        y_train,
+        batch_size=BATCH_SIZE,
+        validation_data=(x_test, y_test),
+        callbacks=cbks,
+        epochs=1,
+        verbose=0)
+    assert os.path.exists(filepath)
+    os.remove(filepath)
+    
+    # Case 14: ModelCheckpoint doesnt save model if loss was minimum earlier
+    mode = 'min'
+    monitor = 'val_loss'
+    initial_best = 0
+    cbks = [
+        keras.callbacks.ModelCheckpoint(
+            filepath,
+            monitor=monitor,
+            save_best_only=save_best_only,
+            initial_best=initial_best,
+            save_best_only=True,
+            mode=mode)
+    ]
+    model.fit(
+        x_train,
+        y_train,
+        batch_size=BATCH_SIZE,
+        validation_data=(x_test, y_test),
+        callbacks=cbks,
+        epochs=1,
+        verbose=0)
+    assert not os.path.exists(filepath)
+    
+    # Case 15: ModelCheckpoint doesnt save model if loss was min earlier in auto mode
+    mode = 'auto'
+    monitor = 'val_loss'
+    initial_best = 0
+    cbks = [
+        keras.callbacks.ModelCheckpoint(
+            filepath,
+            monitor=monitor,
+            save_best_only=save_best_only,
+            initial_best=initial_best,
+            save_best_only=True,
+            mode=mode)
+    ]
+    model.fit(
+        x_train,
+        y_train,
+        batch_size=BATCH_SIZE,
+        validation_data=(x_test, y_test),
+        callbacks=cbks,
+        epochs=1,
+        verbose=0)
+    assert not os.path.exists(filepath)
+    
 
   @testing_utils.run_v2_only
   def test_ModelCheckpoint_subclass_save_weights_false(self):
