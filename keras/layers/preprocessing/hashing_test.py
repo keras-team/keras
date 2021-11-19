@@ -23,12 +23,27 @@ from keras import testing_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.layers.preprocessing import hashing
+from keras.layers.preprocessing import preprocessing_test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class HashingTest(keras_parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      ('list', list),
+      ('tuple', tuple),
+      ('numpy', np.array),
+      ('array_like', preprocessing_test_utils.ArrayLike),
+  )
+  def test_tensor_like_inputs(self, data_fn):
+    input_data = data_fn([0, 1, 2, 3, 4])
+    expected_output = [1, 0, 1, 0, 2]
+
+    layer = hashing.Hashing(num_bins=3)
+    output_data = layer(input_data)
+    self.assertAllEqual(output_data, expected_output)
 
   def test_hash_single_bin(self):
     layer = hashing.Hashing(num_bins=1)
