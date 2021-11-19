@@ -251,7 +251,10 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
       raise ValueError("Both `num_bins` and `bin_boundaries` should not be "
                        "set. You passed `num_bins={}` and "
                        "`bin_boundaries={}`".format(num_bins, bin_boundaries))
-    bin_boundaries = utils.listify_tensors(bin_boundaries)
+    if bin_boundaries is not None:
+      # Force everything through ensure_tensor to ensure a uniform type.
+      bin_boundaries = utils.listify_tensors(
+          utils.ensure_tensor(bin_boundaries))
     self.input_bin_boundaries = bin_boundaries
     self.bin_boundaries = bin_boundaries if bin_boundaries is not None else []
     self.num_bins = num_bins
@@ -284,9 +287,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     if not self.built:
       raise RuntimeError("`build` must be called before `update_state`.")
 
-    data = tf.convert_to_tensor(data)
-    if data.dtype != tf.float32:
-      data = tf.cast(data, tf.float32)
+    data = utils.ensure_tensor(data, tf.float32)
     summary = summarize(data, self.epsilon)
     self.summary.assign(merge_summaries(summary, self.summary, self.epsilon))
 
@@ -326,6 +327,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     return tf.TensorSpec(shape=output_shape, dtype=self.compute_dtype)
 
   def call(self, inputs):
+    inputs = utils.ensure_tensor(inputs)
     def bucketize(inputs):
       return tf.raw_ops.Bucketize(input=inputs, boundaries=self.bin_boundaries)
 
