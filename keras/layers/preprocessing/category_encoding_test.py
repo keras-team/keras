@@ -14,23 +14,38 @@
 # ==============================================================================
 """Tests for Keras text category_encoding preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
-import numpy as np
-
 import keras
 from keras import backend
 from keras import keras_parameterized
 from keras.layers import core
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import preprocessing_test_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class CategoryEncodingInputTest(keras_parameterized.TestCase,
                                 preprocessing_test_utils.PreprocessingLayerTest
                                ):
+
+  @parameterized.named_parameters(
+      ("list", list),
+      ("tuple", tuple),
+      ("numpy", np.array),
+      ("array_like", preprocessing_test_utils.ArrayLike),
+  )
+  def test_tensor_like_inputs(self, data_fn):
+    category_data = data_fn([1, 2, 3, 3, 0])
+    weight_data = data_fn([1, 2, 3, 1, 7])
+    expected_output = [7, 1, 2, 4, 0, 0]
+
+    layer = category_encoding.CategoryEncoding(
+        num_tokens=6, output_mode=category_encoding.COUNT)
+    output_data = layer(category_data, count_weights=weight_data)
+    self.assertAllEqual(output_data, expected_output)
 
   def test_dense_input_sparse_output(self):
     input_array = tf.constant([[1, 2, 3], [3, 3, 0]])
