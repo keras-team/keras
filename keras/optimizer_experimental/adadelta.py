@@ -53,6 +53,21 @@ class Adadelta(optimizer.Optimizer):
       no higher than this value.
     global_clipnorm: float. If set, the gradient of all weights is clipped
       so that their global norm is no higher than this value.
+    use_ema: boolean, default to False. If True, exponential moving average
+      (EMA) is applied. EMA consists of computing an exponential moving
+      average of the weights of the model (as the weight values change after
+      each training batch), and periodically overwriting the weights with
+      their moving average.
+    ema_momentum: float, default to 0.99. Only used if `use_ema=True`. This is
+      the momentum to use when computing the EMA of the model's weights:
+      `new_average = ema_momentum * old_average +
+       (1 - ema_momentum) * current_variable_value`.
+    ema_overwrite_frequency: int or None, default to 100. Only used if
+      `use_ema=True`. Every ema_overwrite_frequency steps of iterations, we
+      overwrite the model variable by its stored moving average. If None, we
+      do not overwrite model variables in the middle of training, and users
+      need to explicitly overwrite the model variable by calling
+      `finalize_variable_update()`.
     name: Optional name prefix for the operations created when applying
       gradients.  Defaults to `"Adadelta"`.
 
@@ -67,11 +82,17 @@ class Adadelta(optimizer.Optimizer):
                clipnorm=None,
                clipvalue=None,
                global_clipnorm=None,
+               use_ema=False,
+               ema_momentum=0.99,
+               ema_overwrite_frequency=100,
                name='Adadelta'):
     super(Adadelta, self).__init__(
         clipnorm=clipnorm,
         clipvalue=clipvalue,
         global_clipnorm=global_clipnorm,
+        use_ema=use_ema,
+        ema_momentum=ema_momentum,
+        ema_overwrite_frequency=ema_overwrite_frequency,
         name=name)
     self._learning_rate = self._build_learning_rate(learning_rate)
     self.rho = rho
