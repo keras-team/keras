@@ -1733,6 +1733,45 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertNotEqual(
         model.make_predict_function(force=True), original_predict_function)
 
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_custom_compute_metrics(self):
+
+    class CustomMetric(metrics_module.Mean):
+
+      def sq_diff_plus_x(self, x, y_true, y_pred):
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.cast(y_true, y_pred.dtype)
+        sq_diff_plus_x = tf.add(x, tf.math.squared_difference(y_pred, y_true))
+        return backend.mean(sq_diff_plus_x, axis=-1)
+
+      def update_state(self, x, y_true, y_pred, sample_weight=None):
+        matches = self.sq_diff_plus_x(x, y_true, y_pred)
+        return super(CustomMetric, self).update_state(matches)
+
+    class MyModel(sequential.Sequential):
+
+      def compute_metrics(self, x, y, y_pred, sample_weight):
+        metric_results = super(MyModel,
+                               self).compute_metrics(x, y, y_pred,
+                                                     sample_weight)
+        self.custom_metric.update_state(x, y, y_pred, sample_weight)
+        metric_results['custom_metric_name'] = self.custom_metric.result()
+        return metric_results
+
+    tensors = tf.random.uniform((10, 10)), tf.random.uniform((10,))
+    dataset = tf.data.Dataset.from_tensor_slices(tensors).repeat().batch(1)
+    model = MyModel([layers_module.Dense(10)])
+    model.custom_metric = CustomMetric('my_metric')
+    initial_result = model.custom_metric.result()
+    optimizer = optimizer_v2.gradient_descent.SGD()
+    model.compile(optimizer, loss='mse', steps_per_execution=10)
+    model.fit(dataset, epochs=2, steps_per_epoch=10, verbose=2)
+    after_fit_result = model.custom_metric.result()
+
+    self.assertEqual(self.evaluate(initial_result), 0.0)
+    self.assertNotEqual(self.evaluate(initial_result),
+                        self.evaluate(after_fit_result))
+
 
 class TestExceptionsAndWarnings(keras_parameterized.TestCase):
 

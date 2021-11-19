@@ -199,6 +199,10 @@ tf_class {
     argspec: "args=[\'self\', \'inputs\', \'mask\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "compute_metrics"
+    argspec: "args=[\'self\', \'x\', \'y\', \'y_pred\', \'sample_weight\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "compute_output_shape"
     argspec: "args=[\'self\', \'input_shape\'], varargs=None, keywords=None, defaults=None"
   }
