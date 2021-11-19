@@ -14,6 +14,7 @@
 # ==============================================================================
 """Utils for preprocessing layers."""
 
+from keras import backend
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -37,7 +38,7 @@ def ensure_tensor(inputs, dtype=None):
 def listify_tensors(x):
   """Convert any tensors or numpy arrays to lists for config serialization."""
   if tf.is_tensor(x):
-    x = x.numpy()
+    x = backend.get_value(x)
   if isinstance(x, np.ndarray):
     x = x.tolist()
   return x

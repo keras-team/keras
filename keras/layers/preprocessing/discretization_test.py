@@ -30,6 +30,21 @@ import tensorflow.compat.v2 as tf
 class DiscretizationTest(keras_parameterized.TestCase,
                          preprocessing_test_utils.PreprocessingLayerTest):
 
+  @parameterized.named_parameters(
+      ("list", list),
+      ("tuple", tuple),
+      ("numpy", np.array),
+      ("array_like", preprocessing_test_utils.ArrayLike),
+  )
+  def test_tensor_like_inputs(self, data_fn):
+    input_data = data_fn([0.5, 1.5, 2.5])
+    bin_boundaries = data_fn([0.5, 1.5, 2.5])
+    expected_output = [1, 2, 3]
+
+    layer = discretization.Discretization(bin_boundaries=bin_boundaries)
+    output_data = layer(input_data)
+    self.assertAllEqual(output_data, expected_output)
+
   def test_bucketize_with_explicit_buckets_integer(self):
     input_array = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
 
