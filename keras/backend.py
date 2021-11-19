@@ -220,8 +220,7 @@ def get_uid(prefix=''):
 
 @keras_export('keras.backend.reset_uids')
 def reset_uids():
-  """Resets graph identifiers.
-  """
+  """Resets graph identifiers."""
 
   PER_GRAPH_OBJECT_NAME_UIDS.clear()
   OBSERVED_NAMES.clear()
@@ -441,8 +440,7 @@ def set_learning_phase(value):
   ```
 
   Args:
-      value: Learning phase value, either 0 or 1 (integers).
-             0 = test, 1 = train
+      value: Learning phase value, either 0 or 1 (integers). 0 = test, 1 = train
 
   Raises:
       ValueError: if `value` is neither `0` nor `1`.
@@ -496,8 +494,7 @@ def learning_phase_scope(value):
   The learning phase gets restored to its original value upon exiting the scope.
 
   Args:
-     value: Learning phase value, either 0 or 1 (integers).
-            0 = test, 1 = train
+     value: Learning phase value, either 0 or 1 (integers). 0 = test, 1 = train
 
   Yields:
     None.
@@ -578,8 +575,7 @@ def eager_learning_phase_scope(value):
   """Internal scope that sets the learning phase in eager / tf.function only.
 
   Args:
-      value: Learning phase value, either 0 or 1 (integers).
-             0 = test, 1 = train
+      value: Learning phase value, either 0 or 1 (integers). 0 = test, 1 = train
 
   Yields:
     None.
@@ -750,9 +746,8 @@ def get_session(op_input_list=()):
   via `K.set_session(sess)`.
 
   Args:
-      op_input_list: An option sequence of tensors or ops, which will be used
-        to determine the current graph. Otherwise the default graph will be
-        used.
+      op_input_list: An option sequence of tensors or ops, which will be used to
+        determine the current graph. Otherwise the default graph will be used.
 
   Returns:
       A TensorFlow session.
@@ -1070,8 +1065,8 @@ def variable(value, dtype=None, name=None, constraint=None):
       value: Numpy array, initial value of the tensor.
       dtype: Tensor type.
       name: Optional name string for the tensor.
-      constraint: Optional projection function to be
-          applied to the variable after an optimizer update.
+      constraint: Optional projection function to be applied to the variable
+        after an optimizer update.
 
   Returns:
       A variable instance (with Keras metadata included).
@@ -1312,17 +1307,16 @@ def placeholder(shape=None,
   """Instantiates a placeholder tensor and returns it.
 
   Args:
-      shape: Shape of the placeholder
-          (integer tuple, may include `None` entries).
-      ndim: Number of axes of the tensor.
-          At least one of {`shape`, `ndim`} must be specified.
-          If both are specified, `shape` is used.
+      shape: Shape of the placeholder (integer tuple, may include `None`
+        entries).
+      ndim: Number of axes of the tensor. At least one of {`shape`, `ndim`} must
+        be specified. If both are specified, `shape` is used.
       dtype: Placeholder type.
       sparse: Boolean, whether the placeholder should have a sparse type.
       name: Optional name string for the placeholder.
-      ragged: Boolean, whether the placeholder should have a ragged type.
-          In this case, values of 'None' in the 'shape' argument represent
-          ragged dimensions. For more information about RaggedTensors, see this
+      ragged: Boolean, whether the placeholder should have a ragged type. In
+        this case, values of 'None' in the 'shape' argument represent ragged
+        dimensions. For more information about RaggedTensors, see this
           [guide](https://www.tensorflow.org/guide/ragged_tensors).
 
   Raises:
@@ -1690,8 +1684,7 @@ def zeros_like(x, dtype=None, name=None):
 
   Args:
       x: Keras variable or Keras tensor.
-      dtype: dtype of returned Keras variable.
-             `None` uses the dtype of `x`.
+      dtype: dtype of returned Keras variable. `None` uses the dtype of `x`.
       name: name for the variable to create.
 
   Returns:
@@ -1717,8 +1710,7 @@ def ones_like(x, dtype=None, name=None):
 
   Args:
       x: Keras variable or tensor.
-      dtype: String, dtype of returned Keras variable.
-           None uses the dtype of x.
+      dtype: String, dtype of returned Keras variable. None uses the dtype of x.
       name: String, name for the variable to create.
 
   Returns:
@@ -2255,8 +2247,8 @@ def moving_average_update(x, value, momentum):
 
   Args:
       x: A Variable, the moving average.
-      value: A tensor with the same shape as `x`, the new value to be
-        averaged in.
+      value: A tensor with the same shape as `x`, the new value to be averaged
+        in.
       momentum: The moving average momentum.
 
   Returns:
@@ -2611,10 +2603,9 @@ def max(x, axis=None, keepdims=False):
   Args:
       x: A tensor or variable.
       axis: An integer, the axis to find maximum values.
-      keepdims: A boolean, whether to keep the dimensions or not.
-          If `keepdims` is `False`, the rank of the tensor is reduced
-          by 1. If `keepdims` is `True`,
-          the reduced dimension is retained with length 1.
+      keepdims: A boolean, whether to keep the dimensions or not. If `keepdims`
+        is `False`, the rank of the tensor is reduced by 1. If `keepdims` is
+        `True`, the reduced dimension is retained with length 1.
 
   Returns:
       A tensor with maximum values of `x`.
@@ -2631,10 +2622,9 @@ def min(x, axis=None, keepdims=False):
   Args:
       x: A tensor or variable.
       axis: An integer, the axis to find minimum values.
-      keepdims: A boolean, whether to keep the dimensions or not.
-          If `keepdims` is `False`, the rank of the tensor is reduced
-          by 1. If `keepdims` is `True`,
-          the reduced dimension is retained with length 1.
+      keepdims: A boolean, whether to keep the dimensions or not. If `keepdims`
+        is `False`, the rank of the tensor is reduced by 1. If `keepdims` is
+        `True`, the reduced dimension is retained with length 1.
 
   Returns:
       A tensor with minimum values of `x`.
@@ -2651,10 +2641,9 @@ def sum(x, axis=None, keepdims=False):
   Args:
       x: A tensor or variable.
       axis: An integer, the axis to sum over.
-      keepdims: A boolean, whether to keep the dimensions or not.
-          If `keepdims` is `False`, the rank of the tensor is reduced
-          by 1. If `keepdims` is `True`,
-          the reduced dimension is retained with length 1.
+      keepdims: A boolean, whether to keep the dimensions or not. If `keepdims`
+        is `False`, the rank of the tensor is reduced by 1. If `keepdims` is
+        `True`, the reduced dimension is retained with length 1.
 
   Returns:
       A tensor with sum of `x`.
@@ -2671,10 +2660,9 @@ def prod(x, axis=None, keepdims=False):
   Args:
       x: A tensor or variable.
       axis: An integer, the axis to compute the product.
-      keepdims: A boolean, whether to keep the dimensions or not.
-          If `keepdims` is `False`, the rank of the tensor is reduced
-          by 1. If `keepdims` is `True`,
-          the reduced dimension is retained with length 1.
+      keepdims: A boolean, whether to keep the dimensions or not. If `keepdims`
+        is `False`, the rank of the tensor is reduced by 1. If `keepdims` is
+        `True`, the reduced dimension is retained with length 1.
 
   Returns:
       A tensor with the product of elements of `x`.
@@ -2722,10 +2710,9 @@ def var(x, axis=None, keepdims=False):
   Args:
       x: A tensor or variable.
       axis: An integer, the axis to compute the variance.
-      keepdims: A boolean, whether to keep the dimensions or not.
-          If `keepdims` is `False`, the rank of the tensor is reduced
-          by 1. If `keepdims` is `True`,
-          the reduced dimension is retained with length 1.
+      keepdims: A boolean, whether to keep the dimensions or not. If `keepdims`
+        is `False`, the rank of the tensor is reduced by 1. If `keepdims` is
+        `True`, the reduced dimension is retained with length 1.
 
   Returns:
       A tensor with the variance of elements of `x`.
@@ -2747,12 +2734,11 @@ def std(x, axis=None, keepdims=False):
       x: A tensor or variable. It should have numerical dtypes. Boolean type
         inputs will be converted to float.
       axis: An integer, the axis to compute the standard deviation. If `None`
-        (the default), reduces all dimensions. Must be in the range
-        `[-rank(x), rank(x))`.
-      keepdims: A boolean, whether to keep the dimensions or not.
-          If `keepdims` is `False`, the rank of the tensor is reduced
-          by 1. If `keepdims` is `True`, the reduced dimension is retained with
-          length 1.
+        (the default), reduces all dimensions. Must be in the range `[-rank(x),
+        rank(x))`.
+      keepdims: A boolean, whether to keep the dimensions or not. If `keepdims`
+        is `False`, the rank of the tensor is reduced by 1. If `keepdims` is
+        `True`, the reduced dimension is retained with length 1.
 
   Returns:
       A tensor with the standard deviation of elements of `x` with same dtype.
@@ -2772,10 +2758,10 @@ def mean(x, axis=None, keepdims=False):
   Args:
       x: A tensor or variable.
       axis: A list of integer. Axes to compute the mean.
-      keepdims: A boolean, whether to keep the dimensions or not.
-          If `keepdims` is `False`, the rank of the tensor is reduced
-          by 1 for each entry in `axis`. If `keepdims` is `True`,
-          the reduced dimensions are retained with length 1.
+      keepdims: A boolean, whether to keep the dimensions or not. If `keepdims`
+        is `False`, the rank of the tensor is reduced by 1 for each entry in
+        `axis`. If `keepdims` is `True`, the reduced dimensions are retained
+        with length 1.
 
   Returns:
       A tensor with the mean of elements of `x`.
@@ -2943,10 +2929,9 @@ def logsumexp(x, axis=None, keepdims=False):
   Args:
       x: A tensor or variable.
       axis: An integer, the axis to reduce over.
-      keepdims: A boolean, whether to keep the dimensions or not.
-          If `keepdims` is `False`, the rank of the tensor is reduced
-          by 1. If `keepdims` is `True`, the reduced dimension is
-          retained with length 1.
+      keepdims: A boolean, whether to keep the dimensions or not. If `keepdims`
+        is `False`, the rank of the tensor is reduced by 1. If `keepdims` is
+        `True`, the reduced dimension is retained with length 1.
 
   Returns:
       The reduced tensor.
@@ -3206,8 +3191,7 @@ def _regular_normalize_batch_in_training(x,
       x: Input tensor or variable.
       gamma: Tensor by which to scale the input.
       beta: Tensor with which to center the input.
-      reduction_axes: iterable of integers,
-          axes over which to normalize.
+      reduction_axes: iterable of integers, axes over which to normalize.
       epsilon: Fuzz factor.
 
   Returns:
@@ -3229,8 +3213,7 @@ def _broadcast_normalize_batch_in_training(x,
       x: Input tensor or variable.
       gamma: Tensor by which to scale the input.
       beta: Tensor with which to center the input.
-      reduction_axes: iterable of integers,
-          axes over which to normalize.
+      reduction_axes: iterable of integers, axes over which to normalize.
       epsilon: Fuzz factor.
 
   Returns:
@@ -3272,8 +3255,7 @@ def _fused_normalize_batch_in_training(x,
       x: Input tensor or variable.
       gamma: Tensor by which to scale the input.
       beta: Tensor with which to center the input.
-      reduction_axes: iterable of integers,
-          axes over which to normalize.
+      reduction_axes: iterable of integers, axes over which to normalize.
       epsilon: Fuzz factor.
 
   Returns:
@@ -3306,8 +3288,7 @@ def normalize_batch_in_training(x, gamma, beta, reduction_axes, epsilon=1e-3):
       x: Input tensor or variable.
       gamma: Tensor by which to scale the input.
       beta: Tensor with which to center the input.
-      reduction_axes: iterable of integers,
-          axes over which to normalize.
+      reduction_axes: iterable of integers, axes over which to normalize.
       epsilon: Fuzz factor.
 
   Returns:
@@ -3343,8 +3324,8 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
       var: Variance of batch.
       beta: Tensor with which to center the input.
       gamma: Tensor by which to scale the input.
-      axis: Integer, the axis that should be normalized.
-          (typically the features axis).
+      axis: Integer, the axis that should be normalized. (typically the features
+        axis).
       epsilon: Fuzz factor.
 
   Returns:
@@ -3470,8 +3451,7 @@ def permute_dimensions(x, pattern):
 
   Args:
       x: Tensor or variable.
-      pattern: A tuple of
-          dimension indices, e.g. `(0, 2, 1)`.
+      pattern: A tuple of dimension indices, e.g. `(0, 2, 1)`.
 
   Returns:
       A tensor.
@@ -3740,7 +3720,7 @@ def tile(x, n):
   Args:
       x: A tensor or variable
       n: A list of integer. The length must be the same as the number of
-          dimensions in `x`.
+        dimensions in `x`.
 
   Returns:
       A tiled tensor.
@@ -3844,8 +3824,8 @@ def temporal_padding(x, padding=(1, 1)):
 
   Args:
       x: Tensor or variable.
-      padding: Tuple of 2 integers, how many zeros to
-          add at the start and end of dim 1.
+      padding: Tuple of 2 integers, how many zeros to add at the start and end
+        of dim 1.
 
   Returns:
       A padded 3D tensor.
@@ -3969,8 +3949,8 @@ def one_hot(indices, num_classes):
   """Computes the one-hot representation of an integer tensor.
 
   Args:
-      indices: nD integer tensor of shape
-          `(batch_size, dim1, dim2, ... dim(n-1))`
+      indices: nD integer tensor of shape `(batch_size, dim1, dim2, ...
+        dim(n-1))`
       num_classes: Integer, number of classes to consider.
 
   Returns:
@@ -3991,8 +3971,7 @@ def reverse(x, axes):
 
   Args:
       x: Tensor to reverse.
-      axes: Integer or iterable of integers.
-          Axes to reverse.
+      axes: Integer or iterable of integers. Axes to reverse.
 
   Returns:
       A tensor.
@@ -4105,8 +4084,7 @@ def set_value(x, value):
 
   Args:
       x: Variable to set to a new value.
-      value: Value to set the tensor to, as a Numpy array
-          (of the same shape).
+      value: Value to set the tensor to, as a Numpy array (of the same shape).
   """
   value = np.asarray(value, dtype=dtype_numpy(x))
   if tf.compat.v1.executing_eagerly_outside_functions():
@@ -4138,8 +4116,8 @@ def batch_set_value(tuples):
   """Sets the values of many tensor variables at once.
 
   Args:
-      tuples: a list of tuples `(tensor, value)`.
-          `value` should be a Numpy array.
+      tuples: a list of tuples `(tensor, value)`. `value` should be a Numpy
+        array.
   """
   if tf.executing_eagerly() or tf.inside_function():
     for x, value in tuples:
@@ -4197,9 +4175,9 @@ def print_tensor(x, message='', summarize=3):
       x: Tensor to print.
       message: Message to print jointly with the tensor.
       summarize: The first and last `summarize` elements within each dimension
-          are recursively printed per Tensor. If None, then the first 3 and last
-          3 elements of each dimension are printed for each tensor. If set to
-          -1, it will print all elements of every tensor.
+        are recursively printed per Tensor. If None, then the first 3 and last 3
+        elements of each dimension are printed for each tensor. If set to -1, it
+        will print all elements of every tensor.
 
   Returns:
       The same tensor `x`, unchanged.
@@ -4234,8 +4212,8 @@ class GraphExecutionFunction:
       outputs: Output tensors to fetch.
       updates: Additional update ops to be run at function call.
       name: A name to help users identify what this function does.
-      session_kwargs: Arguments to `tf.Session.run()`:
-                      `fetches`, `feed_dict`, `options`, `run_metadata`.
+      session_kwargs: Arguments to `tf.Session.run()`: `fetches`, `feed_dict`,
+        `options`, `run_metadata`.
   """
 
   def __init__(self, inputs, outputs, updates=None, name=None,
@@ -4467,7 +4445,9 @@ def function(inputs, outputs, updates=None, name=None, **kwargs):
 @keras_export('keras.backend.gradients')
 @doc_controls.do_not_generate_docs
 def gradients(loss, variables):
-  """Returns the gradients of `loss` w.r.t. `variables`.
+  """Returns the gradients of `loss` w.r.t.
+
+  `variables`.
 
   Args:
       loss: Scalar tensor to minimize.
@@ -4484,12 +4464,13 @@ def gradients(loss, variables):
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs
 def stop_gradient(variables):
-  """Returns `variables` but with zero gradient w.r.t. every other variable.
+  """Returns `variables` but with zero gradient w.r.t.
+
+  every other variable.
 
   Args:
-      variables: Tensor or list of tensors to consider constant with respect
-        to any other variable.
-
+      variables: Tensor or list of tensors to consider constant with respect to
+        any other variable.
 
   Returns:
       A single tensor or a list of tensors (depending on the passed argument)
@@ -4999,13 +4980,11 @@ def in_train_phase(x, alt, training=None):
   Note that `alt` should have the *same shape* as `x`.
 
   Args:
-      x: What to return in train phase
-          (tensor or callable that returns a tensor).
-      alt: What to return otherwise
-          (tensor or callable that returns a tensor).
-      training: Optional scalar tensor
-          (or Python boolean, or Python integer)
-          specifying the learning phase.
+      x: What to return in train phase (tensor or callable that returns a
+        tensor).
+      alt: What to return otherwise (tensor or callable that returns a tensor).
+      training: Optional scalar tensor (or Python boolean, or Python integer)
+        specifying the learning phase.
 
   Returns:
       Either `x` or `alt` based on the `training` flag.
@@ -5045,13 +5024,11 @@ def in_test_phase(x, alt, training=None):
   Note that `alt` should have the *same shape* as `x`.
 
   Args:
-      x: What to return in test phase
-          (tensor or callable that returns a tensor).
-      alt: What to return otherwise
-          (tensor or callable that returns a tensor).
-      training: Optional scalar tensor
-          (or Python boolean, or Python integer)
-          specifying the learning phase.
+      x: What to return in test phase (tensor or callable that returns a
+        tensor).
+      alt: What to return otherwise (tensor or callable that returns a tensor).
+      training: Optional scalar tensor (or Python boolean, or Python integer)
+        specifying the learning phase.
 
   Returns:
       Either `x` or `alt` based on `K.learning_phase`.
@@ -5148,8 +5125,8 @@ def softmax(x, axis=-1):
 
   Args:
       x: A tensor or variable.
-      axis: The dimension softmax would be performed on.
-          The default is -1 which indicates the last dimension.
+      axis: The dimension softmax would be performed on. The default is -1 which
+        indicates the last dimension.
 
   Returns:
       A tensor.
@@ -5190,19 +5167,30 @@ def softsign(x):
 @keras_export('keras.backend.categorical_crossentropy')
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs
-def categorical_crossentropy(target, output, from_logits=False, axis=-1):
+def categorical_crossentropy(
+    target,
+    output,
+    class_weight=None,
+    from_logits=False,
+    axis=-1,
+):
   """Categorical crossentropy between an output tensor and a target tensor.
 
   Args:
       target: A tensor of the same shape as `output`.
-      output: A tensor resulting from a softmax
-          (unless `from_logits` is True, in which
-          case `output` is expected to be the logits).
-      from_logits: Boolean, whether `output` is the
-          result of a softmax, or is a tensor of logits.
+      output: A tensor resulting from a softmax (unless `from_logits` is True,
+        in which case `output` is expected to be the logits).
+      class_weight: A list of weight values, each is a float, to be applied to
+        the losses of the classes. If only one value is supplied, all the losses
+        are uniformly scaled with this value. If more than one value are
+        provided, the number of values must match the number of classes, which
+        is the target's dimension on the input `axis`, because a mismatch will
+        cause an `Incompatible shapes` error.
+      from_logits: Boolean, whether `output` is the result of a softmax, or is a
+        tensor of logits.
       axis: Int specifying the channels axis. `axis=-1` corresponds to data
-          format `channels_last`, and `axis=1` corresponds to data format
-          `channels_first`.
+        format `channels_last`, and `axis=1` corresponds to data format
+        `channels_first`.
 
   Returns:
       Output tensor.
@@ -5233,6 +5221,18 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
   """
   target = tf.convert_to_tensor(target)
+  if class_weight:
+    class_weight = tf.convert_to_tensor(class_weight, dtype=target.dtype)
+    if axis != -1:
+      num_dims = target.shape.rank
+      if num_dims is None:
+        raise ValueError(
+            f'Class balancing on tensors of unknown dimensions is supported '
+            f'only with `axis=-1`. Eeceived `axis={axis}`, however.')
+      for _ in range(axis, num_dims - 1):
+        class_weight = tf.expand_dims(class_weight, axis=-1)
+    target = target * class_weight
+
   output = tf.convert_to_tensor(output)
   target.shape.assert_is_compatible_with(output.shape)
 
@@ -5279,14 +5279,13 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
   Args:
       target: An integer tensor.
-      output: A tensor resulting from a softmax
-          (unless `from_logits` is True, in which
-          case `output` is expected to be the logits).
-      from_logits: Boolean, whether `output` is the
-          result of a softmax, or is a tensor of logits.
+      output: A tensor resulting from a softmax (unless `from_logits` is True,
+        in which case `output` is expected to be the logits).
+      from_logits: Boolean, whether `output` is the result of a softmax, or is a
+        tensor of logits.
       axis: Int specifying the channels axis. `axis=-1` corresponds to data
-          format `channels_last`, and `axis=1` corresponds to data format
-          `channels_first`.
+        format `channels_last`, and `axis=1` corresponds to data format
+        `channels_first`.
 
   Returns:
       Output tensor.
@@ -5375,9 +5374,8 @@ def binary_crossentropy(target, output, from_logits=False):
   Args:
       target: A tensor with the same shape as `output`.
       output: A tensor.
-      from_logits: Whether `output` is expected to be a logits tensor.
-          By default, we consider that `output`
-          encodes a probability distribution.
+      from_logits: Whether `output` is expected to be a logits tensor. By
+        default, we consider that `output` encodes a probability distribution.
 
   Returns:
       A tensor.
@@ -5546,10 +5544,9 @@ def dropout(x, level, noise_shape=None, seed=None):
 
   Args:
       x: tensor
-      level: fraction of the entries in the tensor
-          that will be set to 0.
-      noise_shape: shape for randomly generated keep/drop flags,
-          must be broadcastable to the shape of `x`
+      level: fraction of the entries in the tensor that will be set to 0.
+      noise_shape: shape for randomly generated keep/drop flags, must be
+        broadcastable to the shape of `x`
       seed: random seed to ensure determinism.
 
   Returns:
@@ -5624,9 +5621,8 @@ def _preprocess_conv2d_input(x, data_format, force_transpose=False):
       x: input tensor.
       data_format: string, `"channels_last"` or `"channels_first"`.
       force_transpose: Boolean. If True, the input will always be transposed
-          from NCHW to NHWC if `data_format` is `"channels_first"`.
-          If False, the transposition only occurs on CPU (GPU ops are
-          assumed to support NCHW).
+        from NCHW to NHWC if `data_format` is `"channels_first"`. If False, the
+        transposition only occurs on CPU (GPU ops are assumed to support NCHW).
 
   Returns:
       A tensor.
@@ -5943,8 +5939,8 @@ def separable_conv2d(x,
       strides: strides tuple (length 2).
       padding: string, `"same"` or `"valid"`.
       data_format: string, `"channels_last"` or `"channels_first"`.
-      dilation_rate: tuple of integers,
-          dilation rates for the separable convolution.
+      dilation_rate: tuple of integers, dilation rates for the separable
+        convolution.
 
   Returns:
       Output tensor.
@@ -6000,8 +5996,8 @@ def depthwise_conv2d(x,
       strides: strides tuple (length 2).
       padding: string, `"same"` or `"valid"`.
       data_format: string, `"channels_last"` or `"channels_first"`.
-      dilation_rate: tuple of integers,
-          dilation rates for the separable convolution.
+      dilation_rate: tuple of integers, dilation rates for the separable
+        convolution.
 
   Returns:
       Output tensor.
@@ -6263,21 +6259,18 @@ def local_conv(inputs,
   """Apply N-D convolution with un-shared weights.
 
   Args:
-      inputs: (N+2)-D tensor with shape
-          (batch_size, channels_in, d_in1, ..., d_inN)
-          if data_format='channels_first', or
-          (batch_size, d_in1, ..., d_inN, channels_in)
-          if data_format='channels_last'.
-      kernel: the unshared weight for N-D convolution,
-          with shape (output_items, feature_dim, channels_out), where
-          feature_dim = np.prod(kernel_size) * channels_in,
-          output_items = np.prod(output_shape).
-      kernel_size: a tuple of N integers, specifying the
-          spatial dimensions of the N-D convolution window.
-      strides: a tuple of N integers, specifying the strides
-          of the convolution along the spatial dimensions.
+      inputs: (N+2)-D tensor with shape (batch_size, channels_in, d_in1, ...,
+        d_inN) if data_format='channels_first', or (batch_size, d_in1, ...,
+        d_inN, channels_in) if data_format='channels_last'.
+      kernel: the unshared weight for N-D convolution, with shape (output_items,
+        feature_dim, channels_out), where feature_dim = np.prod(kernel_size) *
+        channels_in, output_items = np.prod(output_shape).
+      kernel_size: a tuple of N integers, specifying the spatial dimensions of
+        the N-D convolution window.
+      strides: a tuple of N integers, specifying the strides of the convolution
+        along the spatial dimensions.
       output_shape: a tuple of (d_out1, ..., d_outN) specifying the spatial
-          dimensionality of the output.
+        dimensionality of the output.
       data_format: string, "channels_first" or "channels_last".
 
   Returns:
@@ -6338,17 +6331,15 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
   """Apply 1D conv with un-shared weights.
 
   Args:
-      inputs: 3D tensor with shape:
-          (batch_size, steps, input_dim)
-          if data_format is "channels_last" or
-          (batch_size, input_dim, steps)
-          if data_format is "channels_first".
-      kernel: the unshared weight for convolution,
-          with shape (output_length, feature_dim, filters).
-      kernel_size: a tuple of a single integer,
-          specifying the length of the 1D convolution window.
-      strides: a tuple of a single integer,
-          specifying the stride length of the convolution.
+      inputs: 3D tensor with shape: (batch_size, steps, input_dim) if
+        data_format is "channels_last" or (batch_size, input_dim, steps) if
+        data_format is "channels_first".
+      kernel: the unshared weight for convolution, with shape (output_length,
+        feature_dim, filters).
+      kernel_size: a tuple of a single integer, specifying the length of the 1D
+        convolution window.
+      strides: a tuple of a single integer, specifying the stride length of the
+        convolution.
       data_format: the data format, channels_first or channels_last.
 
   Returns:
@@ -6380,18 +6371,16 @@ def local_conv2d(inputs,
   """Apply 2D conv with un-shared weights.
 
   Args:
-      inputs: 4D tensor with shape:
-          (batch_size, filters, new_rows, new_cols)
-          if data_format='channels_first'
-          or 4D tensor with shape:
-          (batch_size, new_rows, new_cols, filters)
-          if data_format='channels_last'.
-      kernel: the unshared weight for convolution,
-          with shape (output_items, feature_dim, filters).
-      kernel_size: a tuple of 2 integers, specifying the
-          width and height of the 2D convolution window.
-      strides: a tuple of 2 integers, specifying the strides
-          of the convolution along the width and height.
+      inputs: 4D tensor with shape: (batch_size, filters, new_rows, new_cols) if
+        data_format='channels_first'
+          or 4D tensor with shape: (batch_size, new_rows, new_cols, filters) if
+            data_format='channels_last'.
+      kernel: the unshared weight for convolution, with shape (output_items,
+        feature_dim, filters).
+      kernel_size: a tuple of 2 integers, specifying the width and height of the
+        2D convolution window.
+      strides: a tuple of 2 integers, specifying the strides of the convolution
+        along the width and height.
       output_shape: a tuple with (output_row, output_col).
       data_format: the data format, channels_first or channels_last.
 
@@ -6469,8 +6458,8 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
       shape: A tuple of integers, the shape of tensor to create.
       mean: A float, the mean value of the normal distribution to draw samples.
         Default to 0.0.
-      stddev: A float, the standard deviation of the normal distribution
-        to draw samples. Default to 1.0.
+      stddev: A float, the standard deviation of the normal distribution to draw
+        samples. Default to 1.0.
       dtype: `tf.dtypes.DType`, dtype of returned tensor. Default to use Keras
         backend dtype which is float32.
       seed: Integer, random seed. Will use a random numpy integer when not
@@ -6503,10 +6492,10 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 
   Args:
       shape: A tuple of integers, the shape of tensor to create.
-      minval: A float, lower boundary of the uniform distribution
-          to draw samples.
-      maxval: A float, upper boundary of the uniform distribution
-          to draw samples.
+      minval: A float, lower boundary of the uniform distribution to draw
+        samples.
+      maxval: A float, upper boundary of the uniform distribution to draw
+        samples.
       dtype: String, dtype of returned tensor.
       seed: Integer, random seed.
 
@@ -6681,14 +6670,13 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
   """Runs CTC loss algorithm on each batch element.
 
   Args:
-      y_true: tensor `(samples, max_string_length)`
-          containing the truth labels.
-      y_pred: tensor `(samples, time_steps, num_categories)`
-          containing the prediction, or output of the softmax.
+      y_true: tensor `(samples, max_string_length)` containing the truth labels.
+      y_pred: tensor `(samples, time_steps, num_categories)` containing the
+        prediction, or output of the softmax.
       input_length: tensor `(samples, 1)` containing the sequence length for
-          each batch item in `y_pred`.
+        each batch item in `y_pred`.
       label_length: tensor `(samples, 1)` containing the sequence length for
-          each batch item in `y_true`.
+        each batch item in `y_true`.
 
   Returns:
       Tensor with shape (samples,1) containing the
@@ -6718,16 +6706,16 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
   or a constrained dictionary search.
 
   Args:
-      y_pred: tensor `(samples, time_steps, num_categories)`
-          containing the prediction, or output of the softmax.
-      input_length: tensor `(samples, )` containing the sequence length for
-          each batch item in `y_pred`.
-      greedy: perform much faster best-path search if `true`.
-          This does not use a dictionary.
+      y_pred: tensor `(samples, time_steps, num_categories)` containing the
+        prediction, or output of the softmax.
+      input_length: tensor `(samples, )` containing the sequence length for each
+        batch item in `y_pred`.
+      greedy: perform much faster best-path search if `true`. This does not use
+        a dictionary.
       beam_width: if `greedy` is `false`: a beam search decoder will be used
-          with a beam of this width.
-      top_paths: if `greedy` is `false`,
-          how many of the most probable paths will be returned.
+        with a beam of this width.
+      top_paths: if `greedy` is `false`, how many of the most probable paths
+        will be returned.
 
   Returns:
       Tuple:

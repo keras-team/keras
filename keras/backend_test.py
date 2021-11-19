@@ -1637,23 +1637,57 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
   @test_combinations.generate(
       test_combinations.combine(mode=['graph', 'eager']))
   def test_categorical_crossentropy_loss(self):
-    t = backend.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    t = backend.constant([[1, 0, 1], [0, 1, 1], [0, 0, 1]])
+
+    class_weight = [0.2, 0.5, 0.3]
 
     p = backend.constant([[.9, .05, .05], [.05, .89, .06], [.05, .01, .94]])
     result = backend.categorical_crossentropy(t, p)
-    self.assertArrayNear(self.evaluate(result), [.105, .116, .062], 1e-3)
+    self.assertArrayNear(self.evaluate(result), [3.101, 2.930, 0.062], 1e-3)
+
+    # With class_weight
+    result = backend.categorical_crossentropy(t, p, class_weight=class_weight)
+    self.assertArrayNear(self.evaluate(result), [0.919, 0.902, 0.018], 1e-3)
 
     p = backend.constant([[.9, .05, .05], [.05, .89, .01], [.05, .06, .94]])
     result = backend.categorical_crossentropy(t, p, axis=0)
-    self.assertArrayNear(self.evaluate(result), [.105, .116, .062], 1e-3)
+    self.assertArrayNear(self.evaluate(result), [0.105, 0.116, 7.662], 1e-3)
+
+    # With class_weight
+    result = backend.categorical_crossentropy(
+        target=t,
+        output=p,
+        class_weight=class_weight,
+        axis=0,
+    )
+    self.assertArrayNear(self.evaluate(result), [0.021, 0.058, 2.920], 1e-3)
 
     p = backend.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
-    result = backend.categorical_crossentropy(t, p, from_logits=True),
-    self.assertArrayNear(self.evaluate(result)[0], [.002, 0, .17], 1e-3)
+    result = backend.categorical_crossentropy(t, p, from_logits=True)
+    self.assertArrayNear(self.evaluate(result), [7.003, 8.000, 0.169], 1e-3)
 
-    p = backend.constant([[8., 0., 2.], [1., 9., 3.], [1., 1., 5.]])
-    result = backend.categorical_crossentropy(t, p, from_logits=True, axis=0),
-    self.assertArrayNear(self.evaluate(result)[0], [.002, 0, .17], 1e-3)
+    # With class_weight
+    result = backend.categorical_crossentropy(
+        target=t,
+        output=p,
+        class_weight=class_weight,
+        from_logits=True,
+    )
+    self.assertArrayNear(self.evaluate(result), [2.100, 2.400, 0.050], 1e-3)
+
+    p = backend.constant([[3., 0., 2.], [1., 2., 3.], [1., 1., 5.]])
+    result = backend.categorical_crossentropy(t, p, from_logits=True, axis=0)
+    self.assertArrayNear(self.evaluate(result), [0.239, 0.407, 5.509], 1e-3)
+
+    # With class_weight
+    result = backend.categorical_crossentropy(
+        target=t,
+        output=p,
+        class_weight=class_weight,
+        axis=0,
+        from_logits=True,
+    )
+    self.assertArrayNear(self.evaluate(result), [0.047, 0.203, 1.769], 1e-3)
 
   @test_combinations.generate(
       test_combinations.combine(mode=['graph', 'eager']))
@@ -1672,12 +1706,23 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     result = f([t_val, p_val])
     self.assertArrayNear(result, [.105, .116, .062], 1e-3)
 
+    # Class balacing with axis=-1
+    class_weight = [0.2, 0.5, 0.3]
+    o = backend.categorical_crossentropy(t, p, class_weight=class_weight)
+    f = backend.function([t, p], o)
+    result = f([t_val, p_val])
+    self.assertArrayNear(result, [0.021, 0.058, 0.018], 1e-3)
+
     # With axis set
     o = backend.categorical_crossentropy(t, p, axis=0)
     f = backend.function([t, p], o)
 
     result = f([t_val, p_val])
     self.assertArrayNear(result, [.105, .065, .111], 1e-3)
+
+    # Class balacing with axis=0
+    with self.assertRaisesRegex(ValueError, 'Class balancing on tensors'):
+      backend.categorical_crossentropy(t, p, class_weight=class_weight, axis=0)
 
     # from logits
     p_val = tf.convert_to_tensor([[8., 1., 1.], [0., 9., 1.],
@@ -1687,6 +1732,17 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
 
     result = f([t_val, p_val])
     self.assertArrayNear(result, [.002, 0, .17], 1e-3)
+
+    # Class balacing with axis=-1
+    o = backend.categorical_crossentropy(
+        t,
+        p,
+        class_weight=class_weight,
+        from_logits=True,
+    )
+    f = backend.function([t, p], o)
+    result = f([t_val, p_val])
+    self.assertArrayNear(result, [0.000, 0.000, 0.050], 1e-3)
 
     # from logits and axis set
     o = backend.categorical_crossentropy(t, p, from_logits=True, axis=0)

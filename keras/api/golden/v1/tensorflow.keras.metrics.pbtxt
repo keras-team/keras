@@ -210,7 +210,7 @@ tf_module {
   }
   member_method {
     name: "categorical_crossentropy"
-    argspec: "args=[\'y_true\', \'y_pred\', \'from_logits\', \'label_smoothing\', \'axis\'], varargs=None, keywords=None, defaults=[\'False\', \'0.0\', \'-1\'], "
+    argspec: "args=[\'y_true\', \'y_pred\', \'class_weight\', \'from_logits\', \'label_smoothing\', \'axis\'], varargs=None, keywords=None, defaults=[\'None\', \'False\', \'0.0\', \'-1\'], "
   }
   member_method {
     name: "cosine"
