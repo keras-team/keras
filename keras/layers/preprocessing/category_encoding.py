@@ -22,7 +22,6 @@ from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.utils import layer_utils
-import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
@@ -183,13 +182,14 @@ class CategoryEncoding(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
   def call(self, inputs, count_weights=None):
-    if isinstance(inputs, (list, np.ndarray)):
-      inputs = tf.convert_to_tensor(inputs)
+    inputs = utils.ensure_tensor(inputs)
 
-    if count_weights is not None and self.output_mode != COUNT:
-      raise ValueError(
-          "`count_weights` is not used when `output_mode` is not `'count'`. "
-          "Received `count_weights={}`.".format(count_weights))
+    if count_weights is not None:
+      if self.output_mode != COUNT:
+        raise ValueError(
+            "`count_weights` is not used when `output_mode` is not `'count'`. "
+            "Received `count_weights={}`.".format(count_weights))
+      count_weights = utils.ensure_tensor(count_weights, self.compute_dtype)
 
     depth = self.num_tokens
     if isinstance(inputs, tf.SparseTensor):
