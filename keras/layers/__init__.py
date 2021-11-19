@@ -40,7 +40,6 @@ from keras.layers.preprocessing.image_preprocessing import Resizing
 from keras.layers.preprocessing.image_preprocessing import Rescaling
 
 # Preprocessing layers.
-from keras.layers.preprocessing.category_crossing import CategoryCrossing
 from keras.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.layers.preprocessing.discretization import Discretization
 from keras.layers.preprocessing.hashing import Hashing
