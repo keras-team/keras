@@ -24,17 +24,6 @@ tf_py_test(
 )
 
 tf_py_test(
-    name = "category_crossing_benchmark",
-    srcs = ["category_crossing_benchmark.py"],
-    python_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras/api:keras_api",
-        "//keras/layers/preprocessing:category_crossing",
-    ],
-)
-
-tf_py_test(
     name = "hashing_benchmark",
     srcs = ["hashing_benchmark.py"],
     python_version = "PY3",
@@ -112,8 +101,8 @@ tf_py_test(
 )
 
 tf_py_test(
-    name = "category_cross_hash_dense_benchmark",
-    srcs = ["category_cross_hash_dense_benchmark.py"],
+    name = "hashed_crossing_benchmark",
+    srcs = ["hashed_crossing_benchmark.py"],
     python_version = "PY3",
     deps = [
         ":feature_column_benchmark",
