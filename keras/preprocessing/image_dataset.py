@@ -97,6 +97,8 @@ def image_dataset_from_directory(directory,
         Whether the images will be converted to
         have 1, 3, or 4 channels.
     batch_size: Size of the batches of data. Default: 32.
+      If `None`, the data will not be batched
+      (the dataset will yield individual samples).
     image_size: Size to resize images to after they are read from disk.
         Defaults to `(256, 256)`.
         Since the pipeline processes batches of images that must all have
@@ -216,10 +218,16 @@ def image_dataset_from_directory(directory,
       num_classes=len(class_names),
       interpolation=interpolation,
       crop_to_aspect_ratio=crop_to_aspect_ratio)
-  if shuffle:
-    # Shuffle locally at each iteration
-    dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-  dataset = dataset.prefetch(tf.data.AUTOTUNE).batch(batch_size)
+  dataset = dataset.prefetch(tf.data.AUTOTUNE)
+  if batch_size is not None:
+    if shuffle:
+      # Shuffle locally at each iteration
+      dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
+    dataset = dataset.batch(batch_size)
+  else:
+    if shuffle:
+      dataset = dataset.shuffle(buffer_size=1024, seed=seed)
+
   # Users may need to reference `class_names`.
   dataset.class_names = class_names
   # Include file paths for images as attribute.
