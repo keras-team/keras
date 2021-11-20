@@ -13,39 +13,34 @@
 # limitations under the License.
 # ==============================================================================
 """Benchmark for KPL implementation of categorical cross hash columns with dense inputs."""
-
-import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
 
 import keras
-from tensorflow.python.eager.def_function import function as tf_function
-from keras.layers.preprocessing import category_crossing
-from keras.layers.preprocessing import hashing
+from keras.layers.preprocessing import hashed_crossing
 from keras.layers.preprocessing.benchmarks import feature_column_benchmark as fc_bm
+import tensorflow.compat.v2 as tf
+from tensorflow.python.eager.def_function import function as tf_function
 
-# This is required as of 3/2021 because otherwise we drop into graph mode.
 tf.compat.v1.enable_v2_behavior()
 
 NUM_REPEATS = 10
 BATCH_SIZES = [32, 256]
 
 
-def embedding_varlen(batch_size, max_length):
+def embedding_varlen(batch_size):
   """Benchmark a variable-length embedding."""
   # Data and constants.
-
   num_buckets = 10000
-  vocab = fc_bm.create_vocabulary(32768)
-  data_a = fc_bm.create_string_data(
-      max_length, batch_size * NUM_REPEATS, vocab, pct_oov=0.0)
-  data_b = fc_bm.create_string_data(
-      max_length, batch_size * NUM_REPEATS, vocab, pct_oov=0.0)
+  data_a = tf.random.uniform(shape=(batch_size * NUM_REPEATS, 1),
+                             maxval=32768,
+                             dtype=tf.int64)
+  data_b = tf.strings.as_string(data_a)
 
   # Keras implementation
-  input_1 = keras.Input(shape=(None,), name="data_a", dtype=tf.string)
-  input_2 = keras.Input(shape=(None,), name="data_b", dtype=tf.string)
-  crossed_data = category_crossing.CategoryCrossing()([input_1, input_2])
-  hashed_data = hashing.Hashing(num_buckets)(crossed_data)
-  model = keras.Model([input_1, input_2], hashed_data)
+  input_1 = keras.Input(shape=(1,), name="data_a", dtype=tf.int64)
+  input_2 = keras.Input(shape=(1,), name="data_b", dtype=tf.string)
+  outputs = hashed_crossing.HashedCrossing(num_buckets)([input_1, input_2])
+  model = keras.Model([input_1, input_2], outputs)
 
   # FC implementation
   fc = tf.feature_column.crossed_column(["data_a", "data_b"], num_buckets)
@@ -53,22 +48,20 @@ def embedding_varlen(batch_size, max_length):
   # Wrap the FC implementation in a tf.function for a fair comparison
   @tf_function()
   def fc_fn(tensors):
-    fc.transform_feature(tf.__internal__.feature_column.FeatureTransformationCache(tensors), None)
+    fc.transform_feature(
+        tf.__internal__.feature_column.FeatureTransformationCache(tensors),
+        None)
 
   # Benchmark runs
   keras_data = {
-      "data_a":
-          data_a.to_tensor(default_value="", shape=(batch_size, max_length)),
-      "data_b":
-          data_b.to_tensor(default_value="", shape=(batch_size, max_length)),
+      "data_a": data_a,
+      "data_b": data_b,
   }
   k_avg_time = fc_bm.run_keras(keras_data, model, batch_size, NUM_REPEATS)
 
   fc_data = {
-      "data_a":
-          data_a.to_tensor(default_value="", shape=(batch_size, max_length)),
-      "data_b":
-          data_b.to_tensor(default_value="", shape=(batch_size, max_length)),
+      "data_a": data_a,
+      "data_b": data_b,
   }
   fc_avg_time = fc_bm.run_fc(fc_data, fc_fn, batch_size, NUM_REPEATS)
 
@@ -80,8 +73,8 @@ class BenchmarkLayer(fc_bm.LayerBenchmark):
 
   def benchmark_layer(self):
     for batch in BATCH_SIZES:
-      name = "cross_hash|dense|batch_%s" % batch
-      k_time, f_time = embedding_varlen(batch_size=batch, max_length=256)
+      name = "hashed_cross|dense|batch_%s" % batch
+      k_time, f_time = embedding_varlen(batch_size=batch)
       self.report(name, k_time, f_time, NUM_REPEATS)
 
 
