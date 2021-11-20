@@ -59,7 +59,7 @@ def timeseries_dataset_from_array(
     sampling_rate: Period between successive individual timesteps
       within sequences. For rate `r`, timesteps
       `data[i], data[i + r], ... data[i + sequence_length]`
-      are used for create a sample sequence.
+      are used for creating a sample sequence.
     batch_size: Number of timeseries samples in each batch
       (except maybe the last one). If `None`, the data will not be batched
       (the dataset will yield individual samples).
