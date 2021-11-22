@@ -219,6 +219,9 @@ class _Merge(Layer):
     return backend.all(
         backend.concatenate(masks, axis=0), axis=0, keepdims=False)
 
+  def get_config(self):  # pylint: disable=useless-super-delegation
+    return super().get_config()
+
 
 @keras_export('keras.layers.Add')
 class Add(_Merge):
