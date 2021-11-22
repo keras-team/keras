@@ -22,7 +22,6 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        ":category_crossing",
         ":discretization",
         ":hashed_crossing",
         ":hashing",
@@ -44,20 +43,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":preprocessing_utils",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/engine",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "category_crossing",
-    srcs = [
-        "category_crossing.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/engine",
@@ -250,24 +235,6 @@ tf_py_test(
     ],
 )
 
-cuda_py_test(
-    name = "category_crossing_test",
-    srcs = ["category_crossing_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "no_windows",  # b/149031156
-    ],
-    deps = [
-        ":category_crossing",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:testing_utils",
-        "//keras/engine",
-    ],
-)
-
 tf_py_test(
     name = "category_encoding_test",
     srcs = ["category_encoding_test.py"],
@@ -300,28 +267,6 @@ distribute_py_test(
     ],
     deps = [
         ":category_encoding",
-        ":preprocessing_test_utils",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:backend",
-        "//keras/distribute:strategy_combinations",
-    ],
-)
-
-distribute_py_test(
-    name = "category_crossing_distribution_test",
-    srcs = ["category_crossing_distribution_test.py"],
-    main = "category_crossing_distribution_test.py",
-    python_version = "PY3",
-    tags = [
-        "multi_and_single_gpu",
-        "nomultivm",  # TODO(b/170502145)
-    ],
-    tpu_tags = [
-        "no_oss",  # b/155502591
-    ],
-    deps = [
-        ":category_crossing",
         ":preprocessing_test_utils",
         "//:expect_tensorflow_installed",
         "//keras",
