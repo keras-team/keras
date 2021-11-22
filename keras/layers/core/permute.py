@@ -32,15 +32,14 @@ class Permute(Layer):
 
   ```python
   model = Sequential()
-  model.add(Permute((2, 1), input_shape=(10, 64)))
-  # now: model.output_shape == (None, 64, 10)
-  # note: `None` is the batch dimension
+  model.add(Permute((1, 3, 2), input_shape=(30, 10, 64)))
+  # now: model.output_shape == (None, 30, 64, 10)
+  # note: `30` is the batch dimension
   ```
 
   Args:
-    dims: Tuple of integers. Permutation pattern does not include the
-      samples dimension. Indexing starts at 1.
-      For instance, `(2, 1)` permutes the first and second dimensions
+    dims: Tuple of integers. Expects a permutation of dimensions. len(ndims) should be equal to input_shape dimensions.
+      For instance, `(1, 3, 2)` permutes the second and third dimensions
       of the input.
 
   Input shape:
