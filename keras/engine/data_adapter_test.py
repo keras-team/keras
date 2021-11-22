@@ -98,6 +98,25 @@ class TestSequence(data_utils.Sequence):
     return 10
 
 
+class TestSparseSequence(TestSequence):
+
+  def __getitem__(self, item):
+    indices = [[row, self.feature_shape - 1] for row in range(self.batch_size)]
+    values = [1 for row in range(self.batch_size)]
+    st = tf.SparseTensor(indices, values, (self.batch_size, self.feature_shape))
+    return (st, np.ones((self.batch_size,)))
+
+
+class TestRaggedSequence(TestSequence):
+
+  def __getitem__(self, item):
+    values = np.random.randint(0, self.feature_shape,
+                               (self.batch_size, 2)).reshape(-1)
+    row_lengths = np.full(self.batch_size, 2)
+    rt = tf.RaggedTensor.from_row_lengths(values, row_lengths)
+    return (rt, np.ones((self.batch_size,)))
+
+
 class TensorLikeDataAdapterTest(DataAdapterTestBase):
 
   def setUp(self):
@@ -798,6 +817,27 @@ class KerasSequenceAdapterTest(DataAdapterTestBase):
     with self.assertRaisesRegex(ValueError,
                                 r'`sample_weight` argument is not supported'):
       self.adapter_cls(self.sequence_input, sample_weights=self.sequence_input)
+
+
+class KerasSequenceAdapterSparseTest(KerasSequenceAdapterTest):
+
+  def setUp(self):
+    super(KerasSequenceAdapterSparseTest, self).setUp()
+    self.sequence_input = TestSparseSequence(self.batch_size, 10)
+
+
+class KerasSequenceAdapterRaggedTest(KerasSequenceAdapterTest):
+
+  def setUp(self):
+    super(KerasSequenceAdapterRaggedTest, self).setUp()
+    self.sequence_input = TestRaggedSequence(self.batch_size, 10)
+
+    self.model = keras.models.Sequential([
+        keras.layers.Input(shape=(None,), ragged=True),
+        keras.layers.Embedding(10, 10),
+        keras.layers.Lambda(tf.reduce_mean, arguments=dict(axis=1)),
+        keras.layers.Dense(8, input_shape=(10,), activation='relu'),
+    ])
 
 
 class DataHandlerTest(keras_parameterized.TestCase):
