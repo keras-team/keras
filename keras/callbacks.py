@@ -1984,7 +1984,7 @@ class LearningRateScheduler(Callback):
     if self.verbose > 0:
       io_utils.print_msg(
           f'\nEpoch {epoch + 1}: LearningRateScheduler setting learning '
-          'rate to {lr}.')
+          f'rate to {lr}.')
 
   def on_epoch_end(self, epoch, logs=None):
     logs = logs or {}
