@@ -1329,15 +1329,20 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
           optimizer='sgd',
           metrics=['accuracy'])
 
-      cbks = [keras.callbacks.LearningRateScheduler(lambda x: 1. / (1. + x))]
-      model.fit(
-          x_train,
-          y_train,
-          batch_size=BATCH_SIZE,
-          validation_data=(x_test, y_test),
-          callbacks=cbks,
-          epochs=5,
-          verbose=0)
+      cbks = [
+          keras.callbacks.LearningRateScheduler(
+              lambda x: 1. / (1. + x), verbose=1)
+      ]
+      with self.captureWritesToStream(sys.stdout) as printed:
+        model.fit(
+            x_train,
+            y_train,
+            batch_size=BATCH_SIZE,
+            validation_data=(x_test, y_test),
+            callbacks=cbks,
+            epochs=5)
+        self.assertIn('LearningRateScheduler setting learning rate to 1.0',
+                      printed.contents())
       assert (
           float(keras.backend.get_value(
               model.optimizer.lr)) - 0.2) < keras.backend.epsilon()
