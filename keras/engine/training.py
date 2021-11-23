@@ -839,12 +839,66 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # Run forward pass.
     with tf.GradientTape() as tape:
       y_pred = self(x, training=True)
-      loss = self.compiled_loss(
-          y, y_pred, sample_weight, regularization_losses=self.losses)
+      loss = self.compute_loss(x, y, y_pred, sample_weight)
     self._validate_target_and_loss(y, loss)
     # Run backwards pass.
     self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
     return self.compute_metrics(x, y, y_pred, sample_weight)
+
+  def compute_loss(self, x=None, y=None, y_pred=None, sample_weight=None):
+    """Compute the total loss, validate it, and return it.
+
+    Subclasses can optionally override this method to provide custom loss
+    computation logic.
+
+    Example:
+    ```python
+    class MyModel(tf.keras.Model):
+
+      def __init__(self, *args, **kwargs):
+        super(MyModel, self).__init__(*args, **kwargs)
+        self.loss_tracker = tf.keras.metrics.Mean(name='loss')
+
+      def compute_loss(self, x, y, y_pred, sample_weight):
+        loss = tf.reduce_mean(tf.math.squared_difference(y_pred, y))
+        loss += tf.add_n(self.losses)
+        self.loss_tracker.update_state(loss)
+        return loss
+
+      def reset_metrics(self):
+        self.loss_tracker.reset_states()
+
+      @property
+      def metrics(self):
+        return [self.loss_tracker]
+
+    tensors = tf.random.uniform((10, 10)), tf.random.uniform((10,))
+    dataset = tf.data.Dataset.from_tensor_slices(tensors).repeat().batch(1)
+
+    inputs = tf.keras.layers.Input(shape=(10,), name='my_input')
+    outputs = tf.keras.layers.Dense(10)(inputs)
+    model = MyModel(inputs, outputs)
+    model.add_loss(tf.reduce_sum(outputs))
+
+    optimizer = tf.keras.optimizers.SGD()
+    model.compile(optimizer, loss='mse', steps_per_execution=10)
+    model.fit(dataset, epochs=2, steps_per_epoch=10)
+    print('My custom loss: ', model.loss_tracker.result().numpy())
+    ```
+
+    Args:
+      x: Input data.
+      y: Target data.
+      y_pred: Predictions returned by the model (output of `model(x)`)
+      sample_weight: Sample weights for weighting the loss function.
+
+    Returns:
+      The total loss as a `tf.Tensor`, or `None` if no loss results (which is
+      the case when called by `Model.test_step`).
+    """
+    del x  # The default implementation does not use `x`.
+    return self.compiled_loss(
+        y, y_pred, sample_weight, regularization_losses=self.losses)
 
   def compute_metrics(self, x, y, y_pred, sample_weight):
     """Update metric states and collect all metrics to be returned.
@@ -1395,8 +1449,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     y_pred = self(x, training=False)
     # Updates stateful loss metrics.
-    self.compiled_loss(
-        y, y_pred, sample_weight, regularization_losses=self.losses)
+    self.compute_loss(x, y, y_pred, sample_weight)
     return self.compute_metrics(x, y, y_pred, sample_weight)
 
   def make_test_function(self, force=False):
