@@ -1253,7 +1253,7 @@ class ModelCheckpoint(Callback):
       options: Optional `tf.train.CheckpointOptions` object if
         `save_weights_only` is true or optional `tf.saved_model.SaveOptions`
         object if `save_weights_only` is false.
-      initial_best: Initial "best" value of the metric to be monitored.
+      initial_value_threshold: Initial "best" value of the metric to be monitored.
         Only overwrites the model weights already saved if the
         performance of current model is better than this value.
       **kwargs: Additional arguments for backwards compatibility. Possible key
