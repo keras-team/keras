@@ -66,6 +66,7 @@ class ReorderChannelsTest(keras_parameterized.TestCase):
             expected_output=tf.gather(arr, axis=1, indices=[2, 1, 0]).numpy().astype(np.float32),
             expected_output_shape=(None, channels, height, width))
 
+
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class ResizingTest(keras_parameterized.TestCase):
 
