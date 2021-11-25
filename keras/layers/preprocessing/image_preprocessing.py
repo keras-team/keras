@@ -78,21 +78,21 @@ class ReorderChannels(base_layer.Layer):
     super(ReorderChannels, self).__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('ReorderChannels').set(True)
 
-    def __call__(self, inputs):
-      return tf.gather(params=inputs,
-                       indices=self.indices,
-                       axis=self.axis)
+  def call(self, inputs):
+    return tf.gather(params=inputs,
+                      indices=self.indices,
+                      axis=self.axis+1)
 
-    def compute_output_shape(self, input_shape):
-      return input_shape
+  def compute_output_shape(self, input_shape):
+    return input_shape
 
-    def get_config(self):
-      config = {
-          'axis': self.axis,
-          'indices': self.indices
-      }
-      base_config = super(ReorderChannels, self).get_config()
-      return dict(list(base_config.items()) + list(config.items()))
+  def get_config(self):
+    config = {
+        'axis': self.axis,
+        'indices': self.indices
+    }
+    base_config = super(ReorderChannels, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
 
 
 @keras_export('keras.layers.Resizing',
