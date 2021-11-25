@@ -25,6 +25,7 @@ py_library(
         "mobilenet_v2.py",
         "mobilenet_v3.py",
         "nasnet.py",
+        "regnet.py",
         "resnet.py",
         "resnet_v2.py",
         "vgg16.py",
