@@ -31,6 +31,7 @@ keras_packages = [
     "keras.applications.mobilenet_v2",
     "keras.applications.mobilenet_v3",
     "keras.applications.nasnet",
+    "keras.applications.regnet",
     "keras.applications.resnet",
     "keras.applications.resnet_v2",
     "keras.applications.vgg16",
