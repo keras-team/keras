@@ -28,6 +28,45 @@ from tensorflow.python.ops import stateless_random_ops
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+class ReorderChannelsTest(keras_parameterized.TestCase):
+
+  def test_reorder_channels_last(self, kwargs={}):
+    np.random.seed(1337)
+    num_samples = 2
+    height = 100
+    width = 101
+    channels = 3
+    arr = np.arange(num_samples * height * width * channels).reshape(num_samples, height, width, channels).astype(np.float32)
+
+    kwargs.update({'axis': 2, 'indices': [2, 1, 0]})
+    with testing_utils.use_gpu():
+        testing_utils.layer_test(
+            image_preprocessing.ReorderChannels,
+            kwargs=kwargs,
+            input_shape=(None, height, width, channels),
+            input_data=arr,
+            expected_output=tf.gather(arr, axis=3, indices=[2, 1, 0]).numpy().astype(np.float32),
+            expected_output_shape=(None, height, width, channels))
+
+  def test_reorder_channels_first(self, kwargs={}):
+    np.random.seed(1337)
+    num_samples = 2
+    height = 100
+    width = 101
+    channels = 3
+    arr = np.arange(num_samples * height * width * channels).reshape(num_samples, channels, height, width).astype(np.float32)
+
+    kwargs.update({'axis': 0, 'indices': [2, 1, 0]})
+    with testing_utils.use_gpu():
+        testing_utils.layer_test(
+            image_preprocessing.ReorderChannels,
+            kwargs=kwargs,
+            input_shape=(None, channels, height, width),
+            input_data=arr,
+            expected_output=tf.gather(arr, axis=1, indices=[2, 1, 0]).numpy().astype(np.float32),
+            expected_output_shape=(None, channels, height, width))
+
+@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class ResizingTest(keras_parameterized.TestCase):
 
   def _run_test(self, kwargs, expected_height, expected_width):
