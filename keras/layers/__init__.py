@@ -36,6 +36,7 @@ from keras.layers.preprocessing.image_preprocessing import RandomRotation
 from keras.layers.preprocessing.image_preprocessing import RandomTranslation
 from keras.layers.preprocessing.image_preprocessing import RandomWidth
 from keras.layers.preprocessing.image_preprocessing import RandomZoom
+from keras.layers.preprocessing.image_preprocessing import ReorderChannels
 from keras.layers.preprocessing.image_preprocessing import Resizing
 from keras.layers.preprocessing.image_preprocessing import Rescaling
 

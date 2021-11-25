@@ -54,6 +54,47 @@ def check_fill_mode_and_interpolation(fill_mode, interpolation):
                               '`bilinear` are supported.'.format(interpolation))
 
 
+@keras_export('keras.layers.ReorderChannels',
+              'keras.layers.experimental.preprocessing.ReorderChannels')
+class ReorderChannels(base_layer.Layer):
+  def __init__(self,
+               axis,
+               indices,
+               **kwargs):
+    """A preprocessing layer which reorder the channels of an image
+
+    This layer reorders the channels of an image for a specified axis. Intended
+    to be used for conversions between RGB and BGR.
+
+    For an overview and full list of preprocessing layers, see the preprocessing
+    [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
+
+    Args:
+      axis: Integer, axis which will be reordered
+      indices: List[Integer], new order for axis elements
+    """
+    self.axis = axis
+    self.indices = indices
+    super(ReorderChannels, self).__init__(**kwargs)
+    base_preprocessing_layer.keras_kpl_gauge.get_cell('ReorderChannels').set(True)
+
+    def __call__(self, inputs):
+      return tf.gather(params=inputs,
+                       indices=self.indices,
+                       axis=self.axis)
+
+    def compute_output_shape(self, input_shape):
+      return input_shape
+
+    def get_config(self):
+      config = {
+          'axis': self.axis,
+          'indices': self.indices
+      }
+      base_config = super(ReorderChannels, self).get_config()
+      return dict(list(base_config.items()) + list(config.items()))
+
+
 @keras_export('keras.layers.Resizing',
               'keras.layers.experimental.preprocessing.Resizing')
 class Resizing(base_layer.Layer):
