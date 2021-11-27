@@ -639,34 +639,34 @@ def Stage(block_type, depth, group_width, filters_in, filters_out, name=None):
                  filters_out,
                  group_width,
                  stride=2,
-                 name=name + "_XBlock_0")(x)
-      for i in range(depth - 1):
+                 name=f"{name}_XBlock_0")(x)
+      for i in range(1, depth):
         x = XBlock(filters_out,
                    filters_out,
                    group_width,
-                   name=name + "_XBlock_" + str(i+1))(x)
+                   name=f"{name}_XBlock_{i}")(x)
     elif block_type == "Y":
       x = YBlock(filters_in,
                  filters_out,
                  group_width,
                  stride=2,
                  name=name + "_YBlock_0")(x)
-      for i in range(depth - 1):
+      for i in range(1, depth):
         x = YBlock(filters_out,
                    filters_out,
                    group_width,
-                   name=name + "_YBlock_" + str(i+1))(x)
+                   name=f"{name}_YBlock_{i}")(x)
     elif block_type == "Z":
       x = ZBlock(filters_in,
                  filters_out,
                  group_width,
                  stride=2,
-                 name=name + "_ZBlock_0")(x)
-      for i in range(depth - 1):
+                 name=f"{name}_ZBlock_0")(x)
+      for i in range(1, depth):
         x = ZBlock(filters_out,
                    filters_out,
                    group_width,
-                   name=name + "_ZBlock_" + str(i+1))(x)
+                   name=f"{name}_ZBlock_{i}")(x)
     else:
       raise NotImplementedError(f"""Block type `{block_type}` not recognized. 
                                 block_type must be one of ("X", "Y", "Z"). """)
