@@ -1288,6 +1288,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       self._train_counter.assign(0)
       callbacks.on_train_begin()
       training_logs = None
+      opt_steps = self.optimizer.iterations.numpy()
+      initial_epoch = opt_steps // data_handler._inferred_steps
       # Handle fault-tolerance for multi-worker.
       # TODO(omalleyt): Fix the ordering issues that mean this has to
       # happen after `callbacks.on_train_begin`.
@@ -1298,7 +1300,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         self.reset_metrics()
         callbacks.on_epoch_begin(epoch)
         with data_handler.catch_stop_iteration():
-          for step in data_handler.steps():
+          for step in data_handler.steps(opt_steps % data_handler._inferred_steps):
             with tf.profiler.experimental.Trace(
                 'train',
                 epoch_num=epoch,

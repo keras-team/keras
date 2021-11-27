@@ -82,6 +82,18 @@ class TrainingTest(keras_parameterized.TestCase):
     hist = model.fit(x=np.array([0.]), y=np.array([0.]))
     self.assertAllClose(hist.history['loss'][0], 10000)
 
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)  
+  def test_continue_training(self):
+    model = sequential.Sequential([layers_module.Dense(1)])
+    model.compile(
+        'sgd',
+        'mse',
+        run_eagerly=testing_utils.should_run_eagerly())
+    model.optimizer.iterations.assign_add(12)
+    x, y = np.ones((10, 1)), np.ones((10, 1))
+    hist = model.fit(x, y, epochs=2, batch_size=1)
+    self.assertEqual(hist.epoch[0], 1)
+
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_fit_on_empty(self):
     model = sequential.Sequential([layers_module.Dense(1)])

@@ -1235,9 +1235,9 @@ class DataHandler:
             "when building your dataset.".format(total_epochs *
                                                  self._inferred_steps))
 
-  def steps(self):
+  def steps(self, current_step=0):
     """Yields steps for the current epoch."""
-    self._current_step = 0
+    self._current_step = current_step
     # `self._inferred_steps` can be changed by `catch_stop_iteration`.
     while (self._inferred_steps is None or
            self._current_step < self._inferred_steps):
