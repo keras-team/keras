@@ -75,10 +75,10 @@ class Lambda(Layer):
     discouraged as it can easily lead to bugs. For instance, consider the
     following layer:
 
-    ```python
-      scale = tf.Variable(1.)
-      scale_layer = tf.keras.layers.Lambda(lambda x: x * scale)
-    ```
+  ```python
+    scale = tf.Variable(1.)
+    scale_layer = tf.keras.layers.Lambda(lambda x: x * scale)
+  ```
 
     Because scale_layer does not directly track the `scale` variable, it will
     not appear in `scale_layer.trainable_weights` and will therefore not be
@@ -86,15 +86,15 @@ class Lambda(Layer):
 
     A better pattern is to write a subclassed Layer:
 
-    ```python
-      class ScaleLayer(tf.keras.layers.Layer):
-        def __init__(self):
-          super(ScaleLayer, self).__init__()
-          self.scale = tf.Variable(1.)
+  ```python
+    class ScaleLayer(tf.keras.layers.Layer):
+      def __init__(self):
+        super(ScaleLayer, self).__init__()
+        self.scale = tf.Variable(1.)
 
-        def call(self, inputs):
-          return inputs * self.scale
-    ```
+      def call(self, inputs):
+        return inputs * self.scale
+  ```
 
     In general, Lambda layers can be convenient for simple stateless
     computation, but anything more complex should use a subclass Layer instead.
