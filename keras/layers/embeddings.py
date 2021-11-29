@@ -33,7 +33,13 @@ class Embedding(Layer):
 
   e.g. `[[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]`
 
-  This layer can only be used as the first layer in a model.
+  This layer can only be used on positive integer inputs of a fixed range. The
+  `tf.keras.layers.TextVectorization`, `tf.keras.layers.StringLookup`,
+  and `tf.keras.layers.IntegerLookup` preprocessing layers can help prepare
+  inputs for an `Embedding` layer.
+
+  This layer accepts `tf.Tensor` and `tf.RaggedTensor` inputs. It cannot be
+  called with `tf.SparseTensor` input.
 
   Example:
 
