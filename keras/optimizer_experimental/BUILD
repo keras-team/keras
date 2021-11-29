@@ -20,8 +20,27 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":optimizer_lib",
         "//:expect_tensorflow_installed",
         "//keras/optimizer_v2:learning_rate_schedule",
+    ],
+)
+
+py_library(
+    name = "optimizer_lib",
+    srcs = [
+        "optimizer_lib.py",
+    ],
+    srcs_version = "PY3",
+    deps = [],
+)
+
+py_test(
+    name = "optimizer_lib_test",
+    srcs = ["optimizer_lib_test.py"],
+    deps = [
+        ":optimizer_lib",
+        "//:expect_tensorflow_installed",
     ],
 )
 
@@ -37,6 +56,7 @@ distribute_py_test(
     ],
     deps = [
         ":optimizer",
+        ":optimizer_lib",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
