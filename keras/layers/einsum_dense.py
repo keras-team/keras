@@ -147,7 +147,7 @@ class EinsumDense(Layer):
         regularizer=self.kernel_regularizer,
         constraint=self.kernel_constraint,
         dtype=self.dtype,
-        trainable=True)
+        trainable=self.trainable)
 
     if bias_shape is not None:
       self.bias = self.add_weight(
@@ -157,7 +157,7 @@ class EinsumDense(Layer):
           regularizer=self.bias_regularizer,
           constraint=self.bias_constraint,
           dtype=self.dtype,
-          trainable=True)
+          trainable=self.trainable)
     else:
       self.bias = None
     super(EinsumDense, self).build(input_shape)

@@ -204,7 +204,7 @@ class Conv(Layer):
         initializer=self.kernel_initializer,
         regularizer=self.kernel_regularizer,
         constraint=self.kernel_constraint,
-        trainable=True,
+        trainable=self.trainable,
         dtype=self.dtype)
     if self.use_bias:
       self.bias = self.add_weight(
@@ -213,7 +213,7 @@ class Conv(Layer):
           initializer=self.bias_initializer,
           regularizer=self.bias_regularizer,
           constraint=self.bias_constraint,
-          trainable=True,
+          trainable=self.trainable,
           dtype=self.dtype)
     else:
       self.bias = None
@@ -997,7 +997,7 @@ class Conv1DTranspose(Conv1D):
         initializer=self.kernel_initializer,
         regularizer=self.kernel_regularizer,
         constraint=self.kernel_constraint,
-        trainable=True,
+        trainable=self.trainable,
         dtype=self.dtype)
     if self.use_bias:
       self.bias = self.add_weight(
@@ -1006,7 +1006,7 @@ class Conv1DTranspose(Conv1D):
           initializer=self.bias_initializer,
           regularizer=self.bias_regularizer,
           constraint=self.bias_constraint,
-          trainable=True,
+          trainable=self.trainable,
           dtype=self.dtype)
     else:
       self.bias = None
@@ -1271,7 +1271,7 @@ class Conv2DTranspose(Conv2D):
         initializer=self.kernel_initializer,
         regularizer=self.kernel_regularizer,
         constraint=self.kernel_constraint,
-        trainable=True,
+        trainable=self.trainable,
         dtype=self.dtype)
     if self.use_bias:
       self.bias = self.add_weight(
@@ -1280,7 +1280,7 @@ class Conv2DTranspose(Conv2D):
           initializer=self.bias_initializer,
           regularizer=self.bias_regularizer,
           constraint=self.bias_constraint,
-          trainable=True,
+          trainable=self.trainable,
           dtype=self.dtype)
     else:
       self.bias = None
@@ -1584,7 +1584,7 @@ class Conv3DTranspose(Conv3D):
         initializer=self.kernel_initializer,
         regularizer=self.kernel_regularizer,
         constraint=self.kernel_constraint,
-        trainable=True,
+        trainable=self.trainable,
         dtype=self.dtype)
     if self.use_bias:
       self.bias = self.add_weight(
@@ -1593,7 +1593,7 @@ class Conv3DTranspose(Conv3D):
           initializer=self.bias_initializer,
           regularizer=self.bias_regularizer,
           constraint=self.bias_constraint,
-          trainable=True,
+          trainable=self.trainable,
           dtype=self.dtype)
     else:
       self.bias = None

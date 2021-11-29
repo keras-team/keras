@@ -407,7 +407,7 @@ class BatchNormalizationBase(Layer):
           initializer=self.gamma_initializer,
           regularizer=self.gamma_regularizer,
           constraint=self.gamma_constraint,
-          trainable=True,
+          trainable=self.trainable,
           experimental_autocast=False)
     else:
       self.gamma = None
@@ -423,7 +423,7 @@ class BatchNormalizationBase(Layer):
           initializer=self.beta_initializer,
           regularizer=self.beta_regularizer,
           constraint=self.beta_constraint,
-          trainable=True,
+          trainable=self.trainable,
           experimental_autocast=False)
     else:
       self.beta = None

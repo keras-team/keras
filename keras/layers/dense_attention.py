@@ -326,7 +326,7 @@ class Attention(BaseDenseAttention):
           shape=(),
           initializer='ones',
           dtype=self.dtype,
-          trainable=True)
+          trainable=self.trainable)
     else:
       self.scale = None
     super(Attention, self).build(input_shape)
@@ -469,7 +469,7 @@ class AdditiveAttention(BaseDenseAttention):
           shape=[dim],
           initializer='glorot_uniform',
           dtype=self.dtype,
-          trainable=True)
+          trainable=self.trainable)
     else:
       self.scale = None
     super(AdditiveAttention, self).build(input_shape)

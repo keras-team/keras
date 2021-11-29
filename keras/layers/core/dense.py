@@ -147,7 +147,7 @@ class Dense(Layer):
         regularizer=self.kernel_regularizer,
         constraint=self.kernel_constraint,
         dtype=self.dtype,
-        trainable=True)
+        trainable=self.trainable)
     if self.use_bias:
       self.bias = self.add_weight(
           'bias',
@@ -156,7 +156,7 @@ class Dense(Layer):
           regularizer=self.bias_regularizer,
           constraint=self.bias_constraint,
           dtype=self.dtype,
-          trainable=True)
+          trainable=self.trainable)
     else:
       self.bias = None
     self.built = True
