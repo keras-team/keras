@@ -1296,10 +1296,10 @@ class TruePositives(_ConfusionMatrixConditionCount):
 class Precision(Metric):
   """Computes the precision of the predictions with respect to the labels.
 
-  The metric creates two local variables, `true_positives` and `false_positives`
-  that are used to compute the precision. This value is ultimately returned as
-  `precision`, an idempotent operation that simply divides `true_positives`
-  by the sum of `true_positives` and `false_positives`.
+  The precision metric creates two local variables, `true_positives` and
+  `false_positives` that are used to compute the precision. This is an idempotent
+  operation that simply divides `true_positives` by the sum of `true_positives`
+  and `false_positives`.
 
   If `sample_weight` is `None`, weights default to 1.
   Use `sample_weight` of 0 to mask values.
