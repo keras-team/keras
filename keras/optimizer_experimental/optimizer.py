@@ -21,6 +21,7 @@ import abc
 
 from keras import backend
 from keras import initializers
+from keras.optimizer_experimental import optimizer_lib
 from keras.optimizer_v2 import learning_rate_schedule
 from keras.optimizer_v2 import utils as optimizer_utils
 import tensorflow.compat.v2 as tf
@@ -29,63 +30,25 @@ import tensorflow.compat.v2 as tf
 class _BaseOptimizer(tf.Module):
   """Optimizer base class, which only supports non-distribute use case."""
 
-  def __init__(self,
-               name,
-               clipnorm=None,
-               clipvalue=None,
-               global_clipnorm=None,
-               use_ema=False,
-               ema_momentum=0.99,
-               ema_overwrite_frequency=100):
+  def __init__(self, name, gradients_clip_option=None, ema_option=None):
     """Create a new Optimizer.
 
     Args:
       name: String. The name to use for momentum accumulator weights created by
         the optimizer.
-      clipnorm: float. If set, the gradient of each weight is individually
-        clipped so that its norm is no higher than this value.
-      clipvalue: float. If set, the gradient of each weight is clipped to be no
-        higher than this value.
-      global_clipnorm: float. If set, the gradient of all weights is clipped so
-        that their global norm is no higher than this value.
-      use_ema: boolean, default to False. If True, exponential moving average
-        (EMA) is applied. EMA consists of computing an exponential moving
-        average of the weights of the model (as the weight values change after
-        each training batch), and periodically overwriting the weights with
-        their moving average.
-      ema_momentum: float, default to 0.99. Only used if `use_ema=True`. This is
-        the momentum to use when computing the EMA of the model's weights:
-          `new_average = ema_momentum * old_average + (1 - ema_momentum) *
-          current_variable_value`.
-      ema_overwrite_frequency: int or None, default to 100. Only used if
-        `use_ema=True`. Every ema_overwrite_frequency steps of iterations, we
-        overwrite the model variable by its stored moving average. If None, we
-        do not overwrite model variables in the middle of training, and users
-        need to explicitly overwrite the model variable by calling
-        `finalize_variable_update()`.
+      gradients_clip_option: an instance of
+        `optimizer_experimental.GradientsClipOption`, for attributes related to
+        gradients clipping, such as clipnorm and clipvalue. Default to None
+        (not applying gradients clipping).
+      ema_option: an instance of `optimizer_experimental.EMAOption`, for
+        attributes related to exponenatial moving average, such as use_ema (a
+        boolean field indicates if EMA is used) and EMA momentum. Default to
+        None (not applying EMA).
     """
     self._name = name
-    self._clipnorm = clipnorm
-    self._global_clipnorm = global_clipnorm
-    self._use_ema = use_ema
-    if use_ema:
-      # Verify the arguments related to EMA.
-      if ema_momentum > 1 or ema_momentum < 0:
-        raise ValueError("`ema_momentum` must be in the range [0, 1]. "
-                         f"Received: ema_momentum={ema_momentum}")
-      if ema_overwrite_frequency and not isinstance(
-          ema_overwrite_frequency, int) or ema_overwrite_frequency < 1:
-        raise ValueError(
-            "`ema_overwrite_frequency` must be an integer > 1 or None. "
-            f"Received: ema_overwrite_frequency={ema_overwrite_frequency}")
-    self._ema_momentum = ema_momentum
-    self._ema_overwrite_frequency = ema_overwrite_frequency
+    self._gradients_clip_option = gradients_clip_option
+    self._ema_option = ema_option
 
-    if self._clipnorm is not None and self._global_clipnorm is not None:
-      raise ValueError(f"At most one of `clipnorm` and `global_clipnorm` can "
-                       f"be set. Received: clipnorm={self._clipnorm}, "
-                       f"global_clipnorm={self._global_clipnorm}.")
-    self._clipvalue = clipvalue
     with tf.init_scope():
       # Lift the variable creation to init scope to avoid environment issue.
       self._iterations = tf.Variable(0, name="iteration", dtype=tf.int64)
@@ -137,19 +100,24 @@ class _BaseOptimizer(tf.Module):
     return list(zip(grads, var_list))
 
   def _clip_gradients(self, grads):
+    if not self._gradients_clip_option:
+      return grads
+
     clipped_grads = []
-    if self._clipnorm is not None and self._clipnorm > 0:
+    if self._gradients_clip_option.clipnorm:
       for g in grads:
         if g is None:
           clipped_grads.append(g)
         else:
-          clipped_grads.append(tf.clip_by_norm(g, self._clipnorm))
+          clipped_grads.append(
+              tf.clip_by_norm(g, self._gradients_clip_option.clipnorm))
       return clipped_grads
 
-    if self._global_clipnorm is not None and self._global_clipnorm > 0:
-      return tf.clip_by_global_norm(grads, self._global_clipnorm)[0]
+    if self._gradients_clip_option.global_clipnorm:
+      return tf.clip_by_global_norm(
+          grads, self._gradients_clip_option.global_clipnorm)[0]
 
-    if self._clipvalue is not None and self._clipvalue > 0:
+    if self._gradients_clip_option.clipvalue:
       for g in grads:
         if g is None:
           clipped_grads.append(g)
@@ -157,8 +125,8 @@ class _BaseOptimizer(tf.Module):
           clipped_grads.append(
               tf.clip_by_value(
                   g,
-                  clip_value_min=-self._clipvalue,  # pylint: disable=invalid-unary-operand-type
-                  clip_value_max=self._clipvalue))
+                  clip_value_min=(-self._gradients_clip_option.clipvalue),
+                  clip_value_max=self._gradients_clip_option.clipvalue))
       return clipped_grads
 
     return grads
@@ -222,7 +190,7 @@ class _BaseOptimizer(tf.Module):
     if getattr(self, "_built", False):
       return
     self._build_index_dict(var_list)
-    if self._use_ema:
+    if self._ema_option and self._ema_option.use_ema:
       self._model_variables_moving_average = []
       for var in var_list:
         # Make a copy of the model variables, we will use the copy to store the
@@ -364,10 +332,10 @@ class _BaseOptimizer(tf.Module):
 
   def _update_model_variables_moving_average(self, var_list):
     """Update the stored moving average using the latest value."""
-    if self._use_ema:
+    if self._ema_option and self._ema_option.use_ema:
+      ema_momentum = self._ema_option.ema_momentum
       for (var, average) in zip(var_list, self._model_variables_moving_average):
-        average.assign(self._ema_momentum * average +
-                       (1 - self._ema_momentum) * var)
+        average.assign(ema_momentum * average + (1 - ema_momentum) * var)
 
   def _overwrite_model_variables_with_average_value(self, var_list):
     """Overwrite model variables with its moving average."""
@@ -420,12 +388,10 @@ class _BaseOptimizer(tf.Module):
         Python dictionary.
     """
     config = {}
-    if hasattr(self, "_clipnorm"):
-      config["clipnorm"] = self._clipnorm
-    if hasattr(self, "_global_clipnorm"):
-      config["global_clipnorm"] = self._global_clipnorm
-    if hasattr(self, "_clipvalue"):
-      config["clipvalue"] = self._clipvalue
+    if self._gradients_clip_option:
+      config["gradients_clip_option"] = self._gradients_clip_option.get_config()
+    if self._ema_option:
+      config["ema_option"] = self._ema_option.get_config()
     return config
 
   @classmethod
@@ -445,6 +411,11 @@ class _BaseOptimizer(tf.Module):
       if isinstance(config["learning_rate"], dict):
         config["learning_rate"] = learning_rate_schedule.deserialize(
             config["learning_rate"])
+    if "gradients_clip_option" in config:
+      config["gradients_clip_option"] = optimizer_lib.GradientsClipOption(
+          **config["gradients_clip_option"])
+    if "ema_option" in config:
+      config["ema_option"] = optimizer_lib.EMAOption(**config["ema_option"])
     return cls(**config)
 
 
@@ -455,43 +426,22 @@ class Optimizer(_BaseOptimizer):
   optimizer, please subclass this class instead of _BaseOptimizer.
   """
 
-  def __init__(self,
-               name,
-               clipnorm=None,
-               clipvalue=None,
-               global_clipnorm=None,
-               use_ema=False,
-               ema_momentum=0.99,
-               ema_overwrite_frequency=100):
+  def __init__(self, name, gradients_clip_option=None, ema_option=None):
     """Create a new Optimizer.
 
     Args:
       name: String. The name to use for momentum accumulator weights created by
         the optimizer.
-      clipnorm: float. If set, the gradient of each weight is individually
-        clipped so that its norm is no higher than this value.
-      clipvalue: float. If set, the gradient of each weight is clipped to be no
-        higher than this value.
-      global_clipnorm: float. If set, the gradient of all weights is clipped so
-        that their global norm is no higher than this value.
-      use_ema: boolean, default to False. If True, exponential moving average
-        (EMA) is applied. EMA consists of computing an exponential moving
-        average of the weights of the model (as the weight values change after
-        each training batch), and periodically overwriting the weights with
-        their moving average.
-      ema_momentum: float, default to 0.99. Only used if `use_ema=True`. This is
-        the momentum to use when computing the EMA of the model's weights:
-          `new_average = ema_momentum * old_average + (1 - ema_momentum) *
-          current_variable_value`.
-      ema_overwrite_frequency: int or None, default to 100. Only used if
-        `use_ema=True`. Every ema_overwrite_frequency steps of iterations, we
-        overwrite the model variable by its stored moving average. If None, we
-        do not overwrite model variables in the middle of training, and users
-        need to explicitly overwrite the model variable by calling
-        `finalize_variable_update()`.
+      gradients_clip_option: an instance of
+        `optimizer_experimental.GradientsClipOption`, for attributes related to
+        gradients clipping, such as clipnorm and clipvalue. Default to None
+        (not applying gradients clipping).
+      ema_option: an instance of `optimizer_experimental.EMAOption`, for
+        attributes related to exponenatial moving average, such as `use_ema` (a
+        boolean field indicates if EMA is used) and EMA momentum. Default to
+        None (not applying EMA).
     """
-    super().__init__(name, clipnorm, clipvalue, global_clipnorm, use_ema,
-                     ema_momentum, ema_overwrite_frequency)
+    super().__init__(name, gradients_clip_option, ema_option)
     self._distribution_strategy = tf.distribute.get_strategy()
 
   def add_variable_from_reference(self,
@@ -594,12 +544,12 @@ class Optimizer(_BaseOptimizer):
           var, apply_grad_to_update_var, args=(grad,), group=False)
     self.iterations.assign_add(1)
 
-    if self._use_ema:
+    if self._ema_option and self._ema_option.use_ema:
       _, var_list = zip(*grads_and_vars)
       self._update_model_variables_moving_average(var_list)
       should_overwrite_model_vars = (
-          self._ema_overwrite_frequency and
-          self.iterations % self._ema_overwrite_frequency == 0)
+          self._ema_option and self._ema_option.ema_overwrite_frequency and
+          self.iterations % self._ema_option.ema_overwrite_frequency == 0)
       tf.cond(
           should_overwrite_model_vars,
           true_fn=lambda: self._overwrite_model_variables_with_average_value(  # pylint: disable=g-long-lambda

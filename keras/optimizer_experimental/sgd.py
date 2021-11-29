@@ -54,27 +54,14 @@ class SGD(optimizer.Optimizer):
       descent.
     nesterov: boolean. Whether to apply Nesterov momentum.
       Defaults to `False`.
-    clipnorm: float. If set, the gradient of each weight is individually
-      clipped so that its norm is no higher than this value.
-    clipvalue: float. If set, the gradient of each weight is clipped to be
-      no higher than this value.
-    global_clipnorm: float. If set, the gradient of all weights is clipped
-      so that their global norm is no higher than this value.
-    use_ema: boolean, default to False. If True, exponential moving average
-      (EMA) is applied. EMA consists of computing an exponential moving
-      average of the weights of the model (as the weight values change after
-      each training batch), and periodically overwriting the weights with
-      their moving average.
-    ema_momentum: float, default to 0.99. Only used if `use_ema=True`. This is
-      the momentum to use when computing the EMA of the model's weights:
-      `new_average = ema_momentum * old_average +
-       (1 - ema_momentum) * current_variable_value`.
-    ema_overwrite_frequency: int or None, default to 100. Only used if
-      `use_ema=True`.Every ema_overwrite_frequency steps of iterations, we
-      overwrite the model variable by its stored moving average. If None, we
-      do not overwrite model variables in the middle of training, and users
-      need to explicitly overwrite the model variable by calling
-      `finalize_variable_update()`.
+    gradients_clip_option: an instance of
+      `optimizer_experimental.GradientsClipOption`, for attributes related to
+      gradients clipping, such as clipnorm and clipvalue. Default to None
+      (not apply gradients clipping).
+    ema_option: an instance of `optimizer_experimental.EMAOption`, for
+      attributes related to exponenatial moving average, such as use_ema (a
+      boolean field indicates if EMA is used) and EMA momentum. Default to None
+      (not apply EMA).
     name: Optional name prefix for the operations created when applying
       gradients.  Defaults to `"SGD"`.
 
@@ -113,21 +100,13 @@ class SGD(optimizer.Optimizer):
                momentum=0.0,
                nesterov=False,
                amsgrad=False,
-               clipnorm=None,
-               clipvalue=None,
-               global_clipnorm=None,
-               use_ema=False,
-               ema_momentum=0.99,
-               ema_overwrite_frequency=100,
+               gradients_clip_option=None,
+               ema_option=None,
                name='SGD'):
     super(SGD, self).__init__(
         name=name,
-        clipnorm=clipnorm,
-        clipvalue=clipvalue,
-        global_clipnorm=global_clipnorm,
-        use_ema=use_ema,
-        ema_momentum=ema_momentum,
-        ema_overwrite_frequency=ema_overwrite_frequency)
+        gradients_clip_option=gradients_clip_option,
+        ema_option=ema_option)
     self._learning_rate = self._build_learning_rate(learning_rate)
     self.momentum = momentum
     self.nesterov = nesterov

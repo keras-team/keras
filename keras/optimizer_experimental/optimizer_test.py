@@ -10,6 +10,7 @@ import keras
 from keras.optimizer_experimental import adadelta as adadelta_new
 from keras.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizer_experimental import adam as adam_new
+from keras.optimizer_experimental import optimizer_lib
 from keras.optimizer_experimental import sgd as sgd_new
 from keras.optimizer_v2 import adadelta as adadelta_old
 from keras.optimizer_v2 import adagrad as adagrad_old
@@ -41,7 +42,10 @@ adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladam", lambda: adam_new.Adam(0.002))
 sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
-    "experimentalsgdaverage", lambda: sgd_new.SGD(0.002, use_ema=True))
+    "experimentalsgdaverage",
+    lambda: sgd_new.SGD(  # pylint: disable=g-long-lambda
+        0.002,
+        ema_option=optimizer_lib.EMAOption(use_ema=True)))
 
 OPTIMIZER_FN = [
     adadelta_new_fn,
@@ -68,29 +72,28 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(optimizer._index_dict[optimizer._var_key(var_list[7])], 7)
 
   def testClipNorm(self):
-    optimizer = adam_new.Adam(clipnorm=1)
+    gradients_clip_option = optimizer_lib.GradientsClipOption(clipnorm=1)
+    optimizer = adam_new.Adam(gradients_clip_option=gradients_clip_option)
     grad = [tf.convert_to_tensor([100.0, 100.0])]
     clipped_grad = optimizer._clip_gradients(grad)
     self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
 
   def testClipValue(self):
-    optimizer = adam_new.Adam(clipvalue=1)
+    gradients_clip_option = optimizer_lib.GradientsClipOption(clipvalue=1)
+    optimizer = adam_new.Adam(gradients_clip_option=gradients_clip_option)
     grad = [tf.convert_to_tensor([100.0, 100.0])]
     clipped_grad = optimizer._clip_gradients(grad)
     self.assertAllEqual(clipped_grad[0], [1.0, 1.0])
 
   def testClipGlobalNorm(self):
-    optimizer = adam_new.Adam(global_clipnorm=1)
+    gradients_clip_option = optimizer_lib.GradientsClipOption(global_clipnorm=1)
+    optimizer = adam_new.Adam(gradients_clip_option=gradients_clip_option)
     grad = [
         tf.cast([100.0, 100.0], dtype=tf.float32),
         tf.cast([100.0, 100.0], dtype=tf.float32)
     ]
     clipped_grad = optimizer._clip_gradients(grad)
     self.assertAllClose(clipped_grad[0], [0.5, 0.5])
-
-    with self.assertRaisesRegex(ValueError, "At most one of*"):
-      _ = adam_new.Adam(
-          learning_rate=1, epsilon=0, global_clipnorm=1, clipnorm=1)
 
   def testReturnAllOptimizerVariables(self):
     x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)
@@ -130,8 +133,9 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
   def testMovingAverageOptimizer(self):
     # We set polyak averaging with ema_momentum = 1 so that the
     #  moving average is always the original value of the variables.
-    optimizer = adam_new.Adam(
+    ema_option = optimizer_lib.EMAOption(
         use_ema=True, ema_momentum=1, ema_overwrite_frequency=2)
+    optimizer = adam_new.Adam(ema_option=ema_option)
     x = tf.Variable([1.0, 2.0], dtype=tf.float32)
     x_origin = tf.Variable(x)
     grads = tf.convert_to_tensor([1.0, 2.0])
@@ -144,13 +148,18 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     optimizer.apply_gradients(zip([grads], [x]))
     self.assertAllEqual(x, x_origin)
 
-  def testGetConfig(self):
+  def testGetAndFromConfig(self):
+    gradients_clip_option = optimizer_lib.GradientsClipOption(clipnorm=0.5)
+    ema_option = optimizer_lib.EMAOption(
+        use_ema=True, ema_momentum=0.5, ema_overwrite_frequency=50)
     optimizer = adam_new.Adam(
         learning_rate=np.float64(0.05),
         beta_1=0.7,
         beta_2=0.77,
         amsgrad=True,
-        epsilon=0.001)
+        epsilon=0.001,
+        gradients_clip_option=gradients_clip_option,
+        ema_option=ema_option)
     config = optimizer.get_config()
     self.assertDictEqual(
         config, {
@@ -159,10 +168,20 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             "beta_2": 0.77,
             "epsilon": 0.001,
             "amsgrad": True,
-            "clipnorm": None,
-            "global_clipnorm": None,
-            "clipvalue": None,
+            "gradients_clip_option": {
+                "clipnorm": 0.5,
+                "global_clipnorm": None,
+                "clipvalue": None,
+            },
+            "ema_option": {
+                "use_ema": True,
+                "ema_momentum": 0.5,
+                "ema_overwrite_frequency": 50,
+            }
         })
+    restored_optimizer = adam_new.Adam.from_config(config)
+    self.assertDictEqual(restored_optimizer.get_config(),
+                         optimizer.get_config())
 
   def testCheckpointOptimizer(self):
     x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)
@@ -199,7 +218,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         [keras.layers.Input(shape=(1,)),
          keras.layers.Dense(1)])
     optimizer = optimizer_fn()
-    optimizer._clipnorm = 0.1
+    gradients_clip_option = optimizer_lib.GradientsClipOption(clipnorm=0.1)
+    optimizer._gradients_clip_option = gradients_clip_option
     x = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
     y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
     model.compile(loss="mse", optimizer=optimizer)
@@ -210,9 +230,10 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     model.save(path)
     loaded_model = keras.models.load_model(path)
     loaded_model.load_weights(path)
-    self.assertEqual(type(optimizer), type(loaded_model.optimizer))
-    self.assertEqual(loaded_model.optimizer.learning_rate, 0.002)
-    self.assertEqual(loaded_model.optimizer._clipnorm, 0.1)
+    loaded_optimizer = loaded_model.optimizer
+    self.assertEqual(type(optimizer), type(loaded_optimizer))
+    self.assertEqual(loaded_optimizer.learning_rate, 0.002)
+    self.assertEqual(loaded_optimizer._gradients_clip_option.clipnorm, 0.1)
 
     # Save in Keras SavedModel format.
     model.fit(x, y)
@@ -220,9 +241,10 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     model.save(path)
     loaded_model = keras.models.load_model(path)
     loaded_model.load_weights(path)
-    self.assertEqual(type(optimizer), type(loaded_model.optimizer))
-    self.assertEqual(loaded_model.optimizer.learning_rate, 0.002)
-    self.assertEqual(loaded_model.optimizer._clipnorm, 0.1)
+    loaded_optimizer = loaded_model.optimizer
+    self.assertEqual(type(optimizer), type(loaded_optimizer))
+    self.assertEqual(loaded_optimizer.learning_rate, 0.002)
+    self.assertEqual(loaded_optimizer._gradients_clip_option.clipnorm, 0.1)
 
 
 class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
