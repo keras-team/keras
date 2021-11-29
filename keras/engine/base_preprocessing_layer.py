@@ -203,6 +203,11 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
      array([1.], dtype=float32),
      array([2.], dtype=float32)]
 
+    `adapt()` is meant only as a single machine utility to compute layer state.
+    To analyze a dataset that cannot fit on a single machine, see
+    [Tensorflow Transform](https://www.tensorflow.org/tfx/transform/get_started)
+    for a multi-machine, map-reduce solution.
+
     Arguments:
         data: The data to train on. It can be passed either as a tf.data
           Dataset, or as a numpy array.

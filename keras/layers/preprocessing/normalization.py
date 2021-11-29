@@ -193,6 +193,54 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       self.mean = tf.cast(mean, self.compute_dtype)
       self.variance = tf.cast(variance, self.compute_dtype)
 
+  # We override this method solely to generate a docstring.
+  def adapt(self, data, batch_size=None, steps=None):
+    """Computes the mean and variance of values in a dataset.
+
+    Calling `adapt()` on a `Normalization` layer is an alternative to passing in
+    `mean` and `variance` arguments during layer construction. A `Normalization`
+    layer should always either be adapted over a dataset or passed `mean` and
+    `variance`.
+
+    During `adapt()`, the layer will compute a `mean` and `variance` separately
+    for each position in each axis specified by the `axis` argument. To
+    calculate a single `mean` and `variance` over the input data, simply pass
+    `axis=None`.
+
+    In order to make `Normalization` efficient in any distribution context, the
+    computed mean and variance are kept static with respect to any compiled
+    `tf.Graph`s that call the layer. As a consequence, if the layer is adapted a
+    second time, any models using the layer should be re-compiled. For more
+    information see
+    `tf.keras.layers.experimental.preprocessing.PreprocessingLayer.adapt`.
+
+    `adapt()` is meant only as a single machine utility to compute layer state.
+    To analyze a dataset that cannot fit on a single machine, see
+    [Tensorflow Transform](https://www.tensorflow.org/tfx/transform/get_started)
+    for a multi-machine, map-reduce solution.
+
+    Arguments:
+      data: The data to train on. It can be passed either as a
+          `tf.data.Dataset`, or as a numpy array.
+      batch_size: Integer or `None`.
+          Number of samples per state update.
+          If unspecified, `batch_size` will default to 32.
+          Do not specify the `batch_size` if your data is in the
+          form of datasets, generators, or `keras.utils.Sequence` instances
+          (since they generate batches).
+      steps: Integer or `None`.
+          Total number of steps (batches of samples)
+          When training with input tensors such as
+          TensorFlow data tensors, the default `None` is equal to
+          the number of samples in your dataset divided by
+          the batch size, or 1 if that cannot be determined. If x is a
+          `tf.data` dataset, and 'steps' is None, the epoch will run until
+          the input dataset is exhausted. When passing an infinitely
+          repeating dataset, you must specify the `steps` argument. This
+          argument is not supported with array inputs.
+    """
+    super().adapt(data, batch_size=batch_size, steps=steps)
+
   def update_state(self, data):
     if self.input_mean is not None:
       raise ValueError(
