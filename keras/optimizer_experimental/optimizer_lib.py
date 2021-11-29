@@ -72,8 +72,8 @@ class EMAOption:
       if ema_momentum > 1 or ema_momentum < 0:
         raise ValueError("`ema_momentum` must be in the range [0, 1]. "
                          f"Received: ema_momentum={ema_momentum}")
-      if ema_overwrite_frequency and not isinstance(
-          ema_overwrite_frequency, int) or ema_overwrite_frequency < 1:
+      if ema_overwrite_frequency and (not isinstance(
+          ema_overwrite_frequency, int) or ema_overwrite_frequency < 1):
         raise ValueError(
             "`ema_overwrite_frequency` must be an integer > 1 or None. "
             f"Received: ema_overwrite_frequency={ema_overwrite_frequency}")

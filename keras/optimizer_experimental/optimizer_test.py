@@ -36,7 +36,11 @@ STRATEGIES = [
 ]
 
 adadelta_new_fn = tf.__internal__.test.combinations.NamedObject(
-    "experimentaladadelta", lambda: adadelta_new.Adadelta(0.002))
+    "experimentaladadelta",
+    lambda: adadelta_new.Adadelta(  # pylint: disable=g-long-lambda
+        0.002,
+        ema_option=optimizer_lib.EMAOption(
+            use_ema=True, ema_overwrite_frequency=None)))
 adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladagrad", lambda: adagrad_new.Adagrad(0.002))
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
@@ -45,7 +49,8 @@ sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalsgdaverage",
     lambda: sgd_new.SGD(  # pylint: disable=g-long-lambda
         0.002,
-        ema_option=optimizer_lib.EMAOption(use_ema=True)))
+        ema_option=optimizer_lib.EMAOption(
+            use_ema=True, ema_overwrite_frequency=1)))
 
 OPTIMIZER_FN = [
     adadelta_new_fn,
