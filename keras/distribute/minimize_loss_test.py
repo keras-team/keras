@@ -158,6 +158,10 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
 
     def appending_creator(next_creator, **kwargs):
       v = next_creator(**kwargs)
+      # Skip the StateVar created in the tf.random.Generator, which is used by
+      # keras initializers.
+      if "StateVar" in v.name:
+        return v
       created_variables.append(v.name)
       if "trainable" in kwargs and kwargs["trainable"]:
         trainable_variables.append(v.name)
