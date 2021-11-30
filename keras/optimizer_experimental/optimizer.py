@@ -547,14 +547,17 @@ class Optimizer(_BaseOptimizer):
     if self._ema_option and self._ema_option.use_ema:
       _, var_list = zip(*grads_and_vars)
       self._update_model_variables_moving_average(var_list)
-      should_overwrite_model_vars = (
-          self._ema_option and self._ema_option.ema_overwrite_frequency and
-          self.iterations % self._ema_option.ema_overwrite_frequency == 0)
-      tf.cond(
-          should_overwrite_model_vars,
-          true_fn=lambda: self._overwrite_model_variables_with_average_value(  # pylint: disable=g-long-lambda
-              var_list),
-          false_fn=lambda: None)
+
+      if self._ema_option.ema_overwrite_frequency:
+        # Only when self._ema_option.ema_overwrite_frequency is not None, we
+        # overwrite the model variables.
+        should_overwrite_model_vars = (
+            self.iterations % self._ema_option.ema_overwrite_frequency == 0)
+        tf.cond(
+            should_overwrite_model_vars,
+            true_fn=lambda: self._overwrite_model_variables_with_average_value(  # pylint: disable=g-long-lambda
+                var_list),
+            false_fn=lambda: None)
 
 
 class RestoredOptimizer(Optimizer):
