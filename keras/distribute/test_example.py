@@ -58,6 +58,7 @@ def batchnorm_example(optimizer_fn,
 
   def dataset_fn():
     # input shape is [16, 8], input values are increasing in both dimensions.
+    logging.info("Logging data load")
     return tf.data.Dataset.from_tensor_slices(
         [[[float(x * 8 + y + z * 100)
            for y in range(8)]
