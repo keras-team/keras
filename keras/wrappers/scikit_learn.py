@@ -191,14 +191,16 @@ class KerasClassifier(BaseWrapper):
   """Implementation of the scikit-learn classifier API for Keras.
 
   DEPRECATED. Use [Sci-Keras](https://github.com/adriangb/scikeras) instead.
-  See https://www.adriangb.com/scikeras/stable/migration.html for help migrating.
+  See https://www.adriangb.com/scikeras/stable/migration.html
+  for help migrating.
   """
 
   def __init__(self, build_fn=None, **sk_params):
     warnings.warn(
         'KerasClassifier is deprecated, '
         'use Sci-Keras (https://github.com/adriangb/scikeras) instead. '
-        'See https://www.adriangb.com/scikeras/stable/migration.html for help migrating.',
+        'See https://www.adriangb.com/scikeras/stable/migration.html '
+        'for help migrating.',
         DeprecationWarning,
         stacklevel=2)
     super().__init__(build_fn, **sk_params)
@@ -329,7 +331,8 @@ class KerasRegressor(BaseWrapper):
   """Implementation of the scikit-learn regressor API for Keras.
 
   DEPRECATED. Use [Sci-Keras](https://github.com/adriangb/scikeras) instead.
-  See https://www.adriangb.com/scikeras/stable/migration.html for help migrating.
+  See https://www.adriangb.com/scikeras/stable/migration.html
+  for help migrating.
   """
 
   @doc_controls.do_not_doc_inheritable
@@ -337,7 +340,8 @@ class KerasRegressor(BaseWrapper):
     warnings.warn(
         'KerasRegressor is deprecated, '
         'use Sci-Keras (https://github.com/adriangb/scikeras) instead. '
-        'See https://www.adriangb.com/scikeras/stable/migration.html for help migrating.',
+        'See https://www.adriangb.com/scikeras/stable/migration.html '
+        'for help migrating.',
         DeprecationWarning,
         stacklevel=2)
     super().__init__(build_fn, **sk_params)
