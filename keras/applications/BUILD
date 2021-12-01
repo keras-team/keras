@@ -314,6 +314,23 @@ tf_py_test(
 )
 
 tf_py_test(
+    name = "applications_load_weight_test_regnet",
+    srcs = ["applications_load_weight_test.py"],
+    args = ["--module=regnet"],
+    main = "applications_load_weight_test.py",
+    tags = [
+        "no_oss",
+        "no_pip",
+    ],
+    deps = [
+        ":applications",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/preprocessing",
+    ],
+)
+
+tf_py_test(
     name = "applications_load_weight_test_nasnet_mobile",
     srcs = ["applications_load_weight_test.py"],
     args = ["--module=nasnet_mobile"],

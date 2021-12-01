@@ -216,7 +216,7 @@ MODEL_CONFIGS = {
     }
 }
 
-BASE_DOCSTRING = """Instantiates Regnet architecture.
+BASE_DOCSTRING = """Instantiates the {name} architecture.
 
   References:
     - [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
@@ -334,7 +334,7 @@ def Stem(name=None):
 
 def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
   """
-  Implements the Squeeze and excite block(https://arxiv.org/abs/1709.01507)
+  Implements the Squeeze and excite block (https://arxiv.org/abs/1709.01507)
   
   Args:
     filters_in: input filters to the block
@@ -385,8 +385,10 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
       raise ValueError(
-          """Input filters and output filters are not equal for stride
-                          1. Please check inputs and try again.""")
+          f"Input filters({filters_in}) and output filters({filters_out}) "
+          f"are not equal for stride {stride}. Input and output filters must "
+          f"be equal for stride={stride}."
+      )
 
     # Declare layers
     groups = filters_out // group_width
@@ -470,8 +472,9 @@ def YBlock(filters_in,
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
       raise ValueError(
-          f"""Input filters({filters_in}) and output filters({filters_out}) are not equal for stride
-                          {stride}. Input and output filters must be equal for stride={stride}."""
+          f"Input filters({filters_in}) and output filters({filters_out}) "
+          f"are not equal for stride {stride}. Input and output filters must  "
+          f"be equal for stride={stride}."
       )
 
     groups = filters_out // group_width
@@ -513,7 +516,7 @@ def YBlock(filters_in,
                                   name=name + "_conv_3x3_bn")(x)
     x = layers.ReLU(name=name + "_conv_3x3_relu")(x)
 
-    # Squeeze-Excitation block (https://arxiv.org/abs/1709.01507)
+    # Squeeze-Excitation block
     x = SqueezeAndExciteBlock(filters_out, se_filters, name=name)(x)
 
     # conv_1x1_2
@@ -561,8 +564,9 @@ def ZBlock(filters_in,
   def apply(inputs):
     if filters_in != filters_out and stride == 1:
       raise ValueError(
-          f"""Input filters({filters_in}) and output filters({filters_out}) are not equal for stride
-                          {stride}. Input and output filters must be equal for stride={stride}."""
+          f"Input filters({filters_in}) and output filters({filters_out})"
+          f"are not equal for stride {stride}. Input and output filters must be"
+          f" equal for stride={stride}."
       )
 
     groups = filters_out // group_width
@@ -594,7 +598,7 @@ def ZBlock(filters_in,
                                   name=name + "_conv_3x3_bn")(x)
     x = tf.nn.silu(x)
 
-    # Squeeze-Excitation block (https://arxiv.org/abs/1709.01507)
+    # Squeeze-Excitation block
     x = SqueezeAndExciteBlock(inv_btlneck_filters, se_filters, name=name)
 
     # conv_1x1_2
@@ -668,8 +672,8 @@ def Stage(block_type, depth, group_width, filters_in, filters_out, name=None):
                    group_width,
                    name=f"{name}_ZBlock_{i}")(x)
     else:
-      raise NotImplementedError(f"""Block type `{block_type}` not recognized. 
-                                block_type must be one of ("X", "Y", "Z"). """)
+      raise NotImplementedError(f"Block type `{block_type}` not recognized." 
+                                f"block_type must be one of (`X`, `Y`, `Z`). ")
     return x
 
   return apply
@@ -680,7 +684,7 @@ def Head(num_classes=1000, name=None):
   Implementation of classification head of RegNet
   
   Args:
-  x: Input tensor
+    x: Input tensor
     num_classes: number of classes for Dense layer
   
   Returns:
@@ -757,7 +761,8 @@ def RegNet(depths,
       `classifier_activation=None` to return the logits of the "top" layer.        
   
   Returns:
-  A `keras.Model` instance.
+    A `keras.Model` instance.
+  
   Raises:
       ValueError: in case of invalid argument for `weights`,
         or invalid input shape.
@@ -834,10 +839,10 @@ def RegNet(depths,
   if weights == "imagenet":
     if include_top:
       file_suffix = ".h5"
-      file_hash = WEIGHTS_HASHES[model_name[-2:]][0]
+      file_hash = WEIGHTS_HASHES[model_name[-4:]][0]
     else:
       file_suffix = "_notop.h5"
-      file_hash = WEIGHTS_HASHES[model_name[-2:]][1]
+      file_hash = WEIGHTS_HASHES[model_name[-4:]][1]
     file_name = model_name + file_suffix
     weights_path = data_utils.get_file(file_name,
                                        BASE_WEIGHTS_PATH + file_name,
@@ -1547,3 +1552,60 @@ def RegNetY320(model_name="regnety320",
       classes=classes,
       classifier_activation=classifier_activation
   )
+
+
+RegNetX002.__doc__ = BASE_DOCSTRING.format(name="RegNetX002")
+RegNetX004.__doc__ = BASE_DOCSTRING.format(name="RegNetX004")
+RegNetX006.__doc__ = BASE_DOCSTRING.format(name="RegNetX006")
+RegNetX008.__doc__ = BASE_DOCSTRING.format(name="RegNetX008")
+RegNetX016.__doc__ = BASE_DOCSTRING.format(name="RegNetX016")
+RegNetX032.__doc__ = BASE_DOCSTRING.format(name="RegNetX032")
+RegNetX040.__doc__ = BASE_DOCSTRING.format(name="RegNetX040")
+RegNetX064.__doc__ = BASE_DOCSTRING.format(name="RegNetX064")
+RegNetX080.__doc__ = BASE_DOCSTRING.format(name="RegNetX080")
+RegNetX120.__doc__ = BASE_DOCSTRING.format(name="RegNetX120")
+RegNetX160.__doc__ = BASE_DOCSTRING.format(name="RegNetX160")
+RegNetX320.__doc__ = BASE_DOCSTRING.format(name="RegNetX320")
+
+RegNetY002.__doc__ = BASE_DOCSTRING.format(name="RegNetY002")
+RegNetY004.__doc__ = BASE_DOCSTRING.format(name="RegNetY004")
+RegNetY006.__doc__ = BASE_DOCSTRING.format(name="RegNetY006")
+RegNetY008.__doc__ = BASE_DOCSTRING.format(name="RegNetY008")
+RegNetY016.__doc__ = BASE_DOCSTRING.format(name="RegNetY016")
+RegNetY032.__doc__ = BASE_DOCSTRING.format(name="RegNetY032")
+RegNetY040.__doc__ = BASE_DOCSTRING.format(name="RegNetY040")
+RegNetY064.__doc__ = BASE_DOCSTRING.format(name="RegNetY064")
+RegNetY080.__doc__ = BASE_DOCSTRING.format(name="RegNetY080")
+RegNetY120.__doc__ = BASE_DOCSTRING.format(name="RegNetY120")
+RegNetY160.__doc__ = BASE_DOCSTRING.format(name="RegNetY160")
+RegNetY320.__doc__ = BASE_DOCSTRING.format(name="RegNetY320")
+
+
+@keras_export('keras.applications.regnet.preprocess_input')
+def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
+  """A placeholder method for backward compatibility.
+
+  The preprocessing logic has been included in the efficientnet model
+  implementation. Users are no longer required to call this method to normalize
+  the input data. This method does nothing and only kept as a placeholder to
+  align the API surface between old and new version of model.
+
+  Args:
+    x: A floating point `numpy.array` or a `tf.Tensor`.
+    data_format: Optional data format of the image tensor/array. Defaults to
+      None, in which case the global setting
+      `tf.keras.backend.image_data_format()` is used (unless you changed it,
+      it defaults to "channels_last").{mode}
+
+  Returns:
+    Unchanged `numpy.array` or `tf.Tensor`.
+  """
+  return x
+
+
+@keras_export('keras.applications.regnet.decode_predictions')
+def decode_predictions(preds, top=5):
+  return imagenet_utils.decode_predictions(preds, top=top)
+
+
+decode_predictions.__doc__ = imagenet_utils.decode_predictions.__doc__
