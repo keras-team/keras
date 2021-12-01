@@ -204,6 +204,12 @@ class Lambda(Layer):
       # checking only to immediately discard it.
       return
 
+    # Filter out the state variable in the tf.random.Generator, which is
+    # commonly used for initializer or droput. The variable is intentionally
+    # not tracked and it is not a trainable variable.
+    created_variables = [v for v in created_variables
+                         if 'StateVar' not in v.name]
+
     tracked_weights = set(v.ref() for v in self.weights)
     untracked_new_vars = [
         v for v in created_variables if v.ref() not in tracked_weights
