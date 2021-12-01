@@ -18,6 +18,7 @@ import os
 import textwrap
 
 import keras
+from keras import initializers
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.layers import core
@@ -404,6 +405,34 @@ class TestStatefulLambda(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, expected_warning):
       model = testing_utils.get_model_from_layers([layer], input_shape=(1,))
       model(tf.ones((4, 1)))
+
+  @keras_parameterized.run_all_keras_modes
+  @keras_parameterized.run_with_all_model_types
+  def test_lambda_skip_state_variable_from_initializer(self):
+    # Force the initializers to use the tf.random.Generator, which will contain
+    # the state variable.
+    kernel_initializer = initializers.RandomNormalV2()
+    kernel_initializer._random_generator._force_generator = True
+    dense = keras.layers.Dense(1, use_bias=False,
+                               kernel_initializer=kernel_initializer)
+
+    def lambda_fn(x):
+      return dense(x + 1)  # Dense layer is built on first call
+
+    # While it is generally not advised to mix Variables with Lambda layers, if
+    # the variables are explicitly set as attributes then they are still
+    # tracked. This is consistent with the base Layer behavior.
+    layer = keras.layers.Lambda(lambda_fn)
+    layer.dense = dense
+
+    model = testing_utils.get_model_from_layers([layer], input_shape=(10,))
+    model.compile(
+        keras.optimizer_v2.gradient_descent.SGD(0.1),
+        'mae',
+        run_eagerly=testing_utils.should_run_eagerly())
+    x, y = np.ones((10, 10), 'float32'), 2 * np.ones((10, 10), 'float32')
+    model.fit(x, y, batch_size=2, epochs=2, validation_data=(x, y))
+    self.assertLen(model.trainable_weights, 1)
 
 
 @keras_parameterized.run_all_keras_modes
