@@ -853,13 +853,13 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     mode = 'max'
     monitor = 'val_acc'
     initial_value_threshold = 0
+    save_best_only = True
     cbks = [
         keras.callbacks.ModelCheckpoint(
             filepath,
             monitor=monitor,
             save_best_only=save_best_only,
             initial_value_threshold=initial_value_threshold,
-            save_best_only=True,
             mode=mode)
     ]
     model.fit(
@@ -877,13 +877,13 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     mode = 'auto'
     monitor = 'val_loss'
     initial_value_threshold = None
+    save_best_only = True
     cbks = [
         keras.callbacks.ModelCheckpoint(
             filepath,
             monitor=monitor,
             save_best_only=save_best_only,
             initial_value_threshold=initial_value_threshold,
-            save_best_only=True,
             mode=mode)
     ]
     model.fit(
@@ -901,13 +901,13 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     mode = 'min'
     monitor = 'val_loss'
     initial_value_threshold = 0
+    save_best_only = True
     cbks = [
         keras.callbacks.ModelCheckpoint(
             filepath,
             monitor=monitor,
             save_best_only=save_best_only,
             initial_value_threshold=initial_value_threshold,
-            save_best_only=True,
             mode=mode)
     ]
     model.fit(
@@ -924,13 +924,13 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     mode = 'auto'
     monitor = 'val_loss'
     initial_value_threshold = 0
+    save_best_only = True
     cbks = [
         keras.callbacks.ModelCheckpoint(
             filepath,
             monitor=monitor,
             save_best_only=save_best_only,
             initial_value_threshold=initial_value_threshold,
-            save_best_only=True,
             mode=mode)
     ]
     model.fit(
