@@ -1134,59 +1134,22 @@ def recursively_deserialize_keras_object(config, module_objects=None):
         f'tuple or list. Received: config={config}')
 
 
-def get_common_shape(x, y):
-  """Find a `TensorShape` that is compatible with both `x` and `y`."""
-  if x is None != y is None:
-    raise RuntimeError(
-        'Cannot find a common shape when LHS shape is None but RHS shape '
-        'is not (or vice versa): %s vs. %s' % (x, y))
-  if x is None:
-    return None  # The associated input was not a Tensor, no shape generated.
-  if not isinstance(x, tf.TensorShape):
-    raise TypeError(
-        f'Expected x to be a TensorShape but received {x} with type {type(x)}')
-  if not isinstance(y, tf.TensorShape):
-    raise TypeError(
-        f'Expected y to be a TensorShape but received {y} with type {type(y)}')
-  if x.rank != y.rank or x.rank is None:
-    return tf.TensorShape(None)
-  dims = []
-  for dim_x, dim_y in zip(x.dims, y.dims):
-    if (dim_x != dim_y
-        or tf.compat.dimension_value(dim_x) is None
-        or tf.compat.dimension_value(dim_y) is None):
-      dims.append(None)
-    else:
-      dims.append(tf.compat.dimension_value(dim_x))
-  return tf.TensorShape(dims)
-
-
 def infer_inputs_from_restored_call_function(fn):
-  """Returns TensorSpec of inputs from a restored call function.
+  """Returns TypeSpec of inputs from a restored call function.
 
   Args:
     fn: Restored layer call function. It is assumed that `fn` has at least
         one concrete function and that the inputs are in the first argument.
 
   Returns:
-    TensorSpec of call function inputs in the form of (args, kwargs)
+    TypeSpec of call function inputs in the form of (args, kwargs)
   """
   def common_spec(x, y):
-    if not isinstance(x, tf.TensorSpec):
+    if not isinstance(x, tf.TypeSpec):
       # Doesn't particularly matter what is returned in this case because the
       # result will be filtered out in _set_input_shape.
       return x
-    common_shape = get_common_shape(x.shape, y.shape)
-    if isinstance(x, tf.SparseTensorSpec):
-      return tf.SparseTensorSpec(common_shape, x.dtype)
-    elif isinstance(x, tf.RaggedTensorSpec):
-      return tf.RaggedTensorSpec(
-          common_shape,
-          x.dtype,
-          ragged_rank=x.ragged_rank,
-          row_splits_dtype=x.row_splits_dtype,
-          flat_values_spec=x.flat_values_spec)
-    return tf.TensorSpec(common_shape, x.dtype, x.name)
+    return x.most_specific_compatible_type(y)
 
   spec = fn.concrete_functions[0].structured_input_signature
   for concrete in fn.concrete_functions[1:]:
