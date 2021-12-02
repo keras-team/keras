@@ -58,6 +58,9 @@ class Adam(optimizer.Optimizer):
       attributes related to exponenatial moving average, such as `use_ema` (a
       boolean field indicates if EMA is used) and EMA momentum. Default to None
       (not applying EMA).
+    jit_compile: Bool, default to False. If True, the optimizer will use XLA
+      acceleration. `jit_compile` can only be False when using Parameter
+      Server Strategy.
     name: Optional name for the operations created when applying gradients.
       Defaults to `"Adam"`.
     **kwargs: keyword arguments only used for backward compatibility with
@@ -96,12 +99,14 @@ class Adam(optimizer.Optimizer):
                amsgrad=False,
                gradients_clip_option=None,
                ema_option=None,
+               jit_compile=False,
                name='Adam',
                **kwargs):
     super(Adam, self).__init__(
         name=name,
         gradients_clip_option=gradients_clip_option,
         ema_option=ema_option,
+        jit_compile=jit_compile,
         **kwargs)
     self._learning_rate = self._build_learning_rate(learning_rate)
     self.beta_1 = beta_1
