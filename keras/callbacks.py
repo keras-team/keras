@@ -1749,6 +1749,9 @@ class EarlyStopping(Callback):
         of the performance relative to the `baseline`. If no epoch
         improves on `baseline`, training will run for `patience`
         epochs and restore weights from the best epoch in that set.
+    threshold: If monitor quanity value reaches less than in case of minimum 
+        and greater than in case of maximum, then training will be stopped.
+        The values used for reference is threshold value for comparison.
 
   Example:
 
@@ -1771,7 +1774,8 @@ class EarlyStopping(Callback):
                verbose=0,
                mode='auto',
                baseline=None,
-               restore_best_weights=False):
+               restore_best_weights=False,
+               threshold=None):
     super(EarlyStopping, self).__init__()
 
     self.monitor = monitor
@@ -1783,6 +1787,7 @@ class EarlyStopping(Callback):
     self.stopped_epoch = 0
     self.restore_best_weights = restore_best_weights
     self.best_weights = None
+    self.threshold = threshold
 
     if mode not in ['auto', 'min', 'max']:
       logging.warning('EarlyStopping mode %s is unknown, '
@@ -1816,6 +1821,12 @@ class EarlyStopping(Callback):
   def on_epoch_end(self, epoch, logs=None):
     current = self.get_monitor_value(logs)
     if current is None:
+      return
+    if self.mode == "min" and self.threshold != None and current < self.threshold:
+      self.model.stop_training = True
+      return
+    elif self.mode == "max" and self.threshold != None and current > self.threshold:
+      self.model.stop_training = True
       return
     if self.restore_best_weights and self.best_weights is None:
       # Restore the weights after first epoch if no progress is ever made.
