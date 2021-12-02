@@ -72,11 +72,10 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
       `[batch_size, Tq, Tv]`.
   """
 
-  def __init__(self, causal=False, dropout=0.0, return_attention_scores=False, **kwargs):
+  def __init__(self, causal=False, dropout=0.0, **kwargs):
     super(BaseDenseAttention, self).__init__(**kwargs)
     self.causal = causal
     self.dropout = dropout
-    self.return_attention_scores = return_attention_scores
     self.supports_masking = True
 
   def _calculate_scores(self, query, key):
@@ -142,16 +141,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
            inputs,
            mask=None,
            training=None,
-           return_attention_scores=None):
-    if return_attention_scores is not None:
-      tf_logging.warn(
-        'return_attention_scores in call method is deprecated, '
-        'you can set it in constructor. Now return_attention_scores '
-        'in call method will override return_attention_scores value that '
-        'has been set in constructor. It could cause unexpected behavior.',
-        DeprecationWarning)
-      self.return_attention_scores = return_attention_scores
-
+           return_attention_scores=False):
     self._validate_call_args(inputs=inputs, mask=mask)
     q = inputs[0]
     v = inputs[1]
@@ -181,7 +171,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
       # Mask of shape [batch_size, Tq, 1].
       q_mask = tf.expand_dims(q_mask, axis=-1)
       result *= tf.cast(q_mask, dtype=result.dtype)
-    if self.return_attention_scores:
+    if return_attention_scores:
       return result, attention_scores
     return result
 
@@ -195,13 +185,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
     return None
 
   def compute_output_shape(self, input_shape):
-     attention_outputs_shape = tf.TensorShape(input_shape[0])
-     values_shape = tf.TensorShape(input_shape[1])
-     if self.return_attention_scores:
-       attention_scores_shape = tf.TensorShape(
-         attention_outputs_shape[:2] + [values_shape[2]])
-       return attention_outputs_shape, attention_scores_shape
-     return attention_outputs_shape
+    return tf.TensorShape(input_shape[0])
 
   def _validate_call_args(self, inputs, mask):
     """Validates arguments of the call method."""
