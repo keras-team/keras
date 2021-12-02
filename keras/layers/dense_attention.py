@@ -181,6 +181,8 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
     return None
 
   def compute_output_shape(self, input_shape):
+    # return_attention_scores argument of BaseDenseAttention.call method
+    # is ignored. Output shape of attention_scores cannot be returned.
     return tf.TensorShape(input_shape[0])
 
   def _validate_call_args(self, inputs, mask):
