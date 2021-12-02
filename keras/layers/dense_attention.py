@@ -23,7 +23,6 @@ from keras import backend
 from keras.engine import base_layer
 from keras.utils import control_flow_util
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -41,9 +40,6 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
       flow of information from the future towards the past.
     dropout: Float between 0 and 1. Fraction of the units to drop for the
       attention scores.
-    return_attention_scores: bool, if `True`, layer returns the attention scores.
-      If `True`, the layer is incompatible with TimeDistributed wrapper.
-      Default is `False`.
 
   Call Args:
 
@@ -62,7 +58,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         `mask==False` do not contribute to the result.
     training: Python boolean indicating whether the layer should behave in
       training mode (adding dropout) or in inference mode (no dropout).
-    return_attention_scores: bool, (deprecated) if `True`, returns the attention scores
+    return_attention_scores: bool, if `True`, returns the attention scores
       (after masking and softmax) as an additional output argument.
 
   Output:
