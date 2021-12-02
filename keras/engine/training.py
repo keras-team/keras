@@ -1362,7 +1362,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if self.stop_training:
           break
 
-      # If eval data_hanlder exists, delete it after all epochs are done.
+      # If eval data_handler exists, delete it after all epochs are done.
       if getattr(self, '_eval_data_handler', None) is not None:
         del self._eval_data_handler
       callbacks.on_train_end(logs=training_logs)
@@ -1872,10 +1872,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           x = x.with_options(options)
         except ValueError:
           warnings.warn(
-              'Using Model.predict with '
-              'MultiWorkerDistributionStrategy or TPUStrategy and '
-              'AutoShardPolicy.FILE might lead to out-of-order result'
-              '. Consider setting it to AutoShardPolicy.DATA.',
+              'Using Model.predict with MultiWorkerMirroredStrategy or '
+              'TPUStrategy and AutoShardPolicy.FILE might lead to out-of-order '
+              'result. Consider setting it to AutoShardPolicy.DATA.',
               stacklevel=2)
 
       data_handler = data_adapter.get_data_handler(
