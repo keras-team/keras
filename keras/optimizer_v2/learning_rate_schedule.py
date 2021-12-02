@@ -96,7 +96,7 @@ class ExponentialDecay(LearningRateSchedule):
   the training progresses. This schedule applies an exponential decay function
   to an optimizer step, given a provided initial learning rate.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
   It is computed as:
@@ -451,7 +451,7 @@ class InverseTimeDecay(LearningRateSchedule):
   It requires a `step` value to compute the decayed learning rate. You can
   just pass a TensorFlow variable that you increment at each training step.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
   It is computed as:
@@ -561,7 +561,7 @@ class CosineDecay(LearningRateSchedule):
   It requires a `step` value to compute the decayed learning rate. You can
   just pass a TensorFlow variable that you increment at each training step.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
   It is computed as:
@@ -655,7 +655,7 @@ class CosineDecayRestarts(LearningRateSchedule):
   It requires a `step` value to compute the decayed learning rate. You can
   just pass a TensorFlow variable that you increment at each training step.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
 
@@ -788,7 +788,7 @@ class LinearCosineDecay(LearningRateSchedule):
   It requires a `step` value to compute the decayed learning rate. You can
   just pass a TensorFlow variable that you increment at each training step.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
   It is computed as:
@@ -906,7 +906,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
   It requires a `step` value to compute the decayed learning rate. You can
   just pass a TensorFlow variable that you increment at each training step.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
   It is computed as:
