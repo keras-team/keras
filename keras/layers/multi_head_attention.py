@@ -202,7 +202,7 @@ class MultiHeadAttention(Layer):
       dimensions and the head dimension.
     return_attention_scores: A boolean to indicate whether the output should be 
       attention output if False, or (attention_output, attention_scores) if True.
-      Defaults to False. 
+      Defaults to False.
     training: Python boolean indicating whether the layer should behave in
       training mode (adding dropout) or in inference mode (no dropout).
       Defaults to either using the training mode of the parent layer/model,
