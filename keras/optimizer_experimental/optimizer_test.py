@@ -4,7 +4,9 @@ More context in go/new-keras-optimizer
 """
 
 import os
+import re
 
+from absl import logging
 from absl.testing import parameterized
 import keras
 from keras.optimizer_experimental import adadelta as adadelta_new
@@ -99,6 +101,22 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     ]
     clipped_grad = optimizer._clip_gradients(grad)
     self.assertAllClose(clipped_grad[0], [0.5, 0.5])
+
+  def testPassingLegacyArgsRaiseWarning(self):
+    with self.assertLogs(level="WARNING") as log_output:
+      logging.set_verbosity(logging.WARNING)
+      _ = adam_new.Adam(clipnorm=1, decay=0.5)
+      expected_log_0 = "clipnorm is deprecated in"
+      expected_log_1 = "decay is deprecated in"
+      output0 = log_output[0][0].message
+      output1 = log_output[0][1].message
+
+      self.assertTrue(re.search(expected_log_0, output0))
+      self.assertTrue(re.search(expected_log_1, output1))
+
+  def testPassingLegacyClipnorm(self):
+    optimizer = adam_new.Adam(clipnorm=1)
+    self.assertEqual(optimizer._gradients_clip_option.clipnorm, 1)
 
   def testReturnAllOptimizerVariables(self):
     x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)

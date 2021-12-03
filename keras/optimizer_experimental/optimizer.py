@@ -18,6 +18,7 @@ This is under development, and subject to interface/implementation changes.
 """
 
 import abc
+from absl import logging
 
 from keras import backend
 from keras import initializers
@@ -30,7 +31,11 @@ import tensorflow.compat.v2 as tf
 class _BaseOptimizer(tf.Module):
   """Optimizer base class, which only supports non-distribute use case."""
 
-  def __init__(self, name, gradients_clip_option=None, ema_option=None):
+  def __init__(self,
+               name,
+               gradients_clip_option=None,
+               ema_option=None,
+               **kwargs):
     """Create a new Optimizer.
 
     Args:
@@ -44,6 +49,9 @@ class _BaseOptimizer(tf.Module):
         attributes related to exponenatial moving average, such as use_ema (a
         boolean field indicates if EMA is used) and EMA momentum. Default to
         None (not applying EMA).
+      **kwargs: keyword arguments only used for backward compatibility with
+        `optimizer_v2.OptimizerV2`. Any new code using
+        `optimizer_experimental.Optimizer` should leave this parameter empty.
     """
     self._name = name
     self._gradients_clip_option = gradients_clip_option
@@ -52,6 +60,37 @@ class _BaseOptimizer(tf.Module):
     with tf.init_scope():
       # Lift the variable creation to init scope to avoid environment issue.
       self._iterations = tf.Variable(0, name="iteration", dtype=tf.int64)
+
+    self._process_kwargs(kwargs)
+
+  def _process_kwargs(self, kwargs):
+    legacy_gradients_clip_kwargs = {"clipnorm", "clipvalue", "global_clipnorm"}
+    other_legacy_kwargs = {
+        "lr", "decay", "gradient_transformers", "gradient_aggregator"
+    }
+    for k in kwargs:
+      if k in legacy_gradients_clip_kwargs:
+        logging.warning(
+            "%s is deprecated in `optimizer_experimental.Optimizer`"
+            ", please use `GradientsClipOption` instead to specify "
+            " your gradients clipping logic.", k)
+      elif k in other_legacy_kwargs:
+        logging.warning(
+            "%s is deprecated in `optimizer_experimental.Optimizer`"
+            ", please check the docstring for valid arguments.", k)
+      else:
+        raise TypeError(f"{k} is not a valid argument, kwargs should be empty "
+                        " for `optimizer_experimental.Optimizer`.")
+
+    # TODO(b/208301504): gradients clipping options are populated for
+    # backward compatibility, we should delete it when the migration is done.
+    clipnorm = kwargs.pop("clipnorm", None)
+    clipvalue = kwargs.pop("clipvalue", None)
+    global_clipnorm = kwargs.pop("global_clipnorm", None)
+    if self._gradients_clip_option is None and (clipnorm or clipvalue or
+                                                global_clipnorm):
+      self._gradients_clip_option = optimizer_lib.GradientsClipOption(
+          clipnorm, clipvalue, global_clipnorm)
 
   def _var_key(self, variable):
     """Get a unique identifier of the given variable."""
@@ -426,7 +465,11 @@ class Optimizer(_BaseOptimizer):
   optimizer, please subclass this class instead of _BaseOptimizer.
   """
 
-  def __init__(self, name, gradients_clip_option=None, ema_option=None):
+  def __init__(self,
+               name,
+               gradients_clip_option=None,
+               ema_option=None,
+               **kwargs):
     """Create a new Optimizer.
 
     Args:
@@ -440,8 +483,11 @@ class Optimizer(_BaseOptimizer):
         attributes related to exponenatial moving average, such as `use_ema` (a
         boolean field indicates if EMA is used) and EMA momentum. Default to
         None (not applying EMA).
+      **kwargs: keyword arguments only used for backward compatibility with
+        `optimizer_v2.OptimizerV2`. Any new code using
+        `optimizer_experimental.Optimizer` should leave this parameter empty.
     """
-    super().__init__(name, gradients_clip_option, ema_option)
+    super().__init__(name, gradients_clip_option, ema_option, **kwargs)
     self._distribution_strategy = tf.distribute.get_strategy()
 
   def add_variable_from_reference(self,

@@ -64,6 +64,9 @@ class SGD(optimizer.Optimizer):
       (not apply EMA).
     name: Optional name prefix for the operations created when applying
       gradients.  Defaults to `"SGD"`.
+    **kwargs: keyword arguments only used for backward compatibility with
+      `optimizer_v2.OptimizerV2`. Any new code using
+      `optimizer_experimental.Optimizer` should leave this parameter empty.
 
   Usage:
 
@@ -102,11 +105,13 @@ class SGD(optimizer.Optimizer):
                amsgrad=False,
                gradients_clip_option=None,
                ema_option=None,
-               name='SGD'):
+               name='SGD',
+               **kwargs):
     super(SGD, self).__init__(
         name=name,
         gradients_clip_option=gradients_clip_option,
-        ema_option=ema_option)
+        ema_option=ema_option,
+        **kwargs)
     self._learning_rate = self._build_learning_rate(learning_rate)
     self.momentum = momentum
     self.nesterov = nesterov

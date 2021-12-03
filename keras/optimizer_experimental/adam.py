@@ -60,6 +60,9 @@ class Adam(optimizer.Optimizer):
       (not applying EMA).
     name: Optional name for the operations created when applying gradients.
       Defaults to `"Adam"`.
+    **kwargs: keyword arguments only used for backward compatibility with
+      `optimizer_v2.OptimizerV2`. Any new code using
+      `optimizer_experimental.Optimizer` should leave this parameter empty.
 
   Reference:
     - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980)
@@ -93,11 +96,13 @@ class Adam(optimizer.Optimizer):
                amsgrad=False,
                gradients_clip_option=None,
                ema_option=None,
-               name='Adam'):
+               name='Adam',
+               **kwargs):
     super(Adam, self).__init__(
         name=name,
         gradients_clip_option=gradients_clip_option,
-        ema_option=ema_option)
+        ema_option=ema_option,
+        **kwargs)
     self._learning_rate = self._build_learning_rate(learning_rate)
     self.beta_1 = beta_1
     self.beta_2 = beta_2
