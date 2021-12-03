@@ -57,6 +57,9 @@ class Adadelta(optimizer.Optimizer):
       (not applying EMA).
     name: Optional name prefix for the operations created when applying
       gradients.  Defaults to `"Adadelta"`.
+    **kwargs: keyword arguments only used for backward compatibility with
+      `optimizer_v2.OptimizerV2`. Any new code using
+      `optimizer_experimental.Optimizer` should leave this parameter empty.
 
   Reference:
     - [Zeiler, 2012](http://arxiv.org/abs/1212.5701)
@@ -68,11 +71,13 @@ class Adadelta(optimizer.Optimizer):
                epsilon=1e-7,
                gradients_clip_option=None,
                ema_option=None,
-               name='Adadelta'):
+               name='Adadelta',
+               **kwargs):
     super(Adadelta, self).__init__(
         gradients_clip_option=gradients_clip_option,
         ema_option=ema_option,
-        name=name)
+        name=name,
+        **kwargs)
     self._learning_rate = self._build_learning_rate(learning_rate)
     self.rho = rho
     self.epsilon = epsilon

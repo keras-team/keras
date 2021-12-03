@@ -51,6 +51,9 @@ class Adagrad(optimizer.Optimizer):
       (not applying EMA).
     name: Optional name prefix for the operations created when applying
       gradients.  Defaults to `"Adagrad"`.
+    **kwargs: keyword arguments only used for backward compatibility with
+      `optimizer_v2.OptimizerV2`. Any new code using
+      `optimizer_experimental.Optimizer` should leave this parameter empty.
 
   Reference:
     - [Duchi et al., 2011](
@@ -63,11 +66,13 @@ class Adagrad(optimizer.Optimizer):
                epsilon=1e-7,
                gradients_clip_option=None,
                ema_option=None,
-               name='Adagrad'):
+               name='Adagrad',
+               **kwargs):
     super(Adagrad, self).__init__(
         gradients_clip_option=gradients_clip_option,
         ema_option=ema_option,
-        name=name)
+        name=name,
+        **kwargs)
     self._learning_rate = self._build_learning_rate(learning_rate)
     self.initial_accumulator_value = initial_accumulator_value
     self.epsilon = 1e-7
