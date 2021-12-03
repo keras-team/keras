@@ -152,28 +152,35 @@ class TimeseriesDatasetTest(tf.test.TestCase):
 
   def test_errors(self):
     # bad start index
-    with self.assertRaisesRegex(ValueError, 'start_index must be '):
+    with self.assertRaisesRegex(ValueError, '`start_index` must be '):
       _ = timeseries.timeseries_dataset_from_array(
           np.arange(10), None, 3, start_index=-1)
-    with self.assertRaisesRegex(ValueError, 'start_index must be '):
+    with self.assertRaisesRegex(ValueError, '`start_index` must be '):
       _ = timeseries.timeseries_dataset_from_array(
           np.arange(10), None, 3, start_index=11)
     # bad end index
-    with self.assertRaisesRegex(ValueError, 'end_index must be '):
+    with self.assertRaisesRegex(ValueError, '`end_index` must be '):
       _ = timeseries.timeseries_dataset_from_array(
           np.arange(10), None, 3, end_index=-1)
-    with self.assertRaisesRegex(ValueError, 'end_index must be '):
+    with self.assertRaisesRegex(ValueError, '`end_index` must be '):
       _ = timeseries.timeseries_dataset_from_array(
           np.arange(10), None, 3, end_index=11)
     # bad sampling_rate
-    with self.assertRaisesRegex(ValueError, 'sampling_rate must be '):
+    with self.assertRaisesRegex(ValueError, '`sampling_rate` must be '):
       _ = timeseries.timeseries_dataset_from_array(
           np.arange(10), None, 3, sampling_rate=0)
     # bad sequence stride
-    with self.assertRaisesRegex(ValueError, 'sequence_stride must be '):
+    with self.assertRaisesRegex(ValueError, '`sequence_stride` must be '):
       _ = timeseries.timeseries_dataset_from_array(
           np.arange(10), None, 3, sequence_stride=0)
 
+  def test_not_batched(self):
+    data = np.arange(100)
+
+    dataset = timeseries.timeseries_dataset_from_array(
+        data, None, sequence_length=9, batch_size=None, shuffle=True)
+    sample = next(iter(dataset))
+    self.assertEqual(len(sample.shape), 1)
 
 if __name__ == '__main__':
   tf.compat.v1.enable_v2_behavior()

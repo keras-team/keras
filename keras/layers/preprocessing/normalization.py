@@ -14,28 +14,33 @@
 # ==============================================================================
 """Normalization preprocessing layer."""
 
+# pylint: disable=g-classes-have-attributes
+# pylint: disable=g-direct-tensorflow-import
+
 from keras import backend
 from keras.engine import base_preprocessing_layer
+from keras.layers.preprocessing import preprocessing_utils as utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.util.tf_export import keras_export
-
-# pylint: disable=g-classes-have-attributes
 
 
 @keras_export('keras.layers.Normalization',
               'keras.layers.experimental.preprocessing.Normalization')
 class Normalization(base_preprocessing_layer.PreprocessingLayer):
-  """Feature-wise normalization of the data.
+  """A preprocessing layer which normalizes continuous features.
 
-  This layer will coerce its inputs into a distribution centered around
+  This layer will shift and scale inputs into a distribution centered around
   0 with standard deviation 1. It accomplishes this by precomputing the mean and
   variance of the data, and calling `(input - mean) / sqrt(var)` at runtime.
 
-  What happens in `adapt()`: Compute mean and variance of the data and store
-  them as the layer's weights. `adapt()` should be called before `fit()`,
-  `evaluate()`, or `predict()`.
+  The mean and variance values for the layer must be either supplied on
+  construction or learned via `adapt()`. `adapt()` will compute the mean and
+  variance of the data and store them as the layer's weights. `adapt()` should
+  be called before `fit()`, `evaluate()`, or `predict()`.
+
+  For an overview and full list of preprocessing layers, see the preprocessing
+  [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Args:
       axis: Integer, tuple of integers, or None. The axis or axes that should
@@ -162,13 +167,13 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       self.adapt_mean = self.add_weight(
           name='mean',
           shape=mean_and_var_shape,
-          dtype=self.dtype,
+          dtype=self.compute_dtype,
           initializer='zeros',
           trainable=False)
       self.adapt_variance = self.add_weight(
           name='variance',
           shape=mean_and_var_shape,
-          dtype=self.dtype,
+          dtype=self.compute_dtype,
           initializer='ones',
           trainable=False)
       self.count = self.add_weight(
@@ -187,6 +192,54 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       variance = tf.reshape(variance, self._broadcast_shape)
       self.mean = tf.cast(mean, self.compute_dtype)
       self.variance = tf.cast(variance, self.compute_dtype)
+
+  # We override this method solely to generate a docstring.
+  def adapt(self, data, batch_size=None, steps=None):
+    """Computes the mean and variance of values in a dataset.
+
+    Calling `adapt()` on a `Normalization` layer is an alternative to passing in
+    `mean` and `variance` arguments during layer construction. A `Normalization`
+    layer should always either be adapted over a dataset or passed `mean` and
+    `variance`.
+
+    During `adapt()`, the layer will compute a `mean` and `variance` separately
+    for each position in each axis specified by the `axis` argument. To
+    calculate a single `mean` and `variance` over the input data, simply pass
+    `axis=None`.
+
+    In order to make `Normalization` efficient in any distribution context, the
+    computed mean and variance are kept static with respect to any compiled
+    `tf.Graph`s that call the layer. As a consequence, if the layer is adapted a
+    second time, any models using the layer should be re-compiled. For more
+    information see
+    `tf.keras.layers.experimental.preprocessing.PreprocessingLayer.adapt`.
+
+    `adapt()` is meant only as a single machine utility to compute layer state.
+    To analyze a dataset that cannot fit on a single machine, see
+    [Tensorflow Transform](https://www.tensorflow.org/tfx/transform/get_started)
+    for a multi-machine, map-reduce solution.
+
+    Arguments:
+      data: The data to train on. It can be passed either as a
+          `tf.data.Dataset`, or as a numpy array.
+      batch_size: Integer or `None`.
+          Number of samples per state update.
+          If unspecified, `batch_size` will default to 32.
+          Do not specify the `batch_size` if your data is in the
+          form of datasets, generators, or `keras.utils.Sequence` instances
+          (since they generate batches).
+      steps: Integer or `None`.
+          Total number of steps (batches of samples)
+          When training with input tensors such as
+          TensorFlow data tensors, the default `None` is equal to
+          the number of samples in your dataset divided by
+          the batch size, or 1 if that cannot be determined. If x is a
+          `tf.data` dataset, and 'steps' is None, the epoch will run until
+          the input dataset is exhausted. When passing an infinitely
+          repeating dataset, you must specify the `steps` argument. This
+          argument is not supported with array inputs.
+    """
+    super().adapt(data, batch_size=batch_size, steps=steps)
 
   def update_state(self, data):
     if self.input_mean is not None:
@@ -210,8 +263,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
     total_count = batch_count + self.count
     batch_weight = (
-        tf.cast(batch_count, dtype=self.dtype) /
-        tf.cast(total_count, dtype=self.dtype))
+        tf.cast(batch_count, dtype=self.compute_dtype) /
+        tf.cast(total_count, dtype=self.compute_dtype))
     existing_weight = 1. - batch_weight
 
     total_mean = self.adapt_mean * existing_weight + batch_mean * batch_weight
@@ -262,21 +315,13 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     config = super().get_config()
     config.update({
         'axis': self.axis,
-        'mean': self._convert_to_list(self.input_mean),
-        'variance': self._convert_to_list(self.input_variance),
+        'mean': utils.listify_tensors(self.input_mean),
+        'variance': utils.listify_tensors(self.input_variance),
     })
     return config
 
   def _standardize_inputs(self, inputs):
     inputs = tf.convert_to_tensor(inputs)
-    if inputs.dtype != self.dtype:
-      inputs = tf.cast(inputs, self.dtype)
-    return inputs
-
-  def _convert_to_list(self, inputs):
-    if tf.is_tensor(inputs):
-      inputs = inputs.numpy()
-    if isinstance(inputs, (np.ndarray)):
-      inputs = inputs.tolist()
-      inputs = list(inputs)
+    if inputs.dtype != self.compute_dtype:
+      inputs = tf.cast(inputs, self.compute_dtype)
     return inputs

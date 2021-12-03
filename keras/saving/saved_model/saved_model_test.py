@@ -21,17 +21,11 @@ loading from the SavedModel.
 Tests that focus on the model structure should go in revive_test.py
 """
 
-import tensorflow.compat.v2 as tf
-
 import os
 import shutil
 import sys
 
 from absl.testing import parameterized
-import numpy as np
-
-from tensorflow.core.example import example_pb2
-from tensorflow.core.example import feature_pb2
 import keras
 from keras import combinations
 from keras import keras_parameterized
@@ -47,6 +41,11 @@ from keras.utils import control_flow_util
 from keras.utils import generic_utils
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
+import numpy as np
+import tensorflow.compat.v2 as tf
+
+from tensorflow.core.example import example_pb2
+from tensorflow.core.example import feature_pb2
 
 
 class LayerWithLearningPhase(keras.engine.base_layer.Layer):
@@ -387,7 +386,8 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     model = testing_utils.get_model_from_layers(
         [layer], input_shape=[3], model_type='functional')
     model.save(saved_model_dir, save_format='tf')
-    with self.assertRaisesRegex(RuntimeError, 'Unable to restore a layer of'):
+    with self.assertRaisesRegex(ValueError,
+                                'Unknown layer: LayerThatShouldFailIfNotAdded'):
       _ = keras_load.load(saved_model_dir)
 
   def test_must_restore_from_config_custom_object_scope(self):
@@ -641,7 +641,8 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     # graph mode.
     if tf.executing_eagerly():
       numeric = tf.feature_column.numeric_column('a')
-      bucketized = tf.feature_column.bucketized_column(numeric, boundaries=[5, 10, 15])
+      bucketized = tf.feature_column.bucketized_column(
+          numeric, boundaries=[5, 10, 15])
       cat_vocab = tf.feature_column.categorical_column_with_vocabulary_list(
           'b', ['1', '2', '3'])
       one_hot = tf.feature_column.indicator_column(cat_vocab)
@@ -817,6 +818,29 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
       keras.backend.get_session()  # force variable initialization
 
     self.assertAllClose(layer.states, loaded_layer.states)
+    self.assertAllClose(model(input_arr), loaded(input_arr))
+
+  def testSaveBidirectionalLSTM(self):
+    # Make sure that the input spec of an unrolled RNN is not used when wrapped
+    # in a Bidirectional layer. https://github.com/keras-team/keras/issues/15454
+    input_layer = keras.Input(
+        batch_input_shape=(1, 15, 128), name='input', dtype=tf.float32)
+    lstm_layer = keras.layers.Bidirectional(
+        keras.layers.LSTM(
+            units=64,
+            name='lstm',
+            dropout=0.2,
+            trainable=False,
+            unroll=True,
+        )
+    )
+    output_layer = lstm_layer(input_layer)
+    model = keras.Model(input_layer, output_layer)
+    saved_model_dir = self._save_model_dir()
+    self.evaluate(tf.compat.v1.variables_initializer(model.variables))
+    model.save(saved_model_dir, save_format='tf')
+    loaded = keras_load.load(saved_model_dir)
+    input_arr = np.random.random((1, 15, 128)).astype('float32')
     self.assertAllClose(model(input_arr), loaded(input_arr))
 
   @parameterized.named_parameters([('stateful', True), ('stateless', False)])

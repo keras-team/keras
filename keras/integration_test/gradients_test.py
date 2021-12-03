@@ -14,7 +14,7 @@
 # ==============================================================================
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 
 class TestKerasModelClass(tf.keras.Model):
@@ -101,9 +101,9 @@ class GradientsTest(tf.test.TestCase):
     self.assertAllClose(eager_result, function_result)
     backprop_result, numeric_result = tf.test.compute_gradient(
         m, [inp], delta=1e-3)
-    self.assertAllClose(numeric_result, backprop_result, rtol=1e-2)
+    self.assertAllClose(numeric_result, backprop_result, atol=1e-3)
     self.assertAllClose(tf.reshape(numeric_result, [-1]),
-                        tf.reshape(eager_result, [-1]), rtol=1e-2)
+                        tf.reshape(eager_result, [-1]), atol=1e-3)
 
   def testEmbeddingLookupGradientsHaveKnownShape(self):
 
@@ -133,4 +133,5 @@ class GradientsTest(tf.test.TestCase):
 
 
 if __name__ == "__main__":
-  tf.test.main()
+  if tf.__internal__.tf2.enabled():
+    tf.test.main()

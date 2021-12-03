@@ -23,17 +23,17 @@ from keras.distribute import distributed_file_utils
 
 class DistributedFileUtilsTest(tf.test.TestCase):
 
-  class MockedExtended(object):
+  class MockedExtended:
     pass
 
-  class MockedChiefStrategy(object):
+  class MockedChiefStrategy:
 
     def __init__(self):
       self.extended = DistributedFileUtilsTest.MockedExtended()
       self.extended._in_multi_worker_mode = lambda: True
       self.extended.should_checkpoint = True
 
-  class MockedWorkerStrategy(object):
+  class MockedWorkerStrategy:
 
     def __init__(self):
       self.extended = DistributedFileUtilsTest.MockedExtended()
@@ -41,7 +41,7 @@ class DistributedFileUtilsTest(tf.test.TestCase):
       self.extended.should_checkpoint = False
       self.extended._task_id = 3
 
-  class MockedSingleWorkerStrategy(object):
+  class MockedSingleWorkerStrategy:
 
     def __init__(self):
       self.extended = DistributedFileUtilsTest.MockedExtended()

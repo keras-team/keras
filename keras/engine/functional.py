@@ -24,6 +24,7 @@ import warnings
 from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
+from keras.engine import functional_utils
 from keras.engine import input_layer as input_layer_module
 from keras.engine import input_spec
 from keras.engine import node as node_module
@@ -47,7 +48,7 @@ class Functional(training_lib.Model):
   than with subclassed `Model`s, specifically:
 
   - Model cloning (`keras.models.clone`)
-  - Serialization (`model.get_config()/from_config`, `model.to_json()/to_yaml()`
+  - Serialization (`model.get_config()/from_config`, `model.to_json()`
   - Whole-model saving (`model.save()`)
 
   A `Functional` model can be instantiated by passing two arguments to
@@ -71,15 +72,43 @@ class Functional(training_lib.Model):
 
   Example:
 
-  ```
+  ```python
   inputs = keras.Input(shape=(10,))
   x = keras.layers.Dense(1)(inputs)
   outputs = tf.nn.relu(x)
   model = keras.Model(inputs, outputs)
   ```
 
+  A new `Functional` model can also be created by using the
+  intermediate tensors. This enables you to quickly extract sub-components
+  of the model.
+
+  Example:
+
+  ```python
+  inputs = keras.Input(shape=(None, None, 3))
+  processed = keras.layers.RandomCrop(width=32, height=32)(inputs)
+  conv = keras.layers.Conv2D(filters=2, kernel_size=3)(processed)
+  pooling = keras.layers.GlobalAveragePooling2D()(conv)
+  feature = keras.layers.Dense(10)(pooling)
+
+  full_model = keras.Model(inputs, feature)
+  backbone = keras.Model(processed, conv)
+  activations = keras.Model(conv, feature)
+  ```
+
+  Note that the `backbone` and `activations` models are not
+  created with `keras.Input` objects, but with the tensors that are originated
+  from `keras.Inputs` objects. Under the hood, the layers and weights will
+  be shared across these models, so that user can train the `full_model`, and
+  use `backbone` or `activations` to do feature extraction.
+  The inputs and outputs of the model can be nested structures of tensors as
+  well, and the created models are standard `Functional` model that support
+  all the existing API.
+
   Args:
-    inputs: List of input tensors (must be created via `tf.keras.Input()`).
+    inputs: List of input tensors (must be created via `tf.keras.Input()` or
+      originated from `tf.keras.Input()`).
     outputs: List of output tensors.
     name: String, optional. Name of the model.
     trainable: Boolean, optional. If the model's variables should be trainable.
@@ -106,6 +135,14 @@ class Functional(training_lib.Model):
       return
     generic_utils.validate_kwargs(kwargs, {})
     super(Functional, self).__init__(name=name, trainable=trainable)
+    # Check if the inputs contain any intermediate `KerasTensor` (not created
+    # by tf.keras.Input()). In this case we need to clone the `Node` and
+    # `KerasTensor` objects to mimic rebuilding a new model from new inputs.
+    # This feature is only enabled in TF2 not in v1 graph mode.
+    if tf.compat.v1.executing_eagerly_outside_functions():
+      if not all([functional_utils.is_input_keras_tensor(t)
+                  for t in tf.nest.flatten(inputs)]):
+        inputs, outputs = functional_utils.clone_graph_nodes(inputs, outputs)
     self._init_graph_network(inputs, outputs)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
@@ -418,10 +455,11 @@ class Functional(training_lib.Model):
     # Convert any shapes in tuple format to TensorShapes.
     input_shape = tf_utils.convert_shapes(input_shape, to_tuples=False)
 
-    if len(tf.nest.flatten(input_shape)) != len(tf.nest.flatten(self._input_layers)):
-      raise ValueError('Invalid input_shape argument ' + str(input_shape) +
-                       ': model has ' + str(len(self._input_layers)) +
-                       ' tensor inputs.')
+    if (len(tf.nest.flatten(input_shape)) !=
+        len(tf.nest.flatten(self._input_layers))):
+      raise ValueError(f'Invalid `input_shape` argument {input_shape}: '
+                       f'the model expects {len(self._input_layers)} '
+                       'input tensors.')
 
     # Use the tuple of TensorShape as the cache key, since tuple is hashable
     # and can be used as hash key.
@@ -463,7 +501,7 @@ class Functional(training_lib.Model):
                                                           kh.tensor_index)
             layer_input_shapes.append(layers_to_output_shapes[input_layer_key])
           layer_input_shapes = tf.nest.pack_sequence_as(layer_inputs,
-                                                     layer_input_shapes)
+                                                        layer_input_shapes)
           # Layers expect shapes to be tuples for `compute_output_shape`.
           layer_input_shapes = tf_utils.convert_shapes(
               layer_input_shapes, to_tuples=True)
@@ -483,7 +521,8 @@ class Functional(training_lib.Model):
         layer, node_index, tensor_index = self._output_coordinates[i]
         shape_key = layer.name + '_%s_%s' % (node_index, tensor_index)
         output_shapes.append(layers_to_output_shapes[shape_key])
-      output_shapes = tf.nest.pack_sequence_as(self._nested_outputs, output_shapes)
+      output_shapes = tf.nest.pack_sequence_as(self._nested_outputs,
+                                               output_shapes)
       # Store in cache.
       self._output_shape_cache[cache_key] = output_shapes
 
@@ -582,8 +621,8 @@ class Functional(training_lib.Model):
         warnings.warn(
             'Input dict contained keys {} which did not match any model input. '
             'They will be ignored by the model.'.format(
-                [n for n in tensors.keys() if n not in ref_input_names])
-            )
+                [n for n in tensors.keys() if n not in ref_input_names]),
+            stacklevel=2)
 
       try:
         # Flatten in the order `Input`s were passed during Model construction.
@@ -632,9 +671,12 @@ class Functional(training_lib.Model):
       tensor = tf.cast(tensor, dtype=ref_input.dtype)
     elif tf_utils.is_extension_type(tensor):
       # Dtype casting (If the extension type has a non-variant dtype and
-      # supports being cast)
+      # supports being cast).  Only cast if necessary (since some extension
+      # types may not implement tf.cast).
+      tensor_dtype = getattr(tensor, 'dtype', None)
       ref_input_dtype = getattr(ref_input, 'dtype', None)
-      if ref_input_dtype is not None and ref_input_dtype != tf.variant:
+      if (ref_input_dtype is not None and tensor_dtype is not None and
+          tensor_dtype != ref_input_dtype and ref_input_dtype != tf.variant):
         tensor = tf.cast(tensor, dtype=ref_input_dtype)
 
     return tensor
@@ -657,70 +699,85 @@ class Functional(training_lib.Model):
 
     Raises:
         ValueError: In case of improperly formatted config dict.
+        TypeError: In case the config does match the cls constructor.
     """
+
     with generic_utils.SharedObjectLoadingScope():
-      input_tensors, output_tensors, created_layers = reconstruct_from_config(
-          config, custom_objects)
-      model = cls(inputs=input_tensors, outputs=output_tensors,
-                  name=config.get('name'))
-      connect_ancillary_layers(model, created_layers)
-      return model
+      if all(key in config for key in [
+          'name', 'layers', 'input_layers', 'output_layers']):
+        input_tensors, output_tensors, created_layers = reconstruct_from_config(
+            config, custom_objects)
+        model = cls(
+            inputs=input_tensors,
+            outputs=output_tensors,
+            name=config.get('name'))
+        connect_ancillary_layers(model, created_layers)
+        return model
+      # The config does not contain all the information necessary to revive a
+      # Functional model. This happens when the user creates subclassed models
+      # with a Functional constructor and has overridden the `get_config` method
+      # to return a completely new dictionary.
+      try:
+        return cls(**config)
+      except TypeError as e:
+        raise TypeError('Unable to revive model from config. When overriding '
+                        'the `get_config`, make sure that the returned config '
+                        'contains all items used as arguments in the '
+                        f'constructor to {cls}, which is the default behavior. '
+                        'You can override this default behavior by defining a '
+                        '`from_config` method to specify how to create an '
+                        f'instance of {cls.__name__} from the config. \n\n'
+                        f'Error encountered during deserialization:\n{e}')
 
   def _validate_graph_inputs_and_outputs(self):
     """Validates the inputs and outputs of a Graph Network."""
     # Check for redundancy in inputs.
     if len({id(i) for i in self.inputs}) != len(self.inputs):
       raise ValueError('The list of inputs passed to the model '
-                       'is redundant. '
+                       'contains the same input multiple times. '
                        'All inputs should only appear once.'
-                       ' Found: ' + str(self.inputs))
+                       f'Received inputs={self.inputs}')
 
     for x in self.inputs:
       # Check that x has appropriate `_keras_history` metadata.
       if not hasattr(x, '_keras_history'):
         cls_name = self.__class__.__name__
-        raise ValueError('Input tensors to a ' + cls_name + ' ' +
-                         'must come from `tf.keras.Input`. '
-                         'Received: ' + str(x) +
-                         ' (missing previous layer metadata).')
+        raise ValueError(
+            f'Input tensors to a {cls_name} model '
+            'must come from `tf.keras.Input`. '
+            f'Received inputs={x} (missing previous layer metadata).')
       # Check that x is an input tensor.
       # pylint: disable=protected-access
       layer = x._keras_history.layer
       if len(layer._inbound_nodes) > 1 or (
           layer._inbound_nodes and not layer._inbound_nodes[0].is_input):
         cls_name = self.__class__.__name__
-        logging.warning(cls_name + ' model inputs must come from '
-                        '`tf.keras.Input` (thus holding past layer metadata), '
-                        'they cannot be the output of '
+        logging.warning(f'{cls_name} model inputs must come from '
+                        '`tf.keras.Input` (thus holding past layer metadata). '
+                        'They cannot be the output of '
                         'a previous non-Input layer. '
                         'Here, a tensor specified as '
-                        'input to "' + self.name + '" was not an Input tensor, '
-                        'it was generated by layer ' + layer.name + '.\n'
+                        f'input to "{self.name}" was not an Input tensor, '
+                        f'it was generated by layer "{layer.name}".\n'
                         'Note that input tensors are '
                         'instantiated via `tensor = tf.keras.Input(shape)`.\n'
-                        'The tensor that caused the issue was: ' + str(x.name))
+                        f'The tensor that caused the issue was: {x}')
 
     # Check compatibility of batch sizes of Input Layers.
-    input_batch_sizes = [
+    input_batch_sizes = set([
         training_utils.get_static_batch_size(x._keras_history.layer)
-        for x in self.inputs
-    ]
-    consistent_batch_size = None
-    for batch_size in input_batch_sizes:
-      if batch_size is not None:
-        if (consistent_batch_size is not None and
-            batch_size != consistent_batch_size):
-          raise ValueError('The specified batch sizes of the Input Layers'
-                           ' are incompatible. Found batch sizes: {}'.format(
-                               input_batch_sizes))
-        consistent_batch_size = batch_size
+        for x in self.inputs])
+    input_batch_sizes.discard(None)
+    if len(input_batch_sizes) > 1:
+      logging.warning('Found incompatible static batch sizes among the '
+                      f'inputs. Batch sizes: {sorted(input_batch_sizes)}')
 
     for x in self.outputs:
       if not hasattr(x, '_keras_history'):
         cls_name = self.__class__.__name__
-        raise ValueError('Output tensors of a ' + cls_name + ' model must be '
+        raise ValueError(f'Output tensors of a {cls_name} model must be '
                          'the output of a TensorFlow `Layer` '
-                         '(thus holding past layer metadata). Found: ' + str(x))
+                         f'(thus holding past layer metadata). Found: {x}')
 
   def _insert_layers(self, layers, relevant_nodes=None):
     """Inserts Layers into the Network after Network creation.
@@ -728,7 +785,6 @@ class Functional(training_lib.Model):
     This is only valid for Keras Graph Networks.  Layers added via this function
     will be included in the `call` computation and `get_config` of this Network.
     They will not be added to the Network's outputs.
-
 
     Args:
       layers: Arbitrary nested structure of Layers. Layers must be reachable
@@ -749,7 +805,8 @@ class Functional(training_lib.Model):
     # The nodes of these Layers that are relevant to this Network. If not
     # provided, assume all Nodes are relevant
     if not relevant_nodes:
-      relevant_nodes = tf.nest.flatten([layer._inbound_nodes for layer in layers])
+      relevant_nodes = tf.nest.flatten(
+          [layer._inbound_nodes for layer in layers])
     network_nodes = set(relevant_nodes + list(node_to_depth.keys()))
 
     def _get_min_depth(node):
@@ -976,12 +1033,10 @@ def _map_graph_network(inputs, outputs):
       if layer and not node.is_input:
         for x in tf.nest.flatten(node.keras_inputs):
           if id(x) not in computable_tensors:
-            raise ValueError('Graph disconnected: '
-                             'cannot obtain value for tensor ' + str(x) +
-                             ' at layer "' + layer.name + '". '
-                             'The following previous layers '
-                             'were accessed without issue: ' +
-                             str(layers_with_complete_input))
+            raise ValueError(
+                f'Graph disconnected: cannot obtain value for tensor {x} '
+                f'at layer "{layer.name}". The following previous layers '
+                f'were accessed without issue: {layers_with_complete_input}')
         for x in tf.nest.flatten(node.outputs):
           computable_tensors.add(id(x))
         layers_with_complete_input.append(layer.name)
@@ -991,9 +1046,9 @@ def _map_graph_network(inputs, outputs):
   all_names = [layer.name for layer in layers]
   for name in all_names:
     if all_names.count(name) != 1:
-      raise ValueError('The name "' + name + '" is used ' +
-                       str(all_names.count(name)) + ' times in the model. '
-                       'All layer names should be unique.')
+      raise ValueError(
+          f'The name "{name}" is used {all_names.count(name)} '
+          'times in the model. All layer names should be unique.')
   return network_nodes, nodes_by_depth, layers, layers_by_depth
 
 
@@ -1040,8 +1095,8 @@ def _build_map_helper(tensor, finished_nodes, nodes_in_progress,
 
   # Prevent cycles.
   if node in nodes_in_progress:
-    raise ValueError('The tensor ' + str(tensor) + ' at layer "' + layer.name +
-                     '" is part of a cycle.')
+    raise ValueError(f'Tensor {tensor} from layer "{layer.name}" '
+                     'is part of a cycle.')
 
   # Store the traversal order for layer sorting.
   if layer not in layer_indices:
@@ -1135,13 +1190,7 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
   # It acts as a queue that maintains any unprocessed
   # layer call until it becomes possible to process it
   # (i.e. until the input tensors to the call all exist).
-  unprocessed_nodes = {}
-
-  def add_unprocessed_node(layer, node_data):
-    if layer not in unprocessed_nodes:
-      unprocessed_nodes[layer] = [node_data]
-    else:
-      unprocessed_nodes[layer].append(node_data)
+  unprocessed_nodes = collections.defaultdict(list)
 
   def get_node_index(layer, config_node_index):
     """Returns node index in layer (might differ from config_node_index)."""
@@ -1186,6 +1235,10 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
         layer: layer instance.
         node_data: Nested structure of `ListWrapper`.
 
+    Returns:
+        Whether the node was processed (i.e. the layer was called on the inputs
+        specified by the node data)
+
     Raises:
         ValueError: In case of improperly formatted `node_data`.
     """
@@ -1203,8 +1256,7 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
           kwargs = _deserialize_keras_tensors(kwargs, created_layers)
         except IndexError:
           # Happens if keras tensors in kwargs are still unprocessed
-          add_unprocessed_node(layer, node_data)
-          return
+          return False
       else:
         raise ValueError('Improperly formatted model config.')
 
@@ -1213,8 +1265,7 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
         inbound_node_index = get_node_index(inbound_layer, inbound_node_index)
 
         if inbound_node_index is None:
-          add_unprocessed_node(layer, node_data)
-          return
+          return False
         inbound_node = inbound_layer._inbound_nodes[inbound_node_index]
         input_tensors.append(
             tf.nest.flatten(inbound_node.outputs)[inbound_tensor_index])
@@ -1231,9 +1282,11 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
       output_tensors = layer(input_tensors, **kwargs)
 
       # Update node index map.
-      output_index = tf.nest.flatten(output_tensors)[0]._keras_history.node_index
+      output_index = (tf.nest.flatten(output_tensors)[0].
+                      _keras_history.node_index)
       node_index_map[(layer.name, node_count_by_layer[layer])] = output_index
       node_count_by_layer[layer] += 1
+    return True
 
   def process_layer(layer_data):
     """Deserializes a layer, then call it on appropriate inputs.
@@ -1266,7 +1319,7 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
       # on the fly because the inbound node may not yet exist,
       # in case of layer shared at different topological depths
       # (e.g. a model such as A(B(A(B(x)))))
-      add_unprocessed_node(layer, node_data)
+      unprocessed_nodes[layer].append(node_data)
 
   # First, we create all layers and enqueue nodes to be processed
   for layer_data in config['layers']:
@@ -1279,8 +1332,16 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
     for layer_data in config['layers']:
       layer = created_layers[layer_data['name']]
       if layer in unprocessed_nodes:
-        for node_data in unprocessed_nodes.pop(layer):
-          process_node(layer, node_data)
+        layer_nodes = unprocessed_nodes.pop(layer)
+        while layer_nodes:
+          node_data = layer_nodes[0]
+          if process_node(layer, node_data):
+            layer_nodes.pop(0)
+          else:
+            # If a node can't be processed, stop processing the nodes of
+            # the current layer to maintain node ordering.
+            unprocessed_nodes[layer] = layer_nodes
+            break
 
   input_tensors = []
   output_tensors = []

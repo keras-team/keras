@@ -31,6 +31,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
 
     self.assertTrue(loss_container._built)
     self.assertLen(loss_container._losses, 1)
+    self.assertIsInstance(total_loss, tf.Tensor)
     self.assertEqual(total_loss.numpy(), 1.)
     self.assertLen(loss_container.metrics, 1)
 
@@ -89,6 +90,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
     total_loss = loss_container(y_t, y_p, sample_weight=sw)
 
     self.assertLen(loss_container._losses, 2)
+    self.assertIsInstance(total_loss, tf.Tensor)
     self.assertEqual(total_loss.numpy(), 0.25)
     self.assertLen(loss_container.metrics, 3)
 
@@ -142,6 +144,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
 
     total_loss = loss_container(y_t, y_p, sample_weight=sw)
 
+    self.assertIsInstance(total_loss, tf.Tensor)
     self.assertEqual(total_loss.numpy(), 0.5)
     self.assertLen(loss_container.metrics, 2)
 
@@ -176,6 +179,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
     sw = tf.convert_to_tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
 
     total_loss = loss_container(y_t, y_p, sample_weight=sw)
+    self.assertIsInstance(total_loss, tf.Tensor)
     self.assertEqual(total_loss.numpy(), 0.75)
     self.assertLen(loss_container.metrics, 3)
 
@@ -292,6 +296,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
 
     loss_container = compile_utils.LossesContainer(my_mae)
     total_loss = loss_container(y_t, y_p)
+    self.assertIsInstance(total_loss, tf.Tensor)
     self.assertEqual(total_loss.dtype, tf.float64)
 
   def test_loss_masking(self):
@@ -346,7 +351,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
     def custom_loss_fn(y_true, y_pred):
       return tf.reduce_sum(y_true - y_pred)
 
-    class CustomLossClass(object):
+    class CustomLossClass:
 
       def __call__(self, y_true, y_pred):
         return tf.reduce_sum(y_true - y_pred)
@@ -384,8 +389,9 @@ class LossesContainerTest(keras_parameterized.TestCase):
         tf.RaggedTensor.from_row_splits(v_t, [0, 2, 3]), 0)
     y_p = tf.expand_dims(
         tf.RaggedTensor.from_row_splits(v_p, [0, 2, 3]), 0)
-    loss_container(y_t, y_p)
+    total_loss = loss_container(y_t, y_p)
 
+    self.assertIsInstance(total_loss, tf.Tensor)
     self.assertEqual(loss_container._losses[0].name, 'custom_loss_fn')
 
 
@@ -771,7 +777,7 @@ class MetricsContainerTest(keras_parameterized.TestCase):
     def custom_metric_fn(y_true, y_pred):
       return tf.reduce_sum(y_true - y_pred)
 
-    class CustomMetricClass(object):
+    class CustomMetricClass:
 
       def __call__(self, y_true, y_pred):
         return tf.reduce_sum(y_true - y_pred)

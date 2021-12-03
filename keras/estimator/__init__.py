@@ -23,7 +23,7 @@ from tensorflow.python.util.tf_export import keras_export
 # everything will work as normal.
 
 _model_to_estimator_usage_gauge = tf.__internal__.monitoring.BoolGauge(
-    '/tensorflow/api/oss-keras/model_to_estimator',
+    '/tensorflow/api/keras/model_to_estimator',
     'Whether tf.keras.estimator.model_to_estimator() is called.', 'version')
 
 
@@ -46,7 +46,7 @@ def model_to_estimator(
 
   For usage example, please see:
   [Creating estimators from Keras Models](
-    https://www.tensorflow.org/guide/estimators#creating_estimators_from_keras_models).
+    https://www.tensorflow.org/guide/estimator#create_an_estimator_from_a_keras_model).
 
   Sample Weights:
   Estimators returned by `model_to_estimator` are configured so that they can

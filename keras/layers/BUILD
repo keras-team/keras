@@ -7,20 +7,14 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 package(
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
         "//third_party/tensorflow/python/training/tracking:__pkg__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
-        "//third_party/tensorflow_models/official/vision/beta/projects/residual_mobilenet/modeling/backbones:__pkg__",
+        "//third_party/tensorflow_models/official/projects/residual_mobilenet/modeling/backbones:__pkg__",
     ],
     licenses = ["notice"],
-)
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
 )
 
 # A separate build for layers without serialization to avoid circular deps
@@ -36,7 +30,6 @@ py_library(
         ":advanced_activations",
         ":convolutional",
         ":convolutional_recurrent",
-        ":core",
         ":cudnn_recurrent",
         ":dense_attention",
         ":einsum_dense",
@@ -52,10 +45,40 @@ py_library(
         ":rnn_cell_wrapper_v2",
         ":wrappers",
         "//keras/feature_column",
+        "//keras/layers/core",
         "//keras/layers/normalization",
         "//keras/layers/preprocessing",
         "//keras/premade",
         "//keras/utils:tf_utils",
+    ],
+)
+
+py_library(
+    name = "embeddings",
+    srcs = ["embeddings.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras:constraints",
+        "//keras:regularizers",
+        "//keras/engine:base_layer",
+        "//keras/initializers",
+        "//keras/utils:tf_utils",
+    ],
+)
+
+cuda_py_test(
+    name = "embeddings_test",
+    size = "medium",
+    srcs = ["embeddings_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras:combinations",
+        "//keras:testing_utils",
+        "//keras/layers",
     ],
 )
 
@@ -116,28 +139,6 @@ py_library(
 )
 
 py_library(
-    name = "core",
-    srcs = ["core.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras:activations",
-        "//keras:backend",
-        "//keras:base_layer",
-        "//keras:constraints",
-        "//keras:losses",
-        "//keras:regularizers",
-        "//keras/engine:input_spec",
-        "//keras/engine:keras_tensor",
-        "//keras/initializers",
-        "//keras/utils:engine_utils",
-        "//keras/utils:generic_utils",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
     name = "cudnn_recurrent",
     srcs = ["cudnn_recurrent.py"],
     srcs_version = "PY3",
@@ -190,21 +191,6 @@ py_library(
         "//keras:constraints",
         "//keras:regularizers",
         "//keras/initializers",
-    ],
-)
-
-py_library(
-    name = "embeddings",
-    srcs = ["embeddings.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:base_layer",
-        "//keras/initializers",
-        "//keras/utils:tf_utils",
     ],
 )
 
@@ -443,20 +429,6 @@ tf_py_test(
 )
 
 tf_py_test(
-    name = "core_test",
-    size = "medium",
-    srcs = ["core_test.py"],
-    python_version = "PY3",
-    shard_count = 3,
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-    ],
-)
-
-tf_py_test(
     name = "subclassed_layers_test",
     size = "medium",
     srcs = ["subclassed_layers_test.py"],
@@ -493,19 +465,6 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-    ],
-)
-
-cuda_py_test(
-    name = "embeddings_test",
-    size = "medium",
-    srcs = ["embeddings_test.py"],
-    python_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
-        "//keras:testing_utils",
     ],
 )
 

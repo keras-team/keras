@@ -31,6 +31,7 @@ import weakref
 
 import numpy as np
 
+from keras.utils import io_utils
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 from tensorflow.python.util.tf_export import keras_export
@@ -49,7 +50,7 @@ _LAYER_UNDEFINED_CONFIG_KEY = 'layer was saved without config'
 
 @keras_export('keras.utils.custom_object_scope',  # pylint: disable=g-classes-have-attributes
               'keras.utils.CustomObjectScope')
-class CustomObjectScope(object):
+class CustomObjectScope:
   """Exposes custom classes/functions to Keras deserialization internals.
 
   Under a scope `with custom_object_scope(objects_dict)`, Keras methods such
@@ -142,7 +143,7 @@ def _shared_object_saving_scope():
   return getattr(SHARED_OBJECT_SAVING, 'scope', None)
 
 
-class DisableSharedObjectScope(object):
+class DisableSharedObjectScope:
   """A context manager for disabling handling of shared objects.
 
   Disables shared object handling for both saving and loading.
@@ -162,7 +163,7 @@ class DisableSharedObjectScope(object):
     SHARED_OBJECT_SAVING.scope = self._orig_saving_scope
 
 
-class NoopLoadingScope(object):
+class NoopLoadingScope:
   """The default shared object loading scope. It does nothing.
 
   Created to simplify serialization code that doesn't care about shared objects
@@ -176,7 +177,7 @@ class NoopLoadingScope(object):
     pass
 
 
-class SharedObjectLoadingScope(object):
+class SharedObjectLoadingScope:
   """A context manager for keeping track of loaded objects.
 
   During the deserialization process, we may come across objects that are
@@ -253,7 +254,7 @@ class SharedObjectConfig(dict):
     self.ref_count += 1
 
 
-class SharedObjectSavingScope(object):
+class SharedObjectSavingScope:
   """Keeps track of shared object configs when serializing."""
 
   def __enter__(self):
@@ -376,12 +377,12 @@ def register_keras_serializable(package='Custom', name=None):
 
     if registered_name in _GLOBAL_CUSTOM_OBJECTS:
       raise ValueError(
-          '%s has already been registered to %s' %
-          (registered_name, _GLOBAL_CUSTOM_OBJECTS[registered_name]))
+          f'{registered_name} has already been registered to '
+          f'{_GLOBAL_CUSTOM_OBJECTS[registered_name]}')
 
     if arg in _GLOBAL_CUSTOM_NAMES:
-      raise ValueError('%s has already been registered to %s' %
-                       (arg, _GLOBAL_CUSTOM_NAMES[arg]))
+      raise ValueError(
+          f'{arg} has already been registered to {_GLOBAL_CUSTOM_NAMES[arg]}')
     _GLOBAL_CUSTOM_OBJECTS[registered_name] = arg
     _GLOBAL_CUSTOM_NAMES[arg] = registered_name
 
@@ -491,10 +492,12 @@ def serialize_keras_object(instance):
                       or (hasattr(instance, 'compute_mask')
                           and not is_default(instance.compute_mask)))
   if supports_masking and is_default(instance.get_config):
-    warnings.warn('Custom mask layers require a config and must override '
-                  'get_config. When loading, the custom mask layer must be '
-                  'passed to the custom_objects argument.',
-                  category=CustomMaskWarning)
+    warnings.warn(
+        'Custom mask layers require a config and must override '
+        'get_config. When loading, the custom mask layer must be '
+        'passed to the custom_objects argument.',
+        category=CustomMaskWarning,
+        stacklevel=2)
   # pylint: enable=protected-access
 
   if hasattr(instance, 'get_config'):
@@ -527,7 +530,8 @@ def serialize_keras_object(instance):
         name, serialization_config, instance)
   if hasattr(instance, '__name__'):
     return get_registered_name(instance)
-  raise ValueError('Cannot serialize', instance)
+  raise ValueError(f'Cannot serialize {instance} since it doesn\'t implement '
+                   '`get_config()`, and also doesn\t have `__name__`')
 
 
 def get_custom_objects_by_name(item, custom_objects=None):
@@ -548,17 +552,18 @@ def class_and_config_for_serialized_keras_object(
   if (not isinstance(config, dict)
       or 'class_name' not in config
       or 'config' not in config):
-    raise ValueError('Improper config format: ' + str(config))
+    raise ValueError(
+        f'Improper config format for {config}. '
+        'Expecting python dict contains `class_name` and `config` as keys')
 
   class_name = config['class_name']
   cls = get_registered_object(class_name, custom_objects, module_objects)
   if cls is None:
     raise ValueError(
-        'Unknown {}: {}. Please ensure this object is '
-        'passed to the `custom_objects` argument. See '
+        f'Unknown {printable_module_name}: {class_name}. Please ensure this '
+        'object is passed to the `custom_objects` argument. See '
         'https://www.tensorflow.org/guide/keras/save_and_serialize'
-        '#registering_the_custom_object for details.'
-        .format(printable_module_name, class_name))
+        '#registering_the_custom_object for details.')
 
   cls_config = config['config']
   # Check if `cls_config` is a list. If it is a list, return the class and the
@@ -702,11 +707,10 @@ def deserialize_keras_object(identifier,
       obj = module_objects.get(object_name)
       if obj is None:
         raise ValueError(
-            'Unknown {}: {}. Please ensure this object is '
-            'passed to the `custom_objects` argument. See '
+            f'Unknown {printable_module_name}: {object_name}. Please ensure '
+            'this object is passed to the `custom_objects` argument. See '
             'https://www.tensorflow.org/guide/keras/save_and_serialize'
-            '#registering_the_custom_object for details.'
-            .format(printable_module_name, object_name))
+            '#registering_the_custom_object for details.')
 
     # Classes passed by name are instantiated with no args, functions are
     # returned as-is.
@@ -717,8 +721,8 @@ def deserialize_keras_object(identifier,
     # If a function has already been deserialized, return as is.
     return identifier
   else:
-    raise ValueError('Could not interpret serialized %s: %s' %
-                     (printable_module_name, identifier))
+    raise ValueError(
+        f'Could not interpret serialized {printable_module_name}: {identifier}')
 
 
 def func_dump(func):
@@ -812,7 +816,7 @@ def has_arg(fn, name, accept_all=False):
 
 
 @keras_export('keras.utils.Progbar')
-class Progbar(object):
+class Progbar:
   """Displays a progress bar.
 
   Args:
@@ -856,7 +860,8 @@ class Progbar(object):
     self._values_order = []
     self._start = time.time()
     self._last_update = 0
-
+    self._time_at_epoch_start = self._start
+    self._time_at_epoch_end = None
     self._time_after_first_step = None
 
   def update(self, current, values=None, finalize=None):
@@ -898,18 +903,21 @@ class Progbar(object):
         self._values[k] = [v, 1]
     self._seen_so_far = current
 
+    message = ''
     now = time.time()
     info = ' - %.0fs' % (now - self._start)
+    if current == self.target:
+      self._time_at_epoch_end = now
     if self.verbose == 1:
       if now - self._last_update < self.interval and not finalize:
         return
 
       prev_total_width = self._total_width
       if self._dynamic_display:
-        sys.stdout.write('\b' * prev_total_width)
-        sys.stdout.write('\r')
+        message += '\b' * prev_total_width
+        message += '\r'
       else:
-        sys.stdout.write('\n')
+        message += '\n'
 
       if self.target is not None:
         numdigits = int(np.log10(self.target)) + 1
@@ -928,17 +936,12 @@ class Progbar(object):
         bar = '%7d/Unknown' % current
 
       self._total_width = len(bar)
-      sys.stdout.write(bar)
+      message += bar
 
       time_per_unit = self._estimate_step_duration(current, now)
 
       if self.target is None or finalize:
-        if time_per_unit >= 1 or time_per_unit == 0:
-          info += ' %.0fs/%s' % (time_per_unit, self.unit_name)
-        elif time_per_unit >= 1e-3:
-          info += ' %.0fms/%s' % (time_per_unit * 1e3, self.unit_name)
-        else:
-          info += ' %.0fus/%s' % (time_per_unit * 1e6, self.unit_name)
+        info += self._format_time(time_per_unit, self.unit_name)
       else:
         eta = time_per_unit * (self.target - current)
         if eta > 3600:
@@ -969,8 +972,9 @@ class Progbar(object):
       if finalize:
         info += '\n'
 
-      sys.stdout.write(info)
-      sys.stdout.flush()
+      message += info
+      io_utils.print_msg(message, line_break=False)
+      message = ''
 
     elif self.verbose == 2:
       if finalize:
@@ -984,15 +988,42 @@ class Progbar(object):
             info += ' %.4f' % avg
           else:
             info += ' %.4e' % avg
-        info += '\n'
-
-        sys.stdout.write(info)
-        sys.stdout.flush()
+        if self._time_at_epoch_end:
+          time_per_epoch = self._time_at_epoch_end - self._time_at_epoch_start
+          avg_time_per_step = time_per_epoch / self.target
+          self._time_at_epoch_start = now
+          self._time_at_epoch_end = None
+          info += ' -' + self._format_time(time_per_epoch, 'epoch')
+          info += ' -' + self._format_time(avg_time_per_step, self.unit_name)
+          info += '\n'
+        message += info
+        io_utils.print_msg(message, line_break=False)
+        message = ''
 
     self._last_update = now
 
   def add(self, n, values=None):
     self.update(self._seen_so_far + n, values)
+
+  def _format_time(self, time_per_unit, unit_name):
+    """format a given duration to display to the user.
+
+    Given the duration, this function formats it in either milliseconds
+    or seconds and displays the unit (i.e. ms/step or s/epoch)
+    Args:
+      time_per_unit: the duration to display
+      unit_name: the name of the unit to display
+    Returns:
+      a string with the correctly formatted duration and units
+    """
+    formatted = ''
+    if time_per_unit >= 1 or time_per_unit == 0:
+      formatted += ' %.0fs/%s' % (time_per_unit, unit_name)
+    elif time_per_unit >= 1e-3:
+      formatted += ' %.0fms/%s' % (time_per_unit * 1e3, unit_name)
+    else:
+      formatted += ' %.0fus/%s' % (time_per_unit * 1e6, unit_name)
+    return formatted
 
   def _estimate_step_duration(self, current, now):
     """Estimate the duration of a single step.
@@ -1011,7 +1042,7 @@ class Progbar(object):
     if current:
       # there are a few special scenarios here:
       # 1) somebody is calling the progress bar without ever supplying step 1
-      # 2) somebody is calling the progress bar and supplies step one mulitple
+      # 2) somebody is calling the progress bar and supplies step one multiple
       #    times, e.g. as part of a finalizing call
       # in these cases, we just fall back to the simple calculation
       if self._time_after_first_step is not None and current > 1:
@@ -1069,7 +1100,7 @@ def slice_arrays(arrays, start=None, stop=None):
     return [None]
   if isinstance(start, list) and stop is not None:
     raise ValueError('The stop argument has to be None if the value of start '
-                     'is a list.')
+                     f'is a list. Received start={start}, stop={stop}')
   elif isinstance(arrays, list):
     if hasattr(start, '__len__'):
       # hdf5 datasets only support list objects as indices
@@ -1108,7 +1139,7 @@ def to_list(x):
 
 
 def to_snake_case(name):
-  intermediate = re.sub('(.)([A-Z][a-z0-9]+)', r'\1_\2', name)
+  intermediate = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
   insecure = re.sub('([a-z])([A-Z])', r'\1_\2', intermediate).lower()
   # If the class is private the name starts with "_" which is not secure
   # for creating scopes. We prefix the name with "private" in this case.
@@ -1129,9 +1160,9 @@ def is_all_none(structure):
 def check_for_unexpected_keys(name, input_dict, expected_values):
   unknown = set(input_dict.keys()).difference(expected_values)
   if unknown:
-    raise ValueError('Unknown entries in {} dictionary: {}. Only expected '
-                     'following keys: {}'.format(name, list(unknown),
-                                                 expected_values))
+    raise ValueError(
+        f'Unknown entries in {name} dictionary: {list(unknown)}. Only expected '
+        f'following keys: {expected_values}')
 
 
 def validate_kwargs(kwargs,

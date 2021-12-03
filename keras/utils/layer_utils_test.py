@@ -14,17 +14,20 @@
 # ==============================================================================
 """Tests for layer_utils."""
 
+import keras
 import tensorflow.compat.v2 as tf
 
 import collections
 import contextlib
 import multiprocessing.dummy
+import os
 import pickle
+import shutil
+import sys
 import time
 import timeit
 
 import numpy as np
-
 from keras.utils import layer_utils
 
 
@@ -47,6 +50,324 @@ class MyPickleableObject(tf.__internal__.tracking.AutoTrackable):
 
 class LayerUtilsTest(tf.test.TestCase):
 
+  def test_print_summary(self):
+    model = keras.Sequential()
+    model.add(
+        keras.layers.Conv2D(
+            filters=2, kernel_size=(2, 3), input_shape=(3, 5, 5), name='conv'))
+    model.add(keras.layers.Flatten(name='flat'))
+    model.add(keras.layers.Dense(5, name='dense'))
+
+    file_name = 'model_1.txt'
+    temp_dir = self.get_temp_dir()
+    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+    fpath = os.path.join(temp_dir, file_name)
+    writer = open(fpath, 'w')
+
+    def print_to_file(text):
+      print(text, file=writer)
+
+    try:
+      layer_utils.print_summary(model, print_fn=print_to_file)
+      self.assertTrue(tf.io.gfile.exists(fpath))
+      writer.close()
+      reader = open(fpath, 'r')
+      lines = reader.readlines()
+      reader.close()
+      self.assertEqual(len(lines), 15)
+    except ImportError:
+      pass
+
+  def test_print_summary_without_print_fn(self):
+    model = keras.Sequential([
+        keras.layers.Dense(5, input_shape=(10,), name='dense')])
+    with self.captureWritesToStream(sys.stdout) as printed:
+      layer_utils.print_summary(model)
+    self.assertIn('dense (Dense)', printed.contents())
+
+  def test_print_summary_expand_nested(self):
+    shape = (None, None, 3)
+
+    def make_model():
+      x = inputs = keras.Input(shape)
+      x = keras.layers.Conv2D(3, 1)(x)
+      x = keras.layers.BatchNormalization()(x)
+      return keras.Model(inputs, x)
+
+    x = inner_inputs = keras.Input(shape)
+    x = make_model()(x)
+    inner_model = keras.Model(inner_inputs, x)
+
+    inputs = keras.Input(shape)
+    model = keras.Model(inputs, inner_model(inputs))
+
+    file_name = 'model_2.txt'
+    temp_dir = self.get_temp_dir()
+    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+    fpath = os.path.join(temp_dir, file_name)
+    writer = open(fpath, 'w')
+
+    def print_to_file(text):
+      print(text, file=writer)
+
+    try:
+      layer_utils.print_summary(
+          model, print_fn=print_to_file, expand_nested=True)
+      self.assertTrue(tf.io.gfile.exists(fpath))
+      writer.close()
+      reader = open(fpath, 'r')
+      lines = reader.readlines()
+      reader.close()
+      check_str = (
+          'Model: "model_2"\n'
+          '_________________________________________________________________\n'
+          ' Layer (type)                Output Shape              Param #   \n'
+          '=================================================================\n'
+          ' input_3 (InputLayer)        [(None, None, None, 3)]   0         \n'
+          '                                                                 \n'
+          ' model_1 (Functional)        (None, None, None, 3)     24        \n'
+          '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n'
+          '| input_1 (InputLayer)      [(None, None, None, 3)]   0         |\n'
+          '|                                                               |\n'
+          '| model (Functional)        (None, None, None, 3)     24        |\n'
+          '||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n'
+          '|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||\n'
+          '||                                                             ||\n'
+          '|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n'
+          '||                                                             ||\n'
+          '|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n'
+          '|| ormalization)                                               ||\n'
+          '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n'
+          '¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n'
+          '=================================================================\n'
+          'Total params: 24\n'
+          'Trainable params: 18\n'
+          'Non-trainable params: 6\n'
+          '_________________________________________________________________\n')
+
+      fin_str = ''
+      for line in lines:
+        fin_str += line
+
+      self.assertIn(fin_str, check_str)
+      self.assertEqual(len(lines), 25)
+    except ImportError:
+      pass
+
+  def test_summary_subclass_model_expand_nested(self):
+
+    class Sequential(keras.Model):
+
+      def __init__(self, *args):
+        super(Sequential, self).__init__()
+        self.module_list = list(args) if args else []
+
+      def call(self, x):
+        for module in self.module_list:
+          x = module(x)
+        return x
+
+    class Block(keras.Model):
+
+      def __init__(self):
+        super(Block, self).__init__()
+        self.module = Sequential(
+            keras.layers.Dense(10),
+            keras.layers.Dense(10),
+        )
+
+      def call(self, input_tensor):
+        x = self.module(input_tensor)
+        return x
+
+    class Base(keras.Model):
+
+      def __init__(self):
+        super(Base, self).__init__()
+        self.module = Sequential(Block(), Block())
+
+      def call(self, input_tensor):
+        x = self.module(input_tensor)
+        y = self.module(x)
+        return x, y
+
+    class Network(keras.Model):
+
+      def __init__(self):
+        super(Network, self).__init__()
+        self.child = Base()
+
+      def call(self, inputs):
+        return self.child(inputs)
+
+    net = Network()
+    inputs = keras.Input(shape=(10,))
+    outputs = net(inputs)
+    model = keras.models.Model(inputs=inputs, outputs=outputs)
+
+    file_name = 'model_3.txt'
+    temp_dir = self.get_temp_dir()
+    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+    fpath = os.path.join(temp_dir, file_name)
+    writer = open(fpath, 'w')
+
+    def print_to_file(text):
+      print(text, file=writer)
+
+    try:
+      layer_utils.print_summary(
+          model, line_length=120, print_fn=print_to_file, expand_nested=True)
+      self.assertTrue(tf.io.gfile.exists(fpath))
+      writer.close()
+      reader = open(fpath, 'r')
+      lines = reader.readlines()
+      reader.close()
+      # The output content are slightly different for the input shapes between
+      # v1 and v2.
+      if tf.__internal__.tf2.enabled():
+        self.assertEqual(len(lines), 39)
+      else:
+        self.assertEqual(len(lines), 40)
+    except ImportError:
+      pass
+
+  def test_print_summary_show_trainable(self):
+    model = keras.Sequential(name='trainable')
+    untrained = keras.layers.Conv2D(
+        filters=2, kernel_size=(2, 3), input_shape=(3, 5, 5), name='conv')
+    model.add(untrained)
+    model.add(keras.layers.Flatten(name='flat'))
+    model.add(keras.layers.Dense(5, name='dense'))
+
+    untrained.trainable = False
+
+    file_name = 'model_4.txt'
+    temp_dir = self.get_temp_dir()
+    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+    fpath = os.path.join(temp_dir, file_name)
+    writer = open(fpath, 'w')
+
+    def print_to_file(text):
+      print(text, file=writer)
+
+    try:
+      layer_utils.print_summary(
+          model, print_fn=print_to_file, show_trainable=True)
+      self.assertTrue(tf.io.gfile.exists(fpath))
+      writer.close()
+      reader = open(fpath, 'r')
+      lines = reader.readlines()
+      reader.close()
+      check_str = (
+          'Model: '
+          '"trainable"\n____________________________________________________________________________\n'
+          ' Layer (type)                Output Shape              Param #   '
+          'Trainable  '
+          '\n============================================================================\n'
+          ' conv (Conv2D)               (None, 2, 3, 2)           62        N'
+          '          \n'
+          '                                                                            '
+          '\n flat (Flatten)              (None, 12)                0         '
+          'Y          \n'
+          '                                                                            '
+          '\n dense (Dense)               (None, 5)                 65        '
+          'Y          \n'
+          '                                                                            '
+          '\n============================================================================\nTotal'
+          ' params: 127\nTrainable params: 65\nNon-trainable params: '
+          '62\n____________________________________________________________________________\n'
+          '____________________________________________________________________________\n'
+      )
+
+      fin_str = ''
+      for line in lines:
+        fin_str += line
+
+      self.assertIn(fin_str, check_str)
+      self.assertEqual(len(lines), 15)
+    except ImportError:
+      pass
+
+  def test_print_summary_expand_nested_show_trainable(self):
+    shape = (None, None, 3)
+
+    def make_model():
+      x = inputs = keras.Input(shape, name='input2')
+      untrainable = keras.layers.Conv2D(3, 1)
+      untrainable.trainable = False
+      x = untrainable(x)
+      x = keras.layers.BatchNormalization()(x)
+      return keras.Model(inputs, x)
+
+    x = inner_inputs = keras.Input(shape, name='input1')
+    x = make_model()(x)
+    inner_model = keras.Model(inner_inputs, x)
+
+    inputs = keras.Input(shape, name='input3')
+    model = keras.Model(inputs, inner_model(inputs))
+
+    file_name = 'model_6.txt'
+    temp_dir = self.get_temp_dir()
+    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+    fpath = os.path.join(temp_dir, file_name)
+    writer = open(fpath, 'w')
+
+    def print_to_file(text):
+      print(text, file=writer)
+
+    try:
+      layer_utils.print_summary(
+          model,
+          print_fn=print_to_file,
+          expand_nested=True,
+          show_trainable=True)
+      self.assertTrue(tf.io.gfile.exists(fpath))
+      writer.close()
+      reader = open(fpath, 'r')
+      lines = reader.readlines()
+      reader.close()
+      check_str = (
+          'Model: '
+          '"model_2"\n____________________________________________________________________________\n'
+          ' Layer (type)                Output Shape              Param #   '
+          'Trainable  '
+          '\n============================================================================\n'
+          ' input3 (InputLayer)         [(None, None, None, 3)]   0         Y'
+          '          \n'
+          '                                                                            '
+          '\n model_1 (Functional)        (None, None, None, 3)     24        '
+          'Y          '
+          '\n|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n|'
+          ' input1 (InputLayer)       [(None, None, None, 3)]   0         Y'
+          '          |\n|'
+          '                                                                          '
+          '|\n| model (Functional)        (None, None, None, 3)     24        '
+          'Y          '
+          '|\n||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n||'
+          ' input2 (InputLayer)     [(None, None, None, 3)]   0         Y'
+          '          ||\n||'
+          '                                                                        '
+          '||\n|| conv2d (Conv2D)         (None, None, None, 3)     12        '
+          'N          ||\n||'
+          '                                                                        '
+          '||\n|| batch_normalization (BatchN  (None, None, None, 3)  12      '
+          'Y          ||\n|| ormalization)'
+          '                                                          '
+          '||\n|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n============================================================================\nTotal'
+          ' params: 24\nTrainable params: 6\nNon-trainable params: '
+          '18\n____________________________________________________________________________\n'
+          '____________________________________________________________________________\n'
+      )
+
+      fin_str = ''
+      for line in lines:
+        fin_str += line
+
+      self.assertIn(fin_str, check_str)
+      self.assertEqual(len(lines), 25)
+    except ImportError:
+      pass
+
   def test_property_cache(self):
     test_counter = collections.Counter()
 
@@ -58,8 +379,8 @@ class LayerUtilsTest(tf.test.TestCase):
 
       def __setattr__(self, key, value):
         """Enforce that cache does not set attribute on MyObject."""
-        if getattr(self, "_frozen", False):
-          raise ValueError("Cannot mutate when frozen.")
+        if getattr(self, '_frozen', False):
+          raise ValueError('Cannot mutate when frozen.')
         return super(MyObject, self).__setattr__(key, value)
 
       @property
@@ -95,7 +416,7 @@ class LayerUtilsTest(tf.test.TestCase):
       def test_property(self):
         # Random sleeps to ensure that the execution thread changes
         # mid-computation.
-        call_count["test_property"] += 1
+        call_count['test_property'] += 1
         time.sleep(np.random.random() + 1.)
 
         # Use a RandomState which is seeded off the instance's id (the mod is
@@ -119,7 +440,7 @@ class LayerUtilsTest(tf.test.TestCase):
     self.assertEqual(len(set(results)), 1)
 
     # Make sure we actually are testing threaded behavior.
-    self.assertGreater(call_count["test_property"], 1)
+    self.assertGreater(call_count['test_property'], 1)
 
     # Make sure new threads still cache hit.
     with contextlib.closing(multiprocessing.dummy.Pool(2)) as pool:
@@ -162,5 +483,5 @@ class LayerUtilsTest(tf.test.TestCase):
     self.assertEqual(expected_size, len(pickle.dumps(size_check_instance)))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   tf.test.main()

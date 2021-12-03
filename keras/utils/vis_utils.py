@@ -21,7 +21,8 @@ import tensorflow.compat.v2 as tf
 import os
 import sys
 import re
-from keras.utils.io_utils import path_to_string
+from keras import activations
+from keras.utils import io_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -73,7 +74,7 @@ def get_layer_index_bound_by_layer_name(model, layer_names):
     layer_names: unique name of layer of the model, type(str)
 
   Returns:
-    retun the index value of layer based on its unique name (layer_names)
+    return the index value of layer based on its unique name (layer_names)
   """
   lower_index = []
   upper_index = []
@@ -82,8 +83,10 @@ def get_layer_index_bound_by_layer_name(model, layer_names):
       lower_index.append(idx)
     if re.match(layer_names[1], layer.name):
       upper_index.append(idx)
-  if len(lower_index) == 0 or len(upper_index) == 0:
-    raise ValueError('Passed layer_range does not match to model layers')
+  if not lower_index or not upper_index:
+    raise ValueError(
+        'Passed layer_names does not match to layers in the model. '
+        f'Recieved: {layer_names}')
   if min(lower_index) > max(upper_index):
     return [min(upper_index), max(lower_index)]
   return [min(lower_index), max(upper_index)]
@@ -98,7 +101,8 @@ def model_to_dot(model,
                  expand_nested=False,
                  dpi=96,
                  subgraph=False,
-                 layer_range=None):
+                 layer_range=None,
+                 show_layer_activations=False):
   """Convert a Keras model to dot format.
 
   Args:
@@ -122,6 +126,8 @@ def model_to_dot(model,
         `layer_range[1]`. By default `None` which considers all layers of
         model. Note that you must pass range such that the resultant subgraph
         must be complete.
+    show_layer_activations: Display layer activations (only for layers that
+        have an `activation` property).
 
   Returns:
     A `pydot.Dot` instance representing the Keras model or
@@ -129,8 +135,15 @@ def model_to_dot(model,
     `subgraph=True`.
 
   Raises:
+    ValueError: if `model_to_dot` is called before the model is built.
     ImportError: if graphviz or pydot are not available.
   """
+
+  if not model.built:
+    raise ValueError('This model has not yet been built. '
+                     'Build the model first by calling `build()` or by calling '
+                     'the model on a batch of data.')
+
   from keras.layers import wrappers
   from keras.engine import sequential
   from keras.engine import functional
@@ -139,12 +152,12 @@ def model_to_dot(model,
     message = (
         'You must install pydot (`pip install pydot`) '
         'and install graphviz '
-        '(see instructions at https://graphviz.gitlab.io/download/) ',
+        '(see instructions at https://graphviz.gitlab.io/download/) '
         'for plot_model/model_to_dot to work.')
     if 'IPython.core.magics.namespace' in sys.modules:
       # We don't raise an exception here in order to avoid crashing notebook
       # tests where graphviz is not available.
-      print(message)
+      io_utils.print_msg(message)
       return
     else:
       raise ImportError(message)
@@ -160,16 +173,20 @@ def model_to_dot(model,
     dot.set('dpi', dpi)
     dot.set_node_defaults(shape='record')
 
-  if layer_range:
+  if layer_range is not None:
     if len(layer_range) != 2:
-      raise ValueError('layer_range must be of shape (2,)')
+      raise ValueError(
+          'layer_range must be of shape (2,). Received: '
+          f'layer_range = {layer_range} of length {len(layer_range)}')
     if (not isinstance(layer_range[0], str) or
         not isinstance(layer_range[1], str)):
-      raise ValueError('layer_range should contain string type only')
+      raise ValueError(
+          'layer_range should contain string type only. '
+          f'Received: {layer_range}')
     layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
     if layer_range[0] < 0 or layer_range[1] > len(model.layers):
-      raise ValueError('Both values in layer_range should be in',
-                       'range (%d, %d)' % (0, len(model.layers)))
+      raise ValueError('Both values in layer_range should be in range (0, '
+                       f'{len(model.layers)}. Received: {layer_range}')
 
   sub_n_first_node = {}
   sub_n_last_node = {}
@@ -234,10 +251,16 @@ def model_to_dot(model,
       dot.add_subgraph(submodel_not_wrapper)
 
     # Create node's label.
+    label = class_name
+
+    # Rebuild the label as a table including the layer's activation.
+    if (show_layer_activations and hasattr(layer, 'activation') and
+        layer.activation is not None):
+      label = '{%s|%s}' % (label, activations.serialize(layer.activation))
+
+    # Rebuild the label as a table including the layer's name.
     if show_layer_names:
-      label = '{}: {}'.format(layer_name, class_name)
-    else:
-      label = class_name
+      label = '%s|%s' % (layer_name, label)
 
     # Rebuild the label as a table including the layer's dtype.
     if show_dtype:
@@ -267,10 +290,8 @@ def model_to_dot(model,
             [format_shape(ishape) for ishape in layer.input_shapes])
       else:
         inputlabels = '?'
-      label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label,
-                                                     inputlabels,
-                                                     outputlabels)
-
+      label = '{%s}|{input:|output:}|{{%s}}|{{%s}}' % (label, inputlabels,
+                                                       outputlabels)
     if not expand_nested or not isinstance(
         layer, functional.Functional):
       node = pydot.Node(layer_id, label=label)
@@ -336,7 +357,8 @@ def plot_model(model,
                rankdir='TB',
                expand_nested=False,
                dpi=96,
-               layer_range=None):
+               layer_range=None,
+               show_layer_activations=False):
   """Converts a Keras model to dot format and save to a file.
 
   Example:
@@ -362,25 +384,34 @@ def plot_model(model,
     show_dtype: whether to display layer dtypes.
     show_layer_names: whether to display layer names.
     rankdir: `rankdir` argument passed to PyDot,
-        a string specifying the format of the plot:
-        'TB' creates a vertical plot;
-        'LR' creates a horizontal plot.
+        a string specifying the format of the plot: 'TB' creates a vertical
+          plot; 'LR' creates a horizontal plot.
     expand_nested: Whether to expand nested models into clusters.
     dpi: Dots per inch.
     layer_range: input of `list` containing two `str` items, which is the
-        starting layer name and ending layer name (both inclusive) indicating
-        the range of layers for which the plot will be generated. It also
-        accepts regex patterns instead of exact name. In such case, start
-        predicate will be the first element it matches to `layer_range[0]`
-        and the end predicate will be the last element it matches to
-        `layer_range[1]`. By default `None` which considers all layers of
-        model. Note that you must pass range such that the resultant subgraph
-        must be complete.
+      starting layer name and ending layer name (both inclusive) indicating the
+      range of layers for which the plot will be generated. It also accepts
+      regex patterns instead of exact name. In such case, start predicate will
+      be the first element it matches to `layer_range[0]` and the end predicate
+      will be the last element it matches to `layer_range[1]`. By default `None`
+      which considers all layers of model. Note that you must pass range such
+      that the resultant subgraph must be complete.
+    show_layer_activations: Display layer activations (only for layers that
+      have an `activation` property).
+
+  Raises:
+    ValueError: if `plot_model` is called before the model is built.
 
   Returns:
     A Jupyter notebook Image object if Jupyter is installed.
     This enables in-line display of the model plots in notebooks.
   """
+
+  if not model.built:
+    raise ValueError('This model has not yet been built. '
+                     'Build the model first by calling `build()` or by calling '
+                     'the model on a batch of data.')
+
   dot = model_to_dot(
       model,
       show_shapes=show_shapes,
@@ -389,8 +420,9 @@ def plot_model(model,
       rankdir=rankdir,
       expand_nested=expand_nested,
       dpi=dpi,
-      layer_range=layer_range)
-  to_file = path_to_string(to_file)
+      layer_range=layer_range,
+      show_layer_activations=show_layer_activations)
+  to_file = io_utils.path_to_string(to_file)
   if dot is None:
     return
   _, extension = os.path.splitext(to_file)

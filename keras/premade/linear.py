@@ -22,10 +22,14 @@ from keras.engine import base_layer
 from keras.engine import input_spec
 from keras.engine import training
 from keras.layers import core
+from tensorflow.python.util import deprecation  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.experimental.LinearModel')
+@keras_export(
+    'keras.experimental.LinearModel',
+    v1=['keras.experimental.LinearModel', 'keras.models.LinearModel'])
+@deprecation.deprecated_endpoints('keras.experimental.LinearModel')
 class LinearModel(training.Model):
   r"""Linear Model for regression and classification problems.
 
@@ -149,12 +153,11 @@ class LinearModel(training.Model):
       different_keys = set(names) - set(inputs.keys())
       if different_keys:
         raise ValueError(
-            'The input dictionary does not match '
+            'The `inputs` dictionary does not match '
             'the structure expected by the model.'
-            '\n\tExpected keys: {}'
-            '\n\tReceived keys: {}'
-            '\n\tMissing keys: {}'.format(set(names), set(inputs.keys()),
-                                          different_keys))
+            f'\n\tExpected keys: {set(names)}'
+            f'\n\tReceived keys: {set(inputs.keys())}'
+            f'\n\tMissing keys: {different_keys}')
       inputs = [inputs[name] for name in names]
       for inp, layer in zip(inputs, self.dense_layers):
         output = layer(inp)

@@ -143,6 +143,12 @@ class MultiHeadAttention(Layer):
   Finally, the result tensor with the last dimension as value_dim can take an
   linear projection and return.
 
+  When using MultiHeadAttention inside a custom Layer, the custom Layer must
+  implement `build()` and call MultiHeadAttention's `_build_from_signature()`.
+  This enables weights to be restored correctly when the model is loaded.
+  TODO(b/172609172): link to documentation about calling custom build functions
+  when used in a custom Layer.
+
   Examples:
 
   Performs 1D cross-attention over two sequence inputs with an attention mask.
@@ -195,8 +201,8 @@ class MultiHeadAttention(Layer):
       indicates no attention. Broadcasting can happen for the missing batch
       dimensions and the head dimension.
     return_attention_scores: A boolean to indicate whether the output should
-      be attention output if True, or (attention_output, attention_scores) if
-      False. Defaults to False.
+      be `(attention_output, attention_scores)` if `True`, or `attention_output`
+      if `False`. Defaults to `False`.
     training: Python boolean indicating whether the layer should behave in
       training mode (adding dropout) or in inference mode (no dropout).
       Defaults to either using the training mode of the parent layer/model,
@@ -207,7 +213,7 @@ class MultiHeadAttention(Layer):
       where `T` is for target sequence shapes and `E` is the query input last
       dimension if `output_shape` is `None`. Otherwise, the multi-head outputs
       are project to the shape specified by `output_shape`.
-    attention_scores: [Optional] multi-head attention coeffients over
+    attention_scores: [Optional] multi-head attention coefficients over
       attention axes.
   """
 
@@ -238,6 +244,7 @@ class MultiHeadAttention(Layer):
     self._bias_initializer = initializers.get(bias_initializer)
     self._kernel_regularizer = regularizers.get(kernel_regularizer)
     self._bias_regularizer = regularizers.get(bias_regularizer)
+    self._activity_regularizer = regularizers.get(activity_regularizer)
     self._kernel_constraint = constraints.get(kernel_constraint)
     self._bias_constraint = constraints.get(bias_constraint)
     if attention_axes is not None and not isinstance(attention_axes,

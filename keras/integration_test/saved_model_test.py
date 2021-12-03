@@ -18,7 +18,7 @@ import tempfile
 
 from absl.testing import parameterized
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 
 def cycle(obj, cycles, signatures=None):
@@ -235,4 +235,5 @@ class KerasLoadTest(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == "__main__":
-  tf.test.main()
+  if tf.__internal__.tf2.enabled():
+    tf.test.main()

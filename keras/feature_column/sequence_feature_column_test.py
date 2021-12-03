@@ -563,8 +563,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
 class SequenceFeaturesSerializationTest(tf.test.TestCase, parameterized.TestCase):
 
-  @parameterized.named_parameters(('default', None, None),
-                                  ('trainable', True, 'trainable'),
+  @parameterized.named_parameters(('trainable', True, 'trainable'),
                                   ('not_trainable', False, 'frozen'))
   def test_get_config(self, trainable, name):
     cols = [tf.feature_column.sequence_numeric_column('a')]
@@ -578,8 +577,7 @@ class SequenceFeaturesSerializationTest(tf.test.TestCase, parameterized.TestCase
                      'SequenceNumericColumn')
     self.assertEqual(config['feature_columns'][0]['config']['shape'], (1,))
 
-  @parameterized.named_parameters(('default', None, None),
-                                  ('trainable', True, 'trainable'),
+  @parameterized.named_parameters(('trainable', True, 'trainable'),
                                   ('not_trainable', False, 'frozen'))
   def test_from_config(self, trainable, name):
     cols = [tf.feature_column.sequence_numeric_column('a')]

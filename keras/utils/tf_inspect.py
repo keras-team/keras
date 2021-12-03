@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """TFDecorator-aware replacements for the inspect module."""
-
+# pylint: disable=g-classes-have-attributes
 import tensorflow.compat.v2 as tf
 
 import collections
@@ -223,9 +223,9 @@ def _get_argspec_for_partial(obj):
   ]
 
   if invalid_default_values:
-    raise ValueError('Some arguments %s do not have default value, but they '
-                     'are positioned after those with default values. This can '
-                     'not be expressed with ArgSpec.' % invalid_default_values)
+    raise ValueError(f'Some arguments {invalid_default_values} do not have '
+                     'default value, but they are positioned after those with '
+                     'default values. This can not be expressed with ArgSpec.')
 
   return ArgSpec(args, varargs, keywords, tuple(all_defaults[first_default:]))
 
@@ -293,11 +293,11 @@ def getframeinfo(*args, **kwargs):
   return _inspect.getframeinfo(*args, **kwargs)
 
 
-def getdoc(object):  # pylint: disable=redefined-builtin
+def getdoc(obj):
   """TFDecorator-aware replacement for inspect.getdoc.
 
   Args:
-    object: An object, possibly decorated.
+    obj: An object, possibly decorated.
 
   Returns:
     The docstring associated with the object.
@@ -305,12 +305,12 @@ def getdoc(object):  # pylint: disable=redefined-builtin
   The outermost-decorated object is intended to have the most complete
   documentation, so the decorated parameter is not unwrapped.
   """
-  return _inspect.getdoc(object)
+  return _inspect.getdoc(obj)
 
 
-def getfile(object):  # pylint: disable=redefined-builtin
+def getfile(obj):
   """TFDecorator-aware replacement for inspect.getfile."""
-  unwrapped_object = tf.__internal__.decorator.unwrap(object)[1]
+  unwrapped_object = tf.__internal__.decorator.unwrap(obj)[1]
 
   # Work around for the case when object is a stack frame
   # and only .pyc files are used. In this case, getfile
@@ -322,14 +322,14 @@ def getfile(object):  # pylint: disable=redefined-builtin
   return _inspect.getfile(unwrapped_object)
 
 
-def getmembers(object, predicate=None):  # pylint: disable=redefined-builtin
+def getmembers(obj, predicate=None):
   """TFDecorator-aware replacement for inspect.getmembers."""
-  return _inspect.getmembers(object, predicate)
+  return _inspect.getmembers(obj, predicate)
 
 
-def getmodule(object):  # pylint: disable=redefined-builtin
+def getmodule(obj):
   """TFDecorator-aware replacement for inspect.getmodule."""
-  return _inspect.getmodule(object)
+  return _inspect.getmodule(obj)
 
 
 def getmro(cls):
@@ -337,64 +337,64 @@ def getmro(cls):
   return _inspect.getmro(cls)
 
 
-def getsource(object):  # pylint: disable=redefined-builtin
+def getsource(obj):
   """TFDecorator-aware replacement for inspect.getsource."""
-  return _inspect.getsource(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.getsource(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def getsourcefile(object):  # pylint: disable=redefined-builtin
+def getsourcefile(obj):
   """TFDecorator-aware replacement for inspect.getsourcefile."""
-  return _inspect.getsourcefile(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.getsourcefile(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def getsourcelines(object):  # pylint: disable=redefined-builtin
+def getsourcelines(obj):
   """TFDecorator-aware replacement for inspect.getsourcelines."""
-  return _inspect.getsourcelines(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.getsourcelines(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def isbuiltin(object):  # pylint: disable=redefined-builtin
+def isbuiltin(obj):
   """TFDecorator-aware replacement for inspect.isbuiltin."""
-  return _inspect.isbuiltin(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.isbuiltin(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def isclass(object):  # pylint: disable=redefined-builtin
+def isclass(obj):
   """TFDecorator-aware replacement for inspect.isclass."""
-  return _inspect.isclass(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.isclass(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def isfunction(object):  # pylint: disable=redefined-builtin
+def isfunction(obj):
   """TFDecorator-aware replacement for inspect.isfunction."""
-  return _inspect.isfunction(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.isfunction(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def isframe(object):  # pylint: disable=redefined-builtin
+def isframe(obj):
   """TFDecorator-aware replacement for inspect.ismodule."""
-  return _inspect.isframe(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.isframe(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def isgenerator(object):  # pylint: disable=redefined-builtin
+def isgenerator(obj):
   """TFDecorator-aware replacement for inspect.isgenerator."""
-  return _inspect.isgenerator(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.isgenerator(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def isgeneratorfunction(object):  # pylint: disable=redefined-builtin
+def isgeneratorfunction(obj):
   """TFDecorator-aware replacement for inspect.isgeneratorfunction."""
-  return _inspect.isgeneratorfunction(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.isgeneratorfunction(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def ismethod(object):  # pylint: disable=redefined-builtin
+def ismethod(obj):
   """TFDecorator-aware replacement for inspect.ismethod."""
-  return _inspect.ismethod(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.ismethod(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def ismodule(object):  # pylint: disable=redefined-builtin
+def ismodule(obj):
   """TFDecorator-aware replacement for inspect.ismodule."""
-  return _inspect.ismodule(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.ismodule(tf.__internal__.decorator.unwrap(obj)[1])
 
 
-def isroutine(object):  # pylint: disable=redefined-builtin
+def isroutine(obj):
   """TFDecorator-aware replacement for inspect.isroutine."""
-  return _inspect.isroutine(tf.__internal__.decorator.unwrap(object)[1])
+  return _inspect.isroutine(tf.__internal__.decorator.unwrap(obj)[1])
 
 
 def stack(context=1):

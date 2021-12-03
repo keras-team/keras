@@ -156,7 +156,9 @@ class LayerNormalizationTest(keras_parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testInvalidAxis(self):
-    with self.assertRaisesRegex(ValueError, r'Invalid axis: 3'):
+    with self.assertRaisesRegex(
+        ValueError,
+        r'Invalid axis. Expected 0 <= axis < inputs.rank'):
       layer_norm = layer_normalization.LayerNormalization(axis=3)
       layer_norm.build(input_shape=(2, 2, 2))
 
@@ -195,7 +197,7 @@ class LayerNormalizationNumericsTest(keras_parameterized.TestCase):
     Args:
       batch_input_shape: The input shape that will be used to test, including
         the batch dimension.
-      axis: A list of axises to normalize. Will be passed to the `axis` argument
+      axis: A list of axes to normalize. Will be passed to the `axis` argument
         of Layerlayer_normalization.
       fp64_tol: The relative and absolute tolerance for float64.
       fp32_tol: The relative and absolute tolerance for float32.
@@ -253,7 +255,7 @@ class LayerNormalizationNumericsTest(keras_parameterized.TestCase):
     Args:
       batch_input_shape: The input shape that will be used to test, including
         the batch dimension.
-      axis: A list of axises to normalize. Will be passed to the `axis` argument
+      axis: A list of axes to normalize. Will be passed to the `axis` argument
         of Layerlayer_normalization.
       fp64_tol: The relative and absolute tolerance for float64.
       fp32_tol: The relative and absolute tolerance for float32.

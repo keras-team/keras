@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark for Keras hashing preprocessing layer."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import itertools
 import random

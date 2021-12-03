@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark suite for KPL and feature column implementations."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 import itertools
 import math
 import random

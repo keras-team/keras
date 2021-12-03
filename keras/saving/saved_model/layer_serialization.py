@@ -14,14 +14,13 @@
 # ==============================================================================
 """Classes and functions implementing Layer SavedModel serialization."""
 
-import tensorflow.compat.v2 as tf
-
 from keras.mixed_precision import policy
 from keras.saving.saved_model import base_serialization
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import save_impl
 from keras.saving.saved_model import serialized_attributes
 from keras.utils import generic_utils
+import tensorflow.compat.v2 as tf
 
 
 class LayerSavedModelSaver(base_serialization.SavedModelSaver):
@@ -163,18 +162,23 @@ class RNNSavedModelSaver(LayerSavedModelSaver):
     return objects, functions
 
 
-class IndexLookupLayerSavedModelSaver(LayerSavedModelSaver):
-  """Index lookup layer serialization."""
+class VocabularySavedModelSaver(LayerSavedModelSaver):
+  """Handles vocabulary layer serialization.
+
+  This class is needed for StringLookup, IntegerLookup, and TextVectorization,
+  which all have a vocabulary as part of the config. Currently, we keep this
+  vocab as part of the config until saving, when we need to clear it to avoid
+  initializing a StaticHashTable twice (once when restoring the config and once
+  when restoring restoring module resources). After clearing the vocab, we
+  persist a property to the layer indicating it was constructed with a vocab.
+  """
 
   @property
   def python_properties(self):
     # TODO(kathywu): Add python property validator
     metadata = self._python_properties_internal()
-    # Clear the vocabulary from the config during saving. The vocab will be
-    # saved as part of the lookup table directly, which correctly handle saving
-    # vocabulary files as a SavedModel asset.
+    # Clear the vocabulary from the config during saving.
     metadata['config']['vocabulary'] = None
-    # Keep a separate config property to track that a vocabulary was passed in
-    # and not adapted.
+    # Persist a property to track that a vocabulary was passed on construction.
     metadata['config']['has_input_vocabulary'] = self.obj._has_input_vocabulary  # pylint: disable=protected-access
     return metadata

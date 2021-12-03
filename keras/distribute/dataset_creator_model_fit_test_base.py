@@ -118,7 +118,9 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
                  run_eagerly=False,
                  with_normalization_layer=False,
                  callbacks=None,
-                 use_lookup_layer=False):
+                 use_lookup_layer=False,
+                 use_dataset_creator=True,
+                 verbose="auto"):
     if callbacks is None:
       callbacks = []
 
@@ -130,11 +132,18 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
     callbacks += default_callbacks
 
     if x is None:
-      x = dataset_creator.DatasetCreator(self._get_dataset_fn(use_lookup_layer))
+      if use_dataset_creator:
+        x = dataset_creator.DatasetCreator(
+            self._get_dataset_fn(use_lookup_layer))
+      else:
+        x = self._get_dataset_fn(use_lookup_layer)(None)
 
     if validation_data is None:
-      validation_data = dataset_creator.DatasetCreator(
-          self._get_dataset_fn(use_lookup_layer))
+      if use_dataset_creator:
+        validation_data = dataset_creator.DatasetCreator(
+            self._get_dataset_fn(use_lookup_layer))
+      else:
+        validation_data = self._get_dataset_fn(use_lookup_layer)(None)
 
     model.fit(
         x,
@@ -145,7 +154,8 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
         steps_per_epoch=steps_per_epoch,
         callbacks=callbacks,
         validation_data=validation_data,
-        validation_steps=steps_per_epoch)
+        validation_steps=steps_per_epoch,
+        verbose=verbose)
     return model
 
   def _model_evaluate(self,
@@ -157,7 +167,8 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
                       steps=10,
                       run_eagerly=False,
                       with_normalization_layer=False,
-                      callbacks=None):
+                      callbacks=None,
+                      use_dataset_creator=True):
     if callbacks is None:
       callbacks = []
 
@@ -177,7 +188,10 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
           (x, y)).shuffle(10).repeat().batch(8)
 
     if x is None:
-      x = dataset_creator.DatasetCreator(dataset_fn)
+      if use_dataset_creator:
+        x = dataset_creator.DatasetCreator(dataset_fn)
+      else:
+        x = dataset_fn(None)
 
     model.evaluate(
         x=x, y=y, steps=steps, callbacks=callbacks, batch_size=batch_size)
@@ -203,7 +217,7 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
       callbacks += default_callbacks
 
     def create_test_data():
-      x = tf.constant([1., 2., 3., 1., 5., 1.])
+      x = tf.constant([[1.], [2.], [3.], [1.], [5.], [1.]])
       return tf.data.Dataset.from_tensor_slices(x).repeat().batch(2)
 
     if test_data is None:

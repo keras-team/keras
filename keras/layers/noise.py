@@ -13,19 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 """Layers that operate regularization via the addition of noise."""
-
-import tensorflow.compat.v2 as tf
-
-import numpy as np
+# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 from keras import backend
-from keras.engine.base_layer import Layer
+from keras.engine import base_layer
 from keras.utils import tf_utils
+
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.layers.GaussianNoise')
-class GaussianNoise(Layer):
+class GaussianNoise(base_layer.BaseRandomLayer):
   """Apply additive zero-centered Gaussian noise.
 
   This is useful to mitigate overfitting
@@ -37,6 +38,7 @@ class GaussianNoise(Layer):
 
   Args:
     stddev: Float, standard deviation of the noise distribution.
+    seed: Integer, optional random seed to enable deterministic behavior.
 
   Call arguments:
     inputs: Input tensor (of any rank).
@@ -52,15 +54,16 @@ class GaussianNoise(Layer):
     Same shape as input.
   """
 
-  def __init__(self, stddev, **kwargs):
-    super(GaussianNoise, self).__init__(**kwargs)
+  def __init__(self, stddev, seed=None, **kwargs):
+    super(GaussianNoise, self).__init__(seed=seed, **kwargs)
     self.supports_masking = True
     self.stddev = stddev
+    self.seed = seed
 
   def call(self, inputs, training=None):
 
     def noised():
-      return inputs + backend.random_normal(
+      return inputs + self._random_generator.random_normal(
           shape=tf.shape(inputs),
           mean=0.,
           stddev=self.stddev,
@@ -69,7 +72,7 @@ class GaussianNoise(Layer):
     return backend.in_train_phase(noised, inputs, training=training)
 
   def get_config(self):
-    config = {'stddev': self.stddev}
+    config = {'stddev': self.stddev, 'seed': self.seed}
     base_config = super(GaussianNoise, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
@@ -79,7 +82,7 @@ class GaussianNoise(Layer):
 
 
 @keras_export('keras.layers.GaussianDropout')
-class GaussianDropout(Layer):
+class GaussianDropout(base_layer.BaseRandomLayer):
   """Apply multiplicative 1-centered Gaussian noise.
 
   As it is a regularization layer, it is only active at training time.
@@ -88,6 +91,7 @@ class GaussianDropout(Layer):
     rate: Float, drop probability (as with `Dropout`).
       The multiplicative noise will have
       standard deviation `sqrt(rate / (1 - rate))`.
+    seed: Integer, optional random seed to enable deterministic behavior.
 
   Call arguments:
     inputs: Input tensor (of any rank).
@@ -103,17 +107,18 @@ class GaussianDropout(Layer):
     Same shape as input.
   """
 
-  def __init__(self, rate, **kwargs):
-    super(GaussianDropout, self).__init__(**kwargs)
+  def __init__(self, rate, seed=None, **kwargs):
+    super(GaussianDropout, self).__init__(seed=seed, **kwargs)
     self.supports_masking = True
     self.rate = rate
+    self.seed = seed
 
   def call(self, inputs, training=None):
     if 0 < self.rate < 1:
 
       def noised():
         stddev = np.sqrt(self.rate / (1.0 - self.rate))
-        return inputs * backend.random_normal(
+        return inputs * self._random_generator.random_normal(
             shape=tf.shape(inputs),
             mean=1.0,
             stddev=stddev,
@@ -123,7 +128,7 @@ class GaussianDropout(Layer):
     return inputs
 
   def get_config(self):
-    config = {'rate': self.rate}
+    config = {'rate': self.rate, 'seed': self.seed}
     base_config = super(GaussianDropout, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
@@ -133,7 +138,7 @@ class GaussianDropout(Layer):
 
 
 @keras_export('keras.layers.AlphaDropout')
-class AlphaDropout(Layer):
+class AlphaDropout(base_layer.BaseRandomLayer):
   """Applies Alpha Dropout to the input.
 
   Alpha Dropout is a `Dropout` that keeps mean and variance of inputs
@@ -146,7 +151,7 @@ class AlphaDropout(Layer):
     rate: float, drop probability (as with `Dropout`).
       The multiplicative noise will have
       standard deviation `sqrt(rate / (1 - rate))`.
-    seed: A Python integer to use as random seed.
+    seed: Integer, optional random seed to enable deterministic behavior.
 
   Call arguments:
     inputs: Input tensor (of any rank).
@@ -163,7 +168,7 @@ class AlphaDropout(Layer):
   """
 
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
-    super(AlphaDropout, self).__init__(**kwargs)
+    super(AlphaDropout, self).__init__(seed=seed, **kwargs)
     self.rate = rate
     self.noise_shape = noise_shape
     self.seed = seed
@@ -176,13 +181,13 @@ class AlphaDropout(Layer):
     if 0. < self.rate < 1.:
       noise_shape = self._get_noise_shape(inputs)
 
-      def dropped_inputs(inputs=inputs, rate=self.rate, seed=self.seed):  # pylint: disable=missing-docstring
+      def dropped_inputs(inputs=inputs, rate=self.rate):  # pylint: disable=missing-docstring
         alpha = 1.6732632423543772848170429916717
         scale = 1.0507009873554804934193349852946
         alpha_p = -alpha * scale
 
         kept_idx = tf.greater_equal(
-            backend.random_uniform(noise_shape, seed=seed), rate)
+            self._random_generator.random_uniform(noise_shape), rate)
         kept_idx = tf.cast(kept_idx, inputs.dtype)
 
         # Get affine transformation params
@@ -199,7 +204,7 @@ class AlphaDropout(Layer):
     return inputs
 
   def get_config(self):
-    config = {'rate': self.rate}
+    config = {'rate': self.rate, 'seed': self.seed}
     base_config = super(AlphaDropout, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 

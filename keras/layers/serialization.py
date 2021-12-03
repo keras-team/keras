@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Layer serialization/deserialization functions.
-"""
+"""Layer serialization/deserialization functions."""
 
 import tensorflow.compat.v2 as tf
 # pylint: disable=wildcard-import
@@ -43,10 +42,10 @@ from keras.layers import wrappers
 from keras.layers.normalization import batch_normalization
 from keras.layers.normalization import batch_normalization_v1
 from keras.layers.normalization import layer_normalization
-from keras.layers.preprocessing import category_crossing
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import discretization
 from keras.layers.preprocessing import hashing
+from keras.layers.preprocessing import hashed_crossing
 from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import integer_lookup
 from keras.layers.preprocessing import normalization as preprocessing_normalization
@@ -59,9 +58,9 @@ from tensorflow.python.util.tf_export import keras_export
 ALL_MODULES = (base_layer, input_layer, advanced_activations, convolutional,
                convolutional_recurrent, core, cudnn_recurrent, dense_attention,
                embeddings, einsum_dense, local, merge, noise,
-               batch_normalization_v1, layer_normalization,
-               pooling, image_preprocessing, recurrent, wrappers, hashing,
-               category_crossing, category_encoding, discretization,
+               batch_normalization_v1, layer_normalization, pooling,
+               image_preprocessing, recurrent, wrappers, hashing,
+               hashed_crossing, category_encoding, discretization,
                multi_head_attention, integer_lookup,
                preprocessing_normalization, string_lookup, text_vectorization)
 ALL_V2_MODULES = (rnn_cell_wrapper_v2, batch_normalization, layer_normalization,
@@ -72,14 +71,14 @@ LOCAL = threading.local()
 
 
 def populate_deserializable_objects():
-  """Populates dict ALL_OBJECTS with every built-in layer.
-  """
+  """Populates dict ALL_OBJECTS with every built-in layer."""
   global LOCAL
   if not hasattr(LOCAL, 'ALL_OBJECTS'):
     LOCAL.ALL_OBJECTS = {}
     LOCAL.GENERATED_WITH_V2 = None
 
-  if LOCAL.ALL_OBJECTS and LOCAL.GENERATED_WITH_V2 == tf.__internal__.tf2.enabled():
+  if LOCAL.ALL_OBJECTS and LOCAL.GENERATED_WITH_V2 == tf.__internal__.tf2.enabled(
+  ):
     # Objects dict is already generated for the proper TF version:
     # do nothing.
     return
@@ -172,8 +171,8 @@ def deserialize(config, custom_objects=None):
 
   Args:
       config: dict of the form {'class_name': str, 'config': dict}
-      custom_objects: dict mapping class names (or function names)
-          of custom (non-Keras) objects to class/functions
+      custom_objects: dict mapping class names (or function names) of custom
+        (non-Keras) objects to class/functions
 
   Returns:
       Layer instance (may be Model, Sequential, Network, Layer...)
@@ -210,3 +209,10 @@ def deserialize(config, custom_objects=None):
       module_objects=LOCAL.ALL_OBJECTS,
       custom_objects=custom_objects,
       printable_module_name='layer')
+
+
+def get_builtin_layer(class_name):
+  """Returns class if `class_name` is registered, else returns None."""
+  if not hasattr(LOCAL, 'ALL_OBJECTS'):
+    populate_deserializable_objects()
+  return LOCAL.ALL_OBJECTS.get(class_name)

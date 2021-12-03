@@ -28,6 +28,17 @@ package(
 )
 
 py_library(
+    name = "order_preserving_set",
+    srcs = ["order_preserving_set.py"],
+)
+
+py_library(
+    name = "load_context",
+    srcs = ["load_context.py"],
+    visibility = ["//third_party/tensorflow/python/distribute:__pkg__"],
+)
+
+py_library(
     name = "saved_model",
     srcs = [
         "base_serialization.py",
@@ -46,6 +57,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":order_preserving_set",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -87,6 +99,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
+        "no_pip",  # TODO(b/202022379)
         "no_rocm",
         "no_windows",
         "notsan",  #TODO(b/181771982): it is flaky
@@ -97,5 +110,32 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:combinations",
+    ],
+)
+
+py_binary(
+    name = "create_test_saved_model",
+    srcs = ["create_test_saved_model.py"],
+    python_version = "PY3",
+    srcs_version = "PY3",
+    tags = ["no_oss"],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras:regularizers",
+        "//keras:testing_utils",
+        "//third_party/py/absl:app",
+        "//third_party/py/absl/flags",
+        "//third_party/py/absl/logging",
+    ],
+)
+
+tf_py_test(
+    name = "determinism_test",
+    srcs = ["determinism_test.py"],
+    data = [":create_test_saved_model.par"],
+    python_version = "PY3",
+    tags = ["no_oss"],
+    deps = [
+        "//:expect_tensorflow_installed",
     ],
 )

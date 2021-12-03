@@ -38,6 +38,7 @@ from keras.engine import sequential
 from keras.feature_column import dense_features
 from keras.feature_column import sequence_feature_column as ksfc
 from keras.layers import core
+from keras.premade.linear import LinearModel
 from keras.saving import model_config
 from keras.saving import save
 from keras.utils import generic_utils
@@ -64,6 +65,12 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
   def assert_saved_model(self, path):
     tf.__internal__.saved_model.parse_saved_model(path)
+
+  @testing_utils.run_v2_only
+  def test_load_file_not_found(self):
+    path = pathlib.Path(self.get_temp_dir()) / 'does_not_exist'
+    with self.assertRaisesRegex(IOError, 'No file or directory found at'):
+      save.load_model(path)
 
   @testing_utils.run_v2_only
   def test_save_format_defaults(self):
@@ -98,7 +105,8 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
     path = os.path.join(self.get_temp_dir(), 'model')
     save.save_model(self.model, path, save_format='tf')
     self.assert_saved_model(path)
-    with self.assertRaisesRegex(ValueError, 'input shapes have not been set'):
+    with self.assertRaisesRegex(
+        ValueError, r'Model.*cannot be saved.*as opposed to `model.call\(\).*'):
       save.save_model(self.subclassed_model, path, save_format='tf')
     self.subclassed_model.predict(np.random.random((3, 5)))
     save.save_model(self.subclassed_model, path, save_format='tf')
@@ -318,6 +326,42 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
       # Make sure the model can be correctly load back.
       _ = save.load_model(filepath, compile=True)
+
+  def test_saving_model_with_name_conflict(self):
+
+    class Sequential(keras.Model):
+
+      def __init__(self):
+        super(Sequential, self).__init__()
+        self.layer = keras.layers.Dense(1)
+
+      def call(self, x):
+        return self.layer(x)
+
+    model = Sequential()
+    model(tf.ones((10, 10)))
+    temp_dir = self.get_temp_dir()
+    filepath = os.path.join(temp_dir, 'Sequential')
+
+    with self.assertLogs() as logs:
+      model.save(filepath, save_format='tf')
+
+    expected_substring = 'has the same name \'Sequential\' as a built-in Keras'
+    matched = [log for log in logs.output if expected_substring in log]
+    self.assertNotEmpty(matched)
+
+  def test_saving_built_in_model(self):
+    model = LinearModel()
+    model(tf.constant([[5.]]))
+    temp_dir = self.get_temp_dir()
+    filepath = os.path.join(temp_dir, 'LinearModel')
+    with self.assertLogs() as logs:
+      model.save(filepath, save_format='tf')
+
+    expected_substring = 'has the same name \'LinearModel\' as a built-in Keras'
+    matched = [log for log in logs.output if expected_substring in log]
+    # Check that a warning is *not* logged for a premade model.
+    self.assertEmpty(matched)
 
 
 @keras_parameterized.run_with_all_saved_model_formats

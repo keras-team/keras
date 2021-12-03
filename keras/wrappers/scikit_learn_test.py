@@ -14,6 +14,8 @@
 # ==============================================================================
 """Tests for Scikit-learn API wrapper."""
 
+import warnings
+
 import tensorflow.compat.v2 as tf
 
 import numpy as np
@@ -111,7 +113,7 @@ class ScikitLearnAPIWrapperTest(tf.test.TestCase):
 
   def test_classify_class_build_fn(self):
 
-    class ClassBuildFnClf(object):
+    class ClassBuildFnClf:
 
       def __call__(self, hidden_dim):
         return build_fn_clf(hidden_dim)
@@ -153,7 +155,7 @@ class ScikitLearnAPIWrapperTest(tf.test.TestCase):
 
   def test_regression_class_build_fn(self):
 
-    class ClassBuildFnReg(object):
+    class ClassBuildFnReg:
 
       def __call__(self, hidden_dim):
         return build_fn_reg(hidden_dim)
@@ -182,6 +184,22 @@ class ScikitLearnAPIWrapperTest(tf.test.TestCase):
           epochs=EPOCHS)
 
       assert_regression_works(reg)
+
+  def test_regressor_deprecated(self):
+    with warnings.catch_warnings(record=True) as w:
+      warnings.simplefilter('always')
+      scikit_learn.KerasRegressor(build_fn_reg)
+      assert len(w) == 1
+      assert issubclass(w[-1].category, DeprecationWarning)
+      assert 'KerasRegressor is deprecated' in str(w[-1].message)
+
+  def test_classifier_deprecated(self):
+    with warnings.catch_warnings(record=True) as w:
+      warnings.simplefilter('always')
+      scikit_learn.KerasClassifier(build_fn_clf)
+      assert len(w) == 1
+      assert issubclass(w[-1].category, DeprecationWarning)
+      assert 'KerasClassifier is deprecated' in str(w[-1].message)
 
 
 if __name__ == '__main__':

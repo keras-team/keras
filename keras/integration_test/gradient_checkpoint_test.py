@@ -15,7 +15,7 @@
 
 import gc
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from tensorflow.python.platform import test as test_lib
 

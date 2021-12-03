@@ -14,17 +14,55 @@
 # ==============================================================================
 """TensorFlow-related utilities."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import copy
-import numpy as np
-from tensorflow.python.framework import ops
-from keras import backend as K
+import random
+
+from keras import backend
 from keras.engine import keras_tensor
 from keras.utils import object_identity
 from keras.utils import tf_contextlib
+
+import numpy as np
+
+import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import ops
 from tensorflow.python.util.tf_export import keras_export
+# pylint: enable=g-direct-tensorflow-import
+
+
+@keras_export('keras.utils.set_random_seed', v1=[])
+def set_random_seed(seed):
+  """Sets all random seeds for the program (Python, NumPy, and TensorFlow).
+
+  You can use this utility to make almost any Keras program fully deterministic.
+  Some limitations apply in cases where network communications are involved
+  (e.g. parameter server distribution), which creates additional sources of
+  randomness, or when certain non-deterministic cuDNN ops are involved.
+
+  Calling this utility is equivalent to the following:
+
+  ```python
+  import random
+  import numpy as np
+  import tensorflow as tf
+  random.seed(seed)
+  np.random.seed(seed)
+  tf.random.set_seed(seed)
+  ```
+
+  Arguments:
+    seed: Integer, the random seed to use.
+  """
+  if not isinstance(seed, int):
+    raise ValueError(
+        'Expected `seed` argument to be an integer. '
+        f'Received: seed={seed} (of type {type(seed)})')
+  random.seed(seed)
+  np.random.seed(seed)
+  tf.random.set_seed(seed)
+  backend._SEED_GENERATOR.generator = random.Random(seed)  # pylint:disable=protected-access
 
 
 def is_tensor_or_tensor_list(v):
@@ -73,7 +111,8 @@ def get_reachable_from_inputs(inputs, targets=None):
     elif tf.is_tensor(x):
       outputs = x.consumers()
     else:
-      raise TypeError('Expected Operation, Variable, or Tensor, got ' + str(x))
+      raise TypeError(
+          f'Expected tf.Operation, tf.Variable, or tf.Tensor. Received: {x}')
 
     for y in outputs:
       if y not in reachable:
@@ -112,7 +151,7 @@ def map_structure_with_atomic(is_atomic_fn, map_fn, nested):
   # Recursively convert.
   if not tf.nest.is_nested(nested):
     raise ValueError(
-        'Received non-atomic and non-sequence element: {}'.format(nested))
+        f'Received non-atomic and non-sequence element: {nested}')
   if tf.__internal__.nest.is_mapping(nested):
     values = [nested[k] for k in sorted(nested.keys())]
   elif tf.__internal__.nest.is_attrs(nested):
@@ -127,7 +166,8 @@ def map_structure_with_atomic(is_atomic_fn, map_fn, nested):
 
 def get_shapes(tensors):
   """Gets shapes from tensors."""
-  return tf.nest.map_structure(lambda x: x.shape, tensors)
+  return tf.nest.map_structure(
+      lambda x: x.shape if hasattr(x, 'shape') else None, tensors)
 
 
 #  pylint: enable=protected-access
@@ -184,7 +224,7 @@ def convert_shapes(input_shape, to_tuples=True):
                                    input_shape)
 
 
-class ListWrapper(object):
+class ListWrapper:
   """A wrapper for lists to be treated as elements for `nest`."""
 
   def __init__(self, list_to_wrap):
@@ -333,7 +373,7 @@ def register_symbolic_tensor_type(cls):
 
   ```python
   # One-time setup.
-  class Foo(object):
+  class Foo:
     def __init__(self, input_):
       self._input = input_
     def value(self):
@@ -406,11 +446,12 @@ def assert_no_legacy_layers(layers):
   if legacy_layers:
     layer_str = '\n'.join('  ' + str(l) for l in legacy_layers)
     raise TypeError(
-        'The following are legacy tf.layers.Layers:\n{}\nTo use keras as a '
+        f'The following are legacy tf.layers.Layers:\n{layer_str}\n'
+        'To use keras as a '
         'framework (for instance using the Network, Model, or Sequential '
         'classes), please use the tf.keras.layers implementation instead. '
         '(Or, if writing custom layers, subclass from tf.keras.layers rather '
-        'than tf.layers)'.format(layer_str))
+        'than tf.layers)')
 
 
 @tf_contextlib.contextmanager
@@ -436,7 +477,7 @@ def maybe_init_scope(layer):
 def graph_context_for_symbolic_tensors(*args, **kwargs):
   """Returns graph context manager if any of the inputs is a symbolic tensor."""
   if any(is_symbolic_tensor(v) for v in list(args) + list(kwargs.values())):
-    with K.get_graph().as_default():
+    with backend.get_graph().as_default():
       yield
   else:
     yield
@@ -448,7 +489,8 @@ def dataset_is_infinite(dataset):
     return tf.equal(
         tf.data.experimental.cardinality(dataset), tf.data.experimental.INFINITE_CARDINALITY)
   else:
-    dataset_size = K.get_session().run(tf.data.experimental.cardinality(dataset))
+    dataset_size = backend.get_session().run(
+        tf.data.experimental.cardinality(dataset))
     return dataset_size == tf.data.experimental.INFINITE_CARDINALITY
 
 
@@ -467,19 +509,21 @@ def get_tensor_spec(t, dynamic_batch=False, name=None):
     spec = tf.TensorSpec(shape=t.shape, dtype=t.dtype, name=name)
   else:
     return None  # Allow non-Tensors to pass through.
+  # pylint: enable=protected-access
 
   if not dynamic_batch:
     return spec
 
-  dynamic_batch_spec = copy.deepcopy(spec)
-  # RaggedTensorSpec only has a private _shape.
-  shape = dynamic_batch_spec._shape
-  if shape.rank is not None and shape.rank > 0:
-    shape_list = shape.as_list()
-    shape_list[0] = None
-    dynamic_batch_spec._shape = tf.TensorShape(shape_list)
-  return dynamic_batch_spec
-  # pylint: enable=protected-access
+  shape = spec.shape
+  if shape.rank is None or shape.rank == 0:
+    return spec
+
+  shape_list = shape.as_list()
+  shape_list[0] = None
+  # TODO(b/203201161) Remove this deepcopy one type_spec_with_shape has been
+  # updated to not mutate spec.
+  spec = copy.deepcopy(spec)
+  return keras_tensor.type_spec_with_shape(spec, tf.TensorShape(shape_list))
 
 
 def sync_to_numpy_or_python_type(tensors):
@@ -521,7 +565,7 @@ def _astuple(attrs):
   cls = type(attrs)
   fields = getattr(cls, '__attrs_attrs__', None)
   if fields is None:
-    raise ValueError('%r is not an attrs-decorated class.' % cls)
+    raise ValueError(f'{cls} is not an attrs-decorated class.')
   values = []
   for field in fields:
     values.append(getattr(attrs, field.name))

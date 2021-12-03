@@ -161,6 +161,13 @@ class Conv1DTest(keras_parameterized.TestCase):
       fn(inpt2)
       self.assertEqual(outp1_shape, layer(inpt1).shape)
 
+  def test_conv1d_invalid_output_shapes(self):
+    kwargs = {'filters': 2, 'kernel_size': 20}
+    with self.assertRaisesRegex(
+        ValueError, r"""One of the dimensions in the output is <= 0"""):
+      layer = keras.layers.convolutional.Conv1D(**kwargs)
+      layer.build((None, 5, 2))
+
 
 @keras_parameterized.run_all_keras_modes
 class Conv2DTest(keras_parameterized.TestCase):
@@ -292,6 +299,13 @@ class Conv2DTest(keras_parameterized.TestCase):
     kwargs = {'filters': 2, 'kernel_size': 0}
     with self.assertRaises(ValueError):
       keras.layers.Conv2D(**kwargs)
+
+  def test_conv2d_invalid_output_shapes(self):
+    kwargs = {'filters': 2, 'kernel_size': 20}
+    with self.assertRaisesRegex(
+        ValueError, r"""One of the dimensions in the output is <= 0"""):
+      layer = keras.layers.convolutional.Conv2D(**kwargs)
+      layer.build((None, 5, 5, 2))
 
 
 @keras_parameterized.run_all_keras_modes
@@ -427,6 +441,13 @@ class Conv3DTest(keras_parameterized.TestCase):
             },
             input_shape=(None, 3, None, None, None),
             input_data=input_data)
+
+  def test_conv3d_invalid_output_shapes(self):
+    kwargs = {'filters': 2, 'kernel_size': 20}
+    with self.assertRaisesRegex(
+        ValueError, r"""One of the dimensions in the output is <= 0"""):
+      layer = keras.layers.convolutional.Conv3D(**kwargs)
+      layer.build((None, 5, 5, 5, 2))
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -1004,7 +1025,7 @@ class CroppingTest(keras_parameterized.TestCase):
     with self.cached_session():
       testing_utils.layer_test(
           keras.layers.Cropping1D,
-          kwargs={'cropping': (2, 2)},
+          kwargs={'cropping': (1, 1)},
           input_shape=inputs.shape)
 
     # test incorrect use
@@ -1012,6 +1033,10 @@ class CroppingTest(keras_parameterized.TestCase):
       keras.layers.Cropping1D(cropping=(1, 1, 1))
     with self.assertRaises(ValueError):
       keras.layers.Cropping1D(cropping=None)
+    with self.assertRaises(ValueError):
+      input_layer = keras.layers.Input(
+          shape=(num_samples, time_length, input_len_dim1))
+      keras.layers.Cropping1D(cropping=(2, 3))(input_layer)
 
   def test_cropping_2d(self):
     num_samples = 2
@@ -1078,6 +1103,10 @@ class CroppingTest(keras_parameterized.TestCase):
       keras.layers.Cropping2D(cropping=(1, 1, 1))
     with self.assertRaises(ValueError):
       keras.layers.Cropping2D(cropping=None)
+    with self.assertRaises(ValueError):
+      input_layer = keras.layers.Input(
+          shape=(num_samples, input_len_dim1, input_len_dim2, stack_size))
+      keras.layers.Cropping2D(cropping=((5, 4), (3, 4)))(input_layer)
 
   def test_cropping_3d(self):
     num_samples = 2
@@ -1132,6 +1161,69 @@ class CroppingTest(keras_parameterized.TestCase):
       keras.layers.Cropping3D(cropping=(1, 1))
     with self.assertRaises(ValueError):
       keras.layers.Cropping3D(cropping=None)
+
+
+@keras_parameterized.run_all_keras_modes
+class DepthwiseConv1DTest(keras_parameterized.TestCase):
+
+  def _run_test(self, kwargs, expected_output_shape=None):
+    num_samples = 2
+    stack_size = 3
+    num_row = 7
+
+    with self.cached_session():
+      testing_utils.layer_test(
+          keras.layers.DepthwiseConv1D,
+          kwargs=kwargs,
+          input_shape=(num_samples, num_row, stack_size),
+          expected_output_shape=expected_output_shape)
+
+  @parameterized.named_parameters(
+      ('padding_valid', {
+          'padding': 'valid'
+      }),
+      ('padding_same', {
+          'padding': 'same'
+      }),
+      ('strides', {
+          'strides': 2
+      }),
+      # Only runs on GPU with CUDA, channels_first is not supported on CPU.
+      # TODO(b/62340061): Support channels_first on CPU.
+      ('data_format', {
+          'data_format': 'channels_first'
+      }),
+      ('depth_multiplier_1', {
+          'depth_multiplier': 1
+      }),
+      ('depth_multiplier_2', {
+          'depth_multiplier': 2
+      }),
+      ('dilation_rate', {
+          'dilation_rate': 2
+      }, (None, 3, 3)),
+  )
+  def test_depthwise_conv1d(self, kwargs, expected_output_shape=None):
+    kwargs['kernel_size'] = 3
+    if 'data_format' not in kwargs or tf.test.is_gpu_available(cuda_only=True):
+      self._run_test(kwargs, expected_output_shape)
+
+  def test_depthwise_conv1d_full(self):
+    kwargs = {
+        'kernel_size': 3,
+        'padding': 'valid',
+        'data_format': 'channels_last',
+        'dilation_rate': 1,
+        'activation': None,
+        'depthwise_regularizer': 'l2',
+        'bias_regularizer': 'l2',
+        'activity_regularizer': 'l2',
+        'depthwise_constraint': 'unit_norm',
+        'use_bias': True,
+        'strides': 2,
+        'depth_multiplier': 1,
+    }
+    self._run_test(kwargs)
 
 
 @keras_parameterized.run_all_keras_modes

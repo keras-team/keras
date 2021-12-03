@@ -257,7 +257,8 @@ class RadialConstraint(Constraint):
     w_shape = w.shape
     if w_shape.rank is None or w_shape.rank != 4:
       raise ValueError(
-          'The weight tensor must be of rank 4, but is of shape: %s' % w_shape)
+          'The weight tensor must have rank 4. '
+          f'Received weight tensor with shape: {w_shape}')
 
     height, width, channels, kernels = w_shape
     w = backend.reshape(w, (height, width, channels * kernels))
@@ -332,6 +333,7 @@ def deserialize(config, custom_objects=None):
 
 @keras_export('keras.constraints.get')
 def get(identifier):
+  """Retrieves a Keras constraint function."""
   if identifier is None:
     return None
   if isinstance(identifier, dict):
@@ -342,5 +344,5 @@ def get(identifier):
   elif callable(identifier):
     return identifier
   else:
-    raise ValueError('Could not interpret constraint identifier: ' +
-                     str(identifier))
+    raise ValueError(
+        f'Could not interpret constraint function identifier: {identifier}')

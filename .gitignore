@@ -1,0 +1,18 @@
+# Python temp files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Vim temp files
+*.swp
+*.swo
+
+# VS Code configs
+.devcontainer
+.vscode
+
+# Bazel files
+bazel-bin
+bazel-keras
+bazel-out
+bazel-testlogs

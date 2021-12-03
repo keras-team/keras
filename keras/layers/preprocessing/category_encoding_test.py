@@ -14,23 +14,38 @@
 # ==============================================================================
 """Tests for Keras text category_encoding preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
-import numpy as np
-
 import keras
 from keras import backend
 from keras import keras_parameterized
 from keras.layers import core
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import preprocessing_test_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class CategoryEncodingInputTest(keras_parameterized.TestCase,
                                 preprocessing_test_utils.PreprocessingLayerTest
                                ):
+
+  @parameterized.named_parameters(
+      ("list", list),
+      ("tuple", tuple),
+      ("numpy", np.array),
+      ("array_like", preprocessing_test_utils.ArrayLike),
+  )
+  def test_tensor_like_inputs(self, data_fn):
+    category_data = data_fn([1, 2, 3, 3, 0])
+    weight_data = data_fn([1, 2, 3, 1, 7])
+    expected_output = [7, 1, 2, 4, 0, 0]
+
+    layer = category_encoding.CategoryEncoding(
+        num_tokens=6, output_mode=category_encoding.COUNT)
+    output_data = layer(category_data, count_weights=weight_data)
+    self.assertAllEqual(output_data, expected_output)
 
   def test_dense_input_sparse_output(self):
     input_array = tf.constant([[1, 2, 3], [3, 3, 0]])
@@ -301,6 +316,19 @@ class CategoryEncodingOutputTest(keras_parameterized.TestCase,
                                  preprocessing_test_utils.PreprocessingLayerTest
                                 ):
 
+  @parameterized.named_parameters(
+      ("float32", tf.float32),
+      ("float64", tf.float64),
+  )
+  def test_output_dtype(self, dtype):
+    inputs = keras.Input(shape=(1,), dtype=tf.int32)
+    layer = category_encoding.CategoryEncoding(
+        num_tokens=4,
+        output_mode=category_encoding.ONE_HOT,
+        dtype=dtype)
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.dtype, dtype)
+
   def test_one_hot_output(self):
     input_data = np.array([[3], [2], [0], [1]])
     expected_output = [
@@ -370,9 +398,9 @@ class CategoryEncodingOutputTest(keras_parameterized.TestCase,
   def test_one_hot_rank_3_output_fails(self):
     layer = category_encoding.CategoryEncoding(
         num_tokens=4, output_mode=category_encoding.ONE_HOT)
-    with self.assertRaisesRegex(ValueError, "only outputs up to rank 2"):
+    with self.assertRaisesRegex(ValueError, "maximum supported output rank"):
       _ = layer(keras.Input(shape=(4,), dtype=tf.int32))
-    with self.assertRaisesRegex(ValueError, "only outputs up to rank 2"):
+    with self.assertRaisesRegex(ValueError, "maximum supported output rank"):
       _ = layer(np.array([[3, 2, 0, 1], [3, 2, 0, 1]]))
 
   def test_multi_hot_output(self):
@@ -436,9 +464,9 @@ class CategoryEncodingOutputTest(keras_parameterized.TestCase,
   def test_multi_hot_rank_3_output_fails(self):
     layer = category_encoding.CategoryEncoding(
         num_tokens=4, output_mode=category_encoding.ONE_HOT)
-    with self.assertRaisesRegex(ValueError, "only outputs up to rank 2"):
+    with self.assertRaisesRegex(ValueError, "maximum supported output rank"):
       _ = layer(keras.Input(shape=(3, 4,), dtype=tf.int32))
-    with self.assertRaisesRegex(ValueError, "only outputs up to rank 2"):
+    with self.assertRaisesRegex(ValueError, "maximum supported output rank"):
       _ = layer(np.array([[[3, 2, 0, 1], [3, 2, 0, 1]]]))
 
   def test_count_output(self):

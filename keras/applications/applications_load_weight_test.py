@@ -22,6 +22,7 @@ import numpy as np
 
 from keras.applications import densenet
 from keras.applications import efficientnet
+from keras.applications import efficientnet_v2
 from keras.applications import inception_resnet_v2
 from keras.applications import inception_v3
 from keras.applications import mobilenet
@@ -39,27 +40,36 @@ from keras.utils import data_utils
 
 ARG_TO_MODEL = {
     'resnet': (resnet, [resnet.ResNet50, resnet.ResNet101, resnet.ResNet152]),
-    'resnet_v2': (resnet_v2, [resnet_v2.ResNet50V2, resnet_v2.ResNet101V2,
-                              resnet_v2.ResNet152V2]),
+    'resnet_v2':
+        (resnet_v2,
+         [resnet_v2.ResNet50V2, resnet_v2.ResNet101V2, resnet_v2.ResNet152V2]),
     'vgg16': (vgg16, [vgg16.VGG16]),
     'vgg19': (vgg19, [vgg19.VGG19]),
     'xception': (xception, [xception.Xception]),
     'inception_v3': (inception_v3, [inception_v3.InceptionV3]),
-    'inception_resnet_v2': (inception_resnet_v2,
-                            [inception_resnet_v2.InceptionResNetV2]),
+    'inception_resnet_v2':
+        (inception_resnet_v2, [inception_resnet_v2.InceptionResNetV2]),
     'mobilenet': (mobilenet, [mobilenet.MobileNet]),
     'mobilenet_v2': (mobilenet_v2, [mobilenet_v2.MobileNetV2]),
     'mobilenet_v3_small': (mobilenet_v3, [mobilenet_v3.MobileNetV3Small]),
     'mobilenet_v3_large': (mobilenet_v3, [mobilenet_v3.MobileNetV3Large]),
-    'densenet': (densenet, [densenet.DenseNet121,
-                            densenet.DenseNet169, densenet.DenseNet201]),
+    'densenet':
+        (densenet,
+         [densenet.DenseNet121, densenet.DenseNet169, densenet.DenseNet201]),
     'nasnet_mobile': (nasnet, [nasnet.NASNetMobile]),
     'nasnet_large': (nasnet, [nasnet.NASNetLarge]),
-    'efficientnet': (efficientnet,
-                     [efficientnet.EfficientNetB0, efficientnet.EfficientNetB1,
-                      efficientnet.EfficientNetB2, efficientnet.EfficientNetB3,
-                      efficientnet.EfficientNetB4, efficientnet.EfficientNetB5,
-                      efficientnet.EfficientNetB6, efficientnet.EfficientNetB7])
+    'efficientnet': (efficientnet, [
+        efficientnet.EfficientNetB0, efficientnet.EfficientNetB1,
+        efficientnet.EfficientNetB2, efficientnet.EfficientNetB3,
+        efficientnet.EfficientNetB4, efficientnet.EfficientNetB5,
+        efficientnet.EfficientNetB6, efficientnet.EfficientNetB7
+    ]),
+    'efficientnet_v2': (efficientnet_v2, [
+        efficientnet_v2.EfficientNetV2B0, efficientnet_v2.EfficientNetV2B1,
+        efficientnet_v2.EfficientNetV2B2, efficientnet_v2.EfficientNetV2B3,
+        efficientnet_v2.EfficientNetV2S, efficientnet_v2.EfficientNetV2M,
+        efficientnet_v2.EfficientNetV2L
+    ])
 }
 
 TEST_IMAGE_PATH = ('https://storage.googleapis.com/tensorflow/'

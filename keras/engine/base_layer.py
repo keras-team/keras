@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
+# pylint: disable=g-classes-have-attributes
+# pylint: disable=g-bad-import-order
 """Contains the base Layer class, from which all layers inherit."""
 
 import tensorflow.compat.v2 as tf
@@ -21,6 +23,7 @@ import collections
 import copy
 import functools
 import itertools
+import textwrap
 import threading
 import warnings
 import weakref
@@ -45,6 +48,7 @@ from keras.utils import layer_utils
 from keras.utils import object_identity
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+from keras.utils import traceback_utils
 from keras.utils import version_utils
 # A module that only depends on `keras.layers` import these from here.
 from keras.utils.generic_utils import to_snake_case  # pylint: disable=unused-import
@@ -68,14 +72,14 @@ _TF_OP_LAYER_NAME_PREFIX = 'tf_op_layer_'
 _AUTOCAST_TYPES = (tf.Tensor, tf.SparseTensor,
                    tf.RaggedTensor)
 
-keras_layers_gauge = tf.__internal__.monitoring.BoolGauge('/tensorflow/api/oss-keras/layers',
-                                          'keras layers usage', 'method')
+keras_layers_gauge = tf.__internal__.monitoring.BoolGauge(
+    '/tensorflow/api/keras/layers', 'keras layers usage', 'method')
 keras_models_gauge = tf.__internal__.monitoring.BoolGauge(
-    '/tensorflow/api/oss-keras/models', 'keras model usage', 'method')
-keras_api_gauge = tf.__internal__.monitoring.BoolGauge('/tensorflow/api/oss-keras',
-                                       'keras api usage', 'method')
+    '/tensorflow/api/keras/models', 'keras model usage', 'method')
+keras_api_gauge = tf.__internal__.monitoring.BoolGauge(
+    '/tensorflow/api/keras', 'keras api usage', 'method')
 keras_premade_model_gauge = tf.__internal__.monitoring.BoolGauge(
-    '/tensorflow/api/oss-keras/premade_models', 'premade keras model usage', 'type')
+    '/tensorflow/api/keras/premade_models', 'premade keras model usage', 'type')
 
 _is_name_scope_on_model_declaration_enabled = False
 
@@ -86,8 +90,15 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
   A layer is a callable object that takes as input one or more tensors and
   that outputs one or more tensors. It involves *computation*, defined
-  in the `call()` method, and a *state* (weight variables), defined
-  either in the constructor `__init__()` or in the `build()` method.
+  in the `call()` method, and a *state* (weight variables). State can be
+  created in various places, at the convenience of the subclass implementer:
+
+  * in `__init__()`;
+  * in the optional `build()` method, which is invoked by the first
+    `__call__()` to the layer, and supplies the shape(s) of the input(s),
+    which may not have been known at initialization time;
+  * in the first invocation of `call()`, with some caveats discussed
+    below.
 
   Users will just instantiate a layer and then treat it as a callable.
 
@@ -130,15 +141,17 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
   We recommend that descendants of `Layer` implement the following methods:
 
-  * `__init__()`: Defines custom layer attributes, and creates layer state
-    variables that do not depend on input shapes, using `add_weight()`.
+  * `__init__()`: Defines custom layer attributes, and creates layer weights
+    that do not depend on input shapes, using `add_weight()`, or other state.
   * `build(self, input_shape)`: This method can be used to create weights that
-    depend on the shape(s) of the input(s), using `add_weight()`. `__call__()`
-    will automatically build the layer (if it has not been built yet) by
-    calling `build()`.
+    depend on the shape(s) of the input(s), using `add_weight()`, or other
+    state. `__call__()` will automatically build the layer (if it has not been
+    built yet) by calling `build()`.
   * `call(self, inputs, *args, **kwargs)`: Called in `__call__` after making
     sure `build()` has been called. `call()` performs the logic of applying the
-    layer to the input tensors (which should be passed in as argument).
+    layer to the `inputs`. The first invocation may additionally create state
+    that could not be conveniently created in `build()`; see its docstring
+    for details.
     Two reserved keyword arguments you can optionally use in `call()` are:
       - `training` (boolean, whether the call is in inference mode or training
         mode). See more details in [the layer/model subclassing guide](
@@ -295,6 +308,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       else:
         keras_layers_gauge.get_cell(self._get_cell_name()).set(True)
         self._instrumented_keras_layer_class = True
+    else:
+      # This is a legacy layer that has disabled instrumentation
+      # as a native keras object. We still instrument this as
+      # legacy usage.
+      keras_api_gauge.get_cell('legacy_layer').set(True)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self,
@@ -325,12 +343,19 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Mutable properties
     # Indicates whether the layer's weights are updated during training
     # and whether the layer's updates are run during training.
+    if not (isinstance(trainable, bool) or
+            (isinstance(trainable, (tf.Tensor, tf.Variable)) and
+             trainable.dtype is tf.bool)):
+      raise TypeError(
+          'Expected `trainable` argument to be a boolean, '
+          f'but got: {trainable}')
     self._trainable = trainable
     # A stateful layer is a layer whose updates are run during inference too,
     # for instance stateful RNNs.
     self._stateful = False
     # Indicates whether `build` needs to be called upon layer call, to create
-    # the layer's weights.
+    # the layer's weights. (Note that the first call() may also create weights,
+    # independent of build().)
     self.built = False
     # Provides information about which inputs are compatible with the layer.
     self._input_spec = None
@@ -396,6 +421,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Whether the `call` method can be used to build a TF graph without issues.
     # This attribute has no effect if the model is created using the Functional
     # API. Instead, `model.dynamic` is determined based on the internal layers.
+    if not isinstance(dynamic, bool):
+      raise TypeError(
+          f'Expected `dynamic` argument to be a boolean, but got: {dynamic}')
     self._dynamic = dynamic
 
     # Manage input shape information if passed.
@@ -442,9 +470,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     This is a method that implementers of subclasses of `Layer` or `Model`
     can override if they need a state-creation step in-between
-    layer instantiation and layer call.
+    layer instantiation and layer call. It is invoked automatically before
+    the first execution of `call()`.
 
-    This is typically used to create the weights of `Layer` subclasses.
+    This is typically used to create the weights of `Layer` subclasses
+    (at the discretion of the subclass implementer).
 
     Args:
       input_shape: Instance of `TensorShape`, or list of instances of
@@ -460,10 +490,10 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   def call(self, inputs, *args, **kwargs):  # pylint: disable=unused-argument
     """This is where the layer's logic lives.
 
-    Note here that `call()` method in `tf.keras` is little bit different
-    from `keras` API. In `keras` API, you can pass support masking for
-    layers as additional arguments. Whereas `tf.keras` has `compute_mask()`
-    method to support masking.
+    The `call()` method may not create state (except in its first invocation,
+    wrapping the creation of variables or other resources in `tf.init_scope()`).
+    It is recommended to create state in `__init__()`, or the `build()` method
+    that is called automatically before `call()` executes the first time.
 
     Args:
       inputs: Input tensor, or dict/list/tuple of input tensors.
@@ -623,8 +653,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # When `getter` is specified, it's possibly fine for `initializer` to be
         # None since it's up to the custom `getter` to raise error in case it
         # indeed needs `initializer`.
-        raise ValueError('An initializer for variable %s of type %s is required'
-                         ' for layer %s' % (name, dtype.base_dtype, self.name))
+        raise ValueError(f'An initializer for variable {name} of type '
+                         f'{dtype.base_dtype} is required for layer '
+                         f'{self.name}. Received: {initializer}.')
 
     getter = kwargs.pop('getter', base_layer_utils.make_variable)
     if (autocast and
@@ -637,7 +668,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         return autocast_variable.create_autocast_variable(variable)
       # Also the caching_device does not work with the mixed precision API,
       # disable it if it is specified.
-      # TODO(b/142020079): Reenable it once the bug is fixed.
+      # TODO(b/142020079): Re-enable it once the bug is fixed.
       if caching_device is not None:
         tf_logging.warning(
             '`caching_device` does not work with mixed precision API. Ignoring '
@@ -724,9 +755,26 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Check that either the only argument in the `__init__` is  `self`,
     # or that `get_config` has been overridden:
     if len(extra_args) > 1 and hasattr(self.get_config, '_is_default'):
-      raise NotImplementedError('Layer %s has arguments in `__init__` and '
-                                'therefore must override `get_config`.' %
-                                self.__class__.__name__)
+      raise NotImplementedError(textwrap.dedent(f"""
+          Layer {self.__class__.__name__} has arguments {extra_args}
+          in `__init__` and therefore must override `get_config()`.
+
+          Example:
+
+          class CustomLayer(keras.layers.Layer):
+              def __init__(self, arg1, arg2):
+                  super().__init__()
+                  self.arg1 = arg1
+                  self.arg2 = arg2
+
+              def get_config(self):
+                  config = super().get_config()
+                  config.update({{
+                      "arg1": self.arg1,
+                      "arg2": self.arg2,
+                  }})
+                  return config"""))
+
     return config
 
   @classmethod
@@ -750,9 +798,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   def compute_output_shape(self, input_shape):
     """Computes the output shape of the layer.
 
-    If the layer has not been built, this method will call `build` on the
-    layer. This assumes that the layer will later be used with inputs that
-    match the input shape provided here.
+    This method will cause the layer's state to be built, if that has not
+    happened before. This requires that the layer will later be used with
+    inputs that match the input shape provided here.
 
     Args:
         input_shape: Shape tuple (tuple of integers)
@@ -772,7 +820,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       # with the shape the Layer will be called on (these users will have to
       # implement `compute_output_shape` themselves).
       self._maybe_build(input_shape)
-      with tf.__internal__.FuncGraph(str(self.name) + '_scratch_graph').as_default():
+      graph_name = str(self.name) + '_scratch_graph'
+      with tf.__internal__.FuncGraph(graph_name).as_default():
         input_shape = tf_utils.convert_shapes(input_shape, to_tuples=False)
         def _make_placeholder_like(shape):
           ph = backend.placeholder(shape=shape, dtype=self.dtype)
@@ -816,8 +865,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     def check_type_return_shape(s):
       if not isinstance(s, tf.TensorSpec):
-        raise TypeError('Only TensorSpec signature types are supported, '
-                        'but saw signature entry: {}.'.format(s))
+        raise TypeError('Only TensorSpec signature types are supported. '
+                        f'Received: {s}.')
       return s.shape
     input_shape = tf.nest.map_structure(check_type_return_shape, input_signature)
     output_shape = self.compute_output_shape(input_shape)
@@ -848,7 +897,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       return self._infer_output_signature(inputs, args, kwargs, input_masks)
 
   def _infer_output_signature(self, inputs, args, kwargs, input_masks):
-    """TODO(kaftan): Docstring."""
+    """Call the layer on input KerasTensors and returns output KerasTensors."""
 
     call_fn = self.call
     # Wrapping `call` function in autograph to allow for dynamic control
@@ -859,7 +908,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # enclosing tf.function, if any.
     if (base_layer_utils.is_subclassed(self) and
         not base_layer_utils.from_saved_model(self)):
-      call_fn = tf.__internal__.autograph.tf_convert(self.call, tf.__internal__.autograph.control_status_ctx())
+      call_fn = tf.__internal__.autograph.tf_convert(
+          self.call, tf.__internal__.autograph.control_status_ctx())
+
+    call_fn = traceback_utils.inject_argument_info_in_traceback(
+        call_fn,
+        object_name=f'layer "{self.name}" (type {self.__class__.__name__})')
 
     # We enter a scratch graph and build placeholder inputs inside of it that
     # match the input args.
@@ -893,6 +947,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       outputs = tf.nest.map_structure(
           keras_tensor.keras_tensor_from_tensor, outputs)
 
+    self._set_save_spec(inputs, args, kwargs)
     if hasattr(self, '_set_inputs') and not self.inputs:
       # TODO(kaftan): figure out if we need to do this at all
       # Subclassed network: explicitly set metadata normally set by
@@ -923,6 +978,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # carry over the input mask
     return mask
 
+  @traceback_utils.filter_traceback
   def __call__(self, *args, **kwargs):
     """Wraps `call`, applying pre- and post-processing steps.
 
@@ -1024,6 +1080,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       else:
         name_scope = self._name_scope()  # Avoid autoincrementing.  # pylint: disable=not-callable
         call_fn = self._autographed_call()
+      call_fn = traceback_utils.inject_argument_info_in_traceback(
+          call_fn,
+          object_name=f'layer "{self.name}" (type {self.__class__.__name__})')
 
       with tf.name_scope(name_scope):
         if not self.built:
@@ -1180,7 +1239,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # enclosing tf.function, if any.
     if (base_layer_utils.is_subclassed(self) and
         not base_layer_utils.from_saved_model(self)):
-      return tf.__internal__.autograph.tf_convert(self.call, tf.__internal__.autograph.control_status_ctx())
+      return tf.__internal__.autograph.tf_convert(
+          self.call, tf.__internal__.autograph.control_status_ctx())
     else:
       return self.call
 
@@ -1345,9 +1405,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   @property
   @doc_controls.do_not_generate_docs
   def updates(self):
-    warnings.warn('`layer.updates` will be removed in a future version. '
-                  'This property should not be used in TensorFlow 2.0, '
-                  'as `updates` are applied automatically.')
+    warnings.warn(
+        '`layer.updates` will be removed in a future version. '
+        'This property should not be used in TensorFlow 2.0, '
+        'as `updates` are applied automatically.',
+        stacklevel=2)
     return []
 
   @property
@@ -1561,6 +1623,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     collected_metrics = []
     for layer in self._flatten_layers():
+      if not hasattr(layer, '_metrics_lock'):
+        continue
       with layer._metrics_lock:
         collected_metrics.extend(layer._metrics)
     return collected_metrics
@@ -1621,7 +1685,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     kwargs_keys = list(kwargs.keys())
     if (len(kwargs_keys) > 1 or
         (len(kwargs_keys) == 1 and kwargs_keys[0] != 'aggregation')):
-      raise TypeError('Unknown keyword arguments: ', str(kwargs.keys()))
+      raise TypeError(f'Unknown keyword arguments: {kwargs.keys()}. '
+                      'Expected `aggregation`.')
 
     from_metric_obj = hasattr(value, '_metric_obj')
     is_symbolic = isinstance(value, keras_tensor.KerasTensor)
@@ -1797,8 +1862,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         ref_shape = param.shape
         if not ref_shape.is_compatible_with(weight_shape):
           raise ValueError(
-              'Layer weight shape %s not compatible with provided weight '
-              'shape %s' % (ref_shape, weight_shape))
+              f'Layer {self.name} weight shape {ref_shape} '
+              'is not compatible with provided weight '
+              f'shape {weight_shape}.')
         weight_value_tuples.append((param, weight))
         weight_index += 1
 
@@ -1859,6 +1925,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     This function can be subclassed in a layer and will be called after updating
     a layer weights. It can be overridden to finalize any additional layer state
     after a weight update.
+
+    This function will be called after weights of a layer have been restored
+    from a loaded model.
     """
     pass
 
@@ -1874,9 +1943,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     Returns:
       List of update ops of the layer that depend on `inputs`.
     """
-    warnings.warn('`layer.get_updates_for` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.updates` method instead.')
+    warnings.warn(
+        '`layer.get_updates_for` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.updates` method instead.',
+        stacklevel=2)
     return self.updates
 
   @doc_controls.do_not_generate_docs
@@ -1891,9 +1962,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     Returns:
       List of loss tensors of the layer that depend on `inputs`.
     """
-    warnings.warn('`layer.get_losses_for` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.losses` instead.')
+    warnings.warn(
+        '`layer.get_losses_for` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.losses` instead.',
+        stacklevel=2)
     return self.losses
 
   @doc_controls.do_not_doc_inheritable
@@ -2114,8 +2187,10 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         RuntimeError: if called in Eager mode.
     """
     if not self._inbound_nodes:
-      raise AttributeError('The layer has never been called '
-                           'and thus has no defined input shape.')
+      raise AttributeError(f'The layer "{self.name}" has never been called '
+                           'and thus has no defined input shape. Note that the '
+                           '`input_shape` property is only available for '
+                           'Functional and Sequential models.')
     all_input_shapes = set(
         [str(node.input_shapes) for node in self._inbound_nodes])
     if len(all_input_shapes) == 1:
@@ -2144,10 +2219,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         with tf_utils.maybe_init_scope(self):
           self._maybe_build(self.inputs)
       else:
-        raise ValueError('You tried to call `count_params` on ' + self.name +
+        raise ValueError('You tried to call `count_params` '
+                         f'on layer {self.name}'
                          ', but the layer isn\'t built. '
-                         'You can build it manually via: `' + self.name +
-                         '.build(batch_input_shape)`.')
+                         'You can build it manually via: '
+                         f'`{self.name}.build(batch_input_shape)`.')
     return layer_utils.count_params(self.weights)
 
   @property
@@ -2167,7 +2243,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         RuntimeError: if called in Eager mode.
     """
     if not self._inbound_nodes:
-      raise AttributeError('The layer has never been called '
+      raise AttributeError(f'The layer "{self.name}" has never been called '
                            'and thus has no defined output shape.')
     all_output_shapes = set(
         [str(node.output_shapes) for node in self._inbound_nodes])
@@ -2212,17 +2288,21 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     Returns:
       Output tensor(s).
     """
-    warnings.warn('`layer.apply` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.__call__` method instead.')
+    warnings.warn(
+        '`layer.apply` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.__call__` method instead.',
+        stacklevel=2)
     return self.__call__(inputs, *args, **kwargs)
 
   @doc_controls.do_not_doc_inheritable
   def add_variable(self, *args, **kwargs):
     """Deprecated, do NOT use! Alias for `add_weight`."""
-    warnings.warn('`layer.add_variable` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.add_weight` method instead.')
+    warnings.warn(
+        '`layer.add_variable` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.add_weight` method instead.',
+        stacklevel=2)
     return self.add_weight(*args, **kwargs)
 
   @property
@@ -2422,13 +2502,16 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     return name_scope
 
   def _init_set_name(self, name, zero_based=True):
-    if not name:
+    if name is None:
       self._name = backend.unique_object_name(
           generic_utils.to_snake_case(self.__class__.__name__),
           zero_based=zero_based)
-    else:
+    elif isinstance(name, str):
       backend.observe_object_name(name)
       self._name = name
+    else:
+      raise TypeError(
+          f'Expected `name` argument to be a string, but got: {name}')
 
   def _get_existing_metric(self, name=None):
     match = [m for m in self._metrics if m.name == name]
@@ -2615,12 +2698,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         ValueError: If the index provided does not match any node.
     """
     if not self._inbound_nodes:
-      raise RuntimeError('The layer has never been called '
-                         'and thus has no defined ' + attr_name + '.')
+      raise RuntimeError(f'The layer {self.name} has never been called '
+                         'and thus has no defined {attr_name}.')
     if not len(self._inbound_nodes) > node_index:
-      raise ValueError('Asked to get ' + attr_name + ' at node ' +
-                       str(node_index) + ', but the layer has only ' +
-                       str(len(self._inbound_nodes)) + ' inbound nodes.')
+      raise ValueError(f'Asked to get {attr_name} at node '
+                       f'{node_index}, but the layer has only '
+                       f'{len(self._inbound_nodes)} inbound nodes.')
     values = getattr(self._inbound_nodes[node_index], attr)
     if isinstance(values, list) and len(values) == 1:
       return values[0]
@@ -2642,7 +2725,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
           self._set_dtype_policy(policy.Policy(dtype))
       input_shapes = None
       # Converts Tensors / CompositeTensors to TensorShapes.
-      if all(hasattr(x, 'shape') for x in input_list):
+      if any(hasattr(x, 'shape') for x in input_list):
         input_shapes = tf_utils.get_shapes(inputs)
       else:
         # Converts input shape to TensorShapes.
@@ -3327,6 +3410,42 @@ def _apply_name_scope_on_model_declaration(enable):
 
   global _is_name_scope_on_model_declaration_enabled
   _is_name_scope_on_model_declaration_enabled = enable
+
+
+class BaseRandomLayer(Layer):
+  """A layer handle the random number creation and savemodel behavior."""
+
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  def __init__(self, seed=None, force_generator=False, **kwargs):
+    """Initialize the BaseRandomLayer.
+
+    Note that the constructor is annotated with
+    @no_automatic_dependency_tracking. This is to skip the auto
+    tracking of self._random_generator instance, which is an AutoTrackable.
+    The backend.RandomGenerator could contain a tf.random.Generator instance
+    which will have tf.Variable as the internal state. We want to avoid saving
+    that state into model.weights and checkpoints for backward compatibility
+    reason. In the meantime, we still need to make them visible to SavedModel
+    when it is tracing the tf.function for the `call()`.
+    See _list_extra_dependencies_for_serialization below for more details.
+
+    Args:
+      seed: optional integer, used to create RandomGenerator.
+      force_generator: boolean, default to False, whether to force the
+        RandomGenerator to use the code branch of tf.random.Generator.
+      **kwargs: other keyword arguments that will be passed to the parent class
+    """
+    super().__init__(**kwargs)
+    self._random_generator = backend.RandomGenerator(
+        seed, force_generator=force_generator)
+
+  def _list_extra_dependencies_for_serialization(self, serialization_cache):
+    # This method exposes the self._random_generator to SavedModel only
+    # (not layer.weights and checkpoint).
+    deps = super()._list_extra_dependencies_for_serialization(
+        serialization_cache)
+    deps['_random_generator'] = self._random_generator
+    return deps
 
 
 # Avoid breaking users who directly import this symbol from this file.

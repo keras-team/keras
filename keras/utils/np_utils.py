@@ -22,17 +22,17 @@ from tensorflow.python.util.tf_export import keras_export
 def to_categorical(y, num_classes=None, dtype='float32'):
   """Converts a class vector (integers) to binary class matrix.
 
-  E.g. for use with categorical_crossentropy.
+  E.g. for use with `categorical_crossentropy`.
 
   Args:
-      y: class vector to be converted into a matrix
-          (integers from 0 to num_classes).
-      num_classes: total number of classes. If `None`, this would be inferred
-        as the (largest number in `y`) + 1.
+      y: Array-like with class values to be converted into a matrix
+          (integers from 0 to `num_classes - 1`).
+      num_classes: Total number of classes. If `None`, this would be inferred
+        as `max(y) + 1`.
       dtype: The data type expected by the input. Default: `'float32'`.
 
   Returns:
-      A binary matrix representation of the input. The classes axis is placed
+      A binary matrix representation of the input. The class axis is placed
       last.
 
   Example:
@@ -58,10 +58,6 @@ def to_categorical(y, num_classes=None, dtype='float32'):
   >>> loss = tf.keras.backend.categorical_crossentropy(a, a)
   >>> print(np.around(loss, 5))
   [0. 0. 0. 0.]
-
-  Raises:
-      Value Error: If input contains string value
-
   """
   y = np.array(y, dtype='int')
   input_shape = y.shape

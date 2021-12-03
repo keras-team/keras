@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 import itertools
 import threading
 import types
-from keras import backend as K
+from keras import backend
 from keras.engine import base_layer_utils
 from keras.utils import control_flow_util
 from keras.utils import tf_contextlib
@@ -43,7 +43,7 @@ def use_wrapped_call(layer, call_fn, default_training_value=None,
     call_fn: tf.function that takes layer inputs (and possibly a training arg),
       and returns a tuple of (outputs, list of losses).
     default_training_value: Default value of the training kwarg. If `None`, the
-      default is `K.learning_phase()`.
+      default is `tf.keras.backend.learning_phase()`.
     return_method: Whether to return a method bound to the layer.
 
   Returns:
@@ -138,7 +138,8 @@ def maybe_add_training_arg(
     wrapped_call: Wrapped call function.
     expects_training_arg: Whether to include 'training' argument.
     default_training_value: Default value of the training kwarg to include in
-      the arg spec. If `None`, the default is `K.learning_phase()`.
+      the arg spec. If `None`, the default is
+      `tf.keras.backend.learning_phase()`.
 
   Returns:
     Tuple of (
@@ -152,7 +153,7 @@ def maybe_add_training_arg(
     training_arg_index = get_training_arg_index(original_call)
     training = get_training_arg(training_arg_index, args, kwargs)
     if training is None:
-      training = default_training_value or K.learning_phase()
+      training = default_training_value or backend.learning_phase()
 
     args = list(args)
     kwargs = kwargs.copy()

@@ -12,12 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for Keras' base preprocessing layer."""
-
-import tensorflow.compat.v2 as tf
+"""Tests utils for preprocessing layers."""
 
 import collections
 import numpy as np
+import tensorflow.compat.v2 as tf
+
+
+class ArrayLike:
+
+  def __init__(self, values):
+    self.values = values
+
+  def __array__(self):
+    return np.array(self.values)
 
 
 class PreprocessingLayerTest(tf.test.TestCase):
@@ -57,7 +65,9 @@ class PreprocessingLayerTest(tf.test.TestCase):
   def validate_accumulator_computation(self, combiner, data, expected):
     """Validate that various combinations of compute and merge are identical."""
     if len(data) < 4:
-      raise AssertionError("Data must have at least 4 elements.")
+      raise AssertionError(
+          f"Data must have at least 4 elements. Received "
+          f"len(data)={len(data)}.")
     data_0 = np.array([data[0]])
     data_1 = np.array([data[1]])
     data_2 = np.array(data[2:])

@@ -21,6 +21,7 @@ from keras.saving.saved_model import load as saved_model_load
 from keras.saving.saved_model import load_context
 from keras.saving.saved_model import save as saved_model_save
 from keras.utils import generic_utils
+from keras.utils import traceback_utils
 from keras.utils.io_utils import path_to_string
 from tensorflow.python.util.tf_export import keras_export
 
@@ -33,6 +34,7 @@ except ImportError:
 
 
 @keras_export('keras.models.save_model')
+@traceback_utils.filter_traceback
 def save_model(model,
                filepath,
                overwrite=True,
@@ -151,6 +153,7 @@ def save_model(model,
 
 
 @keras_export('keras.models.load_model')
+@traceback_utils.filter_traceback
 def load_model(filepath, custom_objects=None, compile=True, options=None):  # pylint: disable=redefined-builtin
   """Loads a model saved via `model.save()`.
 
@@ -195,18 +198,28 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):  # py
   with generic_utils.SharedObjectLoadingScope():
     with generic_utils.CustomObjectScope(custom_objects or {}):
       with load_context.load_context(options):
-        if (h5py is not None and
-            (isinstance(filepath, h5py.File) or h5py.is_hdf5(filepath))):
+        filepath_str = path_to_string(filepath)
+        if isinstance(filepath_str, str):
+          if not tf.io.gfile.exists(filepath_str):
+            raise IOError(f'No file or directory found at {filepath_str}')
+
+          if tf.io.gfile.isdir(filepath_str):
+            return saved_model_load.load(filepath_str, compile, options)
+          else:
+            if h5py is None:
+              raise ImportError(
+                  'Filepath looks like a hdf5 file but h5py is not available.'
+                  f' filepath={filepath_str}')
+            return hdf5_format.load_model_from_hdf5(
+                tf.io.gfile.GFile(filepath_str, mode='rb'), custom_objects,
+                compile)
+        elif h5py is not None and isinstance(filepath, h5py.File):
           return hdf5_format.load_model_from_hdf5(filepath, custom_objects,
                                                   compile)
 
-        filepath = path_to_string(filepath)
-        if isinstance(filepath, str):
-          return saved_model_load.load(filepath, compile, options)
-
   raise IOError(
       'Unable to load model. Filepath is not an hdf5 file (or h5py is not '
-      'available) or SavedModel.')
+      f'available) or SavedModel. Received: filepath={filepath}')
 
 # Inject the load_model function to keras_deps to remove the dependency
 # from TFLite to Keras.

@@ -14,8 +14,10 @@
 # ==============================================================================
 """Keras Input Tensor used to track functional API Topology."""
 
-import tensorflow.compat.v2 as tf
 from keras.utils import object_identity
+import tensorflow.compat.v2 as tf
+
+from tensorflow.python.data.util import structure  # pylint: disable=g-direct-tensorflow-import
 
 # pylint: disable=g-classes-have-attributes
 
@@ -27,7 +29,7 @@ from keras.utils import object_identity
 _MAX_TENSOR_RANK = 254
 
 
-class KerasTensor(object):
+class KerasTensor:
   """A representation of a Keras in/output during Functional API construction.
 
   `KerasTensor`s are tensor-like objects that represent the symbolic inputs
@@ -116,6 +118,18 @@ class KerasTensor(object):
     self._inferred_value = inferred_value
     self._name = name
 
+    if not isinstance(type_spec, structure.NoneTensorSpec):
+      if not hasattr(type_spec, 'shape'):
+        raise ValueError(
+            'KerasTensor only supports TypeSpecs that have a shape field; got '
+            f'{type(type_spec).__qualname__}, which does not have a shape.')
+      if not isinstance(type_spec.shape, tf.TensorShape):
+        raise TypeError(
+            "KerasTensor requires that wrapped TypeSpec's shape is a "
+            f'TensorShape; got TypeSpec {type(type_spec).__qualname__}, whose '
+            'shape field has unexpected type '
+            f'{type(type_spec.dtype).__qualname__}.')
+
   @property
   def type_spec(self):
     """Returns the `tf.TypeSpec` symbolically inferred for this Keras output."""
@@ -124,11 +138,7 @@ class KerasTensor(object):
   @property
   def shape(self):
     """Returns the `TensorShape` symbolically inferred for this Keras output."""
-    # TODO(kaftan): This is only valid for normal/sparse/ragged tensors.
-    # may need to raise an error when it's not valid for a type_spec,
-    # but some keras code (e.g. build-related stuff) will likely fail when
-    # it can't access shape or dtype
-    return self._type_spec._shape  # pylint: disable=protected-access
+    return self._type_spec.shape
 
   @classmethod
   def from_tensor(cls, tensor):
@@ -228,28 +238,31 @@ class KerasTensor(object):
                     'in the Functional Model.')
 
   def __hash__(self):
-    raise TypeError('Tensors are unhashable. (%s)'
-                    'Instead, use tensor.ref() as the key.' % self)
+    raise TypeError(f'Tensors are unhashable (this tensor: {self}). '
+                    'Instead, use tensor.ref() as the key.')
 
   # Note: This enables the KerasTensor's overloaded "right" binary
   # operators to run when the left operand is an ndarray, because it
   # accords the Tensor class higher priority than an ndarray, or a
   # numpy matrix.
-  # In the future explore chaning this to using numpy's __numpy_ufunc__
+  # In the future explore changing this to using numpy's __numpy_ufunc__
   # mechanism, which allows more control over how Tensors interact
   # with ndarrays.
   __array_priority__ = 100
 
-  def __array__(self):
+  def __array__(self, dtype=None):
     raise TypeError(
-        'Cannot convert a symbolic Keras input/output to a numpy array. '
-        'This error may indicate that you\'re trying to pass a symbolic value '
-        'to a NumPy call, which is not supported. Or, '
-        'you may be trying to pass Keras symbolic inputs/outputs '
-        'to a TF API that does not register dispatching, '
-        'preventing Keras from automatically '
-        'converting the API call to a lambda layer '
-        'in the Functional Model.')
+        f'You are passing {self}, an intermediate Keras symbolic input/output, '
+        'to a TF API that does not allow registering custom dispatchers, such '
+        'as `tf.cond`, `tf.function`, gradient tapes, or `tf.map_fn`. '
+        'Keras Functional model construction only supports '
+        'TF API calls that *do* support dispatching, such as `tf.math.add` or '
+        '`tf.reshape`. '
+        'Other APIs cannot be called directly on symbolic Keras'
+        'inputs/outputs. You can work around '
+        'this limitation by putting the operation in a custom Keras layer '
+        '`call` and calling that layer '
+        'on this symbolic input/output.')
 
   @property
   def is_tensor_like(self):
@@ -259,19 +272,13 @@ class KerasTensor(object):
     """Updates the shape of this KerasTensor. Mimics `tf.Tensor.set_shape()`."""
     if not isinstance(shape, tf.TensorShape):
       shape = tf.TensorShape(shape)
-    if shape.dims is not None:
-      dim_list = [dim.value for dim in shape.dims]
-      for dim in range(len(dim_list)):
-        if dim_list[dim] is None and self.shape.dims is not None:
-          dim_list[dim] = self.shape.dims[dim]
-      shape = tf.TensorShape(dim_list)
     if not self.shape.is_compatible_with(shape):
       raise ValueError(
-          "Keras symbolic input/output's shape %s is not"
-          "compatible with supplied shape %s" %
-          (self.shape, shape))
+          f"Keras symbolic input/output's shape {self.shape} is not "
+          f"compatible with supplied shape {shape}.")
     else:
-      self._type_spec._shape = shape  # pylint: disable=protected-access
+      shape = self.shape.merge_with(shape)
+      self._type_spec = type_spec_with_shape(self._type_spec, shape)
 
   def __str__(self):
     symbolic_description = ''
@@ -311,11 +318,17 @@ class KerasTensor(object):
   @property
   def dtype(self):
     """Returns the `dtype` symbolically inferred for this Keras output."""
-    # TODO(kaftan): This is only valid for normal/sparse/ragged tensors.
-    # may need to raise an error when it's not valid for a type_spec,
-    # but some keras code (e.g. build-related stuff) will likely fail when
-    # it can't access shape or dtype
-    return self._type_spec._dtype  # pylint: disable=protected-access
+    type_spec = self._type_spec
+    if not hasattr(type_spec, 'dtype'):
+      raise AttributeError(
+          f'KerasTensor wraps TypeSpec {type(type_spec).__qualname__}, '
+          'which does not have a dtype.')
+    if not isinstance(type_spec.dtype, tf.DType):
+      raise TypeError(
+          "KerasTensor requires that wrapped TypeSpec's dtype is a DType; got "
+          f'TypeSpec {type(type_spec).__qualname__}, whose dtype field has '
+          f'unexpected type {type(type_spec.dtype).__qualname__}.')
+    return type_spec.dtype
 
   def ref(self):
     """Returns a hashable reference object to this KerasTensor.
@@ -328,6 +341,19 @@ class KerasTensor(object):
     See the documentation of `tf.Tensor.ref()` for more info.
     """
     return object_identity.Reference(self)
+
+  @property
+  def node(self):
+    """Find the corresponding `Node` that produce this keras_tensor.
+
+    During functional model construction, Keras will attach `KerasHistory` to
+    keras tensor to track the connectivity between calls of layers. Return
+    None if there isn't any KerasHistory attached to this tensor.
+    """
+    if hasattr(self, '_keras_history'):
+      layer, node_index, _ = self._keras_history
+      return layer.inbound_nodes[node_index]
+    return None
 
   def __iter__(self):
     shape = None
@@ -522,7 +548,7 @@ class UserRegisteredTypeKerasTensor(KerasTensor):
     return self._user_registered_symbolic_object
 
 
-class _KerasTensorIterator(object):
+class _KerasTensorIterator:
   """Iterates over the leading dim of a KerasTensor. Performs 0 error checks."""
 
   def __init__(self, tensor, dim0):
@@ -600,3 +626,33 @@ def keras_tensor_from_type_spec(type_spec, name=None):
       break
 
   return keras_tensor_cls.from_type_spec(type_spec, name=name)
+
+
+def type_spec_with_shape(spec, shape):
+  """Returns a copy of TypeSpec `spec` with its shape set to `shape`."""
+  if isinstance(spec, tf.TensorSpec):
+    # pylint: disable=protected-access
+    # TODO(b/203201161) Figure out why mutation is needed here, and remove it.
+    # (TensorSpec objects should be immutable; and we should not be modifying
+    # private fields.)
+    shape = tf.TensorShape(shape)
+    spec._shape = shape
+    if shape.rank is None:
+      spec._shape_tuple = None
+    else:
+      spec._shape_tuple = tuple(shape.as_list())
+    return spec
+  elif isinstance(spec, tf.RaggedTensorSpec):
+    return tf.RaggedTensorSpec(shape, spec.dtype, spec.ragged_rank,
+                               spec.row_splits_dtype,
+                               spec.flat_values_spec)
+  elif isinstance(spec, tf.SparseTensorSpec):
+    return tf.SparseTensorSpec(shape, spec.dtype)
+  elif hasattr(spec, 'with_shape'):
+    # TODO(edloper): Consider adding .with_shape method to TensorSpec,
+    # RaggedTensorSpec, and SparseTensorSpec.
+    return spec.with_shape(shape)
+  else:
+    # TODO(edloper): Consider moving this check to the KerasTensor constructor.
+    raise ValueError('Keras requires TypeSpec to have a `with_shape` method '
+                     'that returns a copy of `self` with an updated shape.')

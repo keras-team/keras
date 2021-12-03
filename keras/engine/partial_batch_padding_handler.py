@@ -21,7 +21,7 @@ import numpy as np
 from keras import backend
 
 
-class PartialBatchPaddingHandler(object):
+class PartialBatchPaddingHandler:
   """A container that holds info about partial batches for `predict()`."""
 
   def __init__(self, output_shape):

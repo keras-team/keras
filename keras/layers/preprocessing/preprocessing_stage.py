@@ -48,12 +48,11 @@ class PreprocessingStage(sequential.Sequential,
       reset_state: Whether this call to `adapt` should reset the state of
         the layers in this preprocessing stage.
     """
-    if not isinstance(data,
-                      (tf.data.Dataset, np.ndarray, tf.__internal__.EagerTensor)):
+    if not isinstance(
+        data, (tf.data.Dataset, np.ndarray, tf.__internal__.EagerTensor)):
       raise ValueError(
-          '`adapt()` requires a batched Dataset, an EagerTensor, '
-          'or a Numpy array as input, '
-          'got {}'.format(type(data)))
+          f'`adapt()` requires a batched Dataset, an EagerTensor, or a Numpy '
+          f'array as input. Received data={data}')
     if isinstance(data, tf.data.Dataset):
       # Validate the datasets to try and ensure we haven't been passed one with
       # infinite size. That would cause an infinite loop here.
@@ -92,7 +91,7 @@ class PreprocessingStage(sequential.Sequential,
                                              reset_state=reset_state)
 
 
-# Functional methods shoud take precedence.
+# Functional methods should take precedence.
 class FunctionalPreprocessingStage(functional.Functional,
                                    base_preprocessing_layer.PreprocessingLayer):
   """A functional preprocessing stage.
@@ -124,7 +123,7 @@ class FunctionalPreprocessingStage(functional.Functional,
 
   Args:
     inputs: An input tensor (must be created via `tf.keras.Input()`), or a list,
-      a dict, or a nested strcture of input tensors.
+      a dict, or a nested structure of input tensors.
     outputs: An output tensor, or a list, a dict or a nested structure of output
       tensors.
     name: String, optional. Name of the preprocessing stage.

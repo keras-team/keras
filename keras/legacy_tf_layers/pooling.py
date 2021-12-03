@@ -47,12 +47,16 @@ class AveragePooling1D(keras_layers.AveragePooling1D, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.AveragePooling1D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.AveragePooling1D`.
 
 
   #### Structural Mapping to Native TF2
@@ -117,12 +121,16 @@ def average_pooling1d(inputs, pool_size, strides,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.AveragePooling1D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.AveragePooling1D`.
 
 
   #### Structural Mapping to Native TF2
@@ -147,9 +155,11 @@ def average_pooling1d(inputs, pool_size, strides,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.average_pooling1d` is deprecated and '
-                'will be removed in a future version. '
-                'Please use `tf.keras.layers.AveragePooling1D` instead.')
+  warnings.warn(
+      '`tf.layers.average_pooling1d` is deprecated and '
+      'will be removed in a future version. '
+      'Please use `tf.keras.layers.AveragePooling1D` instead.',
+      stacklevel=2)
   layer = AveragePooling1D(pool_size=pool_size,
                            strides=strides,
                            padding=padding,
@@ -179,12 +189,16 @@ class MaxPooling1D(keras_layers.MaxPooling1D, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.MaxPooling1D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.MaxPooling1D`.
 
 
   #### Structural Mapping to Native TF2
@@ -249,12 +263,16 @@ def max_pooling1d(inputs, pool_size, strides,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.MaxPooling1D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.MaxPooling1D`.
 
 
   #### Structural Mapping to Native TF2
@@ -279,9 +297,11 @@ def max_pooling1d(inputs, pool_size, strides,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.max_pooling1d` is deprecated and '
-                'will be removed in a future version. '
-                'Please use `tf.keras.layers.MaxPooling1D` instead.')
+  warnings.warn(
+      '`tf.layers.max_pooling1d` is deprecated and '
+      'will be removed in a future version. '
+      'Please use `tf.keras.layers.MaxPooling1D` instead.',
+      stacklevel=2)
   layer = MaxPooling1D(pool_size=pool_size,
                        strides=strides,
                        padding=padding,
@@ -315,12 +335,16 @@ class AveragePooling2D(keras_layers.AveragePooling2D, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.AveragePooling2D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.AveragePooling2D`.
 
 
   #### Structural Mapping to Native TF2
@@ -386,12 +410,16 @@ def average_pooling2d(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.AveragePooling2D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.AveragePooling2D`.
 
 
   #### Structural Mapping to Native TF2
@@ -416,9 +444,11 @@ def average_pooling2d(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.average_pooling2d` is deprecated and '
-                'will be removed in a future version. '
-                'Please use `tf.keras.layers.AveragePooling2D` instead.')
+  warnings.warn(
+      '`tf.layers.average_pooling2d` is deprecated and '
+      'will be removed in a future version. '
+      'Please use `tf.keras.layers.AveragePooling2D` instead.',
+      stacklevel=2)
   layer = AveragePooling2D(pool_size=pool_size, strides=strides,
                            padding=padding, data_format=data_format,
                            name=name)
@@ -450,12 +480,16 @@ class MaxPooling2D(keras_layers.MaxPooling2D, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.MaxPooling2D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.MaxPooling2D`.
 
 
   #### Structural Mapping to Native TF2
@@ -521,12 +555,16 @@ def max_pooling2d(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.MaxPooling2D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.MaxPooling2D`.
 
 
   #### Structural Mapping to Native TF2
@@ -551,9 +589,11 @@ def max_pooling2d(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.max_pooling2d` is deprecated and '
-                'will be removed in a future version. '
-                'Please use `tf.keras.layers.MaxPooling2D` instead.')
+  warnings.warn(
+      '`tf.layers.max_pooling2d` is deprecated and '
+      'will be removed in a future version. '
+      'Please use `tf.keras.layers.MaxPooling2D` instead.',
+      stacklevel=2)
   layer = MaxPooling2D(pool_size=pool_size, strides=strides,
                        padding=padding, data_format=data_format,
                        name=name)
@@ -587,12 +627,16 @@ class AveragePooling3D(keras_layers.AveragePooling3D, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.AveragePooling3D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.AveragePooling3D`.
 
 
   #### Structural Mapping to Native TF2
@@ -660,12 +704,16 @@ def average_pooling3d(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.AveragePooling3D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.AveragePooling3D`.
 
 
   #### Structural Mapping to Native TF2
@@ -690,9 +738,11 @@ def average_pooling3d(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.average_pooling3d` is deprecated and '
-                'will be removed in a future version. '
-                'Please use `tf.keras.layers.AveragePooling3D` instead.')
+  warnings.warn(
+      '`tf.layers.average_pooling3d` is deprecated and '
+      'will be removed in a future version. '
+      'Please use `tf.keras.layers.AveragePooling3D` instead.',
+      stacklevel=2)
   layer = AveragePooling3D(pool_size=pool_size, strides=strides,
                            padding=padding, data_format=data_format,
                            name=name)
@@ -726,12 +776,16 @@ class MaxPooling3D(keras_layers.MaxPooling3D, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.MaxPooling3D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.MaxPooling3D`.
 
 
   #### Structural Mapping to Native TF2
@@ -797,12 +851,16 @@ def max_pooling3d(inputs,
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.MaxPooling3D`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is
+  `tf.keras.layers.MaxPooling3D`.
 
 
   #### Structural Mapping to Native TF2
@@ -827,9 +885,11 @@ def max_pooling3d(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.max_pooling3d` is deprecated and '
-                'will be removed in a future version. '
-                'Please use `tf.keras.layers.MaxPooling3D` instead.')
+  warnings.warn(
+      '`tf.layers.max_pooling3d` is deprecated and '
+      'will be removed in a future version. '
+      'Please use `tf.keras.layers.MaxPooling3D` instead.',
+      stacklevel=2)
   layer = MaxPooling3D(pool_size=pool_size, strides=strides,
                        padding=padding, data_format=data_format,
                        name=name)

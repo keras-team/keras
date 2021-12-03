@@ -14,8 +14,11 @@
 # ==============================================================================
 """A simple network to use in tests and examples."""
 
-import tensorflow.compat.v2 as tf
+from keras.legacy_tf_layers import core
+from keras.legacy_tf_layers import normalization
 from keras.optimizer_v2 import optimizer_v2
+
+import tensorflow.compat.v2 as tf
 
 
 def minimize_loss_example(optimizer, use_bias=False, use_callable_loss=True):
@@ -27,7 +30,7 @@ def minimize_loss_example(optimizer, use_bias=False, use_callable_loss=True):
     # fully defined for TPU.  Remove this when XLA supports dynamic shapes.
     return dataset.batch(1, drop_remainder=True)
 
-  layer = tf.compat.v1.layers.Dense(1, use_bias=use_bias)
+  layer = core.Dense(1, use_bias=use_bias)
 
   def model_fn(x):
     """A very simple model written by the user."""
@@ -62,9 +65,9 @@ def batchnorm_example(optimizer_fn,
          for z in range(batch_per_epoch)]).repeat()
 
   optimizer = optimizer_fn()
-  batchnorm = tf.compat.v1.layers.BatchNormalization(
+  batchnorm = normalization.BatchNormalization(
       renorm=renorm, momentum=momentum, fused=False)
-  layer = tf.compat.v1.layers.Dense(1, use_bias=False)
+  layer = core.Dense(1, use_bias=False)
 
   def model_fn(x):
     """A model that uses batchnorm."""

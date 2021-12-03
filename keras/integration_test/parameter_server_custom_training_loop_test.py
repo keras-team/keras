@@ -19,7 +19,7 @@ from __future__ import print_function
 import multiprocessing
 from absl import logging
 import portpicker
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 NUM_EPOCHS = 10
 NUM_STEPS = 100
@@ -130,4 +130,5 @@ class ParameterServerCustomTrainingLoopTest(tf.test.TestCase):
 
 
 if __name__ == "__main__":
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  if tf.__internal__.tf2.enabled():
+    tf.__internal__.distribute.multi_process_runner.test_main()

@@ -18,10 +18,9 @@ set -x
 
 cd "${KOKORO_ROOT}/"
 
-# Use python 3.6 since some python PIP package dependency are released at 3.6, eg numpy.
-sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1
+sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
 
-PYTHON_BINARY="/usr/bin/python3.6"
+PYTHON_BINARY="/usr/bin/python3.9"
 
 "${PYTHON_BINARY}" -m venv venv
 source venv/bin/activate
@@ -46,5 +45,4 @@ bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going \
    --build_tests_only \
    --build_tag_filters="-no_oss" \
    --test_tag_filters="-no_oss" \
-   --test_env=_PREFER_OSS_KERAS=1 \
    -- //keras/...

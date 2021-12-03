@@ -129,4 +129,4 @@ def constant_value(pred):  # pylint: disable=invalid-name
   if isinstance(pred, tf.Variable):
     return None
   raise TypeError("`pred` must be a Tensor, or a Python bool, or 1 or 0. "
-                  "Found instead: %s" % type(pred))
+                  f"Received: {type(pred)}")

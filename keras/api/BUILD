@@ -6,7 +6,7 @@ load("//keras/api:api_init_files.bzl", "KERAS_API_INIT_FILES", "KERAS_API_INIT_F
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/py/tensorflow:__subpackages__",
     ],
     licenses = ["notice"],  # Apache 2.0 License
@@ -23,6 +23,7 @@ keras_packages = [
     "keras.activations",
     "keras.applications.densenet",
     "keras.applications.efficientnet",
+    "keras.applications.efficientnet_v2",
     "keras.applications.imagenet_utils",
     "keras.applications.inception_resnet_v2",
     "keras.applications.inception_v3",

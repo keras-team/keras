@@ -85,7 +85,7 @@ def softmax(x, axis=-1):
       output = e / s
   else:
     raise ValueError('Cannot apply softmax to a tensor that is 1D. '
-                     'Received input: %s' % (x,))
+                     f'Received input: {x}')
 
   # Cache the logits to use for crossentropy loss.
   output._keras_logits = x  # pylint: disable=protected-access
@@ -272,7 +272,7 @@ def swish(x):
 
 @keras_export('keras.activations.relu')
 @tf.__internal__.dispatch.add_dispatch_support
-def relu(x, alpha=0., max_value=None, threshold=0):
+def relu(x, alpha=0., max_value=None, threshold=0.):
   """Applies the rectified linear unit activation function.
 
   With default values, this returns the standard ReLU activation:
@@ -289,9 +289,9 @@ def relu(x, alpha=0., max_value=None, threshold=0):
   array([ 0.,  0.,  0.,  5., 10.], dtype=float32)
   >>> tf.keras.activations.relu(foo, alpha=0.5).numpy()
   array([-5. , -2.5,  0. ,  5. , 10. ], dtype=float32)
-  >>> tf.keras.activations.relu(foo, max_value=5).numpy()
+  >>> tf.keras.activations.relu(foo, max_value=5.).numpy()
   array([0., 0., 0., 5., 5.], dtype=float32)
-  >>> tf.keras.activations.relu(foo, threshold=5).numpy()
+  >>> tf.keras.activations.relu(foo, threshold=5.).numpy()
   array([-0., -0.,  0.,  0., 10.], dtype=float32)
 
   Args:
@@ -591,14 +591,10 @@ def get(identifier):
   """
   if identifier is None:
     return linear
-  if isinstance(identifier, str):
-    identifier = str(identifier)
-    return deserialize(identifier)
-  elif isinstance(identifier, dict):
+  if isinstance(identifier, (str, dict)):
     return deserialize(identifier)
   elif callable(identifier):
     return identifier
   else:
     raise TypeError(
-        'Could not interpret activation function identifier: {}'.format(
-            identifier))
+        f'Could not interpret activation function identifier: {identifier}')

@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from keras.benchmarks import benchmark_util
 
@@ -128,7 +128,7 @@ class AntirectifierBenchmark(tf.test.Benchmark):
 
 
 class Antirectifier(tf.keras.layers.Layer):
-  """Build simple custome layer."""
+  """Build simple custom layer."""
 
   def __init__(self, initializer="he_normal", **kwargs):
     super(Antirectifier, self).__init__(**kwargs)

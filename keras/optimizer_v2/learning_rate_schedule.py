@@ -18,12 +18,13 @@ import tensorflow.compat.v2 as tf
 
 import abc
 import math
+from keras import backend
 from keras.utils import generic_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.optimizers.schedules.LearningRateSchedule")
-class LearningRateSchedule(object):
+class LearningRateSchedule:
   """The learning rate schedule base class.
 
   You can use a learning rate schedule to modulate how the learning rate
@@ -95,7 +96,7 @@ class ExponentialDecay(LearningRateSchedule):
   the training progresses. This schedule applies an exponential decay function
   to an optimizer step, given a provided initial learning rate.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
   It is computed as:
@@ -255,7 +256,9 @@ class PiecewiseConstantDecay(LearningRateSchedule):
 
     if len(boundaries) != len(values) - 1:
       raise ValueError(
-          "The length of boundaries should be 1 less than the length of values")
+          "The length of boundaries should be 1 less than the length of "
+          f"values. Received: boundaries={boundaries} of length "
+          f"{len(boundaries)}, and values={values} of length {len(values)}.")
 
     self.boundaries = boundaries
     self.values = values
@@ -448,7 +451,7 @@ class InverseTimeDecay(LearningRateSchedule):
   It requires a `step` value to compute the decayed learning rate. You can
   just pass a TensorFlow variable that you increment at each training step.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
   It is computed as:
@@ -558,7 +561,7 @@ class CosineDecay(LearningRateSchedule):
   It requires a `step` value to compute the decayed learning rate. You can
   just pass a TensorFlow variable that you increment at each training step.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
   It is computed as:
@@ -624,7 +627,7 @@ class CosineDecay(LearningRateSchedule):
       global_step_recomp = tf.minimum(global_step_recomp, decay_steps)
       completed_fraction = global_step_recomp / decay_steps
       cosine_decayed = 0.5 * (1.0 + tf.cos(
-          tf.constant(math.pi) * completed_fraction))
+          tf.constant(math.pi, dtype=dtype) * completed_fraction))
 
       decayed = (1 - self.alpha) * cosine_decayed + self.alpha
       return tf.multiply(initial_learning_rate, decayed)
@@ -652,14 +655,14 @@ class CosineDecayRestarts(LearningRateSchedule):
   It requires a `step` value to compute the decayed learning rate. You can
   just pass a TensorFlow variable that you increment at each training step.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
 
   The learning rate multiplier first decays
   from 1 to `alpha` for `first_decay_steps` steps. Then, a warm
   restart is performed. Each new warm restart runs for `t_mul` times more
-  steps and with `m_mul` times smaller initial learning rate.
+  steps and with `m_mul` times initial learning rate as the new learning rate.
 
   Example usage:
   ```python
@@ -697,9 +700,9 @@ class CosineDecayRestarts(LearningRateSchedule):
       first_decay_steps: A scalar `int32` or `int64` `Tensor` or a Python
         number. Number of steps to decay over.
       t_mul: A scalar `float32` or `float64` `Tensor` or a Python number.
-        Used to derive the number of iterations in the i-th period
+        Used to derive the number of iterations in the i-th period.
       m_mul: A scalar `float32` or `float64` `Tensor` or a Python number.
-        Used to derive the initial learning rate of the i-th period:
+        Used to derive the initial learning rate of the i-th period.
       alpha: A scalar `float32` or `float64` Tensor or a Python number.
         Minimum learning rate value as a fraction of the initial_learning_rate.
       name: String. Optional name of the operation.  Defaults to 'SGDRDecay'.
@@ -749,7 +752,7 @@ class CosineDecayRestarts(LearningRateSchedule):
 
       m_fac = m_mul**i_restart
       cosine_decayed = 0.5 * m_fac * (1.0 + tf.cos(
-          tf.constant(math.pi) * completed_fraction))
+          tf.constant(math.pi, dtype=dtype) * completed_fraction))
       decayed = (1 - alpha) * cosine_decayed + alpha
 
       return tf.multiply(initial_learning_rate, decayed, name=name)
@@ -785,7 +788,7 @@ class LinearCosineDecay(LearningRateSchedule):
   It requires a `step` value to compute the decayed learning rate. You can
   just pass a TensorFlow variable that you increment at each training step.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
   It is computed as:
@@ -866,11 +869,11 @@ class LinearCosineDecay(LearningRateSchedule):
       completed_fraction = global_step_recomp / decay_steps
       fraction = 2.0 * num_periods * completed_fraction
       cosine_decayed = 0.5 * (
-          1.0 + tf.cos(tf.constant(math.pi) * fraction))
+          1.0 + tf.cos(tf.constant(math.pi, dtype=dtype) * fraction))
 
       linear_cosine_decayed = (alpha + linear_decayed) * cosine_decayed + beta
       return tf.multiply(initial_learning_rate, linear_cosine_decayed,
-                               name=name)
+                         name=name)
 
   def get_config(self):
     return {
@@ -903,7 +906,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
   It requires a `step` value to compute the decayed learning rate. You can
   just pass a TensorFlow variable that you increment at each training step.
 
-  The schedule a 1-arg callable that produces a decayed learning
+  The schedule is a 1-arg callable that produces a decayed learning
   rate when passed the current optimizer step. This can be useful for changing
   the learning rate value across different invocations of optimizer functions.
   It is computed as:
@@ -948,6 +951,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
       num_periods=0.5,
       alpha=0.0,
       beta=0.001,
+      seed=None,
       name=None):
     """Applies noisy linear cosine decay to the learning rate.
 
@@ -962,6 +966,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
         See computation above.
       alpha: See computation above.
       beta: See computation above.
+      seed: Integer, optional random seed to enable deterministic behavior.
       name: String.  Optional name of the operation.  Defaults to
         'NoisyLinearCosineDecay'.
     """
@@ -974,7 +979,9 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
     self.num_periods = num_periods
     self.alpha = alpha
     self.beta = beta
+    self.seed = seed
     self.name = name
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, step):
     with tf.name_scope(self.name or "NoisyLinearCosineDecay") as name:
@@ -995,13 +1002,13 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
           tf.pow(1.0 + global_step_recomp, variance_decay))
       std = tf.sqrt(variance)
       noisy_linear_decayed = (
-          linear_decayed + tf.random.normal(
+          linear_decayed + self._random_generator.random_normal(
               linear_decayed.shape, stddev=std))
 
       completed_fraction = global_step_recomp / decay_steps
       fraction = 2.0 * num_periods * completed_fraction
       cosine_decayed = 0.5 * (
-          1.0 + tf.cos(tf.constant(math.pi) * fraction))
+          1.0 + tf.cos(tf.constant(math.pi, dtype=dtype) * fraction))
       noisy_linear_cosine_decayed = (
           (alpha + noisy_linear_decayed) * cosine_decayed + beta)
 
@@ -1017,7 +1024,8 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
         "num_periods": self.num_periods,
         "alpha": self.alpha,
         "beta": self.beta,
-        "name": self.name
+        "seed": self.seed,
+        "name": self.name,
     }
 
 

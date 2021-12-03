@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Adapter module that convert different input data objects into tf.dataset."""
-
+# pylint: disable=g-direct-tensorflow-import
 import tensorflow.compat.v2 as tf
 
 import abc
@@ -30,11 +30,17 @@ from keras.engine import training_utils
 from keras.utils import data_utils
 from keras.utils import dataset_creator
 from keras.utils import tf_utils
+from tensorflow.python.framework import type_spec
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
+try:
+  import pandas as pd  # pylint: disable=g-import-not-at-top
+except ImportError:
+  pd = None
+
 keras_data_adapter_gauge = tf.__internal__.monitoring.BoolGauge(
-    "/tensorflow/api/oss-keras/data_adapters", "keras data adapter usage", "method")
+    "/tensorflow/api/keras/data_adapters", "keras data adapter usage", "method")
 
 
 class DataAdapter(object, metaclass=abc.ABCMeta):
@@ -69,7 +75,7 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
     """Whether the current DataAdapter could handle the input x and y.
 
     Structure wise, x and y can be single object, or list of objects if there
-    multiple input/output, or dictionary of objects when the intput/output are
+    multiple input/output, or dictionary of objects when the input/output are
     named.
 
     Args:
@@ -798,20 +804,22 @@ class GeneratorDataAdapter(DataAdapter):
     # Need to build the Model on concrete input shapes.
     if model is not None and not model.built:
       concrete_x, _, _ = unpack_x_y_sample_weight(peek)
-      model.distribute_strategy.run(
-          lambda x: model(x, training=False), args=(concrete_x,))
+      try:
+        model.distribute_strategy.run(
+            lambda x: model(x, training=False), args=(concrete_x,))
+      except NotImplementedError:
+        # The above call may fail if the model is a container-like class that
+        # does not implement its own forward pass (e.g. a GAN or VAE where the
+        # forward pass is handled by subcomponents).
+        # Such a model does not need to be built.
+        pass
 
     self._first_batch_size = int(tf.nest.flatten(peek)[0].shape[0])
 
-    def _get_dynamic_shape(t):
-      shape = t.shape
-      # Unknown number of dimensions, `as_list` cannot be called.
-      if shape.rank is None:
-        return shape
-      return tf.TensorShape([None for _ in shape.as_list()])
+    def _get_tensor_spec(t):
+      return type_spec.type_spec_from_value(t)._with_tensor_ranks_only()  # pylint: disable=protected-access
 
-    output_shapes = tf.nest.map_structure(_get_dynamic_shape, peek)
-    output_types = tf.nest.map_structure(lambda t: t.dtype, peek)
+    output_signature = tf.nest.map_structure(_get_tensor_spec, peek)
 
     # Note that dataset API takes a callable that creates a generator object,
     # rather than generator itself, which is why we define a function here.
@@ -823,7 +831,7 @@ class GeneratorDataAdapter(DataAdapter):
         yield self._standardize_batch(data)
 
     dataset = tf.data.Dataset.from_generator(
-        wrapped_generator, output_types, output_shapes=output_shapes)
+        wrapped_generator, output_signature=output_signature)
 
     if workers == 1 and not use_multiprocessing:
       dataset = dataset.prefetch(1)
@@ -1009,7 +1017,8 @@ def _process_tensorlike(inputs):
 
   (1) Converts `Numpy` arrays to `Tensor`s.
   (2) Converts `Scipy` sparse matrices to `SparseTensor`s.
-  (2) Converts `list`s to `tuple`s (for `tf.data` support).
+  (3) Converts `pandas.Series` to `Tensor`s
+  (4) Converts `list`s to `tuple`s (for `tf.data` support).
 
   Args:
     inputs: Structure of `Tensor`s, `NumPy` arrays, or tensor-like.
@@ -1018,7 +1027,10 @@ def _process_tensorlike(inputs):
     Structure of `Tensor`s or tensor-like.
   """
 
-  def _convert_numpy_and_scipy(x):
+  def _convert_single_tensor(x):
+    if _is_pandas_series(x):
+      x = np.expand_dims(x.to_numpy(), axis=-1)
+
     if isinstance(x, np.ndarray):
       dtype = None
       if issubclass(x.dtype.type, np.floating):
@@ -1028,7 +1040,7 @@ def _process_tensorlike(inputs):
       return _scipy_sparse_to_sparse_tensor(x)
     return x
 
-  inputs = tf.nest.map_structure(_convert_numpy_and_scipy, inputs)
+  inputs = tf.nest.map_structure(_convert_single_tensor, inputs)
   return tf.__internal__.nest.list_to_tuple(inputs)
 
 
@@ -1058,7 +1070,8 @@ def broadcast_sample_weight_modes(target_structure, sample_weight_modes):
           training_utils.list_to_tuple(sample_weight_modes))
     except (ValueError, TypeError):
       target_str = str(tf.nest.map_structure(lambda _: "...", target_structure))
-      mode_str = str(tf.nest.map_structure(lambda _: "...", sample_weight_modes))
+      mode_str = str(
+          tf.nest.map_structure(lambda _: "...", sample_weight_modes))
 
       # Attempt to coerce sample_weight_modes to the target structure. This
       # implicitly depends on the fact that Model flattens outputs for its
@@ -1077,7 +1090,7 @@ def broadcast_sample_weight_modes(target_structure, sample_weight_modes):
   return sample_weight_modes
 
 
-class DataHandler(object):
+class DataHandler:
   """Handles iterating over epoch-level `tf.data.Iterator` objects."""
 
   def __init__(self,
@@ -1128,11 +1141,9 @@ class DataHandler(object):
     # `steps_per_execution` is mutable and may be changed by the DataAdapter
     # to handle partial executions.
     if steps_per_execution is None:
-      self._steps_per_execution = 1
-      self._steps_per_execution_value = 1
+      self._steps_per_execution = tf.Variable(1)
     else:
       self._steps_per_execution = steps_per_execution
-      self._steps_per_execution_value = steps_per_execution.numpy().item()
 
     adapter_cls = select_data_adapter(x, y)
     self._adapter = adapter_cls(
@@ -1152,7 +1163,7 @@ class DataHandler(object):
     strategy = tf.distribute.get_strategy()
 
     self._current_step = 0
-    self._step_increment = self._steps_per_execution_value - 1
+    self._step_increment = self._steps_per_execution.numpy().item() - 1
     self._insufficient_data = False
 
     self._configure_dataset_and_inferred_steps(strategy, x, steps_per_epoch,
@@ -1191,17 +1202,15 @@ class DataHandler(object):
     """Truncates steps per execution to at most one epoch."""
     should_truncate = (
         self._inferred_steps is not None and
-        self._steps_per_execution_value > self._inferred_steps)
-    original_value = self._steps_per_execution_value
+        self._steps_per_execution.numpy().item() > self._inferred_steps)
+    original_value = self._steps_per_execution.numpy().item()
     try:
       if should_truncate:
         self._steps_per_execution.assign(self._inferred_steps)
-        self._steps_per_execution_value = self._inferred_steps
       yield
     finally:
       if should_truncate:
         self._steps_per_execution.assign(original_value)
-        self._steps_per_execution_value = original_value
 
   def sync(self):
     context.async_wait()
@@ -1234,17 +1243,17 @@ class DataHandler(object):
            self._current_step < self._inferred_steps):
       if self._insufficient_data:  # Set by `catch_stop_iteration`.
         break
-
+      original_spe = self._steps_per_execution.numpy().item()
       can_run_full_execution = (
-          self._steps_per_execution_value == 1 or
+          original_spe == 1 or
           self._inferred_steps is None or
           self._inferred_steps - self._current_step >=
-          self._steps_per_execution_value)
+          original_spe)
 
       if can_run_full_execution:
-        self._step_increment = self._steps_per_execution_value - 1
+        self._step_increment = original_spe - 1
         yield self._current_step
-        self._current_step += self._steps_per_execution_value
+        self._current_step += original_spe
       else:
         # Last partial execution.
         steps_remaining = self._inferred_steps - self._current_step
@@ -1252,7 +1261,7 @@ class DataHandler(object):
         self._step_increment = steps_remaining - 1
         yield self._current_step
         self._current_step += steps_remaining
-        self._steps_per_execution.assign(self._steps_per_execution_value)
+        self._steps_per_execution.assign(original_spe)
 
   @property
   def step_increment(self):
@@ -1318,7 +1327,8 @@ class DataHandler(object):
 
   def _validate_data_handler(self):
     # TODO(b/152094471): Support this with DistIter.get_next_as_optional.
-    if self._steps_per_execution_value > 1 and self._inferred_steps is None:
+    if self._steps_per_execution.numpy().item(
+    ) > 1 and self._inferred_steps is None:
       raise ValueError(
           "Could not infer the size of the data. With "
           "`steps_per_execution > 1`, you must specify the number of steps "
@@ -1329,7 +1339,8 @@ class _ClusterCoordinatorDataHandler(DataHandler):
   """A `DataHandler` that is compatible with `ClusterCoordinator`."""
 
   def __init__(self, x, y=None, **kwargs):
-    if not isinstance(x, dataset_creator.DatasetCreator):
+    if (not _is_distributed_dataset(x) and
+        not isinstance(x, (dataset_creator.DatasetCreator, tf.data.Dataset))):
       x = self._convert_to_dataset_creator(x, y, **kwargs)
 
     super().__init__(x=x, **kwargs)
@@ -1355,17 +1366,22 @@ class _ClusterCoordinatorDataHandler(DataHandler):
 
   def _configure_dataset_and_inferred_steps(self, strategy, x, steps_per_epoch,
                                             class_weight, distribute):
-    if not isinstance(x, dataset_creator.DatasetCreator):
-      raise TypeError("When using `ParameterServerStrategy`, `x` must be a "
-                      "`DatasetCreator`.")
+    if isinstance(x, dataset_creator.DatasetCreator):
 
-    def per_worker_dataset_fn():
+      def per_worker_dataset_fn():
 
-      return strategy.distribute_datasets_from_function(
-          x, options=x.input_options)
+        return strategy.distribute_datasets_from_function(
+            x, options=x.input_options)
 
-    self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
-        per_worker_dataset_fn)
+      self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
+          per_worker_dataset_fn)
+    else:
+      assert distribute
+      if not _is_distributed_dataset(x):
+        x = strategy.experimental_distribute_dataset(x)
+
+      self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
+          x)
 
     if steps_per_epoch == -1:
       self._inferred_steps = None
@@ -1428,28 +1444,13 @@ def _make_class_weight_map_fn(class_weight):
     cw = tf.gather(class_weight_tensor, y_classes)
     if sw is not None:
       cw = tf.cast(cw, sw.dtype)
-      sw, cw = expand_1d((sw, cw))
       # `class_weight` and `sample_weight` are multiplicative.
       sw = sw * cw
     else:
       sw = cw
-
     return x, y, sw
 
   return _class_weights_map_fn
-
-
-def expand_1d(data):
-  """Expands 1-dimensional `Tensor`s into 2-dimensional `Tensor`s."""
-
-  def _expand_single_1d_tensor(t):
-    # Leaves `CompositeTensor`s as-is.
-    if (isinstance(t, tf.Tensor) and
-        isinstance(t.shape, tf.TensorShape) and t.shape.rank == 1):
-      return tf.expand_dims(t, axis=-1)
-    return t
-
-  return tf.nest.map_structure(_expand_single_1d_tensor, data)
 
 
 def train_validation_split(arrays, validation_split):
@@ -1560,6 +1561,8 @@ def unpack_x_y_sample_weight(data):
     The unpacked tuple, with `None`s for `y` and `sample_weight` if they are not
     provided.
   """
+  if isinstance(data, list):
+    data = tuple(data)
   if not isinstance(data, tuple):
     return (data, None, None)
   elif len(data) == 1:
@@ -1605,7 +1608,7 @@ def pack_x_y_sample_weight(x, y=None, sample_weight=None):
     # For single x-input, we do no tuple wrapping since in this case
     # there is no ambiguity. This also makes NumPy and Dataset
     # consistent in that the user does not have to wrap their Dataset
-    # data in an unecessary tuple
+    # data in an unnecessary tuple
     if not tf.nest.is_nested(x):
       return x
     else:
@@ -1644,18 +1647,17 @@ def _check_data_cardinality(data):
     msg = "Data cardinality is ambiguous:\n"
     for label, single_data in zip(["x", "y", "sample_weight"], data):
       msg += "  {} sizes: {}\n".format(
-          label, ", ".join(str(i.shape[0]) for i in tf.nest.flatten(single_data)))
+          label, ", ".join(str(i.shape[0])
+                           for i in tf.nest.flatten(single_data)))
     msg += "Make sure all arrays contain the same number of samples."
     raise ValueError(msg)
 
 
 def _get_tensor_types():
-  try:
-    import pandas as pd  # pylint: disable=g-import-not-at-top
-
-    return (tf.Tensor, np.ndarray, pd.Series, pd.DataFrame)
-  except ImportError:
+  if pd is None:
     return (tf.Tensor, np.ndarray)
+  else:
+    return (tf.Tensor, np.ndarray, pd.Series, pd.DataFrame)
 
 
 def _is_scipy_sparse(x):
@@ -1665,6 +1667,13 @@ def _is_scipy_sparse(x):
     return issparse(x)
   except ImportError:
     return False
+
+
+def _is_pandas_series(x):
+  if pd is None:
+    return False
+  else:
+    return isinstance(x, pd.Series)
 
 
 def _scipy_sparse_to_sparse_tensor(t):

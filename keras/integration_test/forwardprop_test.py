@@ -17,7 +17,7 @@ import functools
 
 from absl.testing import parameterized
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 
 def _jvp(f, primals, tangents):
@@ -311,4 +311,5 @@ class HessianTests(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == "__main__":
-  tf.test.main()
+  if tf.__internal__.tf2.enabled():
+    tf.test.main()

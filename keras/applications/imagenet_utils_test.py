@@ -22,6 +22,7 @@ import numpy as np
 import keras
 from keras import keras_parameterized
 from keras.applications import imagenet_utils as utils
+from keras.mixed_precision.policy import set_global_policy
 
 
 class TestImageNetUtils(keras_parameterized.TestCase):
@@ -143,6 +144,33 @@ class TestImageNetUtils(keras_parameterized.TestCase):
     model2 = keras.Model(inputs2, outputs2)
     out2 = model2.predict(x2[np.newaxis])[0]
     self.assertAllClose(out1, out2.transpose(1, 2, 0))
+
+  @parameterized.named_parameters([
+      {
+          'testcase_name': 'mode_torch',
+          'mode': 'torch'
+      },
+      {
+          'testcase_name': 'mode_tf',
+          'mode': 'tf'
+      },
+      {
+          'testcase_name': 'mode_caffe',
+          'mode': 'caffe'
+      },
+  ])
+  def test_preprocess_input_symbolic_mixed_precision(self, mode):
+    if not tf.__internal__.tf2.enabled():
+      self.skipTest('The global policy can only be tested in TensorFlow 2')
+    set_global_policy('mixed_float16')
+    shape = (20, 20, 3)
+    inputs = keras.layers.Input(shape=shape)
+    try:
+      keras.layers.Lambda(
+          lambda x: utils.preprocess_input(x, mode=mode), output_shape=shape)(
+              inputs)
+    finally:
+      set_global_policy('float32')
 
   @parameterized.named_parameters([
       {'testcase_name': 'channels_last_format',

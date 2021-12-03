@@ -115,14 +115,14 @@ def handle_partial_sample_weights(outputs, sample_weights, sample_weight_modes,
           any_sample_weight, partial_sample_weight)
 
 
-class RespectCompiledTrainableState(object):
+class RespectCompiledTrainableState:
   """Set and restore trainable state if it has changed since compile.
 
   The keras API guarantees that the value of each Layer's `trainable` property
   at `Model.compile` time will be used when training that model. In order to
   respect this requirement, it may be necessary to set the trainable value of
   layers to their compile time values before beginning a training endpoint and
-  restore the values before returing from said endpoint. This scope checks if
+  restore the values before returning from said endpoint. This scope checks if
   any layer's trainable state has changed since Model compile, and performs this
   set and un-set bookkeeping.
 

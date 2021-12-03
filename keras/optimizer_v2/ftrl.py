@@ -111,23 +111,25 @@ class Ftrl(optimizer_v2.OptimizerV2):
 
     if initial_accumulator_value < 0.0:
       raise ValueError(
-          'initial_accumulator_value %f needs to be positive or zero' %
-          initial_accumulator_value)
+          '`initial_accumulator_value` needs to be positive or zero. Received: '
+          f'initial_accumulator_value={initial_accumulator_value}.')
     if learning_rate_power > 0.0:
-      raise ValueError('learning_rate_power %f needs to be negative or zero' %
-                       learning_rate_power)
+      raise ValueError(
+          '`learning_rate_power` needs to be negative or zero. Received: '
+          f'learning_rate_power={learning_rate_power}.')
     if l1_regularization_strength < 0.0:
       raise ValueError(
-          'l1_regularization_strength %f needs to be positive or zero' %
-          l1_regularization_strength)
+          '`l1_regularization_strength` needs to be positive or zero. '
+          f'Received: l1_regularization_strength={l1_regularization_strength}.')
     if l2_regularization_strength < 0.0:
       raise ValueError(
-          'l2_regularization_strength %f needs to be positive or zero' %
-          l2_regularization_strength)
+          '`l2_regularization_strength` needs to be positive or zero. '
+          f'Received: l2_regularization_strength={l2_regularization_strength}.')
     if l2_shrinkage_regularization_strength < 0.0:
       raise ValueError(
-          'l2_shrinkage_regularization_strength %f needs to be positive'
-          ' or zero' % l2_shrinkage_regularization_strength)
+          '`l2_shrinkage_regularization_strength` needs to be positive or '
+          'zero. Received: l2_shrinkage_regularization_strength'
+          f'={l2_shrinkage_regularization_strength}.')
 
     self._set_hyper('learning_rate', learning_rate)
     self._set_hyper('decay', self._initial_decay)

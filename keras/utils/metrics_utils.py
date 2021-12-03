@@ -15,18 +15,15 @@
 # pylint: disable=protected-access
 """Utils related to keras metrics."""
 
-import tensorflow.compat.v2 as tf
-
+from enum import Enum
 import functools
 import weakref
-
-from enum import Enum
-
-import numpy as np
 from keras import backend
 from keras.utils import losses_utils
 from keras.utils import tf_utils
 from keras.utils.generic_utils import to_list
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 NEG_INF = -1e10
 
@@ -99,7 +96,6 @@ def result_wrapper(result_fn):
 
   def decorated(metric_obj, *args):
     """Decorated function with merge_call."""
-    has_strategy = tf.distribute.has_strategy()
     replica_context = tf.distribute.get_replica_context()
 
     # The purpose of using `merge_call` to call `result()` is to trigger cross
@@ -120,14 +116,12 @@ def result_wrapper(result_fn):
     #    if NCCL is used to do the aggregation, the program will hang because
     #    NCCL ops are only launched on the non-pruned first replica.
     #
-    # We condition on strategy.extended._use_merge_call() since we know if it is
-    # false, the program uses `jit_compile` to compile replica fn, meaning it is
+    # We condition on strategy_supports_no_merge_call() since we know if it is
+    # True, the program uses `jit_compile` to compile replica fn, meaning it is
     # not V1 training (hence #1 is okay), and no pruning will happen as
     # compiled functions are not inlined (hence #2 is okay).
-
-    if (not has_strategy or replica_context is None or
-        not tf.distribute.get_strategy(
-        ).extended._use_merge_call()):
+    if (replica_context is None or
+        tf.__internal__.distribute.strategy_supports_no_merge_call()):
       with tf.__internal__.distribute.variable_sync_on_read_context():
         raw_result = result_fn(*args)
         # Results need to be wrapped in a `tf.identity` op to ensure
@@ -147,7 +141,7 @@ def result_wrapper(result_fn):
             raise RuntimeError(
                 'The output of `metric.result()` can only be a single '
                 'Tensor/Variable, or a dict of Tensors/Variables. '
-                'For metric %s, got result %s.' % (metric_obj.name, raw_result))
+                f'For metric {metric_obj.name}, got result {raw_result}.')
     else:
       # TODO(psv): Test distribution of metrics using different distribution
       # strategies.
@@ -199,8 +193,7 @@ def assert_thresholds_range(thresholds):
     invalid_thresholds = [t for t in thresholds if t is None or t < 0 or t > 1]
     if invalid_thresholds:
       raise ValueError(
-          'Threshold values must be in [0, 1]. Invalid values: {}'.format(
-              invalid_thresholds))
+          f'Threshold values must be in [0, 1]. Received: {invalid_thresholds}')
 
 
 def parse_init_thresholds(thresholds, default_threshold=0.5):
@@ -229,7 +222,9 @@ class AUCCurve(Enum):
     elif key in ('roc', 'ROC'):
       return AUCCurve.ROC
     else:
-      raise ValueError('Invalid AUC curve value "%s".' % key)
+      raise ValueError(
+          f'Invalid AUC curve value: "{key}". '
+          'Expected values are ["PR", "ROC"]')
 
 
 class AUCSummationMethod(Enum):
@@ -259,7 +254,9 @@ class AUCSummationMethod(Enum):
     elif key in ('minoring', 'Minoring'):
       return AUCSummationMethod.MINORING
     else:
-      raise ValueError('Invalid AUC summation method value "%s".' % key)
+      raise ValueError(
+          f'Invalid AUC summation method value: "{key}". '
+          'Expected values are ["interpolation", "majoring", "minoring"]')
 
 
 def _update_confusion_matrix_variables_optimized(
@@ -469,7 +466,7 @@ def is_evenly_distributed_thresholds(thresholds):
 
   We could leverage evenly distributed thresholds to use less memory when
   calculate metrcis like AUC where each individual threshold need to be
-  evaluted.
+  evaluated.
 
   Args:
     thresholds: A python list or tuple, or 1D numpy array whose value is ranged
@@ -561,9 +558,8 @@ def update_confusion_matrix_variables(variables_to_update,
       key for key in variables_to_update if key in list(ConfusionMatrix)):
     raise ValueError(
         'Please provide at least one valid confusion matrix '
-        'variable to update. Valid variable key options are: "{}". '
-        'Received: "{}"'.format(
-            list(ConfusionMatrix), variables_to_update.keys()))
+        'variable to update. Valid variable key options are: '
+        f'"{list(ConfusionMatrix)}". Received: "{variables_to_update.keys()}"')
 
   variable_dtype = list(variables_to_update.values())[0].dtype
 
@@ -599,8 +595,8 @@ def update_confusion_matrix_variables(variables_to_update,
   ]
   if invalid_keys:
     raise ValueError(
-        'Invalid keys: {}. Valid variable key options are: "{}"'.format(
-            invalid_keys, list(ConfusionMatrix)))
+        f'Invalid keys: "{invalid_keys}". '
+        f'Valid variable key options are: "{list(ConfusionMatrix)}"')
 
   with tf.control_dependencies([
       tf.compat.v1.assert_greater_equal(
@@ -640,7 +636,7 @@ def update_confusion_matrix_variables(variables_to_update,
   if y_pred.shape.ndims == 1:
     num_labels = 1
   else:
-    num_labels = tf.raw_ops.Prod(input=pred_shape[1:], axis=0)
+    num_labels = tf.math.reduce_prod(pred_shape[1:], axis=0)
   thresh_label_tile = tf.where(one_thresh, num_labels,
                                          tf.ones([], dtype=tf.int32))
 
@@ -806,10 +802,12 @@ def ragged_assert_compatible_and_get_flat_values(values, mask=None):
     values = flat_values[0] if to_be_stripped else flat_values
 
   elif is_any_ragged:
-    raise TypeError('One of the inputs does not have acceptable types.')
+    raise TypeError('Some of the inputs are not tf.RaggedTensor. '
+                    f'Input received: {values}')
   # values are empty or value are not ragged and mask is ragged.
   elif isinstance(mask, tf.RaggedTensor):
-    raise TypeError('Ragged mask is not allowed with non-ragged inputs.')
+    raise TypeError('Ragged mask is not allowed with non-ragged inputs. '
+                    f'Input received: {values}, mask received: {mask}')
 
   return values, mask
 
@@ -831,7 +829,8 @@ def _assert_splits_match(nested_splits_lists):
   Raises:
     ValueError: If the splits are not identical.
   """
-  error_msg = 'Inputs must have identical ragged splits'
+  error_msg = ('Inputs must have identical ragged splits. '
+               f'Input received: {nested_splits_lists}')
   for splits_list in nested_splits_lists:
     if len(splits_list) != len(nested_splits_lists[0]):
       raise ValueError(error_msg)

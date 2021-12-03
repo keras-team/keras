@@ -18,19 +18,22 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import gc
 import threading
 
 from absl.testing import parameterized
-import numpy
-from tensorflow.python.framework import test_util
 from keras import combinations
 from keras import regularizers
+from keras.engine import input_layer as input_layer_module
+from keras.engine import training as training_module
+from keras.layers import core
 from keras.legacy_tf_layers import core as core_layers
 from keras.legacy_tf_layers import variable_scope_shim
-from tensorflow.python.ops import variable_scope
+import numpy
+import tensorflow as tf
+
+from tensorflow.python.framework import test_util   # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.ops import variable_scope   # pylint: disable=g-direct-tensorflow-import
 
 
 def run_inside_wrap_function_in_eager_mode(graph_function):
@@ -47,8 +50,8 @@ def run_inside_wrap_function_in_eager_mode(graph_function):
     decorated function
   """
   def wrap_and_execute(self):
-    tracker = variable_scope_shim.VariableAndLossTracker()
-    with tracker.scope():
+    store = variable_scope_shim._EagerVariableStore()
+    with variable_scope.with_variable_store(store):
       # use the original function
       graph_function(self)
   return wrap_and_execute
@@ -239,6 +242,29 @@ class VariableScopeTest(tf.test.TestCase):
         with tf.compat.v1.variable_scope(
             "testVarScopeGetOrCreateReuse_bar",
             reuse=tf.compat.v1.AUTO_REUSE):
+          _ = tf.compat.v1.get_variable("var", [])
+        self.assertEqual(value, self.evaluate(x))
+
+      test_value(42.)  # Variable is created.
+      test_value(13.)  # Variable is reused hereafter.
+      test_value(17.)
+
+  @test_util.run_in_graph_and_eager_modes
+  @run_inside_wrap_function_in_eager_mode
+  def testVarScopeGetOrCreateReuseIgnoreFalse(self):
+    with self.cached_session():
+
+      def test_value(value):
+        x = tf.constant(value)
+        with tf.compat.v1.variable_scope(
+            "testVarScopeGetOrCreateReuse_bar",
+            reuse=False):
+          _ = tf.compat.v1.assign(tf.compat.v1.get_variable("var", []), x)
+        # We need to ignore reuse=False in the shim, because the
+        # code is expected to get rerun each time the user calls the shim.
+        with tf.compat.v1.variable_scope(
+            "testVarScopeGetOrCreateReuse_bar",
+            reuse=False):
           _ = tf.compat.v1.get_variable("var", [])
         self.assertEqual(value, self.evaluate(x))
 
@@ -626,7 +652,8 @@ class VariableScopeTest(tf.test.TestCase):
           with tf.compat.v1.variable_scope("_"):
             pass
 
-    self.assertRaisesRegex(ValueError, "'_' is not a valid scope name", f)
+    self.assertRaisesRegex(ValueError,
+                           "'_' is not a valid (?:root )?scope name", f)
 
 
 class VariableScopeWithCustomGetterTest(tf.test.TestCase):
@@ -752,75 +779,6 @@ class VariableScopeMultithreadedTest(tf.test.TestCase):
 
   @test_util.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
-  def testTwoThreadsDisjointScopeEntry(self):
-
-    def thread_fn(i, graph):
-      with graph.as_default():
-        with tf.compat.v1.variable_scope("foo"):
-          if i == 0:
-            v = tf.compat.v1.get_variable("v", [])
-            self.assertEqual("foo/v:0", v.name)
-          else:
-            # Any thread after the first one should fail to create variable
-            # with the same name.
-            with self.assertRaises(ValueError):
-              tf.compat.v1.get_variable("v", [])
-
-    graph = tf.compat.v1.get_default_graph()
-    threads = [
-        threading.Thread(target=thread_fn, args=(
-            i,
-            graph,
-        )) for i in range(2)
-    ]
-
-    threads[0].start()
-    # Allow thread 0 to finish before starting thread 1.
-    threads[0].join()
-    threads[1].start()
-    threads[1].join()
-
-  @test_util.run_in_graph_and_eager_modes
-  @run_inside_wrap_function_in_eager_mode
-  def testTwoThreadsNestedScopeEntry(self):
-
-    def thread_fn(i, graph, run_event, pause_event):
-      with graph.as_default():
-        with tf.compat.v1.variable_scope("foo"):
-          if i == 0:
-            v = tf.compat.v1.get_variable("v", [])
-            self.assertEqual("foo/v:0", v.name)
-          else:
-            # Any thread after the first one should fail to create variable
-            # with the same name.
-            with self.assertRaises(ValueError):
-              tf.compat.v1.get_variable("v", [])
-          pause_event.set()
-          run_event.wait()
-
-    graph = tf.compat.v1.get_default_graph()
-    run_events = [threading.Event() for _ in range(2)]
-    pause_events = [threading.Event() for _ in range(2)]
-    threads = [
-        threading.Thread(
-            target=thread_fn, args=(i, graph, run_events[i], pause_events[i]))
-        for i in range(2)
-    ]
-
-    # Start first thread.
-    threads[0].start()
-    pause_events[0].wait()
-    # Start next thread once the first thread has paused.
-    threads[1].start()
-    pause_events[1].wait()
-    # Resume both threads.
-    run_events[0].set()
-    run_events[1].set()
-    threads[0].join()
-    threads[1].join()
-
-  @test_util.run_in_graph_and_eager_modes
-  @run_inside_wrap_function_in_eager_mode
   def testReenterMainScope(self):
 
     def thread_fn(graph, main_thread_scope):
@@ -844,13 +802,46 @@ class VariableScopeMultithreadedTest(tf.test.TestCase):
       thread.join()
 
 
+class CompatV1TemplateScaleByY(variable_scope_shim.VariableScopeLayer):
+
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+    def my_op(x, scalar_name):
+      var1 = tf.compat.v1.get_variable(
+          scalar_name,
+          shape=[],
+          regularizer=regularizers.L2(),
+          initializer=tf.compat.v1.constant_initializer(1.5))
+      return x * var1
+    self.scale_by_y = tf.compat.v1.make_template(
+        "scale_by_y", my_op, scalar_name="y")
+
+  def forward_pass(self, inputs):
+    with tf.compat.v1.variable_scope("foo"):
+      return self.scale_by_y(inputs)
+
+
+class VariableScopeModule(tf.Module):
+  """Module that uses the shim."""
+
+  @variable_scope_shim.track_tf1_style_variables
+  def __call__(self, *args, **kwargs):
+    with self.name_scope:
+      return self.forward_pass(*args, **kwargs)
+
+  def get_compat_v1_regularization_losses(self):
+    """Dict w/ regularization losses from `get_variable`&`compat.v1.layers`."""
+    return {name: regularizer() for name, regularizer
+            in self._tf1_style_var_store._regularizers.items()}  # pylint: disable=protected-access
+
+
 @combinations.generate(combinations.combine(mode=["eager"]))
-class TF1VariableScopeWrapperLayerTest(tf.test.TestCase, parameterized.TestCase):
+class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_get_variable(self):
     # Test the shim when using `get_variable` (and regularizers) directly
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeWrapperLayer):
+    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -910,16 +901,17 @@ class TF1VariableScopeWrapperLayerTest(tf.test.TestCase, parameterized.TestCase)
   def test_compat_v1_layer(self):
     # Test the shim when using `compat.v1` layers
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeWrapperLayer):
+    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.units = units
 
       def forward_pass(self, inputs, training=None):
-        out = core_layers.dense(inputs, self.units, name="dense_one",
-                                kernel_initializer=tf.compat.v1.ones_initializer(),
-                                kernel_regularizer="l2")
+        out = core_layers.dense(
+            inputs, self.units, name="dense_one",
+            kernel_initializer=tf.compat.v1.ones_initializer(),
+            kernel_regularizer="l2")
         with tf.compat.v1.variable_scope("nested_scope"):
           out = core_layers.dense(
               out, self.units, name="dense_two",
@@ -946,6 +938,611 @@ class TF1VariableScopeWrapperLayerTest(tf.test.TestCase, parameterized.TestCase)
     out = layer(tf.ones(shape=(5, 5)))
     self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 200)
     self.assertAllEqual(tf.add_n(layer.losses), 6)
+
+  def test_shim_exporting(self):
+
+    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def forward_pass(self, inputs, training=None):
+        out = core_layers.dense(
+            inputs,
+            self.units,
+            name="dense_one",
+            kernel_initializer=tf.compat.v1.ones_initializer(),
+            kernel_regularizer="l2")
+        with tf.compat.v1.variable_scope("nested_scope"):
+          out = core_layers.dense(
+              out,
+              self.units,
+              name="dense_two",
+              kernel_initializer=tf.compat.v1.ones_initializer(),
+              kernel_regularizer="l2")
+        return out
+
+    layer = WrappedDenseLayer(10)
+    layer(tf.ones(shape=(5, 5)))
+
+    tmp_dir = self.get_temp_dir()
+    tf.saved_model.save(layer, tmp_dir)
+
+  def test_variable_store_scope_get_variable(self):
+    # Test the module shim when using `get_variable` (and regularizers) directly
+
+    class WrappedDenseLayer(tf.Module):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+        self._variable_store = variable_scope_shim._EagerVariableStore()
+
+      def get_compat_v1_regularization_losses(self):
+        """Dict w/ regularization losses from `get_variable`."""
+        return {name: regularizer() for name, regularizer
+                in self._variable_store._regularizers.items()}  # pylint: disable=protected-access
+
+      def __call__(self, inputs, training=None):
+        with self._variable_store.scope():
+          out = inputs
+          with tf.compat.v1.variable_scope("dense_one"):
+            # The weights are created with a `regularizer`,
+            # so the layer should track their regularization losses
+            kernel = tf.compat.v1.get_variable(
+                shape=[out.shape[-1], self.units],
+                regularizer=regularizers.L2(),
+                initializer=tf.compat.v1.ones_initializer(),
+                name="kernel")
+            bias = tf.compat.v1.get_variable(
+                shape=[self.units,],
+                initializer=tf.compat.v1.zeros_initializer(),
+                name="bias")
+            out = tf.matmul(out, kernel)
+            out = tf.nn.bias_add(out, bias)
+          with tf.compat.v1.variable_scope("nested_scope"):
+            with tf.compat.v1.variable_scope("dense_two"):
+              kernel = tf.compat.v1.get_variable(
+                  shape=[out.shape[-1], self.units],
+                  regularizer=regularizers.L2(),
+                  initializer=tf.compat.v1.ones_initializer(),
+                  name="kernel")
+              bias = tf.compat.v1.get_variable(
+                  shape=[self.units,],
+                  initializer=tf.compat.v1.zeros_initializer(),
+                  name="bias")
+              out = tf.matmul(out, kernel)
+              out = tf.nn.bias_add(out, bias)
+          return out
+
+    layer = WrappedDenseLayer(10)
+    out = layer(tf.ones(shape=(5, 5)))
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct output, regularization losses, + variables were made
+    self.assertEqual(weights.keys(), {"dense_one/bias:0",
+                                      "dense_one/kernel:0",
+                                      "nested_scope/dense_two/bias:0",
+                                      "nested_scope/dense_two/kernel:0"})
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 50)
+    self.assertAllEqual(
+        tf.add_n(layer.get_compat_v1_regularization_losses().values()), 1.5)
+
+    # Verify reuse by updating the variables then re-running
+    weights["dense_one/kernel:0"].assign(tf.ones(shape=(5, 10)) * 2)
+    weights["nested_scope/dense_two/kernel:0"].assign(
+        tf.ones(shape=(10, 10)) * 2)
+    out = layer(tf.ones(shape=(5, 5)))
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 200)
+    self.assertAllEqual(
+        tf.add_n(layer.get_compat_v1_regularization_losses().values()), 6)
+
+  def test_module_get_variable(self):
+    # Test the module shim when using `get_variable` (and regularizers) directly
+
+    class WrappedDenseLayer(VariableScopeModule):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def forward_pass(self, inputs, training=None):
+        out = inputs
+        with tf.compat.v1.variable_scope("dense_one"):
+          # The weights are created with a `regularizer`,
+          # so the layer should track their regularization losses
+          kernel = tf.compat.v1.get_variable(
+              shape=[out.shape[-1], self.units],
+              regularizer=regularizers.L2(),
+              initializer=tf.compat.v1.ones_initializer(),
+              name="kernel")
+          bias = tf.compat.v1.get_variable(
+              shape=[self.units,],
+              initializer=tf.compat.v1.zeros_initializer(),
+              name="bias")
+          out = tf.matmul(out, kernel)
+          out = tf.nn.bias_add(out, bias)
+        with tf.compat.v1.variable_scope("nested_scope"):
+          with tf.compat.v1.variable_scope("dense_two"):
+            kernel = tf.compat.v1.get_variable(
+                shape=[out.shape[-1], self.units],
+                regularizer=regularizers.L2(),
+                initializer=tf.compat.v1.ones_initializer(),
+                name="kernel")
+            bias = tf.compat.v1.get_variable(
+                shape=[self.units,],
+                initializer=tf.compat.v1.zeros_initializer(),
+                name="bias")
+            out = tf.matmul(out, kernel)
+            out = tf.nn.bias_add(out, bias)
+        return out
+
+    layer = WrappedDenseLayer(10)
+    out = layer(tf.ones(shape=(5, 5)))
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct output, regularization losses, + variables were made
+    self.assertEqual(weights.keys(), {"dense_one/bias:0",
+                                      "dense_one/kernel:0",
+                                      "nested_scope/dense_two/bias:0",
+                                      "nested_scope/dense_two/kernel:0"})
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 50)
+    self.assertAllEqual(
+        tf.add_n(layer.get_compat_v1_regularization_losses().values()), 1.5)
+
+    # Verify reuse by updating the variables then re-running
+    weights["dense_one/kernel:0"].assign(tf.ones(shape=(5, 10)) * 2)
+    weights["nested_scope/dense_two/kernel:0"].assign(
+        tf.ones(shape=(10, 10)) * 2)
+    out = layer(tf.ones(shape=(5, 5)))
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 200)
+    self.assertAllEqual(
+        tf.add_n(layer.get_compat_v1_regularization_losses().values()), 6)
+
+  def test_module_compat_v1_layer(self):
+    # Test the module shim when using `compat.v1` layers
+
+    class WrappedDenseLayer(VariableScopeModule):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def forward_pass(self, inputs, training=None):
+        out = core_layers.dense(
+            inputs, self.units, name="dense_one",
+            kernel_initializer=tf.compat.v1.ones_initializer(),
+            kernel_regularizer="l2")
+        with tf.compat.v1.variable_scope("nested_scope"):
+          out = core_layers.dense(
+              out, self.units, name="dense_two",
+              kernel_initializer=tf.compat.v1.ones_initializer(),
+              kernel_regularizer="l2")
+        return out
+
+    layer = WrappedDenseLayer(10)
+    out = layer(tf.ones(shape=(5, 5)))
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct output, losses, + variables were made
+    self.assertEqual(weights.keys(), {"dense_one/bias:0",
+                                      "dense_one/kernel:0",
+                                      "nested_scope/dense_two/bias:0",
+                                      "nested_scope/dense_two/kernel:0"})
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 50)
+    self.assertAllEqual(tf.add_n(
+        layer.get_compat_v1_regularization_losses().values()), 1.5)
+
+    # Verify reuse by updating the variables then re-running
+    weights["dense_one/kernel:0"].assign(tf.ones(shape=(5, 10)) * 2)
+    weights["nested_scope/dense_two/kernel:0"].assign(
+        tf.ones(shape=(10, 10)) * 2)
+    out = layer(tf.ones(shape=(5, 5)))
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 200)
+    self.assertAllEqual(tf.add_n(
+        layer.get_compat_v1_regularization_losses().values()), 6)
+
+  def test_shim_nesting(self):
+    # Test that nesting the shim in itself works
+
+    class NestedLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, name, *args, **kwargs):
+        super().__init__(*args, name=name, **kwargs)
+        self.units = units
+
+      def forward_pass(self, inputs):
+        out = inputs
+        with tf.compat.v1.variable_scope(self.name):
+          # The weights are created with a `regularizer`,
+          # so the layer should track their regularization losses
+          kernel = tf.compat.v1.get_variable(
+              shape=[out.shape[-1], self.units],
+              regularizer=regularizers.L2(1.0),
+              initializer=tf.compat.v1.ones_initializer(),
+              name="kernel")
+          bias = tf.compat.v1.get_variable(
+              shape=[self.units,],
+              initializer=tf.compat.v1.initializers.zeros,
+              name="bias")
+          out = tf.linalg.matmul(out, kernel)
+          out = tf.compat.v1.nn.bias_add(out, bias)
+        return out
+
+    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, **kwargs):
+        super().__init__(**kwargs)
+        self.units = units
+        self.dense_layer_a = None
+        self.dense_layer_b = None
+
+      def forward_pass(self, inputs):
+        # Only create the nested tf.variable/module/layer/model if it has not
+        # already been created!
+        if not self.dense_layer_a:
+          self.dense_layer_a = NestedLayer(self.units * 2, "dense_one")
+        out = self.dense_layer_a(inputs)
+        if not self.dense_layer_b:
+          self.dense_layer_b = NestedLayer(self.units, "dense_two")
+        out = self.dense_layer_b(out)
+        return out
+
+    layer = WrappedDenseLayer(5)
+    out = layer(tf.ones(shape=(1, 3)))
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct output, losses, + variables were made
+    # (Specifically: no double-counting of any weights or reg. losses
+    # between nested components!)
+    self.assertEqual({var.name for var in layer.trainable_weights},
+                     {"dense_one/bias:0",
+                      "dense_one/kernel:0",
+                      "dense_two/bias:0",
+                      "dense_two/kernel:0"})
+    self.assertEqual({var.name for var in layer.dense_layer_a.weights},
+                     {"dense_one/bias:0",
+                      "dense_one/kernel:0"})
+    self.assertEqual({var.name for var in layer.dense_layer_b.weights},
+                     {"dense_two/bias:0",
+                      "dense_two/kernel:0"})
+    self.assertAllEqual(out, tf.ones(shape=(1, 5)) * 30)
+    self.assertAllEqual(tf.add_n(layer.dense_layer_a.losses), 30)
+    self.assertAllEqual(tf.add_n(layer.dense_layer_b.losses), 50)
+    self.assertAllEqual(tf.add_n(layer.losses), 80)
+
+    # Verify reuse by updating the variables then re-running
+    weights["dense_one/kernel:0"].assign(tf.ones(shape=(3, 10)) * 2)
+    weights["dense_two/kernel:0"].assign(
+        tf.ones(shape=(10, 5)) * 2)
+    out = layer(tf.ones(shape=(1, 3)))
+    self.assertAllEqual(out, tf.ones(shape=(1, 5)) * 120)
+    self.assertAllEqual(tf.add_n(layer.losses), 320)
+
+  def test_compat_v1_make_template_in_shim_eager(self):
+    # Test the shim when using `compat.v1.make_template`
+    # Verify it works correctly in eager
+    layer = CompatV1TemplateScaleByY()
+    for _ in range(3):
+      # Use multiple calls to verify that no new weights get created
+      self.assertAllEqual(layer(tf.ones(shape=(2, 3))),
+                          tf.constant(1.5, shape=(2, 3)))
+    self.assertAllEqual({var.name: var.numpy() for var in layer.weights},
+                        {"foo/scale_by_y/y:0": 1.5})
+    self.assertAllEqual(tf.add_n(layer.losses),
+                        regularizers.L2()(layer.weights[0]))
+
+  def test_compat_v1_make_template_in_shim_tf_function(self):
+    # Test the shim when using `compat.v1.make_template`
+    # Verify it works correctly in a tf.function
+    # when made outside the function
+    layer = CompatV1TemplateScaleByY()
+
+    @tf.function
+    def foo(x):
+      return layer(x), tf.add_n(layer.losses)
+
+    for _ in range(3):
+      # Use multiple calls to verify that no new weights get created
+      out, loss = foo(tf.ones(shape=(2, 3)))
+      self.assertAllEqual(out, tf.constant(1.5, shape=(2, 3)))
+      self.assertAllEqual(loss, regularizers.L2()(layer.weights[0]))
+    self.assertAllEqual({var.name: var.numpy() for var in layer.weights},
+                        {"foo/scale_by_y/y:0": 1.5})
+
+  def test_compat_v1_make_template_in_trace_in_shim(self):
+    # Test the shim when using `compat.v1.make_template`
+    # Verify it works correctly when the make_template/layer/shim
+    # is created on the first tf.function trace!
+    layers = {}
+    @tf.function
+    def bar(x):
+      if "layer" not in layers:
+        layers["layer"] = CompatV1TemplateScaleByY()
+      layer = layers["layer"]
+      return layer(x), tf.add_n(layer.losses)
+
+    for _ in range(3):
+      # Use multiple calls to verify that no new weights get created
+      out, loss = bar(tf.ones(shape=(2, 3)))
+      self.assertAllEqual(out, tf.constant(1.5, shape=(2, 3)))
+      self.assertAllEqual(loss, regularizers.L2()(layers["layer"].weights[0]))
+    self.assertAllEqual(
+        {var.name: var.numpy() for var in layers["layer"].weights},
+        {"foo/scale_by_y/y:0": 1.5})
+
+  def test_only_track_get_variable(self):
+    # Test the shim does not try tracking or reusing variables
+    # that were not created by get_variable. These variables/modules/layers
+    # need to be tracked separately
+
+    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, **kwargs):
+        super().__init__(**kwargs)
+        self.units = units
+        self._dense_model = None
+
+      def forward_pass(self, inputs):
+        dense_layer = core.Dense(
+            self.units, name="dense",
+            kernel_initializer=tf.compat.v1.ones_initializer(),
+            kernel_regularizer="l2")
+        return dense_layer(inputs)
+
+    layer = WrappedDenseLayer(10)
+    out = layer(tf.ones(shape=(5, 5)))
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 5)
+
+    self.assertEmpty(layer.weights)
+
+  def test_embedded_keras_model(self):
+    # Test the shim when embedding a Keras model inside of it
+    # And assigning the model to an attribute
+
+    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, **kwargs):
+        super().__init__(**kwargs)
+        self.units = units
+        self._dense_model = None
+
+      def forward_pass(self, inputs):
+        if not self._dense_model:
+          inp = input_layer_module.Input(shape=inputs.shape)
+          dense_layer = core.Dense(
+              self.units, name="dense",
+              kernel_initializer=tf.compat.v1.ones_initializer(),
+              kernel_regularizer="l2")
+          self._dense_model = training_module.Model(
+              inputs=inp, outputs=dense_layer(inp))
+        return self._dense_model(inputs)
+
+    layer = WrappedDenseLayer(10)
+    out = layer(tf.ones(shape=(5, 5)))
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct output, losses, + variables were made
+    self.assertEqual(weights.keys(), {"dense/bias:0",
+                                      "dense/kernel:0"})
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 5)
+    self.assertAllEqual(tf.add_n(layer.losses), 0.5)
+
+    # Verify reuse by updating the variables then re-running
+    weights["dense/kernel:0"].assign(
+        tf.ones(shape=(5, 10)) * 2)
+    out = layer(tf.ones(shape=(5, 5)))
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 10)
+    self.assertAllEqual(tf.add_n(layer.losses), 2)
+
+  def test_embedded_keras_model_in_module(self):
+    # Test the module shim when embedding a Keras model inside of it
+    # And assigning the model to an attribute
+
+    class WrappedDenseLayer(VariableScopeModule):
+
+      def __init__(self, units, **kwargs):
+        super().__init__(**kwargs)
+        self.units = units
+        self._dense_model = None
+
+      def forward_pass(self, inputs):
+        if not self._dense_model:
+          inp = input_layer_module.Input(shape=inputs.shape)
+          dense_layer = core.Dense(
+              self.units, name="dense",
+              kernel_initializer=tf.compat.v1.ones_initializer(),
+              kernel_regularizer="l2")
+          self._dense_model = training_module.Model(
+              inputs=inp, outputs=dense_layer(inp))
+        return self._dense_model(inputs)
+
+    layer = WrappedDenseLayer(10)
+    out = layer(tf.ones(shape=(5, 5)))
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct output, losses, + variables were made
+    self.assertEqual(weights.keys(), {"dense/bias:0",
+                                      "dense/kernel:0"})
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 5)
+
+    # The module shim will only track regularization losses made by
+    # compat.v1.layers and compat.v1.get_variable. Other regularization
+    # losses must be tracked by separate user-created mechanisms.
+    self.assertEmpty(layer.get_compat_v1_regularization_losses())
+
+    # Verify reuse by updating the variables then re-running
+    weights["dense/kernel:0"].assign(
+        tf.ones(shape=(5, 10)) * 2)
+    out = layer(tf.ones(shape=(5, 5)))
+    self.assertAllEqual(out, tf.ones(shape=(5, 10)) * 10)
+
+    # The module shim will only track regularization losses made by
+    # compat.v1.layers and compat.v1.get_variable. Other regularization
+    # losses must be tracked by separate user-created mechanisms.
+    self.assertEmpty(layer.get_compat_v1_regularization_losses())
+
+  def test_training_arg(self):
+    # Test the shim when passing in a Keras `training` arg
+
+    class TrainingCheckLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def forward_pass(self, inputs, training=None):
+        if training:
+          out = core_layers.dense(inputs, self.units, name="dense_training")
+        else:
+          out = core_layers.dense(inputs, self.units, name="dense_no_training")
+        return out
+
+    layer = TrainingCheckLayer(10)
+    layer(tf.ones(shape=(5, 5)), training=True)
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct variables were made
+    self.assertEqual(weights.keys(),
+                     {"dense_training/bias:0", "dense_training/kernel:0"})
+
+    layer = TrainingCheckLayer(10)
+    layer(tf.ones(shape=(5, 5)))
+    weights = {x.name: x for x in layer.variables}
+
+    # Verify the correct variables were made
+    self.assertEqual(weights.keys(),
+                     {"dense_no_training/bias:0", "dense_no_training/kernel:0"})
+
+  def test_incorrect_decoration(self):
+    # Raise an error if you incorrectly decorate a method
+    # that is not a method of a Module, layer, or model:
+    @variable_scope_shim.track_tf1_style_variables
+    def foo(x):
+      return x * 2
+
+    with self.assertRaisesRegex(ValueError, "does not extend"):
+      foo(tf.ones(shape=(4, 4)))
+
+
+class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
+
+  @combinations.generate(combinations.combine(mode=["eager"]))
+  def test_get_or_create_layer_eager(self):
+
+    class NestedLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def build_model(self):
+        inp = input_layer_module.Input(shape=(5, 5))
+        dense_layer = core.Dense(
+            10, name="dense", kernel_regularizer="l2",
+            kernel_initializer=tf.compat.v1.ones_initializer())
+        model = training_module.Model(inputs=inp, outputs=dense_layer(inp))
+        return model
+
+      def forward_pass(self, inputs):
+        model = variable_scope_shim.get_or_create_layer(
+            "dense_model", self.build_model)
+        return model(inputs)
+
+    # enter a variable scope to check module key naming
+    with tf.compat.v1.variable_scope("test_scope"):
+      layer = NestedLayer(10)
+      x = tf.ones(shape=(5, 5))
+
+      out1 = layer(tf.expand_dims(x, 0))
+
+      model1 = layer.submodules[0]._layers["test_scope/dense_model"]
+
+      out2 = layer(tf.expand_dims(x, 0))
+      # Verify model produces same output on successive calls with same input
+      self.assertAllEqual(out1, out2)
+
+      # Verify the model used on subsequent calls is the same
+      model2 = layer.submodules[0]._layers["test_scope/dense_model"]
+      self.assertIs(model1, model2)
+
+      # Verify that stored layer computes outputs and losses correctly
+      weights = {x.name: x for x in layer.variables}
+      self.assertEqual(weights.keys(), {"dense/bias:0", "dense/kernel:0"})
+      self.assertAllEqual(out2, tf.ones(shape=(1, 5, 10)) * 5)
+      self.assertAllEqual(tf.add_n(layer.losses), [0.5])
+
+  @combinations.generate(combinations.combine(mode=["eager"]))
+  def test_get_or_create_layer_tf_function(self):
+
+    class NestedLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def build_model(self):
+        inp = input_layer_module.Input(shape=(5, 5))
+        dense_layer = core.Dense(
+            10, name="dense", kernel_regularizer="l2",
+            )
+        model = training_module.Model(inputs=inp, outputs=dense_layer(inp))
+        return model
+
+      def forward_pass(self, inputs):
+        model = variable_scope_shim.get_or_create_layer(
+            "dense_model", self.build_model)
+        return model(inputs)
+
+    layer = NestedLayer(10)
+
+    @tf.function
+    def foo(x):
+      return layer(x), tf.add_n(layer.losses)
+
+    # Verify inner model is reused
+    out1, loss1 = foo(tf.ones(shape=(5, 5)))
+    out2, loss2 = foo(tf.ones(shape=(5, 5)))
+    self.assertAllEqual(out1, out2)
+    self.assertAllEqual(loss1, loss2)
+
+  @test_util.run_deprecated_v1
+  def test_get_or_create_layer_graph(self):
+
+    class NestedLayer(object):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def build_model(self):
+        inp = input_layer_module.Input(shape=(5, 5))
+        dense_layer = core.Dense(
+            10, name="dense", kernel_regularizer="l2",
+            kernel_initializer=tf.compat.v1.ones_initializer())
+        model = training_module.Model(inputs=inp, outputs=dense_layer(inp))
+        return model
+
+      def __call__(self, inputs):
+        model = variable_scope_shim.get_or_create_layer(
+            "dense_model", self.build_model)
+        return model(inputs)
+
+    with self.cached_session():
+      layer = NestedLayer(10)
+      x = tf.ones(shape=(5, 5))
+
+      out1 = layer(tf.expand_dims(x, 0))
+      self.evaluate(tf.compat.v1.global_variables_initializer())
+
+      # verify output
+      self.assertEqual(out1.shape, tf.TensorShape([1, 5, 10]))
+      self.assertAllEqual(out1, tf.ones(shape=(1, 5, 10)) * 5)
+
+      # verify variables are tracked
+      weights = {var.name for var in tf.compat.v1.trainable_variables()}
+      self.assertEqual(weights, {"dense/bias:0", "dense/kernel:0"})
 
 
 if __name__ == "__main__":

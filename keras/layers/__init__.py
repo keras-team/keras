@@ -16,11 +16,10 @@
 
 import tensorflow.compat.v2 as tf
 
+# pylint: disable=g-bad-import-order,g-direct-tensorflow-import,disable=g-import-not-at-top
 from tensorflow.python import tf2
 
 # Generic layers.
-# pylint: disable=g-bad-import-order
-# pylint: disable=g-import-not-at-top
 from keras.engine.input_layer import Input
 from keras.engine.input_layer import InputLayer
 from keras.engine.input_spec import InputSpec
@@ -41,10 +40,10 @@ from keras.layers.preprocessing.image_preprocessing import Resizing
 from keras.layers.preprocessing.image_preprocessing import Rescaling
 
 # Preprocessing layers.
-from keras.layers.preprocessing.category_crossing import CategoryCrossing
 from keras.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.layers.preprocessing.discretization import Discretization
 from keras.layers.preprocessing.hashing import Hashing
+from keras.layers.preprocessing.hashed_crossing import HashedCrossing
 from keras.layers.preprocessing.integer_lookup import IntegerLookup
 from keras.layers.preprocessing.normalization import Normalization
 from keras.layers.preprocessing.string_lookup import StringLookup
@@ -76,6 +75,7 @@ from keras.layers.convolutional import Convolution2DTranspose
 from keras.layers.convolutional import Convolution3DTranspose
 from keras.layers.convolutional import SeparableConvolution1D
 from keras.layers.convolutional import SeparableConvolution2D
+from keras.layers.convolutional import DepthwiseConv1D
 from keras.layers.convolutional import DepthwiseConv2D
 
 # Image processing layers.
@@ -90,19 +90,24 @@ from keras.layers.convolutional import Cropping2D
 from keras.layers.convolutional import Cropping3D
 
 # Core layers.
-from keras.layers.core import Masking
-from keras.layers.core import Dropout
-from keras.layers.core import SpatialDropout1D
-from keras.layers.core import SpatialDropout2D
-from keras.layers.core import SpatialDropout3D
-from keras.layers.core import Activation
-from keras.layers.core import Reshape
-from keras.layers.core import Permute
-from keras.layers.core import Flatten
-from keras.layers.core import RepeatVector
-from keras.layers.core import Lambda
-from keras.layers.core import Dense
-from keras.layers.core import ActivityRegularization
+from keras.layers.core.activation import Activation
+from keras.layers.core.activity_regularization import ActivityRegularization
+from keras.layers.core.dense import Dense
+from keras.layers.core.dropout import Dropout
+from keras.layers.core.flatten import Flatten
+from keras.layers.core.lambda_layer import Lambda
+from keras.layers.core.masking import Masking
+from keras.layers.core.permute import Permute
+from keras.layers.core.repeat_vector import RepeatVector
+from keras.layers.core.reshape import Reshape
+from keras.layers.core.spatial_dropout import SpatialDropout1D
+from keras.layers.core.spatial_dropout import SpatialDropout2D
+from keras.layers.core.spatial_dropout import SpatialDropout3D
+from keras.layers.core.tf_op_layer import ClassMethod
+from keras.layers.core.tf_op_layer import InstanceMethod
+from keras.layers.core.tf_op_layer import InstanceProperty
+from keras.layers.core.tf_op_layer import SlicingOpLambda
+from keras.layers.core.tf_op_layer import TFOpLambda
 
 # Dense Attention layers.
 from keras.layers.dense_attention import AdditiveAttention
@@ -228,27 +233,28 @@ from keras.layers.convolutional_recurrent import ConvLSTM1D
 from keras.layers.convolutional_recurrent import ConvLSTM2D
 from keras.layers.convolutional_recurrent import ConvLSTM3D
 
-# CuDNN recurrent layers.
+# cuDNN recurrent layers.
 from keras.layers.cudnn_recurrent import CuDNNLSTM
 from keras.layers.cudnn_recurrent import CuDNNGRU
 
-# Wrapper functions
+# Wrapper functions.
 from keras.layers.wrappers import Wrapper
 from keras.layers.wrappers import Bidirectional
 from keras.layers.wrappers import TimeDistributed
 
-# # RNN Cell wrappers.
+# RNN Cell wrappers.
 from keras.layers.rnn_cell_wrapper_v2 import DeviceWrapper
 from keras.layers.rnn_cell_wrapper_v2 import DropoutWrapper
 from keras.layers.rnn_cell_wrapper_v2 import ResidualWrapper
 
-# Serialization functions
+# Serialization functions.
 from keras.layers import serialization
 from keras.layers.serialization import deserialize
 from keras.layers.serialization import serialize
+from keras.layers.serialization import get_builtin_layer
 
 
-class VersionAwareLayers(object):
+class VersionAwareLayers:
   """Utility to be used internally to access layers in a V1/V2-aware fashion.
 
   When using layers within the Keras codebase, under the constraint that

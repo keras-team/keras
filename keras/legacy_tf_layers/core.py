@@ -86,12 +86,15 @@ class Dense(keras_layers.Dense, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Dense`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Dense`.
 
 
   #### Structural Mapping to Native TF2
@@ -202,12 +205,15 @@ def dense(
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Dense`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Dense`.
 
 
   #### Structural Mapping to Native TF2
@@ -233,9 +239,11 @@ def dense(
   @end_compatibility
 
   """
-  warnings.warn('`tf.layers.dense` is deprecated and '
-                'will be removed in a future version. '
-                'Please use `tf.keras.layers.Dense` instead.')
+  warnings.warn(
+      '`tf.layers.dense` is deprecated and '
+      'will be removed in a future version. '
+      'Please use `tf.keras.layers.Dense` instead.',
+      stacklevel=2)
   layer = Dense(units,
                 activation=activation,
                 use_bias=use_bias,
@@ -279,12 +287,15 @@ class Dropout(keras_layers.Dropout, base.Layer):
 
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Dropout`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Dropout`.
 
 
   #### Structural Mapping to Native TF2
@@ -360,12 +371,15 @@ def dropout(inputs,
     ValueError: if eager execution is enabled.
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Dropout`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Dropout`.
 
 
   #### Structural Mapping to Native TF2
@@ -390,9 +404,11 @@ def dropout(inputs,
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.dropout` is deprecated and '
-                'will be removed in a future version. '
-                'Please use `tf.keras.layers.Dropout` instead.')
+  warnings.warn(
+      '`tf.layers.dropout` is deprecated and '
+      'will be removed in a future version. '
+      'Please use `tf.keras.layers.Dropout` instead.',
+      stacklevel=2)
   layer = Dropout(rate, noise_shape=noise_shape, seed=seed, name=name)
   return layer.apply(inputs, training=training)
 
@@ -422,12 +438,15 @@ class Flatten(keras_layers.Flatten, base.Layer):
   ```
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or `tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Flatten`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Flatten`.
 
 
   #### Structural Mapping to Native TF2
@@ -480,12 +499,15 @@ def flatten(inputs, name=None, data_format='channels_last'):
   ```
 
   @compatibility(TF2)
-  This API is not compatible with eager execution or`tf.function`.
+  This API is a legacy api that is only compatible with eager execution and
+  `tf.function` if you combine it with
+  `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
-  layer is `tf.keras.layers.Flatten`.
+  Please refer to [tf.layers model mapping section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate/model_mapping)
+  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+  The corresponding TensorFlow v2 layer is `tf.keras.layers.Flatten`.
 
 
   #### Structural Mapping to Native TF2
@@ -510,9 +532,11 @@ def flatten(inputs, name=None, data_format='channels_last'):
   ```
   @end_compatibility
   """
-  warnings.warn('`tf.layers.flatten` is deprecated and '
-                'will be removed in a future version. '
-                'Please use `tf.keras.layers.Flatten` instead.')
+  warnings.warn(
+      '`tf.layers.flatten` is deprecated and '
+      'will be removed in a future version. '
+      'Please use `tf.keras.layers.Flatten` instead.',
+      stacklevel=2)
   layer = Flatten(name=name, data_format=data_format)
   return layer.apply(inputs)
 

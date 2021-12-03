@@ -6,16 +6,10 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
     licenses = ["notice"],
-)
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
 )
 
 tf_py_test(
@@ -26,17 +20,6 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
         "//keras/layers/preprocessing:category_encoding",
-    ],
-)
-
-tf_py_test(
-    name = "category_crossing_benchmark",
-    srcs = ["category_crossing_benchmark.py"],
-    python_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras/api:keras_api",
-        "//keras/layers/preprocessing:category_crossing",
     ],
 )
 
@@ -118,8 +101,8 @@ tf_py_test(
 )
 
 tf_py_test(
-    name = "category_cross_hash_dense_benchmark",
-    srcs = ["category_cross_hash_dense_benchmark.py"],
+    name = "hashed_crossing_benchmark",
+    srcs = ["hashed_crossing_benchmark.py"],
     python_version = "PY3",
     deps = [
         ":feature_column_benchmark",

@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Utilites for `Model.compile`."""
+"""Utilities for `Model.compile`."""
 
-import tensorflow.compat.v2 as tf
 
 import copy
 from keras import losses as losses_mod
@@ -22,9 +21,10 @@ from keras import metrics as metrics_mod
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import tf_utils
+import tensorflow.compat.v2 as tf
 
 
-class Container(object):
+class Container:
   """Base Container class."""
 
   def __init__(self, output_names=None):
@@ -175,7 +175,7 @@ class LossesContainer(Container):
       regularization_losses: Additional losses to be added to the total loss.
 
     Returns:
-      Tuple of `(total_loss, per_output_loss_list)`
+      The total loss as a `tf.Tensor`, or `None` if no loss results.
     """
     y_true = self._conform_to_outputs(y_pred, y_true)
     sample_weight = self._conform_to_outputs(y_pred, sample_weight)
@@ -243,8 +243,7 @@ class LossesContainer(Container):
       total_loss = tf.add_n(loss_values)
       return total_loss
     else:
-      # Ok for a model to have no compiled loss.
-      return tf.zeros(shape=())
+      return None
 
   def reset_state(self):
     """Resets the state of loss metrics."""
@@ -274,7 +273,8 @@ class LossesContainer(Container):
     if not isinstance(loss, losses_mod.Loss):
       loss_name = get_custom_object_name(loss)
       if loss_name is None:
-        raise ValueError('Loss should be a callable, found: {}'.format(loss))
+        raise ValueError(
+            f'Loss should be a callable, received: {loss}')
       loss = losses_mod.LossFunctionWrapper(loss, name=loss_name)
     loss._allow_sum_over_batch_size = True  # pylint: disable=protected-access
     return loss
@@ -394,8 +394,9 @@ class MetricsContainer(Container):
         if is_multi_output:
           m._name = output_name + '_' + m._name
         if m._name in metric_names:
-          raise ValueError('Found two metrics with the same name: {}'.format(
-              m._name))
+          raise ValueError(
+              f'Found two metrics with the same name: {m._name}.'
+              'All the metrics added to the model need to have unique names.')
         metric_names.add(m._name)
 
       for wm in weighted_output_metrics:
@@ -410,8 +411,9 @@ class MetricsContainer(Container):
           wm._name = 'weighted_' + wm._name
 
         if wm._name in metric_names:
-          raise ValueError('Found two metrics with the same name: {}'.format(
-              wm._name))
+          raise ValueError(
+              f'Found two weighted metrics with the same name: {wm._name}.'
+              'All the metrics added to the model need to have unique names.')
         metric_names.add(wm._name)
     # pylint: enable=protected-access
 
@@ -534,7 +536,7 @@ class MetricsContainer(Container):
         metric_name = get_custom_object_name(metric)
         if metric_name is None:
           raise ValueError(
-              'Metric should be a callable, found: {}'.format(metric))
+              f'Metric should be a callable, received: {metric}')
 
       metric_obj = metrics_mod.MeanMetricWrapper(metric_obj, name=metric_name)
 
@@ -646,9 +648,11 @@ def map_to_output_names(y_pred, output_names, struct):
     struct = copy.copy(struct)
     new_struct = [struct.pop(name, None) for name in output_names]
     if struct:
-      raise ValueError('Found unexpected keys that do not correspond '
-                       'to any Model output: {}. Expected: {}'.format(
-                           struct.keys(), output_names))
+      raise ValueError(
+          'Found unexpected losses or metrics that do not correspond '
+          f'to any Model output: {struct.keys()}. '
+          f'Valid mode output names: {output_names}. '
+          f'Received struct is: {struct}.')
     if len(new_struct) == 1:
       return new_struct[0]
     return new_struct

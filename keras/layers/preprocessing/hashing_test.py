@@ -14,20 +14,36 @@
 # ==============================================================================
 """Tests for hashing layer."""
 
+import os
 from absl.testing import parameterized
 
-import tensorflow.compat.v2 as tf
-
-import numpy as np
+import keras
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.layers.preprocessing import hashing
+from keras.layers.preprocessing import preprocessing_test_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class HashingTest(keras_parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      ('list', list),
+      ('tuple', tuple),
+      ('numpy', np.array),
+      ('array_like', preprocessing_test_utils.ArrayLike),
+  )
+  def test_tensor_like_inputs(self, data_fn):
+    input_data = data_fn([0, 1, 2, 3, 4])
+    expected_output = [1, 0, 1, 0, 2]
+
+    layer = hashing.Hashing(num_bins=3)
+    output_data = layer(input_data)
+    self.assertAllEqual(output_data, expected_output)
 
   def test_hash_single_bin(self):
     layer = hashing.Hashing(num_bins=1)
@@ -193,8 +209,7 @@ class HashingTest(keras_parameterized.TestCase):
 
   def test_hash_ragged_int_input_farmhash(self):
     layer = hashing.Hashing(num_bins=3)
-    inp_data = tf.ragged.constant([[0, 1, 3, 4], [2, 1, 0]],
-                                           dtype=tf.int64)
+    inp_data = tf.ragged.constant([[0, 1, 3, 4], [2, 1, 0]], dtype=tf.int64)
     out_data = layer(inp_data)
     # Same hashed output as test_hash_sparse_input_farmhash
     expected_output = [[1, 0, 0, 2], [1, 0, 1]]
@@ -231,8 +246,7 @@ class HashingTest(keras_parameterized.TestCase):
 
   def test_hash_ragged_int_input_siphash(self):
     layer = hashing.Hashing(num_bins=3, salt=[133, 137])
-    inp_data = tf.ragged.constant([[0, 1, 3, 4], [2, 1, 0]],
-                                           dtype=tf.int64)
+    inp_data = tf.ragged.constant([[0, 1, 3, 4], [2, 1, 0]], dtype=tf.int64)
     out_data = layer(inp_data)
     # Same hashed output as test_hash_sparse_input_farmhash
     expected_output = [[1, 1, 0, 1], [2, 1, 1]]
@@ -255,6 +269,85 @@ class HashingTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'can only be a tuple of size 2'):
       _ = hashing.Hashing(num_bins=1, salt=tf.constant([133, 137]))
 
+  def test_one_hot_output(self):
+    input_array = np.array([0, 1, 2, 3, 4])
+
+    expected_output = [[0., 1., 0.],
+                       [1., 0., 0.],
+                       [0., 1., 0.],
+                       [1., 0., 0.],
+                       [0., 0., 1.]]
+    expected_output_shape = [None, 3]
+
+    inputs = keras.Input(shape=(1,), dtype='int32')
+    layer = hashing.Hashing(num_bins=3, output_mode='one_hot')
+    outputs = layer(inputs)
+    self.assertAllEqual(expected_output_shape, outputs.shape.as_list())
+
+    model = keras.Model(inputs, outputs)
+    output_data = model(input_array)
+    self.assertAllEqual(expected_output, output_data)
+
+  def test_multi_hot_output(self):
+    input_array = np.array([0, 1, 2, 3, 4])
+
+    expected_output = [1., 1., 1.]
+    expected_output_shape = [None, 3]
+
+    inputs = keras.Input(shape=(3,), dtype='int32')
+    layer = hashing.Hashing(num_bins=3, output_mode='multi_hot')
+    outputs = layer(inputs)
+    self.assertAllEqual(expected_output_shape, outputs.shape.as_list())
+
+    model = keras.Model(inputs, outputs)
+    output_data = model(input_array)
+    self.assertAllEqual(expected_output, output_data)
+
+  def test_count_output(self):
+    input_array = np.array([0, 1, 2, 3, 4])
+
+    expected_output = [2., 2., 1.]
+    expected_output_shape = [None, 3]
+
+    inputs = keras.Input(shape=(3,), dtype='int32')
+    layer = hashing.Hashing(num_bins=3, output_mode='count')
+    outputs = layer(inputs)
+    self.assertAllEqual(expected_output_shape, outputs.shape.as_list())
+
+    model = keras.Model(inputs, outputs)
+    output_data = model(input_array)
+    self.assertAllEqual(expected_output, output_data)
+
+  @parameterized.named_parameters(
+      ('int32', tf.int32),
+      ('int64', tf.int64),
+  )
+  def test_output_dtype(self, dtype):
+    input_data = keras.Input(batch_size=16, shape=(4,), dtype='string')
+    layer = hashing.Hashing(num_bins=3, dtype=dtype)
+    output = layer(input_data)
+    self.assertAllEqual(output.dtype, dtype)
+
+  def test_legacy_dtype_compat(self):
+    inputs = keras.Input(batch_size=16, shape=(4,), dtype='string')
+    layer = hashing.Hashing(num_bins=3, dtype='float32')
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.dtype, tf.int64)
+    # In TF1 we sometimes face an explicit dtype=None in the config.
+    layer = hashing.Hashing(num_bins=3, dtype=None)
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.dtype, tf.int64)
+
+  @parameterized.named_parameters(
+      ('float32', tf.float32),
+      ('float64', tf.float64),
+  )
+  def test_one_hot_output_dtype(self, dtype):
+    input_data = keras.Input(batch_size=16, shape=(1,), dtype='string')
+    layer = hashing.Hashing(num_bins=3, output_mode='one_hot', dtype=dtype)
+    output = layer(input_data)
+    self.assertAllEqual(output.dtype, dtype)
+
   def test_hash_compute_output_signature(self):
     input_shape = tf.TensorShape([2, 3])
     input_spec = tf.TensorSpec(input_shape, tf.string)
@@ -269,6 +362,27 @@ class HashingTest(keras_parameterized.TestCase):
     config = layer.get_config()
     layer_1 = hashing.Hashing.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
+
+  def test_saved_model(self):
+    input_data = np.array(['omar', 'stringer', 'marlo', 'wire', 'skywalker'])
+
+    inputs = keras.Input(shape=(None,), dtype=tf.string)
+    outputs = hashing.Hashing(num_bins=100)(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    original_output_data = model(input_data)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), 'tf_keras_saved_model')
+    model.save(output_path, save_format='tf')
+    loaded_model = keras.models.load_model(output_path)
+
+    # Ensure that the loaded model is unique (so that the save/load is real)
+    self.assertIsNot(model, loaded_model)
+
+    # Validate correctness of the new model.
+    new_output_data = loaded_model(input_data)
+    self.assertAllClose(new_output_data, original_output_data)
 
   @parameterized.named_parameters(
       (

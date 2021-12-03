@@ -33,7 +33,13 @@ class Embedding(Layer):
 
   e.g. `[[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]`
 
-  This layer can only be used as the first layer in a model.
+  This layer can only be used on positive integer inputs of a fixed range. The
+  `tf.keras.layers.TextVectorization`, `tf.keras.layers.StringLookup`,
+  and `tf.keras.layers.IntegerLookup` preprocessing layers can help prepare
+  inputs for an `Embedding` layer.
+
+  This layer accepts `tf.Tensor` and `tf.RaggedTensor` inputs. It cannot be
+  called with `tf.SparseTensor` input.
 
   Example:
 
@@ -119,9 +125,9 @@ class Embedding(Layer):
       else:
         kwargs['input_shape'] = (None,)
     if input_dim <= 0 or output_dim <= 0:
-      raise ValueError('Both `input_dim` and `output_dim` should be positive, '
-                       'found input_dim {} and output_dim {}'.format(
-                           input_dim, output_dim))
+      raise ValueError(
+          'Both `input_dim` and `output_dim` should be positive, '
+          f'Received input_dim = {input_dim} and output_dim = {output_dim}')
     if (not base_layer_utils.v2_dtype_behavior_enabled() and
         'dtype' not in kwargs):
       # In TF1, the dtype defaults to the input dtype which is typically int32,
@@ -171,15 +177,15 @@ class Embedding(Layer):
       else:
         in_lens = [self.input_length]
       if len(in_lens) != len(input_shape) - 1:
-        raise ValueError('"input_length" is %s, '
-                         'but received input has shape %s' % (str(
-                             self.input_length), str(input_shape)))
+        raise ValueError(
+            f'"input_length" is {self.input_length}, but received input has '
+            f'shape {input_shape}')
       else:
         for i, (s1, s2) in enumerate(zip(in_lens, input_shape[1:])):
           if s1 is not None and s2 is not None and s1 != s2:
-            raise ValueError('"input_length" is %s, '
-                             'but received input has shape %s' % (str(
-                                 self.input_length), str(input_shape)))
+            raise ValueError(
+                f'"input_length" is {self.input_length}, but received input '
+                f'has shape {input_shape}')
           elif s1 is None:
             in_lens[i] = s2
       return (input_shape[0],) + tuple(in_lens) + (self.output_dim,)

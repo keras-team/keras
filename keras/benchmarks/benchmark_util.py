@@ -14,7 +14,7 @@
 # ==============================================================================
 """Common utils for benchmarks."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import timeit
 import numpy as np

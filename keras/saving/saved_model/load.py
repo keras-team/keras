@@ -14,13 +14,9 @@
 # ==============================================================================
 """Keras SavedModel deserialization."""
 
-import tensorflow.compat.v2 as tf
-
-import os
 import re
 import types
 
-from google.protobuf import message
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
@@ -35,7 +31,10 @@ from keras.saving.saved_model.serialized_attributes import CommonEndpoints
 from keras.utils import generic_utils
 from keras.utils import metrics_utils
 from keras.utils.generic_utils import LazyLoader
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow.compat.v1.logging as logging
+import tensorflow.compat.v2 as tf
+
+from google.protobuf import message
 
 # To avoid circular dependencies between keras/engine and keras/saving,
 # code in keras/saving must delay imports.
@@ -105,24 +104,26 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
 
   # Look for metadata file or parse the SavedModel
   metadata = saved_metadata_pb2.SavedMetadata()
-  meta_graph_def = tf.__internal__.saved_model.parse_saved_model(path).meta_graphs[0]
+  meta_graph_def = tf.__internal__.saved_model.parse_saved_model(
+      path).meta_graphs[0]
   object_graph_def = meta_graph_def.object_graph_def
-  path_to_metadata_pb = os.path.join(path, constants.SAVED_METADATA_PATH)
+  path_to_metadata_pb = tf.io.gfile.join(path, constants.SAVED_METADATA_PATH)
   if tf.compat.v1.gfile.Exists(path_to_metadata_pb):
     try:
       with tf.io.gfile.GFile(path_to_metadata_pb, 'rb') as f:
         file_content = f.read()
       metadata.ParseFromString(file_content)
     except message.DecodeError as e:
-      raise IOError('Cannot parse keras metadata {}: {}.'
-                    .format(path_to_metadata_pb, str(e)))
+      raise IOError(
+          f'Cannot parse keras metadata at path {path_to_metadata_pb}: '
+          f'Received error: {e}')
   else:
     logging.warning('SavedModel saved prior to TF 2.5 detected when loading '
                     'Keras model. Please ensure that you are saving the model '
                     'with model.save() or tf.keras.models.save_model(), *NOT* '
                     'tf.saved_model.save(). To confirm, there should be a file '
                     'named "keras_metadata.pb" in the SavedModel directory.')
-    _read_legacy_metadata(object_graph_def, metadata)
+    _read_legacy_metadata(object_graph_def, metadata, path)
 
   if not metadata.nodes:
     # When there are no Keras objects, return the results from the core loader
@@ -137,7 +138,8 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
   nodes_to_load = {'root': None}
   for node_id, loaded_node in keras_loader.loaded_nodes.items():
     nodes_to_load[keras_loader.get_path(node_id)] = loaded_node
-  loaded = tf.__internal__.saved_model.load_partial(path, nodes_to_load, options=options)
+  loaded = tf.__internal__.saved_model.load_partial(
+      path, nodes_to_load, options=options)
 
   # Finalize the loaded layers and remove the extra tracked dependencies.
   keras_loader.finalize_objects()
@@ -156,7 +158,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
           training_config), from_serialized=True)
       saving_utils.try_build_compiled_arguments(model)
       if isinstance(model.optimizer, optimizer_v2.OptimizerV2):
-        if (model.optimizer.get_slot_names()):
+        if model.optimizer.get_slot_names():
           logging.warning('Your optimizer uses slots. '
                           'Slots cannot be restored from saved_model, '
                           'as a result, your model is starting with  '
@@ -169,7 +171,8 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
   # Force variables and resources to initialize.
   if not tf.executing_eagerly():
     sess = backend.get_session()  # Variables are initialized by this call.
-    sess.run(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TABLE_INITIALIZERS))
+    sess.run(
+        tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TABLE_INITIALIZERS))
 
   return model
 
@@ -189,7 +192,7 @@ def _update_to_current_version(metadata):
   return metadata
 
 
-def _read_legacy_metadata(object_graph_def, metadata):
+def _read_legacy_metadata(object_graph_def, metadata, path):
   """Builds a KerasMetadata proto from the SavedModel ObjectGraphDef."""
   # Older SavedModels store the metadata directly in the proto instead of the
   # separate pb file.
@@ -198,11 +201,12 @@ def _read_legacy_metadata(object_graph_def, metadata):
     if (proto.WhichOneof('kind') == 'user_object' and
         proto.user_object.identifier in constants.KERAS_OBJECT_IDENTIFIERS):
       if not proto.user_object.metadata:
-        raise ValueError('Unable to create a Keras model from this SavedModel. '
-                         'This SavedModel was created with '
-                         '`tf.saved_model.save`, and lacks the Keras metadata.'
-                         'Please save your Keras model by calling `model.save`'
-                         'or `tf.keras.models.save_model`.')
+        raise ValueError(
+            f'Unable to create a Keras model from SavedModel at {path}. '
+            'This SavedModel was exported with `tf.saved_model.save`, and '
+            'lacks the Keras metadata file. Please save your Keras model by '
+            'calling `model.save`or `tf.keras.models.save_model`. Note that '
+            'you can still load this SavedModel with `tf.saved_model.load`.')
       metadata.nodes.add(
           node_id=node_id,
           node_path=node_paths[node_id],
@@ -241,7 +245,7 @@ def _is_graph_network(layer):
   return False
 
 
-class KerasObjectLoader(object):
+class KerasObjectLoader:
   """Loader that recreates Keras objects (e.g. layers, models).
 
   Layers and models are revived from either the config or SavedModel following
@@ -348,7 +352,8 @@ class KerasObjectLoader(object):
         continue
       if (child_proto.user_object.identifier in
           tf.__internal__.saved_model.load.registered_identifiers()):
-        setter = tf.__internal__.saved_model.load.get_setter(child_proto.user_object)
+        setter = tf.__internal__.saved_model.load.get_setter(
+            child_proto.user_object)
       elif obj_child._object_identifier in constants.KERAS_OBJECT_IDENTIFIERS:
         setter = _revive_setter
       else:
@@ -400,12 +405,12 @@ class KerasObjectLoader(object):
         self.loaded_nodes[node_metadata.node_id] = self._load_layer(
             node_metadata.node_id, node_metadata.identifier,
             node_metadata.metadata)
-      except ValueError:
+      except ValueError as e:
         # Metrics are only needed when the model is compiled later. We ignore
         # errors when trying to load custom metrics when `compile=False` until
         # custom metrics are serialized properly (b/135550038).
         if compile:
-          raise
+          raise e
         logging.warning('Unable to restore custom metric. Please ensure that '
                         'the layer implements `get_config` and `from_config` '
                         'when saving. In addition, please use the '
@@ -518,17 +523,24 @@ class KerasObjectLoader(object):
       obj = layers_module.deserialize(
           generic_utils.serialize_keras_class_and_config(
               class_name, config, shared_object_id=shared_object_id))
-    except ValueError:
-      if must_restore_from_config:
+    except (TypeError, KeyError) as e:
+      # A name conflict has occurred. The `class_name` is in the Keras native
+      # framework; however, the value in the framework is different from the
+      # user's class definition which confuses the KerasObjectLoader.
+      builtin_layer = layers_module.get_builtin_layer(class_name)
+      if builtin_layer:
         raise RuntimeError(
-            'Unable to restore a layer of class {cls}. Layers of '
-            'class {cls} require that the class be provided to '
-            'the model loading code, either by registering the '
-            'class using @keras.utils.register_keras_serializable '
-            'on the class def and including that file in your '
-            'program, or by passing the class in a '
-            'keras.utils.CustomObjectScope that wraps this load '
-            'call.'.format(cls=class_name))
+            f'Unable to restore object of class \'{class_name}\' likely due to '
+            f'name conflict with built-in Keras class \'{builtin_layer}\'. To '
+            'override the built-in Keras definition of the object, decorate '
+            'your class with `@keras.utils.register_keras_serializable` and '
+            'include that file in your program, or pass your class in a '
+            '`keras.utils.CustomObjectScope` that wraps this load call.') from e
+      else:
+        raise
+    except ValueError as e:
+      if must_restore_from_config:
+        raise e
       else:
         return None
 
@@ -670,9 +682,9 @@ class KerasObjectLoader(object):
       uninitialized_model_names = [
           self.model_layer_dependencies[model_id][0].name
           for model_id in uninitialized_model_ids]
-      raise ValueError('Error when loading from SavedModel -- the following '
-                       'models could not be initialized: {}'
-                       .format(uninitialized_model_names))
+      raise ValueError(f'Error loading model(s) in the SavedModel format. '
+                       f'The following model(s) could not be initialized: '
+                       f'{uninitialized_model_names}')
 
   def _reconstruct_model(self, model_id, model, layers):
     """Reconstructs the network structure."""
@@ -772,7 +784,6 @@ class KerasObjectLoader(object):
 
   def _infer_inputs(self, layer_node_id, convert_to_shapes=False):
     """Infers input shape of layer from SavedModel functions."""
-    coder = tf.__internal__.saved_model.StructureCoder()
     call_fn_id = self._search_for_child_node(
         layer_node_id, ['call_and_return_all_conditional_losses'])
     if call_fn_id is None:
@@ -784,7 +795,7 @@ class KerasObjectLoader(object):
       return None
     call_fn_name = concrete_functions[0]
     call_fn_proto = self._proto.concrete_functions[call_fn_name]
-    structured_input_signature = coder.decode_proto(
+    structured_input_signature = tf.__internal__.saved_model.decode_proto(
         call_fn_proto.canonicalized_input_signature)
     inputs = structured_input_signature[0][0]
     if convert_to_shapes:
@@ -882,8 +893,8 @@ def _unable_to_call_layer_due_to_serialization_issue(
   """
 
   raise ValueError(
-      'Cannot call custom layer {} of type {}, because the call function was '
-      'not serialized to the SavedModel.'
+      f'Cannot call custom layer {layer.name} of type {type(layer)}, because '
+      'the call function was not serialized to the SavedModel.'
       'Please try one of the following methods to fix this issue:'
       '\n\n(1) Implement `get_config` and `from_config` in the layer/model '
       'class, and pass the object to the `custom_objects` argument when '
@@ -893,7 +904,7 @@ def _unable_to_call_layer_due_to_serialization_issue(
       'and not `__call__`. The input shape and dtype will be automatically '
       'recorded when the object is called, and used when saving. To manually '
       'specify the input shape/dtype, decorate the call function with '
-      '`@tf.function(input_signature=...)`.'.format(layer.name, type(layer)))
+      '`@tf.function(input_signature=...)`.')
 
 
 def _finalize_config_layers(layers):
@@ -986,11 +997,11 @@ def revive_custom_object(identifier, metadata):
         tf.compat.as_str(metadata['class_name']), parent_classes, {})
     return revived_cls._init_from_metadata(metadata)  # pylint: disable=protected-access
   else:
-    raise ValueError('Unable to restore custom object of type {} currently. '
-                     'Please make sure that the layer implements `get_config`'
-                     'and `from_config` when saving. In addition, please use '
-                     'the `custom_objects` arg when calling `load_model()`.'
-                     .format(identifier))
+    raise ValueError(
+        f'Unable to restore custom object of type {identifier}. '
+        f'Please make sure that any custom layers are included in the '
+        f'`custom_objects` arg when calling `load_model()` and make sure that '
+        f'all layers implement `get_config` and `from_config`.')
 
 
 def _restore_layer_metrics(layer):
@@ -1004,7 +1015,7 @@ def _restore_layer_metrics(layer):
 
 # TODO(kathywu): Centrally define keys and functions for both  serialization and
 # deserialization.
-class RevivedLayer(object):
+class RevivedLayer:
   """Keras layer loaded from a SavedModel."""
 
   @classmethod
@@ -1082,7 +1093,7 @@ def _revive_setter(layer, name, value):
     setattr(layer, name, value)
 
 
-class RevivedInputLayer(object):
+class RevivedInputLayer:
   """InputLayer loaded from a SavedModel."""
 
   @classmethod
@@ -1114,59 +1125,31 @@ def recursively_deserialize_keras_object(config, module_objects=None):
       return {key: recursively_deserialize_keras_object(config[key],
                                                         module_objects)
               for key in config}
-  if isinstance(config, (tuple, list)):
+  elif isinstance(config, (tuple, list)):
     return [recursively_deserialize_keras_object(x, module_objects)
             for x in config]
   else:
-    raise ValueError('Unable to decode config: {}'.format(config))
-
-
-def get_common_shape(x, y):
-  """Find a `TensorShape` that is compatible with both `x` and `y`."""
-  if x is None != y is None:
-    raise RuntimeError(
-        'Cannot find a common shape when LHS shape is None but RHS shape '
-        'is not (or vice versa): %s vs. %s' % (x, y))
-  if x is None:
-    return None  # The associated input was not a Tensor, no shape generated.
-  if not isinstance(x, tf.TensorShape):
-    raise TypeError('Expected x to be a TensorShape but saw %s' % (x,))
-  if not isinstance(y, tf.TensorShape):
-    raise TypeError('Expected y to be a TensorShape but saw %s' % (y,))
-  if x.rank != y.rank or x.rank is None:
-    return tf.TensorShape(None)
-  dims = []
-  for dim_x, dim_y in zip(x.dims, y.dims):
-    if (dim_x != dim_y
-        or tf.compat.dimension_value(dim_x) is None
-        or tf.compat.dimension_value(dim_y) is None):
-      dims.append(None)
-    else:
-      dims.append(tf.compat.dimension_value(dim_x))
-  return tf.TensorShape(dims)
+    raise ValueError(
+        f'Unable to decode Keras layer config. Config should be a dictionary, '
+        f'tuple or list. Received: config={config}')
 
 
 def infer_inputs_from_restored_call_function(fn):
-  """Returns TensorSpec of inputs from a restored call function.
+  """Returns TypeSpec of inputs from a restored call function.
 
   Args:
     fn: Restored layer call function. It is assumed that `fn` has at least
         one concrete function and that the inputs are in the first argument.
 
   Returns:
-    TensorSpec of call function inputs in the form of (args, kwargs)
+    TypeSpec of call function inputs in the form of (args, kwargs)
   """
   def common_spec(x, y):
-    if not isinstance(x, tf.TensorSpec):
+    if not isinstance(x, tf.TypeSpec):
       # Doesn't particularly matter what is returned in this case because the
       # result will be filtered out in _set_input_shape.
       return x
-    common_shape = get_common_shape(x.shape, y.shape)
-    if isinstance(x, tf.SparseTensorSpec):
-      return tf.SparseTensorSpec(common_shape, x.dtype)
-    elif isinstance(x, tf.RaggedTensorSpec):
-      return tf.RaggedTensorSpec(common_shape, x.dtype)
-    return tf.TensorSpec(common_shape, x.dtype, x.name)
+    return x.most_specific_compatible_type(y)
 
   spec = fn.concrete_functions[0].structured_input_signature
   for concrete in fn.concrete_functions[1:]:

@@ -275,7 +275,7 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
       with self.assertRaisesRegex(
           ValueError,
           'Expected `model` argument to be a functional `Model` instance, '
-          'but got a subclass model instead.'):
+          'but got a subclassed model instead.'):
         self.run_correctness_test(distribution, use_numpy, use_validation_data)
     else:
       with self.assertRaisesRegex(
@@ -295,7 +295,7 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
       with self.assertRaisesRegex(
           ValueError,
           'Expected `model` argument to be a functional `Model` instance, '
-          'but got a subclass model instead.'):
+          'but got a subclassed model instead.'):
         self.run_dynamic_lr_test(distribution)
     else:
       with self.assertRaisesRegex(
@@ -313,7 +313,7 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
     with self.assertRaisesRegex(
         ValueError,
         'Expected `model` argument to be a functional `Model` instance, '
-        'but got a subclass model instead.'):
+        'but got a subclassed model instead.'):
       self.run_correctness_test(
           distribution,
           use_numpy,

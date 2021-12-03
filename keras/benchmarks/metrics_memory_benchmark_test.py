@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark tests for Keras metrics memory consumption."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 

@@ -22,10 +22,14 @@ from keras.engine import base_layer
 from keras.engine import data_adapter
 from keras.engine import training as keras_training
 from keras.utils import generic_utils
+from tensorflow.python.util import deprecation  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.experimental.WideDeepModel')
+@keras_export(
+    'keras.experimental.WideDeepModel',
+    v1=['keras.experimental.WideDeepModel', 'keras.models.WideDeepModel'])
+@deprecation.deprecated_endpoints('keras.experimental.WideDeepModel')
 class WideDeepModel(keras_training.Model):
   r"""Wide & Deep Model for regression and classification problems.
 
@@ -98,7 +102,8 @@ class WideDeepModel(keras_training.Model):
       dnn_output = self.dnn_model(dnn_inputs, training=training)
     else:
       dnn_output = self.dnn_model(dnn_inputs)
-    output = tf.nest.map_structure(lambda x, y: (x + y), linear_output, dnn_output)
+    output = tf.nest.map_structure(
+        lambda x, y: (x + y), linear_output, dnn_output)
     if self.activation:
       return tf.nest.map_structure(self.activation, output)
     return output
@@ -106,8 +111,6 @@ class WideDeepModel(keras_training.Model):
   # This does not support gradient scaling and LossScaleOptimizer.
   def train_step(self, data):
     x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
-    x, y, sample_weight = data_adapter.expand_1d((x, y, sample_weight))
-
     with tf.GradientTape() as tape:
       y_pred = self(x, training=True)
       loss = self.compiled_loss(

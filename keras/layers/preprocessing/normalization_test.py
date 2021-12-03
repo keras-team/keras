@@ -27,7 +27,7 @@ from keras import keras_parameterized
 from keras import testing_utils
 from keras.layers.preprocessing import normalization
 from keras.layers.preprocessing import preprocessing_test_utils
-from keras.utils.generic_utils import CustomObjectScope
+from keras.mixed_precision import policy
 
 
 def _get_layer_computation_test_cases():
@@ -185,6 +185,19 @@ class NormalizationTest(keras_parameterized.TestCase,
                                 "axis.*values must be in the range"):
       normalization.Normalization()(1)
 
+  def test_output_dtype(self):
+    if not tf.__internal__.tf2.enabled():
+      self.skipTest("set_global_policy only supported in TF2.")
+    # Output should respect an explicit dtype, and default to the global policy.
+    policy.set_global_policy("float64")
+    input_data = keras.Input(batch_size=16, shape=(1,))
+    layer = normalization.Normalization(mean=1.0, variance=1.0, dtype="float16")
+    output = layer(input_data)
+    self.assertAllEqual(output.dtype, tf.float16)
+    layer = normalization.Normalization(mean=1.0, variance=1.0)
+    output = layer(input_data)
+    self.assertAllEqual(output.dtype, tf.float64)
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class NormalizationAdaptTest(keras_parameterized.TestCase,
@@ -192,14 +205,13 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
 
   def test_layer_api_compatibility(self):
     cls = normalization.Normalization
-    with CustomObjectScope({"Normalization": cls}):
-      output_data = testing_utils.layer_test(
-          cls,
-          kwargs={"axis": -1},
-          input_shape=(None, 3),
-          input_data=np.array([[3, 1, 2], [6, 5, 4]], dtype=np.float32),
-          validate_training=False,
-          adapt_data=np.array([[1, 2, 1], [2, 3, 4], [1, 2, 1], [2, 3, 4]]))
+    output_data = testing_utils.layer_test(
+        cls,
+        kwargs={"axis": -1},
+        input_shape=(None, 3),
+        input_data=np.array([[3, 1, 2], [6, 5, 4]], dtype=np.float32),
+        validate_training=False,
+        adapt_data=np.array([[1, 2, 1], [2, 3, 4], [1, 2, 1], [2, 3, 4]]))
     expected = np.array([[3., -3., -0.33333333], [9., 5., 1.]])
     self.assertAllClose(expected, output_data)
 
@@ -330,17 +342,17 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
     new_output_data = f(tf.constant(input_data))["normalization"]
     self.assertAllClose(new_output_data, expected_output)
 
-  @parameterized.parameters(
-      {"adapted": True},
-      {"adapted": False},
+  @parameterized.product(
+      save_format=["tf", "h5"],
+      adapt=[True, False],
   )
-  def test_saved_model_keras(self, adapted):
+  def test_saved_model_keras(self, save_format, adapt):
     input_data = [[0.], [2.], [0.], [2.]]
     expected_output = [[-1.], [1.], [-1.], [1.]]
 
     cls = normalization.Normalization
     inputs = keras.Input(shape=(1,), dtype=tf.float32)
-    if adapted:
+    if adapt:
       layer = cls(axis=-1)
       layer.adapt(input_data)
     else:
@@ -353,7 +365,7 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
 
     # Save the model to disk.
     output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
-    model.save(output_path, save_format="tf")
+    model.save(output_path, save_format=format)
     loaded_model = keras.models.load_model(
         output_path, custom_objects={"Normalization": cls})
 

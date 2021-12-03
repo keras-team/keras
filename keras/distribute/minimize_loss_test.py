@@ -14,15 +14,15 @@
 # ==============================================================================
 """Tests for running legacy optimizer code with DistributionStrategy."""
 
-import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
-import numpy
 from keras.distribute import optimizer_combinations
 from keras.distribute.test_example import batchnorm_example
 from keras.distribute.test_example import minimize_loss_example
 from keras.layers import core
 from keras.optimizer_v2 import optimizer_v2
+import numpy
+import tensorflow.compat.v2 as tf
 
 
 VAR_MAP_V1 = {
@@ -158,6 +158,10 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
 
     def appending_creator(next_creator, **kwargs):
       v = next_creator(**kwargs)
+      # Skip the StateVar created in the tf.random.Generator, which is used by
+      # keras initializers.
+      if "StateVar" in v.name:
+        return v
       created_variables.append(v.name)
       if "trainable" in kwargs and kwargs["trainable"]:
         trainable_variables.append(v.name)
@@ -490,15 +494,11 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
           run_step = sess.make_callable(run_step())
       self.evaluate(tf.compat.v1.global_variables_initializer())
 
-      weights, biases, losses = [], [], []
+      weights, biases = [], []
       for _ in range(5):
-        _, loss = run_step()
-        losses.append(loss)
+        run_step()
         weights.append(self.evaluate(layer.kernel))
         biases.append(self.evaluate(layer.bias))
-
-      loss_is_not_increasing = all(y <= x for x, y in zip(losses, losses[1:]))
-      self.assertTrue(loss_is_not_increasing)
 
       error = abs(
           numpy.add(numpy.squeeze(weights), numpy.squeeze(biases)) - 1)

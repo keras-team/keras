@@ -534,6 +534,14 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(
         self.evaluate(opt.variables()[0]), self.evaluate(opt.iterations))
 
+  @combinations.generate(combinations.combine(mode=["eager"]))
+  def testMomentumProperValue(self):
+    with self.assertRaisesRegex(ValueError,
+                                r"`momentum` must be between \[0, 1\]. "
+                                r"Received: momentum=2.5 \(of type <class "
+                                r"\'float\'>\)."):
+      rmsprop.RMSprop(1., momentum=2.5, centered=False)
+
 
 @combinations.generate(combinations.combine(mode=["graph", "eager"]))
 class SlotColocationTest(tf.test.TestCase, parameterized.TestCase):

@@ -13,21 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 """Keras initializers for TF 2."""
-
-import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
 
 import math
 from keras import backend
-from tensorflow.python.ops import stateless_random_ops
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 _PARTITION_SHAPE = 'partition_shape'
 _PARTITION_OFFSET = 'partition_offset'
+_ALLOWED_INITIALIZER_KWARGS = [_PARTITION_SHAPE, _PARTITION_OFFSET]
 
 
 @keras_export('keras.initializers.Initializer')
-class Initializer(object):
+class Initializer:
   """Initializer base class: all Keras initializers inherit from this class.
 
   Initializers should implement a `__call__` method with the following
@@ -76,7 +75,8 @@ class Initializer(object):
       dtype: Optional dtype of the tensor.
       **kwargs: Additional keyword arguments.
     """
-    raise NotImplementedError
+    raise NotImplementedError('Initializer subclasses must implement the '
+                              '`__call__()` method.')
 
   def get_config(self):
     """Returns the configuration of the initializer as a JSON-serializable dict.
@@ -139,7 +139,7 @@ class Zeros(Initializer):
     _validate_kwargs(self.__class__.__name__, kwargs)
     dtype = _get_dtype(dtype)
     if not dtype.is_numpy_compatible or dtype == tf.string:
-      raise ValueError('Expected numeric or boolean dtype, got %s.' % dtype)
+      raise ValueError(f'Expected numeric or boolean dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
     return tf.zeros(shape, dtype)
@@ -176,7 +176,7 @@ class Ones(Initializer):
     _validate_kwargs(self.__class__.__name__, kwargs)
     dtype = _get_dtype(dtype)
     if not dtype.is_numpy_compatible or dtype == tf.string:
-      raise ValueError('Expected numeric or boolean dtype, got %s.' % dtype)
+      raise ValueError(f'Expected numeric or boolean dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
     return tf.ones(shape, dtype)
@@ -254,15 +254,18 @@ class RandomUniform(Initializer):
       random values to generate (inclusive).
     maxval: A python scalar or a scalar tensor. Upper bound of the range of
       random values to generate (exclusive).
-    seed: A Python integer. An initializer created with a given seed will
-      always produce the same random tensor for a given shape and dtype.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
   """
 
   def __init__(self, minval=-0.05, maxval=0.05, seed=None):
     self.minval = minval
     self.maxval = maxval
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized as specified by the initializer.
@@ -279,7 +282,7 @@ class RandomUniform(Initializer):
     _validate_kwargs(self.__class__.__name__, kwargs)
     dtype = _get_dtype(dtype)
     if not dtype.is_floating and not dtype.is_integer:
-      raise ValueError('Expected float or integer dtype, got %s.' % dtype)
+      raise ValueError(f'Expected float or integer dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
     return self._random_generator.random_uniform(shape, self.minval,
@@ -317,15 +320,18 @@ class RandomNormal(Initializer):
       generate.
     stddev: a python scalar or a scalar tensor. Standard deviation of the random
       values to generate.
-    seed: A Python integer. An initializer created with a given seed will
-      always produce the same random tensor for a given shape and dtype.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
   """
 
   def __init__(self, mean=0.0, stddev=0.05, seed=None):
     self.mean = mean
     self.stddev = stddev
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to random normal values.
@@ -382,15 +388,18 @@ class TruncatedNormal(Initializer):
       to generate.
     stddev: a python scalar or a scalar tensor. Standard deviation of the
       random values to generate before truncation.
-    seed: A Python integer. An initializer created with a given seed will
-      always produce the same random tensor for a given shape and dtype.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
   """
 
   def __init__(self, mean=0.0, stddev=0.05, seed=None):
     self.mean = mean
     self.stddev = stddev
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to random normal values (truncated).
@@ -456,8 +465,11 @@ class VarianceScaling(Initializer):
     mode: One of "fan_in", "fan_out", "fan_avg".
     distribution: Random distribution to use. One of "truncated_normal",
       "untruncated_normal" and  "uniform".
-    seed: A Python integer. An initializer created with a given seed will
-      always produce the same random tensor for a given shape and dtype.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
   """
 
   def __init__(self,
@@ -466,21 +478,27 @@ class VarianceScaling(Initializer):
                distribution='truncated_normal',
                seed=None):
     if scale <= 0.:
-      raise ValueError('`scale` must be positive float.')
-    if mode not in {'fan_in', 'fan_out', 'fan_avg'}:
-      raise ValueError('Invalid `mode` argument:', mode)
+      raise ValueError('`scale` must be positive float. '
+                       f'Received: scale={scale}.')
+    allowed_modes = {'fan_in', 'fan_out', 'fan_avg'}
+    if mode not in allowed_modes:
+      raise ValueError(f'Invalid `mode` argument: {mode}. '
+                       f'Please use one of the {allowed_modes}.')
     distribution = distribution.lower()
     # Compatibility with keras-team/keras.
     if distribution == 'normal':
       distribution = 'truncated_normal'
-    if distribution not in {'uniform', 'truncated_normal',
-                            'untruncated_normal'}:
-      raise ValueError('Invalid `distribution` argument:', distribution)
+    allowed_distributions = {
+        'uniform', 'truncated_normal', 'untruncated_normal'
+    }
+    if distribution not in allowed_distributions:
+      raise ValueError(f'Invalid `distribution` argument: {distribution}.'
+                       f'Allowed distributions: {allowed_distributions}.')
     self.scale = scale
     self.mode = mode
     self.distribution = distribution
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized as specified by the initializer.
@@ -556,18 +574,20 @@ class Orthogonal(Initializer):
 
   Args:
     gain: multiplicative factor to apply to the orthogonal matrix
-    seed: A Python integer. An initializer created with a given seed will
-      always produce the same random tensor for a given shape and dtype.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
 
   References:
-      [Saxe et al., 2014](https://openreview.net/forum?id=_wzZwKpTDF_9C)
-      ([pdf](https://arxiv.org/pdf/1312.6120.pdf))
+    - [Saxe et al., 2014](https://openreview.net/forum?id=_wzZwKpTDF_9C)
   """
 
   def __init__(self, gain=1.0, seed=None):
     self.gain = gain
     self.seed = seed
-    self._random_generator = _RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to an orthogonal matrix.
@@ -585,7 +605,8 @@ class Orthogonal(Initializer):
     # Check the shape
     if len(shape) < 2:
       raise ValueError('The tensor to initialize must be '
-                       'at least two-dimensional')
+                       'at least two-dimensional. Received: '
+                       f'shape={shape} of rank {len(shape)}.')
     # Flatten the input shape with the last dimension remaining
     # its original shape so it works for conv2d
     num_rows = 1
@@ -651,7 +672,8 @@ class Identity(Initializer):
     dtype = _assert_float_dtype(_get_dtype(dtype))
     if len(shape) != 2:
       raise ValueError(
-          'Identity matrix initializer can only be used for 2D matrices.')
+          'Identity matrix initializer can only be used for 2D matrices. '
+          f'Received: shape={shape} of rank {len(shape)}.')
     initializer = tf.eye(*shape, dtype=dtype)
     return self.gain * initializer
 
@@ -683,12 +705,14 @@ class GlorotUniform(VarianceScaling):
   >>> layer = tf.keras.layers.Dense(3, kernel_initializer=initializer)
 
   Args:
-    seed: A Python integer. An initializer created with a given seed will
-      always produce the same random tensor for a given shape and dtype.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
 
   References:
-      [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
-      ([pdf](http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf))
+    - [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
   """
 
   def __init__(self, seed=None):
@@ -727,12 +751,14 @@ class GlorotNormal(VarianceScaling):
   >>> layer = tf.keras.layers.Dense(3, kernel_initializer=initializer)
 
   Args:
-    seed: A Python integer. An initializer created with a given seed will
-      always produce the same random tensor for a given shape and dtype.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
 
   References:
-      [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
-      ([pdf](http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf))
+    - [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
   """
 
   def __init__(self, seed=None):
@@ -774,16 +800,14 @@ class LecunNormal(VarianceScaling):
   >>> layer = tf.keras.layers.Dense(3, kernel_initializer=initializer)
 
   Args:
-    seed: A Python integer. Used to seed the random generator.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
 
   References:
-      - Self-Normalizing Neural Networks,
-      [Klambauer et al., 2017]
-      (https://papers.nips.cc/paper/6698-self-normalizing-neural-networks)
-      ([pdf]
-      (https://papers.nips.cc/paper/6698-self-normalizing-neural-networks.pdf))
-      - Efficient Backprop,
-      [Lecun et al., 1998](http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf)
+    - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
   """
 
   def __init__(self, seed=None):
@@ -818,15 +842,14 @@ class LecunUniform(VarianceScaling):
   >>> layer = tf.keras.layers.Dense(3, kernel_initializer=initializer)
 
   Args:
-    seed: A Python integer. An initializer created with a given seed will
-      always produce the same random tensor for a given shape and dtype.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
 
   References:
-      - Self-Normalizing Neural Networks,
-      [Klambauer et al., 2017](https://papers.nips.cc/paper/6698-self-normalizing-neural-networks) # pylint: disable=line-too-long
-      ([pdf](https://papers.nips.cc/paper/6698-self-normalizing-neural-networks.pdf))
-      - Efficient Backprop,
-      [Lecun et al., 1998](http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf)
+    - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
   """
 
   def __init__(self, seed=None):
@@ -861,12 +884,14 @@ class HeNormal(VarianceScaling):
   >>> layer = tf.keras.layers.Dense(3, kernel_initializer=initializer)
 
   Args:
-    seed: A Python integer. An initializer created with a given seed will
-      always produce the same random tensor for a given shape and dtype.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
 
   References:
-      [He et al., 2015](https://www.cv-foundation.org/openaccess/content_iccv_2015/html/He_Delving_Deep_into_ICCV_2015_paper.html) # pylint: disable=line-too-long
-      ([pdf](https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/He_Delving_Deep_into_ICCV_2015_paper.pdf))
+    - [He et al., 2015](https://arxiv.org/abs/1502.01852)
   """
 
   def __init__(self, seed=None):
@@ -901,12 +926,14 @@ class HeUniform(VarianceScaling):
   >>> layer = tf.keras.layers.Dense(3, kernel_initializer=initializer)
 
   Args:
-    seed: A Python integer. An initializer created with a given seed will
-      always produce the same random tensor for a given shape and dtype.
+    seed: A Python integer. Used to create random seeds. See
+      `tf.compat.v1.set_random_seed` for behavior. Note that seeded
+      initializer will not produce same random values across multiple calls,
+      but multiple initializers will produce same sequence when constructed with
+      same seed value.
 
   References:
-      [He et al., 2015](https://www.cv-foundation.org/openaccess/content_iccv_2015/html/He_Delving_Deep_into_ICCV_2015_paper.html) # pylint: disable=line-too-long
-      ([pdf](https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/He_Delving_Deep_into_ICCV_2015_paper.pdf))
+    - [He et al., 2015](https://arxiv.org/abs/1502.01852)
   """
 
   def __init__(self, seed=None):
@@ -939,47 +966,8 @@ def _assert_float_dtype(dtype):
   """
   dtype = tf.as_dtype(dtype)
   if not dtype.is_floating:
-    raise ValueError('Expected floating point type, got %s.' % dtype)
+    raise ValueError(f'Expected floating point type, got {dtype}.')
   return dtype
-
-
-class _RandomGenerator(object):
-  """Random generator that selects appropriate random ops."""
-
-  def __init__(self, seed=None):
-    super(_RandomGenerator, self).__init__()
-    if seed is not None:
-      # Stateless random ops requires 2-int seed.
-      self.seed = [seed, 0]
-    else:
-      self.seed = None
-
-  def random_normal(self, shape, mean=0.0, stddev=1, dtype=tf.float32):
-    """A deterministic random normal if seed is passed."""
-    if self.seed:
-      op = tf.random.stateless_normal
-    else:
-      op = tf.random.normal
-    return op(
-        shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=self.seed)
-
-  def random_uniform(self, shape, minval, maxval, dtype):
-    """A deterministic random uniform if seed is passed."""
-    if self.seed:
-      op = stateless_random_ops.stateless_random_uniform
-    else:
-      op = tf.random.uniform
-    return op(
-        shape=shape, minval=minval, maxval=maxval, dtype=dtype, seed=self.seed)
-
-  def truncated_normal(self, shape, mean, stddev, dtype):
-    """A deterministic truncated normal if seed is passed."""
-    if self.seed:
-      op = tf.random.stateless_truncated_normal
-    else:
-      op = tf.random.truncated_normal
-    return op(
-        shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=self.seed)
 
 
 def _compute_fans(shape):
@@ -1011,8 +999,9 @@ def _compute_fans(shape):
 
 def _validate_kwargs(cls_name, kwargs, support_partition=True):
   for kwarg in kwargs:
-    if kwarg not in [_PARTITION_SHAPE, _PARTITION_OFFSET]:
-      raise TypeError('Unknown keyword arguments: %s' % kwarg)
+    if kwarg not in _ALLOWED_INITIALIZER_KWARGS:
+      raise TypeError(f'Unknown keyword arguments: {kwarg}. Allowed keyword '
+                      f'arguments: {_ALLOWED_INITIALIZER_KWARGS}.')
     elif not support_partition:
-      raise ValueError('%s initializer doesn\'t support partition-related '
-                       'arguments' % cls_name)
+      raise ValueError(f'{cls_name} initializer doesn\'t support '
+                       'partition-related arguments.')

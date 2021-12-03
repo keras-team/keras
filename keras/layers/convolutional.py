@@ -13,10 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 """Keras convolution layers and image transformation layers."""
-
+# pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 
-import functools
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -84,8 +83,8 @@ class Conv(Layer):
     activation: Activation function to use.
       If you don't specify anything, no activation is applied.
     use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel. If None, the 
-      default initializer (glorot_uniform) will be used. 
+    kernel_initializer: An initializer for the convolution kernel. If None, the
+      default initializer (glorot_uniform) will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer (zeros) will be used.
     kernel_regularizer: Optional regularizer for the convolution kernel.
@@ -134,12 +133,13 @@ class Conv(Layer):
       filters = int(filters)
     if filters is not None and filters < 0:
       raise ValueError(f'Received a negative value for `filters`.'
-                       f'Was expecting a positive value, got {filters}.')
+                       f'Was expecting a positive value. Received {filters}.')
     self.filters = filters
     self.groups = groups or 1
     self.kernel_size = conv_utils.normalize_tuple(
         kernel_size, rank, 'kernel_size')
-    self.strides = conv_utils.normalize_tuple(strides, rank, 'strides')
+    self.strides = conv_utils.normalize_tuple(
+        strides, rank, 'strides', allow_zero=True)
     self.padding = conv_utils.normalize_padding(padding)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.dilation_rate = conv_utils.normalize_tuple(
@@ -194,6 +194,10 @@ class Conv(Layer):
     kernel_shape = self.kernel_size + (input_channel // self.groups,
                                        self.filters)
 
+    # compute_output_shape contains some validation logic for the input shape,
+    # and make sure the output shape has all positive dimensions.
+    self.compute_output_shape(input_shape)
+
     self.kernel = self.add_weight(
         name='kernel',
         shape=kernel_shape,
@@ -216,29 +220,24 @@ class Conv(Layer):
     channel_axis = self._get_channel_axis()
     self.input_spec = InputSpec(min_ndim=self.rank + 2,
                                 axes={channel_axis: input_channel})
+    self.built = True
 
-    # Convert Keras formats to TF native formats.
+  def convolution_op(self, inputs, kernel):
     if self.padding == 'causal':
       tf_padding = 'VALID'  # Causal padding handled in `call`.
     elif isinstance(self.padding, str):
       tf_padding = self.padding.upper()
     else:
       tf_padding = self.padding
-    tf_dilations = list(self.dilation_rate)
-    tf_strides = list(self.strides)
 
-    tf_op_name = self.__class__.__name__
-    if tf_op_name == 'Conv1D':
-      tf_op_name = 'conv1d'  # Backwards compat.
-
-    self._convolution_op = functools.partial(
-        tf.nn.convolution,
-        strides=tf_strides,
+    return tf.nn.convolution(
+        inputs,
+        kernel,
+        strides=list(self.strides),
         padding=tf_padding,
-        dilations=tf_dilations,
+        dilations=list(self.dilation_rate),
         data_format=self._tf_data_format,
-        name=tf_op_name)
-    self.built = True
+        name=self.__class__.__name__)
 
   def call(self, inputs):
     input_shape = inputs.shape
@@ -246,7 +245,7 @@ class Conv(Layer):
     if self._is_causal:  # Apply causal padding to inputs for Conv1D.
       inputs = tf.pad(inputs, self._compute_causal_padding(inputs))
 
-    outputs = self._convolution_op(inputs, self.kernel)
+    outputs = self.convolution_op(inputs, self.kernel)
 
     if self.use_bias:
       output_rank = outputs.shape.rank
@@ -290,15 +289,25 @@ class Conv(Layer):
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
     batch_rank = len(input_shape) - self.rank - 1
-    if self.data_format == 'channels_last':
-      return tf.TensorShape(
-          input_shape[:batch_rank]
-          + self._spatial_output_shape(input_shape[batch_rank:-1])
-          + [self.filters])
-    else:
-      return tf.TensorShape(
-          input_shape[:batch_rank] + [self.filters] +
-          self._spatial_output_shape(input_shape[batch_rank + 1:]))
+    try:
+      if self.data_format == 'channels_last':
+        return tf.TensorShape(
+            input_shape[:batch_rank] +
+            self._spatial_output_shape(input_shape[batch_rank:-1]) +
+            [self.filters])
+      else:
+        return tf.TensorShape(
+            input_shape[:batch_rank] + [self.filters] +
+            self._spatial_output_shape(input_shape[batch_rank + 1:]))
+
+    except ValueError:
+      raise ValueError(
+          f'One of the dimensions in the output is <= 0 '
+          f'due to downsampling in {self.name}. Consider '
+          f'increasing the input size. '
+          f'Received input shape {input_shape} which would produce '
+          f'output shape with a zero or negative value in a '
+          f'dimension.')
 
   def _recreate_conv_op(self, inputs):  # pylint: disable=unused-argument
     return False
@@ -363,8 +372,10 @@ class Conv(Layer):
   def _get_input_channel(self, input_shape):
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
-      raise ValueError('The channel dimension of the inputs '
-                       'should be defined. Found `None`.')
+      raise ValueError('The channel dimension of the inputs should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     return int(input_shape[channel_axis])
 
   def _get_padding_op(self):
@@ -445,24 +456,24 @@ class Conv1D(Conv):
       concatenation of all the `groups` results along the channel axis.
       Input channels and `filters` must both be divisible by `groups`.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    kernel_initializer: Initializer for the `kernel` weights matrix (
-      see `keras.initializers`). Defaults to 'glorot_uniform'.
-    bias_initializer: Initializer for the bias vector (
-      see `keras.initializers`). Defaults to 'zeros'.
+    kernel_initializer: Initializer for the `kernel` weights matrix
+      (see `keras.initializers`). Defaults to 'glorot_uniform'.
+    bias_initializer: Initializer for the bias vector
+      (see `keras.initializers`). Defaults to 'zeros'.
     kernel_regularizer: Regularizer function applied to
       the `kernel` weights matrix (see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
-      the output of the layer (its "activation") (
-      see `keras.regularizers`).
-    kernel_constraint: Constraint function applied to the kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+      the output of the layer (its "activation")
+      (see `keras.regularizers`).
+    kernel_constraint: Constraint function applied to the kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     3+D tensor with shape: `batch_shape + (steps, input_dim)`
@@ -583,8 +594,8 @@ class Conv2D(Conv):
       value != 1 is incompatible with specifying any `dilation_rate` value != 1.
     padding: one of `"valid"` or `"same"` (case-insensitive).
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
-      to the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
+      to the left/right or up/down of the input. When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs. `channels_last` corresponds
       to inputs with shape `(batch_size, height, width, channels)` while
@@ -610,20 +621,22 @@ class Conv2D(Conv):
     bias_initializer: Initializer for the bias vector (see
       `keras.initializers`). Defaults to 'zeros'.
     kernel_regularizer: Regularizer function applied to the `kernel` weights
-      matrix (see `keras.regularizers`). 
+      matrix (see `keras.regularizers`).
     bias_regularizer: Regularizer function applied to the bias vector (see
-      `keras.regularizers`). 
+      `keras.regularizers`).
     activity_regularizer: Regularizer function applied to the output of the
       layer (its "activation") (see `keras.regularizers`).
     kernel_constraint: Constraint function applied to the kernel matrix (see
       `keras.constraints`).
     bias_constraint: Constraint function applied to the bias vector (see
       `keras.constraints`).
+
   Input shape:
     4+D tensor with shape: `batch_shape + (channels, rows, cols)` if
       `data_format='channels_first'`
     or 4+D tensor with shape: `batch_shape + (rows, cols, channels)` if
       `data_format='channels_last'`.
+
   Output shape:
     4+D tensor with shape: `batch_shape + (filters, new_rows, new_cols)` if
     `data_format='channels_first'` or 4+D tensor with shape: `batch_shape +
@@ -764,11 +777,13 @@ class Conv3D(Conv):
       `keras.constraints`).
     bias_constraint: Constraint function applied to the bias vector (see
       `keras.constraints`).
+
   Input shape:
     5+D tensor with shape: `batch_shape + (channels, conv_dim1, conv_dim2,
       conv_dim3)` if data_format='channels_first'
     or 5+D tensor with shape: `batch_shape + (conv_dim1, conv_dim2, conv_dim3,
       channels)` if data_format='channels_last'.
+
   Output shape:
     5+D tensor with shape: `batch_shape + (filters, new_conv_dim1,
       new_conv_dim2, new_conv_dim3)` if data_format='channels_first'
@@ -868,23 +883,23 @@ class Conv1DTranspose(Conv1D):
       incompatible with specifying a stride value != 1.
       Also dilation rate larger than 1 is not currently supported.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    kernel_initializer: Initializer for the `kernel` weights matrix (
-      see `keras.initializers`). Defaults to 'glorot_uniform'.
-    bias_initializer: Initializer for the bias vector (
-      see `keras.initializers`). Defaults to 'zeros'.
+    kernel_initializer: Initializer for the `kernel` weights matrix
+      (see `keras.initializers`). Defaults to 'glorot_uniform'.
+    bias_initializer: Initializer for the bias vector
+      (see `keras.initializers`). Defaults to 'zeros'.
     kernel_regularizer: Regularizer function applied to
       the `kernel` weights matrix (see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
       the output of the layer (its "activation") (see `keras.regularizers`).
-    kernel_constraint: Constraint function applied to the kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+    kernel_constraint: Constraint function applied to the kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     3D tensor with shape:
@@ -953,22 +968,25 @@ class Conv1DTranspose(Conv1D):
     self.output_padding = output_padding
     if self.output_padding is not None:
       self.output_padding = conv_utils.normalize_tuple(
-          self.output_padding, 1, 'output_padding')
+          self.output_padding, 1, 'output_padding', allow_zero=True)
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
-          raise ValueError('Stride ' + str(self.strides) + ' must be '
-                           'greater than output padding ' +
-                           str(self.output_padding))
+          raise ValueError('Strides must be greater than output padding. '
+                           f'Received strides={self.strides}, '
+                           f'output_padding={self.output_padding}.')
 
   def build(self, input_shape):
     input_shape = tf.TensorShape(input_shape)
     if len(input_shape) != 3:
-      raise ValueError('Inputs should have rank 3. Received input shape: ' +
-                       str(input_shape))
+      raise ValueError('Inputs should have rank 3. '
+                       f'Received input_shape={input_shape}.')
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
       raise ValueError('The channel dimension of the inputs '
-                       'should be defined. Found `None`.')
+                       'to `Conv1DTranspose` should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     input_dim = int(input_shape[channel_axis])
     self.input_spec = InputSpec(ndim=3, axes={channel_axis: input_dim})
     kernel_shape = self.kernel_size + (self.filters, input_dim)
@@ -1132,23 +1150,23 @@ class Conv2DTranspose(Conv2D):
       Currently, specifying any `dilation_rate` value != 1 is
       incompatible with specifying any stride value != 1.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    kernel_initializer: Initializer for the `kernel` weights matrix (
-      see `keras.initializers`). Defaults to 'glorot_uniform'.
-    bias_initializer: Initializer for the bias vector (
-      see `keras.initializers`). Defaults to 'zeros'.
+    kernel_initializer: Initializer for the `kernel` weights matrix
+      (see `keras.initializers`). Defaults to 'glorot_uniform'.
+    bias_initializer: Initializer for the bias vector
+      (see `keras.initializers`). Defaults to 'zeros'.
     kernel_regularizer: Regularizer function applied to
       the `kernel` weights matrix (see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
       the output of the layer (its "activation") (see `keras.regularizers`).
-    kernel_constraint: Constraint function applied to the kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+    kernel_constraint: Constraint function applied to the kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     4D tensor with shape:
@@ -1224,22 +1242,25 @@ class Conv2DTranspose(Conv2D):
     self.output_padding = output_padding
     if self.output_padding is not None:
       self.output_padding = conv_utils.normalize_tuple(
-          self.output_padding, 2, 'output_padding')
+          self.output_padding, 2, 'output_padding', allow_zero=True)
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
-          raise ValueError('Stride ' + str(self.strides) + ' must be '
-                           'greater than output padding ' +
-                           str(self.output_padding))
+          raise ValueError('Strides must be greater than output padding. '
+                           f'Received strides={self.strides}, '
+                           f'output_padding={self.output_padding}.')
 
   def build(self, input_shape):
     input_shape = tf.TensorShape(input_shape)
     if len(input_shape) != 4:
-      raise ValueError('Inputs should have rank 4. Received input '
-                       'shape: ' + str(input_shape))
+      raise ValueError('Inputs should have rank 4. '
+                       f'Received input_shape={input_shape}.')
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
       raise ValueError('The channel dimension of the inputs '
-                       'should be defined. Found `None`.')
+                       'to `Conv2DTranspose` should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     input_dim = int(input_shape[channel_axis])
     self.input_spec = InputSpec(ndim=4, axes={channel_axis: input_dim})
     kernel_shape = self.kernel_size + (self.filters, input_dim)
@@ -1436,25 +1457,25 @@ class Conv3DTranspose(Conv3D):
       Currently, specifying any `dilation_rate` value != 1 is
       incompatible with specifying any stride value != 1.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    kernel_initializer: Initializer for the `kernel` weights matrix (
-      see `keras.initializers`). Defaults to 'glorot_uniform'.
-    bias_initializer: Initializer for the bias vector (
-      see `keras.initializers`). Defaults to 'zeros'.
+    kernel_initializer: Initializer for the `kernel` weights matrix
+      (see `keras.initializers`). Defaults to 'glorot_uniform'.
+    bias_initializer: Initializer for the bias vector
+      (see `keras.initializers`). Defaults to 'zeros'.
     kernel_regularizer: Regularizer function applied to
-      the `kernel` weights matrix (
-      see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+      the `kernel` weights matrix
+      (see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
-      the output of the layer (its "activation") (
-      see `keras.regularizers`).
-    kernel_constraint: Constraint function applied to the kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+      the output of the layer (its "activation")
+      (see `keras.regularizers`).
+    kernel_constraint: Constraint function applied to the kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     5D tensor with shape:
@@ -1534,22 +1555,25 @@ class Conv3DTranspose(Conv3D):
     self.output_padding = output_padding
     if self.output_padding is not None:
       self.output_padding = conv_utils.normalize_tuple(
-          self.output_padding, 3, 'output_padding')
+          self.output_padding, 3, 'output_padding', allow_zero=True)
       for stride, out_pad in zip(self.strides, self.output_padding):
         if out_pad >= stride:
-          raise ValueError('Stride ' + str(self.strides) + ' must be '
-                           'greater than output padding ' +
-                           str(self.output_padding))
+          raise ValueError('Strides must be greater than output padding. '
+                           f'Received strides={self.strides}, '
+                           f'output_padding={self.output_padding}.')
 
   def build(self, input_shape):
     input_shape = tf.TensorShape(input_shape)
     if len(input_shape) != 5:
-      raise ValueError('Inputs should have rank 5, received input shape:',
-                       str(input_shape))
+      raise ValueError('Inputs should have rank 5. '
+                       f'Received input_shape={input_shape}.')
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
       raise ValueError('The channel dimension of the inputs '
-                       'should be defined, found None: ' + str(input_shape))
+                       'to `Conv3DTranspose` should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     input_dim = int(input_shape[channel_axis])
     kernel_shape = self.kernel_size + (self.filters, input_dim)
     self.input_spec = InputSpec(ndim=5, axes={channel_axis: input_dim})
@@ -1728,14 +1752,14 @@ class SeparableConv(Conv):
       each input channel. The total number of depthwise convolution output
       channels will be equal to `num_filters_in * depth_multiplier`.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias.
-    depthwise_initializer: An initializer for the depthwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer (
-      'glorot_uniform') will be used.
-    pointwise_initializer: An initializer for the pointwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer 
+    depthwise_initializer: An initializer for the depthwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer
+      ('glorot_uniform') will be used.
+    pointwise_initializer: An initializer for the pointwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer
       ('glorot_uniform') will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer ('zeros') will be used (see `keras.initializers`).
@@ -1812,8 +1836,10 @@ class SeparableConv(Conv):
     input_shape = tf.TensorShape(input_shape)
     channel_axis = self._get_channel_axis()
     if input_shape.dims[channel_axis].value is None:
-      raise ValueError('The channel dimension of the inputs '
-                       'should be defined. Found `None`.')
+      raise ValueError('The channel dimension of the inputs should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
     input_dim = int(input_shape[channel_axis])
     self.input_spec = InputSpec(ndim=self.rank + 2,
                                 axes={channel_axis: input_dim})
@@ -1931,20 +1957,18 @@ class SeparableConv1D(SeparableConv):
       inputs with shape `(batch_size, channels, length)`.
     dilation_rate: A single integer, specifying
       the dilation rate to use for dilated convolution.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any stride value != 1.
     depth_multiplier: The number of depthwise convolution output channels for
       each input channel. The total number of depthwise convolution output
       channels will be equal to `num_filters_in * depth_multiplier`.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias.
-    depthwise_initializer: An initializer for the depthwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer (
-      'glorot_uniform') will be used.
-    pointwise_initializer: An initializer for the pointwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer 
+    depthwise_initializer: An initializer for the depthwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer
+      ('glorot_uniform') will be used.
+    pointwise_initializer: An initializer for the pointwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer
       ('glorot_uniform') will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer ('zeros') will be used (see `keras.initializers`).
@@ -1952,30 +1976,30 @@ class SeparableConv1D(SeparableConv):
       convolution kernel (see `keras.regularizers`).
     pointwise_regularizer: Optional regularizer for the pointwise
       convolution kernel (see `keras.regularizers`).
-    bias_regularizer: Optional regularizer for the bias vector (
-      see `keras.regularizers`).
-    activity_regularizer: Optional regularizer function for the output (
-      see `keras.regularizers`).
+    bias_regularizer: Optional regularizer for the bias vector
+      (see `keras.regularizers`).
+    activity_regularizer: Optional regularizer function for the output
+      (see `keras.regularizers`).
     depthwise_constraint: Optional projection function to be applied to the
       depthwise kernel after being updated by an `Optimizer` (e.g. used for
       norm constraints or value constraints for layer weights). The function
       must take as input the unprojected variable and must return the
       projected variable (which must have the same shape). Constraints are
-      not safe to use when doing asynchronous distributed training (
-      see `keras.constraints`).
+      not safe to use when doing asynchronous distributed training
+      (see `keras.constraints`).
     pointwise_constraint: Optional projection function to be applied to the
-      pointwise kernel after being updated by an `Optimizer` (
-      see `keras.constraints`).
+      pointwise kernel after being updated by an `Optimizer`
+      (see `keras.constraints`).
     bias_constraint: Optional projection function to be applied to the
-      bias after being updated by an `Optimizer` (
-      see `keras.constraints`).
+      bias after being updated by an `Optimizer`
+      (see `keras.constraints`).
     trainable: Boolean, if `True` the weights of this layer will be marked as
       trainable (and listed in `layer.trainable_weights`).
 
   Input shape:
     3D tensor with shape:
     `(batch_size, channels, steps)` if data_format='channels_first'
-    or 5D tensor with shape:
+    or 3D tensor with shape:
     `(batch_size, steps, channels)` if data_format='channels_last'.
 
   Output shape:
@@ -1988,9 +2012,6 @@ class SeparableConv1D(SeparableConv):
   Returns:
     A tensor of rank 3 representing
     `activation(separableconv1d(inputs, kernel) + bias)`.
-
-  Raises:
-    ValueError: when both `strides` > 1 and `dilation_rate` > 1.
   """
 
   def __init__(self,
@@ -2106,7 +2127,7 @@ class SeparableConv2D(SeparableConv):
     strides: An integer or tuple/list of 2 integers,
       specifying the strides of the convolution along the height and width.
       Can be a single integer to specify the same value for
-      all spatial dimensions. Current implementation only supports equal 
+      all spatial dimensions. Current implementation only supports equal
       length strides in the row and column dimensions.
       Specifying any stride value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
@@ -2126,21 +2147,19 @@ class SeparableConv2D(SeparableConv):
       If you never set it, then it will be "channels_last".
     dilation_rate: An integer or tuple/list of 2 integers, specifying
       the dilation rate to use for dilated convolution.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any `strides` value != 1.
     depth_multiplier: The number of depthwise convolution output channels
       for each input channel.
       The total number of depthwise convolution output
       channels will be equal to `filters_in * depth_multiplier`.
     activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+      If you don't specify anything, no activation is applied
+      (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    depthwise_initializer: An initializer for the depthwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer (
-      'glorot_uniform') will be used.
-    pointwise_initializer: An initializer for the pointwise convolution kernel (
-      see `keras.initializers`). If None, then the default initializer 
+    depthwise_initializer: An initializer for the depthwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer
+      ('glorot_uniform') will be used.
+    pointwise_initializer: An initializer for the pointwise convolution kernel
+      (see `keras.initializers`). If None, then the default initializer
       ('glorot_uniform') will be used.
     bias_initializer: An initializer for the bias vector. If None, the default
       initializer ('zeros') will be used (see `keras.initializers`).
@@ -2148,19 +2167,19 @@ class SeparableConv2D(SeparableConv):
       the depthwise kernel matrix (see `keras.regularizers`).
     pointwise_regularizer: Regularizer function applied to
       the pointwise kernel matrix (see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector
+      (see `keras.regularizers`).
     activity_regularizer: Regularizer function applied to
-      the output of the layer (its "activation") (
-      see `keras.regularizers`).
+      the output of the layer (its "activation")
+      (see `keras.regularizers`).
     depthwise_constraint: Constraint function applied to
-      the depthwise kernel matrix (
-      see `keras.constraints`).
+      the depthwise kernel matrix
+      (see `keras.constraints`).
     pointwise_constraint: Constraint function applied to
-      the pointwise kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+      the pointwise kernel matrix
+      (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector
+      (see `keras.constraints`).
 
   Input shape:
     4D tensor with shape:
@@ -2181,7 +2200,6 @@ class SeparableConv2D(SeparableConv):
 
   Raises:
     ValueError: if `padding` is "causal".
-    ValueError: when both `strides` > 1 and `dilation_rate` > 1.
   """
 
   def __init__(self,
@@ -2254,96 +2272,450 @@ class SeparableConv2D(SeparableConv):
     return outputs
 
 
-@keras_export('keras.layers.DepthwiseConv2D')
-class DepthwiseConv2D(Conv2D):
-  """Depthwise 2D convolution.
+class DepthwiseConv(Conv):
+  """Depthwise convolution.
 
-  Depthwise convolution is a type of convolution in which a single convolutional
-  filter is apply to each input channel (i.e. in a depthwise way).
-  You can understand depthwise convolution as being
-  the first step in a depthwise separable convolution.
+  Depthwise convolution is a type of convolution in which each input channel is
+  convolved with a different kernel (called a depthwise kernel). You
+  can understand depthwise convolution as the first step in a depthwise
+  separable convolution.
 
   It is implemented via the following steps:
 
   - Split the input into individual channels.
-  - Convolve each input with the layer's kernel (called a depthwise kernel).
-  - Stack the convolved outputs together (along the channels axis).
+  - Convolve each channel with an individual depthwise kernel with
+    `depth_multiplier` output channels.
+  - Concatenate the convolved outputs along the channels axis.
+
+  Unlike a regular convolution, depthwise convolution does not mix
+  information across different input channels.
+
+  The `depth_multiplier` argument determines how many filter are applied to one
+  input channel. As such, it controls the amount of output channels that are
+  generated per input channel in the depthwise step.
+
+  Args:
+    kernel_size: A tuple or list of integers specifying the spatial dimensions
+      of the filters. Can be a single integer to specify the same value for all
+      spatial dimensions.
+    strides: A tuple or list of integers specifying the strides of the
+      convolution. Can be a single integer to specify the same value for all
+      spatial dimensions. Specifying any `stride` value != 1 is incompatible
+      with specifying any `dilation_rate` value != 1.
+    padding: One of `"valid"` or `"same"` (case-insensitive). `"valid"` means no
+      padding. `"same"` results in padding with zeros evenly to the left/right
+      or up/down of the input such that output has the same height/width
+      dimension as the input.
+    depth_multiplier: The number of depthwise convolution output channels for
+      each input channel. The total number of depthwise convolution output
+      channels will be equal to `filters_in * depth_multiplier`.
+    data_format: A string, one of `channels_last` (default) or `channels_first`.
+      The ordering of the dimensions in the inputs. `channels_last` corresponds
+      to inputs with shape `(batch_size, height, width, channels)` while
+      `channels_first` corresponds to inputs with shape `(batch_size, channels,
+      height, width)`. It defaults to the `image_data_format` value found in
+      your Keras config file at `~/.keras/keras.json`. If you never set it, then
+      it will be 'channels_last'.
+    dilation_rate: An integer or tuple/list of 2 integers, specifying the
+      dilation rate to use for dilated convolution. Currently, specifying any
+      `dilation_rate` value != 1 is incompatible with specifying any `strides`
+      value != 1.
+    activation: Activation function to use. If you don't specify anything, no
+      activation is applied (see `keras.activations`).
+    use_bias: Boolean, whether the layer uses a bias vector.
+    depthwise_initializer: Initializer for the depthwise kernel matrix (see
+      `keras.initializers`). If None, the default initializer
+      ('glorot_uniform') will be used.
+    bias_initializer: Initializer for the bias vector (see
+      `keras.initializers`). If None, the default initializer ('zeros') will be
+      used.
+    depthwise_regularizer: Regularizer function applied to the depthwise kernel
+      matrix (see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector (see
+      `keras.regularizers`).
+    activity_regularizer: Regularizer function applied to the output of the
+      layer (its 'activation') (see `keras.regularizers`).
+    depthwise_constraint: Constraint function applied to the depthwise kernel
+      matrix (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector (see
+      `keras.constraints`).
+
+  Input shape:
+    4D tensor with shape: `[batch_size, channels, rows, cols]` if
+      data_format='channels_first'
+    or 4D tensor with shape: `[batch_size, rows, cols, channels]` if
+      data_format='channels_last'.
+
+  Output shape:
+    4D tensor with shape: `[batch_size, channels * depth_multiplier, new_rows,
+      new_cols]` if `data_format='channels_first'`
+      or 4D tensor with shape: `[batch_size,
+      new_rows, new_cols, channels * depth_multiplier]` if
+      `data_format='channels_last'`. `rows` and `cols` values might have changed
+      due to padding.
+
+  Returns:
+    A tensor of rank 4 representing
+    `activation(depthwiseconv2d(inputs, kernel) + bias)`.
+
+  Raises:
+    ValueError: if `padding` is "causal".
+    ValueError: when both `strides` > 1 and `dilation_rate` > 1.
+  """
+
+  def __init__(self,
+               rank,
+               kernel_size,
+               strides=1,
+               padding='valid',
+               depth_multiplier=1,
+               data_format=None,
+               dilation_rate=1,
+               activation=None,
+               use_bias=True,
+               depthwise_initializer='glorot_uniform',
+               bias_initializer='zeros',
+               depthwise_regularizer=None,
+               bias_regularizer=None,
+               activity_regularizer=None,
+               depthwise_constraint=None,
+               bias_constraint=None,
+               **kwargs):
+    super(DepthwiseConv, self).__init__(
+        rank,
+        filters=None,
+        kernel_size=kernel_size,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        dilation_rate=dilation_rate,
+        activation=activation,
+        use_bias=use_bias,
+        bias_regularizer=bias_regularizer,
+        activity_regularizer=activity_regularizer,
+        bias_constraint=bias_constraint,
+        **kwargs)
+    self.depth_multiplier = depth_multiplier
+    self.depthwise_initializer = initializers.get(depthwise_initializer)
+    self.depthwise_regularizer = regularizers.get(depthwise_regularizer)
+    self.depthwise_constraint = constraints.get(depthwise_constraint)
+    self.bias_initializer = initializers.get(bias_initializer)
+
+  def build(self, input_shape):
+    if len(input_shape) != self.rank + 2:
+      raise ValueError('Inputs to `DepthwiseConv` should have '
+                       f'rank {self.rank + 2}. '
+                       f'Received input_shape={input_shape}.')
+    input_shape = tf.TensorShape(input_shape)
+    channel_axis = self._get_channel_axis()
+    if input_shape.dims[channel_axis].value is None:
+      raise ValueError('The channel dimension of the inputs to `DepthwiseConv` '
+                       'should be defined. '
+                       f'The input_shape received is {input_shape}, '
+                       f'where axis {channel_axis} (0-based) '
+                       'is the channel dimension, which found to be `None`.')
+    input_dim = int(input_shape[channel_axis])
+    depthwise_kernel_shape = self.kernel_size + (input_dim,
+                                                 self.depth_multiplier)
+
+    self.depthwise_kernel = self.add_weight(
+        shape=depthwise_kernel_shape,
+        initializer=self.depthwise_initializer,
+        name='depthwise_kernel',
+        regularizer=self.depthwise_regularizer,
+        constraint=self.depthwise_constraint)
+
+    if self.use_bias:
+      self.bias = self.add_weight(shape=(input_dim * self.depth_multiplier,),
+                                  initializer=self.bias_initializer,
+                                  name='bias',
+                                  regularizer=self.bias_regularizer,
+                                  constraint=self.bias_constraint)
+    else:
+      self.bias = None
+    # Set input spec.
+    self.input_spec = InputSpec(
+        min_ndim=self.rank + 2, axes={channel_axis: input_dim})
+    self.built = True
+
+  def call(self, inputs):
+    raise NotImplementedError
+
+  def get_config(self):
+    config = super(DepthwiseConv, self).get_config()
+    config.pop('filters')
+    config.pop('kernel_initializer')
+    config.pop('kernel_regularizer')
+    config.pop('kernel_constraint')
+    config['depth_multiplier'] = self.depth_multiplier
+    config['depthwise_initializer'] = initializers.serialize(
+        self.depthwise_initializer)
+    config['depthwise_regularizer'] = regularizers.serialize(
+        self.depthwise_regularizer)
+    config['depthwise_constraint'] = constraints.serialize(
+        self.depthwise_constraint)
+    return config
+
+
+@keras_export('keras.layers.DepthwiseConv1D')
+class DepthwiseConv1D(DepthwiseConv):
+  """Depthwise 1D convolution.
+
+  Depthwise convolution is a type of convolution in which each input channel is
+  convolved with a different kernel (called a depthwise kernel). You
+  can understand depthwise convolution as the first step in a depthwise
+  separable convolution.
+
+  It is implemented via the following steps:
+
+  - Split the input into individual channels.
+  - Convolve each channel with an individual depthwise kernel with
+    `depth_multiplier` output channels.
+  - Concatenate the convolved outputs along the channels axis.
+
+  Unlike a regular 1D convolution, depthwise convolution does not mix
+  information across different input channels.
+
+  The `depth_multiplier` argument determines how many filter are applied to one
+  input channel. As such, it controls the amount of output channels that are
+  generated per input channel in the depthwise step.
+
+  Args:
+    kernel_size: An integer, specifying the height and width of the 1D
+      convolution window. Can be a single integer to specify the same value for
+      all spatial dimensions.
+    strides: An integer, specifying the strides of the convolution along the
+      height and width. Can be a single integer to specify the same value for
+      all spatial dimensions. Specifying any stride value != 1 is incompatible
+      with specifying any `dilation_rate` value != 1.
+    padding: one of `'valid'` or `'same'` (case-insensitive). `"valid"` means no
+      padding. `"same"` results in padding with zeros evenly to the left/right
+      or up/down of the input such that output has the same height/width
+      dimension as the input.
+    depth_multiplier: The number of depthwise convolution output channels for
+      each input channel. The total number of depthwise convolution output
+      channels will be equal to `filters_in * depth_multiplier`.
+    data_format: A string, one of `channels_last` (default) or `channels_first`.
+      The ordering of the dimensions in the inputs. `channels_last` corresponds
+      to inputs with shape `(batch_size, height, width, channels)` while
+      `channels_first` corresponds to inputs with shape `(batch_size, channels,
+      height, width)`. It defaults to the `image_data_format` value found in
+      your Keras config file at `~/.keras/keras.json`. If you never set it, then
+      it will be 'channels_last'.
+    dilation_rate: A single integer, specifying the dilation rate to use for
+      dilated convolution. Currently, specifying any `dilation_rate` value != 1
+      is incompatible with specifying any stride value != 1.
+    activation: Activation function to use. If you don't specify anything, no
+      activation is applied (see `keras.activations`).
+    use_bias: Boolean, whether the layer uses a bias vector.
+    depthwise_initializer: Initializer for the depthwise kernel matrix (see
+      `keras.initializers`). If None, the default initializer
+      ('glorot_uniform') will be used.
+    bias_initializer: Initializer for the bias vector (see
+      `keras.initializers`). If None, the default initializer ('zeros') will be
+      used.
+    depthwise_regularizer: Regularizer function applied to the depthwise kernel
+      matrix (see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector (see
+      `keras.regularizers`).
+    activity_regularizer: Regularizer function applied to the output of the
+      layer (its 'activation') (see `keras.regularizers`).
+    depthwise_constraint: Constraint function applied to the depthwise kernel
+      matrix (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector (see
+      `keras.constraints`).
+
+  Input shape:
+    4D tensor with shape: `[batch_size, channels, rows, cols]` if
+      data_format='channels_first'
+    or 4D tensor with shape: `[batch_size, rows, cols, channels]` if
+      data_format='channels_last'.
+
+  Output shape:
+    4D tensor with shape: `[batch_size, channels * depth_multiplier, new_rows,
+      new_cols]` if `data_format='channels_first'`
+      or 4D tensor with shape: `[batch_size,
+      new_rows, new_cols, channels * depth_multiplier]` if
+      `data_format='channels_last'`. `rows` and `cols` values might have changed
+      due to padding.
+
+  Returns:
+    A tensor of rank 4 representing
+    `activation(depthwiseconv2d(inputs, kernel) + bias)`.
+
+  Raises:
+    ValueError: if `padding` is "causal".
+    ValueError: when both `strides` > 1 and `dilation_rate` > 1.
+  """
+
+  def __init__(self,
+               kernel_size,
+               strides=1,
+               padding='valid',
+               depth_multiplier=1,
+               data_format=None,
+               dilation_rate=1,
+               activation=None,
+               use_bias=True,
+               depthwise_initializer='glorot_uniform',
+               bias_initializer='zeros',
+               depthwise_regularizer=None,
+               bias_regularizer=None,
+               activity_regularizer=None,
+               depthwise_constraint=None,
+               bias_constraint=None,
+               **kwargs):
+    super(DepthwiseConv1D, self).__init__(
+        1,
+        kernel_size=kernel_size,
+        strides=strides,
+        padding=padding,
+        depth_multiplier=depth_multiplier,
+        data_format=data_format,
+        dilation_rate=dilation_rate,
+        activation=activation,
+        use_bias=use_bias,
+        depthwise_initializer=depthwise_initializer,
+        bias_initializer=bias_initializer,
+        depthwise_regularizer=depthwise_regularizer,
+        bias_regularizer=bias_regularizer,
+        activity_regularizer=activity_regularizer,
+        depthwise_constraint=depthwise_constraint,
+        bias_constraint=bias_constraint,
+        **kwargs)
+
+  def call(self, inputs):
+    if self.data_format == 'channels_last':
+      strides = (1,) + self.strides * 2 + (1,)
+      spatial_start_dim = 1
+    else:
+      strides = (1, 1) + self.strides * 2
+      spatial_start_dim = 2
+    inputs = tf.expand_dims(inputs, spatial_start_dim)
+    depthwise_kernel = tf.expand_dims(self.depthwise_kernel, axis=0)
+    dilation_rate = (1,) + self.dilation_rate
+
+    outputs = tf.nn.depthwise_conv2d(
+        inputs,
+        depthwise_kernel,
+        strides=strides,
+        padding=self.padding.upper(),
+        dilations=dilation_rate,
+        data_format=conv_utils.convert_data_format(self.data_format, ndim=4))
+
+    if self.use_bias:
+      outputs = tf.nn.bias_add(
+          outputs,
+          self.bias,
+          data_format=conv_utils.convert_data_format(self.data_format, ndim=4))
+
+    outputs = tf.squeeze(outputs, [spatial_start_dim])
+
+    if self.activation is not None:
+      return self.activation(outputs)
+
+    return outputs
+
+  @tf_utils.shape_type_conversion
+  def compute_output_shape(self, input_shape):
+    if self.data_format == 'channels_first':
+      rows = input_shape[2]
+      out_filters = input_shape[1] * self.depth_multiplier
+    elif self.data_format == 'channels_last':
+      rows = input_shape[1]
+      out_filters = input_shape[2] * self.depth_multiplier
+
+    rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
+                                         self.padding, self.strides[0],
+                                         self.dilation_rate[0])
+    if self.data_format == 'channels_first':
+      return (input_shape[0], out_filters, rows)
+    elif self.data_format == 'channels_last':
+      return (input_shape[0], rows, out_filters)
+
+
+@keras_export('keras.layers.DepthwiseConv2D')
+class DepthwiseConv2D(DepthwiseConv):
+  """Depthwise 2D convolution.
+
+  Depthwise convolution is a type of convolution in which each input channel is
+  convolved with a different kernel (called a depthwise kernel). You
+  can understand depthwise convolution as the first step in a depthwise
+  separable convolution.
+
+  It is implemented via the following steps:
+
+  - Split the input into individual channels.
+  - Convolve each channel with an individual depthwise kernel with
+    `depth_multiplier` output channels.
+  - Concatenate the convolved outputs along the channels axis.
 
   Unlike a regular 2D convolution, depthwise convolution does not mix
   information across different input channels.
 
-  The `depth_multiplier` argument controls how many
-  output channels are generated per input channel in the depthwise step.
+  The `depth_multiplier` argument determines how many filter are applied to one
+  input channel. As such, it controls the amount of output channels that are
+  generated per input channel in the depthwise step.
 
   Args:
-    kernel_size: An integer or tuple/list of 2 integers, specifying the
-      height and width of the 2D convolution window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 2 integers,
-      specifying the strides of the convolution along the height and width.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Specifying any stride value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: one of `'valid'` or `'same'` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding with zeros evenly
-      to the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    depth_multiplier: The number of depthwise convolution output channels
-      for each input channel.
-      The total number of depthwise convolution output
+    kernel_size: An integer or tuple/list of 2 integers, specifying the height
+      and width of the 2D convolution window. Can be a single integer to specify
+      the same value for all spatial dimensions.
+    strides: An integer or tuple/list of 2 integers, specifying the strides of
+      the convolution along the height and width. Can be a single integer to
+      specify the same value for all spatial dimensions. Specifying any stride
+      value != 1 is incompatible with specifying any `dilation_rate` value != 1.
+    padding: one of `'valid'` or `'same'` (case-insensitive). `"valid"` means no
+      padding. `"same"` results in padding with zeros evenly to the left/right
+      or up/down of the input such that output has the same height/width
+      dimension as the input.
+    depth_multiplier: The number of depthwise convolution output channels for
+      each input channel. The total number of depthwise convolution output
       channels will be equal to `filters_in * depth_multiplier`.
-    data_format: A string,
-      one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch_size, height, width, channels)` while `channels_first`
-      corresponds to inputs with shape
-      `(batch_size, channels, height, width)`.
-      It defaults to the `image_data_format` value found in your
-      Keras config file at `~/.keras/keras.json`.
-      If you never set it, then it will be 'channels_last'.
-    dilation_rate: An integer or tuple/list of 2 integers, specifying
-      the dilation rate to use for dilated convolution.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any `strides` value != 1.
-    activation: Activation function to use.
-      If you don't specify anything, no activation is applied (
-      see `keras.activations`).
+    data_format: A string, one of `channels_last` (default) or `channels_first`.
+      The ordering of the dimensions in the inputs. `channels_last` corresponds
+      to inputs with shape `(batch_size, height, width, channels)` while
+      `channels_first` corresponds to inputs with shape `(batch_size, channels,
+      height, width)`. It defaults to the `image_data_format` value found in
+      your Keras config file at `~/.keras/keras.json`. If you never set it, then
+      it will be 'channels_last'.
+    dilation_rate: An integer or tuple/list of 2 integers, specifying the
+      dilation rate to use for dilated convolution. Currently, specifying any
+      `dilation_rate` value != 1 is incompatible with specifying any `strides`
+      value != 1.
+    activation: Activation function to use. If you don't specify anything, no
+      activation is applied (see `keras.activations`).
     use_bias: Boolean, whether the layer uses a bias vector.
-    depthwise_initializer: Initializer for the depthwise kernel matrix (
-      see `keras.initializers`). If None, the default initializer (
-      'glorot_uniform') will be used.
-    bias_initializer: Initializer for the bias vector (
-      see `keras.initializers`). If None, the default initializer (
-      'zeros') will bs used.
-    depthwise_regularizer: Regularizer function applied to
-      the depthwise kernel matrix (see `keras.regularizers`).
-    bias_regularizer: Regularizer function applied to the bias vector (
-      see `keras.regularizers`).
-    activity_regularizer: Regularizer function applied to
-      the output of the layer (its 'activation') (
-      see `keras.regularizers`).
-    depthwise_constraint: Constraint function applied to
-      the depthwise kernel matrix (
-      see `keras.constraints`).
-    bias_constraint: Constraint function applied to the bias vector (
-      see `keras.constraints`).
+    depthwise_initializer: Initializer for the depthwise kernel matrix (see
+      `keras.initializers`). If None, the default initializer
+      ('glorot_uniform') will be used.
+    bias_initializer: Initializer for the bias vector (see
+      `keras.initializers`). If None, the default initializer ('zeros') will be
+      used.
+    depthwise_regularizer: Regularizer function applied to the depthwise kernel
+      matrix (see `keras.regularizers`).
+    bias_regularizer: Regularizer function applied to the bias vector (see
+      `keras.regularizers`).
+    activity_regularizer: Regularizer function applied to the output of the
+      layer (its 'activation') (see `keras.regularizers`).
+    depthwise_constraint: Constraint function applied to the depthwise kernel
+      matrix (see `keras.constraints`).
+    bias_constraint: Constraint function applied to the bias vector (see
+      `keras.constraints`).
 
   Input shape:
-    4D tensor with shape:
-    `[batch_size, channels, rows, cols]` if data_format='channels_first'
-    or 4D tensor with shape:
-    `[batch_size, rows, cols, channels]` if data_format='channels_last'.
+    4D tensor with shape: `[batch_size, channels, rows, cols]` if
+      data_format='channels_first'
+    or 4D tensor with shape: `[batch_size, rows, cols, channels]` if
+      data_format='channels_last'.
 
   Output shape:
-    4D tensor with shape:
-    `[batch_size, channels * depth_multiplier, new_rows, new_cols]` if
-    data_format='channels_first' or 4D tensor with shape:
-    `[batch_size, new_rows, new_cols, channels * depth_multiplier]` if
-    data_format='channels_last'. `rows` and `cols` values might have
-    changed due to padding.
+    4D tensor with shape: `[batch_size, channels * depth_multiplier, new_rows,
+      new_cols]` if `data_format='channels_first'`
+      or 4D tensor with shape: `[batch_size,
+      new_rows, new_cols, channels * depth_multiplier]` if
+      `data_format='channels_last'`. `rows` and `cols` values might have changed
+      due to padding.
 
   Returns:
     A tensor of rank 4 representing
@@ -2372,58 +2744,23 @@ class DepthwiseConv2D(Conv2D):
                bias_constraint=None,
                **kwargs):
     super(DepthwiseConv2D, self).__init__(
-        filters=None,
+        2,
         kernel_size=kernel_size,
         strides=strides,
         padding=padding,
+        depth_multiplier=depth_multiplier,
         data_format=data_format,
         dilation_rate=dilation_rate,
         activation=activation,
         use_bias=use_bias,
+        depthwise_initializer=depthwise_initializer,
+        bias_initializer=bias_initializer,
+        depthwise_regularizer=depthwise_regularizer,
         bias_regularizer=bias_regularizer,
         activity_regularizer=activity_regularizer,
+        depthwise_constraint=depthwise_constraint,
         bias_constraint=bias_constraint,
         **kwargs)
-    self.depth_multiplier = depth_multiplier
-    self.depthwise_initializer = initializers.get(depthwise_initializer)
-    self.depthwise_regularizer = regularizers.get(depthwise_regularizer)
-    self.depthwise_constraint = constraints.get(depthwise_constraint)
-    self.bias_initializer = initializers.get(bias_initializer)
-
-  def build(self, input_shape):
-    if len(input_shape) < 4:
-      raise ValueError('Inputs to `DepthwiseConv2D` should have rank 4. '
-                       'Received input shape:', str(input_shape))
-    input_shape = tf.TensorShape(input_shape)
-    channel_axis = self._get_channel_axis()
-    if input_shape.dims[channel_axis].value is None:
-      raise ValueError('The channel dimension of the inputs to '
-                       '`DepthwiseConv2D` '
-                       'should be defined. Found `None`.')
-    input_dim = int(input_shape[channel_axis])
-    depthwise_kernel_shape = (self.kernel_size[0],
-                              self.kernel_size[1],
-                              input_dim,
-                              self.depth_multiplier)
-
-    self.depthwise_kernel = self.add_weight(
-        shape=depthwise_kernel_shape,
-        initializer=self.depthwise_initializer,
-        name='depthwise_kernel',
-        regularizer=self.depthwise_regularizer,
-        constraint=self.depthwise_constraint)
-
-    if self.use_bias:
-      self.bias = self.add_weight(shape=(input_dim * self.depth_multiplier,),
-                                  initializer=self.bias_initializer,
-                                  name='bias',
-                                  regularizer=self.bias_regularizer,
-                                  constraint=self.bias_constraint)
-    else:
-      self.bias = None
-    # Set input spec.
-    self.input_spec = InputSpec(ndim=4, axes={channel_axis: input_dim})
-    self.built = True
 
   def call(self, inputs):
     outputs = backend.depthwise_conv2d(
@@ -2468,21 +2805,6 @@ class DepthwiseConv2D(Conv2D):
       return (input_shape[0], out_filters, rows, cols)
     elif self.data_format == 'channels_last':
       return (input_shape[0], rows, cols, out_filters)
-
-  def get_config(self):
-    config = super(DepthwiseConv2D, self).get_config()
-    config.pop('filters')
-    config.pop('kernel_initializer')
-    config.pop('kernel_regularizer')
-    config.pop('kernel_constraint')
-    config['depth_multiplier'] = self.depth_multiplier
-    config['depthwise_initializer'] = initializers.serialize(
-        self.depthwise_initializer)
-    config['depthwise_regularizer'] = regularizers.serialize(
-        self.depthwise_regularizer)
-    config['depthwise_constraint'] = constraints.serialize(
-        self.depthwise_constraint)
-    return config
 
 
 @keras_export('keras.layers.UpSampling1D')
@@ -2610,7 +2932,7 @@ class UpSampling2D(Layer):
     self.size = conv_utils.normalize_tuple(size, 2, 'size')
     if interpolation not in {'nearest', 'bilinear'}:
       raise ValueError('`interpolation` argument should be one of `"nearest"` '
-                       'or `"bilinear"`.')
+                       f'or `"bilinear"`. Received: "{interpolation}".')
     self.interpolation = interpolation
     self.input_spec = InputSpec(ndim=4)
 
@@ -2774,7 +3096,8 @@ class ZeroPadding1D(Layer):
 
   def __init__(self, padding=1, **kwargs):
     super(ZeroPadding1D, self).__init__(**kwargs)
-    self.padding = conv_utils.normalize_tuple(padding, 2, 'padding')
+    self.padding = conv_utils.normalize_tuple(
+        padding, 2, 'padding', allow_zero=True)
     self.input_spec = InputSpec(ndim=3)
 
   def compute_output_shape(self, input_shape):
@@ -2868,11 +3191,11 @@ class ZeroPadding2D(Layer):
     elif hasattr(padding, '__len__'):
       if len(padding) != 2:
         raise ValueError('`padding` should have two elements. '
-                         'Found: ' + str(padding))
-      height_padding = conv_utils.normalize_tuple(padding[0], 2,
-                                                  '1st entry of padding')
-      width_padding = conv_utils.normalize_tuple(padding[1], 2,
-                                                 '2nd entry of padding')
+                         f'Received: {padding}.')
+      height_padding = conv_utils.normalize_tuple(
+          padding[0], 2, '1st entry of padding', allow_zero=True)
+      width_padding = conv_utils.normalize_tuple(
+          padding[1], 2, '2nd entry of padding', allow_zero=True)
       self.padding = (height_padding, width_padding)
     else:
       raise ValueError('`padding` should be either an int, '
@@ -2880,7 +3203,7 @@ class ZeroPadding2D(Layer):
                        '(symmetric_height_pad, symmetric_width_pad), '
                        'or a tuple of 2 tuples of 2 ints '
                        '((top_pad, bottom_pad), (left_pad, right_pad)). '
-                       'Found: ' + str(padding))
+                       f'Received: {padding}.')
     self.input_spec = InputSpec(ndim=4)
 
   def compute_output_shape(self, input_shape):
@@ -2981,13 +3304,13 @@ class ZeroPadding3D(Layer):
     elif hasattr(padding, '__len__'):
       if len(padding) != 3:
         raise ValueError('`padding` should have 3 elements. '
-                         'Found: ' + str(padding))
-      dim1_padding = conv_utils.normalize_tuple(padding[0], 2,
-                                                '1st entry of padding')
-      dim2_padding = conv_utils.normalize_tuple(padding[1], 2,
-                                                '2nd entry of padding')
-      dim3_padding = conv_utils.normalize_tuple(padding[2], 2,
-                                                '3rd entry of padding')
+                         f'Received: {padding}.')
+      dim1_padding = conv_utils.normalize_tuple(
+          padding[0], 2, '1st entry of padding', allow_zero=True)
+      dim2_padding = conv_utils.normalize_tuple(
+          padding[1], 2, '2nd entry of padding', allow_zero=True)
+      dim3_padding = conv_utils.normalize_tuple(
+          padding[2], 2, '3rd entry of padding', allow_zero=True)
       self.padding = (dim1_padding, dim2_padding, dim3_padding)
     else:
       raise ValueError(
@@ -2998,7 +3321,7 @@ class ZeroPadding3D(Layer):
           '((left_dim1_pad, right_dim1_pad),'
           ' (left_dim2_pad, right_dim2_pad),'
           ' (left_dim3_pad, right_dim2_pad)). '
-          'Found: ' + str(padding))
+          f'Received: {padding}.')
     self.input_spec = InputSpec(ndim=5)
 
   def compute_output_shape(self, input_shape):
@@ -3082,7 +3405,8 @@ class Cropping1D(Layer):
 
   def __init__(self, cropping=(1, 1), **kwargs):
     super(Cropping1D, self).__init__(**kwargs)
-    self.cropping = conv_utils.normalize_tuple(cropping, 2, 'cropping')
+    self.cropping = conv_utils.normalize_tuple(
+        cropping, 2, 'cropping', allow_zero=True)
     self.input_spec = InputSpec(ndim=3)
 
   def compute_output_shape(self, input_shape):
@@ -3094,6 +3418,10 @@ class Cropping1D(Layer):
     return tf.TensorShape([input_shape[0], length, input_shape[2]])
 
   def call(self, inputs):
+    if inputs.shape[1] is not None and sum(self.cropping) >= inputs.shape[1]:
+      raise ValueError('cropping parameter of Cropping layer must be '
+                       'greater than the input shape. Received: inputs.shape='
+                       f'{inputs.shape}, and cropping={self.cropping}')
     if self.cropping[1] == 0:
       return inputs[:, self.cropping[0]:, :]
     else:
@@ -3164,11 +3492,11 @@ class Cropping2D(Layer):
     elif hasattr(cropping, '__len__'):
       if len(cropping) != 2:
         raise ValueError('`cropping` should have two elements. '
-                         'Found: ' + str(cropping))
-      height_cropping = conv_utils.normalize_tuple(cropping[0], 2,
-                                                   '1st entry of cropping')
-      width_cropping = conv_utils.normalize_tuple(cropping[1], 2,
-                                                  '2nd entry of cropping')
+                         f'Received: {cropping}.')
+      height_cropping = conv_utils.normalize_tuple(
+          cropping[0], 2, '1st entry of cropping', allow_zero=True)
+      width_cropping = conv_utils.normalize_tuple(
+          cropping[1], 2, '2nd entry of cropping', allow_zero=True)
       self.cropping = (height_cropping, width_cropping)
     else:
       raise ValueError('`cropping` should be either an int, '
@@ -3176,7 +3504,7 @@ class Cropping2D(Layer):
                        '(symmetric_height_crop, symmetric_width_crop), '
                        'or a tuple of 2 tuples of 2 ints '
                        '((top_crop, bottom_crop), (left_crop, right_crop)). '
-                       'Found: ' + str(cropping))
+                       f'Received: {cropping}.')
     self.input_spec = InputSpec(ndim=4)
 
   def compute_output_shape(self, input_shape):
@@ -3203,6 +3531,13 @@ class Cropping2D(Layer):
   def call(self, inputs):
     # pylint: disable=invalid-unary-operand-type
     if self.data_format == 'channels_first':
+      if ((inputs.shape[2] is not None and
+           sum(self.cropping[0]) >= inputs.shape[2]) or
+          (inputs.shape[3] is not None and
+           sum(self.cropping[1]) >= inputs.shape[3])):
+        raise ValueError('Argument `cropping` must be '
+                         'greater than the input shape. Received: inputs.shape='
+                         f'{inputs.shape}, and cropping={self.cropping}')
       if self.cropping[0][1] == self.cropping[1][1] == 0:
         return inputs[:, :, self.cropping[0][0]:, self.cropping[1][0]:]
       elif self.cropping[0][1] == 0:
@@ -3214,6 +3549,13 @@ class Cropping2D(Layer):
       return inputs[:, :, self.cropping[0][0]:-self.cropping[0][1],
                     self.cropping[1][0]:-self.cropping[1][1]]
     else:
+      if ((inputs.shape[1] is not None and
+           sum(self.cropping[0]) >= inputs.shape[1]) or
+          (inputs.shape[2] is not None and
+           sum(self.cropping[1]) >= inputs.shape[2])):
+        raise ValueError('Argument `cropping` must be '
+                         'greater than the input shape. Received: inputs.shape='
+                         f'{inputs.shape}, and cropping={self.cropping}')
       if self.cropping[0][1] == self.cropping[1][1] == 0:
         return inputs[:, self.cropping[0][0]:, self.cropping[1][0]:, :]
       elif self.cropping[0][1] == 0:
@@ -3296,13 +3638,13 @@ class Cropping3D(Layer):
     elif hasattr(cropping, '__len__'):
       if len(cropping) != 3:
         raise ValueError('`cropping` should have 3 elements. '
-                         'Found: ' + str(cropping))
-      dim1_cropping = conv_utils.normalize_tuple(cropping[0], 2,
-                                                 '1st entry of cropping')
-      dim2_cropping = conv_utils.normalize_tuple(cropping[1], 2,
-                                                 '2nd entry of cropping')
-      dim3_cropping = conv_utils.normalize_tuple(cropping[2], 2,
-                                                 '3rd entry of cropping')
+                         f'Received: {cropping}.')
+      dim1_cropping = conv_utils.normalize_tuple(
+          cropping[0], 2, '1st entry of cropping', allow_zero=True)
+      dim2_cropping = conv_utils.normalize_tuple(
+          cropping[1], 2, '2nd entry of cropping', allow_zero=True)
+      dim3_cropping = conv_utils.normalize_tuple(
+          cropping[2], 2, '3rd entry of cropping', allow_zero=True)
       self.cropping = (dim1_cropping, dim2_cropping, dim3_cropping)
     else:
       raise ValueError(
@@ -3313,7 +3655,7 @@ class Cropping3D(Layer):
           '((left_dim1_crop, right_dim1_crop),'
           ' (left_dim2_crop, right_dim2_crop),'
           ' (left_dim3_crop, right_dim2_crop)). '
-          'Found: ' + str(cropping))
+          f'Received: {cropping}.')
     self.input_spec = InputSpec(ndim=5)
 
   def compute_output_shape(self, input_shape):

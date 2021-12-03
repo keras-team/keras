@@ -1284,6 +1284,200 @@ class MeanRelativeErrorTest(tf.test.TestCase):
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+class IoUTest(tf.test.TestCase):
+
+  def test_config(self):
+    obj = metrics.IoU(
+        num_classes=2, target_class_ids=[1, 0], name='iou_class_1_0')
+    self.assertEqual(obj.name, 'iou_class_1_0')
+    self.assertEqual(obj.num_classes, 2)
+    self.assertEqual(obj.target_class_ids, [1, 0])
+
+    obj2 = metrics.IoU.from_config(obj.get_config())
+    self.assertEqual(obj2.name, 'iou_class_1_0')
+    self.assertEqual(obj2.num_classes, 2)
+    self.assertEqual(obj2.target_class_ids, [1, 0])
+
+  def test_unweighted(self):
+    y_pred = [0, 1, 0, 1]
+    y_true = [0, 0, 1, 1]
+
+    obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+
+    result = obj(y_true, y_pred)
+
+    # cm = [[1, 1],
+    #       [1, 1]]
+    # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+  def test_weighted(self):
+    y_pred = tf.constant([0, 1, 0, 1], dtype=tf.float32)
+    y_true = tf.constant([0, 0, 1, 1])
+    sample_weight = tf.constant([0.2, 0.3, 0.4, 0.1])
+
+    obj = metrics.IoU(num_classes=2, target_class_ids=[1, 0])
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+
+    result = obj(y_true, y_pred, sample_weight=sample_weight)
+
+    # cm = [[0.2, 0.3],
+    #       [0.4, 0.1]]
+    # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (0.1 / (0.4 + 0.5 - 0.1) + 0.2 / (0.6 + 0.5 - 0.2)) / 2
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+  def test_multi_dim_input(self):
+    y_pred = tf.constant([[0, 1], [0, 1]], dtype=tf.float32)
+    y_true = tf.constant([[0, 0], [1, 1]])
+    sample_weight = tf.constant([[0.2, 0.3], [0.4, 0.1]])
+
+    obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+
+    result = obj(y_true, y_pred, sample_weight=sample_weight)
+
+    # cm = [[0.2, 0.3],
+    #       [0.4, 0.1]]
+    # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)) / 2
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+  def test_zero_valid_entries(self):
+    obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    self.assertAllClose(
+        self.evaluate(obj.result()), 0, atol=1e-3)
+
+  def test_zero_and_non_zero_entries(self):
+    y_pred = tf.constant([1], dtype=tf.float32)
+    y_true = tf.constant([1])
+
+    obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred)
+
+    # cm = [[0, 0],
+    #       [0, 1]]
+    # sum_row = [0, 1], sum_col = [0, 1], true_positives = [0, 1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (1 / (1 + 1 - 1)) / 1
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+
+@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+class BinaryIoUTest(tf.test.TestCase):
+
+  def test_config(self):
+    obj = metrics.BinaryIoU(
+        target_class_ids=[1, 0], threshold=0.1, name='iou_class_1_0')
+    self.assertEqual(obj.name, 'iou_class_1_0')
+    self.assertAlmostEqual(obj.threshold, 0.1)
+    self.assertEqual(obj.target_class_ids, [1, 0])
+
+    obj2 = metrics.BinaryIoU.from_config(obj.get_config())
+    self.assertEqual(obj.name, 'iou_class_1_0')
+    self.assertAlmostEqual(obj2.threshold, 0.1)
+    self.assertEqual(obj.target_class_ids, [1, 0])
+
+  def test_different_thresholds_weighted(self):
+    y_true = [0, 1, 0, 1]
+    y_pred = [0.1, 0.2, 0.4, 0.7]
+
+    sample_weight = tf.constant([0.2, 0.3, 0.4, 0.1])
+    # with threshold = 0.3, y_pred will be converted to [0, 0, 1, 1]
+    # cm = [[0.2, 0.4],
+    #       [0.3, 0.1]]
+    # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)) / 2
+    obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=0.3)
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred, sample_weight=sample_weight)
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+    sample_weight = tf.constant([0.1, 0.2, 0.4, 0.3])
+    # with threshold = 0.5, y_pred will be converted to [0, 0, 0, 1]
+    # cm = [[0.1+0.4, 0],
+    #       [0.2, 0.3]]
+    # sum_row = [0.5, 0.5], sum_col = [0.7, 0.3], true_positives = [0.5, 0.3]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (0.5 / (0.5 + 0.7 - 0.5) + 0.3 / (0.5 + 0.3 - 0.3)) / 2
+    obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=0.5)
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred, sample_weight=sample_weight)
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+  def test_different_thresholds_unweighted(self):
+    y_true = [0, 1, 0, 1]
+    y_pred = [0.1, 0.2, 0.4, 0.7]
+
+    # with threshold = 0.3, y_pred will be converted to [0, 0, 1, 1]
+    # cm = [[1, 1],
+    #       [1, 1]]
+    # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2
+    obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=0.3)
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred)
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+    # with threshold = 0.5, y_pred will be converted to [0, 0, 0, 1]
+    # cm = [[2, 0],
+    #       [1, 1]]
+    # sum_row = [2, 2], sum_col = [3, 1], true_positives = [2, 1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (2 / (2 + 3 - 2) + 1 / (2 + 1 - 1)) / 2
+    obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=0.5)
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred)
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+  def test_multi_dim_input(self):
+    y_true = tf.constant([[0, 1], [0, 1]], dtype=tf.float32)
+    y_pred = tf.constant([[0.1, 0.7], [0.9, 0.3]])
+    threshold = 0.4  # y_pred will become [[0, 1], [1, 0]]
+    sample_weight = tf.constant([[0.2, 0.3], [0.4, 0.1]])
+    # cm = [[0.2, 0.4],
+    #       [0.1, 0.3]]
+    # sum_row = [0.6, 0.4], sum_col = [0.3, 0.7], true_positives = [0.2, 0.3]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (0.2 / (0.6 + 0.3 - 0.2) + 0.3 / (0.4 + 0.7 - 0.3)) / 2
+    obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=threshold)
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred, sample_weight=sample_weight)
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+  def test_zero_valid_entries(self):
+    obj = metrics.BinaryIoU(target_class_ids=[0, 1])
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    self.assertAllClose(
+        self.evaluate(obj.result()), 0, atol=1e-3)
+
+  def test_zero_and_non_zero_entries(self):
+    y_pred = tf.constant([0.6], dtype=tf.float32)
+    threshold = 0.5
+    y_true = tf.constant([1])
+
+    obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=threshold)
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred)
+
+    # cm = [[0, 0],
+    #       [0, 1]]
+    # sum_row = [0, 1], sum_col = [0, 1], true_positives = [0, 1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = 1 / (1 + 1 - 1)
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+
+@combinations.generate(combinations.combine(mode=['graph', 'eager']))
 class MeanIoUTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1366,6 +1560,98 @@ class MeanIoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
 
+@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+class OneHotIoUTest(tf.test.TestCase):
+
+  def test_unweighted(self):
+    y_true = tf.constant([[0, 0, 1], [1, 0, 0], [0, 1, 0], [1, 0, 0]])
+    # y_true will be converted to [2, 0, 1, 0]
+    y_pred = tf.constant([[0.2, 0.3, 0.5], [0.1, 0.2, 0.7], [0.5, 0.3, 0.1],
+                          [0.1, 0.4, 0.5]])
+    # y_pred will be converted to [2, 2, 0, 2]
+    # cm = [[0, 0, 2],
+    #       [1, 0, 0],
+    #       [0, 0, 1]
+    # sum_row = [1, 0, 3], sum_col = [2, 1, 1], true_positives = [0, 0, 1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (0 / (1 + 2 - 0) + 1 / (3 + 1 - 1)) / 2
+    obj = metrics.OneHotIoU(num_classes=3, target_class_ids=[0, 2])
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred)
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+  def test_weighted(self):
+    y_true = tf.constant([[0, 0, 1], [1, 0, 0], [0, 1, 0], [1, 0, 0]])
+    # y_true will be converted to [2, 0, 1, 0]
+    y_pred = tf.constant([[0.2, 0.3, 0.5], [0.1, 0.2, 0.7], [0.5, 0.3, 0.1],
+                          [0.1, 0.4, 0.5]])
+    # y_pred will be converted to [2, 2, 0, 2]
+    sample_weight = [0.1, 0.2, 0.3, 0.4]
+    # cm = [[0, 0, 0.2+0.4],
+    #       [0.3, 0, 0],
+    #       [0, 0, 0.1]]
+    # sum_row = [0.3, 0, 0.7], sum_col = [0.6, 0.3, 0.1]
+    # true_positives = [0, 0, 0.1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (0 / (0.3 + 0.6 - 0) + 0.1 / (0.7 + 0.1 - 0.1)) / 2
+    obj = metrics.OneHotIoU(num_classes=3, target_class_ids=[0, 2])
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred, sample_weight=sample_weight)
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+
+@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+class OneHotMeanIoUTest(tf.test.TestCase):
+
+  def test_unweighted(self):
+    y_true = tf.constant([[0, 0, 1], [1, 0, 0], [0, 1, 0], [1, 0, 0]])
+    # y_true will be converted to [2, 0, 1, 0]
+    y_pred = tf.constant([[0.2, 0.3, 0.5], [0.1, 0.2, 0.7], [0.5, 0.3, 0.1],
+                          [0.1, 0.4, 0.5]])
+    # y_pred will be converted to [2, 2, 0, 2]
+    # cm = [[0, 0, 2],
+    #       [1, 0, 0],
+    #       [0, 0, 1]
+    # sum_row = [1, 0, 3], sum_col = [2, 1, 1], true_positives = [0, 0, 1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (0 + 0 + 1 / (3 + 1 - 1)) / 3
+    obj = metrics.OneHotMeanIoU(num_classes=3)
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred)
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+  def test_weighted(self):
+    y_true = tf.constant([
+        [0, 0, 1],
+        [1, 0, 0],
+        [0, 1, 0],
+        [1, 0, 0],
+        [1, 0, 0],
+    ])
+    # y_true will be converted to [2, 0, 1, 0, 0]
+    y_pred = tf.constant([
+        [0.2, 0.3, 0.5],
+        [0.1, 0.2, 0.7],
+        [0.5, 0.3, 0.1],
+        [0.1, 0.4, 0.5],
+        [0.6, 0.2, 0.2],
+    ])
+    # y_pred will be converted to [2, 2, 0, 2, 0]
+    sample_weight = [0.1, 0.2, 0.3, 0.3, 0.1]
+    # cm = [[0.1, 0, 0.2+0.3],
+    #       [0.3, 0, 0],
+    #       [0, 0, 0.1]]
+    # sum_row = [0.4, 0, 0.6], sum_col = [0.6, 0.3, 0.1]
+    # true_positives = [0.1, 0, 0.1]
+    # iou = true_positives / (sum_row + sum_col - true_positives))
+    expected_result = (0.1 / (0.4 + 0.6 - 0.1) + 0 + 0.1 /
+                       (0.6 + 0.1 - 0.1)) / 3
+    obj = metrics.OneHotMeanIoU(num_classes=3)
+    self.evaluate(tf.compat.v1.variables_initializer(obj.variables))
+    result = obj(y_true, y_pred, sample_weight=sample_weight)
+    self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+
 class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -1379,7 +1665,7 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(m.dtype, tf.float32)
       self.assertEmpty(m.variables)
 
-      with self.assertRaisesRegex(ValueError, 'does not have any result yet'):
+      with self.assertRaisesRegex(ValueError, 'does not have any value yet'):
         m.result()
 
       self.evaluate(m([[3], [5], [3]]))
@@ -2362,6 +2648,203 @@ class ResetStatesTest(keras_parameterized.TestCase):
       self.assertEqual(self.evaluate(r_obj.false_negatives), 50.)
     finally:
       backend.set_floatx('float32')
+
+
+@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+class MergeStateTest(keras_parameterized.TestCase):
+
+  def test_merge_state_incompatible_metrics(self):
+    with self.assertRaisesRegex(ValueError,
+                                'Metric .* is not compatible with .*'):
+      obj1 = metrics.FalsePositives()
+      self.evaluate(tf.compat.v1.variables_initializer(obj1.variables))
+      obj2 = metrics.Accuracy()
+      self.evaluate(tf.compat.v1.variables_initializer(obj2.variables))
+      self.evaluate(obj1.merge_state([obj2]))
+
+  def test_merge_state_accuracy(self):
+    a_objs = []
+    for y_true, y_pred in zip([[[1], [2]], [[3], [4]]],
+                              [[[0], [2]], [[3], [4]]]):
+      a_obj = metrics.Accuracy()
+      a_objs.append(a_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
+      self.evaluate(a_obj.update_state(y_true, y_pred))
+    self.evaluate(a_objs[0].merge_state(a_objs[1:]))
+    self.assertEqual(self.evaluate(a_objs[0].total), 3.)
+    self.assertEqual(self.evaluate(a_objs[0].count), 4.)
+    self.assertEqual(self.evaluate(a_objs[0].result()), 0.75)
+
+  def test_merge_state_false_positives(self):
+    fp_objs = []
+    for _ in range(4):
+      fp_obj = metrics.FalsePositives()
+      fp_objs.append(fp_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(fp_obj.variables))
+      y_true = np.zeros((25, 1))
+      y_pred = np.ones((25, 1))
+      self.evaluate(fp_obj.update_state(y_true, y_pred))
+    self.evaluate(fp_objs[0].merge_state(fp_objs[1:]))
+    self.assertEqual(self.evaluate(fp_objs[0].accumulator), 100.)
+
+  def test_merge_state_false_negatives(self):
+    fn_objs = []
+    for _ in range(4):
+      fn_obj = metrics.FalseNegatives()
+      fn_objs.append(fn_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(fn_obj.variables))
+      y_true = np.ones((25, 1))
+      y_pred = np.zeros((25, 1))
+      self.evaluate(fn_obj.update_state(y_true, y_pred))
+    self.evaluate(fn_objs[0].merge_state(fn_objs[1:]))
+    self.assertEqual(self.evaluate(fn_objs[0].accumulator), 100.)
+
+  def test_merge_state_true_negatives(self):
+    tn_objs = []
+    for _ in range(4):
+      tn_obj = metrics.TrueNegatives()
+      tn_objs.append(tn_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(tn_obj.variables))
+      y_true = np.zeros((25, 1))
+      y_pred = np.zeros((25, 1))
+      self.evaluate(tn_obj.update_state(y_true, y_pred))
+    self.evaluate(tn_objs[0].merge_state(tn_objs[1:]))
+    self.assertEqual(self.evaluate(tn_objs[0].accumulator), 100.)
+
+  def test_merge_state_true_positives(self):
+    tp_objs = []
+    for _ in range(4):
+      tp_obj = metrics.TruePositives()
+      tp_objs.append(tp_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(tp_obj.variables))
+      y_true = np.ones((25, 1))
+      y_pred = np.ones((25, 1))
+      self.evaluate(tp_obj.update_state(y_true, y_pred))
+    self.evaluate(tp_objs[0].merge_state(tp_objs[1:]))
+    self.assertEqual(self.evaluate(tp_objs[0].accumulator), 100.)
+
+  def test_merge_state_precision(self):
+    p_objs = []
+    for _ in range(5):
+      p_obj = metrics.Precision()
+      p_objs.append(p_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
+      y_true = np.concatenate((np.ones((10, 1)), np.zeros((10, 1))))
+      y_pred = np.concatenate((np.ones((10, 1)), np.ones((10, 1))))
+      self.evaluate(p_obj.update_state(y_true, y_pred))
+    self.evaluate(p_objs[0].merge_state(p_objs[1:]))
+    self.assertEqual(self.evaluate(p_objs[0].true_positives), 50.)
+    self.assertEqual(self.evaluate(p_objs[0].false_positives), 50.)
+
+  def test_merge_state_recall(self):
+    r_objs = []
+    for _ in range(5):
+      r_obj = metrics.Recall()
+      r_objs.append(r_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
+      y_true = np.concatenate((np.ones((10, 1)), np.ones((10, 1))))
+      y_pred = np.concatenate((np.ones((10, 1)), np.zeros((10, 1))))
+      self.evaluate(r_obj.update_state(y_true, y_pred))
+    self.evaluate(r_objs[0].merge_state(r_objs[1:]))
+    self.assertEqual(self.evaluate(r_objs[0].true_positives), 50.)
+    self.assertEqual(self.evaluate(r_objs[0].false_negatives), 50.)
+
+  def test_merge_state_sensitivity_at_specificity(self):
+    sas_objs = []
+    for _ in range(5):
+      sas_obj = metrics.SensitivityAtSpecificity(0.5, num_thresholds=1)
+      sas_objs.append(sas_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(sas_obj.variables))
+      y_true = np.concatenate((np.ones((5, 1)), np.zeros((5, 1)), np.ones(
+          (5, 1)), np.zeros((5, 1))))
+      y_pred = np.concatenate((np.ones((5, 1)), np.zeros(
+          (5, 1)), np.zeros((5, 1)), np.ones((5, 1))))
+      self.evaluate(sas_obj.update_state(y_true, y_pred))
+    self.evaluate(sas_objs[0].merge_state(sas_objs[1:]))
+    self.assertEqual(self.evaluate(sas_objs[0].true_positives), 25.)
+    self.assertEqual(self.evaluate(sas_objs[0].false_positives), 25.)
+    self.assertEqual(self.evaluate(sas_objs[0].false_negatives), 25.)
+    self.assertEqual(self.evaluate(sas_objs[0].true_negatives), 25.)
+
+  def test_merge_state_specificity_at_sensitivity(self):
+    sas_objs = []
+    for _ in range(5):
+      sas_obj = metrics.SpecificityAtSensitivity(0.5, num_thresholds=1)
+      sas_objs.append(sas_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(sas_obj.variables))
+      y_true = np.concatenate((np.ones((5, 1)), np.zeros((5, 1)), np.ones(
+          (5, 1)), np.zeros((5, 1))))
+      y_pred = np.concatenate((np.ones((5, 1)), np.zeros(
+          (5, 1)), np.zeros((5, 1)), np.ones((5, 1))))
+      self.evaluate(sas_obj.update_state(y_true, y_pred))
+    self.evaluate(sas_objs[0].merge_state(sas_objs[1:]))
+    self.assertEqual(self.evaluate(sas_objs[0].true_positives), 25.)
+    self.assertEqual(self.evaluate(sas_objs[0].false_positives), 25.)
+    self.assertEqual(self.evaluate(sas_objs[0].false_negatives), 25.)
+    self.assertEqual(self.evaluate(sas_objs[0].true_negatives), 25.)
+
+  def test_merge_state_precision_at_recall(self):
+    par_objs = []
+    for _ in range(5):
+      par_obj = metrics.PrecisionAtRecall(recall=0.5, num_thresholds=1)
+      par_objs.append(par_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(par_obj.variables))
+      y_true = np.concatenate((np.ones((5, 1)), np.zeros((5, 1)), np.ones(
+          (5, 1)), np.zeros((5, 1))))
+      y_pred = np.concatenate((np.ones((5, 1)), np.zeros(
+          (5, 1)), np.zeros((5, 1)), np.ones((5, 1))))
+      self.evaluate(par_obj.update_state(y_true, y_pred))
+    self.evaluate(par_objs[0].merge_state(par_objs[1:]))
+    self.assertEqual(self.evaluate(par_objs[0].true_positives), 25.)
+    self.assertEqual(self.evaluate(par_objs[0].false_positives), 25.)
+    self.assertEqual(self.evaluate(par_objs[0].false_negatives), 25.)
+    self.assertEqual(self.evaluate(par_objs[0].true_negatives), 25.)
+
+  def test_merge_state_recall_at_precision(self):
+    rap_objs = []
+    for _ in range(5):
+      rap_obj = metrics.PrecisionAtRecall(recall=0.5, num_thresholds=1)
+      rap_objs.append(rap_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(rap_obj.variables))
+      y_true = np.concatenate((np.ones((5, 1)), np.zeros((5, 1)), np.ones(
+          (5, 1)), np.zeros((5, 1))))
+      y_pred = np.concatenate((np.ones((5, 1)), np.zeros(
+          (5, 1)), np.zeros((5, 1)), np.ones((5, 1))))
+      self.evaluate(rap_obj.update_state(y_true, y_pred))
+    self.evaluate(rap_objs[0].merge_state(rap_objs[1:]))
+    self.assertEqual(self.evaluate(rap_objs[0].true_positives), 25.)
+    self.assertEqual(self.evaluate(rap_objs[0].false_positives), 25.)
+    self.assertEqual(self.evaluate(rap_objs[0].false_negatives), 25.)
+    self.assertEqual(self.evaluate(rap_objs[0].true_negatives), 25.)
+
+  def test_merge_state_auc(self):
+    auc_objs = []
+    for _ in range(5):
+      auc_obj = metrics.AUC(num_thresholds=3)
+      auc_objs.append(auc_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
+      y_true = np.concatenate((np.ones((5, 1)), np.zeros((5, 1)), np.ones(
+          (5, 1)), np.zeros((5, 1))))
+      y_pred = np.concatenate((np.ones((5, 1)), np.zeros(
+          (5, 1)), np.zeros((5, 1)), np.ones((5, 1))))
+      self.evaluate(auc_obj.update_state(y_true, y_pred))
+    self.evaluate(auc_objs[0].merge_state(auc_objs[1:]))
+    self.assertEqual(self.evaluate(auc_objs[0].true_positives[1]), 25.)
+    self.assertEqual(self.evaluate(auc_objs[0].false_positives[1]), 25.)
+    self.assertEqual(self.evaluate(auc_objs[0].false_negatives[1]), 25.)
+    self.assertEqual(self.evaluate(auc_objs[0].true_negatives[1]), 25.)
+
+  def test_merge_state_mean_iou(self):
+    m_objs = []
+    for y_true, y_pred in zip([[0], [1], [1], [1]],
+                              [[0.5], [1.0], [1.0], [1.0]]):
+      m_obj = metrics.MeanIoU(num_classes=2)
+      m_objs.append(m_obj)
+      self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
+      self.evaluate(m_obj.update_state(y_true, y_pred))
+    self.evaluate(m_objs[0].merge_state(m_objs[1:]))
+    self.assertArrayNear(self.evaluate(m_objs[0].total_cm)[0], [1, 0], 1e-1)
+    self.assertArrayNear(self.evaluate(m_objs[0].total_cm)[1], [0, 3], 1e-1)
 
 
 if __name__ == '__main__':

@@ -20,7 +20,7 @@ import tensorflow.compat.v2 as tf
 
 import os
 import numpy as np
-from keras import backend as K
+from keras import backend
 from keras import callbacks
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
@@ -160,9 +160,10 @@ class TensorBoard(callbacks.TensorBoard):
       self.writer = tf.summary.create_file_writer(self.log_dir)
       if not model.run_eagerly and self.write_graph:
         with self.writer.as_default():
-          tf.summary.graph(K.get_graph())
+          tf.summary.graph(backend.get_graph())
     elif self.write_graph:
-      self.writer = tf.compat.v1.summary.FileWriter(self.log_dir, K.get_graph())
+      self.writer = tf.compat.v1.summary.FileWriter(
+          self.log_dir, backend.get_graph())
     else:
       self.writer = tf.compat.v1.summary.FileWriter(self.log_dir)
 
@@ -176,27 +177,26 @@ class TensorBoard(callbacks.TensorBoard):
           tf.compat.v1.summary.histogram(mapped_weight_name, weight)
           if self.write_images:
             w_img = tf.compat.v1.squeeze(weight)
-            shape = K.int_shape(w_img)
+            shape = tuple(w_img.shape)
             if len(shape) == 2:  # dense layer kernel case
               if shape[0] > shape[1]:
                 w_img = tf.compat.v1.transpose(w_img)
-                shape = K.int_shape(w_img)
+                shape = tuple(w_img.shape)
               w_img = tf.reshape(w_img, [1, shape[0], shape[1], 1])
             elif len(shape) == 3:  # convnet case
-              if K.image_data_format() == 'channels_last':
+              if backend.image_data_format() == 'channels_last':
                 # switch to channels_first to display
                 # every kernel as a separate image
                 w_img = tf.compat.v1.transpose(w_img, perm=[2, 0, 1])
-                shape = K.int_shape(w_img)
-              w_img = tf.reshape(w_img,
-                                        [shape[0], shape[1], shape[2], 1])
+                shape = tuple(w_img.shape)
+              w_img = tf.reshape(w_img, [shape[0], shape[1], shape[2], 1])
             elif len(shape) == 1:  # bias case
               w_img = tf.reshape(w_img, [1, shape[0], 1, 1])
             else:
               # not possible to handle 3D convnets etc.
               continue
 
-            shape = K.int_shape(w_img)
+            shape = tuple(w_img.shape)
             assert len(shape) == 4 and shape[-1] in [1, 3, 4]
             tf.compat.v1.summary.image(mapped_weight_name, w_img)
 
@@ -421,7 +421,7 @@ class TensorBoard(callbacks.TensorBoard):
         embeddings_data = self.embeddings_data
         n_samples = embeddings_data[0].shape[0]
         i = 0
-        sess = K.get_session()
+        sess = backend.get_session()
         while i < n_samples:
           step = min(self.batch_size, n_samples - i)
           batch = slice(i, i + step)
@@ -436,8 +436,8 @@ class TensorBoard(callbacks.TensorBoard):
 
           feed_dict.update({self.batch_id: i, self.step: step})
 
-          if not isinstance(K.learning_phase(), int):
-            feed_dict[K.learning_phase()] = False
+          if not isinstance(backend.learning_phase(), int):
+            feed_dict[backend.learning_phase()] = False
 
           sess.run(self.assign_embeddings, feed_dict=feed_dict)
           self.saver.save(sess,

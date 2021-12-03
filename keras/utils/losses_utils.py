@@ -22,7 +22,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.losses.Reduction', v1=[])
-class ReductionV2(object):
+class ReductionV2:
   """Types of loss reduction.
 
   Contains the following values:
@@ -43,7 +43,7 @@ class ReductionV2(object):
      `Reduction.NONE` just means that no **additional** reduction is applied by
      the class wrapper. For categorical losses with an example input shape of
      `[batch, W, H, n_classes]` the `n_classes` dimension is reduced. For
-     pointwise losses your must include a dummy axis so that `[batch, W, H, 1]`
+     pointwise losses you must include a dummy axis so that `[batch, W, H, 1]`
      is reduced to `[batch, W, H]`. Without the dummy axis `[batch, W, H]`
      will be incorrectly reduced to `[batch, W]`.
 
@@ -80,7 +80,8 @@ class ReductionV2(object):
   @classmethod
   def validate(cls, key):
     if key not in cls.all():
-      raise ValueError('Invalid Reduction Key %s.' % key)
+      raise ValueError(
+          f'Invalid Reduction Key: {key}. Expected keys are "{cls.all()}"')
 
 
 def remove_squeezable_dimensions(
@@ -308,7 +309,8 @@ def compute_weighted_loss(losses,
       losses = tf.convert_to_tensor(losses)
     input_dtype = losses.dtype
 
-    if not isinstance(sample_weight, keras_tensor.KerasTensor):
+    if not isinstance(sample_weight,
+                      (keras_tensor.KerasTensor, tf.RaggedTensor)):
       sample_weight = tf.convert_to_tensor(sample_weight)
 
     # TODO(psv): Handle casting here in a better way, eg. if losses is float64

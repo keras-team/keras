@@ -16,10 +16,11 @@
 
 # pylint: disable=g-bad-import-order, g-direct-tensorflow-import
 import tensorflow.compat.v2 as tf
+import keras
 
 import copy
 import os
-from keras import backend as K
+from keras import backend
 from keras import losses
 from keras import optimizer_v1
 from keras import optimizers
@@ -81,11 +82,23 @@ def model_call_inputs(model, keep_original_batch_size=False):
 
 
 def raise_model_input_error(model):
+  if isinstance(model, keras.models.Sequential):
+    raise ValueError(
+        f'Model {model} cannot be saved because the input shape is not '
+        'available. Please specify an input shape either by calling '
+        '`build(input_shape)` directly, or by calling the model on actual '
+        'data using `Model()`, `Model.fit()`, or `Model.predict()`.')
+
+  # If the model is not a `Sequential`, it is intended to be a subclassed model.
   raise ValueError(
-      'Model {} cannot be saved because the input shapes have not been '
-      'set. Usually, input shapes are automatically determined from calling'
-      ' `.fit()` or `.predict()`. To manually set the shapes, call '
-      '`model.build(input_shape)`.'.format(model))
+      f'Model {model} cannot be saved either because the input shape is not '
+      'available or because the forward pass of the model is not defined.'
+      'To define a forward pass, please override `Model.call()`. To specify '
+      'an input shape, either call `build(input_shape)` directly, or call '
+      'the model on actual data using `Model()`, `Model.fit()`, or '
+      '`Model.predict()`. If you have a custom training step, please make '
+      'sure to invoke the forward pass in train step through '
+      '`Model.__call__`, i.e. `model(inputs)`, as opposed to `model.call()`.')
 
 
 def trace_model_call(model, input_signature=None):
@@ -149,7 +162,7 @@ def model_metadata(model, include_optimizer=True, require_config=True):
 
   metadata = dict(
       keras_version=str(keras_version),
-      backend=K.backend(),
+      backend=backend.backend(),
       model_config=model_config)
   if model.optimizer and include_optimizer:
     if isinstance(model.optimizer, optimizer_v1.TFOptimizer):
@@ -169,9 +182,9 @@ def model_metadata(model, include_optimizer=True, require_config=True):
       metadata['training_config'] = _serialize_nested_config(training_config)
       if isinstance(model.optimizer, optimizer_v2.RestoredOptimizer):
         raise NotImplementedError(
-            'As of now, Optimizers loaded from SavedModel cannot be saved. '
-            'If you\'re calling `model.save` or `tf.keras.models.save_model`,'
-            ' please set the `include_optimizer` option to `False`. For '
+            'Optimizers loaded from a SavedModel cannot be saved. '
+            'If you are calling `model.save` or `tf.keras.models.save_model`, '
+            'please set the `include_optimizer` option to `False`. For '
             '`tf.saved_model.save`, delete the optimizer from the model.')
       else:
         optimizer_config = {
@@ -255,7 +268,9 @@ def _deserialize_nested_config(deserialize_fn, config):
   elif isinstance(config, (tuple, list)):
     return [_deserialize_nested_config(deserialize_fn, obj) for obj in config]
 
-  raise ValueError('Saved configuration not understood.')
+  raise ValueError(
+      'Saved configuration not understood. Configuration should be a '
+      f'dictionary, string, tuple or list. Received: config={config}.')
 
 
 def _serialize_nested_config(config):

@@ -10,16 +10,10 @@ load("@org_keras//keras:keras.bzl", "tpu_py_test")
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
     licenses = ["notice"],
-)
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
 )
 
 tf_py_test(
@@ -255,7 +249,7 @@ tf_py_test(
         "//keras",
         "//keras:metrics",
         "//keras/api:keras_api",
-        "//keras/layers:core",
+        "//keras/layers/core",
         "//keras/optimizer_v2",
     ],
 )
@@ -269,7 +263,7 @@ cuda_py_test(
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
         "//keras/engine",
-        "//keras/layers:core",
+        "//keras/layers/core",
     ],
 )
 
@@ -284,7 +278,7 @@ tf_py_test(
         "//keras:combinations",
         "//keras/api:keras_api",
         "//keras/engine",
-        "//keras/layers:core",
+        "//keras/layers/core",
     ],
 )
 
@@ -316,7 +310,7 @@ tf_py_test(
         "//keras:combinations",
         "//keras/api:keras_api",
         "//keras/engine",
-        "//keras/layers:core",
+        "//keras/layers/core",
         "//keras/layers/normalization",
     ],
 )
@@ -333,7 +327,7 @@ tf_py_test(
         "//keras:combinations",
         "//keras/api:keras_api",
         "//keras/engine",
-        "//keras/layers:core",
+        "//keras/layers/core",
         "//keras/optimizer_v2",
     ],
 )
@@ -351,7 +345,7 @@ tf_py_test(
         "//keras:combinations",
         "//keras/api:keras_api",
         "//keras/engine",
-        "//keras/layers:core",
+        "//keras/layers/core",
     ],
 )
 

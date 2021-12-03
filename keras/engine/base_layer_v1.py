@@ -413,7 +413,7 @@ class Layer(base_layer.Layer):
         return autocast_variable.create_autocast_variable(variable)
       # Also the caching_device does not work with the mixed precision API,
       # disable it if it is specified.
-      # TODO(b/142020079): Reenable it once the bug is fixed.
+      # TODO(b/142020079): Re-enable it once the bug is fixed.
       if caching_device is not None:
         tf_logging.warning(
             '`caching_device` does not work with mixed precision API. Ignoring '
@@ -1576,8 +1576,10 @@ class Layer(base_layer.Layer):
         RuntimeError: if called in Eager mode.
     """
     if not self._inbound_nodes:
-      raise AttributeError('The layer has never been called '
-                           'and thus has no defined input shape.')
+      raise AttributeError(f'The layer "{self.name}" has never been called '
+                           'and thus has no defined input shape. Note that the '
+                           '`input_shape` property is only available for '
+                           'Functional and Sequential models.')
     all_input_shapes = set(
         [str(node.input_shapes) for node in self._inbound_nodes])
     if len(all_input_shapes) == 1:
@@ -1673,17 +1675,21 @@ class Layer(base_layer.Layer):
     Returns:
       Output tensor(s).
     """
-    warnings.warn('`layer.apply` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.__call__` method instead.')
+    warnings.warn(
+        '`layer.apply` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.__call__` method instead.',
+        stacklevel=2)
     return self.__call__(inputs, *args, **kwargs)
 
   @doc_controls.do_not_doc_inheritable
   def add_variable(self, *args, **kwargs):
     """Deprecated, do NOT use! Alias for `add_weight`."""
-    warnings.warn('`layer.add_variable` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `layer.add_weight` method instead.')
+    warnings.warn(
+        '`layer.add_variable` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `layer.add_weight` method instead.',
+        stacklevel=2)
     return self.add_weight(*args, **kwargs)
 
   @property

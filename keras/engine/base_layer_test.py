@@ -13,13 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for TensorFlow 2.0 layer behavior."""
-
+# pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 
 import copy
 import os
-import sys
-import traceback
 
 import numpy as np
 from keras import backend
@@ -68,6 +66,10 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertTrue(layer._instrumented_keras_layer_class)
     self.assertFalse(layer._instrumented_keras_model_class)
     self.assertTrue(base_layer.keras_api_gauge.get_cell('tf.keras.layers.Add'))
+
+    # Verify this was not instrumented as a legacy layer
+    self.assertFalse(
+        base_layer.keras_api_gauge.get_cell('legacy_layer').value())
     base_layer.keras_api_gauge.get_cell('tf.keras.layers.Add').set(False)
 
   @combinations.generate(combinations.keras_model_type_combinations())
@@ -462,6 +464,27 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertEqual(self.evaluate(layer.weights[0]), 1.)
     self.assertEqual(self.evaluate(layer.weights[1]), 2.)
 
+  def test_exception_if_trainable_not_boolean(self):
+    base_layer.Layer(trainable=True)
+    base_layer.Layer(trainable=tf.constant(True))
+    base_layer.Layer(trainable=tf.Variable(tf.constant(True)))
+    with self.assertRaisesRegex(
+        TypeError, 'Expected `trainable` argument to be a boolean'):
+      base_layer.Layer(trainable=0)
+
+  def test_exception_if_dynamic_not_boolean(self):
+    base_layer.Layer(dynamic=True)
+    with self.assertRaisesRegex(TypeError,
+                                'Expected `dynamic` argument to be a boolean'):
+      base_layer.Layer(dynamic=0)
+
+  def test_exception_if_name_not_string_or_none(self):
+    base_layer.Layer(name=None)
+    base_layer.Layer(name='layer_name')
+    with self.assertRaisesRegex(TypeError,
+                                'Expected `name` argument to be a string'):
+      base_layer.Layer(name=0)
+
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_layer_names(self):
     inputs = input_layer.Input(shape=[2])
@@ -692,6 +715,31 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertTrue(layer.built)
     self.assertEqual([None, 3], layer._build_input_shape.as_list())
 
+  def test_build_input_shape_list_with_none(self):
+
+    class CustomLayer(base_layer.Layer):
+
+      def build(self, input_shape):
+        super().build(input_shape)
+        self.build_shape = input_shape
+
+      def call(self, inputs):
+        return inputs[0]
+
+    layer = CustomLayer()
+    layer([tf.constant([1.0]), None, tf.constant([2.0])])
+    self.assertEqual(layer.build_shape, [[1], None, [1]])
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_layer_input_shape_raises_error(self):
+    layer = layers.Dense(3)
+    with self.assertRaisesRegex(AttributeError, 'no defined input shape'):
+      _ = layer.input_shape
+
+    layer(tf.ones((10, 1)))
+    with self.assertRaisesRegex(AttributeError, 'no defined input shape'):
+      _ = layer.input_shape
+
   @combinations.generate(combinations.combine(mode=['eager']))
   def test_custom_layer_training_arg(self):
     class CustomLayerNoTrainingArg(base_layer.Layer):
@@ -912,7 +960,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     class MyLayer(base_layer.Layer):
 
       def __init__(self, **kwargs):
-        super(MyLayer, self).__init__(self, **kwargs)
+        super(MyLayer, self).__init__(**kwargs)
         self.my_modules = {}
         self.my_modules['a'] = MyModule()
 
@@ -976,14 +1024,14 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
     with tf.Graph().as_default():
       x1 = tf.ones((3, 3))
     x2 = tf.ones((3, 3))
-    with self.assertRaisesRegex(TypeError, 'Graph tensors'):
+    with self.assertRaises(TypeError):
       tf.matmul(x1, x2)
 
   def test_mixing_numpy_arrays_and_graph_tensors(self):
     with tf.Graph().as_default():
       x1 = tf.ones((3, 3))
     x2 = np.ones((3, 3), dtype='float32')
-    with self.assertRaisesRegex(TypeError, 'Graph tensors'):
+    with self.assertRaises(TypeError):
       tf.matmul(x1, x2)
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -1032,15 +1080,7 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
     try:
       _ = TypeErrorLayer()(inputs)
     except TypeError as e:
-      if hasattr(e, 'ag_error_metadata'):
-        self.assertIn('easily_identifiable_name', str(e))
-        # See ErrorMetadataBase in autograph/pyct/errors.py
-        function_name = e.ag_error_metadata.translated_stack[-1].function_name
-      else:
-        tb = traceback.extract_tb(sys.exc_info()[2])
-        last_entry = tb[-1]
-        function_name = last_entry[2]
-      self.assertEqual(function_name, 'easily_identifiable_name')
+      self.assertIn('easily_identifiable_name', str(e))  # pylint: disable=g-assert-in-except
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_summaries_in_tf_function(self):

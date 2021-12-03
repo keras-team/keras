@@ -14,11 +14,8 @@
 #,============================================================================
 """Tests for layer graphs construction & handling."""
 
-import tensorflow.compat.v2 as tf
-
 import warnings
 
-import numpy as np
 from keras import backend
 from keras import combinations
 from keras import initializers
@@ -34,12 +31,14 @@ from keras.engine import sequential
 from keras.engine import training as training_lib
 from keras.utils import layer_utils
 from keras.utils import tf_utils
-from tensorflow.python.training.tracking.util import Checkpoint
 
-try:
-  import yaml  # pylint:disable=g-import-not-at-top
-except ImportError:
-  yaml = None
+import numpy as np
+import tensorflow.compat.v2 as tf
+
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import extension_type
+from tensorflow.python.training.tracking.util import Checkpoint
+# pylint: enable=g-direct-tensorflow-import
 
 
 class NetworkConstructionTest(keras_parameterized.TestCase):
@@ -616,10 +615,6 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
       json_str = model.to_json()
       models.model_from_json(json_str)
 
-      if yaml is not None:
-        yaml_str = model.to_yaml()
-        models.model_from_yaml(yaml_str)
-
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_invalid_graphs(self):
     a = layers.Input(shape=(32,), name='input_a')
@@ -633,15 +628,6 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
     d = layers.Dense(5, name='dense_3')(c)
 
     model = training_lib.Model(inputs=[a, b], outputs=[c, d], name='model')
-
-    # input is not an Input tensor
-    j = layers.Input(shape=(32,), name='input_j')
-    j = layers.Dense(32)(j)
-    k = layers.Input(shape=(32,), name='input_k')
-    m, n = model([j, k])
-
-    with self.assertRaises(Exception):
-      training_lib.Model([j, k], [m, n])
 
     # disconnected graph
     j = layers.Input(shape=(32,), name='input_j')
@@ -824,6 +810,26 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
 
     output_val_2 = m2.predict(x_val)
     self.assertAllClose(output_val, output_val_2, atol=1e-6)
+
+  def test_layer_sharing_maintains_node_order(self):
+    # See https://github.com/keras-team/keras/issues/14838.
+    inp = input_layer_lib.Input(shape=[5], name='main_input')
+
+    zeros = layers.Lambda(tf.zeros_like, name='generate_zeros')(inp)
+    ones = layers.Lambda(tf.ones_like, name='generate_ones')(inp)
+
+    shared_layer = layers.Layer(name='shared')
+
+    ones_result = shared_layer(ones)
+    zeros_result = shared_layer(zeros)
+    zeros_result = layers.Layer(name='blank')(zeros_result)
+
+    m = training_lib.Model(
+        inputs=[inp], outputs=[zeros_result, ones_result])
+    m2 = models.Model.from_config(m.get_config())
+    self.assertAllClose(
+        m2.predict_on_batch(tf.zeros([1, 5])),
+        m.predict_on_batch(tf.zeros([1, 5])))
 
   @combinations.generate(combinations.keras_mode_combinations())
   def test_explicit_training_argument(self):
@@ -1083,7 +1089,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
       def call(self, x1, kwarg=None):
         return x1 + x1
 
-    class NonSerializable(object):
+    class NonSerializable:
 
       def __init__(self, foo=None):
         self.foo = foo
@@ -1165,6 +1171,36 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
         batch_size=2)
     # Check that second input was correctly added to first.
     self.assertEqual(history.history['loss'][0], 0.0)
+
+  @combinations.generate(combinations.keras_mode_combinations())
+  def test_dont_cast_composite_unless_necessary(self):
+    if not tf.executing_eagerly():
+      return  # Creating Keras inputs from a type_spec only supported in eager.
+
+    # TODO(edloper): Change this to tf.experimental.ExtensionTyep once
+    # it's been released.
+    class MyType(extension_type.ExtensionType):
+      # TODO(edloper) Remove _shape and _dtype once Keras has been switched
+      # to use .shape and .dtype instead.
+      value: tf.Tensor
+      _shape = property(lambda self: self.value.shape)
+      shape = property(lambda self: self.value.shape)
+      _dtype = property(lambda self: self.value.dtype)
+      dtype = property(lambda self: self.value.dtype)
+
+      class Spec:
+        _shape = property(lambda self: self.value.shape)
+        shape = property(lambda self: self.value.shape)
+        _dtype = property(lambda self: self.value.dtype)
+        dtype = property(lambda self: self.value.dtype)
+
+    my_spec = MyType.Spec(tf.TensorSpec([5], tf.float32))
+    input1 = input_layer_lib.Input(type_spec=my_spec)
+    model = training_lib.Model([input1], input1)
+    model.compile(run_eagerly=testing_utils.should_run_eagerly())
+    model(MyType([1., 2., 3., 4., 5.]))  # Does not require cast.
+    with self.assertRaises((ValueError, TypeError)):
+      model(MyType([1, 2, 3, 4, 5]))
 
   @combinations.generate(combinations.keras_mode_combinations())
   def test_composite_call_kwarg_derived_from_keras_layer(self):
@@ -1350,10 +1386,6 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
     json_str = model.to_json()
     models.model_from_json(json_str)
 
-    if yaml is not None:
-      yaml_str = model.to_yaml()
-      models.model_from_yaml(yaml_str)
-
   def test_subclassed_error_if_init_not_called(self):
 
     class MyNetwork(training_lib.Model):
@@ -1443,6 +1475,26 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
     x = tf.ones((10, 10))
     y = fn(x)
     self.assertEqual(y.shape.as_list(), [10, 1])
+
+  def test_save_spec(self):
+    """Tests that functional model generates the correct save spec."""
+
+    class MultiInputModel(training_lib.Model):
+
+      def call(self, x, y):
+        return x
+
+    inp = input_layer_lib.Input(shape=(1,))
+    inp2 = input_layer_lib.Input(shape=(1,), batch_size=5, dtype=tf.int32)
+    out = MultiInputModel()(inp, inp2)
+    m = training_lib.Model(inputs={'x': inp, 'y': inp2}, outputs=out)
+    input_spec = m.save_spec(dynamic_batch=False)[0][0]
+    self.assertIn('x', input_spec)
+    self.assertIn('y', input_spec)
+    self.assertAllEqual([None, 1], input_spec['x'].shape.as_list())
+    self.assertAllEqual(tf.float32, input_spec['x'].dtype)
+    self.assertAllEqual([5, 1], input_spec['y'].shape.as_list())
+    self.assertAllEqual(tf.int32, input_spec['y'].dtype)
 
 
 class DeferredModeTest(keras_parameterized.TestCase):
@@ -2443,7 +2495,7 @@ class FunctionalSubclassModel(training_lib.Model):
     super().__init__(inputs=[my_input], outputs=outputs, *args, **kwargs)
 
 
-class MixinClass(object):
+class MixinClass:
 
   def __init__(self, foo, **kwargs):
     self._foo = foo

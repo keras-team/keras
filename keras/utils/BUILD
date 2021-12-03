@@ -1,23 +1,17 @@
 # Description:
 #   Contains the Keras Utilities (internal TensorFlow version).
 
-load("@org_keras//keras:keras.bzl", "tf_py_test")
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
+load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/python/feature_column:__pkg__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
     licenses = ["notice"],
-)
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
 )
 
 py_library(
@@ -44,6 +38,7 @@ py_library(
         ":layer_utils",
         ":multi_gpu_utils",
         ":np_utils",
+        ":traceback_utils",
         ":vis_utils",
     ],
 )
@@ -102,6 +97,15 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":object_identity",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "traceback_utils",
+    srcs = ["traceback_utils.py"],
+    srcs_version = "PY3",
+    deps = [
         "//:expect_tensorflow_installed",
     ],
 )
@@ -253,7 +257,7 @@ tf_py_test(
         "//keras:combinations",
         "//keras/distribute:multi_worker_testing_utils",
         "//keras/engine",
-        "//keras/layers:core",
+        "//keras/layers/core",
     ],
 )
 
@@ -357,6 +361,7 @@ tf_py_test(
         ":layer_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )
 
@@ -451,5 +456,16 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:combinations",
+    ],
+)
+
+tf_py_test(
+    name = "traceback_utils_test",
+    size = "small",
+    srcs = ["traceback_utils_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )

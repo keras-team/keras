@@ -14,13 +14,12 @@
 # ==============================================================================
 """Tests for Keras TF utils."""
 
-import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
-
 import keras
 from keras import combinations
 from keras.utils import tf_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 try:
   import attr  # pylint:disable=g-import-not-at-top
@@ -53,7 +52,7 @@ class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
 
   def test_works_with_registered(self):
 
-    class CustomClass(object):
+    class CustomClass:
 
       def value(self):
         return tf.convert_to_tensor(42.)
@@ -89,7 +88,7 @@ class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
       self.skipTest('`compile` functionality changed.')
     # Setup.
 
-    class Foo(object):
+    class Foo:
 
       def __init__(self, input_):
         self._input = input_
@@ -169,7 +168,7 @@ class AttrsTest(tf.test.TestCase):
       self.skipTest('attr module is unavailable.')
 
     @attr.s(frozen=True)
-    class Foo(object):
+    class Foo:
 
       bar = attr.ib()
 
@@ -227,6 +226,88 @@ class TestIsExtensionType(tf.test.TestCase):
   def test_is_extension_type_return_false_for_list(self):
     tensor = [1., 2., 3.]
     self.assertFalse(tf_utils.is_extension_type(tensor))
+
+
+class TestRandomSeedSetting(tf.test.TestCase):
+
+  def test_seeds(self):
+    if not tf.__internal__.tf2.enabled():
+      self.skipTest('set_random_seed() is only expected to work in tf2.')
+    def get_model_output():
+      model = keras.Sequential([
+          keras.layers.Dense(10),
+          keras.layers.Dropout(0.5),
+          keras.layers.Dense(10),
+      ])
+      x = np.random.random((32, 10)).astype('float32')
+      ds = tf.data.Dataset.from_tensor_slices(x).shuffle(32).batch(16)
+      return model.predict(ds)
+
+    tf_utils.set_random_seed(42)
+    y1 = get_model_output()
+    tf_utils.set_random_seed(42)
+    y2 = get_model_output()
+    self.assertAllClose(y1, y2, atol=1e-6)
+
+
+class CustomTypeSpec(tf.TypeSpec):
+  """Stubbed-out custom type spec, for testing."""
+
+  def __init__(self, shape, dtype):
+    self.shape = tf.TensorShape(shape)
+    self.dtype = tf.dtypes.as_dtype(dtype)
+
+  def with_shape(self, new_shape):
+    return CustomTypeSpec(new_shape, self.dtype)
+
+  # Stub implementations for all the TypeSpec methods:
+  value_type = None
+  _to_components = lambda self, value: None
+  _from_components = lambda self, components: None
+  _component_specs = property(lambda self: None)
+  _serialize = lambda self: (self.shape, self.dtype)
+
+
+class TestGetTensorSpec(parameterized.TestCase):
+
+  @parameterized.parameters([
+      (lambda: tf.constant([[1, 2]]), [1, 2]),
+      (tf.TensorSpec([8, 3], tf.int32), [8, 3]),
+      (tf.TensorSpec([8], tf.int32), [8]),
+      (tf.TensorSpec([], tf.int32), []),
+      (tf.TensorSpec(None, tf.int32), None),
+      (tf.RaggedTensorSpec([8, 3], tf.int32), [8, 3]),
+      (tf.SparseTensorSpec([8, 3], tf.int32), [8, 3]),
+  ])
+  def test_without_dynamic_batch(self, t, expected_shape):
+    if callable(t):
+      t = t()
+    result = tf_utils.get_tensor_spec(t)
+    self.assertTrue(result.is_compatible_with(t))
+    if expected_shape is None:
+      self.assertIsNone(result.shape.rank)
+    else:
+      self.assertEqual(result.shape.as_list(), expected_shape)
+
+  @parameterized.parameters([
+      (lambda: tf.constant([[1, 2]]), [None, 2]),
+      (tf.TensorSpec([8, 3], tf.int32), [None, 3]),
+      (tf.TensorSpec([8], tf.int32), [None]),
+      (tf.TensorSpec([], tf.int32), []),
+      (tf.TensorSpec(None, tf.int32), None),
+      (tf.RaggedTensorSpec([8, 3], tf.int32), [None, 3]),
+      (tf.SparseTensorSpec([8, 3], tf.int32), [None, 3]),
+  ])
+  def test_with_dynamic_batch(self, t, expected_shape):
+    if callable(t):
+      t = t()
+    result = tf_utils.get_tensor_spec(t, True)
+    self.assertTrue(result.is_compatible_with(t))
+    if expected_shape is None:
+      self.assertIsNone(result.shape.rank)
+    else:
+      self.assertEqual(result.shape.as_list(), expected_shape)
+
 
 if __name__ == '__main__':
   tf.test.main()

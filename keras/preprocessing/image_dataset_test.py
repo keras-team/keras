@@ -308,7 +308,7 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
           directory, color_mode='other')
 
     with self.assertRaisesRegex(
-        ValueError, 'only pass `class_names` if the labels are inferred'):
+        ValueError, 'only pass `class_names` if `labels="inferred"`'):
       _ = image_dataset.image_dataset_from_directory(
           directory, labels=[0, 0, 1, 1, 1],
           class_names=['class_0', 'class_1', 'class_2'])
@@ -324,7 +324,7 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
       _ = image_dataset.image_dataset_from_directory(
           directory, class_names=['class_0', 'class_2'])
 
-    with self.assertRaisesRegex(ValueError, 'there must exactly 2 classes'):
+    with self.assertRaisesRegex(ValueError, 'there must be exactly 2'):
       _ = image_dataset.image_dataset_from_directory(
           directory, label_mode='binary')
 
@@ -346,6 +346,19 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
       _ = image_dataset.image_dataset_from_directory(
           directory, validation_split=0.2, subset='training')
 
+  def test_image_dataset_from_directory_not_batched(self):
+    if PIL is None:
+      return  # Skip test if PIL is not available.
+
+    directory = self._prepare_directory(num_classes=2, count=2)
+    dataset = image_dataset.image_dataset_from_directory(
+        directory,
+        batch_size=None,
+        image_size=(18, 18),
+        label_mode=None,
+        shuffle=False)
+    sample = next(iter(dataset))
+    self.assertEqual(len(sample.shape), 3)
 
 if __name__ == '__main__':
   tf.compat.v1.enable_v2_behavior()

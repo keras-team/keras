@@ -18,12 +18,11 @@ TODO (kathywu): Move to layer_serialization.py. Some model-specific logic should
 go to model_serialization.py.
 """
 
-import tensorflow.compat.v2 as tf
-
 import functools
 import threading
 import weakref
-from keras import backend as K
+
+from keras import backend
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
 from keras.mixed_precision import autocast_variable
@@ -37,7 +36,8 @@ from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils import version_utils
 from keras.utils.generic_utils import LazyLoader
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow.compat.v1.logging as logging
+import tensorflow.compat.v2 as tf
 
 
 # To avoid circular dependencies between keras/engine and keras/saving,
@@ -355,7 +355,7 @@ def tracing_scope():
     while _thread_local_data.trace_queue:
       fn, args, kwargs, training = _thread_local_data.trace_queue.pop()
       if training is not None:
-        with K.deprecated_internal_learning_phase_scope(training):
+        with backend.deprecated_internal_learning_phase_scope(training):
           fn.get_concrete_function(*args, **kwargs)
       else:
         fn.get_concrete_function(*args, **kwargs)
@@ -374,7 +374,7 @@ def tracing_enabled():
   return _thread_local_data.enable_call_tracing
 
 
-class LayerCallCollection(object):
+class LayerCallCollection:
   """Groups wrapped layer call functions.
 
   This is used to ensure that all layer call functions are traced with the same
@@ -576,12 +576,13 @@ def layer_call_wrapper(call_collection, method, name):
   # Rename to `name`, since tf.function doesn't have a name argument. Without
   # this, all functions returned by this method will be named "call", which
   # would be a nightmare to debug.
-  fn = tf.__internal__.decorator.make_decorator(target=method, decorator_func=wrapper)
+  fn = tf.__internal__.decorator.make_decorator(
+      target=method, decorator_func=wrapper)
   fn.__name__ = name
   return fn
 
 
-class LayerCall(object):
+class LayerCall:
   """Function that triggers traces of other functions in the same collection."""
 
   def __init__(self, call_collection, call_fn, name):
@@ -693,7 +694,7 @@ def _wrap_activity_regularizer(layer):
       layer._activity_regularizer,
       '{}_activity_regularizer'.format(layer.name),
       input_signature=[
-          tf.TensorSpec(None, layer._compute_dtype or K.floatx())
+          tf.TensorSpec(None, layer._compute_dtype or backend.floatx())
       ])
   # pylint: enable=protected-access
 

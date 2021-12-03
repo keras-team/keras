@@ -29,7 +29,6 @@ from keras import keras_parameterized
 from keras import testing_utils
 from keras.layers.preprocessing import integer_lookup
 from keras.layers.preprocessing import preprocessing_test_utils
-from keras.utils.generic_utils import CustomObjectScope
 
 
 def _get_end_to_end_test_cases():
@@ -99,16 +98,15 @@ class IntegerLookupLayerTest(keras_parameterized.TestCase,
       vocab_data = tf.data.Dataset.from_tensor_slices(vocab_data).batch(
           input_shape[0])
 
-    with CustomObjectScope({"IntegerLookup": cls}):
-      output_data = testing_utils.layer_test(
-          cls,
-          kwargs=kwargs,
-          input_shape=input_shape,
-          input_data=input_data,
-          input_dtype=input_dtype,
-          expected_output_dtype=expected_output_dtype,
-          validate_training=False,
-          adapt_data=vocab_data)
+    output_data = testing_utils.layer_test(
+        cls,
+        kwargs=kwargs,
+        input_shape=input_shape,
+        input_data=input_data,
+        input_dtype=input_dtype,
+        expected_output_dtype=expected_output_dtype,
+        validate_training=False,
+        adapt_data=vocab_data)
     self.assertAllClose(expected_output, output_data)
 
   def test_layer_with_list_input(self):
@@ -149,7 +147,7 @@ class CategoricalEncodingInputTest(
   def test_ragged_int_input(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
     input_array = tf.ragged.constant([[10, 11, 13], [13, 12, 10, 42]],
-                                              dtype=np.int64)
+                                     dtype=np.int64)
     expected_output = [[1, 2, 4], [4, 3, 1, 0]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
@@ -195,7 +193,7 @@ class CategoricalEncodingMultiOOVTest(
   def test_ragged_int_input_multi_bucket(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
     input_array = tf.ragged.constant([[10, 11, 13], [13, 12, 10, 133]],
-                                              dtype=np.int64)
+                                     dtype=np.int64)
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
@@ -239,8 +237,7 @@ class CategoricalEncodingAdaptTest(
       for _ in itertools.count(1):
         yield random.randint(0, 100)
 
-    ds = tf.data.Dataset.from_generator(word_gen, tf.int64,
-                                            tf.TensorShape([]))
+    ds = tf.data.Dataset.from_generator(word_gen, tf.int64, tf.TensorShape([]))
     batched_ds = ds.take(2)
     input_t = keras.Input(shape=(), dtype=tf.int64)
     layer = integer_lookup.IntegerLookup(
@@ -618,4 +615,6 @@ class IntegerLookupSavingTest(keras_parameterized.TestCase,
 
 
 if __name__ == "__main__":
+  # IntegerLookup is only exported as a TF2 API.
+  tf.compat.v1.enable_v2_behavior()
   tf.test.main()

@@ -195,7 +195,7 @@ class TextDatasetFromDirectoryTest(keras_parameterized.TestCase):
 
   def test_text_dataset_from_directory_no_files(self):
     directory = self._prepare_directory(num_classes=2, count=0)
-    with self.assertRaisesRegex(ValueError, 'No text files found.'):
+    with self.assertRaisesRegex(ValueError, 'No text files found'):
       _ = text_dataset.text_dataset_from_directory(directory)
 
   def test_text_dataset_from_directory_errors(self):
@@ -210,7 +210,7 @@ class TextDatasetFromDirectoryTest(keras_parameterized.TestCase):
           directory, label_mode='other')
 
     with self.assertRaisesRegex(
-        ValueError, 'only pass `class_names` if the labels are inferred'):
+        ValueError, 'only pass `class_names` if `labels="inferred"`'):
       _ = text_dataset.text_dataset_from_directory(
           directory, labels=[0, 0, 1, 1, 1],
           class_names=['class_0', 'class_1', 'class_2'])
@@ -226,7 +226,7 @@ class TextDatasetFromDirectoryTest(keras_parameterized.TestCase):
       _ = text_dataset.text_dataset_from_directory(
           directory, class_names=['class_0', 'class_2'])
 
-    with self.assertRaisesRegex(ValueError, 'there must exactly 2 classes'):
+    with self.assertRaisesRegex(ValueError, 'there must be exactly 2'):
       _ = text_dataset.text_dataset_from_directory(
           directory, label_mode='binary')
 
@@ -247,6 +247,14 @@ class TextDatasetFromDirectoryTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'must provide a `seed`'):
       _ = text_dataset.text_dataset_from_directory(
           directory, validation_split=0.2, subset='training')
+
+  def test_text_dataset_from_directory_not_batched(self):
+    directory = self._prepare_directory()
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=None, label_mode=None, follow_links=True)
+
+    sample = next(iter(dataset))
+    self.assertEqual(len(sample.shape), 0)
 
 
 if __name__ == '__main__':

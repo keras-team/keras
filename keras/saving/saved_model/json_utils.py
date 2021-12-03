@@ -132,11 +132,12 @@ def get_json_type(obj):
       return {'class_name': 'TypeSpec', 'type_spec': type_spec_name,
               'serialized': obj._serialize()}  # pylint: disable=protected-access
     except ValueError:
-      raise ValueError('Unable to serialize {} to JSON, because the TypeSpec '
-                       'class {} has not been registered.'
-                       .format(obj, type(obj)))
+      raise ValueError(
+          f'Unable to serialize {obj} to JSON, because the TypeSpec '
+          f'class {type(obj)} has not been registered.')
 
   if isinstance(obj, enum.Enum):
     return obj.value
 
-  raise TypeError('Not JSON Serializable:', obj)
+  raise TypeError(
+      f'Unable to serialize {obj} to JSON. Unrecognized type {type(obj)}.')

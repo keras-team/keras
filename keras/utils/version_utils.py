@@ -44,7 +44,7 @@ callbacks_v1 = LazyLoader(
 # pylint: enable=g-inconsistent-quotes
 
 
-class ModelVersionSelector(object):
+class ModelVersionSelector:
   """Chooses between Keras v1 and v2 Model class."""
 
   def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
@@ -53,7 +53,7 @@ class ModelVersionSelector(object):
     return super(ModelVersionSelector, cls).__new__(cls)
 
 
-class LayerVersionSelector(object):
+class LayerVersionSelector:
   """Chooses between Keras v1 and v2 Layer class."""
 
   def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
@@ -62,7 +62,7 @@ class LayerVersionSelector(object):
     return super(LayerVersionSelector, cls).__new__(cls)
 
 
-class TensorBoardVersionSelector(object):
+class TensorBoardVersionSelector:
   """Chooses between Keras v1 and v2 TensorBoard callback class."""
 
   def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
@@ -121,11 +121,10 @@ def swap_class(cls, v2_cls, v1_cls, use_v2):
 def disallow_legacy_graph(cls_name, method_name):
   if not tf.compat.v1.executing_eagerly_outside_functions():
     error_msg = (
-        "Calling `{cls_name}.{method_name}` in graph mode is not supported "
-        "when the `{cls_name}` instance was constructed with eager mode "
-        "enabled. Please construct your `{cls_name}` instance in graph mode or"
-        " call `{cls_name}.{method_name}` with eager mode enabled.")
-    error_msg = error_msg.format(cls_name=cls_name, method_name=method_name)
+        f"Calling `{cls_name}.{method_name}` in graph mode is not supported "
+        f"when the `{cls_name}` instance was constructed with eager mode "
+        f"enabled. Please construct your `{cls_name}` instance in graph mode or"
+        f" call `{cls_name}.{method_name}` with eager mode enabled.")
     raise ValueError(error_msg)
 
 

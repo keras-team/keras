@@ -14,26 +14,30 @@
 # ==============================================================================
 """Keras hashing preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
+# pylint: disable=g-direct-tensorflow-import
 
-import functools
-import numpy as np
+from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
+from keras.layers.preprocessing import preprocessing_utils as utils
+from keras.utils import layer_utils
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
-# Default key from tf.sparse.cross_hashed
-_DEFAULT_SALT_KEY = [0xDECAFCAFFE, 0xDECAFCAFFE]
+INT = utils.INT
+MULTI_HOT = utils.MULTI_HOT
+ONE_HOT = utils.ONE_HOT
+COUNT = utils.COUNT
 
 
 @keras_export('keras.layers.Hashing',
               'keras.layers.experimental.preprocessing.Hashing')
 class Hashing(base_layer.Layer):
-  """Implements categorical feature hashing, also known as "hashing trick".
+  """A preprocessing layer which hashes and bins categorical features.
 
-  This layer transforms single or multiple categorical inputs to hashed output.
-  It converts a sequence of int or string to a sequence of int. The stable hash
+  This layer transforms categorical inputs to hashed output. It element-wise
+  converts a ints or strings to ints in a fixed range. The stable hash
   function uses `tensorflow::ops::Fingerprint` to produce the same output
   consistently across all platforms.
 
@@ -46,6 +50,9 @@ class Hashing(base_layer.Layer):
   argument in the constructor. In that case, the layer will use the
   [SipHash64](https://github.com/google/highwayhash) hash function, with
   the `salt` value serving as additional input to the hash function.
+
+  For an overview and full list of preprocessing layers, see the preprocessing
+  [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   **Example (FarmHash64)**
 
@@ -108,6 +115,25 @@ class Hashing(base_layer.Layer):
       These should be non-zero. Defaults to `None` (in that
       case, the FarmHash64 hash function is used). It also supports
       tuple/list of 2 unsigned integer numbers, see reference paper for details.
+    output_mode: Specification for the output of the layer. Defaults to `"int"`.
+      Values can be `"int"`, `"one_hot"`, `"multi_hot"`, or `"count"`
+      configuring the layer as follows:
+        - `"int"`: Return the integer bin indices directly.
+        - `"one_hot"`: Encodes each individual element in the input into an
+          array the same size as `num_bins`, containing a 1 at the input's bin
+          index. If the last dimension is size 1, will encode on that dimension.
+          If the last dimension is not size 1, will append a new dimension for
+          the encoded output.
+        - `"multi_hot"`: Encodes each sample in the input into a single array
+          the same size as `num_bins`, containing a 1 for each bin index
+          index present in the sample. Treats the last dimension as the sample
+          dimension, if input shape is `(..., sample_length)`, output shape will
+          be `(..., num_tokens)`.
+        - `"count"`: As `"multi_hot"`, but the int array contains a count of the
+          number of times the bin index appeared in the sample.
+    sparse: Boolean. Only applicable to `"one_hot"`, `"multi_hot"`,
+      and `"count"` output modes. If True, returns a `SparseTensor` instead of
+      a dense `Tensor`. Defaults to False.
     **kwargs: Keyword arguments to construct a layer.
 
   Input shape:
@@ -125,84 +151,118 @@ class Hashing(base_layer.Layer):
 
   """
 
-  def __init__(self, num_bins, mask_value=None, salt=None, **kwargs):
+  def __init__(self,
+               num_bins,
+               mask_value=None,
+               salt=None,
+               output_mode='int',
+               sparse=False,
+               **kwargs):
     if num_bins is None or num_bins <= 0:
-      raise ValueError('`num_bins` cannot be `None` or non-positive values.')
-    super(Hashing, self).__init__(**kwargs)
+      raise ValueError(
+          f'The `num_bins` for `Hashing` cannot be `None` or non-positive '
+          f'values. Received: num_bins={num_bins}.')
+
+    # By default, output int64 when output_mode='int' and floats otherwise.
+    if 'dtype' not in kwargs or kwargs['dtype'] is None:
+      kwargs['dtype'] = tf.int64 if output_mode == INT else backend.floatx()
+    elif output_mode == 'int' and not tf.as_dtype(kwargs['dtype']).is_integer:
+      # Compat for when dtype was always floating and ignored by the layer.
+      kwargs['dtype'] = tf.int64
+
+    super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Hashing').set(True)
+
+    # Check dtype only after base layer parses it; dtype parsing is complex.
+    if output_mode == INT and not tf.as_dtype(self.compute_dtype).is_integer:
+      input_dtype = kwargs['dtype']
+      raise ValueError('When `output_mode="int"`, `dtype` should be an integer '
+                       f'type. Received: dtype={input_dtype}')
+
+    # 'output_mode' must be one of (INT, ONE_HOT, MULTI_HOT, COUNT)
+    layer_utils.validate_string_arg(
+        output_mode,
+        allowable_strings=(INT, ONE_HOT, MULTI_HOT, COUNT),
+        layer_name=self.__class__.__name__,
+        arg_name='output_mode')
+
+    if sparse and output_mode == INT:
+      raise ValueError(f'`sparse` may only be true if `output_mode` is '
+                       f'`"one_hot"`, `"multi_hot"`, or `"count"`. '
+                       f'Received: sparse={sparse} and '
+                       f'output_mode={output_mode}')
+
     self.num_bins = num_bins
     self.mask_value = mask_value
     self.strong_hash = True if salt is not None else False
+    self.output_mode = output_mode
+    self.sparse = sparse
+    self.salt = None
     if salt is not None:
       if isinstance(salt, (tuple, list)) and len(salt) == 2:
         self.salt = salt
       elif isinstance(salt, int):
         self.salt = [salt, salt]
       else:
-        raise ValueError('`salt can only be a tuple of size 2 integers, or a '
-                         'single integer, given {}'.format(salt))
-    else:
-      self.salt = _DEFAULT_SALT_KEY
-
-  def _preprocess_input(self, inp):
-    if isinstance(inp, (list, tuple, np.ndarray)):
-      inp = tf.convert_to_tensor(inp)
-    return inp
+        raise ValueError(
+            f'The `salt` argument for `Hashing` can only be a tuple of size 2 '
+            f'integers, or a single integer. Received: salt={salt}.')
 
   def call(self, inputs):
-    inputs = self._preprocess_input(inputs)
+    inputs = utils.ensure_tensor(inputs)
     if isinstance(inputs, tf.SparseTensor):
-      return tf.SparseTensor(
+      indices = tf.SparseTensor(
           indices=inputs.indices,
           values=self._hash_values_to_bins(inputs.values),
           dense_shape=inputs.dense_shape)
-    return self._hash_values_to_bins(inputs)
+    else:
+      indices = self._hash_values_to_bins(inputs)
+    return utils.encode_categorical_inputs(
+        indices,
+        output_mode=self.output_mode,
+        depth=self.num_bins,
+        sparse=self.sparse,
+        dtype=self.compute_dtype)
 
   def _hash_values_to_bins(self, values):
     """Converts a non-sparse tensor of values to bin indices."""
-    str_to_hash_bucket = self._get_string_to_hash_bucket_fn()
-    num_available_bins = self.num_bins
+    hash_bins = self.num_bins
     mask = None
     # If mask_value is set, the zeroth bin is reserved for it.
-    if self.mask_value is not None and num_available_bins > 1:
-      num_available_bins -= 1
+    if self.mask_value is not None and hash_bins > 1:
+      hash_bins -= 1
       mask = tf.equal(values, self.mask_value)
     # Convert all values to strings before hashing.
     if values.dtype.is_integer:
       values = tf.as_string(values)
-    values = str_to_hash_bucket(values, num_available_bins, name='hash')
+    # Hash the strings.
+    if self.strong_hash:
+      values = tf.strings.to_hash_bucket_strong(
+          values, hash_bins, name='hash', key=self.salt)
+    else:
+      values = tf.strings.to_hash_bucket_fast(values, hash_bins, name='hash')
     if mask is not None:
       values = tf.add(values, tf.ones_like(values))
       values = tf.where(mask, tf.zeros_like(values), values)
     return values
-
-  def _get_string_to_hash_bucket_fn(self):
-    """Returns the string_to_hash_bucket op to use based on `hasher_key`."""
-    # string_to_hash_bucket_fast uses FarmHash64 as hash function.
-    if not self.strong_hash:
-      return tf.strings.to_hash_bucket_fast
-    # string_to_hash_bucket_strong uses SipHash64 as hash function.
-    else:
-      return functools.partial(
-          tf.strings.to_hash_bucket_strong, key=self.salt)
 
   def compute_output_shape(self, input_shape):
     return input_shape
 
   def compute_output_signature(self, input_spec):
     output_shape = self.compute_output_shape(input_spec.shape)
-    output_dtype = tf.int64
     if isinstance(input_spec, tf.SparseTensorSpec):
-      return tf.SparseTensorSpec(
-          shape=output_shape, dtype=output_dtype)
+      return tf.SparseTensorSpec(shape=output_shape, dtype=self.compute_dtype)
     else:
-      return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
+      return tf.TensorSpec(shape=output_shape, dtype=self.compute_dtype)
 
   def get_config(self):
-    config = {
+    config = super().get_config()
+    config.update({
         'num_bins': self.num_bins,
         'salt': self.salt,
         'mask_value': self.mask_value,
-    }
-    base_config = super(Hashing, self).get_config()
-    return dict(list(base_config.items()) + list(config.items()))
+        'output_mode': self.output_mode,
+        'sparse': self.sparse,
+    })
+    return config

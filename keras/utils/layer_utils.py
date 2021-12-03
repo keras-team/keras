@@ -20,6 +20,7 @@ import tensorflow.compat.v2 as tf
 import functools
 import weakref
 
+from keras.utils import io_utils
 import numpy as np
 from tensorflow.python.util.tf_export import keras_export
 
@@ -80,9 +81,18 @@ def validate_string_arg(input_data,
     allowed_args = '`None`, ' if allow_none else ''
     allowed_args += 'a `Callable`, ' if allow_callables else ''
     allowed_args += 'or one of the following values: %s' % (allowable_strings,)
-    raise ValueError(('The %s argument of layer %s received an invalid '
-                      'value %s. Allowed values are: %s.') %
-                     (arg_name, layer_name, input_data, allowed_args))
+    if allow_callables:
+      callable_note = (
+          f'If restoring a model and `{arg_name}` is a custom callable, '
+          'please ensure the callable is registered as a custom object. '
+          'See https://www.tensorflow.org/guide/keras/save_and_serialize'
+          '#registering_the_custom_object for details. ')
+    else:
+      callable_note = ''
+    raise ValueError(
+        f'Unkown value for `{arg_name}` argument of layer {layer_name}. '
+        f'{callable_note}Allowed values are: {allowed_args}. Received: '
+        f'{input_data}')
 
 
 def count_params(weights):
@@ -104,7 +114,12 @@ def count_params(weights):
   return int(sum(np.prod(p) for p in standardized_weight_shapes))
 
 
-def print_summary(model, line_length=None, positions=None, print_fn=None):
+def print_summary(model,
+                  line_length=None,
+                  positions=None,
+                  print_fn=None,
+                  expand_nested=False,
+                  show_trainable=False):
   """Prints a summary of a model.
 
   Args:
@@ -119,9 +134,13 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
           You can set it to a custom function
           in order to capture the string summary.
           It defaults to `print` (prints to stdout).
+      expand_nested: Whether to expand the nested models.
+          If not provided, defaults to `False`.
+      show_trainable: Whether to show if a layer is trainable.
+          If not provided, defaults to `False`.
   """
   if print_fn is None:
-    print_fn = print
+    print_fn = io_utils.print_msg
 
   if model.__class__.__name__ == 'Sequential':
     sequential_like = True
@@ -174,26 +193,64 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
     for v in model._nodes_by_depth.values():
       relevant_nodes += v
 
-  def print_row(fields, positions):
-    line = ''
-    for i in range(len(fields)):
-      if i > 0:
-        line = line[:-1] + ' '
-      line += str(fields[i])
-      line = line[:positions[i]]
-      line += ' ' * (positions[i] - len(line))
-    print_fn(line)
+  if show_trainable:
+    line_length += 11
+    positions.append(line_length)
+    to_display.append('Trainable')
+
+  def print_row(fields, positions, nested_level=0):
+    left_to_print = [str(x) for x in fields]
+    while any(left_to_print):
+      line = ''
+      for col in range(len(left_to_print)):
+        if col > 0:
+          start_pos = positions[col - 1]
+        else:
+          start_pos = 0
+        end_pos = positions[col]
+        # Leave room for 2 spaces to delineate columns
+        # we don't need any if we are printing the last column
+        space = 2 if col != len(positions) - 1 else 0
+        cutoff = end_pos - start_pos - space
+        fit_into_line = left_to_print[col][:cutoff]
+        # For nicer formatting we line-break on seeing end of
+        # tuple/dict etc.
+        line_break_conditions = ('),', '},', '],', "',")
+        candidate_cutoffs = [
+            fit_into_line.find(x) + len(x)
+            for x in line_break_conditions
+            if fit_into_line.find(x) >= 0
+        ]
+        if candidate_cutoffs:
+          cutoff = min(candidate_cutoffs)
+          fit_into_line = fit_into_line[:cutoff]
+
+        if col == 0:
+          line += '|' * nested_level + ' '
+        line += fit_into_line
+        line += ' ' * space if space else ''
+        left_to_print[col] = left_to_print[col][cutoff:]
+
+        # Pad out to the next position
+        if nested_level:
+          line += ' ' * (positions[col] - len(line) - nested_level)
+        else:
+          line += ' ' * (positions[col] - len(line))
+      line += '|' * nested_level
+      print_fn(line)
 
   print_fn('Model: "{}"'.format(model.name))
   print_fn('_' * line_length)
   print_row(to_display, positions)
   print_fn('=' * line_length)
 
-  def print_layer_summary(layer):
+  def print_layer_summary(layer, nested_level=0):
     """Prints a summary for a single layer.
 
     Args:
         layer: target layer.
+        nested_level: level of nesting of the layer inside its parent layer
+          (e.g. 0 for a top-level layer, 1 for a nested layer).
     """
     try:
       output_shape = layer.output_shape
@@ -210,13 +267,19 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
     else:
       params = layer.count_params()
     fields = [name + ' (' + cls_name + ')', output_shape, params]
-    print_row(fields, positions)
 
-  def print_layer_summary_with_connections(layer):
+    if show_trainable:
+      fields.append('Y' if layer.trainable else 'N')
+
+    print_row(fields, positions, nested_level)
+
+  def print_layer_summary_with_connections(layer, nested_level=0):
     """Prints a summary for a single layer (including topological connections).
 
     Args:
         layer: target layer.
+        nested_level: level of nesting of the layer inside its parent layer
+          (e.g. 0 for a top-level layer, 1 for a nested layer).
     """
     try:
       output_shape = layer.output_shape
@@ -234,30 +297,44 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
 
     name = layer.name
     cls_name = layer.__class__.__name__
-    if not connections:
-      first_connection = ''
-    else:
-      first_connection = connections[0]
     fields = [
         name + ' (' + cls_name + ')', output_shape,
-        layer.count_params(), first_connection
+        layer.count_params(), connections
     ]
-    print_row(fields, positions)
-    if len(connections) > 1:
-      for i in range(1, len(connections)):
-        fields = ['', '', '', connections[i]]
-        print_row(fields, positions)
+
+    if show_trainable:
+      fields.append('Y' if layer.trainable else 'N')
+
+    print_row(fields, positions, nested_level)
+
+  def print_layer(layer, nested_level=0, is_nested_last=False):
+    if sequential_like:
+      print_layer_summary(layer, nested_level)
+    else:
+      print_layer_summary_with_connections(layer, nested_level)
+
+    if expand_nested and hasattr(layer, 'layers') and layer.layers:
+      print_fn('|' * (nested_level + 1) + '¯' *
+               (line_length - 2 * nested_level - 2) + '|' * (nested_level + 1))
+
+      nested_layer = layer.layers
+      is_nested_last = False
+      for i in range(len(nested_layer)):
+        if i == len(nested_layer) - 1:
+          is_nested_last = True
+        print_layer(nested_layer[i], nested_level + 1, is_nested_last)
+
+      print_fn('|' * nested_level + '¯' * (line_length - 2 * nested_level) +
+               '|' * nested_level)
+
+    if not is_nested_last:
+      print_fn('|' * nested_level + ' ' * (line_length - 2 * nested_level) +
+               '|' * nested_level)
 
   layers = model.layers
-  for i in range(len(layers)):
-    if sequential_like:
-      print_layer_summary(layers[i])
-    else:
-      print_layer_summary_with_connections(layers[i])
-    if i == len(layers) - 1:
-      print_fn('=' * line_length)
-    else:
-      print_fn('_' * line_length)
+  for layer in layers:
+    print_layer(layer)
+  print_fn('=' * line_length)
 
   if hasattr(model, '_collected_trainable_weights'):
     trainable_count = count_params(model._collected_trainable_weights)
@@ -337,7 +414,7 @@ def cached_per_instance(f):
   Consider the following class:
 
   ```
-  class MyClass(object):
+  class MyClass:
     def __setattr__(self, key, value):
       # Some expensive class specific code
       # ...

@@ -59,17 +59,22 @@ class KerasInitializersTest(tf.test.TestCase):
 
   def _runner(self, init, shape, target_mean=None, target_std=None,
               target_max=None, target_min=None):
+    # The global seed is set so that we can get the same random streams between
+    # eager and graph mode when stateful op is used.
+    tf.random.set_seed(1337)
     variable = backend.variable(init(shape))
     output = backend.get_value(variable)
     # Test serialization (assumes deterministic behavior).
     config = init.get_config()
     reconstructed_init = init.__class__.from_config(config)
+
+    tf.random.set_seed(1337)
     variable = backend.variable(reconstructed_init(shape))
     output_2 = backend.get_value(variable)
     self.assertAllClose(output, output_2, atol=1e-4)
 
   def test_uniform(self):
-    tensor_shape = (9, 6, 7)
+    tensor_shape = (3, 2, 3)
     with self.cached_session():
       self._runner(
           initializers.RandomUniformV2(minval=-1, maxval=1, seed=124),

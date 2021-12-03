@@ -28,7 +28,7 @@ from keras.engine import data_adapter
 from keras.utils import data_utils
 
 
-class DummyArrayLike(object):
+class DummyArrayLike:
   """Dummy array-like object."""
 
   def __init__(self, data):
@@ -96,6 +96,25 @@ class TestSequence(data_utils.Sequence):
 
   def __len__(self):
     return 10
+
+
+class TestSparseSequence(TestSequence):
+
+  def __getitem__(self, item):
+    indices = [[row, self.feature_shape - 1] for row in range(self.batch_size)]
+    values = [1 for row in range(self.batch_size)]
+    st = tf.SparseTensor(indices, values, (self.batch_size, self.feature_shape))
+    return (st, np.ones((self.batch_size,)))
+
+
+class TestRaggedSequence(TestSequence):
+
+  def __getitem__(self, item):
+    values = np.random.randint(0, self.feature_shape,
+                               (self.batch_size, 2)).reshape(-1)
+    row_lengths = np.full(self.batch_size, 2)
+    rt = tf.RaggedTensor.from_row_lengths(values, row_lengths)
+    return (rt, np.ones((self.batch_size,)))
 
 
 class TensorLikeDataAdapterTest(DataAdapterTestBase):
@@ -183,6 +202,7 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
 
     model_1.compile(optimizer='rmsprop', loss='mse')
     model_2.compile(optimizer='rmsprop', loss='mse')
+    model_3.compile(optimizer='rmsprop', loss='mse')
 
     input_a_np = np.random.random((10, 3))
     input_b_np = np.random.random((10, 3))
@@ -191,11 +211,14 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
 
     output_a_df = pd.DataFrame(np.random.random((10, 4)))
     output_b_df = pd.DataFrame(np.random.random((10, 3)))
+    output_c_series = pd.DataFrame(np.random.random((10, 4)))[0]
 
     model_1.fit(input_a_df,
                 output_a_df)
     model_2.fit([input_a_df, input_b_df],
                 [output_a_df, output_b_df])
+    model_3.fit(input_a_df[[0]],
+                output_c_series)
     model_1.fit([input_a_df],
                 [output_a_df])
     model_1.fit({'input_a': input_a_df},
@@ -207,6 +230,8 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
                      output_a_df)
     model_2.evaluate([input_a_df, input_b_df],
                      [output_a_df, output_b_df])
+    model_3.evaluate(input_a_df[[0]],
+                     output_c_series)
     model_1.evaluate([input_a_df],
                      [output_a_df])
     model_1.evaluate({'input_a': input_a_df},
@@ -719,6 +744,22 @@ class GeneratorDataAdapterTest(DataAdapterTestBase):
     for i, data in enumerate(adapter.get_dataset()):
       self.assertEqual(i, data[0].numpy().flatten())
 
+  def test_model_without_forward_pass(self):
+
+    class MyModel(keras.Model):
+
+      def train_step(self, data):
+        return {'loss': 0.}
+
+      def test_step(self, data):
+        return {'loss': 0.}
+
+    model = MyModel()
+    model.compile('rmsprop')
+    model.fit(self.generator_input, steps_per_epoch=5)
+    out = model.evaluate(self.generator_input, steps=5)
+    self.assertEqual(out, 0)
+
 
 class KerasSequenceAdapterTest(DataAdapterTestBase):
 
@@ -776,6 +817,27 @@ class KerasSequenceAdapterTest(DataAdapterTestBase):
     with self.assertRaisesRegex(ValueError,
                                 r'`sample_weight` argument is not supported'):
       self.adapter_cls(self.sequence_input, sample_weights=self.sequence_input)
+
+
+class KerasSequenceAdapterSparseTest(KerasSequenceAdapterTest):
+
+  def setUp(self):
+    super(KerasSequenceAdapterSparseTest, self).setUp()
+    self.sequence_input = TestSparseSequence(self.batch_size, 10)
+
+
+class KerasSequenceAdapterRaggedTest(KerasSequenceAdapterTest):
+
+  def setUp(self):
+    super(KerasSequenceAdapterRaggedTest, self).setUp()
+    self.sequence_input = TestRaggedSequence(self.batch_size, 10)
+
+    self.model = keras.models.Sequential([
+        keras.layers.Input(shape=(None,), ragged=True),
+        keras.layers.Embedding(10, 10),
+        keras.layers.Lambda(tf.reduce_mean, arguments=dict(axis=1)),
+        keras.layers.Dense(8, input_shape=(10,), activation='relu'),
+    ])
 
 
 class DataHandlerTest(keras_parameterized.TestCase):
@@ -1088,13 +1150,14 @@ class ListsOfScalarsDataAdapterTest(DataAdapterTestBase):
     self.assertFalse(self.adapter_cls.can_handle([]))
 
 
-class TestUtils(keras_parameterized.TestCase):
+class TestDataAdapterUtils(DataAdapterTestBase):
 
-  def test_expand_1d_sparse_tensors_untouched(self):
-    st = tf.SparseTensor(
-        indices=[[0], [10]], values=[1, 2], dense_shape=[10])
-    st = data_adapter.expand_1d(st)
-    self.assertEqual(st.shape.rank, 1)
+  def test_unpack_x_y_sample_weight_with_tuple_and_list(self):
+    tuple_version = data_adapter.unpack_x_y_sample_weight(
+        (self.tensor_input, self.tensor_target))
+    list_version = data_adapter.unpack_x_y_sample_weight(
+        [self.tensor_input, self.tensor_target])
+    self.assertEqual(tuple_version, list_version)
 
 
 if __name__ == '__main__':

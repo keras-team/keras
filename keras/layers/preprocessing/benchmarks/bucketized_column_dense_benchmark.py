@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark for KPL implementation of bucketized columns with dense inputs."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 

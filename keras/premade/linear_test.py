@@ -34,7 +34,7 @@ class LinearModelTest(keras_parameterized.TestCase):
 
   def test_linear_model_with_single_input(self):
     model = linear.LinearModel()
-    inp = np.random.uniform(low=-5, high=5, size=(64, 2))
+    inp = np.random.uniform(low=-5., high=5., size=(64, 2))
     output = .3 * inp[:, 0] + .2 * inp[:, 1]
     model.compile('sgd', 'mse', [])
     model.fit(inp, output, epochs=5)
@@ -42,16 +42,16 @@ class LinearModelTest(keras_parameterized.TestCase):
 
   def test_linear_model_with_list_input(self):
     model = linear.LinearModel()
-    input_a = np.random.uniform(low=-5, high=5, size=(64, 1))
-    input_b = np.random.uniform(low=-5, high=5, size=(64, 1))
+    input_a = np.random.uniform(low=-5., high=5., size=(64, 1))
+    input_b = np.random.uniform(low=-5., high=5., size=(64, 1))
     output = .3 * input_a + .2 * input_b
     model.compile('sgd', 'mse', [])
     model.fit([input_a, input_b], output, epochs=5)
 
   def test_linear_model_with_mismatched_dict_inputs(self):
     model = linear.LinearModel()
-    input_a = np.random.uniform(low=-5, high=5, size=(64, 1))
-    input_b = np.random.uniform(low=-5, high=5, size=(64, 1))
+    input_a = np.random.uniform(low=-5., high=5., size=(64, 1))
+    input_b = np.random.uniform(low=-5., high=5., size=(64, 1))
     output = .3 * input_a + .2 * input_b
     model.compile('sgd', 'mse', [])
     model.build({'a': tf.TensorShape([None, 1]),
@@ -61,8 +61,8 @@ class LinearModelTest(keras_parameterized.TestCase):
 
   def test_linear_model_with_dict_input(self):
     model = linear.LinearModel()
-    input_a = np.random.uniform(low=-5, high=5, size=(64, 1))
-    input_b = np.random.uniform(low=-5, high=5, size=(64, 1))
+    input_a = np.random.uniform(low=-5., high=5., size=(64, 1))
+    input_b = np.random.uniform(low=-5., high=5., size=(64, 1))
     output = .3 * input_a + .2 * input_b
     model.compile('sgd', 'mse', [])
     model.fit({'a': input_a, 'b': input_b}, output, epochs=5)
@@ -74,8 +74,8 @@ class LinearModelTest(keras_parameterized.TestCase):
     output_b = core.Dense(units=1)(input_b)
     output = output_a + output_b
     model = training.Model(inputs=[input_a, input_b], outputs=[output])
-    input_a_np = np.random.uniform(low=-5, high=5, size=(64, 1))
-    input_b_np = np.random.uniform(low=-5, high=5, size=(64, 1))
+    input_a_np = np.random.uniform(low=-5., high=5., size=(64, 1))
+    input_b_np = np.random.uniform(low=-5., high=5., size=(64, 1))
     output_np = .3 * input_a_np + .2 * input_b_np
     model.compile('sgd', 'mse', [])
     model.fit([input_a_np, input_b_np], output_np, epochs=5)
@@ -105,19 +105,19 @@ class LinearModelTest(keras_parameterized.TestCase):
       rand_int = np.random.randint(3)
       if rand_int == 0:
         indices.append((i, 0))
-        val = np.random.uniform(low=-5, high=5)
+        val = np.random.uniform(low=-5., high=5.)
         values.append(val)
         target[i] = 0.3 * val
       elif rand_int == 1:
         indices.append((i, 1))
-        val = np.random.uniform(low=-5, high=5)
+        val = np.random.uniform(low=-5., high=5.)
         values.append(val)
         target[i] = 0.2 * val
       else:
         indices.append((i, 0))
         indices.append((i, 1))
-        val_1 = np.random.uniform(low=-5, high=5)
-        val_2 = np.random.uniform(low=-5, high=5)
+        val_1 = np.random.uniform(low=-5., high=5.)
+        val_2 = np.random.uniform(low=-5., high=5.)
         values.append(val_1)
         values.append(val_2)
         target[i] = 0.3 * val_1 + 0.2 * val_2

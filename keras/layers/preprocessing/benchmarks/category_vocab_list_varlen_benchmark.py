@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark for KPL implementation of vocabulary columns from lists with varying-length inputs."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import keras
 from tensorflow.python.eager.def_function import function as tf_function

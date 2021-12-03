@@ -26,6 +26,7 @@ import sys
 import threading
 import time
 import unittest
+from unittest import mock
 
 from absl.testing import parameterized
 import numpy as np
@@ -323,6 +324,38 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       cbk = BackupAndRestore(self.get_temp_dir())
       model.fit(np.ones((10, 1)), np.ones((10, 1)), epochs=0, callbacks=[cbk])
 
+  def test_backup_restore_train_counter(self):
+    if not tf.compat.v1.executing_eagerly():
+      self.skipTest('BackupAndRestore only available when execution is enabled')
+    model = keras.Sequential([keras.layers.Dense(1)])
+    model.compile('sgd', 'mse')
+    cbk = BackupAndRestore(self.get_temp_dir())
+
+    class InterruptingCallback(keras.callbacks.Callback):
+      """A callback to intentionally introduce interruption to training."""
+
+      def on_epoch_end(self, epoch, log=None):
+        logging.info(f'counter: {model._train_counter}')
+        if epoch == 5 or epoch == 12:
+          raise RuntimeError('Interruption')
+
+    log_dir = self.get_temp_dir()
+
+    # The following asserts that the train counter is fault tolerant.
+    self.assertEqual(model._train_counter.numpy(), 0)
+    try:
+      model.fit(np.ones((10, 1)), np.ones((10, 1)), epochs=20,
+                callbacks=[cbk, InterruptingCallback()])
+    except RuntimeError:
+      pass
+    self.assertEqual(model._train_counter.numpy(), 6)
+    try:
+      model.fit(np.ones((10, 1)), np.ones((10, 1)), epochs=20,
+                callbacks=[cbk, InterruptingCallback()])
+    except RuntimeError:
+      pass
+    self.assertEqual(model._train_counter.numpy(), 13)
+
   @keras_parameterized.run_all_keras_modes
   def test_callback_warning(self):
 
@@ -493,6 +526,8 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     model_type = testing_utils.get_model_type()
     if model_type == 'subclass':
       return  # Skip test since subclassed models cannot be saved in .h5 format.
+    if not tf.__internal__.tf2.enabled():
+      self.skipTest('Checkpoint callback only available in v2.')
 
     layers = [
         keras.layers.Dense(NUM_HIDDEN, input_dim=INPUT_DIM, activation='relu'),
@@ -1080,6 +1115,19 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     cb_list.on_predict_batch_end(logs)
     cb_list.on_predict_end(logs)
 
+  def test_verbose_2_logging(self):
+    data = np.random.random((100, 1))
+    labels = np.where(data > 0.5, 1, 0)
+    model = keras.models.Sequential((keras.layers.Dense(
+        1, input_dim=1, activation='relu'), keras.layers.Dense(
+            1, activation='sigmoid'),))
+    model.compile(
+        optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
+    expected_log = r'(.*- loss:.*- acc.*:.*epoch)+'
+    with self.captureWritesToStream(sys.stdout) as printed:
+      model.fit(data, labels, verbose=2, epochs=20)
+      self.assertRegex(printed.contents(), expected_log)
+
   def test_ProgbarLogger_verbose_2_nonblocking(self):
     # Should only cause a sync block on epoch end methods.
     callback = keras.callbacks.ProgbarLogger(count_mode='steps')
@@ -1191,7 +1239,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       stopper = keras.callbacks.EarlyStopping(monitor='acc',
                                               baseline=baseline)
       hist = model.fit(data, labels, callbacks=[stopper], verbose=0, epochs=20)
-      assert len(hist.epoch) == 1
+      assert len(hist.epoch) == 2
 
       patience = 3
       stopper = keras.callbacks.EarlyStopping(monitor='acc',
@@ -1202,7 +1250,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
   def test_EarlyStopping_final_weights_when_restoring_model_weights(self):
 
-    class DummyModel(object):
+    class DummyModel:
 
       def __init__(self):
         self.stop_training = False
@@ -1281,15 +1329,20 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
           optimizer='sgd',
           metrics=['accuracy'])
 
-      cbks = [keras.callbacks.LearningRateScheduler(lambda x: 1. / (1. + x))]
-      model.fit(
-          x_train,
-          y_train,
-          batch_size=BATCH_SIZE,
-          validation_data=(x_test, y_test),
-          callbacks=cbks,
-          epochs=5,
-          verbose=0)
+      cbks = [
+          keras.callbacks.LearningRateScheduler(
+              lambda x: 1. / (1. + x), verbose=1)
+      ]
+      with self.captureWritesToStream(sys.stdout) as printed:
+        model.fit(
+            x_train,
+            y_train,
+            batch_size=BATCH_SIZE,
+            validation_data=(x_test, y_test),
+            callbacks=cbks,
+            epochs=5)
+        self.assertIn('LearningRateScheduler setting learning rate to 1.0',
+                      printed.contents())
       assert (
           float(keras.backend.get_value(
               model.optimizer.lr)) - 0.2) < keras.backend.epsilon()
@@ -1402,12 +1455,12 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
   def test_ReduceLROnPlateau_patience(self):
 
-    class DummyOptimizer(object):
+    class DummyOptimizer:
 
       def __init__(self):
         self.lr = keras.backend.variable(1.0)
 
-    class DummyModel(object):
+    class DummyModel:
 
       def __init__(self):
         self.optimizer = DummyOptimizer()
@@ -1994,6 +2047,28 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     model.fit(x, y, batch_size=2, callbacks=[my_cb])
     self.assertEqual(my_cb.batch_counter, 3)
 
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_built_in_callback_order(self):
+
+    class CustomCallback(keras.callbacks.Callback):
+      pass
+
+    class TestingCallbackList(keras.callbacks.CallbackList):
+
+      def __init__(self, *args, **kwargs):
+        super(TestingCallbackList, self).__init__(*args, **kwargs)
+        if ((not isinstance(self.callbacks[0], CustomCallback)) or
+            (not isinstance(self.callbacks[1], keras.callbacks.History)) or
+            (not isinstance(self.callbacks[2], keras.callbacks.ProgbarLogger))):
+          raise AssertionError(f'Callback order unexpected: {self.callbacks}')
+
+    with mock.patch.object(
+        keras.callbacks, 'CallbackList', TestingCallbackList):
+      model = keras.Sequential([keras.layers.Dense(1)])
+      model.compile('sgd', 'mse')
+      custom_callback = CustomCallback()
+      model.fit(np.ones((10, 10)), np.ones((10, 1)), epochs=5,
+                callbacks=[custom_callback])
 
 # A summary that was emitted during a test. Fields:
 #   logdir: str. The logdir of the FileWriter to which the summary was
@@ -2002,7 +2077,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 _ObservedSummary = collections.namedtuple('_ObservedSummary', ('logdir', 'tag'))
 
 
-class _SummaryFile(object):
+class _SummaryFile:
   """A record of summary tags and the files to which they were written.
 
   Fields `scalars`, `images`, `histograms`, and `tensors` are sets
@@ -2191,7 +2266,7 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         callbacks=[tb_cbk])
 
     events_file_run_basenames = set()
-    for (dirpath, _, filenames) in os.walk(self.logdir):
+    for (dirpath, _, filenames) in os.walk(self.train_dir):
       if any(fn.startswith('events.out.') for fn in filenames):
         events_file_run_basenames.add(os.path.basename(dirpath))
     self.assertEqual(events_file_run_basenames, {'train'})
@@ -2213,7 +2288,6 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
     self.assertEqual(
         summary_file.scalars,
         {
-            _ObservedSummary(logdir=self.train_dir, tag='batch_loss'),
             _ObservedSummary(logdir=self.train_dir, tag='epoch_loss'),
             _ObservedSummary(logdir=self.validation_dir, tag='epoch_loss'),
             _ObservedSummary(
@@ -2271,7 +2345,6 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         summary_file.scalars,
         {
             _ObservedSummary(logdir=self.train_dir, tag='epoch_loss'),
-            _ObservedSummary(logdir=self.train_dir, tag='batch_loss'),
             _ObservedSummary(logdir=self.train_dir, tag='epoch_learning_rate'),
             _ObservedSummary(
                 logdir=self.train_dir, tag='epoch_steps_per_second'),
@@ -2439,7 +2512,6 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
             _ObservedSummary(
                 logdir=self.validation_dir,
                 tag='evaluation_loss_vs_iterations'),
-            _ObservedSummary(logdir=self.train_dir, tag='batch_loss'),
             _ObservedSummary(
                 logdir=self.train_dir,
                 tag='model/layer_with_summary/custom_summary'),
@@ -2626,7 +2698,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_1'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_outerProfiler(self):
     """Runs a profiler session that interferes with the one from the callback.
@@ -2679,7 +2751,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_2'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_profileBatchRangeSingle(self):
     model = self._get_seq_model()
@@ -2703,7 +2775,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_2'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_profileBatchRangeTwice(self):
     model = self._get_seq_model()
@@ -2728,7 +2800,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
         epochs=10,
         validation_data=(x, y),
         callbacks=[tb_cbk])
-    self.assertEqual(2, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(2, self._count_trace_file(logdir=self.logdir))
 
   # Test case that replicates a Github issue.
   # https://github.com/tensorflow/tensorflow/issues/37543
@@ -2781,7 +2853,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag=u'batch_3'),
         },
     )
-    self.assertEqual(1, self._count_trace_file(logdir=self.train_dir))
+    self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
   def test_TensorBoard_autoTrace_profileInvalidBatchRange(self):
     with self.assertRaises(ValueError):

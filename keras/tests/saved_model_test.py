@@ -48,7 +48,7 @@ class MemoryTests(tf.test.TestCase):
     self._model = _ModelWithOptimizerUsingDefun()
 
   @test_util.assert_no_garbage_created
-  def test_no_reference_cycles(self):
+  def DISABLED_test_no_reference_cycles(self):
     x = tf.constant([[3., 4.]])
     y = tf.constant([2.])
     self._model.call(x, y)

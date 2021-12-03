@@ -21,8 +21,8 @@ def _to_matrix(u):
   """If input tensor is a vector (i.e., has rank 1), converts it to matrix."""
   u_rank = len(u.shape)
   if u_rank not in [1, 2]:
-    raise ValueError('The input tensor should have rank 1 or 2. Given rank: {}'
-                     .format(u_rank))
+    raise ValueError('The input tensor should have rank 1 or 2. '
+                     f'Received rank: {u_rank}')
   if u_rank == 1:
     return tf.expand_dims(u, 0)
   return u
@@ -36,8 +36,8 @@ def _align_matrices(x, y):
   y_shape = y_matrix.shape
   if y_shape[1] != x_shape[1]:  # dimensions do not match.
     raise ValueError(
-        'The outermost dimensions of the input tensors should match. Given: {} '
-        'vs {}.'.format(y_shape[1], x_shape[1]))
+        'The outermost dimensions of the input tensors should match. '
+        f'Received y = {y_shape[1]} vs x = {x_shape[1]}.')
 
   x_tile = tf.tile(
       tf.expand_dims(x_matrix, 1), [1, y_shape[0], 1])

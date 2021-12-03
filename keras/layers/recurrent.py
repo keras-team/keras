@@ -19,6 +19,7 @@
 import tensorflow.compat.v2 as tf
 
 import collections
+import functools
 import warnings
 
 import numpy as np
@@ -27,7 +28,7 @@ from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
-from keras.engine.base_layer import Layer
+from keras.engine import base_layer
 from keras.engine.input_spec import InputSpec
 from keras.saving.saved_model import layer_serialization
 from keras.utils import control_flow_util
@@ -44,7 +45,7 @@ RECURRENT_DROPOUT_WARNING_MSG = (
 
 
 @keras_export('keras.layers.StackedRNNCells')
-class StackedRNNCells(Layer):
+class StackedRNNCells(base_layer.Layer):
   """Wrapper allowing a stack of RNN cells to behave as a single cell.
 
   Used to implement efficient stacked RNNs.
@@ -71,13 +72,12 @@ class StackedRNNCells(Layer):
 
   def __init__(self, cells, **kwargs):
     for cell in cells:
-      if not 'call' in dir(cell):
+      if 'call' not in dir(cell):
         raise ValueError('All cells must have a `call` method. '
-                         'received cells:', cells)
-      if not 'state_size' in dir(cell):
-        raise ValueError('All cells must have a '
-                         '`state_size` attribute. '
-                         'received cells:', cells)
+                         f'Received cell without a `call` method: {cell}')
+      if 'state_size' not in dir(cell):
+        raise ValueError('All cells must have a `state_size` attribute. '
+                         f'Received cell without a `state_size`: {cell}')
     self.cells = cells
     # reverse_state_order determines whether the state size will be in a reverse
     # order of the cells' state. User might want to set this to True to keep the
@@ -152,8 +152,13 @@ class StackedRNNCells(Layer):
   def build(self, input_shape):
     if isinstance(input_shape, list):
       input_shape = input_shape[0]
+
+    def get_batch_input_shape(batch_size, dim):
+      shape = tf.TensorShape(dim).as_list()
+      return tuple([batch_size] + shape)
+
     for cell in self.cells:
-      if isinstance(cell, Layer) and not cell.built:
+      if isinstance(cell, base_layer.Layer) and not cell.built:
         with backend.name_scope(cell.name):
           cell.build(input_shape)
           cell.built = True
@@ -163,8 +168,13 @@ class StackedRNNCells(Layer):
         output_dim = cell.state_size[0]
       else:
         output_dim = cell.state_size
-      input_shape = tuple([input_shape[0]] +
-                          tf.TensorShape(output_dim).as_list())
+      batch_size = tf.nest.flatten(input_shape)[0]
+      if tf.nest.is_nested(output_dim):
+        input_shape = tf.nest.map_structure(
+            functools.partial(get_batch_input_shape, batch_size), output_dim)
+        input_shape = tuple(input_shape)
+      else:
+        input_shape = tuple([batch_size] + tf.TensorShape(output_dim).as_list())
     self.built = True
 
   def get_config(self):
@@ -186,7 +196,7 @@ class StackedRNNCells(Layer):
 
 
 @keras_export('keras.layers.RNN')
-class RNN(Layer):
+class RNN(base_layer.Layer):
   """Base class for recurrent layers.
 
   See [the Keras RNN API guide](https://www.tensorflow.org/guide/keras/rnn)
@@ -389,14 +399,13 @@ class RNN(Layer):
                **kwargs):
     if isinstance(cell, (list, tuple)):
       cell = StackedRNNCells(cell)
-    if not 'call' in dir(cell):
-      raise ValueError('`cell` should have a `call` method. '
-                       'The RNN was passed:', cell)
-    if not 'state_size' in dir(cell):
-      raise ValueError('The RNN cell should have '
-                       'an attribute `state_size` '
-                       '(tuple of integers, '
-                       'one integer per RNN state).')
+    if 'call' not in dir(cell):
+      raise ValueError('Argument `cell` should have a `call` method. '
+                       f'The RNN was passed: cell={cell}')
+    if 'state_size' not in dir(cell):
+      raise ValueError('The RNN cell should have a `state_size` attribute '
+                       '(tuple of integers, one integer per RNN state). '
+                       f'Received: cell={cell}')
     # If True, the output for masked timestep will be zeros, whereas in the
     # False case, output from previous timestep is returned for masked timestep.
     self.zero_output_for_mask = kwargs.pop('zero_output_for_mask', False)
@@ -428,8 +437,8 @@ class RNN(Layer):
 
     if stateful:
       if tf.distribute.has_strategy():
-        raise ValueError('RNNs with stateful=True not yet supported with '
-                         'tf.distribute.Strategy.')
+        raise ValueError('Stateful RNNs (created with `stateful=True`) '
+                         'are not yet supported with tf.distribute.Strategy.')
 
   @property
   def _use_input_spec_as_call_signature(self):
@@ -547,6 +556,12 @@ class RNN(Layer):
       # remove the timestep from the input_shape
       return shape[1:] if self.time_major else (shape[0],) + shape[2:]
 
+    def get_state_spec(shape):
+      state_spec_shape = tf.TensorShape(shape).as_list()
+      # append batch dim
+      state_spec_shape = [None] + state_spec_shape
+      return InputSpec(shape=tuple(state_spec_shape))
+
     # Check whether the input shape contains any nested shapes. It could be
     # (tensor_shape(1, 2), tensor_shape(3, 4)) or (1, 2, 3) which is from numpy
     # inputs.
@@ -572,7 +587,7 @@ class RNN(Layer):
       step_input_shape = tf.nest.map_structure(get_step_input_shape, input_shape)
 
     # allow cell (if layer) to build before we set or validate state_spec.
-    if isinstance(self.cell, Layer) and not self.cell.built:
+    if isinstance(self.cell, base_layer.Layer) and not self.cell.built:
       with backend.name_scope(self.cell.name):
         self.cell.build(step_input_shape)
         self.cell.built = True
@@ -587,10 +602,15 @@ class RNN(Layer):
       # initial_state was passed in call, check compatibility
       self._validate_state_spec(state_size, self.state_spec)
     else:
-      self.state_spec = [
-          InputSpec(shape=[None] + tf.TensorShape(dim).as_list())
-          for dim in state_size
-      ]
+      if tf.nest.is_nested(state_size):
+        self.state_spec = tf.nest.map_structure(get_state_spec, state_size)
+      else:
+        self.state_spec = [
+            InputSpec(shape=[None] + tf.TensorShape(dim).as_list())
+            for dim in state_size
+        ]
+      # ensure the generated state_spec is correct.
+      self._validate_state_spec(state_size, self.state_spec)
     if self.stateful:
       self.reset_states()
     self.built = True
@@ -683,11 +703,12 @@ class RNN(Layer):
         flat_additional_inputs[0]) if flat_additional_inputs else True
     for tensor in flat_additional_inputs:
       if backend.is_keras_tensor(tensor) != is_keras_tensor:
-        raise ValueError('The initial state or constants of an RNN'
-                         ' layer cannot be specified with a mix of'
-                         ' Keras tensors and non-Keras tensors'
-                         ' (a "Keras tensor" is a tensor that was'
-                         ' returned by a Keras layer, or by `Input`)')
+        raise ValueError(
+            'The initial state or constants of an RNN layer cannot be '
+            'specified via a mix of Keras tensors and non-Keras tensors '
+            '(a "Keras tensor" is a tensor that was returned by a Keras layer '
+            ' or by `Input` during Functional model construction). '
+            f'Received: initial_state={initial_state}, constants={constants}')
 
     if is_keras_tensor:
       # Compute the full input spec, including state and constants
@@ -770,7 +791,9 @@ class RNN(Layer):
     cell_call_fn = self.cell.__call__ if callable(self.cell) else self.cell.call
     if constants:
       if not generic_utils.has_arg(self.cell.call, 'constants'):
-        raise ValueError('RNN cell does not support constants')
+        raise ValueError(
+            f'RNN cell {self.cell} does not support constants. '
+            f'Received: constants={constants}')
 
       def step(inputs, states):
         constants = states[-self._num_constants:]  # pylint: disable=invalid-unary-operand-type
@@ -804,7 +827,8 @@ class RNN(Layer):
 
     if self.stateful:
       updates = [
-          tf.compat.v1.assign(self_state, state) for self_state, state in zip(
+          tf.compat.v1.assign(self_state, tf.cast(state, self_state.dtype))
+          for self_state, state in zip(
               tf.nest.flatten(self.states), tf.nest.flatten(states))
       ]
       self.add_update(updates)
@@ -855,13 +879,18 @@ class RNN(Layer):
                                           strict=True)
       else:
         initial_state = self.states
+      initial_state = tf.nest.map_structure(
+          # When the layer has a inferred dtype, use the dtype from the cell.
+          lambda v: tf.cast(v, self.compute_dtype or self.cell.compute_dtype),
+          initial_state
+      )
     elif initial_state is None:
       initial_state = self.get_initial_state(inputs)
 
     if len(initial_state) != len(self.states):
-      raise ValueError('Layer has ' + str(len(self.states)) +
-                       ' states but was passed ' + str(len(initial_state)) +
-                       ' initial states.')
+      raise ValueError(f'Layer has {len(self.states)} '
+                       f'states but was passed {len(initial_state)} initial '
+                       f'states. Received: initial_state={initial_state}')
     return inputs, initial_state, constants
 
   def _validate_args_if_ragged(self, is_ragged_input, mask):
@@ -869,9 +898,9 @@ class RNN(Layer):
       return
 
     if mask is not None:
-      raise ValueError('The mask that was passed in was ' + str(mask) +
-                       ' and cannot be applied to RaggedTensor inputs. Please '
-                       'make sure that there is no mask passed in by upstream '
+      raise ValueError(f'The mask that was passed in was {mask}, which '
+                       'cannot be applied to RaggedTensor inputs. Please '
+                       'make sure that there is no mask injected by upstream '
                        'layers.')
     if self.unroll:
       raise ValueError('The input received contains RaggedTensors and does '
@@ -926,10 +955,13 @@ class RNN(Layer):
       if getattr(self.cell, 'get_initial_state', None):
         flat_init_state_values = tf.nest.flatten(self.cell.get_initial_state(
             inputs=None, batch_size=batch_size,
-            dtype=self.dtype or backend.floatx()))
+            # Use variable_dtype instead of compute_dtype, since the state is
+            # stored in a variable
+            dtype=self.variable_dtype or backend.floatx()))
       else:
         flat_init_state_values = tf.nest.flatten(_generate_zero_filled_state(
-            batch_size, self.cell.state_size, self.dtype or backend.floatx()))
+            batch_size, self.cell.state_size,
+            self.variable_dtype or backend.floatx()))
       flat_states_variables = tf.nest.map_structure(
           backend.variable, flat_init_state_values)
       self.states = tf.nest.pack_sequence_as(self.cell.state_size,
@@ -946,18 +978,17 @@ class RNN(Layer):
       flat_states = tf.nest.flatten(self.states)
       flat_input_states = tf.nest.flatten(states)
       if len(flat_input_states) != len(flat_states):
-        raise ValueError('Layer ' + self.name + ' expects ' +
-                         str(len(flat_states)) + ' states, '
-                         'but it received ' + str(len(flat_input_states)) +
-                         ' state values. Input received: ' + str(states))
+        raise ValueError(f'Layer {self.name} expects {len(flat_states)} '
+                         f'states, but it received {len(flat_input_states)} '
+                         f'state values. States received: {states}')
       set_value_tuples = []
       for i, (value, state) in enumerate(zip(flat_input_states,
                                              flat_states)):
         if value.shape != state.shape:
           raise ValueError(
-              'State ' + str(i) + ' is incompatible with layer ' +
-              self.name + ': expected shape=' + str(
-                  (batch_size, state)) + ', found shape=' + str(value.shape))
+              f'State {i} is incompatible with layer {self.name}: '
+              f'expected shape={(batch_size, state)} '
+              f'but found shape={value.shape}')
         set_value_tuples.append((state, value))
       backend.batch_set_value(set_value_tuples)
 
@@ -994,7 +1025,7 @@ class RNN(Layer):
 
 
 @keras_export('keras.layers.AbstractRNNCell')
-class AbstractRNNCell(Layer):
+class AbstractRNNCell(base_layer.Layer):
   """Abstract object representing an RNN cell.
 
   See [the Keras RNN API guide](https://www.tensorflow.org/guide/keras/rnn)
@@ -1064,7 +1095,7 @@ class AbstractRNNCell(Layer):
         1. output tensor for the current timestep, with size `output_size`.
         2. state tensor for next step, which has the shape of `state_size`.
     """
-    raise NotImplementedError('Abstract method')
+    raise NotImplementedError
 
   @property
   def state_size(self):
@@ -1073,19 +1104,19 @@ class AbstractRNNCell(Layer):
     It can be represented by an Integer, a TensorShape or a tuple of Integers
     or TensorShapes.
     """
-    raise NotImplementedError('Abstract method')
+    raise NotImplementedError
 
   @property
   def output_size(self):
     """Integer or TensorShape: size of outputs produced by this cell."""
-    raise NotImplementedError('Abstract method')
+    raise NotImplementedError
 
   def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
     return _generate_zero_filled_state_for_cell(self, inputs, batch_size, dtype)
 
 
 @doc_controls.do_not_generate_docs
-class DropoutRNNCellMixin(object):
+class DropoutRNNCellMixin:
   """Object that hold dropout related fields for RNN Cell.
 
   This class is not a standalone RNN cell. It suppose to be used with a RNN cell
@@ -1095,6 +1126,8 @@ class DropoutRNNCellMixin(object):
       tensor need to dropout.
     recurrent_dropout: a float number within range [0, 1). The ratio that the
       recurrent state weights need to dropout.
+    _random_generator: A backend.RandomGenerator instance, which will be used
+      to produce outputs based on the inputs and dropout rate.
   This object will create and cache created dropout masks, and reuse them for
   the incoming data, so that the same mask is used for every batch input.
   """
@@ -1150,6 +1183,7 @@ class DropoutRNNCellMixin(object):
 
   def _create_dropout_mask(self, inputs, training, count=1):
     return _generate_dropout_mask(
+        self._random_generator,
         tf.ones_like(inputs),
         self.dropout,
         training=training,
@@ -1157,6 +1191,7 @@ class DropoutRNNCellMixin(object):
 
   def _create_recurrent_dropout_mask(self, inputs, training, count=1):
     return _generate_dropout_mask(
+        self._random_generator,
         tf.ones_like(inputs),
         self.recurrent_dropout,
         training=training,
@@ -1221,7 +1256,7 @@ class DropoutRNNCellMixin(object):
 
 
 @keras_export('keras.layers.SimpleRNNCell')
-class SimpleRNNCell(DropoutRNNCellMixin, Layer):
+class SimpleRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
   """Cell class for SimpleRNN.
 
   See [the Keras RNN API guide](https://www.tensorflow.org/guide/keras/rnn)
@@ -1306,8 +1341,8 @@ class SimpleRNNCell(DropoutRNNCellMixin, Layer):
                recurrent_dropout=0.,
                **kwargs):
     if units < 0:
-      raise ValueError(f'Received an invalid value for units, expected '
-                       f'a positive integer, got {units}.')
+      raise ValueError(f'Received an invalid value for argument `units`, '
+                       f'expected a positive integer, got {units}.')
     # By default use cached variable under v2 mode, see b/143699808.
     if tf.compat.v1.executing_eagerly_outside_functions():
       self._enable_caching_device = kwargs.pop('enable_caching_device', True)
@@ -1680,7 +1715,7 @@ class SimpleRNN(RNN):
 
 
 @keras_export(v1=['keras.layers.GRUCell'])
-class GRUCell(DropoutRNNCellMixin, Layer):
+class GRUCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
   """Cell class for the GRU layer.
 
   Args:
@@ -1718,7 +1753,7 @@ class GRUCell(DropoutRNNCellMixin, Layer):
       the linear transformation of the recurrent state.
     reset_after: GRU convention (whether to apply reset gate after or
       before matrix multiplication). False = "before" (default),
-      True = "after" (CuDNN compatible).
+      True = "after" (cuDNN compatible).
 
   Call arguments:
     inputs: A 2D tensor.
@@ -1747,8 +1782,8 @@ class GRUCell(DropoutRNNCellMixin, Layer):
                reset_after=False,
                **kwargs):
     if units < 0:
-      raise ValueError(f'Received an invalid value for units, expected '
-                       f'a positive integer, got {units}.')
+      raise ValueError(f'Received an invalid value for argument `units`, '
+                       f'expected a positive integer, got {units}.')
     # By default use cached variable under v2 mode, see b/143699808.
     if tf.compat.v1.executing_eagerly_outside_functions():
       self._enable_caching_device = kwargs.pop('enable_caching_device', True)
@@ -2034,7 +2069,7 @@ class GRU(RNN):
       form.
     reset_after: GRU convention (whether to apply reset gate after or
       before matrix multiplication). False = "before" (default),
-      True = "after" (CuDNN compatible).
+      True = "after" (cuDNN compatible).
 
   Call arguments:
     inputs: A 3D tensor.
@@ -2240,7 +2275,7 @@ class GRU(RNN):
 
 
 @keras_export(v1=['keras.layers.LSTMCell'])
-class LSTMCell(DropoutRNNCellMixin, Layer):
+class LSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
   """Cell class for the LSTM layer.
 
   Args:
@@ -2310,8 +2345,8 @@ class LSTMCell(DropoutRNNCellMixin, Layer):
                recurrent_dropout=0.,
                **kwargs):
     if units < 0:
-      raise ValueError(f'Received an invalid value for units, expected '
-                       f'a positive integer, got {units}.')
+      raise ValueError(f'Received an invalid value for argument `units`, '
+                       f'expected a positive integer, got {units}.')
     # By default use cached variable under v2 mode, see b/143699808.
     if tf.compat.v1.executing_eagerly_outside_functions():
       self._enable_caching_device = kwargs.pop('enable_caching_device', True)
@@ -2567,10 +2602,12 @@ class PeepholeLSTMCell(LSTMCell):
                dropout=0.,
                recurrent_dropout=0.,
                **kwargs):
-    warnings.warn('`tf.keras.experimental.PeepholeLSTMCell` is deprecated '
-                  'and will be removed in a future version. '
-                  'Please use tensorflow_addons.rnn.PeepholeLSTMCell '
-                  'instead.')
+    warnings.warn(
+        '`tf.keras.experimental.PeepholeLSTMCell` is deprecated '
+        'and will be removed in a future version. '
+        'Please use tensorflow_addons.rnn.PeepholeLSTMCell '
+        'instead.',
+        stacklevel=2)
     super(PeepholeLSTMCell, self).__init__(
         units=units,
         activation=activation,
@@ -2684,7 +2721,7 @@ class LSTM(RNN):
     recurrent_dropout: Float between 0 and 1.
       Fraction of the units to drop for
       the linear transformation of the recurrent state.
-    return_sequences: Boolean. Whether to return the last output.
+    return_sequences: Boolean. Whether to return the last output
       in the output sequence, or the full sequence.
     return_state: Boolean. Whether to return the last state
       in addition to the output.
@@ -2912,9 +2949,9 @@ class LSTM(RNN):
     return cls(**config)
 
 
-def _generate_dropout_mask(ones, rate, training=None, count=1):
+def _generate_dropout_mask(generator, ones, rate, training=None, count=1):
   def dropped_inputs():
-    return backend.dropout(ones, rate)
+    return generator.dropout(ones, rate)
 
   if count > 1:
     return [
@@ -3002,8 +3039,8 @@ def _generate_zero_filled_state(batch_size_tensor, state_size, dtype):
   """Generate a zero filled tensor with shape [batch_size, state_size]."""
   if batch_size_tensor is None or dtype is None:
     raise ValueError(
-        'batch_size and dtype cannot be None while constructing initial state: '
-        'batch_size={}, dtype={}'.format(batch_size_tensor, dtype))
+        'batch_size and dtype cannot be None while constructing initial state. '
+        f'Received: batch_size={batch_size_tensor}, dtype={dtype}')
 
   def create_zeros(unnested_state_size):
     flat_dims = tf.TensorShape(unnested_state_size).as_list()

@@ -49,7 +49,7 @@ class TraceModelCallTest(keras_parameterized.TestCase):
     inputs = tf.ones((8, 5))
 
     if input_dim is None:
-      with self.assertRaisesRegex(ValueError, 'input shapes have not been set'):
+      with self.assertRaisesRegex(ValueError, '.*input shape is not availabl*'):
         saving_utils.trace_model_call(model)
       model._set_inputs(inputs)
 
@@ -110,7 +110,7 @@ class TraceModelCallTest(keras_parameterized.TestCase):
         np.random.random((10, input_dim)).astype(np.float32))
 
     if testing_utils.get_model_type() == 'subclass':
-      with self.assertRaisesRegex(ValueError, 'input shapes have not been set'):
+      with self.assertRaisesRegex(ValueError, '.*input shape is not availabl*'):
         saving_utils.trace_model_call(model)
 
     model.compile(
@@ -167,7 +167,7 @@ class TraceModelCallTest(keras_parameterized.TestCase):
     model = testing_utils.get_small_sequential_mlp(10, 3, None)
     inputs = tf.ones((8, 5))
 
-    with self.assertRaisesRegex(ValueError, 'input shapes have not been set'):
+    with self.assertRaisesRegex(ValueError, '.*input shape is not availabl*'):
       saving_utils.trace_model_call(model)
 
     fn = saving_utils.trace_model_call(
@@ -392,6 +392,108 @@ class ExtractModelMetricsTest(keras_parameterized.TestCase):
       extract_metrics = saving_utils.extract_model_metrics(model)
       self.assertEqual(set(model_metric_names), set(model.metrics_names))
       self.assertEqual(set(extract_metric_names), set(extract_metrics.keys()))
+
+
+class UnbuiltModelSavingErrorMessageTest(keras_parameterized.TestCase):
+
+  def setUp(self):
+    super(UnbuiltModelSavingErrorMessageTest, self).setUp()
+    if not tf.__internal__.tf2.enabled():
+      self.skipTest('The test does not intend to cover TF1.')
+
+  def test_sequential(self):
+    model = sequential.Sequential([keras.layers.Dense(10)])
+    optimizer = gradient_descent.SGD()
+    model.compile(optimizer, loss='mse', steps_per_execution=10)
+
+    # Forward pass not called yet. Input shape not available and thus error.
+    with self.assertRaisesRegex(
+        ValueError,
+        'Model.*cannot be saved.*specify an input shape either by calling.*'):
+      model.save(os.path.join(self.get_temp_dir(), 'my_saved_model'))
+
+  def test_functional(self):
+    inputs = keras.Input(shape=(32,))
+    outputs = keras.layers.Dense(1)(inputs)
+    model = keras.Model(inputs, outputs)
+    model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+
+    x = np.random.random((1000, 32))
+    y = np.random.random((1000, 1))
+    model.fit(x, y, epochs=3)
+
+    # Functional model always has an input shape, so should save just fine.
+    model.save(os.path.join(self.get_temp_dir(), 'my_saved_model'))
+
+  def test_subclass_forward_pass_by_layer_underscore_call(self):
+
+    class CustomModel(keras.Model):
+
+      def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dense1 = keras.layers.Dense(1)
+
+      def train_step(self, data):
+        x, y = data
+        with tf.GradientTape() as tape:
+          y_pred = self.dense1(x, training=True)
+          loss = self.compiled_loss(y, y_pred)
+
+        gradients = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+        return {}
+
+    subclassed_model = CustomModel()
+    subclassed_model.compile(optimizer='adam', loss='mse')
+
+    x = np.random.random((1000, 32))
+    y = np.random.random((1000, 1))
+    subclassed_model.fit(x, y, epochs=1)
+
+    # Saving of this subclassed model is supposed to raise an error, even if
+    # `fit` has been called. This is because the model does not have `call()`
+    # overridden. Forward pass using `layer.__call__` works for training, but
+    # saving requires that `call()` be used.
+    with self.assertRaisesRegex(
+        ValueError, r'Model.*cannot be saved.*as opposed to `model.call\(\).*'):
+      subclassed_model.save(os.path.join(self.get_temp_dir(), 'my_saved_model'))
+
+  def test_subclass_forward_pass_by_model_call(self):
+
+    class CustomModel(keras.Model):
+
+      def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dense1 = keras.layers.Dense(1)
+
+      def call(self, inputs):
+        return self.dense1(inputs)
+
+      def train_step(self, data):
+        x, y = data
+        with tf.GradientTape() as tape:
+          y_pred = self.call(x)
+          loss = self.compiled_loss(y, y_pred)
+
+        gradients = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+        return {}
+
+    subclassed_model = CustomModel()
+    subclassed_model.compile(optimizer='adam', loss='mse')
+
+    x = np.random.random((1000, 32))
+    y = np.random.random((1000, 1))
+    subclassed_model.fit(x, y, epochs=1)
+
+    # Saving of this subclassed model is supposed to raise an error, even if
+    # `fit` has been called. This is because the model has `call()` overridden,
+    # but the forward pass uses `Model.call` as opposed to `Model.__call__`, and
+    # as a result the `Model` is not really built. The error message hints the
+    # user to use `Model.__call__`, i.e., `Model(inputs)` instead.
+    with self.assertRaisesRegex(
+        ValueError, r'Model.*cannot be saved.*as opposed to `model.call\(\).*'):
+      subclassed_model.save(os.path.join(self.get_temp_dir(), 'my_saved_model'))
 
 
 if __name__ == '__main__':

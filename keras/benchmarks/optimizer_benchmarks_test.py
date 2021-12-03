@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmark tests for Keras optimizers."""
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from keras.benchmarks import benchmark_util
 from keras.optimizer_v2 import adam

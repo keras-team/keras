@@ -2,16 +2,11 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
-        "//third_party/tensorflow/python/feature_column:__subpackages__",
+        "//keras:friends",
+        "//third_party/tensorflow/python/feature_column:__subpackages__",  # For unit testing
+        "//third_party/tensorflow/python/tpu:__subpackages__",  # For unit testing
     ],
     licenses = ["notice"],
-)
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
 )
 
 py_library(
@@ -122,8 +117,8 @@ tf_py_test(
         ":sequence_feature_column",
         "//:expect_tensorflow_installed",
         "//keras:metrics",  # Import it here since base_layer didn't import it due to circular dependency.
-        "//keras/layers:core",
         "//keras/layers:merge",
         "//keras/layers:recurrent",
+        "//keras/layers/core",
     ],
 )

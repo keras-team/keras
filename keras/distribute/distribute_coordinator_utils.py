@@ -47,7 +47,7 @@ def get_current_worker_context():
     return None
 
 
-class _TaskType(object):
+class _TaskType:
   PS = "ps"
   WORKER = "worker"
   CHIEF = "chief"
@@ -63,7 +63,7 @@ def _get_num_workers(cluster_spec):
       cluster_spec.as_dict().get(_TaskType.CHIEF, []))
 
 
-class _WorkerContext(object):
+class _WorkerContext:
   """The worker context class.
 
   This context object provides configuration information for each task. One
@@ -377,7 +377,7 @@ def _run_std_server(cluster_spec=None,
   if rpc_layer:
     target = rpc_layer + "://" + target
 
-  class _FakeServer(object):
+  class _FakeServer:
     """A fake server that runs a master session."""
 
     def start(self):

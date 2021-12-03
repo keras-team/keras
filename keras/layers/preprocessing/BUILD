@@ -9,16 +9,10 @@ load("@org_keras//keras:keras.bzl", "distribute_py_test")
 
 package(
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
     licenses = ["notice"],
-)
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
 )
 
 py_library(
@@ -28,15 +22,14 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        ":category_crossing",
         ":discretization",
+        ":hashed_crossing",
         ":hashing",
         ":image_preprocessing",
         ":integer_lookup",
         ":normalization",
         ":preprocessing_stage",
         ":preprocessing_test_utils",
-        ":reduction",
         ":string_lookup",
         ":text_vectorization",
     ],
@@ -49,20 +42,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/engine",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "category_crossing",
-    srcs = [
-        "category_crossing.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
+        ":preprocessing_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/engine",
@@ -80,6 +60,22 @@ py_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/engine",
+    ],
+)
+
+py_library(
+    name = "hashed_crossing",
+    srcs = [
+        "hashed_crossing.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":preprocessing_utils",
+        "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras/engine:base_layer",
+        "//keras/engine:base_preprocessing_layer",
+        "//keras/utils:layer_utils",
     ],
 )
 
@@ -108,6 +104,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":category_encoding",
+        ":preprocessing_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -122,6 +119,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":preprocessing_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -150,6 +148,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":category_encoding",
+        ":preprocessing_utils",
         ":string_lookup",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -173,18 +172,6 @@ py_library(
         "//keras/engine",
         "//keras/engine:input_spec",
         "//keras/utils:layer_utils",
-    ],
-)
-
-py_library(
-    name = "reduction",
-    srcs = [
-        "reduction.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras/engine:base_layer",
     ],
 )
 
@@ -225,21 +212,26 @@ py_library(
     ],
 )
 
-cuda_py_test(
-    name = "category_crossing_test",
-    srcs = ["category_crossing_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "no_windows",  # b/149031156
-    ],
+py_library(
+    name = "preprocessing_utils",
+    srcs = ["preprocessing_utils.py"],
+    srcs_version = "PY3",
     deps = [
-        ":category_crossing",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "preprocessing_utils_test",
+    srcs = ["preprocessing_utils_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":preprocessing_utils",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:testing_utils",
-        "//keras/engine",
+        "//keras/utils:generic_utils",
     ],
 )
 
@@ -263,6 +255,7 @@ distribute_py_test(
     disable_mlir_bridge = False,
     main = "category_encoding_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "no_oss",  # b/189866692
@@ -277,27 +270,7 @@ distribute_py_test(
         ":preprocessing_test_utils",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras/distribute:strategy_combinations",
-    ],
-)
-
-distribute_py_test(
-    name = "category_crossing_distribution_test",
-    srcs = ["category_crossing_distribution_test.py"],
-    main = "category_crossing_distribution_test.py",
-    python_version = "PY3",
-    tags = [
-        "multi_and_single_gpu",
-        "nomultivm",  # TODO(b/170502145)
-    ],
-    tpu_tags = [
-        "no_oss",  # b/155502591
-    ],
-    deps = [
-        ":category_crossing",
-        ":preprocessing_test_utils",
-        "//:expect_tensorflow_installed",
-        "//keras",
+        "//keras:backend",
         "//keras/distribute:strategy_combinations",
     ],
 )
@@ -345,6 +318,7 @@ distribute_py_test(
     srcs = ["discretization_distribution_test.py"],
     main = "discretization_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "no_oss",  # TODO(b/189956080)
@@ -381,6 +355,7 @@ distribute_py_test(
     disable_mlir_bridge = False,
     main = "hashing_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
@@ -390,6 +365,21 @@ distribute_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/distribute:strategy_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "hashed_crossing_test",
+    srcs = ["hashed_crossing_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":hashing",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras:testing_utils",
+        "//keras/engine",
     ],
 )
 
@@ -415,6 +405,7 @@ distribute_py_test(
     disable_mlir_bridge = False,
     main = "index_lookup_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
@@ -454,7 +445,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
-        "broken",  # b/170974360
         "noasan",  # TODO(b/337374867) fails with -fsanitize=null
     ],
     deps = [
@@ -486,6 +476,7 @@ distribute_py_test(
     srcs = ["normalization_distribution_test.py"],
     main = "normalization_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "no_oss",
         "nomultivm",  # TODO(b/170502145)
@@ -517,8 +508,10 @@ tf_py_test(
 distribute_py_test(
     name = "text_vectorization_distribution_test",
     srcs = ["text_vectorization_distribution_test.py"],
+    disable_mlir_bridge = False,
     main = "text_vectorization_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
@@ -532,20 +525,6 @@ distribute_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/distribute:strategy_combinations",
-    ],
-)
-
-tf_py_test(
-    name = "reduction_test",
-    srcs = ["reduction_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = ["notsan"],  # TODO(b/170783154)
-    deps = [
-        ":reduction",
-        "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
     ],
 )
 

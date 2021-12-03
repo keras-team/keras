@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from keras.integration_test import preprocessing_test_utils as utils
 
 ds_combinations = tf.__internal__.distribute.combinations
@@ -47,6 +47,12 @@ class PreprocessingAppliedInModelTest(tf.test.TestCase):
   """Demonstrate Keras preprocessing layers applied inside a Model."""
 
   def testDistributedModelFit(self, strategy):
+    if (not tf.__internal__.tf2.enabled()
+        and isinstance(strategy,
+                       tf.distribute.experimental.ParameterServerStrategy)):
+      self.skipTest(
+          "Parameter Server strategy with dataset creator need to be run when "
+          "eager execution is enabled.")
     with strategy.scope():
       preprocessing_model = utils.make_preprocessing_model(self.get_temp_dir())
       training_model = utils.make_training_model()

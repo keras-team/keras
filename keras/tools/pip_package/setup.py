@@ -30,7 +30,7 @@ DOCLINES = __doc__.split('\n')
 # This version string is semver compatible, but incompatible with pip.
 # For pip, we will remove all '-' characters from this string, and use the
 # result for pip.
-_VERSION = '2.6.0'
+_VERSION = '2.8.0'
 
 REQUIRED_PACKAGES = [
     # We depend on TensorFlow's declared pip dependencies.
@@ -48,12 +48,12 @@ if '--project_name' in sys.argv:
 setuptools.setup(
     name=project_name,
     version=_VERSION.replace('-', ''),
-    description=DOCLINES[0],
+    description='Deep learning for humans.',
     long_description='\n'.join(DOCLINES[2:]),
     url='https://keras.io/',
     download_url='https://github.com/keras-team/keras/tags',
-    author='Google Inc.',
-    author_email='packages@tensorflow.org',
+    author='Keras team',
+    author_email='keras-users@googlegroups.com',
     packages=setuptools.find_packages(),
     install_requires=REQUIRED_PACKAGES,
     # PyPI package information.
@@ -64,7 +64,6 @@ setuptools.setup(
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
@@ -77,5 +76,5 @@ setuptools.setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     license='Apache 2.0',
-    keywords='tensorflow keras tensor machine learning',
+    keywords=['keras', 'tensorflow', 'machine learning', 'deep learning'],
 )

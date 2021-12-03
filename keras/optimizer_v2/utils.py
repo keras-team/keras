@@ -30,9 +30,9 @@ def all_reduce_sum_gradients(grads_and_vars):
   grads_and_vars = list(grads_and_vars)
   filtered_grads_and_vars = filter_empty_gradients(grads_and_vars)
   if filtered_grads_and_vars:
-    if strategy_supports_no_merge_call():
+    if tf.__internal__.distribute.strategy_supports_no_merge_call():
       grads = [pair[0] for pair in filtered_grads_and_vars]
-      reduced = tf.distribute.get_strategy().extended._replica_ctx_all_reduce(  # pylint: disable=protected-access
+      reduced = tf.distribute.get_replica_context().all_reduce(
           tf.distribute.ReduceOp.SUM, grads)
     else:
       # TODO(b/183257003): Remove this branch
@@ -69,11 +69,14 @@ def filter_empty_gradients(grads_and_vars):
   filtered = tuple(filtered)
 
   if not filtered:
-    raise ValueError("No gradients provided for any variable: %s." %
-                     ([v.name for _, v in grads_and_vars],))
+    variable = ([v.name for _, v in grads_and_vars],)
+    raise ValueError(f"No gradients provided for any variable: {variable}. "
+                     f"Provided `grads_and_vars` is {grads_and_vars}.")
   if vars_with_empty_grads:
     logging.warning(
-        ("Gradients do not exist for variables %s when minimizing the loss."),
+        ("Gradients do not exist for variables %s when minimizing the loss. "
+         "If you're using `model.compile()`, did you forget to provide a `loss`"
+         "argument?"),
         ([v.name for v in vars_with_empty_grads]))
   return filtered
 
@@ -89,7 +92,8 @@ def make_gradient_clipnorm_fn(clipnorm):
                   (tf.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       raise ValueError(
-          "`clipnorm` is not supported with `CenteralStorageStrategy`")
+          "`clipnorm` is not supported with `CenteralStorageStrategy`. "
+          f"The strategy used is {tf.distribute.get_strategy()}.")
 
     clipped_grads_and_vars = [
         (tf.clip_by_norm(g, clipnorm), v) for g, v in grads_and_vars
@@ -110,7 +114,8 @@ def make_global_gradient_clipnorm_fn(clipnorm):
                   (tf.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       raise ValueError(
-          "`global_clipnorm` is not supported with `CenteralStorageStrategy`")
+          "`global_clipnorm` is not supported with `CenteralStorageStrategy`. "
+          f"The strategy used is {tf.distribute.get_strategy()}.")
 
     grads, variables = zip(*grads_and_vars)
     clipped_grads, _ = tf.clip_by_global_norm(grads, clipnorm)
@@ -131,7 +136,8 @@ def make_gradient_clipvalue_fn(clipvalue):
                   (tf.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       raise ValueError(
-          "`clipvalue` is not supported with `CenteralStorageStrategy`")
+          "`clipvalue` is not supported with `CenteralStorageStrategy`. "
+          f"The strategy used is {tf.distribute.get_strategy()}.")
 
     clipped_grads_and_vars = [(tf.clip_by_value(g, -clipvalue,
                                                       clipvalue), v)
@@ -144,11 +150,3 @@ def make_gradient_clipvalue_fn(clipvalue):
 def _all_reduce_sum_fn(distribution, grads_and_vars):
   return distribution.extended.batch_reduce_to(tf.distribute.ReduceOp.SUM,
                                                grads_and_vars)
-
-
-def strategy_supports_no_merge_call():
-  """Returns if the current Strategy can operate in pure replica context."""
-  if not tf.distribute.has_strategy():
-    return True
-  strategy = tf.distribute.get_strategy()
-  return not strategy.extended._use_merge_call()  # pylint: disable=protected-access

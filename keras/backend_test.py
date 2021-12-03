@@ -32,6 +32,7 @@ from keras.engine import input_layer
 from keras.layers import advanced_activations
 from keras.layers.normalization import batch_normalization_v1
 from keras.utils import tf_inspect
+from keras.utils import tf_utils
 
 
 def compare_single_input_op_to_numpy(keras_op,
@@ -312,7 +313,7 @@ class BackendVariableTest(tf.test.TestCase):
     self.assertAllClose(val, np.ones((3, 4)))
 
   def test_random_uniform_variable(self):
-    x = backend.random_uniform_variable((30, 20), low=1, high=2, seed=0)
+    x = backend.random_uniform_variable((30, 20), low=1., high=2., seed=0)
     val = backend.eval(x)
     self.assertAllClose(val.mean(), 1.5, atol=1e-1)
     self.assertAllClose(val.max(), 2., atol=1e-1)
@@ -505,17 +506,17 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(backend.eval(relu_op), [[-2, 0], [2, 7]])
 
     # max_value < some elements
-    relu_op = backend.relu(x, max_value=5)
+    relu_op = backend.relu(x, max_value=5.)
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [2, 5]])
 
     # nn.relu6 used
-    relu_op = backend.relu(x, max_value=6)
+    relu_op = backend.relu(x, max_value=6.)
     if not tf.executing_eagerly():
       self.assertTrue('Relu6' in relu_op.name)  # uses tf.nn.relu6
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [2, 6]])
 
     # max value > 6
-    relu_op = backend.relu(x, max_value=10)
+    relu_op = backend.relu(x, max_value=10.)
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [2, 7]])
 
     # max value is float
@@ -523,11 +524,11 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [2, 4.3]])
 
     # max value == 0
-    relu_op = backend.relu(x, max_value=0)
+    relu_op = backend.relu(x, max_value=0.)
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [0, 0]])
 
     # alpha and max_value
-    relu_op = backend.relu(x, alpha=0.25, max_value=3)
+    relu_op = backend.relu(x, alpha=0.25, max_value=3.)
     self.assertAllClose(backend.eval(relu_op), [[-1, 0], [2, 3]])
 
     # threshold
@@ -543,20 +544,20 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(backend.eval(relu_op), [[-4, 0], [2, 7]])
 
     # threshold and max_value
-    relu_op = backend.relu(x, threshold=3, max_value=5)
+    relu_op = backend.relu(x, threshold=3, max_value=5.)
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [0, 5]])
 
     # threshold and alpha
-    relu_op = backend.relu(x, alpha=0.25, threshold=4)
+    relu_op = backend.relu(x, alpha=0.25, threshold=4.)
     self.assertAllClose(backend.eval(relu_op), [[-2, -1], [-0.5, 7]])
 
     # threshold, alpha, and max_value
-    relu_op = backend.relu(x, alpha=0.25, threshold=4, max_value=5)
+    relu_op = backend.relu(x, alpha=0.25, threshold=4., max_value=5.)
     self.assertAllClose(backend.eval(relu_op), [[-2, -1], [-0.5, 5]])
 
     # Test case for GitHub issue 35430, with integer dtype
     x = input_layer.Input(shape=(), name='x', dtype='int64')
-    _ = advanced_activations.ReLU(max_value=100, dtype='int64')(x)
+    _ = advanced_activations.ReLU(max_value=100., dtype='int64')(x)
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -1606,7 +1607,8 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
     # Test noise shape
     outputs = backend.dropout(inputs, 0.2, noise_shape=(200, 1))
     outputs_val = backend.eval(outputs)
-    self.assertAllClose(outputs_val[2, :], outputs_val[3, :], atol=1e-5)
+    # Make sure the whole column gets the same dropout
+    self.assertEqual(np.min(outputs_val[0, :]), np.max(outputs_val[0, :]))
 
 
 class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
@@ -1801,6 +1803,65 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
           backend.sparse_categorical_crossentropy(t, p, from_logits=True))
       self.assertLen(w, 1)
       self.assertIn('received `from_logits=True`', str(w[0].message))
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_binary_focal_crossentropy_with_sigmoid(self):
+    t = backend.constant([[0, 1, 0]])
+    logits = backend.constant([[8., 1., 1.]])
+    p = backend.sigmoid(logits)
+    p = tf.identity(tf.identity(p))
+    result = self.evaluate(backend.binary_focal_crossentropy(t, p, gamma=2.0))
+    self.assertArrayNear(result[0], [7.995, 0.022, 0.701], 1e-3)
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_binary_focal_crossentropy_from_logits(self):
+    t = backend.constant([[0, 1, 0]])
+    logits = backend.constant([[8., 1., 1.]])
+    result = self.evaluate(
+        backend.binary_focal_crossentropy(
+            target=t,
+            output=logits,
+            gamma=2.0,
+            from_logits=True,
+        ))
+    self.assertArrayNear(result[0], [7.995, 0.022, 0.701], 1e-3)
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_binary_focal_crossentropy_no_focal_effect_with_zero_gamma(self):
+    t = backend.constant([[0, 1, 0]])
+    logits = backend.constant([[8., 1., 1.]])
+    p = backend.sigmoid(logits)
+    p = tf.identity(tf.identity(p))
+    gamma = 0
+    focal_result = self.evaluate(
+        backend.binary_focal_crossentropy(
+            target=t,
+            output=p,
+            gamma=gamma,
+        ))
+    non_focal_result = self.evaluate(backend.binary_crossentropy(t, p))
+    self.assertArrayNear(focal_result[0], non_focal_result[0], 1e-3)
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_binary_weighted_focal_crossentropy_with_sigmoid(self):
+    t = backend.constant([[0, 1, 0]])
+    logits = backend.constant([[8., 1., 1.]])
+    p = backend.sigmoid(logits)
+    p = tf.identity(tf.identity(p))
+    result = self.evaluate(backend.binary_weighted_focal_crossentropy(t, p))
+    self.assertArrayNear(result[0], [5.996, 0.006, 0.526], 1e-3)
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_binary_weighted_focal_crossentropy_from_logits(self):
+    t = backend.constant([[0, 1, 0]])
+    logits = backend.constant([[8., 1., 1.]])
+    result = self.evaluate(
+        backend.binary_weighted_focal_crossentropy(
+            target=t,
+            output=logits,
+            from_logits=True,
+        ))
+    self.assertArrayNear(result[0], [5.996, 0.006, 0.526], 1e-3)
 
 
 @test_util.with_control_flow_v2
@@ -2143,7 +2204,7 @@ class BackendGraphTests(tf.test.TestCase, parameterized.TestCase):
 
   def test_function_fetch_callbacks(self):
 
-    class CallbackStub(object):
+    class CallbackStub:
 
       def __init__(self):
         self.times_called = 0
@@ -2263,6 +2324,85 @@ class ContextValueCacheTest(tf.test.TestCase):
       return cache[tf.compat.v1.get_default_graph()]
 
     self.assertEqual(self.evaluate(fn()), 5)
+
+
+@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+class RandomGeneratorTest(tf.test.TestCase):
+
+  def test_generator_reproducibility(self):
+    seed = 1337
+    gen1 = backend.RandomGenerator(seed, force_generator=True)
+    output1 = gen1.random_normal(shape=[2, 3])
+    output2 = gen1.random_normal(shape=[2, 3])
+
+    self.assertNotAllClose(output1, output2)
+
+    gen2 = backend.RandomGenerator(seed, force_generator=True)
+    output3 = gen2.random_normal(shape=[2, 3])
+    output4 = gen2.random_normal(shape=[2, 3])
+
+    if tf.compat.v1.executing_eagerly():
+      # Make sure generator with same seed will produce same sequence.
+      self.assertAllEqual(output1, output3)
+      self.assertAllEqual(output2, output4)
+
+  def test_unseeded(self):
+    seed = None
+    gen1 = backend.RandomGenerator(seed, force_generator=True)
+    output1 = gen1.random_normal(shape=[2, 3])
+
+    gen2 = backend.RandomGenerator(seed, force_generator=True)
+    output2 = gen2.random_normal(shape=[2, 3])
+
+    self.assertNotAllClose(output1, output2)
+
+  def test_implementation(self):
+    seed = 1337
+    seeded = backend.RandomGenerator(seed, force_generator=True)
+    seeded._maybe_init()
+    unseeded = backend.RandomGenerator(None, force_generator=True)
+    unseeded._maybe_init()
+    if tf.compat.v1.executing_eagerly():
+      # Make sure we use tf.random.Generator in v2.
+      self.assertIsNotNone(seeded._generator)
+      self.assertIsNotNone(unseeded._generator)
+    else:
+      # In v1, we can't use tf.random.Generator since it is not compatible with
+      # graph mode.
+      self.assertIsNone(seeded._generator)
+      self.assertIsNone(unseeded._generator)
+
+  def test_unseeded_with_utils_set_random_seed(self):
+    keras_seed = 1337
+    tf_utils.set_random_seed(keras_seed)
+    gen1 = backend.RandomGenerator(seed=None, force_generator=True)
+    output1 = gen1.random_normal(shape=[2, 3])
+    output2 = gen1.random_normal(shape=[2, 3])
+
+    self.assertNotAllClose(output1, output2)
+
+    # Make sure even with unseeded backend generator, as long as we set the
+    # keras random seed, it will make the generator to produce the same
+    # sequence. This will ensure all the client are in sync in the multi-client
+    # setting, when they all set the keras seed.
+    tf_utils.set_random_seed(keras_seed)
+    gen2 = backend.RandomGenerator(seed=None, force_generator=True)
+    output3 = gen2.random_normal(shape=[2, 3])
+    output4 = gen2.random_normal(shape=[2, 3])
+
+    gen3 = backend.RandomGenerator(seed=None, force_generator=True)
+    output5 = gen3.random_normal(shape=[2, 3])
+    output6 = gen3.random_normal(shape=[2, 3])
+
+    if tf.compat.v1.executing_eagerly():
+      # The generator is only used in the tf2 with eager.
+      self.assertAllEqual(output1, output3)
+      self.assertAllEqual(output2, output4)
+
+      # Also make sure different generator instance are still producing
+      # different result
+      self.assertNotAllEqual(output3, output5)
+      self.assertNotAllEqual(output4, output6)
 
 
 if __name__ == '__main__':

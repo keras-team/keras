@@ -18,7 +18,7 @@ Mostly from
 https://github.com/tensorflow/models/blob/master/official/utils/misc/distribution_utils.py.
 """
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import json
 import os
@@ -176,7 +176,7 @@ def get_strategy_scope(strategy):
   return strategy_scope
 
 
-class DummyContextManager(object):
+class DummyContextManager:
 
   def __enter__(self):
     pass

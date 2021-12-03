@@ -14,15 +14,12 @@
 # ==============================================================================
 """Tests for training routines."""
 
-import tensorflow.compat.v2 as tf
 
 import collections
 import io
 import sys
-
+import tempfile
 from absl.testing import parameterized
-import numpy as np
-from tensorflow.python.framework import test_util as tf_test_util
 from keras import backend
 from keras import combinations
 from keras import keras_parameterized
@@ -38,6 +35,9 @@ from keras.engine import training as training_module
 from keras.engine import training_utils_v1
 from keras.utils import data_utils
 from keras.utils import np_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.framework import test_util as tf_test_util
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
@@ -87,8 +87,30 @@ class TrainingTest(keras_parameterized.TestCase):
     model = sequential.Sequential([layers_module.Dense(1)])
     model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
     with self.assertRaisesRegex(ValueError,
-                                'Expect x to be a non-empty array or dataset.'):
+                                'Unexpected result of `train_function`.*'):
       model.fit(x=np.array([]), y=np.array([]))
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_fit_without_loss_at_compile(self):
+    model = sequential.Sequential([layers_module.Dense(1)])
+    model.compile('sgd', run_eagerly=testing_utils.should_run_eagerly())
+    x, y = np.ones((10, 1)), np.ones((10, 1))
+    with self.assertRaisesRegex(ValueError, 'No loss found..*'):
+      model.fit(x, y, epochs=2)
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_fit_without_loss_at_compile_but_with_add_loss(self):
+
+    class MyModel(sequential.Sequential):
+
+      def call(self, x):
+        self.add_loss(tf.reduce_sum(x))
+        return x
+
+    model = MyModel([layers_module.Dense(1)])
+    model.compile('sgd', run_eagerly=testing_utils.should_run_eagerly())
+    x, y = np.ones((10, 1)), np.ones((10, 1))
+    model.fit(x, y, epochs=2)
 
   @keras_parameterized.run_all_keras_modes
   def test_run_eagerly_setting(self):
@@ -196,8 +218,8 @@ class TrainingTest(keras_parameterized.TestCase):
         layers_module.Dense(10, dtype=np.float64)
     ]
     model = testing_utils.get_model_from_layers(layers, input_shape=(1,))
-    inputs = np.ones(10, dtype=np.float64)
-    targets = np.ones(10, dtype=np.float64)
+    inputs = np.ones(shape=(10, 1), dtype=np.float64)
+    targets = np.ones(shape=(10, 1), dtype=np.float64)
     model.compile(
         'sgd',
         loss=loss_fn,
@@ -314,13 +336,18 @@ class TrainingTest(keras_parameterized.TestCase):
         epochs=2,
         batch_size=5,
         verbose=1)
-    model.fit(
-        [input_a_np, input_b_np], [output_d_np, output_e_np],
-        validation_data=([input_a_np, input_b_np], [output_d_np,
-                                                    output_e_np]),
-        epochs=2,
-        batch_size=5,
-        verbose=2)
+    model.fit([input_a_np, input_b_np], [output_d_np, output_e_np],
+              validation_data=([input_a_np,
+                                input_b_np], [output_d_np, output_e_np]),
+              epochs=2,
+              batch_size=5,
+              verbose=2)
+    model.fit([input_a_np, input_b_np], [output_d_np, output_e_np],
+              validation_data=[[input_a_np, input_b_np],
+                               [output_d_np, output_e_np]],
+              epochs=2,
+              batch_size=5,
+              verbose=2)
     # Test with validation split
     model.fit(
         [input_a_np, input_b_np], [output_d_np, output_e_np],
@@ -1093,9 +1120,13 @@ class TrainingTest(keras_parameterized.TestCase):
     input1 = input_layer.Input(batch_size=2, shape=(10,))
     input2 = input_layer.Input(batch_size=3, shape=(10,))
     outputs = MyLayer()([input1, input2])
-    with self.assertRaisesRegex(ValueError,
-                                'specified batch sizes of the Input Layers'):
+    with tf.compat.v1.test.mock.patch.object(
+        logging, 'warning') as mock_warn:
       training_module.Model([input1, input2], outputs)
+      self.assertEqual(
+          mock_warn.call_args_list[0][0][0],
+          'Found incompatible static batch sizes among the inputs. '
+          'Batch sizes: [2, 3]')
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_calling_subclass_model_on_different_datasets(self):
@@ -1106,8 +1137,9 @@ class TrainingTest(keras_parameterized.TestCase):
         return inputs * 2
 
     model = SubclassedModel()
-    dataset_one = tf.data.Dataset.range(2).batch(2)
-    dataset_two = tf.data.Dataset.range(3, 10).batch(2)
+    dataset_one = tf.data.Dataset.from_tensor_slices([[0], [1]]).batch(2)
+    dataset_two = tf.data.Dataset.from_tensor_slices(
+        [[3], [4], [5], [6], [7], [8]]).batch(2)
     self.assertAllEqual([[0], [2]], model.predict(dataset_one, steps=1))
     self.assertAllEqual([[6], [8], [10], [12]],
                         model.predict(dataset_two, steps=2))
@@ -1607,7 +1639,7 @@ class TrainingTest(keras_parameterized.TestCase):
     outputs = layers_module.Dense(1)(inputs)
     model = MyModel(inputs, outputs)
     model.add_loss(tf.reduce_sum(outputs))
-    model.compile('sgd', 'mse')
+    model.compile('sgd')
     model.fit(x, batch_size=batch_size)
     model.evaluate(x, batch_size=batch_size)
     model.predict(x, batch_size=batch_size)
@@ -1701,8 +1733,72 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertNotEqual(
         model.make_predict_function(force=True), original_predict_function)
 
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_custom_compute_metrics(self):
+
+    class CustomMetric(metrics_module.Mean):
+
+      def sq_diff_plus_x(self, x, y_true, y_pred):
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.cast(y_true, y_pred.dtype)
+        sq_diff_plus_x = tf.add(x, tf.math.squared_difference(y_pred, y_true))
+        return backend.mean(sq_diff_plus_x, axis=-1)
+
+      def update_state(self, x, y_true, y_pred, sample_weight=None):
+        matches = self.sq_diff_plus_x(x, y_true, y_pred)
+        return super(CustomMetric, self).update_state(matches)
+
+    class MyModel(sequential.Sequential):
+
+      def compute_metrics(self, x, y, y_pred, sample_weight):
+        metric_results = super(MyModel,
+                               self).compute_metrics(x, y, y_pred,
+                                                     sample_weight)
+        self.custom_metric.update_state(x, y, y_pred, sample_weight)
+        metric_results['custom_metric_name'] = self.custom_metric.result()
+        return metric_results
+
+    tensors = tf.random.uniform((10, 10)), tf.random.uniform((10,))
+    dataset = tf.data.Dataset.from_tensor_slices(tensors).repeat().batch(1)
+    model = MyModel([layers_module.Dense(10)])
+    model.custom_metric = CustomMetric('my_metric')
+    initial_result = model.custom_metric.result()
+    optimizer = optimizer_v2.gradient_descent.SGD()
+    model.compile(optimizer, loss='mse', steps_per_execution=10)
+    model.fit(dataset, epochs=2, steps_per_epoch=10, verbose=2)
+    after_fit_result = model.custom_metric.result()
+
+    self.assertEqual(self.evaluate(initial_result), 0.0)
+    self.assertNotEqual(self.evaluate(initial_result),
+                        self.evaluate(after_fit_result))
+
 
 class TestExceptionsAndWarnings(keras_parameterized.TestCase):
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @keras_parameterized.run_with_all_model_types
+  def test_fit_on_no_output(self):
+    inputs = layers_module.Input((3,))
+    outputs = layers_module.Dense(2)(inputs)
+    model = training_module.Model(inputs, outputs)
+    model.compile('rmsprop', 'mse')
+    x = np.zeros((32, 3))
+    with self.assertRaisesRegex(ValueError, 'Target data is missing..*'):
+      model.fit(x)
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @keras_parameterized.run_with_all_model_types
+  def test_fit_on_wrong_output_type(self):
+    inputs1 = layers_module.Input((3,), name='a')
+    inputs2 = layers_module.Input((3,), name='b')
+    x = layers_module.Concatenate()([inputs1, inputs2])
+    outputs = layers_module.Dense(2, name='c')(x)
+    model = training_module.Model([inputs1, inputs2], outputs)
+    model.compile('rmsprop', 'mse')
+    x = np.zeros((32, 3))
+    y = np.zeros((32, 2))
+    with self.assertRaisesRegex(ValueError, 'Target data is missing..*'):
+      model.fit({'a': x, 'b': x, 'c': y})
 
   @keras_parameterized.run_all_keras_modes
   def test_compile_warning_for_loss_missing_output(self):
@@ -1734,7 +1830,7 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
     model.compile(loss='mse')
 
     with self.assertRaisesRegex(ValueError,
-                                'Expect x to be a non-empty array or dataset.'):
+                                'Unexpected result of `predict_function`.*'):
       model.predict(np.array([]))
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -2893,6 +2989,29 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.evaluate(x_test, y_test, batch_size=5)
     self.assertEqual(self.evaluate(acc_obj.count), 10)
 
+  @keras_parameterized.run_all_keras_modes
+  def test_metric_state_reset_between_test_on_batch_and_evaluate(self):
+    model = sequential.Sequential()
+    model.add(layers_module.Dense(3, activation='relu', input_dim=4))
+    model.add(layers_module.Dense(1, activation='sigmoid'))
+    acc_obj = metrics_module.BinaryAccuracy()
+    model.compile(
+        loss='mae',
+        metrics=[acc_obj],
+        optimizer=RMSPropOptimizer(learning_rate=0.001),
+        run_eagerly=testing_utils.should_run_eagerly())
+
+    x_test = np.random.random((10, 4))
+    y_test = np.random.random((10, 1))
+    loss, acc = model.test_on_batch(x_test[:2], y_test[:2])
+    loss_eval, acc_eval = model.evaluate(x_test, y_test)
+    loss_1, acc_1 = model.test_on_batch(x_test[:2], y_test[:2])
+    loss_eval_1, acc_eval_1 = model.evaluate(x_test, y_test)
+    self.assertEqual(loss, loss_1)
+    self.assertEqual(acc, acc_1)
+    self.assertEqual(loss_eval, loss_eval_1)
+    self.assertEqual(acc_eval, acc_eval_1)
+
   @keras_parameterized.run_with_all_model_types(exclude_models=['sequential'])
   @keras_parameterized.run_all_keras_modes
   def test_metrics_valid_compile_input_formats(self):
@@ -3431,7 +3550,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def DISABLED_test_add_metric_invalid_aggregation(self):
-    # TODO(psv): Reenable test once it is fixed.
+    # TODO(psv): Re-enable test once it is fixed.
     x = layers_module.Input(shape=(1,))
     y = layers_module.Dense(1, kernel_initializer='ones')(x)
     model = training_module.Model(x, y)
@@ -3753,6 +3872,9 @@ class TestFunctionTracing(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes(
       always_skip_v1=True, always_skip_eager=True)
   def test_no_tracing_between_epoch(self):
+    if _is_oss():
+      self.skipTest('b/198729465')
+
     model, x, y = self._seq_model_and_data()
 
     logging.set_verbosity(1)
@@ -3765,6 +3887,9 @@ class TestFunctionTracing(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes(
       always_skip_v1=True, always_skip_eager=True)
   def test_evaluate_no_cached_data(self):
+    if _is_oss():
+      self.skipTest('b/198729465')
+
     model, x, y = self._seq_model_and_data()
 
     new_func_graph = 'INFO:absl:Creating new FuncGraph for Python function'
@@ -3836,6 +3961,68 @@ class TestBuildCustomModel(keras_parameterized.TestCase):
     model = MyModel()
     model.build({'x': [None, 16]})
     self.assertEqual(model.l1.kernel.shape.as_list(), [16, 1])
+
+  def test_save_top_level_model_weights_h5(self):
+
+    class MyModel(training_module.Model):
+
+      def __init__(self):
+        super(MyModel, self).__init__()
+        self.class_token = self.add_weight(shape=(1,), name='class_token')
+        self.inner_layer = layers_module.Dense(1)
+
+      def call(self, inputs):
+        return self.inner_layer(inputs) * self.class_token
+
+    h5_file = tempfile.mktemp('.h5')
+    m1 = MyModel()
+    m1.build((1, 1))
+    m1.save_weights(h5_file)
+
+    m2 = MyModel()
+    m2.build((1, 1))
+    m2.load_weights(h5_file)
+    self.assertAllEqual(m1.get_weights(), m2.get_weights())
+    m2.load_weights(h5_file, by_name=True)
+    self.assertAllEqual(m1.get_weights(), m2.get_weights())
+
+
+class ScalarDataModelTest(keras_parameterized.TestCase):
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_scalar_loss_reduction(self):
+
+    class MyModel(training_module.Model):
+
+      def __init__(self):
+        super().__init__()
+        self.w = self.add_weight(initializer='ones', name='kernel')
+        self.b = self.add_weight(initializer='zeros', name='bias')
+
+      def call(self, inputs):
+        return inputs * self.w + self.b
+
+    model = MyModel()
+    model.compile(optimizer_v2.gradient_descent.SGD(1e-2),
+                  loss='mse',
+                  metrics=['binary_accuracy'])
+    # learn y = x * 2 + 0.5
+    x = np.array([3, 5, 5, 3, 5], dtype='float32')
+    y = x * 2 + 0.5
+    x2d = np.expand_dims(x, axis=-1)
+    y2d = np.expand_dims(y, axis=-1)
+    loss, acc = model.evaluate(x, y)
+    loss2d, acc2d = model.evaluate(x2d, y2d)
+    self.assertAllClose([loss, acc], [loss2d, acc2d], atol=1e-6)
+    model.fit(x, y, epochs=20)
+    preds = model.predict(x)
+    self.assertEqual(preds.shape, (5,))
+    self.assertAllClose(preds, y, atol=2e-1)
+
+
+def _is_oss():
+  """Returns whether the test is run under OSS."""
+  return len(sys.argv) >= 1 and 'bazel' in sys.argv[0]
 
 
 if __name__ == '__main__':

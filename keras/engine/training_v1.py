@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """V1 Training-related part of the Keras engine."""
-
+# pylint: disable=g-classes-have-attributes
 import tensorflow.compat.v2 as tf
 
 import collections
@@ -82,7 +82,7 @@ class Model(training_lib.Model):
   class MyModel(tf.keras.Model):
 
     def __init__(self):
-      super(MyModel, self).__init__()
+      super().__init__()
       self.dense1 = tf.keras.layers.Dense(4, activation=tf.nn.relu)
       self.dense2 = tf.keras.layers.Dense(5, activation=tf.nn.softmax)
 
@@ -103,7 +103,7 @@ class Model(training_lib.Model):
   class MyModel(tf.keras.Model):
 
     def __init__(self):
-      super(MyModel, self).__init__()
+      super().__init__()
       self.dense1 = tf.keras.layers.Dense(4, activation=tf.nn.relu)
       self.dense2 = tf.keras.layers.Dense(5, activation=tf.nn.softmax)
       self.dropout = tf.keras.layers.Dropout(0.5)
@@ -1225,9 +1225,11 @@ class Model(training_lib.Model):
       `Model.fit` now supports generators, so there is no longer any need to use
       this endpoint.
     """
-    warnings.warn('`model.fit_generator` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `Model.fit`, which supports generators.')
+    warnings.warn(
+        '`model.fit_generator` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `Model.fit`, which supports generators.',
+        stacklevel=2)
     return self.fit(
         generator,
         steps_per_epoch=steps_per_epoch,
@@ -1258,9 +1260,11 @@ class Model(training_lib.Model):
       `Model.evaluate` now supports generators, so there is no longer any need
       to use this endpoint.
     """
-    warnings.warn('`Model.evaluate_generator` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `Model.evaluate`, which supports generators.')
+    warnings.warn(
+        '`Model.evaluate_generator` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `Model.evaluate`, which supports generators.',
+        stacklevel=2)
     self._check_call_args('evaluate_generator')
 
     return self.evaluate(
@@ -1286,9 +1290,11 @@ class Model(training_lib.Model):
       `Model.predict` now supports generators, so there is no longer any need
       to use this endpoint.
     """
-    warnings.warn('`Model.predict_generator` is deprecated and '
-                  'will be removed in a future version. '
-                  'Please use `Model.predict`, which supports generators.')
+    warnings.warn(
+        '`Model.predict_generator` is deprecated and '
+        'will be removed in a future version. '
+        'Please use `Model.predict`, which supports generators.',
+        stacklevel=2)
     return self.predict(
         generator,
         steps=steps,
@@ -2091,7 +2097,7 @@ class Model(training_lib.Model):
                                           sample_weight=None,
                                           class_weight=None,
                                           batch_size=None,
-                                          validation_split=0,
+                                          validation_split=0.,
                                           shuffle=False,
                                           epochs=1,
                                           allow_partial_batch=False):
@@ -2205,7 +2211,7 @@ class Model(training_lib.Model):
                              check_steps=False,
                              steps_name='steps',
                              steps=None,
-                             validation_split=0,
+                             validation_split=0.,
                              shuffle=False,
                              extract_tensors_from_dataset=False):
     """Runs validation checks on input and target data passed by the user.
@@ -2867,7 +2873,7 @@ class DistributedCallbackModel(Model):
     return super(DistributedCallbackModel, self).__getattr__(item)
 
 
-class _TrainingEndpoint(object):
+class _TrainingEndpoint:
   """A container for the training output/target and related entities.
 
   In the case of model with multiple outputs, there is a one-to-one mapping
@@ -3099,7 +3105,7 @@ class _TrainingEndpoint(object):
           name=self.output_name + '_sample_weights')
 
 
-class _TrainingTarget(object):
+class _TrainingTarget:
   """Container for a target tensor (y_true) and its metadata (shape, loss...).
 
   Args:

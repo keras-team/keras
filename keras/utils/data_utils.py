@@ -41,7 +41,7 @@ import numpy as np
 from six.moves.urllib.request import urlopen
 from keras.utils import tf_inspect
 from keras.utils.generic_utils import Progbar
-from keras.utils.io_utils import path_to_string
+from keras.utils import io_utils
 from tensorflow.python.util.tf_export import keras_export
 
 # Required to support google internal urlretrieve
@@ -120,8 +120,8 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
   if isinstance(archive_format, str):
     archive_format = [archive_format]
 
-  file_path = path_to_string(file_path)
-  path = path_to_string(path)
+  file_path = io_utils.path_to_string(file_path)
+  path = io_utils.path_to_string(path)
 
   for archive_type in archive_format:
     if archive_type == 'tar':
@@ -221,11 +221,13 @@ def get_file(fname=None,
   datadir = os.path.join(datadir_base, cache_subdir)
   _makedirs_exist_ok(datadir)
 
-  fname = path_to_string(fname)
+  fname = io_utils.path_to_string(fname)
   if not fname:
     fname = os.path.basename(urlsplit(origin).path)
     if not fname:
-      raise ValueError("Invalid origin '{}'".format(origin))
+      raise ValueError(
+          f"Can't parse the file name from the origin provided: '{origin}'."
+          "Please specify the `fname` as the input param.")
 
   if untar:
     if fname.endswith('.tar.gz'):
@@ -244,18 +246,19 @@ def get_file(fname=None,
     # File found; verify integrity if a hash was provided.
     if file_hash is not None:
       if not validate_file(fpath, file_hash, algorithm=hash_algorithm):
-        print('A local file was found, but it seems to be '
-              'incomplete or outdated because the ' + hash_algorithm +
-              ' file hash does not match the original value of ' + file_hash +
-              ' so we will re-download the data.')
+        io_utils.print_msg(
+            'A local file was found, but it seems to be '
+            f'incomplete or outdated because the {hash_algorithm} '
+            f'file hash does not match the original value of {file_hash} '
+            'so we will re-download the data.')
         download = True
   else:
     download = True
 
   if download:
-    print('Downloading data from', origin)
+    io_utils.print_msg(f'Downloading data from {origin}')
 
-    class ProgressTracker(object):
+    class ProgressTracker:
       # Maintain progbar for the lifetime of download.
       # This design was chosen for Python 2.7 compatibility.
       progbar = None
@@ -362,7 +365,7 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
     return False
 
 
-class ThreadsafeIter(object):
+class ThreadsafeIter:
   """Wrap an iterator with a lock and propagate exceptions to all threads."""
 
   def __init__(self, it):
@@ -406,7 +409,7 @@ def threadsafe_generator(f):
 
 
 @keras_export('keras.utils.Sequence')
-class Sequence(object):
+class Sequence:
   """Base object for fitting to a sequence of data, such as a dataset.
 
   Every `Sequence` must implement the `__getitem__` and the `__len__` methods.
@@ -564,7 +567,7 @@ def get_index(uid, i):
 
 
 @keras_export('keras.utils.SequenceEnqueuer')
-class SequenceEnqueuer(object):
+class SequenceEnqueuer:
   """Base class to enqueue inputs.
 
   The task of an Enqueuer is to use parallelism to speed up preprocessing.
@@ -582,7 +585,7 @@ class SequenceEnqueuer(object):
       enqueuer.stop()
   ```
 
-  The `enqueuer.get()` should be an infinite stream of datas.
+  The `enqueuer.get()` should be an infinite stream of data.
   """
 
   def __init__(self, sequence,

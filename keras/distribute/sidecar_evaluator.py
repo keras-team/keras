@@ -21,6 +21,7 @@ from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-d
 
 _PRINT_EVAL_STEP_EVERY_SEC = 60.0
 _ITERATIONS_UNINITIALIZED = -1
+_CHECKPOINT_TIMEOUT_SEC = 30
 
 
 def list_checkpoint_attributes(ckpt_dir_or_file):
@@ -44,7 +45,7 @@ def list_checkpoint_attributes(ckpt_dir_or_file):
 
 
 @keras_export('keras.experimental.SidecarEvaluator', v1=[])
-class SidecarEvaluator(object):
+class SidecarEvaluator:
   """A class designed for a dedicated evaluator task.
 
   `SidecarEvaluator` is expected to be run in a process on a separate machine
@@ -77,7 +78,7 @@ class SidecarEvaluator(object):
       name="eval_metrics"))
   data = tf.data.Dataset.from_tensor_slices(...)
 
-  SidecarEvaluator(
+  tf.keras.experimental.SidecarEvaluator(
       model=model,
       data=data,
       checkpoint_dir='/tmp/checkpoint_dir',  # dir for training-saved checkpoint
@@ -173,6 +174,17 @@ class SidecarEvaluator(object):
     self.steps = steps
     self.callbacks = callbacks or []
 
+  def _timeout_fn(self):
+    logging.info(
+        f'No checkpoints appear to be found after {_CHECKPOINT_TIMEOUT_SEC} '
+        'seconds. Please check if you are properly using a '
+        '`tf.train.Checkpoint/CheckpointManager` or '
+        '`tf.keras.callbacks.ModelCheckpoint(save_weights_only=True)` to save '
+        'checkpoints by the training. See '
+        '`tf.keras.experimental.SidecarEvaluator` doc for recommended flows '
+        'of saving checkpoints.')
+    return False
+
   def start(self):
     """Starts the evaluation loop."""
     optimizer_checkpoint = tf.train.Checkpoint(iter=self._iterations)
@@ -180,7 +192,9 @@ class SidecarEvaluator(object):
         model=self.model, optimizer=optimizer_checkpoint)
 
     for latest_checkpoint in tf.train.checkpoints_iterator(
-        self.checkpoint_dir):
+        self.checkpoint_dir,
+        timeout=_CHECKPOINT_TIMEOUT_SEC,
+        timeout_fn=self._timeout_fn):
       try:
         # `expect_partial` because the checkpoint can have other `Trackable`s
         # such as `optimizer`.
@@ -206,20 +220,21 @@ class SidecarEvaluator(object):
         # TensorSliceReader constructor.
         # TODO(rchao): Remove this except block once b/150954027 is resolved.
         logging.info(
-            'SidecarEvaluator has an error loading '
-            'checkpoint: %s. Retrying. Error: %s: %s', latest_checkpoint,
-            e.__class__.__name__, e)
+            'SidecarEvaluator encountered an error when loading the checkpoint '
+            f'at {latest_checkpoint}. Retrying. '
+            f'Error: {e.__class__.__name__}: {e}')
         continue
 
       if self._iterations.numpy() == _ITERATIONS_UNINITIALIZED:
         raise RuntimeError(
-            '`iterations` cannot be loaded from the '
-            'checkpoint file. Please ensure `iterations` is '
-            'tracked in the `checkpoint` saved by the coordinator.')
+            'Variable `iterations` cannot be loaded from the '
+            f'checkpoint file at {self.checkpoint_dir}. '
+            'Please ensure `iterations` is '
+            'included in the checkpoint saved during training.')
 
       logging.info(
           'Evaluation starts: Model weights loaded from latest '
-          'checkpoint file: %s.', latest_checkpoint)
+          f'checkpoint file {latest_checkpoint}')
 
       self.model.evaluate(
           self.data, steps=self.steps, callbacks=self.callbacks, verbose=2)
@@ -238,10 +253,8 @@ class SidecarEvaluator(object):
               for name, value in return_metrics.items()
           ]))
 
-      # TODO(rchao): Make the max evaluation robust in case users save the
-      # checkpoints with epoch format {epoch:03d}.
       if (self.max_evaluations and
-          latest_checkpoint.endswith('-{}'.format(self.max_evaluations))):
+          (self.max_evaluations <= int(latest_checkpoint.split('-')[-1]))):
         # Exit the loop because we have evaluated the final checkpoint file.
         logging.info('Last checkpoint evaluated. SidecarEvaluator stops.')
         return

@@ -10,17 +10,11 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 package(
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
-        "//keras:__subpackages__",
+        "//keras:friends",
         "//third_party/tensorflow/python:__pkg__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
     ],
     licenses = ["notice"],
-)
-
-filegroup(
-    name = "all_py_srcs",
-    srcs = glob(["*.py"]),
-    visibility = ["//keras/google/private_tf_api_test:__pkg__"],
 )
 
 py_library(
@@ -29,7 +23,6 @@ py_library(
         "__init__.py",
         "compile_utils.py",
         "functional.py",
-        "input_layer.py",
         "partial_batch_padding_handler.py",
         "saving.py",
         "sequential.py",
@@ -47,6 +40,8 @@ py_library(
         ":base_layer",
         ":base_preprocessing_layer",
         ":data_adapter",
+        ":functional_utils",
+        ":input_layer",
         ":input_spec",
         ":keras_tensor",
         ":node",
@@ -116,7 +111,34 @@ py_library(
         "//keras/utils:layer_utils",
         "//keras/utils:object_identity",
         "//keras/utils:tf_utils",
+        "//keras/utils:traceback_utils",
         "//keras/utils:version_utils",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "input_layer",
+    srcs = ["input_layer.py"],
+    deps = [
+        ":base_layer",
+        ":keras_tensor",
+        ":node",
+        "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras/distribute",
+        "//keras/saving",
+        "//keras/utils:tf_utils",
+    ],
+)
+
+py_library(
+    name = "functional_utils",
+    srcs = ["functional_utils.py"],
+    deps = [
+        ":input_layer",
+        ":keras_tensor",
+        ":node",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -230,6 +252,21 @@ tf_py_test(
     ],
 )
 
+tf_py_test(
+    name = "functional_utils_test",
+    size = "medium",
+    srcs = ["functional_utils_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":functional_utils",
+        ":input_layer",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras:models",
+        "//keras/layers",
+    ],
+)
+
 cuda_py_test(
     name = "training_gpu_test",
     size = "small",
@@ -319,7 +356,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 20,
     tags = [
-        "manual",
         "nomac",  # TODO(mihaimaruseac): b/127695564
         "notsan",
     ],
@@ -474,7 +510,7 @@ tf_py_test(
     srcs = ["training_utils_v1_test.py"],
     python_version = "PY3",
     tags = [
-        "no_oss",  # TODO(b/135021748) reenable
+        "no_oss",  # TODO(b/135021748) re-enable
         "notsan",
     ],
     deps = [
