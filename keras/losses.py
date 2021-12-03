@@ -1887,7 +1887,7 @@ def _ragged_tensor_sparse_categorical_crossentropy(y_true,
 
 def _check_ground_truth_range(y_true):
   """ Ensures ground truth labels in binary_crossentropy and 
-      binary_focal_crossentropy lie with 0.0 and 1.0
+      binary_focal_crossentropy are either 0.0 or 1.0.
   """
   y_true= tf.reshape(y_true, [-1])
   unique, idx, count= tf.unique_with_counts(y_true)
@@ -1898,7 +1898,7 @@ def _check_ground_truth_range(y_true):
   elif unique.shape == 1:
     if unique[0]== 0 or unique[0]== 1:
       return
-  raise ValueError('Ground truth label should be 0 or 1.')
+  raise ValueError('Ground truth label should be either 0 or 1.')
 
 @keras_export('keras.metrics.binary_crossentropy',
               'keras.losses.binary_crossentropy')
