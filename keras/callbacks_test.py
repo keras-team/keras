@@ -854,6 +854,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     monitor = 'val_acc'
     initial_value_threshold = 0
     save_best_only = True
+    filepath = os.path.join(temp_dir, 'checkpoint.h5')
     cbks = [
         keras.callbacks.ModelCheckpoint(
             filepath,
