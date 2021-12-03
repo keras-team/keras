@@ -1889,11 +1889,16 @@ def _check_ground_truth_range(y_true):
   """ Ensures ground truth labels in binary_crossentropy and 
       binary_focal_crossentropy lie with 0.0 and 1.0
   """
-  if tf.math.reduce_max(y_true)<= 1.0 and tf.math.reduce_min(y_true)>= 0.0 \
-    and not tf.math.is_nan(tf.math.reduce_sum(y_true)):
-    return False
-  else:
-    return True
+  y_true= tf.reshape(y_true, [-1])
+  unique, idx, count= tf.unique_with_counts(y_true)
+  if unique.shape == 2: 
+    unique= tf.sort(unique)
+    if unique[0]== 0 and unique[1]== 1:
+      return
+  elif unique.shape == 1:
+    if unique[0]== 0 or unique[0]== 1:
+      return
+  raise ValueError('Ground truth label should be 0 or 1.')
 
 @keras_export('keras.metrics.binary_crossentropy',
               'keras.losses.binary_crossentropy')
@@ -1931,8 +1936,7 @@ def binary_crossentropy(y_true,
   y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(label_smoothing, dtype=y_pred.dtype)
   
-  if _check_ground_truth_range(y_true):
-    raise ValueError('Ground truth label should be in between 0 and 1.')
+  _check_ground_truth_range(y_true)
 
   def _smooth_labels():
     return y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
@@ -2031,8 +2035,7 @@ def binary_focal_crossentropy(
   y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(label_smoothing, dtype=y_pred.dtype)
   
-  if _check_ground_truth_range(y_true):
-    raise ValueError('Ground truth label should be in between 0 and 1.')
+  _check_ground_truth_range(y_true)
 
   def _smooth_labels():
     return y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
