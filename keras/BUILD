@@ -451,7 +451,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 6,
     tags = [
-        "no_oss",
         "no_tfrt",  # TODO(b/179690526)
         "notsan",
     ],
