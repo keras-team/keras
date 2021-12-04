@@ -1429,7 +1429,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
 class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["eager"]))
-  def test_get_or_create_layer_eager(self):
+  def test_get_or_create_layer_with_regularizer_eager(self):
 
     class NestedLayer(variable_scope_shim.VariableScopeLayer):
 
@@ -1446,32 +1446,77 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
         return model
 
       def forward_pass(self, inputs):
-        model = variable_scope_shim.get_or_create_layer(
-            "dense_model", self.build_model)
-        return model(inputs)
+        # enter a variable scope to check module key naming
+        with tf.compat.v1.variable_scope("test_scope"):
+          model = variable_scope_shim.get_or_create_layer(
+              "dense_model", self.build_model)
+          return model(inputs)
 
-    # enter a variable scope to check module key naming
-    with tf.compat.v1.variable_scope("test_scope"):
-      layer = NestedLayer(10)
-      x = tf.ones(shape=(5, 5))
+    layer = NestedLayer(10)
+    x = tf.ones(shape=(5, 5))
 
-      out1 = layer(tf.expand_dims(x, 0))
+    out1 = layer(tf.expand_dims(x, 0))
 
-      model1 = layer.submodules[0]._layers["test_scope/dense_model"]
+    model1 = layer.submodules[0]._layers["test_scope/dense_model"]
 
-      out2 = layer(tf.expand_dims(x, 0))
-      # Verify model produces same output on successive calls with same input
-      self.assertAllEqual(out1, out2)
+    out2 = layer(tf.expand_dims(x, 0))
+    # Verify model produces same output on successive calls with same input
+    self.assertAllEqual(out1, out2)
 
-      # Verify the model used on subsequent calls is the same
-      model2 = layer.submodules[0]._layers["test_scope/dense_model"]
-      self.assertIs(model1, model2)
+    # Verify the model used on subsequent calls is the same
+    model2 = layer.submodules[0]._layers["test_scope/dense_model"]
+    self.assertIs(model1, model2)
 
-      # Verify that stored layer computes outputs and losses correctly
-      weights = {x.name: x for x in layer.variables}
-      self.assertEqual(weights.keys(), {"dense/bias:0", "dense/kernel:0"})
-      self.assertAllEqual(out2, tf.ones(shape=(1, 5, 10)) * 5)
-      self.assertAllEqual(tf.add_n(layer.losses), [0.5])
+    # Verify that stored layer computes outputs and losses correctly
+    weights = {x.name: x for x in layer.variables}
+    self.assertEqual(weights.keys(), {"dense/bias:0", "dense/kernel:0"})
+    self.assertAllEqual(out2, tf.ones(shape=(1, 5, 10)) * 5)
+    self.assertAllEqual(layer.losses, [0.5])
+
+  @combinations.generate(combinations.combine(mode=["eager"]))
+  def test_get_or_create_layer_no_regularizer_eager(self):
+
+    class NestedLayer(variable_scope_shim.VariableScopeLayer):
+
+      def __init__(self, units, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.units = units
+
+      def build_model(self):
+        inp = input_layer_module.Input(shape=(5, 5))
+        dense_layer = core.Dense(
+            10, name="dense",
+            kernel_initializer=tf.compat.v1.ones_initializer())
+        model = training_module.Model(inputs=inp, outputs=dense_layer(inp))
+        return model
+
+      def forward_pass(self, inputs):
+        # enter a variable scope to check module key naming
+        with tf.compat.v1.variable_scope("test_scope"):
+          model = variable_scope_shim.get_or_create_layer(
+              "dense_model", self.build_model)
+          return model(inputs)
+
+    layer = NestedLayer(10)
+    x = tf.ones(shape=(5, 5))
+
+    out1 = layer(tf.expand_dims(x, 0))
+
+    model1 = layer.submodules[0]._layers["test_scope/dense_model"]
+
+    out2 = layer(tf.expand_dims(x, 0))
+    # Verify model produces same output on successive calls with same input
+    self.assertAllEqual(out1, out2)
+
+    # Verify the model used on subsequent calls is the same
+    model2 = layer.submodules[0]._layers["test_scope/dense_model"]
+    self.assertIs(model1, model2)
+
+    # Verify that stored layer computes outputs and losses correctly
+    weights = {x.name: x for x in layer.variables}
+    self.assertEqual(weights.keys(), {"dense/bias:0", "dense/kernel:0"})
+    self.assertAllEqual(out2, tf.ones(shape=(1, 5, 10)) * 5)
+    self.assertAllEqual(layer.losses, [0.0])
 
   @combinations.generate(combinations.combine(mode=["eager"]))
   def test_get_or_create_layer_tf_function(self):
