@@ -526,7 +526,7 @@ class _EagerVariableStore(tf.Module):
       layer = create_layer_method()
       self._layers[name] = layer
       if isinstance(layer, base_layer.Layer):
-        self._regularizers[name] = lambda: layer.losses
+        self._regularizers[name] = lambda: tf.math.reduce_sum(layer.losses)
     return self._layers[name]
 
   def add_regularizer(self, var, regularizer):
