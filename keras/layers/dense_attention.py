@@ -58,7 +58,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         `mask==False` do not contribute to the result.
     training: Python boolean indicating whether the layer should behave in
       training mode (adding dropout) or in inference mode (no dropout).
-    return_attention_scores: bool, it `True`, returns the attention scores
+    return_attention_scores: bool, if `True`, returns the attention scores
       (after masking and softmax) as an additional output argument.
 
   Output:
@@ -179,6 +179,11 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         return None
       return tf.convert_to_tensor(q_mask)
     return None
+
+  def compute_output_shape(self, input_shape):
+    # return_attention_scores argument of BaseDenseAttention.call method
+    # is ignored. Output shape of attention_scores cannot be returned.
+    return tf.TensorShape(input_shape[0])
 
   def _validate_call_args(self, inputs, mask):
     """Validates arguments of the call method."""
