@@ -3093,12 +3093,12 @@ def reduce_per_replica(values, strategy, reduction='first'):
     if not _is_per_replica_instance(v):
       return v
     elif reduction == 'first':
-      return strategy.unwrap(v)[0]
+      return strategy.experimental_local_results(v)[0]
     elif reduction == 'concat':
       if _is_tpu_multi_host(strategy):
         return _tpu_multi_host_concat(v, strategy)
       else:
-        return concat(strategy.unwrap(v))
+        return concat(strategy.experimental_local_results(v))
     else:
       raise ValueError('`reduction` must be "first" or "concat". Received: '
                        f'reduction={reduction}.')
@@ -3120,11 +3120,11 @@ def _is_tpu_multi_host(strategy):
 
 def _tpu_multi_host_concat(v, strategy):
   """Correctly order TPU PerReplica objects."""
-  replicas = strategy.unwrap(v)
+  replicas = strategy.experimental_local_results(v)
   # When distributed datasets are created from Tensors / NumPy,
   # TPUStrategy.experimental_distribute_dataset shards data in
-  # (Replica, Host) order, and TPUStrategy.unwrap returns it in
-  # (Host, Replica) order.
+  # (Replica, Host) order, and TPUStrategy.experimental_local_results returns
+  # it in (Host, Replica) order.
   # TODO(b/150317897): Figure out long-term plan here.
   num_replicas_per_host = strategy.extended.num_replicas_per_host
   ordered_replicas = []
