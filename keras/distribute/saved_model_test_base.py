@@ -14,14 +14,13 @@
 # ==============================================================================
 """Base class for testing saving/loading with DS."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
 from absl.testing import parameterized
-import numpy as np
-from keras import backend
 from keras.distribute import model_combinations
+import numpy as np
+
+import tensorflow.compat.v2 as tf
 
 _RANDOM_SEED = 1337
 _DEFAULT_FUNCTION_KEY = 'serving_default'
@@ -52,13 +51,6 @@ strategies = [
     tf.__internal__.distribute.combinations.tpu_strategy_packed_var,
     tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
 ]
-
-
-def get_tolerance(save_distribution, restore_distribution):
-  if backend.is_tpu_strategy(save_distribution) or backend.is_tpu_strategy(
-      restore_distribution):
-    return _TPU_TOLERANCE
-  return _TOLERANCE
 
 
 def simple_models_with_strategies():
@@ -194,8 +186,7 @@ class TestSavedModelBase(tf.test.TestCase, parameterized.TestCase):
           saved_dir=saved_dir,
           predict_dataset=predict_dataset)
 
-    tolerance = get_tolerance(None, distribution)
-    self.assertAllClose(result_before_save, result_after_save, atol=tolerance)
+    self.assertAllClose(result_before_save, result_after_save)
 
   def run_test_save_strategy_restore_no_strategy(self, model_and_input,
                                                  distribution, save_in_scope):
@@ -224,8 +215,7 @@ class TestSavedModelBase(tf.test.TestCase, parameterized.TestCase):
         saved_dir=saved_dir,
         predict_dataset=predict_dataset)
 
-    tolerance = get_tolerance(distribution, None)
-    self.assertAllClose(result_before_save, load_result, atol=tolerance)
+    self.assertAllClose(result_before_save, load_result)
 
   def run_test_save_strategy_restore_strategy(self, model_and_input,
                                               distribution_for_saving,
@@ -257,9 +247,7 @@ class TestSavedModelBase(tf.test.TestCase, parameterized.TestCase):
           saved_dir=saved_dir,
           predict_dataset=predict_dataset)
 
-    tolerance = get_tolerance(distribution_for_saving,
-                              distribution_for_restoring)
-    self.assertAllClose(result_before_save, load_result, atol=tolerance)
+    self.assertAllClose(result_before_save, load_result)
 
   def run_test_save_strategy(self, model_and_input,
                              distribution, save_in_scope):
