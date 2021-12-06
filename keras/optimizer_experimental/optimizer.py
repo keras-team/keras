@@ -35,6 +35,7 @@ class _BaseOptimizer(tf.Module):
                name,
                gradients_clip_option=None,
                ema_option=None,
+               jit_compile=False,
                **kwargs):
     """Create a new Optimizer.
 
@@ -49,6 +50,9 @@ class _BaseOptimizer(tf.Module):
         attributes related to exponenatial moving average, such as use_ema (a
         boolean field indicates if EMA is used) and EMA momentum. Default to
         None (not applying EMA).
+      jit_compile: Bool, default to False. If True, the optimizer will use XLA
+        acceleration. `jit_compile` can only be False when using Parameter
+        Server Strategy.
       **kwargs: keyword arguments only used for backward compatibility with
         `optimizer_v2.OptimizerV2`. Any new code using
         `optimizer_experimental.Optimizer` should leave this parameter empty.
@@ -56,6 +60,7 @@ class _BaseOptimizer(tf.Module):
     self._name = name
     self._gradients_clip_option = gradients_clip_option
     self._ema_option = ema_option
+    self._jit_compile = jit_compile
 
     with tf.init_scope():
       # Lift the variable creation to init scope to avoid environment issue.
@@ -365,8 +370,11 @@ class _BaseOptimizer(tf.Module):
     Args:
       grads_and_vars: List of (gradient, variable) pairs.
     """
+    update_step = self.update_step
+    if self._jit_compile:
+      update_step = tf.function(update_step, jit_compile=True)
     for grad, var in grads_and_vars:
-      self.update_step(grad, var)
+      update_step(grad, var)
     self.iterations.assign_add(1)
 
   def _update_model_variables_moving_average(self, var_list):
@@ -469,6 +477,7 @@ class Optimizer(_BaseOptimizer):
                name,
                gradients_clip_option=None,
                ema_option=None,
+               jit_compile=False,
                **kwargs):
     """Create a new Optimizer.
 
@@ -483,11 +492,15 @@ class Optimizer(_BaseOptimizer):
         attributes related to exponenatial moving average, such as `use_ema` (a
         boolean field indicates if EMA is used) and EMA momentum. Default to
         None (not applying EMA).
+      jit_compile: Bool, default to False. If True, the optimizer will use XLA
+        acceleration. `jit_compile` can only be False when using Parameter
+        Server Strategy.
       **kwargs: keyword arguments only used for backward compatibility with
         `optimizer_v2.OptimizerV2`. Any new code using
         `optimizer_experimental.Optimizer` should leave this parameter empty.
     """
-    super().__init__(name, gradients_clip_option, ema_option, **kwargs)
+    super().__init__(name, gradients_clip_option, ema_option, jit_compile,
+                     **kwargs)
     self._distribution_strategy = tf.distribute.get_strategy()
 
   def add_variable_from_reference(self,
@@ -583,7 +596,10 @@ class Optimizer(_BaseOptimizer):
     """`apply_gradients` using a `DistributionStrategy`."""
 
     def apply_grad_to_update_var(var, grad):
-      return self.update_step(grad, var)
+      update_step = self.update_step
+      if self._jit_compile:
+        update_step = tf.function(update_step, jit_compile=True)
+      return update_step(grad, var)
 
     for grad, var in grads_and_vars:
       distribution.extended.update(
