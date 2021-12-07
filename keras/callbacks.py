@@ -1824,10 +1824,8 @@ class EarlyStopping(Callback):
       return
     if self.mode == "min" and self.threshold != None and current < self.threshold:
       self.model.stop_training = True
-      return
     elif self.mode == "max" and self.threshold != None and current > self.threshold:
       self.model.stop_training = True
-      return
     if self.restore_best_weights and self.best_weights is None:
       # Restore the weights after first epoch if no progress is ever made.
       self.best_weights = self.model.get_weights()
