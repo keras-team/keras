@@ -996,6 +996,17 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     # Reduced loss = (0 + 50 * 3) / 2
 
     self.assertAlmostEqual(self.evaluate(loss), 75., 3)
+    
+  def test_ground_truth_range(self):
+    y_true = np.asarray([1, 0, 1.1, 0]).reshape([2, 2])
+    y_pred = np.asarray([1, 1, 1, 0], dtype=np.float32).reshape([2, 2])
+    bce_obj = losses.BinaryCrossentropy()
+    with self.assertRaisesRegex(ValueError,
+                               'Ground truth label should be between 0 and 1.'):
+      loss = obj(y_true, y_pred)
+    
+    # Ground Truth label should be less than 1 
+    # and more than 0.0.
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -1179,6 +1190,17 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
     # Reduced loss = ((0.001 + 1.03 + 0.032) / 3 + 0.009) / 2 = 0.18166
 
     self.assertAlmostEqual(self.evaluate(loss), 0.18166, 3)
+    
+  def test_ground_truth_range(self):
+    y_true = np.asarray([1, 0, 1.1, 0]).reshape([2, 2])
+    y_pred = np.asarray([0.9, 0.8, 0.7, 0.2], dtype=np.float32).reshape([2, 2])
+    obj = losses.BinaryFocalCrossentropy(gamma=2.0)
+    with self.assertRaisesRegex(ValueError,
+                               'Ground truth label should be between 0 and 1.'):
+      loss = obj(y_true, y_pred)
+    
+    # Ground Truth label should be less than 1 
+    # and more than 0.0.
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
