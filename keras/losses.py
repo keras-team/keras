@@ -1889,7 +1889,7 @@ def _check_ground_truth_range(y_true):
   """ Ensures ground truth labels in binary_crossentropy and 
       binary_focal_crossentropy are between 0.0 and 1.0.
   """
-  if tf.math.reduce_max(y_true)> 1.0 or tf.math.reduce_min(y_true)< 0.0:
+  if tf.math.reduce_max(y_true) > 1.0 or tf.math.reduce_min(y_true) < 0.0:
     raise ValueError('Ground truth label should be between 0 and 1.')
 
 @keras_export('keras.metrics.binary_crossentropy',
