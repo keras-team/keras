@@ -414,7 +414,8 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
 
   def __init__(self,
                reduction=losses_utils.ReductionV2.AUTO,
-               name='mean_absolute_percentage_error'):
+               name='mean_absolute_percentage_error',
+               ignore_zeros=False):
     """Initializes `MeanAbsolutePercentageError` instance.
 
     Args:
@@ -431,7 +432,7 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
         'mean_absolute_percentage_error'.
     """
     super().__init__(
-        mean_absolute_percentage_error, name=name, reduction=reduction)
+        mean_absolute_percentage_error, name=name, reduction=reduction, ignore_zeros=ignore_zeros)
 
 
 @keras_export('keras.losses.MeanSquaredLogarithmicError')
@@ -1468,10 +1469,13 @@ def _ragged_tensor_mae(y_true, y_pred):
               'keras.losses.mean_absolute_percentage_error',
               'keras.losses.mape', 'keras.losses.MAPE')
 @tf.__internal__.dispatch.add_dispatch_support
-def mean_absolute_percentage_error(y_true, y_pred):
+def mean_absolute_percentage_error(y_true, y_pred, ignore_zeros):
   """Computes the mean absolute percentage error between `y_true` and `y_pred`.
 
   `loss = 100 * mean(abs((y_true - y_pred) / y_true), axis=-1)`
+
+  If `ignore_zeros` is set to True, the calculation ignores values with 0. Otherwise,
+  a small epsilon value is used to avoid division with 0.
 
   Standalone usage:
 
@@ -1496,6 +1500,10 @@ def mean_absolute_percentage_error(y_true, y_pred):
   diff = tf.abs(
       (y_true - y_pred) / backend.maximum(tf.abs(y_true),
                                           backend.epsilon()))
+  if ignore_zeros is True:
+    mask = y_true != 0
+    diff = diff[mask]
+
   return 100. * backend.mean(diff, axis=-1)
 
 
