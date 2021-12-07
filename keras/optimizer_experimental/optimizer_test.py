@@ -13,12 +13,14 @@ from keras.optimizer_experimental import adadelta as adadelta_new
 from keras.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizer_experimental import adam as adam_new
 from keras.optimizer_experimental import optimizer_lib
+from keras.optimizer_experimental import rmsprop as rmsprop_new
 from keras.optimizer_experimental import sgd as sgd_new
 from keras.optimizer_v2 import adadelta as adadelta_old
 from keras.optimizer_v2 import adagrad as adagrad_old
 from keras.optimizer_v2 import adam as adam_old
 from keras.optimizer_v2 import gradient_descent as sgd_old
 from keras.optimizer_v2 import learning_rate_schedule
+from keras.optimizer_v2 import rmsprop as rmsprop_old
 from keras.utils import losses_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -47,6 +49,8 @@ adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladagrad", lambda: adagrad_new.Adagrad(0.002))
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladam", lambda: adam_new.Adam(0.002))
+rmsprop_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "experimentalrmsprop", lambda: rmsprop_new.RMSprop(0.002))
 sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalsgdaverage",
     lambda: sgd_new.SGD(  # pylint: disable=g-long-lambda
@@ -58,6 +62,7 @@ OPTIMIZER_FN = [
     adadelta_new_fn,
     adagrad_new_fn,
     adam_new_fn,
+    rmsprop_new_fn,
     sgd_new_fn,
 ]
 
@@ -302,6 +307,9 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
 
   def testAdagrad(self):
     self._compare_numerical(adagrad_old.Adagrad(), adagrad_new.Adagrad())
+
+  def testRMSprop(self):
+    self._compare_numerical(rmsprop_new.RMSprop(), rmsprop_old.RMSprop())
 
   @parameterized.product(nesterov=[True, False])
   def testSgd(self, nesterov):
