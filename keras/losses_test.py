@@ -1000,7 +1000,7 @@ class BinaryCrossentropyTest(tf.test.TestCase):
   def test_ground_truth_range(self):
     y_true = np.asarray([1, 0, 1.1, 0]).reshape([2, 2])
     y_pred = np.asarray([1, 1, 1, 0], dtype=np.float32).reshape([2, 2])
-    bce_obj = losses.BinaryCrossentropy()
+    obj = losses.BinaryCrossentropy()
     with self.assertRaisesRegex(ValueError,
                                'Ground truth label should be between 0 and 1.'):
       loss = obj(y_true, y_pred)
