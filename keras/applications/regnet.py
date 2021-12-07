@@ -34,21 +34,21 @@ from keras.utils import layer_utils
 from keras.utils import data_utils
 from tensorflow.python.util.tf_export import keras_export
 
-BASE_WEIGHTS_PATH = ""
+BASE_WEIGHTS_PATH = "https://storage.googleapis.com/keras-applications/"
 
 WEIGHTS_HASHES = {
-    "x002": ("", ""),
-    "x004": ("", ""),
-    "x006": ("", ""),
-    "x008": ("", ""),
-    "x016": ("", ""),
-    "x032": ("", ""),
-    "x040": ("", ""),
-    "x064": ("", ""),
-    "x080": ("", ""),
-    "x120": ("", ""),
-    "x160": ("", ""),
-    "x320": ("", ""),
+    "x002": ("49fb46e56cde07fdaf57bffd851461a86548f6a3a4baef234dd37290b826c0b8", "5445b66cd50445eb7ecab094c1e78d4d3d29375439d1a7798861c4af15ffff21"),
+    "x004": ("3523c7f5ac0dbbcc2fd6d83b3570e7540f7449d3301cc22c29547302114e4088", "de139bf07a66c9256f2277bf5c1b6dd2d5a3a891a5f8a925a10c8a0a113fd6f3"),
+    "x006": ("340216ef334a7bae30daac9f414e693c136fac9ab868704bbfcc9ce6a5ec74bb", "a43ec97ad62f86b2a96a783bfdc63a5a54de02eef54f26379ea05e1bf90a9505"),
+    "x008": ("8f145d6a5fae6da62677bb8d26eb92d0b9dfe143ec1ebf68b24a57ae50a2763d", "3c7e4b0917359304dc18e644475c5c1f5e88d795542b676439c4a3acd63b7207"),
+    "x016": ("31c386f4c7bfef4c021a583099aa79c1b3928057ba1b7d182f174674c5ef3510", "1b8e3d545d190271204a7b2165936a227d26b79bb7922bac5ee4d303091bf17a"),
+    "x032": ("6c025df1409e5ea846375bc9dfa240956cca87ef57384d93fef7d6fa90ca8c7f", "9cd4522806c0fcca01b37874188b2bd394d7c419956d77472a4e072b01d99041"),
+    "x040": ("ba128046c588a26dbd3b3a011b26cb7fa3cf8f269c184c132372cb20b6eb54c1", "b4ed0ca0b9a98e789e05000e830403a7ade4d8afa01c73491c44610195198afe"),
+    "x064": ("0f4489c3cd3ad979bd6b0324213998bcb36dc861d178f977997ebfe53c3ba564", "3e706fa416a18dfda14c713423eba8041ae2509db3e0a611d5f599b5268a46c4"),
+    "x080": ("76320e43272719df648db37271a247c22eb6e810fe469c37a5db7e2cb696d162", "7b1ce8e29ceefec10a6569640ee329dba7fbc98b5d0f6346aabade058b66cf29"),
+    "x120": ("5cafc461b78897d5e4f24e68cb406d18e75f31105ef620e7682b611bb355eb3a", "36174ddd0299db04a42631d028abcb1cc7afec2b705e42bd28fcd325e5d596bf"),
+    "x160": ("8093f57a5824b181fb734ea21ae34b1f7ee42c5298e63cf6d587c290973195d2", "9d1485050bdf19531ffa1ed7827c75850e0f2972118a996b91aa9264b088fd43"),
+    "x320": ("91fb3e6f4e9e44b3687e80977f7f4412ee9937c0c704232664fc83e4322ea01e", "9db7eacc37b85c98184070e1a172e6104c00846f44bcd4e727da9e50d9692398"),
     "y002": ("", ""),
     "y004": ("", ""),
     "y006": ("", ""),
