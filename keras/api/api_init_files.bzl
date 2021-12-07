@@ -28,6 +28,7 @@ KERAS_API_INIT_FILES = [
     "keras/applications/vgg19/__init__.py",
     "keras/applications/xception/__init__.py",
     "keras/backend/__init__.py",
+    "keras/backend/experimental/__init__.py",
     "keras/callbacks/__init__.py",
     "keras/callbacks/experimental/__init__.py",
     "keras/constraints/__init__.py",

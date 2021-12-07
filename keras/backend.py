@@ -1766,16 +1766,56 @@ _USE_GENERATOR_FOR_RNG = False
 _SEED_GENERATOR = threading.local()
 
 
-def use_generator_for_rng():
+@keras_export('keras.backend.experimental.is_tf_random_generator_enabled',
+              v1=[])
+def is_tf_random_generator_enabled():
+  """Check whether `tf.random.Generator` is used for RNG in Keras.
+
+  Compared to existing TF stateful random ops, `tf.random.Generator` uses
+  `tf.Variable` and stateless random ops to generate random numbers,
+  which leads to better reproducibility in distributed training.
+  Note enabling it might introduce some breakage to existing code,
+  by producing differently-seeded random number sequences
+  and breaking tests that rely on specific random numbers being generated.
+  To disable the
+  usage of `tf.random.Generator`, please use
+  `tf.keras.backend.experimental.disable_random_generator`.
+
+  We expect the `tf.random.Generator` code path to become the default, and will
+  remove the legacy stateful random ops such as `tf.random.uniform` in the
+  future (see the
+  [TF RNG guide](https://www.tensorflow.org/guide/random_numbers)).
+
+  This API will also be removed in a future release as well, together with
+  `tf.keras.backend.experimental.enable_tf_random_generator()` and
+  `tf.keras.backend.experimental.disable_tf_random_generator()`
+
+  Returns:
+    boolean: whether `tf.random.Generator` is used for random number generation
+      in Keras.
+  """
   return _USE_GENERATOR_FOR_RNG
 
 
-def enabled_generator_for_rng():
+@keras_export('keras.backend.experimental.enable_tf_random_generator', v1=[])
+def enable_tf_random_generator():
+  """Enable the `tf.random.Generator` as the RNG for Keras.
+
+  See `tf.keras.backend.experimental.is_tf_random_generator_enabled` for more
+  details.
+  """
+
   global _USE_GENERATOR_FOR_RNG
   _USE_GENERATOR_FOR_RNG = True
 
 
-def disable_generator_for_rng():
+@keras_export('keras.backend.experimental.disable_tf_random_generator', v1=[])
+def disable_tf_random_generator():
+  """Disable the `tf.random.Generator` as the RNG for Keras.
+
+  See `tf.keras.backend.experimental.is_tf_random_generator_enabled` for more
+  details.
+  """
   global _USE_GENERATOR_FOR_RNG
   _USE_GENERATOR_FOR_RNG = False
 
@@ -1808,7 +1848,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
       return
 
     if (tf.compat.v1.executing_eagerly_outside_functions() and
-        (use_generator_for_rng() or self._force_generator)):
+        (is_tf_random_generator_enabled() or self._force_generator)):
       # In the case of V2, we use tf.random.Generator to create all the random
       # numbers and seeds.
       from keras.utils import tf_utils  # pylint: disable=g-import-not-at-top

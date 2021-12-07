@@ -1,5 +1,9 @@
 path: "tensorflow.keras.backend"
 tf_module {
+  member {
+    name: "experimental"
+    mtype: "<type \'module\'>"
+  }
   member_method {
     name: "abs"
     argspec: "args=[\'x\'], varargs=None, keywords=None, defaults=None"
