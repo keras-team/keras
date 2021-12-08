@@ -1628,9 +1628,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     See the discussion of `Unpacking behavior for iterator-like inputs` for
     `Model.fit`.
 
-    `Model.evaluate` is not yet supported with
-    `tf.distribute.experimental.ParameterServerStrategy`.
-
     Returns:
         Scalar test loss (if the model has a single output and no metrics)
         or list of scalars (if the model has multiple outputs
