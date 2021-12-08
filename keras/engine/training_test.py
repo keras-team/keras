@@ -1772,6 +1772,42 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertNotEqual(self.evaluate(initial_result),
                         self.evaluate(after_fit_result))
 
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_custom_compute_loss(self):
+
+    class MyModel(training_module.Model):
+
+      def __init__(self, *args, **kwargs):
+        super(MyModel, self).__init__(*args, **kwargs)
+        self.loss_metric = metrics_module.Mean(name='loss')
+
+      def compute_loss(self, x, y, y_pred, sample_weight):
+        loss = tf.reduce_mean(tf.math.squared_difference(y_pred, y))
+        loss += tf.add_n(self.losses)
+        self.loss_metric.update_state(loss)
+        return loss
+
+      def reset_metrics(self):
+        self.loss_metric.reset_states()
+
+      @property
+      def metrics(self):
+        return [self.loss_metric]
+
+    tensors = tf.random.uniform((10, 10)), tf.random.uniform((10,))
+    dataset = tf.data.Dataset.from_tensor_slices(tensors).repeat().batch(1)
+
+    inputs = layers_module.Input(shape=(10,), name='my_input')
+    outputs = layers_module.Dense(10)(inputs)
+    model = MyModel(inputs, outputs)
+    model.add_loss(tf.reduce_sum(outputs))
+
+    optimizer = optimizer_v2.gradient_descent.SGD()
+    model.compile(optimizer, loss='mse', steps_per_execution=10)
+    history = model.fit(dataset, epochs=2, steps_per_epoch=10)
+    self.assertLen(history.history['loss'], 2)
+    self.assertAllClose(history.history['loss'][1], model.loss_metric.result())
+
 
 class TestExceptionsAndWarnings(keras_parameterized.TestCase):
 
