@@ -125,7 +125,7 @@ class RMSprop(optimizer.Optimizer):
     if self.centered:
       for var in var_list:
         self._average_gradients.append(
-            self.add_variable_from_reference(var, 'average gradient'))
+            self.add_variable_from_reference(var, 'average_gradient'))
 
   def update_step(self, gradient, variable, params=None):
     """Update step given gradient and the associated model variable."""
@@ -143,7 +143,7 @@ class RMSprop(optimizer.Optimizer):
       momentum = self._momentums[self._index_dict[var_key]]
     average_grad = None
     if self.centered:
-      average_grad = self._average_grad[self._index_dict[var_key]]
+      average_grad = self._average_gradients[self._index_dict[var_key]]
 
     rho = self.rho
 
