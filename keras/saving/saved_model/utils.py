@@ -14,17 +14,20 @@
 # ==============================================================================
 """Utility functions shared between SavedModel saving/loading implementations."""
 
-import tensorflow.compat.v2 as tf
 
+import inspect as _inspect
 import itertools
 import threading
 import types
+
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.utils import control_flow_util
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 from keras.utils.generic_utils import LazyLoader
+
+import tensorflow.compat.v2 as tf
 
 
 # pylint:disable=g-inconsistent-quotes
@@ -217,7 +220,7 @@ def get_training_arg_index(call_fn):
   else:
     # Try to find 'training' in the list of args or kwargs.
     arg_list = argspec.args
-    if tf_inspect.ismethod(call_fn):
+    if call_is_method(call_fn):
       arg_list = arg_list[1:]
 
     if 'training' in arg_list:
@@ -225,6 +228,40 @@ def get_training_arg_index(call_fn):
     elif 'training' in argspec.kwonlyargs or argspec.varkw:
       return -1
     return None
+
+
+def call_is_method(call_fn):
+  """Check if call_fn is a method regardless of pre/post-binding decoration.
+
+  E.g. decoration after instance creation/method binding
+  self.call = @tf.function(self.call).
+
+  Or decoration in the class definition before binding:
+  class Foo(Layer):
+    @decorator
+    def call(self, ...):
+      pass
+
+  Args:
+    call_fn: The fn to check
+
+  Returns:
+    True if the fn is a bound method, or a bound method that was decorated
+    after binding. Else False.
+  """
+  # tf_inspect checks if a call_fn is either an undecorated bound method,
+  # or a bound method that was decorated after the method was bound
+  # to an instance. E.g. in the case of
+  # self.call = @tf.function(self.call).
+  #
+  # _inspect checks if the method is bound, and returns true even if the method
+  # was decorated before binding occurred.
+  # e.g. this would happen in the case of
+  # class Foo(Layer):
+  #   @decorator
+  #   def call(self, ...):
+  #     pass
+  return tf_inspect.ismethod(call_fn) or _inspect.ismethod(call_fn)
 
 
 def set_training_arg(training, index, args, kwargs):
