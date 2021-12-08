@@ -190,6 +190,10 @@ tf_class {
     argspec: "args=[\'self\', \'optimizer\', \'loss\', \'metrics\', \'loss_weights\', \'weighted_metrics\', \'run_eagerly\', \'steps_per_execution\'], varargs=None, keywords=kwargs, defaults=[\'rmsprop\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\'], "
   }
   member_method {
+    name: "compute_loss"
+    argspec: "args=[\'self\', \'x\', \'y\', \'y_pred\', \'sample_weight\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\', \'None\'], "
+  }
+  member_method {
     name: "compute_mask"
     argspec: "args=[\'self\', \'inputs\', \'mask\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
