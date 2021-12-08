@@ -502,7 +502,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
   Use this cross-entropy loss for binary (0 or 1) classification applications.
   The loss function requires the following inputs:
 
-  - `y_true` (true label): This is either 0 or 1. Value 
+  - `y_true` (true label): This is either 0 or 1. 
   - `y_pred` (predicted value): This is the model's prediction, i.e, a single
     floating-point value which either represents a
     [logit](https://en.wikipedia.org/wiki/Logit), (i.e, value in [-inf, inf]
