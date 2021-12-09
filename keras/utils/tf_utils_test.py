@@ -309,5 +309,19 @@ class TestGetTensorSpec(parameterized.TestCase):
       self.assertEqual(result.shape.as_list(), expected_shape)
 
 
+class TestSyncToNumpyOrPythonType(parameterized.TestCase):
+
+  @parameterized.parameters([
+      (0.5,),
+      (b'string value',),
+  ])
+  def test_types(self, value):
+    if not tf.executing_eagerly():
+      self.skipTest('`sync_to_numpy_or_python_type` only works in eager')
+    tensor = tf.constant(value)
+
+    self.assertEqual(tf_utils.sync_to_numpy_or_python_type(
+        tensor), value)
+
 if __name__ == '__main__':
   tf.test.main()

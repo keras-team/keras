@@ -549,13 +549,16 @@ def sync_to_numpy_or_python_type(tensors):
     tensors are converted to Numpy arrays.
   """
   if isinstance(tensors, tf.distribute.experimental.coordinator.RemoteValue):
-    return tensors.fetch()
+    tensors = tensors.fetch()
 
   def _to_single_numpy_or_python_type(t):
+    # Don't turn ragged or sparse tensors to NumPy.
     if isinstance(t, tf.Tensor):
-      x = t.numpy()
-      return x.item() if np.ndim(x) == 0 else x
-    return t  # Don't turn ragged or sparse tensors to NumPy.
+      t = t.numpy()
+    # Strings, ragged and sparse tensors don't have .item(). Return them as-is.
+    if not isinstance(t, (np.ndarray, np.generic)):
+      return t
+    return t.item() if np.ndim(t) == 0 else t
 
   return tf.nest.map_structure(_to_single_numpy_or_python_type, tensors)
 
