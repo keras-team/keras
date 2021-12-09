@@ -63,8 +63,8 @@ class Conv(Layer):
       any `dilation_rate` value != 1.
     padding: One of `"valid"`,  `"same"`, or `"causal"` (case-insensitive).
       `"valid"` means no padding. `"same"` results in padding with zeros
-      evenly to the left/right or up/down of the input such that output has the
-      same height/width dimension as the input. `"causal"` results in causal
+      evenly to the left/right or up/down of the input. When `padding="same"` and
+      `strides=1`, the output has the same size as the input. `"causal"` results in causal
       (dilated) convolutions, e.g. `output[t]` does not depend on `input[t+1:]`.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -437,8 +437,8 @@ class Conv1D(Conv):
       any `dilation_rate` value != 1.
     padding: One of `"valid"`, `"same"` or `"causal"` (case-insensitive).
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
-      to the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
+      to the left/right or up/down of the input. When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
       `"causal"` results in causal (dilated) convolutions, e.g. `output[t]`
       does not depend on `input[t+1:]`. Useful when modeling temporal data
       where the model should not violate the temporal order.
@@ -740,8 +740,8 @@ class Conv3D(Conv):
       value != 1 is incompatible with specifying any `dilation_rate` value != 1.
     padding: one of `"valid"` or `"same"` (case-insensitive).
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
-      to the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
+      to the left/right or up/down of the input.When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs. `channels_last` corresponds
       to inputs with shape `batch_shape + (spatial_dim1, spatial_dim2,
@@ -866,8 +866,8 @@ class Conv1DTranspose(Conv1D):
       specifying a `dilation_rate` value != 1. Defaults to 1.
     padding: one of `"valid"` or `"same"` (case-insensitive).
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
-      to the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
+      to the left/right or up/down of the input. When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
     output_padding: An integer specifying the amount of padding along
       the time dimension of the output tensor.
       The amount of output padding must be lower than the stride.
@@ -1123,8 +1123,8 @@ class Conv2DTranspose(Conv2D):
       any `dilation_rate` value != 1.
     padding: one of `"valid"` or `"same"` (case-insensitive).
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
-      to the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
+      to the left/right or up/down of the input.When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
     output_padding: An integer or tuple/list of 2 integers,
       specifying the amount of padding along the height and width
       of the output tensor.
@@ -1430,8 +1430,8 @@ class Conv3DTranspose(Conv3D):
       any `dilation_rate` value != 1.
     padding: one of `"valid"` or `"same"` (case-insensitive).
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
-      to the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
+      to the left/right or up/down of the input. When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
     output_padding: An integer or tuple/list of 3 integers,
       specifying the amount of padding along the depth, height, and
       width.
@@ -1735,8 +1735,8 @@ class SeparableConv(Conv):
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
-      to the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
+      to the left/right or up/down of the input. When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
       `channels_last` corresponds to inputs with shape
@@ -1947,8 +1947,8 @@ class SeparableConv1D(SeparableConv):
       any `dilation_rate` value != 1.
     padding: One of `"valid"`, `"same"`, or `"causal"` (case-insensitive).
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
-      to the left/right or up/down of the input such that output has the same
-      height/width dimension as the input. `"causal"` results in causal
+      to the left/right or up/down of the input.When `padding="same"` and
+      `strides=1`, the output has the same size as the input.`"causal"` results in causal
       (dilated) convolutions, e.g. `output[t]` does not depend on `input[t+1:]`.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -2133,8 +2133,8 @@ class SeparableConv2D(SeparableConv):
       any `dilation_rate` value != 1.
     padding: one of `"valid"` or `"same"` (case-insensitive).
       `"valid"` means no padding. `"same"` results in padding with zeros evenly
-      to the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
+      to the left/right or up/down of the input. When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
     data_format: A string,
       one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -2304,8 +2304,8 @@ class DepthwiseConv(Conv):
       with specifying any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive). `"valid"` means no
       padding. `"same"` results in padding with zeros evenly to the left/right
-      or up/down of the input such that output has the same height/width
-      dimension as the input.
+      or up/down of the input. When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
     depth_multiplier: The number of depthwise convolution output channels for
       each input channel. The total number of depthwise convolution output
       channels will be equal to `filters_in * depth_multiplier`.
@@ -2490,8 +2490,8 @@ class DepthwiseConv1D(DepthwiseConv):
       with specifying any `dilation_rate` value != 1.
     padding: one of `'valid'` or `'same'` (case-insensitive). `"valid"` means no
       padding. `"same"` results in padding with zeros evenly to the left/right
-      or up/down of the input such that output has the same height/width
-      dimension as the input.
+      or up/down of the input. When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
     depth_multiplier: The number of depthwise convolution output channels for
       each input channel. The total number of depthwise convolution output
       channels will be equal to `filters_in * depth_multiplier`.
@@ -2667,8 +2667,8 @@ class DepthwiseConv2D(DepthwiseConv):
       value != 1 is incompatible with specifying any `dilation_rate` value != 1.
     padding: one of `'valid'` or `'same'` (case-insensitive). `"valid"` means no
       padding. `"same"` results in padding with zeros evenly to the left/right
-      or up/down of the input such that output has the same height/width
-      dimension as the input.
+      or up/down of the input. When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
     depth_multiplier: The number of depthwise convolution output channels for
       each input channel. The total number of depthwise convolution output
       channels will be equal to `filters_in * depth_multiplier`.
