@@ -25,6 +25,7 @@ import re
 import sys
 import time
 
+
 from keras import backend
 from keras.distribute import distributed_file_utils
 from keras.distribute import worker_training_state
@@ -40,6 +41,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util import deprecation  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -1596,7 +1598,7 @@ class ModelCheckpoint(Callback):
       return file_path_with_largest_file_name
 
 
-@keras_export('keras.callbacks.experimental.BackupAndRestore', v1=[])
+@keras_export('keras.callbacks.BackupAndRestore', v1=[])
 class BackupAndRestore(Callback):
   """Callback to back up and restore the training state.
 
@@ -1717,6 +1719,21 @@ class BackupAndRestore(Callback):
   def on_epoch_end(self, epoch, logs=None):
     # Back up the model and current epoch for possible future recovery.
     self._training_state.back_up(epoch)
+
+
+@keras_export('keras.callbacks.experimental.BackupAndRestore', v1=[])
+@deprecation.deprecated_endpoints(
+    'keras.callbacks.experimental.BackupAndRestore')
+class BackupAndRestoreExperimental(BackupAndRestore):
+
+  __doc__ = BackupAndRestore.__doc__
+
+  def __init__(self, *args, **kwargs):
+    logging.warning(
+        '`tf.keras.callbacks.experimental.BackupAndRestore` endpoint is '
+        'deprecated and will be removed in a future release. Please use '
+        '`tf.keras.callbacks.BackupAndRestore`.')
+    super(BackupAndRestoreExperimental, self).__init__(*args, **kwargs)
 
 
 @keras_export('keras.callbacks.EarlyStopping')
