@@ -1,6 +1,10 @@
 path: "tensorflow.keras.callbacks"
 tf_module {
   member {
+    name: "BackupAndRestore"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "BaseLogger"
     mtype: "<type \'type\'>"
   }
