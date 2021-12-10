@@ -34,6 +34,7 @@ import keras
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.callbacks import BackupAndRestore
+from keras.callbacks import BackupAndRestoreExperimental
 from keras.engine import sequential
 from keras.layers import Activation
 from keras.layers import Dense
@@ -355,6 +356,72 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     except RuntimeError:
       pass
     self.assertEqual(model._train_counter.numpy(), 13)
+
+  def _test_backup_and_restore_callback_with(self, cls):
+    if not tf.compat.v1.executing_eagerly():
+      self.skipTest('BackupAndRestore only available when execution is enabled')
+
+    class InterruptingCallback(keras.callbacks.Callback):
+      """A callback to intentionally introduce interruption to training."""
+
+      def on_epoch_end(self, epoch, log=None):
+        if epoch == 15:
+          raise RuntimeError('Interruption')
+
+    model = keras.Sequential([keras.layers.Dense(10)])
+    optimizer = gradient_descent.SGD()
+    model.compile(optimizer, loss='mse')
+
+    x = tf.random.uniform((24, 10))
+    y = tf.random.uniform((24,))
+    dataset = tf.data.Dataset.from_tensor_slices((x, y)).repeat().batch(2)
+
+    backup_callback = cls(backup_dir=self.get_temp_dir())
+    try:
+      model.fit(
+          dataset,
+          epochs=20,
+          steps_per_epoch=5,
+          callbacks=[backup_callback, InterruptingCallback()])
+    except RuntimeError:
+      logging.warning('***Handling interruption***')
+      # This continues at the epoch where it left off.
+      model.fit(
+          dataset, epochs=20, steps_per_epoch=5, callbacks=[backup_callback])
+
+  def test_experimental_backup_and_restore(self):
+    """Ensure the legacy endpoint of `BackupAndRestore` gives warning."""
+
+    warning_messages = []
+
+    def warning(msg):
+      warning_messages.append(msg)
+
+    with tf.compat.v1.test.mock.patch.object(logging, 'warning', warning):
+      self._test_backup_and_restore_callback_with(BackupAndRestoreExperimental)
+
+    warning_msg = ('`tf.keras.callbacks.experimental.BackupAndRestore` '
+                   'endpoint is deprecated')
+    self.assertIn(warning_msg, '\n'.join(warning_messages))
+    warning_msg = ('***Handling interruption***')
+    self.assertIn(warning_msg, '\n'.join(warning_messages))
+
+  def test_backup_and_restore(self):
+    """Ensure the public endpoint of `BackupAndRestore` is working."""
+
+    warning_messages = []
+
+    def warning(msg):
+      warning_messages.append(msg)
+
+    with tf.compat.v1.test.mock.patch.object(logging, 'warning', warning):
+      self._test_backup_and_restore_callback_with(BackupAndRestore)
+
+    warning_msg = ('`tf.keras.callbacks.experimental.BackupAndRestore` '
+                   'endpoint is deprecated')
+    self.assertNotIn(warning_msg, '\n'.join(warning_messages))
+    warning_msg = ('***Handling interruption***')
+    self.assertIn(warning_msg, '\n'.join(warning_messages))
 
   @keras_parameterized.run_all_keras_modes
   def test_callback_warning(self):
