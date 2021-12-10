@@ -237,7 +237,7 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
   RegNet models expect their inputs to be float or uint8 tensors of pixels with 
   values in the [0-255] range.
 
-  The naming of models is as follows: `RegNet{block_type}{flops}` where 
+  The naming of models is as follows: `RegNet<block_type><flops>` where 
   `block_type` is one of `(Y, Z)` and `flops` signifies hundred million 
   floating point operations. For example RegNetY64 corresponds to RegNet with 
   Y block and 6.4 giga flops (64 hundred million flops). 
