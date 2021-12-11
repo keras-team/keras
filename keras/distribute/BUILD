@@ -769,6 +769,7 @@ distribute_py_test(
         "no_oss",  # TODO(b/183640564): Re-enable
         "no_rocm",
         "nomultivm",  # TODO(b/170502145)
+        "notpu",  # TODO(b/210168103)
         "notsan",  # TODO(b/184542721)
     ],
     deps = [
