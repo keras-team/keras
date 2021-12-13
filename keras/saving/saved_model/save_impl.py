@@ -398,7 +398,7 @@ class LayerCallCollection:
     # Get the input argument name from the args.
     arg_spec = tf_inspect.getfullargspec(self.layer_call_method)
     args = arg_spec.args
-    if tf_inspect.ismethod(self.layer_call_method):
+    if utils.call_is_method(self.layer_call_method):
       args = args[1:]
     self._input_arg_name = args[0] if args else 'inputs'
 
@@ -497,7 +497,7 @@ class LayerCallCollection:
 
       # Set new training arg index
       self._training_arg_index = len(args) - 1
-      if tf_inspect.ismethod(call_fn):
+      if utils.call_is_method(call_fn):
         self._training_arg_index -= 1
 
       def wrap_with_training_arg(*args, **kwargs):

@@ -23,12 +23,15 @@ import threading
 
 from absl.testing import parameterized
 from keras import combinations
+from keras import models
 from keras import regularizers
+from keras.engine import base_layer
 from keras.engine import input_layer as input_layer_module
 from keras.engine import training as training_module
 from keras.layers import core
 from keras.legacy_tf_layers import core as core_layers
 from keras.legacy_tf_layers import variable_scope_shim
+
 import numpy
 import tensorflow as tf
 
@@ -802,7 +805,7 @@ class VariableScopeMultithreadedTest(tf.test.TestCase):
       thread.join()
 
 
-class CompatV1TemplateScaleByY(variable_scope_shim.VariableScopeLayer):
+class CompatV1TemplateScaleByY(base_layer.Layer):
 
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
@@ -816,7 +819,8 @@ class CompatV1TemplateScaleByY(variable_scope_shim.VariableScopeLayer):
     self.scale_by_y = tf.compat.v1.make_template(
         "scale_by_y", my_op, scalar_name="y")
 
-  def forward_pass(self, inputs):
+  @variable_scope_shim.track_tf1_style_variables
+  def call(self, inputs):
     with tf.compat.v1.variable_scope("foo"):
       return self.scale_by_y(inputs)
 
@@ -841,13 +845,14 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
   def test_get_variable(self):
     # Test the shim when using `get_variable` (and regularizers) directly
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+    class WrappedDenseLayer(base_layer.Layer):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.units = units
 
-      def forward_pass(self, inputs, training=None):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs, training=None):
         out = inputs
         with tf.compat.v1.variable_scope("dense_one"):
           # The weights are created with a `regularizer`,
@@ -901,13 +906,14 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
   def test_compat_v1_layer(self):
     # Test the shim when using `compat.v1` layers
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+    class WrappedDenseLayer(base_layer.Layer):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.units = units
 
-      def forward_pass(self, inputs, training=None):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs, training=None):
         out = core_layers.dense(
             inputs, self.units, name="dense_one",
             kernel_initializer=tf.compat.v1.ones_initializer(),
@@ -941,13 +947,14 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_shim_exporting(self):
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+    class WrappedDenseLayer(base_layer.Layer):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.units = units
 
-      def forward_pass(self, inputs, training=None):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs, training=None):
         out = core_layers.dense(
             inputs,
             self.units,
@@ -967,7 +974,18 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
     layer(tf.ones(shape=(5, 5)))
 
     tmp_dir = self.get_temp_dir()
+
+    # Try exporting the layer directly
     tf.saved_model.save(layer, tmp_dir)
+
+    # Try exporting the layer nested in a functional model
+    # This is where saving reflection gets tricky due to
+    # trying to replace the passed training arg in training=True
+    # and training=False modes
+    inp = input_layer_module.Input(shape=(5, 5))
+    outs = layer(inp)
+    model = models.Model(inp, outs)
+    tf.saved_model.save(model, tmp_dir)
 
   def test_variable_store_scope_get_variable(self):
     # Test the module shim when using `get_variable` (and regularizers) directly
@@ -1146,13 +1164,14 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
   def test_shim_nesting(self):
     # Test that nesting the shim in itself works
 
-    class NestedLayer(variable_scope_shim.VariableScopeLayer):
+    class NestedLayer(base_layer.Layer):
 
       def __init__(self, units, name, *args, **kwargs):
         super().__init__(*args, name=name, **kwargs)
         self.units = units
 
-      def forward_pass(self, inputs):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs):
         out = inputs
         with tf.compat.v1.variable_scope(self.name):
           # The weights are created with a `regularizer`,
@@ -1170,7 +1189,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
           out = tf.compat.v1.nn.bias_add(out, bias)
         return out
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+    class WrappedDenseLayer(base_layer.Layer):
 
       def __init__(self, units, **kwargs):
         super().__init__(**kwargs)
@@ -1178,7 +1197,8 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
         self.dense_layer_a = None
         self.dense_layer_b = None
 
-      def forward_pass(self, inputs):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs):
         # Only create the nested tf.variable/module/layer/model if it has not
         # already been created!
         if not self.dense_layer_a:
@@ -1277,14 +1297,15 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
     # that were not created by get_variable. These variables/modules/layers
     # need to be tracked separately
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+    class WrappedDenseLayer(base_layer.Layer):
 
       def __init__(self, units, **kwargs):
         super().__init__(**kwargs)
         self.units = units
         self._dense_model = None
 
-      def forward_pass(self, inputs):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs):
         dense_layer = core.Dense(
             self.units, name="dense",
             kernel_initializer=tf.compat.v1.ones_initializer(),
@@ -1301,14 +1322,15 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
     # Test the shim when embedding a Keras model inside of it
     # And assigning the model to an attribute
 
-    class WrappedDenseLayer(variable_scope_shim.VariableScopeLayer):
+    class WrappedDenseLayer(base_layer.Layer):
 
       def __init__(self, units, **kwargs):
         super().__init__(**kwargs)
         self.units = units
         self._dense_model = None
 
-      def forward_pass(self, inputs):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs):
         if not self._dense_model:
           inp = input_layer_module.Input(shape=inputs.shape)
           dense_layer = core.Dense(
@@ -1386,13 +1408,14 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
   def test_training_arg(self):
     # Test the shim when passing in a Keras `training` arg
 
-    class TrainingCheckLayer(variable_scope_shim.VariableScopeLayer):
+    class TrainingCheckLayer(base_layer.Layer):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.units = units
 
-      def forward_pass(self, inputs, training=None):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs, training=None):
         if training:
           out = core_layers.dense(inputs, self.units, name="dense_training")
         else:
@@ -1431,7 +1454,7 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=["eager"]))
   def test_get_or_create_layer_with_regularizer_eager(self):
 
-    class NestedLayer(variable_scope_shim.VariableScopeLayer):
+    class NestedLayer(base_layer.Layer):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1445,7 +1468,8 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
         model = training_module.Model(inputs=inp, outputs=dense_layer(inp))
         return model
 
-      def forward_pass(self, inputs):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs):
         # enter a variable scope to check module key naming
         with tf.compat.v1.variable_scope("test_scope"):
           model = variable_scope_shim.get_or_create_layer(
@@ -1476,7 +1500,7 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=["eager"]))
   def test_get_or_create_layer_no_regularizer_eager(self):
 
-    class NestedLayer(variable_scope_shim.VariableScopeLayer):
+    class NestedLayer(base_layer.Layer):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1490,7 +1514,8 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
         model = training_module.Model(inputs=inp, outputs=dense_layer(inp))
         return model
 
-      def forward_pass(self, inputs):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs):
         # enter a variable scope to check module key naming
         with tf.compat.v1.variable_scope("test_scope"):
           model = variable_scope_shim.get_or_create_layer(
@@ -1521,7 +1546,7 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=["eager"]))
   def test_get_or_create_layer_tf_function(self):
 
-    class NestedLayer(variable_scope_shim.VariableScopeLayer):
+    class NestedLayer(base_layer.Layer):
 
       def __init__(self, units, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1535,7 +1560,8 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
         model = training_module.Model(inputs=inp, outputs=dense_layer(inp))
         return model
 
-      def forward_pass(self, inputs):
+      @variable_scope_shim.track_tf1_style_variables
+      def call(self, inputs):
         model = variable_scope_shim.get_or_create_layer(
             "dense_model", self.build_model)
         return model(inputs)
