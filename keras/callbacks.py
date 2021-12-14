@@ -1725,8 +1725,12 @@ class BackupAndRestore(Callback):
 @deprecation.deprecated_endpoints(
     'keras.callbacks.experimental.BackupAndRestore')
 class BackupAndRestoreExperimental(BackupAndRestore):
+  """Deprecated. Please use `tf.keras.callbacks.BackupAndRestore` instead.
 
-  __doc__ = BackupAndRestore.__doc__
+  Caution: `tf.keras.callbacks.experimental.BackupAndRestore` endpoint is
+    deprecated and will be removed in a future release. Please use
+    `tf.keras.callbacks.BackupAndRestore`.
+  """
 
   def __init__(self, *args, **kwargs):
     logging.warning(
