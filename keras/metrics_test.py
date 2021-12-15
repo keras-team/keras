@@ -14,14 +14,13 @@
 # ==============================================================================
 """Tests for Keras metrics functions."""
 
-import tensorflow.compat.v2 as tf
 
+import copy
 import json
 import math
 import os
 
 from absl.testing import parameterized
-import numpy as np
 from keras import backend
 from keras import combinations
 from keras import keras_parameterized
@@ -31,6 +30,8 @@ from keras import Model
 from keras import testing_utils
 from keras.engine import base_layer
 from keras.engine import training as training_module
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -344,6 +345,23 @@ class MeanTest(keras_parameterized.TestCase):
     self.assertEqual(self.evaluate(m.result()), 100)
     self.assertEqual(self.evaluate(m.total), 100)
     self.assertEqual(self.evaluate(m.count), 1)
+
+  @testing_utils.run_v2_only
+  def test_deepcopy_of_metrics(self):
+    m = metrics.Mean(name='my_mean')
+
+    m.reset_state()
+    m.update_state(100)
+    m_copied = copy.deepcopy(m)
+    m_copied.update_state(200)
+
+    self.assertEqual(self.evaluate(m.result()), 100)
+    self.assertEqual(self.evaluate(m_copied.result()), 150)
+
+    m.reset_state()
+
+    self.assertEqual(self.evaluate(m.result()), 0)
+    self.assertEqual(self.evaluate(m_copied.result()), 150)
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
