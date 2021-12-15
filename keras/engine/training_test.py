@@ -91,6 +91,34 @@ class TrainingTest(keras_parameterized.TestCase):
       model.fit(x=np.array([]), y=np.array([]))
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_compile_fit_with_jit_compile(self):
+    # Test with jit_compile = True
+    model = sequential.Sequential([layers_module.Dense(1)])
+    model.compile(
+        'sgd', loss='mse', run_eagerly=False, jit_compile=True)
+    x, y = np.ones((10, 1)), np.ones((10, 1))
+    model.fit(x, y, epochs=2)
+    # Test fcompile fit for a RNN model
+    model = sequential.Sequential()
+    model.add(
+        layers_module.TimeDistributed(
+            layers_module.Embedding(5, 6, mask_zero=True),
+            input_shape=(None, None)))  # N by t_1 by t_2 by 6
+    model.add(
+        layers_module.TimeDistributed(
+            layers_module.SimpleRNN(7, return_sequences=True)))
+    model.add(
+        layers_module.TimeDistributed(
+            layers_module.SimpleRNN(8, return_sequences=False)))
+    model.add(layers_module.SimpleRNN(1, return_sequences=False))
+    model.compile(optimizer='sgd', loss='mse', jit_compile=True)
+    model_input = np.random.randint(
+        low=1, high=5, size=(10, 3, 4), dtype='int32')
+    for i in range(4):
+      model_input[i, i:, i:] = 0
+    model.fit(model_input, np.random.random((10, 1)), epochs=1, batch_size=10)
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_fit_without_loss_at_compile(self):
     model = sequential.Sequential([layers_module.Dense(1)])
     model.compile('sgd', run_eagerly=testing_utils.should_run_eagerly())
