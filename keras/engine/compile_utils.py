@@ -14,7 +14,6 @@
 # ==============================================================================
 """Utilities for `Model.compile`."""
 
-
 import copy
 from keras import losses as losses_mod
 from keras import metrics as metrics_mod
@@ -273,8 +272,7 @@ class LossesContainer(Container):
     if not isinstance(loss, losses_mod.Loss):
       loss_name = get_custom_object_name(loss)
       if loss_name is None:
-        raise ValueError(
-            f'Loss should be a callable, received: {loss}')
+        raise ValueError(f'Loss should be a callable, received: {loss}')
       loss = losses_mod.LossFunctionWrapper(loss, name=loss_name)
     loss._allow_sum_over_batch_size = True  # pylint: disable=protected-access
     return loss
@@ -289,7 +287,10 @@ class LossesContainer(Container):
 class MetricsContainer(Container):
   """A container class for metrics passed to `Model.compile`."""
 
-  def __init__(self, metrics=None, weighted_metrics=None, output_names=None,
+  def __init__(self,
+               metrics=None,
+               weighted_metrics=None,
+               output_names=None,
                from_serialized=False):
     """Initializes a container for metrics.
 
@@ -351,18 +352,19 @@ class MetricsContainer(Container):
     y_pred = tf.__internal__.nest.list_to_tuple(y_pred)
     y_true = tf.__internal__.nest.list_to_tuple(y_true)
     self._metrics = tf.__internal__.nest.list_to_tuple(self._metrics)
-    self._weighted_metrics = tf.__internal__.nest.list_to_tuple(self._weighted_metrics)
+    self._weighted_metrics = tf.__internal__.nest.list_to_tuple(
+        self._weighted_metrics)
 
     # Convert to `Metric` objects, potentially disambiguating based on output
     # properties.
-    self._metrics = tf.__internal__.nest.map_structure_up_to(y_pred, self._get_metric_objects,
-                                             self._metrics, y_true, y_pred)
-    self._weighted_metrics = tf.__internal__.nest.map_structure_up_to(y_pred,
-                                                      self._get_metric_objects,
-                                                      self._weighted_metrics,
-                                                      y_true, y_pred)
+    self._metrics = tf.__internal__.nest.map_structure_up_to(
+        y_pred, self._get_metric_objects, self._metrics, y_true, y_pred)
+    self._weighted_metrics = tf.__internal__.nest.map_structure_up_to(
+        y_pred, self._get_metric_objects, self._weighted_metrics, y_true,
+        y_pred)
 
-    self._metrics = tf.__internal__.nest.flatten_up_to(y_pred, self._metrics, check_types=False)
+    self._metrics = tf.__internal__.nest.flatten_up_to(
+        y_pred, self._metrics, check_types=False)
     self._weighted_metrics = tf.__internal__.nest.flatten_up_to(
         y_pred, self._weighted_metrics, check_types=False)
 
@@ -431,6 +433,14 @@ class MetricsContainer(Container):
 
   def update_state(self, y_true, y_pred, sample_weight=None):
     """Updates the state of per-output metrics."""
+
+    if sample_weight is not None and self._user_weighted_metrics is None:
+      raise ValueError(
+          'Attempting to use sample_weight when no weighted_metrics'
+          ' are provided.   Did you mean to pass metrics to `weighted_metrics`'
+          ' in compile()? If this is intentional you can pass'
+          'weighted_metrics=[] to compile().')
+
     y_true = self._conform_to_outputs(y_pred, y_true)
     sample_weight = self._conform_to_outputs(y_pred, sample_weight)
 
@@ -535,8 +545,7 @@ class MetricsContainer(Container):
       else:
         metric_name = get_custom_object_name(metric)
         if metric_name is None:
-          raise ValueError(
-              f'Metric should be a callable, received: {metric}')
+          raise ValueError(f'Metric should be a callable, received: {metric}')
 
       metric_obj = metrics_mod.MeanMetricWrapper(metric_obj, name=metric_name)
 

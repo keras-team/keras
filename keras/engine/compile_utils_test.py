@@ -166,16 +166,8 @@ class LossesContainerTest(keras_parameterized.TestCase):
             'a': 1
         })
 
-    y_t = {
-        'b': [tf.ones((10, 1)),
-              tf.zeros((10, 1))],
-        'a': tf.zeros((10, 1))
-    }
-    y_p = {
-        'b': [tf.zeros((10, 1)),
-              tf.zeros((10, 1))],
-        'a': tf.ones((10, 1))
-    }
+    y_t = {'b': [tf.ones((10, 1)), tf.zeros((10, 1))], 'a': tf.zeros((10, 1))}
+    y_p = {'b': [tf.zeros((10, 1)), tf.zeros((10, 1))], 'a': tf.ones((10, 1))}
     sw = tf.convert_to_tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
 
     total_loss = loss_container(y_t, y_p, sample_weight=sw)
@@ -254,9 +246,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
 
   def test_mismatched_dtypes(self):
     y_t = tf.constant([1, 9, 2, -5], shape=(2, 2))
-    y_p = tf.constant([4, 8, 12, 8],
-                               shape=(2, 2),
-                               dtype=tf.float32)
+    y_p = tf.constant([4, 8, 12, 8], shape=(2, 2), dtype=tf.float32)
 
     def my_mae(labels, preds):
       self.assertEqual(labels.dtype, tf.int32)
@@ -282,12 +272,8 @@ class LossesContainerTest(keras_parameterized.TestCase):
     self.assertEqual(total_loss.dtype, tf.int64)
 
   def test_float_dtypes(self):
-    y_t = tf.constant([1, 9, 2, -5],
-                               shape=(2, 2),
-                               dtype=tf.float32)
-    y_p = tf.constant([4, 8, 12, 8],
-                               shape=(2, 2),
-                               dtype=tf.float64)
+    y_t = tf.constant([1, 9, 2, -5], shape=(2, 2), dtype=tf.float32)
+    y_p = tf.constant([4, 8, 12, 8], shape=(2, 2), dtype=tf.float64)
 
     def my_mae(labels, preds):
       self.assertEqual(labels.dtype, tf.float64)
@@ -303,8 +289,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
     loss_container = compile_utils.LossesContainer('mae')
     y_p = tf.constant([[[1], [1]], [[0], [0]]], dtype=tf.float32)
     y_t = tf.constant([[[1], [1]], [[1], [1]]], dtype=tf.float32)
-    y_p._keras_mask = tf.constant([[1, 0], [1, 0]],
-                                           dtype=tf.float32)
+    y_p._keras_mask = tf.constant([[1, 0], [1, 0]], dtype=tf.float32)
 
     total_loss = loss_container(y_t, y_p)
     self.assertAlmostEqual(total_loss.numpy(), .25)  # sum over batch size
@@ -334,8 +319,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
     y_p = tf.constant([[[1], [1]], [[0], [0]]], dtype=tf.float32)
     y_t = tf.constant([[[1], [1]], [[1], [1]]], dtype=tf.float32)
     sw = tf.constant([[.2, .3], [.5, 0]], dtype=tf.float32)
-    y_p._keras_mask = tf.constant([[1, 0], [1, 0]],
-                                           dtype=tf.float32)
+    y_p._keras_mask = tf.constant([[1, 0], [1, 0]], dtype=tf.float32)
 
     total_loss = loss_container(y_t, y_p, sample_weight=sw)
     # (0 * .2 + 1 * .5) / 4
@@ -375,8 +359,8 @@ class LossesContainerTest(keras_parameterized.TestCase):
       """User defined loss function must implement RaggedTensor support."""
 
       def call(self, y_true, y_pred):
-        losses = tf.ragged.map_flat_values(
-            tf.math.squared_difference, y_true, y_pred)
+        losses = tf.ragged.map_flat_values(tf.math.squared_difference, y_true,
+                                           y_pred)
         return tf.reduce_mean(losses)
 
     loss_container = compile_utils.LossesContainer(
@@ -385,10 +369,8 @@ class LossesContainerTest(keras_parameterized.TestCase):
     v_t = tf.constant([[3., 4.], [1., 2.], [3., 5.]])
     v_p = tf.constant([[3.1, 4.], [1., 2.], [3., 5.]])
 
-    y_t = tf.expand_dims(
-        tf.RaggedTensor.from_row_splits(v_t, [0, 2, 3]), 0)
-    y_p = tf.expand_dims(
-        tf.RaggedTensor.from_row_splits(v_p, [0, 2, 3]), 0)
+    y_t = tf.expand_dims(tf.RaggedTensor.from_row_splits(v_t, [0, 2, 3]), 0)
+    y_p = tf.expand_dims(tf.RaggedTensor.from_row_splits(v_p, [0, 2, 3]), 0)
     total_loss = loss_container(y_t, y_p)
 
     self.assertIsInstance(total_loss, tf.Tensor)
@@ -409,6 +391,13 @@ class MetricsContainerTest(keras_parameterized.TestCase):
 
     metric_container.reset_state()
     self.assertEqual(metric.result().numpy(), 0.)
+
+  def test_metric_container_sample_weight_no_weighted_metrics(self):
+    metric_container = compile_utils.MetricsContainer(metrics=['mse'])
+    y_t, y_p = tf.ones((10, 5)), tf.zeros((10, 5))
+    with self.assertRaises(ValueError):
+      metric_container.update_state(
+          y_t, y_p, sample_weight=tf.random.uniform((10,)))
 
   def test_list_of_metrics_one_output(self):
     metric_container = compile_utils.MetricsContainer(['mse', 'mae'])
@@ -517,7 +506,7 @@ class MetricsContainerTest(keras_parameterized.TestCase):
 
   def test_metric_partial_dict_with_output_names(self):
     metric_container = compile_utils.MetricsContainer(
-        {'out2': 'mae'}, output_names=['out1', 'out2'])
+        {'out2': 'mae'}, output_names=['out1', 'out2'], weighted_metrics=[])
 
     y_t = [tf.ones((10, 1)), tf.zeros((10, 1))]
     y_p = [tf.ones((10, 1)), tf.ones((10, 1))]
@@ -531,10 +520,11 @@ class MetricsContainerTest(keras_parameterized.TestCase):
     self.assertEqual(mae_metric.result().numpy(), 1.)
 
   def test_metric_partial_dict_with_nones(self):
-    metric_container = compile_utils.MetricsContainer({
-        'out1': None,
-        'out2': 'mae'
-    })
+    metric_container = compile_utils.MetricsContainer(
+        {
+            'out1': None,
+            'out2': 'mae'
+        }, weighted_metrics=[])
 
     y_t = {'out1': tf.ones((10, 1)), 'out2': tf.zeros((10, 1))}
     y_p = {'out1': tf.ones((10, 1)), 'out2': tf.ones((10, 1))}
@@ -559,15 +549,10 @@ class MetricsContainerTest(keras_parameterized.TestCase):
         })
 
     y_t = {
-        'b': [2 * tf.ones((10, 1)),
-              tf.zeros((10, 1))],
+        'b': [2 * tf.ones((10, 1)), tf.zeros((10, 1))],
         'a': tf.zeros((10, 1))
     }
-    y_p = {
-        'b': [tf.zeros((10, 1)),
-              tf.zeros((10, 1))],
-        'a': tf.ones((10, 1))
-    }
+    y_p = {'b': [tf.zeros((10, 1)), tf.zeros((10, 1))], 'a': tf.ones((10, 1))}
     sw = tf.convert_to_tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
 
     metric_container.update_state(y_t, y_p, sample_weight=sw)
@@ -707,8 +692,7 @@ class MetricsContainerTest(keras_parameterized.TestCase):
         metrics=['mae'], weighted_metrics=['mse'])
     y_p = tf.constant([[[1], [1]], [[0], [0]]], dtype=tf.float32)
     y_t = tf.constant([[[1], [1]], [[1], [1]]], dtype=tf.float32)
-    y_p._keras_mask = tf.constant([[1, 1], [0, 0]],
-                                           dtype=tf.float32)
+    y_p._keras_mask = tf.constant([[1, 1], [0, 0]], dtype=tf.float32)
 
     metrics_container.update_state(y_t, y_p)
     self.assertLen(metrics_container.metrics, 2)
@@ -745,8 +729,7 @@ class MetricsContainerTest(keras_parameterized.TestCase):
     y_p = tf.constant([[[1], [1]], [[0], [1]]], dtype=tf.float32)
     y_t = tf.constant([[[1], [1]], [[1], [1]]], dtype=tf.float32)
     sw = tf.constant([[.3, .2], [.2, .3]], dtype=tf.float32)
-    y_p._keras_mask = tf.constant([[1, 0], [1, 0]],
-                                           dtype=tf.float32)
+    y_p._keras_mask = tf.constant([[1, 0], [1, 0]], dtype=tf.float32)
 
     metrics_container.update_state(y_t, y_p, sample_weight=sw)
     self.assertLen(metrics_container.metrics, 2)
