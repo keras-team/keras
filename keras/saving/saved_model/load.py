@@ -1057,10 +1057,15 @@ class RevivedLayer:
     return self._serialized_attributes.get(constants.KERAS_ATTR, None)
 
   def get_config(self):
-    if hasattr(self, '_config'):
+    try:
       return self._config
-    else:
-      raise NotImplementedError
+    except AttributeError as e:
+      raise NotImplementedError(
+        "`_config` not found on layer. "
+        "For custom layers, make sure you override "
+        "`self.get_config()` and that your custom class "
+        "is registered. Find more information in "
+        "https://keras.io/guides/serialization_and_saving/ ") from e
 
 
 def _revive_setter(layer, name, value):
