@@ -21,13 +21,13 @@ import os
 import threading
 import time
 
-from absl import logging
 from absl.testing import parameterized
 import keras
 from keras.distribute import sidecar_evaluator as sidecar_evaluator_lib
 from keras.optimizer_v2 import gradient_descent
 import numpy as np
 import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging  # pylint: disable=g-direct-tensorflow-import
 
 _BATCH_SIZE = 32
 
@@ -285,6 +285,20 @@ class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
         l for l in cm.output if 'No checkpoints appear to be found' in l
     ]
     self.assertGreaterEqual(len(metrics_logging), 1)
+
+  def testExperimentalDeprecatedMessage(self):
+
+    warning_messages = []
+
+    def warning(msg):
+      warning_messages.append(msg)
+
+    with tf.compat.v1.test.mock.patch.object(logging, 'warning', warning):
+      sidecar_evaluator_lib.SidecarEvaluatorExperimental(None, None, None)
+
+    warning_msg = ('`tf.keras.experimental.SidecarEvaluator` '
+                   'endpoint is deprecated')
+    self.assertIn(warning_msg, '\n'.join(warning_messages))
 
 
 if __name__ == '__main__':
