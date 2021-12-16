@@ -25,6 +25,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "SidecarEvaluator"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "custom_object_scope"
     mtype: "<type \'type\'>"
   }
