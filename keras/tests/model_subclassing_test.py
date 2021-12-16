@@ -363,8 +363,8 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
 
     m = Foo()
     self.assertEqual([m.isdep, m.notdep], m.layers)
-    self.assertEqual(1, len(m._checkpoint_dependencies))
-    self.assertIs(m.isdep, m._checkpoint_dependencies[0].ref)
+    self.assertEqual(1, len(m._trackable_children()))
+    self.assertIs(m.isdep, m._trackable_children()['isdep'])
     self.assertEqual('notdep_var:0', m.notdep_var.name)
 
   def test_extra_variable(self):
