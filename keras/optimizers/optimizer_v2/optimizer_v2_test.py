@@ -14,37 +14,36 @@
 # ==============================================================================
 """Functional test for OptimizerV2."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
 
 from absl.testing import parameterized
-import numpy as np
-
 import keras
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from keras import backend
 from keras import callbacks
 from keras import losses
-from keras.optimizers import optimizer_v1
 from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
 from keras.layers import regularization
+from keras.optimizers import learning_rate_schedule
+from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import adadelta
 from keras.optimizers.optimizer_v2 import adagrad
 from keras.optimizers.optimizer_v2 import adam
 from keras.optimizers.optimizer_v2 import adamax
 from keras.optimizers.optimizer_v2 import ftrl
 from keras.optimizers.optimizer_v2 import gradient_descent
-from keras.optimizers import learning_rate_schedule
 from keras.optimizers.optimizer_v2 import nadam
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.optimizers.optimizer_v2 import rmsprop
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 
 
 _DATA_TYPES = [tf.half, tf.float32, tf.float64]
@@ -251,10 +250,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     constraint_01 = lambda x: tf.clip_by_value(x, -0.1, 0.)
     constraint_0 = lambda x: tf.clip_by_value(x, 0., 1.)
     with test_utils.use_gpu():
-      var0 = tf.Variable([1.0, 2.0],
-                                constraint=constraint_01)
-      var1 = tf.Variable([3.0, 4.0],
-                                constraint=constraint_0)
+      var0 = tf.Variable([1.0, 2.0], constraint=constraint_01)
+      var1 = tf.Variable([3.0, 4.0], constraint=constraint_0)
       loss = lambda: 5 * var0 + 3 * var1
       sgd = gradient_descent.SGD(3.0)
 
@@ -769,6 +766,26 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.evaluate(tf.compat.v1.global_variables_initializer())
     self.evaluate(opt_op)
     self.assertEqual(self.evaluate(var), 1.0)
+
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
+  def test_create_slots_for_sharded_variables(self):
+    # set names so that ShardedVariable is well-named for slot variable keying.
+    var_a = tf.Variable([1.0], name='part_0')
+    var_b = tf.Variable([2.0], name='part_1')
+    sharded_var = tf.__internal__.distribute.ShardedVariable([var_a, var_b])
+
+    opt = adagrad.Adagrad()
+    opt._create_slots(sharded_var.variables)
+    opt._create_slots_for_sharded_variables(sharded_var.variables)
+
+    sharded_slot = opt.get_slot(sharded_var, 'accumulator')
+    self.assertIsInstance(
+        sharded_slot, tf.__internal__.distribute.ShardedVariable)
+
+    slot_a = opt.get_slot(var_a, 'accumulator')
+    self.assertAllClose(sharded_slot.variables[0], slot_a)
+    slot_b = opt.get_slot(var_b, 'accumulator')
+    self.assertAllClose(sharded_slot.variables[1], slot_b)
 
 
 @test_combinations.run_all_keras_modes
