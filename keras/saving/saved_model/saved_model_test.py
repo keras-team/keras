@@ -1151,7 +1151,8 @@ class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
     fn = call_collection.add_function(layer.call, 'call', True)
     fn(np.ones((2, 3)))
 
-    self.assertAllEqual(previous_losses, layer.losses)
+    self.assertAllEqual(self.evaluate(previous_losses),
+                        self.evaluate(layer.losses))
 
 
 @generic_utils.register_keras_serializable('Testing')
