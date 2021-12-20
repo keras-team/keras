@@ -180,7 +180,7 @@ All the release binaries can be found on [Pypi](https://pypi.org/project/keras/#
 | [2.4](https://github.com/keras-team/keras/releases/tag/2.4.0)  | Last stable release of multi-backend Keras | < 2.5
 | 2.5-pre| Pre-release (not formal) for standalone Keras repo | >= 2.5 < 2.6
 | [2.6](https://github.com/keras-team/keras/releases/tag/v2.6.0)    | First formal release of standalone Keras.  | >= 2.6 < 2.7
-| [2.7](https://github.com/keras-team/keras/releases/tag/v2.7.0)    | Latest Release | >= 2.7 < 2.8
+| [2.7](https://github.com/keras-team/keras/releases/tag/v2.7.0-rc0)    | (Upcoming release) | >= 2.7 < 2.8
 | nightly|                                            | tf-nightly
 
 ---
