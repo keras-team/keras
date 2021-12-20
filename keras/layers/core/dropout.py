@@ -75,15 +75,6 @@ class Dropout(base_layer.BaseRandomLayer):
   """
 
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
-    # Note that the constructor is annotated with
-    # @no_automatic_dependency_tracking. This is to skip the auto
-    # tracking of self._random_generator instance, which is an AutoTrackable.
-    # The backend.RandomGenerator could contain a tf.random.Generator instance
-    # which will have tf.Variable as the internal state. We want to avoid saving
-    # that state into model.weights and checkpoints for backward compatibility
-    # reason. In the meantime, we still need to make them visible to SavedModel
-    # when it is tracing the tf.function for the `call()`.
-    # See _list_extra_dependencies_for_serialization below for more details.
     super(Dropout, self).__init__(seed=seed, **kwargs)
     if isinstance(rate, (int, float)) and not 0 <= rate <= 1:
       raise ValueError(f'Invalid value {rate} received for '
