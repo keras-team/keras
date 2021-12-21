@@ -49,22 +49,21 @@ class RMSprop(optimizer.Optimizer):
       variance of the gradient; if False, by the uncentered second moment.
       Setting this to `True` may help with training, but is slightly more
       expensive in terms of computation and memory. Defaults to `False`.
-    gradients_clip_option: an instance of
-      `optimizer_experimental.GradientsClipOption`, for attributes related to
-      gradients clipping, such as clipnorm and clipvalue. Default to None
-      (not applying gradients clipping).
-    ema_option: an instance of `optimizer_experimental.EMAOption`, for
-      attributes related to exponenatial moving average, such as `use_ema` (a
-      boolean field indicates if EMA is used) and EMA momentum. Default to None
-      (not applying EMA).
-    jit_compile: Bool, default to False. If True, the optimizer will use XLA
-      acceleration. `jit_compile` can only be False when using Parameter
-      Server Strategy.
+    clipnorm: see the `clipnorm` argument of `optimizer_experimental.Optimizer`.
+    clipvalue: see the `clipvalue` argument of
+      `optimizer_experimental.Optimizer`.
+    global_clipnorm: see the `global_clipnorm` argument of
+      `optimizer_experimental.Optimizer`.
+    use_ema: see the `use_ema` argument of `optimizer_experimental.Optimizer`.
+    ema_momentum: see the `ema_momentum` argument of
+      `optimizer_experimental.Optimizer`.
+    ema_overwrite_frequency: see the `ema_overwrite_frequency` argument of
+      `optimizer_experimental.Optimizer`.
+    jit_compile: see the `jit_compile` argument of
+      `optimizer_experimental.Optimizer`.
     name: Optional name prefix for the operations created when applying
-      gradients.  Defaults to `"RMSprop"`.
-    **kwargs: keyword arguments only used for backward compatibility with
-      `optimizer_v2.OptimizerV2`. Any new code using
-      `optimizer_experimental.Optimizer` should leave this parameter empty.
+      gradients. Defaults to `"RMSprop"`.
+    **kwargs: see the `**kwargs` argument of `optimizer_experimental.Optimizer`.
 
   Usage:
 
@@ -87,14 +86,22 @@ class RMSprop(optimizer.Optimizer):
                momentum=0.0,
                epsilon=1e-7,
                centered=False,
-               gradients_clip_option=None,
-               ema_option=None,
+               clipnorm=None,
+               clipvalue=None,
+               global_clipnorm=None,
+               use_ema=False,
+               ema_momentum=0.99,
+               ema_overwrite_frequency=100,
                jit_compile=False,
                name='RMSprop',
                **kwargs):
     super(RMSprop, self).__init__(
-        gradients_clip_option=gradients_clip_option,
-        ema_option=ema_option,
+        clipnorm=clipnorm,
+        clipvalue=clipvalue,
+        global_clipnorm=global_clipnorm,
+        use_ema=use_ema,
+        ema_momentum=ema_momentum,
+        ema_overwrite_frequency=ema_overwrite_frequency,
         jit_compile=jit_compile,
         name=name,
         **kwargs)

@@ -12,7 +12,6 @@ import keras
 from keras.optimizer_experimental import adadelta as adadelta_new
 from keras.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizer_experimental import adam as adam_new
-from keras.optimizer_experimental import optimizer_lib
 from keras.optimizer_experimental import rmsprop as rmsprop_new
 from keras.optimizer_experimental import sgd as sgd_new
 from keras.optimizer_v2 import adadelta as adadelta_old
@@ -42,9 +41,7 @@ STRATEGIES = [
 adadelta_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladadelta",
     lambda: adadelta_new.Adadelta(  # pylint: disable=g-long-lambda
-        0.002,
-        ema_option=optimizer_lib.EMAOption(
-            use_ema=True, ema_overwrite_frequency=None)))
+        0.002, use_ema=True, ema_overwrite_frequency=None))
 adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladagrad", lambda: adagrad_new.Adagrad(0.002))
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
@@ -54,9 +51,7 @@ rmsprop_new_fn = tf.__internal__.test.combinations.NamedObject(
 sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalsgdaverage",
     lambda: sgd_new.SGD(  # pylint: disable=g-long-lambda
-        0.002,
-        ema_option=optimizer_lib.EMAOption(
-            use_ema=True, ema_overwrite_frequency=1)))
+        0.002, use_ema=True, ema_overwrite_frequency=1))
 
 OPTIMIZER_FN = [
     adadelta_new_fn,
@@ -84,22 +79,19 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(optimizer._index_dict[optimizer._var_key(var_list[7])], 7)
 
   def testClipNorm(self):
-    gradients_clip_option = optimizer_lib.GradientsClipOption(clipnorm=1)
-    optimizer = adam_new.Adam(gradients_clip_option=gradients_clip_option)
+    optimizer = adam_new.Adam(clipnorm=1)
     grad = [tf.convert_to_tensor([100.0, 100.0])]
     clipped_grad = optimizer._clip_gradients(grad)
     self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
 
   def testClipValue(self):
-    gradients_clip_option = optimizer_lib.GradientsClipOption(clipvalue=1)
-    optimizer = adam_new.Adam(gradients_clip_option=gradients_clip_option)
+    optimizer = adam_new.Adam(clipvalue=1)
     grad = [tf.convert_to_tensor([100.0, 100.0])]
     clipped_grad = optimizer._clip_gradients(grad)
     self.assertAllEqual(clipped_grad[0], [1.0, 1.0])
 
   def testClipGlobalNorm(self):
-    gradients_clip_option = optimizer_lib.GradientsClipOption(global_clipnorm=1)
-    optimizer = adam_new.Adam(gradients_clip_option=gradients_clip_option)
+    optimizer = adam_new.Adam(global_clipnorm=1)
     grad = [
         tf.cast([100.0, 100.0], dtype=tf.float32),
         tf.cast([100.0, 100.0], dtype=tf.float32)
@@ -111,17 +103,14 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertLogs(level="WARNING") as log_output:
       logging.set_verbosity(logging.WARNING)
       _ = adam_new.Adam(clipnorm=1, decay=0.5)
-      expected_log_0 = "clipnorm is deprecated in"
-      expected_log_1 = "decay is deprecated in"
-      output0 = log_output[0][0].message
-      output1 = log_output[0][1].message
+      expected_log = "decay is deprecated in"
+      output = log_output[0][0].message
 
-      self.assertTrue(re.search(expected_log_0, output0))
-      self.assertTrue(re.search(expected_log_1, output1))
+      self.assertTrue(re.search(expected_log, output))
 
   def testPassingLegacyClipnorm(self):
     optimizer = adam_new.Adam(clipnorm=1)
-    self.assertEqual(optimizer._gradients_clip_option.clipnorm, 1)
+    self.assertEqual(optimizer._clipnorm, 1)
 
   def testReturnAllOptimizerVariables(self):
     x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)
@@ -161,9 +150,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
   def testMovingAverageOptimizer(self):
     # We set polyak averaging with ema_momentum = 1 so that the
     #  moving average is always the original value of the variables.
-    ema_option = optimizer_lib.EMAOption(
+    optimizer = adam_new.Adam(
         use_ema=True, ema_momentum=1, ema_overwrite_frequency=2)
-    optimizer = adam_new.Adam(ema_option=ema_option)
     x = tf.Variable([1.0, 2.0], dtype=tf.float32)
     x_origin = tf.Variable(x)
     grads = tf.convert_to_tensor([1.0, 2.0])
@@ -177,17 +165,16 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(x, x_origin)
 
   def testGetAndFromConfig(self):
-    gradients_clip_option = optimizer_lib.GradientsClipOption(clipnorm=0.5)
-    ema_option = optimizer_lib.EMAOption(
-        use_ema=True, ema_momentum=0.5, ema_overwrite_frequency=50)
     optimizer = adam_new.Adam(
         learning_rate=np.float64(0.05),
         beta_1=0.7,
         beta_2=0.77,
         amsgrad=True,
         epsilon=0.001,
-        gradients_clip_option=gradients_clip_option,
-        ema_option=ema_option)
+        clipnorm=0.5,
+        use_ema=True,
+        ema_momentum=0.5,
+        ema_overwrite_frequency=50)
     config = optimizer.get_config()
     self.assertDictEqual(
         config, {
@@ -196,16 +183,13 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             "beta_2": 0.77,
             "epsilon": 0.001,
             "amsgrad": True,
-            "gradients_clip_option": {
-                "clipnorm": 0.5,
-                "global_clipnorm": None,
-                "clipvalue": None,
-            },
-            "ema_option": {
-                "use_ema": True,
-                "ema_momentum": 0.5,
-                "ema_overwrite_frequency": 50,
-            }
+            "clipnorm": 0.5,
+            "global_clipnorm": None,
+            "clipvalue": None,
+            "use_ema": True,
+            "ema_momentum": 0.5,
+            "ema_overwrite_frequency": 50,
+            "jit_compile": False,
         })
     restored_optimizer = adam_new.Adam.from_config(config)
     self.assertDictEqual(restored_optimizer.get_config(),
@@ -246,8 +230,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         [keras.layers.Input(shape=(1,)),
          keras.layers.Dense(1)])
     optimizer = optimizer_fn()
-    gradients_clip_option = optimizer_lib.GradientsClipOption(clipnorm=0.1)
-    optimizer._gradients_clip_option = gradients_clip_option
+    optimizer._clipnorm = 0.1
     x = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
     y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
     model.compile(loss="mse", optimizer=optimizer)
@@ -261,7 +244,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     loaded_optimizer = loaded_model.optimizer
     self.assertEqual(type(optimizer), type(loaded_optimizer))
     self.assertEqual(loaded_optimizer.learning_rate, 0.002)
-    self.assertEqual(loaded_optimizer._gradients_clip_option.clipnorm, 0.1)
+    self.assertEqual(loaded_optimizer._clipnorm, 0.1)
 
     # Save in Keras SavedModel format.
     model.fit(x, y)
@@ -272,7 +255,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     loaded_optimizer = loaded_model.optimizer
     self.assertEqual(type(optimizer), type(loaded_optimizer))
     self.assertEqual(loaded_optimizer.learning_rate, 0.002)
-    self.assertEqual(loaded_optimizer._gradients_clip_option.clipnorm, 0.1)
+    self.assertEqual(loaded_optimizer._clipnorm, 0.1)
 
 
 class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
@@ -394,13 +377,9 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
     # Test the optimizer yields same numerical results when jit_compile is
     # on and off.
     with strategy.scope():
-      optimizer_1 = adam_new.Adam(
-          ema_option=optimizer_lib.EMAOption(
-              use_ema=True, ema_overwrite_frequency=1))
+      optimizer_1 = adam_new.Adam(use_ema=True, ema_overwrite_frequency=1)
       optimizer_2 = adam_new.Adam(
-          jit_compile=True,
-          ema_option=optimizer_lib.EMAOption(
-              use_ema=True, ema_overwrite_frequency=1))
+          jit_compile=True, use_ema=True, ema_overwrite_frequency=1)
       model_1 = keras.Sequential([
           keras.layers.Input(shape=(2,)),
           keras.layers.Dense(5),
