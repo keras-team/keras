@@ -253,7 +253,7 @@ class RandomCrop(base_layer.BaseRandomLayer):
   def call(self, inputs, training=True):
     if training is None:
       training = backend.learning_phase()
-    inputs = utils.ensure_tensor(inputs)
+    inputs = utils.ensure_tensor(inputs, dtype=self.compute_dtype)
     input_shape = tf.shape(inputs)
     h_diff = input_shape[H_AXIS] - self.height
     w_diff = input_shape[W_AXIS] - self.width
@@ -266,10 +266,14 @@ class RandomCrop(base_layer.BaseRandomLayer):
       return tf.image.crop_to_bounding_box(inputs, h_start, w_start,
                                            self.height, self.width)
 
-    outputs = tf.cond(
+    def resize():
+      outputs = smart_resize(inputs, [self.height, self.width])
+      # smart_resize will always output float32, so we need to re-cast.
+      return tf.cast(outputs, self.compute_dtype)
+
+    return tf.cond(
         tf.reduce_all((training, h_diff >= 0, w_diff >= 0)), random_crop,
-        lambda: smart_resize(inputs, [self.height, self.width]))
-    return tf.cast(outputs, self.compute_dtype)
+        resize)
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()

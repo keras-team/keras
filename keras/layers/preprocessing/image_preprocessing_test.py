@@ -17,6 +17,7 @@
 import functools
 from absl.testing import parameterized
 
+import keras
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.engine import sequential
@@ -397,6 +398,12 @@ class RandomCropTest(keras_parameterized.TestCase):
           return_value=mock_offset):
         actual_output = layer(inp, training=True)
         self.assertAllClose(inp[2:10, 2:10, :], actual_output)
+
+  @testing_utils.run_v2_only
+  def test_uint8_input(self):
+    inputs = keras.Input((128, 128, 3), batch_size=2, dtype=tf.uint8)
+    layer = image_preprocessing.RandomCrop(64, 64)
+    self.assertAllEqual(layer(inputs).dtype, 'float32')
 
   @testing_utils.run_v2_only
   def test_output_dtypes(self):
