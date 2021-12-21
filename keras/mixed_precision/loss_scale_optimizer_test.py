@@ -23,7 +23,6 @@ from keras import optimizers
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import test_util as mp_test_util
 from keras.optimizer_experimental import optimizer as optimizer_experimental
-from keras.optimizer_experimental import optimizer_lib
 from keras.optimizer_experimental import sgd as sgd_experimental
 from keras.optimizer_v2 import adam
 from keras.optimizer_v2 import gradient_descent
@@ -301,15 +300,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     for clip_type in ('clipnorm', 'global_clipnorm', 'clipvalue'):
       with strategy.scope(), self.subTest(clip_type=clip_type):
         var = tf.Variable([5.0])
-        if opt_cls == optimizer_v2.OptimizerV2:
-          opt = create_sgd(opt_cls, learning_rate, **{clip_type: 2.0})
-        else:
-          # This branch is for experimental optimizer.
-          opt = create_sgd(
-              opt_cls, learning_rate, **{
-                  'gradients_clip_option':
-                      optimizer_lib.GradientsClipOption(**{clip_type: 2.0})
-              })
+        opt = create_sgd(opt_cls, learning_rate, **{clip_type: 2.0})
         opt = create_lso(opt, initial_scale=2, dynamic_growth_steps=1)
         if isinstance(opt, loss_scale_optimizer.LossScaleOptimizer):
           # Only OptimizerV2 exposes the clipping attributes
