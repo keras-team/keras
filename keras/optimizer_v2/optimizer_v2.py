@@ -410,7 +410,12 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
   @property
   def global_clipnorm(self):
-    """`float` or `None`. If set, clips gradients to a maximum norm."""
+    """`float` or `None`.
+
+    If set, clips gradients to a maximum norm.
+
+    Check `tf.clip_by_global_norm` for more details.
+    """
     return self._global_clipnorm
 
   @clipnorm.setter
