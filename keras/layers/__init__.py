@@ -251,6 +251,7 @@ from keras.layers.rnn_cell_wrapper_v2 import ResidualWrapper
 # Serialization functions.
 from keras.layers import serialization
 from keras.layers.serialization import deserialize
+from keras.layers.serialization import deserialize_from_json
 from keras.layers.serialization import serialize
 from keras.layers.serialization import get_builtin_layer
 

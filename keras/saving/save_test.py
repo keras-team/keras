@@ -137,101 +137,6 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
     self.model.load_weights(path)
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
-  def test_saving_with_dense_features(self):
-    cols = [
-        tf.feature_column.numeric_column('a'),
-        tf.feature_column.indicator_column(
-            tf.feature_column.categorical_column_with_vocabulary_list(
-                'b', ['one', 'two']))
-    ]
-    input_layers = {
-        'a': keras.layers.Input(shape=(1,), name='a'),
-        'b': keras.layers.Input(shape=(1,), name='b', dtype='string')
-    }
-
-    fc_layer = dense_features.DenseFeatures(cols)(input_layers)
-    output = keras.layers.Dense(10)(fc_layer)
-
-    model = keras.models.Model(input_layers, output)
-
-    model.compile(
-        loss=keras.losses.MSE,
-        optimizer='rmsprop',
-        metrics=[keras.metrics.categorical_accuracy])
-
-    config = model.to_json()
-    loaded_model = model_config.model_from_json(config)
-
-    inputs_a = np.arange(10).reshape(10, 1)
-    inputs_b = np.arange(10).reshape(10, 1).astype('str')
-
-    with self.cached_session():
-      # Initialize tables for V1 lookup.
-      if not tf.executing_eagerly():
-        self.evaluate(tf.compat.v1.tables_initializer())
-
-      self.assertLen(loaded_model.predict({'a': inputs_a, 'b': inputs_b}), 10)
-
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
-  def test_saving_with_sequence_features(self):
-    cols = [
-        tf.feature_column.sequence_numeric_column('a'),
-        tf.feature_column.indicator_column(
-            tf.feature_column.sequence_categorical_column_with_vocabulary_list(
-                'b', ['one', 'two']))
-    ]
-    input_layers = {
-        'a':
-            keras.layers.Input(shape=(None, 1), sparse=True, name='a'),
-        'b':
-            keras.layers.Input(
-                shape=(None, 1), sparse=True, name='b', dtype='string')
-    }
-
-    fc_layer, _ = ksfc.SequenceFeatures(cols)(input_layers)
-    # TODO(tibell): Figure out the right dtype and apply masking.
-    # sequence_length_mask = array_ops.sequence_mask(sequence_length)
-    # x = keras.layers.GRU(32)(fc_layer, mask=sequence_length_mask)
-    x = keras.layers.GRU(32)(fc_layer)
-    output = keras.layers.Dense(10)(x)
-
-    model = keras.models.Model(input_layers, output)
-
-    model.compile(
-        loss=keras.losses.MSE,
-        optimizer='rmsprop',
-        metrics=[keras.metrics.categorical_accuracy])
-
-    config = model.to_json()
-    loaded_model = model_config.model_from_json(config)
-
-    batch_size = 10
-    timesteps = 1
-
-    values_a = np.arange(10, dtype=np.float32)
-    indices_a = np.zeros((10, 3), dtype=np.int64)
-    indices_a[:, 0] = np.arange(10)
-    inputs_a = tf.SparseTensor(indices_a, values_a,
-                                          (batch_size, timesteps, 1))
-
-    values_b = np.zeros(10, dtype=np.str)
-    indices_b = np.zeros((10, 3), dtype=np.int64)
-    indices_b[:, 0] = np.arange(10)
-    inputs_b = tf.SparseTensor(indices_b, values_b,
-                                          (batch_size, timesteps, 1))
-
-    with self.cached_session():
-      # Initialize tables for V1 lookup.
-      if not tf.executing_eagerly():
-        self.evaluate(tf.compat.v1.tables_initializer())
-
-      self.assertLen(
-          loaded_model.predict({
-              'a': inputs_a,
-              'b': inputs_b
-          }, steps=1), batch_size)
-
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_saving_h5_for_rnn_layers(self):
     # See https://github.com/tensorflow/tensorflow/issues/35731 for details.
     inputs = keras.Input([10, 91], name='train_input')
@@ -362,6 +267,139 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
     matched = [log for log in logs.output if expected_substring in log]
     # Check that a warning is *not* logged for a premade model.
     self.assertEmpty(matched)
+
+
+@generic_utils.register_keras_serializable(package='Foo')
+class RegisteredSubLayer(keras.layers.Layer):
+  pass
+
+
+class TestJson(keras_parameterized.TestCase):
+  """Tests to_json()/from_json()."""
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_saving_with_dense_features(self):
+    cols = [
+        tf.feature_column.numeric_column('a'),
+        tf.feature_column.indicator_column(
+            tf.feature_column.categorical_column_with_vocabulary_list(
+                'b', ['one', 'two']))
+    ]
+    input_layers = {
+        'a': keras.layers.Input(shape=(1,), name='a'),
+        'b': keras.layers.Input(shape=(1,), name='b', dtype='string')
+    }
+
+    fc_layer = dense_features.DenseFeatures(cols)(input_layers)
+    output = keras.layers.Dense(10)(fc_layer)
+
+    model = keras.models.Model(input_layers, output)
+
+    model.compile(
+        loss=keras.losses.MSE,
+        optimizer='rmsprop',
+        metrics=[keras.metrics.categorical_accuracy])
+
+    config = model.to_json()
+    loaded_model = model_config.model_from_json(config)
+
+    inputs_a = np.arange(10).reshape(10, 1)
+    inputs_b = np.arange(10).reshape(10, 1).astype('str')
+
+    with self.cached_session():
+      # Initialize tables for V1 lookup.
+      if not tf.executing_eagerly():
+        self.evaluate(tf.compat.v1.tables_initializer())
+
+      self.assertLen(loaded_model.predict({'a': inputs_a, 'b': inputs_b}), 10)
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_saving_with_sequence_features(self):
+    cols = [
+        tf.feature_column.sequence_numeric_column('a'),
+        tf.feature_column.indicator_column(
+            tf.feature_column.sequence_categorical_column_with_vocabulary_list(
+                'b', ['one', 'two']))
+    ]
+    input_layers = {
+        'a':
+            keras.layers.Input(shape=(None, 1), sparse=True, name='a'),
+        'b':
+            keras.layers.Input(
+                shape=(None, 1), sparse=True, name='b', dtype='string')
+    }
+
+    fc_layer, _ = ksfc.SequenceFeatures(cols)(input_layers)
+    # TODO(tibell): Figure out the right dtype and apply masking.
+    # sequence_length_mask = array_ops.sequence_mask(sequence_length)
+    # x = keras.layers.GRU(32)(fc_layer, mask=sequence_length_mask)
+    x = keras.layers.GRU(32)(fc_layer)
+    output = keras.layers.Dense(10)(x)
+
+    model = keras.models.Model(input_layers, output)
+
+    model.compile(
+        loss=keras.losses.MSE,
+        optimizer='rmsprop',
+        metrics=[keras.metrics.categorical_accuracy])
+
+    config = model.to_json()
+    loaded_model = model_config.model_from_json(config)
+
+    batch_size = 10
+    timesteps = 1
+
+    values_a = np.arange(10, dtype=np.float32)
+    indices_a = np.zeros((10, 3), dtype=np.int64)
+    indices_a[:, 0] = np.arange(10)
+    inputs_a = tf.SparseTensor(indices_a, values_a,
+                               (batch_size, timesteps, 1))
+
+    values_b = np.zeros(10, dtype=np.str)
+    indices_b = np.zeros((10, 3), dtype=np.int64)
+    indices_b[:, 0] = np.arange(10)
+    inputs_b = tf.SparseTensor(indices_b, values_b,
+                               (batch_size, timesteps, 1))
+
+    with self.cached_session():
+      # Initialize tables for V1 lookup.
+      if not tf.executing_eagerly():
+        self.evaluate(tf.compat.v1.tables_initializer())
+
+      self.assertLen(
+          loaded_model.predict({
+              'a': inputs_a,
+              'b': inputs_b
+          }, steps=1), batch_size)
+
+  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  def test_nested_layers(self):
+
+    class MyLayer(keras.layers.Layer):
+
+      def __init__(self, sublayers, **kwargs):
+        super(MyLayer, self).__init__(**kwargs)
+        self.sublayers = sublayers
+
+      def get_config(self):
+        config = super(MyLayer, self).get_config()
+        config['sublayers'] = self.sublayers
+        return config
+
+    layer = MyLayer([keras.layers.Dense(2, name='MyDense'),
+                     RegisteredSubLayer(name='MySubLayer')])
+    model = keras.Sequential([keras.Input([None]), layer])
+    model_json = model.to_json()
+
+    self.assertIn('Foo>RegisteredSubLayer', model_json)
+
+    loaded_model = model_config.model_from_json(
+        model_json, custom_objects={'MyLayer': MyLayer})
+    loaded_layer = loaded_model.layers[0]
+    self.assertIsInstance(loaded_layer.sublayers[0], keras.layers.Dense)
+    self.assertEqual(loaded_layer.sublayers[0].name, 'MyDense')
+    self.assertIsInstance(loaded_layer.sublayers[1], RegisteredSubLayer)
+    self.assertEqual(loaded_layer.sublayers[1].name, 'MySubLayer')
 
 
 @keras_parameterized.run_with_all_saved_model_formats

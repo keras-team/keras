@@ -15,7 +15,6 @@
 # pylint: disable=protected-access
 """Functions that save the model's config into different formats."""
 
-from keras.saving.saved_model import json_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -99,6 +98,5 @@ def model_from_json(json_string, custom_objects=None):
   Returns:
       A Keras model instance (uncompiled).
   """
-  config = json_utils.decode(json_string)
-  from keras.layers import deserialize  # pylint: disable=g-import-not-at-top
-  return deserialize(config, custom_objects=custom_objects)
+  from keras.layers import deserialize_from_json  # pylint: disable=g-import-not-at-top
+  return deserialize_from_json(json_string, custom_objects=custom_objects)

@@ -127,6 +127,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":io_utils",
         ":tf_contextlib",
         ":tf_inspect",
         "//:expect_numpy_installed",
