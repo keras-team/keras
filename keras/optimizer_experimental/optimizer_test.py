@@ -262,7 +262,6 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
   """Test optimizer outputs the same numerical results as optimizer_v2."""
 
   def _compare_numerical(self, old_optimizer, new_optimizer):
-    tf.config.run_functions_eagerly(True)
     x1 = tf.Variable(np.ones([10]), dtype=tf.float64)
     x2 = tf.Variable(np.ones([10]), dtype=tf.float64)
     grads = tf.convert_to_tensor(np.arange(0.1, 1.1, 0.1))

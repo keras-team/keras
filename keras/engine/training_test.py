@@ -26,6 +26,7 @@ from keras import keras_parameterized
 from keras import layers as layers_module
 from keras import losses
 from keras import metrics as metrics_module
+from keras import optimizer_experimental
 from keras import optimizer_v2
 from keras import testing_utils
 from keras.callbacks import Callback
@@ -1835,6 +1836,23 @@ class TrainingTest(keras_parameterized.TestCase):
     history = model.fit(dataset, epochs=2, steps_per_epoch=10)
     self.assertLen(history.history['loss'], 2)
     self.assertAllClose(history.history['loss'][1], model.loss_metric.result())
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_ema_overwrite(self):
+    tf.autograph.set_verbosity(10)
+    model = sequential.Sequential()
+    model.add(input_layer.Input(shape=(4,)))
+    model.add(layers_module.Dense(1, activation='relu'))
+
+    tensors = tf.random.uniform((4, 4)), tf.random.uniform((4,))
+    dataset = tf.data.Dataset.from_tensor_slices(tensors).repeat().batch(1)
+
+    optimizer = optimizer_experimental.sgd.SGD(use_ema=True, ema_momentum=1)
+    model.compile(optimizer, loss='mse', steps_per_execution=10)
+    initial_value = tf.Variable(model.trainable_variables[0])
+    history = model.fit(dataset, epochs=2, steps_per_epoch=10)
+    self.assertLen(history.history['loss'], 2)
+    self.assertAllClose(initial_value, model.trainable_variables[0])
 
 
 class TestExceptionsAndWarnings(keras_parameterized.TestCase):

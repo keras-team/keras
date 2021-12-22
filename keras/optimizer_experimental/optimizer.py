@@ -71,7 +71,8 @@ class _BaseOptimizer(tf.Module):
     """Create the iterations counter variable."""
     with tf.init_scope():
       # Lift the variable creation to init scope to avoid environment issue.
-      self._iterations = tf.Variable(0, name="iteration", dtype=tf.int64)
+      self._iterations = tf.Variable(
+          0, name="iteration", dtype=tf.int64, trainable=False)
 
   def _process_kwargs(self, kwargs):
     legacy_kwargs = {
@@ -198,10 +199,14 @@ class _BaseOptimizer(tf.Module):
       self._current_learning_rate = tf.Variable(
           learning_rate(self.iterations),
           name="learning_rate",
-          dtype=tf.float32)
+          dtype=tf.float32,
+          trainable=False)
       return learning_rate
     return tf.Variable(
-        learning_rate, name="learning_rate", dtype=backend.floatx())
+        learning_rate,
+        name="learning_rate",
+        dtype=backend.floatx(),
+        trainable=False)
 
   @abc.abstractmethod
   def build(self, var_list):
@@ -392,7 +397,10 @@ class _BaseOptimizer(tf.Module):
     Args:
       var_list: list of model variables.
     """
-    self._overwrite_model_variables_with_average_value(var_list)
+    if self._use_ema:
+      # If the optimizer uses EMA, then when finalizing, we replace the model
+      # variable value with its moving average stored inside optimizer.
+      self._overwrite_model_variables_with_average_value(var_list)
 
   def _serialize_hyperparameter(self, hyperparameter):
     """Serialize a hyperparameter that can be a numeric or callable."""
@@ -627,7 +635,7 @@ class Optimizer(_BaseOptimizer):
         should_overwrite_model_vars = (
             self.iterations % self._ema_overwrite_frequency == 0)
         tf.cond(
-            should_overwrite_model_vars,
+            tf.cast(should_overwrite_model_vars, tf.bool),
             true_fn=lambda: self._overwrite_model_variables_with_average_value(  # pylint: disable=g-long-lambda
                 var_list),
             false_fn=lambda: None)
