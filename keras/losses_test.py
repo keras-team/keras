@@ -262,6 +262,25 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     # reduced_weighted_mse = (6 + 26) / 2 =
     self.assertAllClose(self.evaluate(loss), 16, 1e-2)
 
+  def test_loss_wrapper_dtype(self):
+    # Make sure the loss wrapper doesn't cause any numerical precision loss
+    # during calculation. See https://github.com/keras-team/keras/issues/15791
+    x = tf.convert_to_tensor([[2.1]], dtype=tf.float64)
+    y_true = tf.square(x)
+    y_pred = tf.convert_to_tensor([[3.68]], dtype=tf.float64)
+
+    # TF loss
+    loss = losses.MeanSquaredError()
+    tf_loss = loss(y_pred, y_true)
+
+    # manually computed loss in 64-bit
+    man_loss64 = tf.squeeze(tf.square(y_pred - y_true))
+
+    self.assertEqual(tf_loss.dtype, tf.float64)
+    # Make a smaller atol to ensure the float64 precision is hold.
+    self.assertAllClose(self.evaluate(tf_loss), self.evaluate(man_loss64),
+                        atol=1e-8)
+
   def test_invalid_reduction(self):
     with self.assertRaisesRegex(ValueError, 'Invalid Reduction Key: Foo.'):
       losses.MeanSquaredError(reduction='Foo')
