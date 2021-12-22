@@ -34,6 +34,7 @@ from keras.engine import data_adapter
 from keras.engine import training_utils
 from keras.mixed_precision import loss_scale_optimizer as lso
 from keras.mixed_precision import policy
+from keras.optimizer_experimental import optimizer as optimizer_experimental
 from keras.saving import hdf5_format
 from keras.saving import save
 from keras.saving import saving_utils
@@ -1436,6 +1437,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         training_logs = epoch_logs
         if self.stop_training:
           break
+
+      if isinstance(self.optimizer, optimizer_experimental.Optimizer):
+        self.optimizer.finalize_variable_values(self.trainable_variables)
 
       # If eval data_handler exists, delete it after all epochs are done.
       if getattr(self, '_eval_data_handler', None) is not None:
