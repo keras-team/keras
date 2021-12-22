@@ -17,6 +17,7 @@
 """Built-in metrics."""
 
 import abc
+import copy
 import types
 from typing import List, Tuple, Union
 import warnings
@@ -240,6 +241,29 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
   def __str__(self):
     args = ','.join(f'{k}={v}' for k, v in self.get_config().items())
     return f'{self.__class__.__name__}({args})'
+
+  def __deepcopy__(self, memo):
+    result = type(self)(name=self.name, dtype=self.dtype)
+    memo[id(self)] = result
+
+    for k, v in self.__dict__.items():
+      if k in ['update_state', 'result']:
+        # `update_state` keeps a closure of `update_state_fn`, and deep
+        # copying it would result in copying that old reference. Avoid that.
+        # Likewise for `result`.
+        continue
+      if k in ['_obj_reference_counts_dict']:
+        # `Layer.__setattr__` attempts to flatten the
+        # `ObjectIdentityDictionary`, which can't be done since it stores
+        # heterogeneous instances.
+        tf.Module.__setattr__(result, k, copy.deepcopy(v, memo))
+      elif k in ['_thread_local', '_metrics_lock']:
+        # Can't pickle _thread.lock objects.
+        setattr(result, k, v)
+      else:
+        setattr(result, k, copy.deepcopy(v, memo))
+
+    return result
 
   @property
   def dtype(self):
