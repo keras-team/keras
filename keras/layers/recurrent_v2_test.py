@@ -119,6 +119,30 @@ class RNNV2Test(keras_parameterized.TestCase):
     lstm = layer(32)
     lstm(embedded_inputs)
 
+  @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
+  def test_compare_ragged_with_masks(self, layer):
+    vocab_size = 100
+    timestep = 20
+    units = 32
+    embedder = embeddings.Embedding(input_dim=vocab_size, output_dim=units)
+    layer = layer(units, return_sequences=True)
+    data = tf.constant(
+      np.random.RandomState(0).randint(0, vocab_size, [timestep, timestep]))
+    mask = tf.sequence_mask(tf.range(1, timestep + 1))
+    data_ragged = tf.ragged.boolean_mask(data, mask)
+
+    outputs = []
+    devices = [testing_utils.device(should_use_gpu=False)]
+    if tf.test.is_gpu_available():
+      devices.append(testing_utils.device(should_use_gpu=True))
+    for device in devices:
+      with device:
+        outputs.append(tf.boolean_mask(layer(embedder(data), mask=mask), mask))
+        outputs.append(layer(embedder(data_ragged)).values)
+
+    for i in range(len(outputs) - 1):
+      self.assertAllClose(outputs[i], outputs[i + 1], atol=1e-4)
+
 
 if __name__ == '__main__':
   tf.test.main()
