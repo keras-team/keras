@@ -125,7 +125,10 @@ class ApplicationsLoadWeightTest(tf.test.TestCase, parameterized.TestCase):
       self.assertShapeEqual(model.output_shape, (None, _IMAGENET_CLASSES))
       x = _get_elephant(model.input_shape[1:3])
       x = app_module.preprocess_input(x)
-      preds = model(x).numpy()
+      try:
+        preds = model.predict(x) # Works in TF1
+      except:
+        preds = model(x).numpy() # Works in TF2
       names = [p[1] for p in app_module.decode_predictions(preds)[0]]
       # Test correct label is in top 3 (weak correctness test).
       self.assertIn('African_elephant', names[:3])
