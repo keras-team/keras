@@ -2147,7 +2147,7 @@ def moving_average_update(x, value, momentum):
   if tf.__internal__.tf2.enabled():
     momentum = tf.cast(momentum, x.dtype)
     value = tf.cast(value, x.dtype)
-    return x.assign(x * momentum + value * (1 - momentum))
+    return x.assign_sub((x - value) * (1 - momentum))
   else:
     return tf.__internal__.train.assign_moving_average(
         x, value, momentum, zero_debias=True)
