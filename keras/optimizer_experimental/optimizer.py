@@ -25,6 +25,8 @@ from keras import initializers
 from keras.optimizer_v2 import learning_rate_schedule
 from keras.optimizer_v2 import utils as optimizer_utils
 import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
 
 
 class _BaseOptimizer(tf.Module):
@@ -457,6 +459,7 @@ class _BaseOptimizer(tf.Module):
     return cls(**config)
 
 
+@keras_export("keras.optimizers.experimental.Optimizer", v1=[])
 class Optimizer(_BaseOptimizer):
   """Abstract optimizer base class.
 
