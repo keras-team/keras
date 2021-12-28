@@ -17,9 +17,12 @@
 from keras.optimizer_experimental import optimizer
 from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
 
 
 @generic_utils.register_keras_serializable()
+@keras_export('keras.optimizers.experimental.Adam', v1=[])
 class Adam(optimizer.Optimizer):
   r"""Optimizer that implements the Adam algorithm.
 
