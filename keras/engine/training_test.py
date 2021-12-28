@@ -202,6 +202,60 @@ class TrainingTest(keras_parameterized.TestCase):
     # The validation loss should be 1.0.
     self.assertAllClose(history.history['val_loss'][0], 1.0)
 
+  @keras_parameterized.run_all_keras_modes(
+      always_skip_v1=True)
+  def test_warn_on_evaluate(self):
+    i = layers_module.Input((1,))
+    x = np.ones((100, 1))
+    y = np.ones((100, 1))
+    sample_weight = np.ones((100,))
+    model = training_module.Model(i, i)
+    model.compile(loss='mse', metrics=['mse'])
+
+    logging.set_verbosity(2)
+    with self.assertLogs(level=2) as logs:
+      model.evaluate(x, y, sample_weight=sample_weight)
+    self.assertTrue(
+        any('`evaluate()` received a value for `sample_weight`' in log
+            for log in logs.output))
+
+  @keras_parameterized.run_all_keras_modes(
+      always_skip_v1=True)
+  def test_sample_weight_warning_disable(self):
+    i = layers_module.Input((1,))
+    x = np.ones((100, 1))
+    y = np.ones((100, 1))
+    sample_weight = np.ones((100,))
+    model = training_module.Model(i, i)
+    model.compile(loss='mse', metrics=['mse'], weighted_metrics=[])
+
+    logging.set_verbosity(2)
+    with self.assertLogs(level=2) as logs:
+      model.evaluate(x, y, sample_weight=sample_weight)
+    self.assertFalse(
+        any('`evaluate()` received a value for `sample_weight`' in log
+            for log in logs.output))
+
+  @keras_parameterized.run_all_keras_modes(
+      always_skip_v1=True)
+  def test_warn_on_evaluate_with_tf_dataset(self):
+    i = layers_module.Input((1,))
+
+    x = tf.ones((100, 1), tf.float32)
+    y = tf.ones((100, 1), tf.float32)
+    sample_weight = tf.ones((100,), dtype=tf.float32)
+    val_dataset = tf.data.Dataset.from_tensor_slices(
+        (x, y, sample_weight)).batch(10)
+    model = training_module.Model(i, i)
+    model.compile(loss='mse', metrics=['mse'])
+
+    logging.set_verbosity(2)
+    with self.assertLogs(level=2) as logs:
+      model.evaluate(val_dataset)
+    self.assertTrue(
+        any('`evaluate()` received a value for `sample_weight`' in log
+            for log in logs.output))
+
   @keras_parameterized.run_all_keras_modes
   def test_fit_and_validate_training_arg(self):
 
