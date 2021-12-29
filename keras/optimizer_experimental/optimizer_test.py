@@ -148,21 +148,28 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
       optimizer.learning_rate = 2.0
 
   def testMovingAverageOptimizer(self):
-    # We set polyak averaging with ema_momentum = 1 so that the
-    #  moving average is always the original value of the variables.
-    optimizer = adam_new.Adam(
-        use_ema=True, ema_momentum=1, ema_overwrite_frequency=2)
-    x = tf.Variable([1.0, 2.0], dtype=tf.float32)
-    x_origin = tf.Variable(x)
-    grads = tf.convert_to_tensor([1.0, 2.0])
-    # First iteration, we store the moving average, and do not do overriding.
-    optimizer.apply_gradients(zip([grads], [x]))
-    self.assertAllEqual(optimizer._model_variables_moving_average[0], x_origin)
-    self.assertNotAllEqual(x, x_origin)
+    optimizer = sgd_new.SGD(
+        learning_rate=1,
+        use_ema=True,
+        ema_momentum=0.5,
+        ema_overwrite_frequency=3)
 
-    # Second iteration, we store the moving average, and override model vars.
-    optimizer.apply_gradients(zip([grads], [x]))
-    self.assertAllEqual(x, x_origin)
+    var1, var2 = tf.Variable(2.0), tf.Variable(2.0)
+    with tf.GradientTape() as tape:
+      loss = var1 + var2
+    grads = tape.gradient(loss, [var1, var2])
+    # First iteration: [var1, var2] = [1.0, 1.0]
+    optimizer.apply_gradients(zip(grads, [var1, var2]))
+    self.assertAllEqual([var1.numpy(), var2.numpy()], [1.0, 1.0])
+
+    # Second iteration: [var1, var2] = [0.0, 0.0]
+    optimizer.apply_gradients(zip(grads, [var1, var2]))
+    self.assertAllEqual([var1.numpy(), var2.numpy()], [0.0, 0.0])
+
+    # Third iteration, without EMA, we should see [var1, var2] = [-1.0, -1.0],
+    # but overwriting results in [var1, var2] = [-0.125, -0.125].
+    optimizer.apply_gradients(zip(grads, [var1, var2]))
+    self.assertAllEqual([var1.numpy(), var2.numpy()], [-0.125, -0.125])
 
   def testGetAndFromConfig(self):
     optimizer = adam_new.Adam(
