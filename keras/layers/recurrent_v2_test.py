@@ -120,6 +120,7 @@ class RNNV2Test(keras_parameterized.TestCase):
     lstm(embedded_inputs)
 
   @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
+  @testing_utils.run_v2_only
   def test_compare_ragged_with_masks(self, layer):
     vocab_size = 100
     timestep = 20
