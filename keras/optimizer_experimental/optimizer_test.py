@@ -147,6 +147,17 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesRegex(TypeError, "This optimizer was created with*"):
       optimizer.learning_rate = 2.0
 
+  def testSetIterations(self):
+    optimizer = adam_new.Adam()
+    optimizer.iterations = tf.Variable(2, dtype=tf.int32)
+    self.assertEqual(optimizer.iterations, 2)
+    var_list = [tf.Variable(2.0), tf.Variable(2.0)]
+    grads = tf.convert_to_tensor([1.0, 1.0])
+    optimizer.apply_gradients(zip(grads, var_list))
+    self.assertEqual(optimizer.iterations, 3)
+    with self.assertRaisesRegex(RuntimeError, "Cannot set*"):
+      optimizer.iterations = 2
+
   def testMovingAverageOptimizer(self):
     optimizer = sgd_new.SGD(
         learning_rate=1,
