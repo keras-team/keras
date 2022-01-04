@@ -27,6 +27,7 @@ from keras.optimizer_v2 import utils as optimizer_utils
 import tensorflow.compat.v2 as tf
 # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 class _BaseOptimizer(tf.Module):
@@ -209,6 +210,20 @@ class _BaseOptimizer(tf.Module):
                       " learning rate to be settable, you should instantiate "
                       "the optimizer with a float `learning_rate` argument.")
     self._learning_rate.assign(learning_rate)
+
+  @property
+  @doc_controls.do_not_generate_docs
+  def lr(self):
+    """Alias of `learning_rate()`.
+
+    `lr()` is heavily called in workflows using `optimizer_v2.OptimizerV2`,
+    so we keep it for backward compabitliy.
+    """
+    return self.learning_rate
+
+  @lr.setter
+  def lr(self, learning_rate):
+    self.learning_rate = learning_rate
 
   def _build_learning_rate(self, learning_rate):
     if isinstance(learning_rate, learning_rate_schedule.LearningRateSchedule):
