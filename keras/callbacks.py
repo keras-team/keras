@@ -1228,7 +1228,8 @@ class ModelCheckpoint(Callback):
           `history = model.fit()`
         * Multi-output models set additional prefixes on the metric names.
 
-      verbose: verbosity mode, 0 or 1.
+      verbose: Verbosity mode, 0 or 1. Mode 0 is silent, and mode 1
+        displays messages when the callback takes an action.
       save_best_only: if `save_best_only=True`, it only saves when the model
         is considered the "best" and the latest best model according to the
         quantity monitored will not be overwritten. If `filepath` doesn't
@@ -1622,6 +1623,7 @@ class BackupAndRestore(Callback):
   invalid.
 
   Note:
+
   1. This callback is not compatible with eager execution disabled.
   2. A checkpoint is saved at the end of each epoch. After restoring,
   `Model.fit` redoes any partial work during the unfinished epoch in which the
@@ -1762,7 +1764,8 @@ class EarlyStopping(Callback):
         improvement.
     patience: Number of epochs with no improvement
         after which training will be stopped.
-    verbose: verbosity mode.
+    verbose: Verbosity mode, 0 or 1. Mode 0 is silent, and mode 1
+        displays messages when the callback takes an action.
     mode: One of `{"auto", "min", "max"}`. In `min` mode,
         training will stop when the quantity
         monitored has stopped decreasing; in `"max"`
