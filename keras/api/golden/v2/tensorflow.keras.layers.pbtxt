@@ -477,6 +477,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "UnitNormalization"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "UpSampling1D"
     mtype: "<type \'type\'>"
   }

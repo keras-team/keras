@@ -26,6 +26,7 @@ py_library(
         ":batch_normalization",
         ":batch_normalization_v1",
         ":layer_normalization",
+        ":unit_normalization",
     ],
 )
 
@@ -68,6 +69,16 @@ py_library(
     ],
 )
 
+py_library(
+    name = "unit_normalization",
+    srcs = ["unit_normalization.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/engine:base_layer",
+    ],
+)
+
 cuda_py_test(
     name = "batch_normalization_test",
     size = "medium",
@@ -104,5 +115,18 @@ cuda_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:combinations",
+    ],
+)
+
+cuda_py_test(
+    name = "unit_normalization_test",
+    size = "small",
+    srcs = ["unit_normalization_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )

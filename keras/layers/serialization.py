@@ -42,6 +42,7 @@ from keras.layers import wrappers
 from keras.layers.normalization import batch_normalization
 from keras.layers.normalization import batch_normalization_v1
 from keras.layers.normalization import layer_normalization
+from keras.layers.normalization import unit_normalization
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import discretization
 from keras.layers.preprocessing import hashing
@@ -58,8 +59,8 @@ from tensorflow.python.util.tf_export import keras_export
 ALL_MODULES = (base_layer, input_layer, advanced_activations, convolutional,
                convolutional_recurrent, core, cudnn_recurrent, dense_attention,
                embeddings, einsum_dense, local, merge, noise,
-               batch_normalization_v1, layer_normalization, pooling,
-               image_preprocessing, recurrent, wrappers, hashing,
+               batch_normalization_v1, layer_normalization, unit_normalization,
+               pooling, image_preprocessing, recurrent, wrappers, hashing,
                hashed_crossing, category_encoding, discretization,
                multi_head_attention, integer_lookup,
                preprocessing_normalization, string_lookup, text_vectorization)

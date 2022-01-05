@@ -152,6 +152,7 @@ from keras.layers.noise import GaussianDropout
 # Normalization layers.
 from keras.layers.normalization.layer_normalization import LayerNormalization
 from keras.layers.normalization.batch_normalization import SyncBatchNormalization
+from keras.layers.normalization.unit_normalization import UnitNormalization
 
 if tf.__internal__.tf2.enabled():
   from keras.layers.normalization.batch_normalization import BatchNormalization
