@@ -22,6 +22,7 @@ from keras import regularizers
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import control_flow_util
+from keras.utils import tf_utils
 from tensorflow.python.ops.control_flow_ops import get_enclosing_xla_context
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
@@ -292,43 +293,24 @@ class BatchNormalizationBase(Layer):
                 False))
 
   def build(self, input_shape):
+    self.axis = tf_utils.validate_axis(self.axis, input_shape)
     input_shape = tf.TensorShape(input_shape)
-    if not input_shape.ndims:
-      raise ValueError(
-          f'Input has undefined rank. Received: input_shape={input_shape}.')
-    ndims = len(input_shape)
-
-    # Convert axis to list and resolve negatives
-    if isinstance(self.axis, int):
-      self.axis = [self.axis]
-
-    for idx, x in enumerate(self.axis):
-      if x < 0:
-        self.axis[idx] = ndims + x
-
-    # Validate axes
-    for x in self.axis:
-      if x < 0 or x >= ndims:
-        raise ValueError(
-            f'Invalid axis. Expected 0 <= axis < inputs.rank (with '
-            f'inputs.rank={ndims}). Received: layer.axis={self.axis}')
-    if len(self.axis) != len(set(self.axis)):
-      raise ValueError('Duplicate axis: %s' % (self.axis,))
+    rank = input_shape.rank
 
     if self.virtual_batch_size is not None:
       if self.virtual_batch_size <= 0:
         raise ValueError(
-            f'virtual_batch_size must be a positive integer that divides the '
+            f'`virtual_batch_size` must be a positive integer that divides the '
             f'true batch size of the input tensor. Received: '
             f'virtual_batch_size={self.virtual_batch_size}')
       # If using virtual batches, the first dimension must be the batch
       # dimension and cannot be the batch norm axis
       if 0 in self.axis:
-        raise ValueError('When using virtual_batch_size, the batch dimension '
+        raise ValueError('When using `virtual_batch_size`, the batch dimension '
                          'must be 0 and thus axis cannot include 0. '
-                         'Received axis=%s' % (self.axis,))
+                         f'Received axis={self.axis}')
       if self.adjustment is not None:
-        raise ValueError('When using virtual_batch_size, adjustment cannot '
+        raise ValueError('When using `virtual_batch_size`, adjustment cannot '
                          'be specified')
 
     if self.fused in (None, True):
@@ -336,15 +318,14 @@ class BatchNormalizationBase(Layer):
       # output back to its original shape accordingly.
       if self._USE_V2_BEHAVIOR:
         if self.fused is None:
-          self.fused = ndims in (4, 5)
-        elif self.fused and ndims not in (4, 5):
+          self.fused = rank in (4, 5)
+        elif self.fused and rank not in (4, 5):
           raise ValueError('Batch normalization layers with `fused=True` only '
                            'support 4D or 5D input tensors. '
-                           'Received tensor with shape: %s' %
-                           (tuple(input_shape),))
+                           f'Received tensor with shape: {tuple(input_shape)}')
       else:
         assert self.fused is not None
-        self.fused = (ndims in (4, 5) and self._fused_can_be_used())
+        self.fused = (rank in (4, 5) and self._fused_can_be_used())
       # TODO(chrisying): fused batch norm is currently not supported for
       # multi-axis batch norm and by extension virtual batches. In some cases,
       # it might be possible to use fused batch norm but would require reshaping
@@ -353,37 +334,37 @@ class BatchNormalizationBase(Layer):
       # common use case (turning 5D w/ virtual batch to NCHW)
 
     if self.fused:
-      if self.axis == [1] and ndims == 4:
+      if self.axis == [1] and rank == 4:
         self._data_format = 'NCHW'
-      elif self.axis == [1] and ndims == 5:
+      elif self.axis == [1] and rank == 5:
         self._data_format = 'NCDHW'
-      elif self.axis == [3] and ndims == 4:
+      elif self.axis == [3] and rank == 4:
         self._data_format = 'NHWC'
-      elif self.axis == [4] and ndims == 5:
+      elif self.axis == [4] and rank == 5:
         self._data_format = 'NDHWC'
-      elif ndims == 5:
+      elif rank == 5:
         # 5D tensors that can be passed in but should not use fused batch norm
         # due to unsupported axis.
         self.fused = False
       else:
-        if ndims == 4:
+        if rank == 4:
           raise ValueError(
               'Unsupported axis. The use of `fused=True` is only possible with '
-              '`axis=1` or `axis=3` for 4D input tensors. Received '
-              'axis=%s' % (self.axis,))
+              '`axis=1` or `axis=3` for 4D input tensors. Received: '
+              f'axis={tuple(self.axis)}')
         else:
           raise ValueError(
               'Unsupported axis. The use of `fused=True` is only possible with '
-              '`axis=1` or `axis=4` for 5D input tensors. Received '
-              'axis=%s' % (self.axis,))
+              '`axis=1` or `axis=4` for 5D input tensors. Received: '
+              f'axis={tuple(self.axis)}')
 
     axis_to_dim = {x: input_shape.dims[x].value for x in self.axis}
     for x in axis_to_dim:
       if axis_to_dim[x] is None:
         raise ValueError('Input has undefined `axis` dimension. Received input '
-                         'with shape %s. Axis value: %s' %
-                         (tuple(input_shape), self.axis))
-    self.input_spec = InputSpec(ndim=ndims, axes=axis_to_dim)
+                         f'with shape {tuple(input_shape)} '
+                         f'and axis={tuple(self.axis)}')
+    self.input_spec = InputSpec(ndim=rank, axes=axis_to_dim)
 
     if len(axis_to_dim) == 1 and self.virtual_batch_size is None:
       # Single axis batch norm (most common/default use-case)
@@ -391,7 +372,7 @@ class BatchNormalizationBase(Layer):
     else:
       # Parameter shape is the original shape but with 1 in all non-axis dims
       param_shape = [
-          axis_to_dim[i] if i in axis_to_dim else 1 for i in range(ndims)
+          axis_to_dim[i] if i in axis_to_dim else 1 for i in range(rank)
       ]
       if self.virtual_batch_size is not None:
         # When using virtual batches, add an extra dim at index 1
@@ -486,7 +467,7 @@ class BatchNormalizationBase(Layer):
         # device and ignore any devices that may be set by the custom getter.
         def _renorm_variable(name,
                              shape,
-                             initializer=tf.compat.v1.zeros_initializer()):
+                             initializer='zeros'):
           """Create a renorm variable."""
           var = self.add_weight(
               name=name,

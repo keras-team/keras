@@ -21,6 +21,7 @@ from keras import constraints
 from keras import initializers
 from keras import regularizers
 from keras.engine.base_layer import Layer
+from keras.utils import tf_utils
 
 from tensorflow.python.util.tf_export import keras_export
 
@@ -162,7 +163,7 @@ class LayerNormalization(Layer):
                **kwargs):
     super(LayerNormalization, self).__init__(**kwargs)
     if isinstance(axis, (list, tuple)):
-      self.axis = axis[:]
+      self.axis = list(axis)
     elif isinstance(axis, int):
       self.axis = axis
     else:
@@ -207,27 +208,9 @@ class LayerNormalization(Layer):
     return can_use_fused
 
   def build(self, input_shape):
-    ndims = len(input_shape)
-    if ndims is None:
-      raise ValueError('Input shape %s has undefined rank.' % input_shape)
-
-    # Convert axis to list and resolve negatives
-    if isinstance(self.axis, int):
-      self.axis = [self.axis]
-    elif isinstance(self.axis, tuple):
-      self.axis = list(self.axis)
-    for idx, x in enumerate(self.axis):
-      if x < 0:
-        self.axis[idx] = ndims + x
-
-    # Validate axes
-    for x in self.axis:
-      if x < 0 or x >= ndims:
-        raise ValueError(
-            f'Invalid axis. Expected 0 <= axis < inputs.rank (with '
-            f'inputs.rank={ndims}). Received: layer.axis={self.axis}')
-    if len(self.axis) != len(set(self.axis)):
-      raise ValueError('Duplicate axis: {}'.format(tuple(self.axis)))
+    self.axis = tf_utils.validate_axis(self.axis, input_shape)
+    input_shape = tf.TensorShape(input_shape)
+    rank = input_shape.rank
 
     param_shape = [input_shape[dim] for dim in self.axis]
     if self.scale:
@@ -254,8 +237,7 @@ class LayerNormalization(Layer):
     else:
       self.beta = None
 
-    self._fused = self._fused_can_be_used(ndims)
-
+    self._fused = self._fused_can_be_used(rank)
     self.built = True
 
   def call(self, inputs):
