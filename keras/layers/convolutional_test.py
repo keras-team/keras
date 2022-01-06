@@ -79,19 +79,16 @@ class Conv1DTest(keras_parameterized.TestCase):
       ('dilation_rate', {
           'dilation_rate': 2
       }, (None, 3, 2)),
-      # Only runs on GPU with CUDA, groups are not supported on CPU.
-      # https://github.com/tensorflow/tensorflow/issues/29005
       ('group', {
           'groups': 3,
           'filters': 6
-      }, (None, 5, 6), True),
+      }, (None, 5, 6)),
   )
-  def test_conv1d(self, kwargs, expected_output_shape, requires_gpu=False):
+  def test_conv1d(self, kwargs, expected_output_shape):
     kwargs['filters'] = kwargs.get('filters', 2)
     kwargs['kernel_size'] = 3
-    if not requires_gpu or tf.test.is_gpu_available(cuda_only=True):
-      self._run_test(kwargs, expected_output_shape)
-      self._run_test_extra_batch_dim(kwargs, expected_output_shape)
+    self._run_test(kwargs, expected_output_shape)
+    self._run_test_extra_batch_dim(kwargs, expected_output_shape)
 
   def test_conv1d_regularizers(self):
     kwargs = {
@@ -235,12 +232,10 @@ class Conv2DTest(keras_parameterized.TestCase):
       ('data_format', {
           'data_format': 'channels_first'
       }, None, True),
-      # Only runs on GPU with CUDA, groups are not supported on CPU.
-      # https://github.com/tensorflow/tensorflow/issues/29005
       ('group', {
           'groups': 3,
           'filters': 6
-      }, (None, 5, 4, 6), True),
+      }, (None, 5, 4, 6), False),
       ('dilation_2_unknown_width', {
           'dilation_rate': (2, 2)
       }, (None, None, 2, 2), False, (None, 6)),
@@ -365,12 +360,10 @@ class Conv3DTest(keras_parameterized.TestCase):
       ('data_format', {
           'data_format': 'channels_first'
       }, None, True),
-      # Only runs on GPU with CUDA, groups are not supported on CPU.
-      # https://github.com/tensorflow/tensorflow/issues/29005
       ('group', {
           'groups': 3,
           'filters': 6
-      }, (None, 3, 5, 4, 6), True),
+      }, (None, 3, 5, 4, 6)),
   )
   def test_conv3d(self, kwargs, expected_output_shape=None, requires_gpu=False):
     kwargs['filters'] = kwargs.get('filters', 2)
