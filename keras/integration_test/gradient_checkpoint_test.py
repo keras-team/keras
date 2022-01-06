@@ -17,6 +17,7 @@ import gc
 
 import tensorflow.compat.v2 as tf
 
+from tensorflow.python.framework import test_util  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.platform import test as test_lib
 
 layers = tf.keras.layers
@@ -138,6 +139,7 @@ def _train_with_recompute(n_steps):
   return losses
 
 
+@test_util.with_eager_op_as_function
 class GradientCheckpointTest(tf.test.TestCase):
 
   def test_raises_oom_exception(self):
@@ -147,6 +149,8 @@ class GradientCheckpointTest(tf.test.TestCase):
       _train_no_recompute(1)
     self.assertIsInstance(context.exception, tf.errors.ResourceExhaustedError)
 
+  @test_util.disable_xla(
+      'xla does not support searching for memory-limited solvers.')
   def test_does_not_raise_oom_exception(self):
     if not _limit_gpu_memory():
       self.skipTest('No virtual GPUs found')
