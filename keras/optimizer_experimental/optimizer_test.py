@@ -130,6 +130,9 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(self.evaluate(optimizer.learning_rate), 1.0)
     optimizer.learning_rate = 2.0
     self.assertEqual(self.evaluate(optimizer.learning_rate), 2.0)
+    # Test the legacy setter.
+    optimizer.lr = 3.0
+    self.assertEqual(self.evaluate(optimizer.learning_rate), 3.0)
 
     lr_schedule = learning_rate_schedule.ExponentialDecay(
         initial_learning_rate=1e-2, decay_steps=10000, decay_rate=0.9)
@@ -137,6 +140,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIsInstance(optimizer._learning_rate,
                           learning_rate_schedule.ExponentialDecay)
     self.assertEqual(optimizer.learning_rate, 0.01)
+    # Test the legacy property.
+    self.assertEqual(optimizer.lr, 0.01)
 
     x = tf.Variable([1.0, 2.0], dtype=tf.float32)
     grads = tf.convert_to_tensor([1.0, 2.0])
