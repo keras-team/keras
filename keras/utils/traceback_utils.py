@@ -123,11 +123,12 @@ def inject_argument_info_in_traceback(fn, object_name=None):
           message = e.args[0]
         else:
           message = ''
+        display_name = f'{object_name if object_name else fn.__name__}'
         message = (
-            'Exception encountered when calling '
-            f'{object_name if object_name else fn.__name__}.\n\n'
+            f'Exception encountered when calling {display_name}.\n\n'
             f'{message}\n\n'
-            f'Call arguments received:\n{arguments_context}')
+            f'Call arguments received by {display_name}:\n'
+            f'{arguments_context}')
 
         # Reraise exception, with added context
         if isinstance(e, tf.errors.OpError):

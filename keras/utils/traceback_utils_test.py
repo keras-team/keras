@@ -31,7 +31,7 @@ class TracebackUtilsTest(tf.test.TestCase):
     self.assertIn('Original message', str(e.exception))
     self.assertIn('Exception encountered when calling ObjName',
                   str(e.exception))
-    self.assertIn('Call arguments received:', str(e.exception))
+    self.assertIn('Call arguments received', str(e.exception))
     self.assertIn('arg_1=1', str(e.exception))
     self.assertIn('arg_2=2', str(e.exception))
     self.assertIn('keyword_arg_1=3', str(e.exception))
@@ -49,7 +49,7 @@ class TracebackUtilsTest(tf.test.TestCase):
 
     with self.assertRaises(ValueError) as e:
       traceback_utils.inject_argument_info_in_traceback(error_fn)()
-    self.assertEqual(str(e.exception).count('Call arguments received:'), 0)
+    self.assertEqual(str(e.exception).count('Call arguments received'), 0)
 
   def test_info_injection_unbindable(self):
     def error_fn(arg_1, keyword_arg_1=1):
@@ -69,7 +69,7 @@ class TracebackUtilsTest(tf.test.TestCase):
     with self.assertRaises(ValueError) as e:
       traceback_utils.inject_argument_info_in_traceback(
           outer_fn)(1)
-    self.assertEqual(str(e.exception).count('Call arguments received:'), 1)
+    self.assertEqual(str(e.exception).count('Call arguments received'), 1)
 
   def test_info_injection_tf_op_error(self):
     def error_fn(arg_1, keyword_arg_1=1):
@@ -90,7 +90,7 @@ class LayerCallInfoInjectionTest(tf.test.TestCase):
       fn()
     except Exception as e:  # pylint: disable=broad-except
       # Info should be injected exactly once.
-      self.assertEqual(str(e).count('Call arguments received:'), 1)  # pylint: disable=g-assert-in-except
+      self.assertEqual(str(e).count('Call arguments received'), 1)  # pylint: disable=g-assert-in-except
 
   def test_custom_layer_call_nested(self):
 
