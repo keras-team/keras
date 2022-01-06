@@ -62,14 +62,15 @@ def is_interactive_logging_enabled():
   Returns:
     Boolean (True if interactive logging is enabled and False otherwise).
   """
-  return INTERACTIVE_LOGGING.enable
+  # Use `getattr` in case `INTERACTIVE_LOGGING`
+  # does not have the `enable` attribute.
+  return getattr(INTERACTIVE_LOGGING, 'enable',
+                 keras_logging.INTERACTIVE_LOGGING_DEFAULT)
 
 
 def print_msg(message, line_break=True):
   """Print the message to absl logging or stdout."""
-  # Use `getattr` in case `INTERACTIVE_LOGGING`
-  # does not have the `enable` attribute.
-  if INTERACTIVE_LOGGING.enable:
+  if is_interactive_logging_enabled():
     if line_break:
       sys.stdout.write(message + '\n')
     else:
