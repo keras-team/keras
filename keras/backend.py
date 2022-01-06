@@ -5721,7 +5721,12 @@ def conv2d_transpose(x,
                                          padding=padding,
                                          data_format=tf_data_format)
   else:
-    assert dilation_rate[0] == dilation_rate[1]
+    if dilation_rate[0] != dilation_rate[1]:
+      raise ValueError(
+          'Expected the 2 dimensions of the `dilation_rate` argument '
+          'to be equal to each other. '
+          f'Received: dilation_rate={dilation_rate}'
+      )
     x = tf.nn.atrous_conv2d_transpose(
         x,
         kernel,
