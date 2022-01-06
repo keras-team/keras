@@ -28,6 +28,7 @@ import time
 import timeit
 
 import numpy as np
+from keras.utils import io_utils
 from keras.utils import layer_utils
 
 
@@ -81,6 +82,7 @@ class LayerUtilsTest(tf.test.TestCase):
   def test_print_summary_without_print_fn(self):
     model = keras.Sequential([
         keras.layers.Dense(5, input_shape=(10,), name='dense')])
+    io_utils.enable_interactive_logging()
     with self.captureWritesToStream(sys.stdout) as printed:
       layer_utils.print_summary(model)
     self.assertIn('dense (Dense)', printed.contents())

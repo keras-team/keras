@@ -40,6 +40,7 @@ from keras.layers import Activation
 from keras.layers import Dense
 from keras.optimizer_v2 import gradient_descent
 from keras.optimizer_v2 import learning_rate_schedule
+from keras.utils import io_utils
 from keras.utils import np_utils
 from tensorflow.python.platform import tf_logging as logging
 
@@ -274,6 +275,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(10)
     expected_log = r'(.*- loss:.*- my_acc:.*)+'
 
+    io_utils.enable_interactive_logging()
     with self.captureWritesToStream(sys.stdout) as printed:
       model.fit(dataset, epochs=2, steps_per_epoch=10)
       self.assertRegex(printed.contents(), expected_log)
@@ -302,6 +304,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     # There are 7 ones in total in `y_train` after two batches.
     expected_log = r'(.*- loss:.*- my_acc:.*- add_all_ones: 7.0000)+'
 
+    io_utils.enable_interactive_logging()
     with self.captureWritesToStream(sys.stdout) as printed:
       model = self._get_model(
           input_shape=(8,), additional_metrics=[AddAllOnes()])
@@ -488,6 +491,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(10)
     expected_log = r'(.*- loss:.*- my_acc:.*)+'
 
+    io_utils.enable_interactive_logging()
     with self.captureWritesToStream(sys.stdout) as printed:
       model.fit(dataset, epochs=2, steps_per_epoch=10)
       self.assertRegex(printed.contents(), expected_log)
@@ -503,6 +507,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     val_dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(10)
     expected_log = r'(.*5/5.*- loss:.*- my_acc:.*- val_loss:.*- val_my_acc:.*)+'
 
+    io_utils.enable_interactive_logging()
     with self.captureWritesToStream(sys.stdout) as printed:
       model.fit(training_dataset, epochs=2, validation_data=val_dataset)
       self.assertRegex(printed.contents(), expected_log)
@@ -518,6 +523,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
         r'(?s).*1/2.*8/8.*- loss:.*- my_acc:.*- val_loss:.*- val_my_acc:'
         r'.*2/2.*8/8.*- loss:.*- my_acc:.*- val_loss:.*- val_my_acc:.*')
 
+    io_utils.enable_interactive_logging()
     with self.captureWritesToStream(sys.stdout) as printed:
       model.fit(x, y, batch_size=10, epochs=2, validation_split=0.2)
       self.assertRegex(printed.contents(), expected_log)
@@ -548,6 +554,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
         r'(?s).*1/2.*20/20.*- loss:.*- my_acc:.*- val_loss:.*- val_my_acc:'
         r'.*2/2.*20/20.*- loss:.*- my_acc:.*- val_loss:.*- val_my_acc:.*')
 
+    io_utils.enable_interactive_logging()
     with self.captureWritesToStream(sys.stdout) as printed:
       model.fit(
           x=training, validation_data=validation, epochs=2, steps_per_epoch=20)
@@ -576,6 +583,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
           output_shapes=([2], [])) \
       .batch(2)
 
+    io_utils.enable_interactive_logging()
     with self.captureWritesToStream(sys.stdout) as printed:
       model.fit(x=training, validation_data=validation)
 
@@ -1496,6 +1504,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
           keras.callbacks.LearningRateScheduler(
               lambda x: 1. / (1. + x), verbose=1)
       ]
+      io_utils.enable_interactive_logging()
       with self.captureWritesToStream(sys.stdout) as printed:
         model.fit(
             x_train,

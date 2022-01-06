@@ -35,6 +35,7 @@ from keras.engine import sequential
 from keras.engine import training as training_module
 from keras.engine import training_utils_v1
 from keras.utils import data_utils
+from keras.utils import io_utils
 from keras.utils import np_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -1059,6 +1060,7 @@ class TrainingTest(keras_parameterized.TestCase):
         RMSPropOptimizer(learning_rate=0.001),
         loss='binary_crossentropy',
         run_eagerly=testing_utils.should_run_eagerly())
+    io_utils.enable_interactive_logging()
     with tf.compat.v1.test.mock.patch.object(sys, 'stdout', mock_stdout):
       model.fit(
           np.ones((10, 10), 'float32'), np.ones((10, 1), 'float32'), epochs=10)
