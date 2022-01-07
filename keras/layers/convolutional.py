@@ -239,13 +239,23 @@ class Conv(Layer):
         data_format=self._tf_data_format,
         name=self.__class__.__name__)
 
+  # TODO(b/213173659): remove this when grouped convolutions are fully supported
+  # on the CPU for compiled functions. For now, we need this as a workaround for
+  # CPU support.
+  @tf.function(jit_compile=True)
+  def _jit_compiled_convolution_op(self, inputs, kernel):
+    return self.convolution_op(inputs, kernel)
+
   def call(self, inputs):
     input_shape = inputs.shape
 
     if self._is_causal:  # Apply causal padding to inputs for Conv1D.
       inputs = tf.pad(inputs, self._compute_causal_padding(inputs))
 
-    outputs = self.convolution_op(inputs, self.kernel)
+    if self.groups > 1:
+      outputs = self._jit_compiled_convolution_op(inputs, self.kernel)
+    else:
+      outputs = self.convolution_op(inputs, self.kernel)
 
     if self.use_bias:
       output_rank = outputs.shape.rank
