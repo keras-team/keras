@@ -219,8 +219,8 @@ class Node:
       else:
         # If an element in the first call argument did not originate as a
         # keras tensor and is a constant value, we save it using the format
-        # ['_CONSTANT_VALUE', -1, serializaed_tensor_or_python_constant]
-        # (potentially including serialized kwargs in an optional 4th argument
+        # ['_CONSTANT_VALUE', -1, serialized_tensor_or_python_constant]
+        # (potentially including serialized kwargs in an optional 4th argument).
         data = [_CONSTANT_VALUE, -1, _serialize_keras_tensor(t), kwargs]
       return tf_utils.ListWrapper(data)
 
@@ -266,10 +266,15 @@ class Node:
 
   @property
   def inbound_layers(self):
+    """Return all layers that feed into the current node."""
     if self.is_input:
       return []
+    tensor_call_args = [x for x in self._flat_arguments
+                        if tf.is_tensor(x) and hasattr(x, '_keras_history')]
     inbound_layers = tf.nest.map_structure(lambda t: t._keras_history.layer,
-                                        self.call_args[0])
+                                           tensor_call_args)
+    if len(inbound_layers) == 1:
+      return inbound_layers[0]
     return inbound_layers
 
 

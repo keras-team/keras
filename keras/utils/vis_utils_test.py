@@ -206,6 +206,18 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
     except ImportError:
       pass
 
+  def test_model_with_tf_op(self):
+    # Test fix for a bug in which inputs to a TFOp layer past the 1st one
+    # were not connected in the Keras model plot.
+    a = keras.Input((2,))
+    b = keras.Input((2,))
+    model = keras.Model(inputs=[a, b], outputs=a + b)
+    try:
+      dot = vis_utils.model_to_dot(model)
+      self.assertLen(dot.get_edges(), 2)  # This model has 2 edges.
+    except ImportError:
+      pass
+
 
 def get_layer_ids_from_model(model, layer_range):
   layer_range = vis_utils.get_layer_index_bound_by_layer_name(
