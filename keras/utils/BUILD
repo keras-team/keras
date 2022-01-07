@@ -89,16 +89,6 @@ py_library(
     name = "io_utils",
     srcs = ["io_utils.py"],
     srcs_version = "PY3",
-    deps = [
-        ":keras_logging",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-py_library(
-    name = "keras_logging",
-    srcs = ["keras_logging.py"],
-    srcs_version = "PY3",
 )
 
 py_library(
@@ -355,8 +345,6 @@ tf_py_test(
         "notsan",
     ],
     deps = [
-        ":io_utils",
-        ":keras_logging",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",

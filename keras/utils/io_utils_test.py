@@ -14,13 +14,15 @@
 # ==============================================================================
 """Tests for io_utils."""
 
+import sys
+
+import tensorflow.compat.v2 as tf
+
 import builtins
 from pathlib import Path
-import sys
 
 from keras import keras_parameterized
 from keras.utils import io_utils
-import tensorflow.compat.v2 as tf
 
 
 class TestIOUtils(keras_parameterized.TestCase):
@@ -58,26 +60,19 @@ class TestIOUtils(keras_parameterized.TestCase):
     self.assertIs(io_utils.path_to_string(dummy), dummy)
 
   def test_print_msg(self):
-    enabled = io_utils.is_interactive_logging_enabled()
+    enabled = io_utils.ABSL_LOGGING.enable
 
-    io_utils.disable_interactive_logging()
-    self.assertFalse(io_utils.is_interactive_logging_enabled())
-
+    io_utils.ABSL_LOGGING.enable = True
     with self.assertLogs(level='INFO') as logged:
       io_utils.print_msg('Testing Message')
     self.assertIn('Testing Message', logged.output[0])
 
-    io_utils.enable_interactive_logging()
-    self.assertTrue(io_utils.is_interactive_logging_enabled())
-
+    io_utils.ABSL_LOGGING.enable = False
     with self.captureWritesToStream(sys.stdout) as printed:
       io_utils.print_msg('Testing Message')
     self.assertEqual('Testing Message\n', printed.contents())
 
-    if enabled:
-      io_utils.enable_interactive_logging()
-    else:
-      io_utils.disable_interactive_logging()
+    io_utils.ABSL_LOGGING.enable = enabled
 
 if __name__ == '__main__':
   tf.test.main()

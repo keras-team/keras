@@ -26,7 +26,6 @@ from keras import callbacks
 from keras import keras_parameterized
 from keras import metrics as metrics_module
 from keras import testing_utils
-from keras.utils import io_utils
 from tensorflow.python.platform import tf_logging as logging
 
 
@@ -420,7 +419,6 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
         tf.data.experimental.UNKNOWN_CARDINALITY)
 
     batch_counter = BatchCounterCallback()
-    io_utils.enable_interactive_logging()
     with CaptureStdout() as capture:
       history = model.fit(
           dataset,
