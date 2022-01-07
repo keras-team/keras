@@ -327,8 +327,8 @@ class TestGeneratorMethods(keras_parameterized.TestCase):
         'I think juice is great',
         'unknown is the best language since slicedbread',
         'a a a a a a a',
-        'matmul'
-        'Yaks are also quite nice',
+        'matmul',
+        'Yaks are also quite nice'
     ]
     y = [1, 0, 0, 1, 1]
 
