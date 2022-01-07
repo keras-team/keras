@@ -19,23 +19,65 @@ import os
 import sys
 import threading
 
-import absl
+from absl import logging
+from keras.utils import keras_logging
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
+# pylint: enable=g-direct-tensorflow-import
 
-ABSL_LOGGING = threading.local()
-ABSL_LOGGING.enable = False
+INTERACTIVE_LOGGING = threading.local()
+INTERACTIVE_LOGGING.enable = keras_logging.INTERACTIVE_LOGGING_DEFAULT
+
+
+@keras_export('keras.utils.enable_interactive_logging')
+def enable_interactive_logging():
+  """Turn on interactive logging.
+
+  When interactive logging is enabled, Keras displays logs via stdout.
+  This provides the best experience when using Keras in an interactive
+  environment such as a shell or a notebook.
+  """
+  INTERACTIVE_LOGGING.enable = True
+
+
+@keras_export('keras.utils.disable_interactive_logging')
+def disable_interactive_logging():
+  """Turn off interactive logging.
+
+  When interactive logging is disabled, Keras sends logs to `absl.logging`.
+  This is the best option when using Keras in a non-interactive
+  way, such as running a training or inference job on a server.
+  """
+  INTERACTIVE_LOGGING.enable = False
+
+
+@keras_export('keras.utils.is_interactive_logging_enabled')
+def is_interactive_logging_enabled():
+  """Check if interactive logging is enabled.
+
+  To switch between writing logs to stdout and `absl.logging`, you may use
+  `keras.utils.enable_interactive_logging()` and
+  `keras.utils.disable_interactie_logging()`.
+
+  Returns:
+    Boolean (True if interactive logging is enabled and False otherwise).
+  """
+  # Use `getattr` in case `INTERACTIVE_LOGGING`
+  # does not have the `enable` attribute.
+  return getattr(INTERACTIVE_LOGGING, 'enable',
+                 keras_logging.INTERACTIVE_LOGGING_DEFAULT)
 
 
 def print_msg(message, line_break=True):
   """Print the message to absl logging or stdout."""
-  # Use `getattr` in case `ABSL_LOGGING` does not have the `enable` attribute.
-  if getattr(ABSL_LOGGING, 'enable', False):
-    absl.logging.info(message)
-  else:
+  if is_interactive_logging_enabled():
     if line_break:
       sys.stdout.write(message + '\n')
     else:
       sys.stdout.write(message)
     sys.stdout.flush()
+  else:
+    logging.info(message)
 
 
 def path_to_string(path):
