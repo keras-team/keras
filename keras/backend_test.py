@@ -1087,6 +1087,17 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(
         tuple(y.shape.as_list()), (batch_size,) + input_size + (filters,))
 
+    # Test dilation_rate error
+    with self.assertRaisesRegex(
+        ValueError,
+        'Expected the 2 dimensions'):
+      y = backend.conv2d_transpose(
+          x,
+          k, (batch_size,) + input_size + (filters,),
+          padding='same',
+          data_format='channels_last',
+          dilation_rate=(1, 2))
+
     # Test batch size of None in output_shape
     y = backend.conv2d_transpose(
         x,
