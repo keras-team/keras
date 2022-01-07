@@ -182,8 +182,14 @@ defining the test. `base_layer_test` is the test target name defined with
 
 ### Run a single test case
 
-The best way to run a single test case is to comment out the rest of the test
-cases in a file before running the test file.
+To run a single test, you can use `--test_filter=<your_regex>`
+to use regular expression to match the test you want to run. For example, you
+can use the following command to run all the tests in `activations_test.py`,
+whose names contain `test_serialization`.
+
+```
+bazel test keras:activations_test --test_filter=*test_serialization*
+```
 
 ### Run all tests
 
