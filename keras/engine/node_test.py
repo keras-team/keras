@@ -21,10 +21,14 @@ from keras.engine import base_layer
 from keras.engine import node as node_module
 
 
-class DummyTensor:
+class DummyTensor(tf.__internal__.types.Tensor):
 
   def __init__(self, shape=None):
-    self.shape = shape
+    self._shape = shape
+
+  @property
+  def shape(self):
+    return self._shape
 
 
 class DummyLayer(base_layer.Layer):
@@ -146,11 +150,9 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
     self.assertLen(input_layer._outbound_nodes, 3)
     self.assertLen(input_layer_2._outbound_nodes, 1)
 
-    # The 'backwards compatibility' attributes should only check the
-    # first call argument
     self.assertLen(merge_layer._inbound_nodes[0].input_tensors, 2)
     self.assertEqual(merge_layer._inbound_nodes[0].input_tensors, [a, b])
-    self.assertLen(merge_layer._inbound_nodes[0].inbound_layers, 2)
+    self.assertLen(merge_layer._inbound_nodes[0].inbound_layers, 4)
 
 
 if __name__ == '__main__':
