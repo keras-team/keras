@@ -242,7 +242,7 @@ class Attention(BaseDenseAttention):
       Defaults to `False`.
     dropout: Float between 0 and 1. Fraction of the units to drop for the
       attention scores. Defaults to 0.0.
-    score_type: One of {'dot', 'concat'}. 'dot' refers to dot product
+    score_mode: One of {'dot', 'concat'}. 'dot' refers to dot product
       of query and key. 'concat' refers to hyperbolic tangent of query and key.
 
   Call Args:
@@ -321,19 +321,19 @@ class Attention(BaseDenseAttention):
   ```
   """
 
-  def __init__(self, use_scale=False, score_type='dot', **kwargs):
+  def __init__(self, use_scale=False, score_mode='dot', **kwargs):
     super(Attention, self).__init__(**kwargs)
     self.use_scale = use_scale
-    self.score_type= score_type
-    if self.score_type not in ['dot', 'concat']:
+    self.score_mode= score_mode
+    if self.score_mode not in ['dot', 'concat']:
       raise ValueError(
-                "Unknown score_type. Acceptable values "
+                "Unknown score_mode. Acceptable values "
                 "are: ['dot', 'concat']"
             )
 
   def build(self, input_shape):
     """Creates scale variable if use_scale==True and
-      v parameter if score_type==concat"""
+      v parameter if score_mode==concat"""
     if self.use_scale:
       self.scale = self.add_weight(
           name='scale',
@@ -343,7 +343,7 @@ class Attention(BaseDenseAttention):
           trainable=True)
     else:
       self.scale = None
-    if self.score_type == 'concat':
+    if self.score_mode == 'concat':
       self.attention_v = self.add_weight(
           name='attention_v',
           shape=(),
@@ -361,11 +361,11 @@ class Attention(BaseDenseAttention):
     Returns:
       Tensor of shape `[batch_size, Tq, Tv]`.
     """
-    if self.score_type == 'dot':
+    if self.score_mode == 'dot':
       scores = tf.matmul(query, key, transpose_b=True)
       if self.scale is not None:
         scores *= self.scale
-    elif self.score_type == 'concat':
+    elif self.score_mode == 'concat':
       # Reshape tensors to enable broadcasting.
       # Reshape into [batch_size, Tq, 1, dim].
       q_reshaped = tf.expand_dims(query, axis=-2)
@@ -382,7 +382,7 @@ class Attention(BaseDenseAttention):
 
   def get_config(self):
     config = {'use_scale': self.use_scale,
-              'score_type': self.score_type}
+              'score_mode': self.score_mode}
     base_config = super(Attention, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
