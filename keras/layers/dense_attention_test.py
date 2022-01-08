@@ -175,7 +175,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     k = np.array([[[1.6]]], dtype=np.float32)
     attention_layer = dense_attention.Attention()
     attention_layer.build(input_shape=([1, 1, 1], [1, 1, 1]))
-    actual = attention_layer._calculate_scores(query=q, key=k)
+    actual = attention_layer._calculate_scores(query=q, key=k, score_type='dot')
 
     # Expected tensor of shape [1, 1, 1].
     # expected000 = 1.1*1.6 = 1.76
@@ -191,7 +191,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
         dtype=np.float32)
     attention_layer = dense_attention.Attention()
     attention_layer.build(input_shape=([1, 2, 4], [1, 3, 4]))
-    actual = attention_layer._calculate_scores(query=q, key=k)
+    actual = attention_layer._calculate_scores(query=q, key=k, score_type='dot')
 
     # Expected tensor of shape [1, 2, 3].
     # expected000 = 1.*1.5+1.1*1.6+1.2*1.7+1.3*1.8 = 7.64
@@ -211,9 +211,10 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     k = np.array(
         [[[1.5, 1.6, 1.7, 1.8], [2.5, 2.6, 2.7, 2.8], [3.5, 3.6, 3.7, 3.8]]],
         dtype=np.float32)
-    attention_layer = dense_attention.Attention()
+    attention_layer = dense_attention.Attention(score_type='dot')
     attention_layer.build(input_shape=([1, 2, 4], [1, 3, 4]))
-    actual = attention_layer._calculate_scores(query=q, key=k, score_type='concat')
+    actual = attention_layer._calculate_scores(query=q, key=k)
+    attention_layer.attention_v = 1
 
     # pylint:disable=line-too-long
     # expected000 = tanh(1.+1.5) + tanh(1.1+1.6) + tanh(1.2+1.7) + tanh(1.3+1.8) = 3.96753427840
@@ -264,14 +265,15 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     q = np.array([[[1.1]]], dtype=np.float32)
     # Key tensor of shape [1, 1, 1]
     k = np.array([[[1.6]]], dtype=np.float32)
-    attention_layer = dense_attention.Attention(use_scale=True)
+    attention_layer = dense_attention.Attention(use_scale=True, score_type='concat')
     attention_layer.build(input_shape=([1, 1, 1], [1, 1, 1]))
     attention_layer.scale = 2.
     actual = attention_layer._calculate_scores(query=q, key=k)
+    attention_layer.attention_v = 1
 
     # Expected tensor of shape [1, 1, 1].
-    # expected000 = 2 * tanh(1.1+1.6) = 1.982014907
-    expected = np.array([[[1.98201491]]], dtype=np.float32)
+    # expected000 = tanh(2*(1.1+1.6)) = 0.9999592018254402
+    expected = np.array([[[0.999959202]]], dtype=np.float32)
     self.assertAllClose(expected, actual)
 
   def test_shape(self):
@@ -298,7 +300,8 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
         dtype=np.float32)
     # Value mask tensor of shape [1, 3]
     v_mask = np.array([[True, True, False]], dtype=np.bool_)
-    attention_layer = dense_attention.Attention(score='concat')
+    attention_layer = dense_attention.Attention(score_type='concat')
+    attention_layer.attention_v = 1
     actual = attention_layer([q, v], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]
@@ -337,6 +340,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Value mask tensor of shape [1, 3]
     v_mask = np.array([[True, True, False]], dtype=np.bool_)
     attention_layer = dense_attention.Attention(score='concat')
+    attention_layer.attention_v = 1
     actual = attention_layer([q, v, k], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]
