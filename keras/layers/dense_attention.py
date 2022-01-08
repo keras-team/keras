@@ -242,7 +242,7 @@ class Attention(BaseDenseAttention):
       Defaults to `False`.
     dropout: Float between 0 and 1. Fraction of the units to drop for the
       attention scores. Defaults to 0.0.
-    score: One of {'dot', 'concat'}. 'dot' refers to dot multiplication
+    score_type: One of {'dot', 'concat'}. 'dot' refers to dot product
       of query and key. 'concat' refers to hyperbolic tangent of query and key.
 
   Call Args:
@@ -321,17 +321,19 @@ class Attention(BaseDenseAttention):
   ```
   """
 
-  def __init__(self, use_scale=False, score='dot', **kwargs):
+  def __init__(self, use_scale=False, score_type='dot', **kwargs):
     super(Attention, self).__init__(**kwargs)
     self.use_scale = use_scale
-    self.score_type= score
+    self.score_type= score_type
     if self.score_type not in ['dot', 'concat']:
-      logging.warning(f'Score type {self.score_type} is unknown, '
-                      'fallback to score_type dot.')
-      self.score_type= 'dot'
+      raise ValueError(
+                "Unknown score_type. Acceptable values "
+                "are: ['dot', 'concat']"
+            )
 
   def build(self, input_shape):
-    """Creates scale variable if use_scale==True."""
+    """Creates scale variable if use_scale==True and
+      v parameter if score_type==concat"""
     if self.use_scale:
       self.scale = self.add_weight(
           name='scale',
@@ -341,72 +343,48 @@ class Attention(BaseDenseAttention):
           trainable=True)
     else:
       self.scale = None
+    if self.score_type == 'concat':
+      self.attention_v = self.add_weight(
+          name='attention_v',
+          shape=(),
+          initializer='ones',
+          dtype=self.dtype,
+          trainable=True)
     super(Attention, self).build(input_shape)
 
-  def _calculate_scores(self, query, key, score_type):
+  def _calculate_scores(self, query, key):
     """Calculates attention scores as a query-key dot product.
 
     Args:
       query: Query tensor of shape `[batch_size, Tq, dim]`.
       key: Key tensor of shape `[batch_size, Tv, dim]`.
-      score: One of {'dot', 'concat'}.
     Returns:
       Tensor of shape `[batch_size, Tq, Tv]`.
     """
-    if score_type == 'dot':
+    if self.score_type == 'dot':
       scores = tf.matmul(query, key, transpose_b=True)
-    elif score_type == 'concat':
+      if self.scale is not None:
+        scores *= self.scale
+    elif self.score_type == 'concat':
       # Reshape tensors to enable broadcasting.
       # Reshape into [batch_size, Tq, 1, dim].
       q_reshaped = tf.expand_dims(query, axis=-2)
       # Reshape into [batch_size, 1, Tv, dim].
       k_reshaped = tf.expand_dims(key, axis=-3)
-      scores = tf.reduce_sum(
+      if self.scale is not None:
+        scores = self.attention_v * tf.reduce_sum(
+         tf.tanh(self.scale * (q_reshaped + k_reshaped)), axis=-1)
+      else:
+        scores = self.attention_v * tf.reduce_sum(
          tf.tanh(q_reshaped + k_reshaped), axis=-1)
 
-    if self.scale is not None:
-      scores *= self.scale
     return scores
 
   def get_config(self):
-    config = {'use_scale': self.use_scale}
+    config = {'use_scale': self.use_scale,
+              'score_type': self.score_type}
     base_config = super(Attention, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
-  
-  def call(self,
-           inputs,
-           mask=None,
-           training=None,
-           return_attention_scores=False):
-    self._validate_call_args(inputs=inputs, mask=mask)
-    q = inputs[0]
-    v = inputs[1]
-    k = inputs[2] if len(inputs) > 2 else v
-    q_mask = mask[0] if mask else None
-    v_mask = mask[1] if mask else None
-    scores = self._calculate_scores(
-        query=q, key=k, score_type= self.score_type)
-    if v_mask is not None:
-      # Mask of shape [batch_size, 1, Tv].
-      v_mask = tf.expand_dims(v_mask, axis=-2)
-    if self.causal:
-      scores_shape = tf.shape(scores)
-      causal_mask_shape = tf.concat(
-          [tf.ones_like(scores_shape[:-2]), scores_shape[-2:]],
-          axis=0)
-      causal_mask = _lower_triangular_mask(causal_mask_shape)
-    else:
-      causal_mask = None
-    scores_mask = _merge_masks(v_mask, causal_mask)
-    result, attention_scores = self._apply_scores(
-        scores=scores, value=v, scores_mask=scores_mask, training=training)
-    if q_mask is not None:
-      # Mask of shape [batch_size, Tq, 1].
-      q_mask = tf.expand_dims(q_mask, axis=-1)
-      result *= tf.cast(q_mask, dtype=result.dtype)
-    if return_attention_scores:
-      return result, attention_scores
-    return result
 
 
 @keras_export('keras.layers.AdditiveAttention')
