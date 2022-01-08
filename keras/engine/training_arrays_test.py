@@ -27,6 +27,7 @@ from tensorflow.python.framework import test_util
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.layers import core
+from keras.utils import io_utils
 
 
 @keras_parameterized.run_with_all_model_types
@@ -76,6 +77,7 @@ class PrintTrainingInfoTest(keras_parameterized.TestCase,
         ([1.], [1.])).repeat(50).batch(10)
 
     mock_stdout = io.StringIO()
+    io_utils.enable_interactive_logging()
     with tf.compat.v1.test.mock.patch.object(sys, "stdout", mock_stdout):
       model.fit(dataset, epochs=2, validation_data=val_dataset)
 
