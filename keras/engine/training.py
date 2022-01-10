@@ -1304,15 +1304,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._check_call_args('fit')
     _disallow_inside_tf_function('fit')
 
-    if verbose == 'auto':
-      if self.distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
-        verbose = 2  # Default to epoch-level logging for PSStrategy.
-      else:
-        verbose = 1  # Default to batch-level logging otherwise.
-    elif verbose == 1 and self.distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
-      raise ValueError(
-          '`verbose=1` is not allowed with `ParameterServerStrategy` for '
-          f'performance reasons. Received: `verbose`={verbose}')
+    verbose = _get_verbosity(verbose, self.distribute_strategy)
 
     if validation_split:
       # Create the validation data using the training data. Only supported for
@@ -1576,7 +1568,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                x=None,
                y=None,
                batch_size=None,
-               verbose=1,
+               verbose='auto',
                sample_weight=None,
                steps=None,
                callbacks=None,
@@ -1616,7 +1608,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           specify the `batch_size` if your data is in the form of a dataset,
           generators, or `keras.utils.Sequence` instances (since they generate
           batches).
-        verbose: 0 or 1. Verbosity mode. 0 = silent, 1 = progress bar.
+        verbose: `"auto"`, 0, 1, or 2. Verbosity mode.
+            0 = silent, 1 = progress bar, 2 = one line per epoch.
+            `"auto"` defaults to 1 for most cases, and to 2 when used with
+            `ParameterServerStrategy`. Note that the progress bar is not
+            particularly useful when logged to a file, so `verbose=2` is
+            recommended when not running interactively (e.g. in a production
+            environment).
         sample_weight: Optional Numpy array of weights for the test samples,
           used for weighting the loss function. You can either pass a flat (1D)
           Numpy array with the same length as the input samples
@@ -1675,6 +1673,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       self._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
           self.distribute_strategy)
 
+    verbose = _get_verbosity(verbose, self.distribute_strategy)
     with self.distribute_strategy.scope():
       # Use cached evaluation data only when it's called in `Model.fit`
       if (use_cached_eval_dataset
@@ -3186,6 +3185,20 @@ def concat(tensors, axis=0):
   if isinstance(tensors[0], tf.SparseTensor):
     return tf.sparse.concat(axis=axis, sp_inputs=tensors)
   return tf.concat(tensors, axis=axis)
+
+
+def _get_verbosity(verbose, distribute_strategy):
+  """Find the right verbosity value for 'auto'."""
+  if verbose == 1 and distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
+    raise ValueError(
+        '`verbose=1` is not allowed with `ParameterServerStrategy` for '
+        f'performance reasons. Received: verbose={verbose}')
+  if verbose == 'auto':
+    if distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
+      return 2  # Default to epoch-level logging for PSStrategy.
+    else:
+      return 1  # Default to batch-level logging otherwise.
+  return verbose
 
 
 def _is_tpu_multi_host(strategy):
