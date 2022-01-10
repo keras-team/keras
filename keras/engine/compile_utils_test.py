@@ -799,6 +799,23 @@ class MetricsContainerTest(keras_parameterized.TestCase):
     metric_container.reset_state()
     self.assertEqual(metric.result().numpy(), 0.0)
 
+  def test_duplicated_metric_instance(self):
+    mean_obj = metrics_mod.Mean()
+    metric = mean_obj
+    with self.assertRaisesRegex(ValueError, 'Found duplicated metrics'):
+      compile_utils.MetricsContainer(metrics=metric, weighted_metrics=metric)
+
+    # duplicated string should be fine
+    metric = 'acc'
+    compile_utils.MetricsContainer(metrics=metric, weighted_metrics=metric)
+
+    # complicated structure
+    metric = [mean_obj, 'acc']
+    weighted_metric = {'output1': mean_obj, 'output2': 'acc'}
+    with self.assertRaisesRegex(ValueError, 'Found duplicated metrics'):
+      compile_utils.MetricsContainer(
+          metrics=metric, weighted_metrics=weighted_metric)
+
 
 if __name__ == '__main__':
   tf.compat.v1.enable_eager_execution()
