@@ -113,6 +113,32 @@ class _BaseOptimizer(tf.Module):
     """
     raise NotImplementedError
 
+  @tf.function(jit_compile=True)
+  def _update_step_xla(self, gradient, variable, key):
+    """A wrapper of `update_step` to enable XLA acceleration.
+
+    Due to `tf.function` tracing mechanism, for (gradient, variable) pairs of
+    the same shape and dtype, the execution graph always invoke the first
+    pair it has seen. Thus, we need a `key` argument to make each
+    (gradient, variable) pair unique. In additions, XLA cannot understand
+    string input, so the key is an integer.
+
+    Args:
+      gradient: backpropagated gradient of the given variable.
+      variable: variable whose value needs to be updated.
+      key (int): a unique key that identifies the variable.
+
+    Returns:
+      An `Operation` that applies the specified gradients.
+    """
+    return self.update_step(gradient, variable)
+
+  def _update_step(self, gradient, variable):
+    if self._jit_compile:
+      self._update_step_xla(gradient, variable, id(self._var_key(variable)))
+    else:
+      self.update_step(gradient, variable)
+
   def compute_gradients(self, loss, var_list, tape=None):
     """Compute gradients of loss on trainable variables.
 
@@ -391,11 +417,9 @@ class _BaseOptimizer(tf.Module):
     Args:
       grads_and_vars: List of (gradient, variable) pairs.
     """
-    update_step = self.update_step
-    if self._jit_compile:
-      update_step = tf.function(update_step, jit_compile=True)
     for grad, var in grads_and_vars:
-      update_step(grad, var)
+      self._update_step(grad, var)
+
     self.iterations.assign_add(1)
 
   def _update_model_variables_moving_average(self, var_list):
@@ -515,7 +539,7 @@ class Optimizer(_BaseOptimizer):
         `new_average = ema_momentum * old_average + (1 - ema_momentum) *
         current_variable_value`.
     ema_overwrite_frequency: int or None, default to None. Only used if
-      `use_ema=True`. Every ema_overwrite_frequency steps of iterations, we
+      `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations, we
       overwrite the model variable by its moving average. If None, the optimizer
        does not overwrite model variables in the middle of training, and you
       need to explicitly overwrite the variables at the end of training
@@ -798,10 +822,7 @@ class Optimizer(_BaseOptimizer):
     """`apply_gradients` using a `DistributionStrategy`."""
 
     def apply_grad_to_update_var(var, grad):
-      update_step = self.update_step
-      if self._jit_compile:
-        update_step = tf.function(update_step, jit_compile=True)
-      return update_step(grad, var)
+      return self._update_step(grad, var)
 
     for grad, var in grads_and_vars:
       distribution.extended.update(
