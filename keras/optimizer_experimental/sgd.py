@@ -113,7 +113,7 @@ class SGD(optimizer.Optimizer):
                global_clipnorm=None,
                use_ema=False,
                ema_momentum=0.99,
-               ema_overwrite_frequency=100,
+               ema_overwrite_frequency=None,
                jit_compile=False,
                name='SGD',
                **kwargs):
