@@ -1856,6 +1856,20 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertLen(history.history['loss'], 2)
     self.assertAllClose(initial_value, model.trainable_variables[0])
 
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_get_verbosity(self):
+    class MyStrategy(tf.distribute.Strategy):
+
+      def __init__(self):
+        self._should_use_with_coordinator = True
+    with self.assertRaisesRegex(ValueError, '`verbose=1` is not allowed'):
+      training_module._get_verbosity(1, MyStrategy())
+    self.assertEqual(training_module._get_verbosity('auto', MyStrategy()), 2)
+    self.assertEqual(training_module._get_verbosity(
+        'auto', tf.distribute.MirroredStrategy()), 1)
+    self.assertEqual(training_module._get_verbosity(
+        2, tf.distribute.MirroredStrategy()), 2)
+
 
 class TestExceptionsAndWarnings(keras_parameterized.TestCase):
 

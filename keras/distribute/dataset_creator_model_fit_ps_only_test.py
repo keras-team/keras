@@ -109,7 +109,7 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
     with self.assertRaisesRegex(ValueError,
                                 "`verbose=1` is not allowed with "
                                 "`ParameterServerStrategy` for performance "
-                                "reasons. Received: `verbose`=1"):
+                                "reasons. Received: verbose=1"):
       self._model_fit(
           strategy, use_dataset_creator=use_dataset_creator,
           verbose=1)
