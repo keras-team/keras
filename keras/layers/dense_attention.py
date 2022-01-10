@@ -242,8 +242,10 @@ class Attention(BaseDenseAttention):
       Defaults to `False`.
     dropout: Float between 0 and 1. Fraction of the units to drop for the
       attention scores. Defaults to 0.0.
-    score_mode: One of {'dot', 'concat'}. 'dot' refers to dot product
-      of query and key. 'concat' refers to hyperbolic tangent of query and key.
+    score_mode: Function to use to compute attention scores, one of 
+      `{"dot", "concat"}`. `"dot"` refers to the dot product between the query
+      and key vectors. `"concat"` refers to the hyperbolic tangent of the 
+      concatenation of the query and key vectors.
 
   Call Args:
 
@@ -327,7 +329,7 @@ class Attention(BaseDenseAttention):
     self.score_mode= score_mode
     if self.score_mode not in ['dot', 'concat']:
       raise ValueError(
-                "Unknown score_mode. Acceptable values "
+                f"Received: score_mode={score_mode}. Acceptable values "
                 "are: ['dot', 'concat']"
             )
 
