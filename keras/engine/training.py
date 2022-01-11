@@ -14,13 +14,15 @@
 # ==============================================================================
 """Training-related part of the Keras engine."""
 
+import tensorflow.compat.v2 as tf
+
 import copy
 import itertools
 import json
 import os
 import warnings
 import weakref
-
+from tensorflow.python.eager import context
 from keras import backend
 from keras import callbacks as callbacks_module
 from keras import optimizer_v1
@@ -34,25 +36,24 @@ from keras.mixed_precision import loss_scale_optimizer as lso
 from keras.mixed_precision import policy
 from keras.optimizer_experimental import optimizer as optimizer_experimental
 from keras.saving import hdf5_format
-from keras.saving import pickle_utils
 from keras.saving import save
 from keras.saving import saving_utils
+from keras.saving import pickle_utils
 from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import model_serialization
 from keras.utils import generic_utils
-from keras.utils import io_utils
 from keras.utils import layer_utils
 from keras.utils import object_identity
 from keras.utils import tf_utils
 from keras.utils import traceback_utils
 from keras.utils import version_utils
+from keras.utils.io_utils import ask_to_proceed_with_overwrite
+from keras.utils.io_utils import path_to_string
 from keras.utils.mode_keys import ModeKeys
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.eager import context
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
+
 
 # pylint: disable=g-import-not-at-top
 try:
@@ -2459,7 +2460,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             format.
     """
     self._assert_weights_created()
-    filepath = io_utils.path_to_string(filepath)
+    filepath = path_to_string(filepath)
     filepath_is_h5 = saving_utils.is_hdf5_filepath(filepath)
     if save_format is None:
       if filepath_is_h5:
@@ -2492,7 +2493,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       check_filepath = filepath
     # If file exists and should not be overwritten:
     if not overwrite and os.path.isfile(check_filepath):
-      proceed = io_utils.ask_to_proceed_with_overwrite(check_filepath)
+      proceed = ask_to_proceed_with_overwrite(check_filepath)
       if not proceed:
         return
     if save_format == 'h5':
@@ -3204,10 +3205,8 @@ def _get_verbosity(verbose, distribute_strategy):
         '`verbose=1` is not allowed with `ParameterServerStrategy` for '
         f'performance reasons. Received: verbose={verbose}')
   if verbose == 'auto':
-    if (distribute_strategy._should_use_with_coordinator or  # pylint: disable=protected-access
-        not io_utils.is_interactive_logging_enabled()):
-      # Default to epoch-level logging for PSStrategy or using absl logging.
-      return 2
+    if distribute_strategy._should_use_with_coordinator:  # pylint: disable=protected-access
+      return 2  # Default to epoch-level logging for PSStrategy.
     else:
       return 1  # Default to batch-level logging otherwise.
   return verbose
@@ -3298,7 +3297,7 @@ def _disallow_inside_tf_function(method_name):
 def _detect_save_format(filepath):
   """Returns path to weights file and save format."""
 
-  filepath = io_utils.path_to_string(filepath)
+  filepath = path_to_string(filepath)
   if saving_utils.is_hdf5_filepath(filepath):
     return filepath, 'h5'
 
