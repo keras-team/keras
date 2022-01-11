@@ -59,6 +59,7 @@ py_library(
     deps = [
         ":order_preserving_set",
         "//:expect_tensorflow_installed",
+        "//keras/utils:generic_utils",
     ],
 )
 

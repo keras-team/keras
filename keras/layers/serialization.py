@@ -52,6 +52,7 @@ from keras.layers.preprocessing import integer_lookup
 from keras.layers.preprocessing import normalization as preprocessing_normalization
 from keras.layers.preprocessing import string_lookup
 from keras.layers.preprocessing import text_vectorization
+from keras.saving.saved_model import json_utils
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
 from tensorflow.python.util.tf_export import keras_export
@@ -217,3 +218,13 @@ def get_builtin_layer(class_name):
   if not hasattr(LOCAL, 'ALL_OBJECTS'):
     populate_deserializable_objects()
   return LOCAL.ALL_OBJECTS.get(class_name)
+
+
+def deserialize_from_json(json_string, custom_objects=None):
+  """Instantiates a layer from a JSON string."""
+  populate_deserializable_objects()
+  config = json_utils.decode_and_deserialize(
+      json_string,
+      module_objects=LOCAL.ALL_OBJECTS,
+      custom_objects=custom_objects)
+  return deserialize(config, custom_objects)
