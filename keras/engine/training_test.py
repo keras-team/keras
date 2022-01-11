@@ -1864,11 +1864,17 @@ class TrainingTest(keras_parameterized.TestCase):
         self._should_use_with_coordinator = True
     with self.assertRaisesRegex(ValueError, '`verbose=1` is not allowed'):
       training_module._get_verbosity(1, MyStrategy())
+
+    io_utils.enable_interactive_logging()
     self.assertEqual(training_module._get_verbosity('auto', MyStrategy()), 2)
     self.assertEqual(training_module._get_verbosity(
         'auto', tf.distribute.MirroredStrategy()), 1)
     self.assertEqual(training_module._get_verbosity(
         2, tf.distribute.MirroredStrategy()), 2)
+
+    io_utils.disable_interactive_logging()
+    self.assertEqual(training_module._get_verbosity(
+        'auto', tf.distribute.MirroredStrategy()), 2)
 
 
 class TestExceptionsAndWarnings(keras_parameterized.TestCase):
