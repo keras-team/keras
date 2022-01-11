@@ -1609,7 +1609,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           generators, or `keras.utils.Sequence` instances (since they generate
           batches).
         verbose: `"auto"`, 0, 1, or 2. Verbosity mode.
-            0 = silent, 1 = progress bar, 2 = one line per epoch.
+            0 = silent, 1 = progress bar, 2 = single line.
             `"auto"` defaults to 1 for most cases, and to 2 when used with
             `ParameterServerStrategy`. Note that the progress bar is not
             particularly useful when logged to a file, so `verbose=2` is
@@ -1829,7 +1829,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def predict(self,
               x,
               batch_size=None,
-              verbose=0,
+              verbose='auto',
               steps=None,
               callbacks=None,
               max_queue_size=10,
@@ -1876,7 +1876,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             Do not specify the `batch_size` if your data is in the
             form of dataset, generators, or `keras.utils.Sequence` instances
             (since they generate batches).
-        verbose: Verbosity mode, 0 or 1.
+        verbose: `"auto"`, 0, 1, or 2. Verbosity mode.
+            0 = silent, 1 = progress bar, 2 = single line.
+            `"auto"` defaults to 1 for most cases, and to 2 when used with
+            `ParameterServerStrategy`. Note that the progress bar is not
+            particularly useful when logged to a file, so `verbose=2` is
+            recommended when not running interactively (e.g. in a production
+            environment).
         steps: Total number of steps (batches of samples)
             before declaring the prediction round finished.
             Ignored with the default value of `None`. If x is a `tf.data`
@@ -1933,6 +1939,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     if self._cluster_coordinator:
       self._cluster_coordinator = None
 
+    verbose = _get_verbosity(verbose, self.distribute_strategy)
     outputs = None
     with self.distribute_strategy.scope():
       # Creates a `tf.data.Dataset` and handles batch and epoch iteration.
