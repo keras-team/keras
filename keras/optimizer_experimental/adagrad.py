@@ -74,7 +74,7 @@ class Adagrad(optimizer.Optimizer):
                global_clipnorm=None,
                use_ema=False,
                ema_momentum=0.99,
-               ema_overwrite_frequency=100,
+               ema_overwrite_frequency=None,
                jit_compile=False,
                name='Adagrad',
                **kwargs):
@@ -105,7 +105,7 @@ class Adagrad(optimizer.Optimizer):
               var, 'accumulator', initializer(shape=var.shape,
                                               dtype=var.dtype)))
 
-  def update_step(self, grad, variable, params=None):
+  def update_step(self, grad, variable):
     """Update step given gradient and the associated model variable."""
     if self._var_key(variable) not in self._index_dict:
       raise KeyError(f'Optimizer cannot recognize variable {variable.name}, '
