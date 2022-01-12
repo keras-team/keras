@@ -40,7 +40,7 @@ class _BaseOptimizer(tf.Module):
                global_clipnorm=None,
                use_ema=False,
                ema_momentum=0.99,
-               ema_overwrite_frequency=100,
+               ema_overwrite_frequency=None,
                jit_compile=False,
                **kwargs):
     self._name = name
@@ -514,12 +514,15 @@ class Optimizer(_BaseOptimizer):
       the momentum to use when computing the EMA of the model's weights:
         `new_average = ema_momentum * old_average + (1 - ema_momentum) *
         current_variable_value`.
-    ema_overwrite_frequency: int or None, default to 100. Only used if
+    ema_overwrite_frequency: int or None, default to None. Only used if
       `use_ema=True`. Every ema_overwrite_frequency steps of iterations, we
-      overwrite the model variable by its stored moving average. If None, we
-      do not overwrite model variables in the middle of training, and users
-      need to explicitly overwrite the model variable by calling
-      `finalize_variable_values()`.
+      overwrite the model variable by its moving average. If None, the optimizer
+       does not overwrite model variables in the middle of training, and you
+      need to explicitly overwrite the variables at the end of training
+      by calling `optimizer.finalize_variable_values()` (which updates the model
+      variables in-place). When using the built-in `fit()` training loop, this
+      happens automatically after the last epoch, and you don't need to do
+      anything.
     jit_compile: bool, default to False. If True, the optimizer will use XLA
       acceleration. `jit_compile` can only be False when using Parameter
       Server Strategy.
@@ -681,7 +684,7 @@ class Optimizer(_BaseOptimizer):
                global_clipnorm=None,
                use_ema=False,
                ema_momentum=0.99,
-               ema_overwrite_frequency=100,
+               ema_overwrite_frequency=None,
                jit_compile=False,
                **kwargs):
     """Create a new Optimizer."""

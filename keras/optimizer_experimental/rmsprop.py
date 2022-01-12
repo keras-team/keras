@@ -134,7 +134,7 @@ class RMSprop(optimizer.Optimizer):
         self._average_gradients.append(
             self.add_variable_from_reference(var, 'average_gradient'))
 
-  def update_step(self, gradient, variable, params=None):
+  def update_step(self, gradient, variable):
     """Update step given gradient and the associated model variable."""
     if self._var_key(variable) not in self._index_dict:
       raise KeyError(f'Optimizer cannot recognize variable {variable.name}, '
