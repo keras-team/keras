@@ -25,6 +25,7 @@ py_library(
         "mobilenet_v2.py",
         "mobilenet_v3.py",
         "nasnet.py",
+        "regnet.py",
         "resnet.py",
         "resnet_v2.py",
         "vgg16.py",
@@ -300,6 +301,24 @@ tf_py_test(
     args = ["--module=efficientnet_v2"],
     main = "applications_load_weight_test.py",
     shard_count = 8,
+    tags = [
+        "no_oss",
+        "no_pip",
+    ],
+    deps = [
+        ":applications",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/preprocessing",
+    ],
+)
+
+tf_py_test(
+    name = "applications_load_weight_test_regnet",
+    size = "large",
+    srcs = ["applications_load_weight_test.py"],
+    args = ["--module=regnet"],
+    main = "applications_load_weight_test.py",
     tags = [
         "no_oss",
         "no_pip",

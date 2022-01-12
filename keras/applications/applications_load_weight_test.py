@@ -29,6 +29,7 @@ from keras.applications import mobilenet
 from keras.applications import mobilenet_v2
 from keras.applications import mobilenet_v3
 from keras.applications import nasnet
+from keras.applications import regnet
 from keras.applications import resnet
 from keras.applications import resnet_v2
 from keras.applications import vgg16
@@ -69,6 +70,16 @@ ARG_TO_MODEL = {
         efficientnet_v2.EfficientNetV2B2, efficientnet_v2.EfficientNetV2B3,
         efficientnet_v2.EfficientNetV2S, efficientnet_v2.EfficientNetV2M,
         efficientnet_v2.EfficientNetV2L
+    ]),
+    'regnet': (regnet, [
+        regnet.RegNetX002, regnet.RegNetX004, regnet.RegNetX006,
+        regnet.RegNetX008, regnet.RegNetX016, regnet.RegNetX032,
+        regnet.RegNetX040, regnet.RegNetX064, regnet.RegNetX080,
+        regnet.RegNetX120, regnet.RegNetX160, regnet.RegNetX320,
+        regnet.RegNetY002, regnet.RegNetY004, regnet.RegNetY006,
+        regnet.RegNetY008, regnet.RegNetY016, regnet.RegNetY032,
+        regnet.RegNetY040, regnet.RegNetY064, regnet.RegNetY080,
+        regnet.RegNetY120, regnet.RegNetY160, regnet.RegNetY320
     ])
 }
 
