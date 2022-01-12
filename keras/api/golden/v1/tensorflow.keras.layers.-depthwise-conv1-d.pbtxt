@@ -1,8 +1,8 @@
 path: "tensorflow.keras.layers.DepthwiseConv1D"
 tf_class {
-  is_instance: "<class \'keras.layers.convolutional.DepthwiseConv1D\'>"
-  is_instance: "<class \'keras.layers.convolutional.DepthwiseConv\'>"
-  is_instance: "<class \'keras.layers.convolutional.Conv\'>"
+  is_instance: "<class \'keras.layers.convolutional.depthwise_conv1d.DepthwiseConv1D\'>"
+  is_instance: "<class \'keras.layers.convolutional.base_depthwise_conv.DepthwiseConv\'>"
+  is_instance: "<class \'keras.layers.convolutional.base_conv.Conv\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"

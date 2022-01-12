@@ -15,8 +15,7 @@
 """Layer serialization/deserialization functions."""
 
 import tensorflow.compat.v2 as tf
-# pylint: disable=wildcard-import
-# pylint: disable=unused-import
+# pylint: disable=g-bad-import-order,g-direct-tensorflow-import,unused-import,wildcard-import
 
 import threading
 from keras.engine import base_layer
@@ -37,6 +36,7 @@ from keras.layers import noise
 from keras.layers import pooling
 from keras.layers import recurrent
 from keras.layers import recurrent_v2
+from keras.layers import reshaping
 from keras.layers import rnn_cell_wrapper_v2
 from keras.layers import wrappers
 from keras.layers.normalization import batch_normalization
@@ -61,8 +61,8 @@ ALL_MODULES = (base_layer, input_layer, advanced_activations, convolutional,
                convolutional_recurrent, core, cudnn_recurrent, dense_attention,
                embeddings, einsum_dense, local, merge, noise,
                batch_normalization_v1, layer_normalization, unit_normalization,
-               pooling, image_preprocessing, recurrent, wrappers, hashing,
-               hashed_crossing, category_encoding, discretization,
+               pooling, image_preprocessing, recurrent, reshaping, wrappers,
+               hashing, hashed_crossing, category_encoding, discretization,
                multi_head_attention, integer_lookup,
                preprocessing_normalization, string_lookup, text_vectorization)
 ALL_V2_MODULES = (rnn_cell_wrapper_v2, batch_normalization, layer_normalization,
