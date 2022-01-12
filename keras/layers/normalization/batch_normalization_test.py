@@ -152,7 +152,6 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
   def test_batchnorm_mixed_precision(self):
     norm = keras.layers.BatchNormalization(
         axis=-1,
-        input_shape=(4, 4, 3),
         momentum=0.8,
         dtype='mixed_float16')
     x = np.random.normal(size=(10, 4, 4, 3))
@@ -160,6 +159,10 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     self.assertEqual(y.dtype, 'float16')
     self.assertEqual(norm.beta.dtype.base_dtype, 'float32')
     self.assertEqual(norm.gamma.dtype.base_dtype, 'float32')
+
+    x = np.arange(10 * 4 * 4 * 3).reshape((10, 4, 4, 3))
+    y = norm(x)
+    self.assertEqual(y.dtype, 'float16')
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager'],
                                               fused=[True, False]))
