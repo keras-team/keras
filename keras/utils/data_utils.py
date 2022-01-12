@@ -258,23 +258,29 @@ def get_file(fname=None,
   if download:
     io_utils.print_msg(f'Downloading data from {origin}')
 
-    class ProgressTracker:
-      # Maintain progbar for the lifetime of download.
-      # This design was chosen for Python 2.7 compatibility.
-      progbar = None
+    class DLProgbar:
+      """Manage progress bar state for use in urlretrieve."""
 
-    def dl_progress(count, block_size, total_size):
-      if ProgressTracker.progbar is None:
-        if total_size == -1:
-          total_size = None
-        ProgressTracker.progbar = Progbar(total_size)
-      else:
-        ProgressTracker.progbar.update(count * block_size)
+      def __init__(self):
+        self.progbar = None
+        self.finished = False
+
+      def __call__(self, block_num, block_size, total_size):
+        if not self.progbar:
+          if total_size == -1:
+            total_size = None
+          self.progbar = Progbar(total_size)
+        current = block_num * block_size
+        if current < total_size:
+          self.progbar.update(current)
+        elif not self.finished:
+          self.progbar.update(self.progbar.target)
+          self.finished = True
 
     error_msg = 'URL fetch failure on {}: {} -- {}'
     try:
       try:
-        urlretrieve(origin, fpath, dl_progress)
+        urlretrieve(origin, fpath, DLProgbar())
       except urllib.error.HTTPError as e:
         raise Exception(error_msg.format(origin, e.code, e.msg))
       except urllib.error.URLError as e:
@@ -283,7 +289,6 @@ def get_file(fname=None,
       if os.path.exists(fpath):
         os.remove(fpath)
       raise
-    ProgressTracker.progbar = None
 
   if untar:
     if not os.path.exists(untar_fpath):
