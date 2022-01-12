@@ -724,6 +724,7 @@ class BatchNormalizationBase(Layer):
     return training
 
   def call(self, inputs, training=None):
+    inputs = tf.cast(inputs, self.compute_dtype)
     training = self._get_training_value(training)
 
     if self.virtual_batch_size is not None:

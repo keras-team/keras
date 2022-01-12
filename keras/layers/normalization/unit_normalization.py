@@ -65,6 +65,7 @@ class UnitNormalization(base_layer.Layer):
     self.axis = tf_utils.validate_axis(self.axis, input_shape)
 
   def call(self, inputs):
+    inputs = tf.cast(inputs, self.compute_dtype)
     return tf.linalg.l2_normalize(inputs, axis=self.axis)
 
   def compute_output_shape(self, input_shape):
