@@ -3442,13 +3442,18 @@ class BaseRandomLayer(Layer):
     self._random_generator = backend.RandomGenerator(
         seed, force_generator=force_generator)
 
-  def _list_extra_dependencies_for_serialization(self, serialization_cache):
-    # This method exposes the self._random_generator to SavedModel only
-    # (not layer.weights and checkpoint).
-    deps = super()._list_extra_dependencies_for_serialization(
-        serialization_cache)
-    deps['_random_generator'] = self._random_generator
-    return deps
+  def _trackable_children(self, save_type='checkpoint', **kwargs):
+    if save_type == 'savedmodel':
+      cache = kwargs['cache']
+      # TODO(b/213628533): This must be called before super() to ensure
+      # that any input shape changes are applied before getting the config of
+      # the model.
+      children = self._trackable_saved_model_saver.trackable_children(cache)
+    else:
+      children = {}
+    children.update(super()._trackable_children(save_type, **kwargs))
+    children['_random_generator'] = self._random_generator
+    return children
 
 
 # Avoid breaking users who directly import this symbol from this file.
