@@ -1663,6 +1663,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     version_utils.disallow_legacy_graph('Model', 'evaluate')
     self._assert_compile_was_called()
     self._check_call_args('evaluate')
+    self._check_sample_weight_warning(x, sample_weight)
     _disallow_inside_tf_function('evaluate')
     use_cached_eval_dataset = kwargs.pop('_use_cached_eval_dataset', False)
     if kwargs:
@@ -3068,6 +3069,23 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       raise RuntimeError('You must compile your model before '
                          'training/testing. '
                          'Use `model.compile(optimizer, loss)`.')
+
+  def _check_sample_weight_warning(self, x, sample_weight):
+    # Datasets can include sample weight, by returning a tuple with the
+    # structure of `(x, y, sample_weight)`.
+    sample_weight_present = sample_weight is not None or (
+        isinstance(x, tf.data.Dataset) and isinstance(x.element_spec, tuple) and
+        len(x.element_spec) == 3)
+
+    # pylint: disable=protected-access
+    if (sample_weight_present and
+        self.compiled_metrics._user_weighted_metrics is None):
+      logging.warning(
+          '`evaluate()` received a value for `sample_weight`, but '
+          '`weighted_metrics` were not provided.  Did you mean to pass metrics '
+          'to `weighted_metrics` in `compile()`?  If this is intentional '
+          'you can pass `weighted_metrics=[]` to `compile()` in order to '
+          'silence this warning.')
 
   def _set_inputs(self, inputs, outputs=None, training=None):
     """This method is for compat with Modelv1. Only inputs are needed here."""
