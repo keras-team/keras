@@ -241,7 +241,6 @@ class LayerNormalization(Layer):
     self.built = True
 
   def call(self, inputs):
-    inputs = tf.cast(inputs, self.compute_dtype)
     # Compute the axes along which to reduce the mean / variance
     input_shape = inputs.shape
     ndims = len(input_shape)
