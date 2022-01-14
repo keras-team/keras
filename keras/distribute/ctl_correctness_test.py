@@ -16,10 +16,15 @@
 
 from absl.testing import parameterized
 import keras
+from keras import optimizers
+from keras.applications import resnet_v2
+from keras.datasets import fashion_mnist
 from keras.distribute import optimizer_combinations
 from keras.distribute import strategy_combinations
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+from tensorflow.python.ops.losses import losses_impl  # pylint: disable=g-direct-tensorflow-import
 
 _NUM_SAMPLES = 66
 _BATCH_SIZE = 32
@@ -298,6 +303,112 @@ class TestDistributionStrategyDnnCorrectness(tf.test.TestCase,
     self.assertAllClose(wts, wts_with_ds, atol=1e-3, rtol=1e-3)
     self.assertAllClose(loss, loss_with_ds, atol=1e-3, rtol=1e-3)
     self.assertAllClose(acc, acc_with_ds, atol=1e-3, rtol=1e-3)
+
+  @tf.__internal__.distribute.combinations.generate(
+      tf.__internal__.test.combinations.combine(
+          distribution=[
+              tf.__internal__.distribute.combinations
+              .mirrored_strategy_with_two_gpus,
+          ],
+          mode=['eager'],
+      ))
+  def test_fused_batch_norm_uneven_batch(self, distribution):
+    """Test that fused batch norm works when the last device may get empty data.
+
+    Adapted from https://www.tensorflow.org/tutorials/distribute/custom_training
+    but using ResNet, which uses fused batchnorm, as the model.
+
+    Arguments:
+      distribution: distribute test configuration
+    """
+    (train_images, train_labels), _ = fashion_mnist.load_data()
+    # add channel dimension to make 2D data into 3D, since some ops of the model
+    # require it.
+    train_images = train_images[..., None]
+    train_images = train_images / np.float32(255)
+
+    # Padding images because ResNet requires a minimal shape of (32, 32)
+    padded_train_images = np.concatenate([
+        np.zeros((len(train_images), 2, 28, 1)),
+        train_images,
+        np.zeros((len(train_images), 2, 28, 1))
+    ], axis=1)
+    padded_train_images = np.concatenate([
+        np.zeros((len(train_images), 32, 2, 1)),
+        padded_train_images,
+        np.zeros((len(train_images), 32, 2, 1))
+    ], axis=2)
+
+    buffer_size = len(train_images)
+    global_batch_size = distribution.num_replicas_in_sync
+    num_samples = global_batch_size - 1
+
+    epochs = 2
+
+    # Keep only the first images, so that the last GPU receives an empty batch
+    padded_train_images = padded_train_images[:num_samples]
+    train_labels = train_labels[:num_samples]
+
+    train_dataset = tf.data.Dataset.from_tensor_slices(
+        (padded_train_images,
+         train_labels)).shuffle(buffer_size).batch(global_batch_size)
+    train_dist_dataset = distribution.experimental_distribute_dataset(
+        train_dataset)
+
+    def create_model():
+      inputs = keras.Input((32, 32, 1))
+      preprocessed = keras.layers.Conv2D(3, (1, 1))(
+          inputs)  # ResNet requires 3 channels
+      features = resnet_v2.ResNet50V2(
+          include_top=False,
+          input_tensor=preprocessed,
+          pooling='avg',
+          weights=None).output
+      return keras.Model(inputs, features)
+
+    with distribution.scope():
+      # Set reduction to `none` so we can do the reduction afterwards and divide
+      # by global batch size.
+      loss_object = keras.losses.SparseCategoricalCrossentropy(
+          from_logits=True,
+          reduction=losses_impl.Reduction.NONE)
+
+      def compute_resnet_loss(labels, predictions):
+        per_example_loss = loss_object(labels, predictions)
+        return tf.nn.compute_average_loss(
+            per_example_loss, global_batch_size=global_batch_size)
+
+      model = create_model()
+
+      optimizer = optimizers.adam_v2.Adam()
+
+    def train_step(inputs):
+      images, labels = inputs
+
+      with tf.GradientTape() as tape:
+        predictions = model(images, training=True)
+        loss = compute_resnet_loss(labels, predictions)
+
+      gradients = tape.gradient(loss, model.trainable_variables)
+      optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+      return loss
+
+    @tf.function
+    def distributed_train_step(dataset_inputs):
+      per_replica_losses = distribution.run(train_step, args=(dataset_inputs,))
+      return distribution.reduce(
+          tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
+
+    for epoch in range(epochs):
+      # Train loop
+      total_loss = 0.0
+      num_batches = 0
+      for x in train_dist_dataset:
+        total_loss += distributed_train_step(x)
+        num_batches += 1
+      train_loss = total_loss / num_batches
+
+      print(f'Epoch {epoch+1}, Loss: {train_loss}')
 
 
 if __name__ == '__main__':
