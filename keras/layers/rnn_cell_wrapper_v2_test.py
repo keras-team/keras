@@ -40,10 +40,9 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
         bias_initializer=tf.compat.v1.constant_initializer(0.5))
     g, m_new = base_cell(x, m)
     wrapper_object = wrapper_type(base_cell)
-    (name, dep), = wrapper_object._checkpoint_dependencies
+    self.assertDictEqual({"cell": base_cell},
+                         wrapper_object._trackable_children())
     wrapper_object.get_config()  # Should not throw an error
-    self.assertIs(dep, base_cell)
-    self.assertEqual("cell", name)
 
     g_res, m_new_res = wrapper_object(x, m)
     self.evaluate([tf.compat.v1.global_variables_initializer()])
@@ -84,10 +83,9 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
     m = tf.zeros([1, 3])
     cell = rnn_cell_impl.GRUCell(3)
     wrapped_cell = wrapper_type(cell, "/cpu:0")
-    (name, dep), = wrapped_cell._checkpoint_dependencies
+    self.assertDictEqual({"cell": cell},
+                         wrapped_cell._trackable_children())
     wrapped_cell.get_config()  # Should not throw an error
-    self.assertIs(dep, cell)
-    self.assertEqual("cell", name)
 
     outputs, _ = wrapped_cell(x, m)
     self.assertIn("cpu:0", outputs.device.lower())
