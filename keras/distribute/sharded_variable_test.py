@@ -70,7 +70,7 @@ class ShardedVariableTest(tf.test.TestCase):
                                layer.trainable_variables)
     self.assert_list_all_equal(layer.weights, layer.variables)
 
-    checkpoint_deps = set(dep.ref for dep in layer._checkpoint_dependencies)
+    checkpoint_deps = set(layer._trackable_children().values())
     self.assertEqual(checkpoint_deps, set([layer.w, layer.b]))
 
   def test_keras_layer_add_weight(self):
@@ -103,7 +103,7 @@ class ShardedVariableTest(tf.test.TestCase):
                                layer.trainable_variables)
     self.assert_list_all_equal(layer.weights, layer.variables)
 
-    checkpoint_deps = set(dep.ref for dep in layer._checkpoint_dependencies)
+    checkpoint_deps = set(layer._trackable_children().values())
     self.assertEqual(checkpoint_deps, set([layer.w, layer.b]))
 
   def test_keras_metrics(self):
