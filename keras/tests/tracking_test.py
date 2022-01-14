@@ -75,13 +75,13 @@ class ListTests(keras_parameterized.TestCase):
           len(model.layer_list.layers + model.layers_with_updates))
       for index in range(10):
         self.assertEqual(3 + index, model.layer_list.layers[index].units)
-      self.assertEqual(2, len(model._checkpoint_dependencies))
-      self.assertIs(model.layer_list, model._checkpoint_dependencies[0].ref)
+      children = model._trackable_children()
+      self.assertLen(children, 2)
+      self.assertIs(model.layer_list, children["layer_list"])
       self.assertIs(model.layers_with_updates,
-                    model._checkpoint_dependencies[1].ref)
-      self.assertEqual(
-          10,
-          len(model._checkpoint_dependencies[0].ref._checkpoint_dependencies))
+                    children["layers_with_updates"])
+      self.assertLen(
+          children["layer_list"]._trackable_children(), 10)
       self.evaluate([v.initializer for v in model.variables])
       self.evaluate(model.variables[0].assign([[1., 2., 3.], [4., 5., 6.]]))
       save_path = os.path.join(self.get_temp_dir(), "ckpt")
@@ -258,8 +258,8 @@ class MappingTests(keras_parameterized.TestCase):
       self.assertAllEqual([32, 7], output.shape.as_list())
       self.assertEqual(5, len(model.layers))
       self.assertEqual(len(model.layers), len(model.layer_dict.layers))
-      self.assertEqual(1, len(model._checkpoint_dependencies))
-      self.assertIs(model.layer_dict, model._checkpoint_dependencies[0].ref)
+      self.assertLen(model._trackable_children(), 1)
+      self.assertIs(model.layer_dict, model._trackable_children()["layer_dict"])
       self.evaluate([v.initializer for v in model.variables])
       test_var = model.layer_dict["output"].kernel
       self.evaluate(test_var.assign(tf.ones([6, 7])))
@@ -414,12 +414,11 @@ class TupleTests(keras_parameterized.TestCase):
       self.assertEqual(3, model.layer_list.layers[0].units)
       self.assertEqual(4, model.layer_list.layers[1].units)
       self.assertEqual(5, model.layer_list.layers[2].units)
-      self.assertLen(model._checkpoint_dependencies, 2)
-      self.assertIs(model.layer_list, model._checkpoint_dependencies[0].ref)
+      self.assertLen(model._trackable_children(), 2)
+      self.assertIs(model.layer_list, model._trackable_children()["layer_list"])
       self.assertIs(model.layers_with_updates,
-                    model._checkpoint_dependencies[1].ref)
-      self.assertLen(
-          model._checkpoint_dependencies[0].ref._checkpoint_dependencies, 3)
+                    model._trackable_children()["layers_with_updates"])
+      self.assertLen(model.layer_list._trackable_children(), 3)
       self.evaluate([v.initializer for v in model.variables])
       self.evaluate(model.variables[0].assign([[1., 2., 3.], [4., 5., 6.]]))
       save_path = os.path.join(self.get_temp_dir(), "ckpt")
@@ -536,8 +535,8 @@ class InterfaceTests(keras_parameterized.TestCase):
     root.hasdep = hasdep
     nodep = tf.Module()
     root.nodep = data_structures.NoDependency(nodep)
-    self.assertEqual(1, len(root._checkpoint_dependencies))
-    self.assertIs(root._checkpoint_dependencies[0].ref, root.hasdep)
+    self.assertLen(root._trackable_children(), 1)
+    self.assertIs(root._trackable_children()["hasdep"], root.hasdep)
     self.assertIs(root.hasdep, hasdep)
     self.assertIs(root.nodep, nodep)
 
@@ -564,9 +563,7 @@ class InterfaceTests(keras_parameterized.TestCase):
     self.assertIn(b, a_deps)
     self.assertIn(c, a_deps)
     self.assertIs(b, a.attribute["b"])
-    self.assertEqual(
-        len(["b", "c"]),
-        len([dep.name for dep in a.attribute._checkpoint_dependencies]))
+    self.assertEqual({"b", "c"}, a.attribute._trackable_children().keys())
     self.assertEqual([b, c], a.layers)
     self.assertEqual([b, c], a.attribute.layers)
     self.assertEqual([c], a.attribute["c"].layers)
