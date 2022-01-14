@@ -579,9 +579,6 @@ class BatchNormalizationBase(Layer):
           data_format=self._data_format,
           exponential_avg_factor=exponential_avg_factor)
 
-    def _fused_batch_norm_training_empty():
-      return inputs, self.moving_mean, self.moving_variance
-
     def _fused_batch_norm_inference():
       return tf.compat.v1.nn.fused_batch_norm(
           inputs,
@@ -593,16 +590,8 @@ class BatchNormalizationBase(Layer):
           is_training=False,
           data_format=self._data_format)
 
-    train_op = _fused_batch_norm_training
-    if use_fused_avg_updates and input_batch_size is not None:
-      # pylint: disable=g-long-lambda
-      train_op = lambda: control_flow_util.smart_cond(
-          input_batch_size > 0, _fused_batch_norm_training,
-          _fused_batch_norm_training_empty)
-      # pylint: enable=g-long-lambda
-
     output, mean, variance = control_flow_util.smart_cond(
-        training, train_op, _fused_batch_norm_inference)
+        training, _fused_batch_norm_training, _fused_batch_norm_inference)
     variance = _maybe_add_or_remove_bessels_correction(variance, remove=True)
 
     training_value = control_flow_util.constant_value(training)
@@ -618,7 +607,12 @@ class BatchNormalizationBase(Layer):
       def mean_update():
         """Update self.moving_mean with the most recent data point."""
         if use_fused_avg_updates:
-          return self._assign_new_value(self.moving_mean, mean)
+          if input_batch_size is not None:
+            new_mean = control_flow_util.smart_cond(
+                input_batch_size > 0, lambda: mean, lambda: self.moving_mean)
+          else:
+            new_mean = mean
+          return self._assign_new_value(self.moving_mean, new_mean)
         else:
           return self._assign_moving_average(self.moving_mean, mean, momentum,
                                              input_batch_size)
@@ -626,7 +620,13 @@ class BatchNormalizationBase(Layer):
       def variance_update():
         """Update self.moving_variance with the most recent data point."""
         if use_fused_avg_updates:
-          return self._assign_new_value(self.moving_variance, variance)
+          if input_batch_size is not None:
+            new_variance = control_flow_util.smart_cond(
+                input_batch_size > 0, lambda: variance,
+                lambda: self.moving_variance)
+          else:
+            new_variance = variance
+          return self._assign_new_value(self.moving_variance, new_variance)
         else:
           return self._assign_moving_average(self.moving_variance, variance,
                                              momentum, input_batch_size)
