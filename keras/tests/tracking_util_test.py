@@ -703,9 +703,8 @@ class TemplateTests(keras_parameterized.TestCase):
           set([id(v1_save), id(v2_save), id(manual_scope),
                id(manual_scope_v), id(save_template)]),
           set(map(id, trackable_utils.list_objects(save_template))))
-      manual_dep, = manual_scope._checkpoint_dependencies
-      self.assertEqual("in_manual_scope", manual_dep.name)
-      self.assertIs(manual_scope_v, manual_dep.ref)
+      self.assertDictEqual({"in_manual_scope": manual_scope_v},
+                           manual_scope._trackable_children())
       optimizer = adam.Adam(0.0)
       save_root = tf.train.Checkpoint(
           my_template=save_template, optimizer=optimizer)
@@ -728,11 +727,9 @@ class TemplateTests(keras_parameterized.TestCase):
       status = load_root.restore(save_path)
       var, var_plus_one, var2, _, _ = load_template()
       load_optimizer.minimize(var.read_value, var_list=[var])
-      self.assertLen(load_template._checkpoint_dependencies, 3)
-      self.assertEqual("v", load_template._checkpoint_dependencies[0].name)
-      self.assertEqual("v2", load_template._checkpoint_dependencies[1].name)
-      self.assertEqual("ManualScope",
-                       load_template._checkpoint_dependencies[2].name)
+
+      children = load_template._trackable_children()
+      self.assertEqual({"v", "v2", "ManualScope"}, children.keys())
       status.assert_consumed().run_restore_ops()
       self.assertAllEqual([12.], self.evaluate(var))
       self.assertAllEqual([13.], self.evaluate(var_plus_one))
