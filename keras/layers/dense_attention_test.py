@@ -212,9 +212,9 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
         [[[1.5, 1.6, 1.7, 1.8], [2.5, 2.6, 2.7, 2.8], [3.5, 3.6, 3.7, 3.8]]],
         dtype=np.float32)
     attention_layer = dense_attention.Attention(score_mode='concat')
+    attention_layer.concat_score_weight = 1
     attention_layer.build(input_shape=([1, 2, 4], [1, 3, 4]))
     actual = attention_layer._calculate_scores(query=q, key=k)
-    attention_layer.attention_v = 1
 
     # pylint:disable=line-too-long
     # expected000 = tanh(1.+1.5) + tanh(1.1+1.6) + tanh(1.2+1.7) + tanh(1.3+1.8) = 3.96753427840
@@ -266,10 +266,10 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Key tensor of shape [1, 1, 1]
     k = np.array([[[1.6]]], dtype=np.float32)
     attention_layer = dense_attention.Attention(use_scale=True, score_mode='concat')
+    attention_layer.concat_score_weight = 1
     attention_layer.build(input_shape=([1, 1, 1], [1, 1, 1]))
     attention_layer.scale = 2.
     actual = attention_layer._calculate_scores(query=q, key=k)
-    attention_layer.attention_v = 1
 
     # Expected tensor of shape [1, 1, 1].
     # expected000 = tanh(2*(1.1+1.6)) = 0.9999592018254402
@@ -301,7 +301,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Value mask tensor of shape [1, 3]
     v_mask = np.array([[True, True, False]], dtype=np.bool_)
     attention_layer = dense_attention.Attention(score_mode='concat')
-    attention_layer.attention_v = 1
+    attention_layer.concat_score_weight = 1
     actual = attention_layer([q, v], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]
@@ -340,7 +340,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Value mask tensor of shape [1, 3]
     v_mask = np.array([[True, True, False]], dtype=np.bool_)
     attention_layer = dense_attention.Attention(score='concat')
-    attention_layer.attention_v = 1
+    attention_layer.concat_score_weight = 1
     actual = attention_layer([q, v, k], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]

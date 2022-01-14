@@ -346,12 +346,14 @@ class Attention(BaseDenseAttention):
     else:
       self.scale = None
     if self.score_mode == 'concat':
-      self.attention_v = self.add_weight(
-          name='attention_v',
+      self.concat_score_weight = self.add_weight(
+          name='concat_score_weight',
           shape=(),
           initializer='ones',
           dtype=self.dtype,
           trainable=True)
+    else:
+      self.concat_score_weight = None
     super(Attention, self).build(input_shape)
 
   def _calculate_scores(self, query, key):
@@ -374,10 +376,10 @@ class Attention(BaseDenseAttention):
       # Reshape into [batch_size, 1, Tv, dim].
       k_reshaped = tf.expand_dims(key, axis=-3)
       if self.scale is not None:
-        scores = self.attention_v * tf.reduce_sum(
+        scores = self.concat_score_weight * tf.reduce_sum(
          tf.tanh(self.scale * (q_reshaped + k_reshaped)), axis=-1)
       else:
-        scores = self.attention_v * tf.reduce_sum(
+        scores = self.concat_score_weight * tf.reduce_sum(
          tf.tanh(q_reshaped + k_reshaped), axis=-1)
 
     return scores
