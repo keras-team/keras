@@ -341,7 +341,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
         dtype=np.float32)
     # Value mask tensor of shape [1, 3]
     v_mask = np.array([[True, True, False]], dtype=np.bool_)
-    attention_layer = dense_attention.Attention(score='concat')
+    attention_layer = dense_attention.Attention(score_mode='concat')
     attention_layer.concat_score_weight = 1
     actual = attention_layer([q, v, k], mask=[None, v_mask])
 
