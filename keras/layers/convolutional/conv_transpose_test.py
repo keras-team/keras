@@ -14,14 +14,45 @@
 # ==============================================================================
 """Tests for convolutional transpose layers."""
 
-import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
-import numpy as np
-
 import keras
 from keras import keras_parameterized
 from keras import testing_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+
+
+@keras_parameterized.run_all_keras_modes
+class Conv1DTransposeTest(keras_parameterized.TestCase):
+
+  def _run_test(self, kwargs, expected_output_shape):
+    num_samples = 2
+    stack_size = 3
+    num_col = 6
+
+    with testing_utils.use_gpu():
+      testing_utils.layer_test(
+          keras.layers.Conv1DTranspose,
+          kwargs=kwargs,
+          input_shape=(num_samples, num_col, stack_size),
+          expected_output_shape=expected_output_shape)
+
+  @parameterized.named_parameters(
+      ('padding_valid', {'padding': 'valid'}, (None, 8, 2)),
+      ('padding_same', {'padding': 'same'}, (None, 6, 2)),
+      ('strides', {'strides': 2}, (None, 13, 2)),
+      # Only runs on GPU with CUDA, dilation_rate>1 is not supported on CPU.
+      ('dilation_rate', {'dilation_rate': 2}, (None, 10, 2)),
+      # Only runs on GPU with CUDA, channels_first is not supported on CPU.
+      # TODO(b/62340061): Support channels_first on CPU.
+      ('data_format', {'data_format': 'channels_first'}),
+  )
+  def test_conv1d_transpose(self, kwargs, expected_output_shape=None):
+    kwargs['filters'] = 2
+    kwargs['kernel_size'] = 3
+    if (('data_format' not in kwargs and 'dilation_rate' not in kwargs) or
+        tf.test.is_gpu_available(cuda_only=True)):
+      self._run_test(kwargs, expected_output_shape)
 
 
 @keras_parameterized.run_all_keras_modes
@@ -120,34 +151,48 @@ class Conv2DTransposeTest(keras_parameterized.TestCase):
 @keras_parameterized.run_all_keras_modes
 class Conv3DTransposeTest(keras_parameterized.TestCase):
 
-  def _run_test(self, kwargs):
+  def _run_test(self, kwargs, expected_output_shape):
     num_samples = 2
     stack_size = 3
     num_row = 7
     num_col = 6
     depth = 5
 
-    with self.cached_session():
+    with testing_utils.use_gpu():
       testing_utils.layer_test(
           keras.layers.Conv3DTranspose,
           kwargs=kwargs,
-          input_shape=(num_samples, depth, num_row, num_col, stack_size))
+          input_shape=(num_samples, depth, num_row, num_col, stack_size),
+          expected_output_shape=expected_output_shape)
 
   @parameterized.named_parameters(
-      ('padding_valid', {'padding': 'valid'}),
-      ('padding_same', {'padding': 'same'}),
-      ('strides', {'strides': (2, 2, 2)}),
+      ('padding_valid', {
+          'padding': 'valid'
+      }, (None, 7, 9, 8, 2)),
+      ('padding_same', {
+          'padding': 'same'
+      }, (None, 5, 7, 6, 2)),
+      ('strides', {
+          'strides': (2, 2, 2)
+      }, (None, 11, 15, 13, 2)),
+      ('dilation_rate', {
+          'dilation_rate': (2, 2, 2)
+      }, (None, 7, 9, 8, 2)),
       # Only runs on GPU with CUDA, channels_first is not supported on CPU.
       # TODO(b/62340061): Support channels_first on CPU.
-      ('data_format', {'data_format': 'channels_first'}),
-      ('strides_output_padding', {'strides': (2, 2, 2),
-                                  'output_padding': (1, 1, 1)}),
+      ('data_format', {
+          'data_format': 'channels_first'
+      }),
+      ('strides_output_padding', {
+          'strides': (2, 2, 2),
+          'output_padding': (1, 1, 1)
+      }, (None, 12, 16, 14, 2)),
   )
-  def test_conv3d_transpose(self, kwargs):
+  def test_conv3d_transpose(self, kwargs, expected_output_shape=None):
     kwargs['filters'] = 2
     kwargs['kernel_size'] = (3, 3, 3)
     if 'data_format' not in kwargs or tf.test.is_gpu_available(cuda_only=True):
-      self._run_test(kwargs)
+      self._run_test(kwargs, expected_output_shape)
 
   def test_conv3d_transpose_regularizers(self):
     kwargs = {
