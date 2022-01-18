@@ -14,14 +14,12 @@
 # ==============================================================================
 """Tests for separable convolutional layers."""
 
-import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
-import numpy as np
-
 import keras
 from keras import keras_parameterized
 from keras import testing_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @keras_parameterized.run_all_keras_modes

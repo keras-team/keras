@@ -277,12 +277,14 @@ cuda_py_test(
     ],
     deps = [
         ":engine",
+        ":input_layer",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras:combinations",
-        "//keras/layers:convolutional",
+        "//keras:testing_utils",
+        "//keras/layers/convolutional",
     ],
 )
 

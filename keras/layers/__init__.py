@@ -58,36 +58,37 @@ from keras.layers.advanced_activations import ThresholdedReLU
 from keras.layers.advanced_activations import Softmax
 
 # Convolution layers.
-from keras.layers.convolutional import Conv1D
-from keras.layers.convolutional import Conv2D
-from keras.layers.convolutional import Conv3D
-from keras.layers.convolutional import Conv1DTranspose
-from keras.layers.convolutional import Conv2DTranspose
-from keras.layers.convolutional import Conv3DTranspose
-from keras.layers.convolutional import SeparableConv1D
-from keras.layers.convolutional import SeparableConv2D
+from keras.layers.convolutional.conv1d import Conv1D
+from keras.layers.convolutional.conv2d import Conv2D
+from keras.layers.convolutional.conv3d import Conv3D
+from keras.layers.convolutional.conv1d_transpose import Conv1DTranspose
+from keras.layers.convolutional.conv2d_transpose import Conv2DTranspose
+from keras.layers.convolutional.conv3d_transpose import Conv3DTranspose
+from keras.layers.convolutional.depthwise_conv1d import DepthwiseConv1D
+from keras.layers.convolutional.depthwise_conv2d import DepthwiseConv2D
+from keras.layers.convolutional.separable_conv1d import SeparableConv1D
+from keras.layers.convolutional.separable_conv2d import SeparableConv2D
 
 # Convolution layer aliases.
-from keras.layers.convolutional import Convolution1D
-from keras.layers.convolutional import Convolution2D
-from keras.layers.convolutional import Convolution3D
-from keras.layers.convolutional import Convolution2DTranspose
-from keras.layers.convolutional import Convolution3DTranspose
-from keras.layers.convolutional import SeparableConvolution1D
-from keras.layers.convolutional import SeparableConvolution2D
-from keras.layers.convolutional import DepthwiseConv1D
-from keras.layers.convolutional import DepthwiseConv2D
+from keras.layers.convolutional.conv1d import Convolution1D
+from keras.layers.convolutional.conv2d import Convolution2D
+from keras.layers.convolutional.conv3d import Convolution3D
+from keras.layers.convolutional.conv1d_transpose import Convolution1DTranspose
+from keras.layers.convolutional.conv2d_transpose import Convolution2DTranspose
+from keras.layers.convolutional.conv3d_transpose import Convolution3DTranspose
+from keras.layers.convolutional.separable_conv1d import SeparableConvolution1D
+from keras.layers.convolutional.separable_conv2d import SeparableConvolution2D
 
-# Image processing layers.
-from keras.layers.convolutional import UpSampling1D
-from keras.layers.convolutional import UpSampling2D
-from keras.layers.convolutional import UpSampling3D
-from keras.layers.convolutional import ZeroPadding1D
-from keras.layers.convolutional import ZeroPadding2D
-from keras.layers.convolutional import ZeroPadding3D
-from keras.layers.convolutional import Cropping1D
-from keras.layers.convolutional import Cropping2D
-from keras.layers.convolutional import Cropping3D
+# Reshaping layers.
+from keras.layers.reshaping.cropping1d import Cropping1D
+from keras.layers.reshaping.cropping2d import Cropping2D
+from keras.layers.reshaping.cropping3d import Cropping3D
+from keras.layers.reshaping.up_sampling1d import UpSampling1D
+from keras.layers.reshaping.up_sampling2d import UpSampling2D
+from keras.layers.reshaping.up_sampling3d import UpSampling3D
+from keras.layers.reshaping.zero_padding1d import ZeroPadding1D
+from keras.layers.reshaping.zero_padding2d import ZeroPadding2D
+from keras.layers.reshaping.zero_padding3d import ZeroPadding3D
 
 # Core layers.
 from keras.layers.core.activation import Activation

@@ -1,6 +1,6 @@
 path: "tensorflow.keras.layers.ZeroPadding2D"
 tf_class {
-  is_instance: "<class \'keras.layers.convolutional.ZeroPadding2D\'>"
+  is_instance: "<class \'keras.layers.reshaping.zero_padding2d.ZeroPadding2D\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"
