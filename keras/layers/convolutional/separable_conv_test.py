@@ -160,3 +160,6 @@ class SeparableConv2DTest(keras_parameterized.TestCase):
       self.assertEqual(layer.depthwise_kernel.constraint, d_constraint)
       self.assertEqual(layer.pointwise_kernel.constraint, p_constraint)
       self.assertEqual(layer.bias.constraint, b_constraint)
+
+if __name__ == '__main__':
+  tf.test.main()
