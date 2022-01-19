@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for convolutional layers."""
+"""Tests for up-sampling layers."""
 # pylint: disable=g-direct-tensorflow-import
 
 import keras
