@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for reshaping layers."""
+"""Tests for cropping layers."""
 
 import keras
 from keras import keras_parameterized

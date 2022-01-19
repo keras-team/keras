@@ -33,6 +33,7 @@ from keras.layers import noise
 from keras.layers import pooling
 from keras.layers import recurrent
 from keras.layers import recurrent_v2
+from keras.layers import reshaping
 from keras.layers import wrappers
 from keras.layers.normalization import batch_normalization
 from keras.layers.normalization import layer_normalization
@@ -96,9 +97,9 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
        (2, 2, 2, 1)),
       ('DepthwiseConv2D', lambda: convolutional.DepthwiseConv2D(2, 2),
        (2, 2, 2, 1)),
-      ('UpSampling2D', convolutional.UpSampling2D, (2, 2, 2, 1)),
-      ('ZeroPadding2D', convolutional.ZeroPadding2D, (2, 2, 2, 1)),
-      ('Cropping2D', convolutional.Cropping2D, (2, 3, 3, 1)),
+      ('UpSampling2D', reshaping.UpSampling2D, (2, 2, 2, 1)),
+      ('ZeroPadding2D', reshaping.ZeroPadding2D, (2, 2, 2, 1)),
+      ('Cropping2D', reshaping.Cropping2D, (2, 3, 3, 1)),
       ('ConvLSTM2D',
        lambda: convolutional_recurrent.ConvLSTM2D(4, kernel_size=(2, 2)),
        (4, 4, 4, 4, 4)),
@@ -190,8 +191,7 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
         will be randomly generated
     """
 
-    if f32_layer_fn == convolutional.ZeroPadding2D and \
-       tf.test.is_built_with_rocm():
+    if f32_layer_fn == reshaping.ZeroPadding2D and tf.test.is_built_with_rocm():
       return
     if isinstance(input_shape[0], int):
       input_shapes = [input_shape]
