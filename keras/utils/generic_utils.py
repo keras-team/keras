@@ -67,7 +67,7 @@ class CustomObjectScope:
   config = layer.get_config()  # Config contains a reference to `my_regularizer`
   ...
   # Later:
-  with custom_object_scope({'my_regularizer': my_regularizer}):
+  with tf.keras.utils.custom_object_scope({'my_regularizer': my_regularizer}):
     layer = Dense.from_config(config)
   ```
 
