@@ -704,6 +704,20 @@ class Optimizer(_BaseOptimizer):
         skip_aggregate_gradients=True)
   ```
 
+  ### Creating a custom optimizer
+
+  If you intend to create your own optimization algorithm, please inherit from
+  this class and override the following methods:
+
+    - `build`: Create your optimizer-related variables, such as `momentums` in
+      SGD optimizer.
+    - `update_step`: Implement your optimizer's updating logic.
+    - `get_config`: serialization of the optimizer, include all hyper
+      parameters.
+
+  Your optimizer would automatically be compatible with tensorflow distributed
+  training if you subclass `optimizer_experimental.Optimizer`.
+
   """
 
   def __init__(self,
