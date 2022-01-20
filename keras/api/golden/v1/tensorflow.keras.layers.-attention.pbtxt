@@ -131,7 +131,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'use_scale\'], varargs=None, keywords=kwargs, defaults=[\'False\'], "
+    argspec: "args=[\'self\', \'use_scale\', \'score_mode\'], varargs=None, keywords=kwargs, defaults=[\'False\', \'dot\'], "
   }
   member_method {
     name: "add_loss"
