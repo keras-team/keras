@@ -38,12 +38,12 @@ from keras.layers.convolutional.separable_conv1d import SeparableConvolution1D
 from keras.layers.convolutional.separable_conv2d import SeparableConvolution2D
 
 # Pooling layers imported for backwards namespace compatibility.
-from keras.layers.pooling import AveragePooling1D
-from keras.layers.pooling import AveragePooling2D
-from keras.layers.pooling import AveragePooling3D
-from keras.layers.pooling import MaxPooling1D
-from keras.layers.pooling import MaxPooling2D
-from keras.layers.pooling import MaxPooling3D
+from keras.layers.pooling.average_pooling1d import AveragePooling1D
+from keras.layers.pooling.average_pooling2d import AveragePooling2D
+from keras.layers.pooling.average_pooling3d import AveragePooling3D
+from keras.layers.pooling.max_pooling1d import MaxPooling1D
+from keras.layers.pooling.max_pooling2d import MaxPooling2D
+from keras.layers.pooling.max_pooling3d import MaxPooling3D
 
 # Reshaping layers imported for backwards namespace compatibility
 from keras.layers.reshaping.cropping1d import Cropping1D
