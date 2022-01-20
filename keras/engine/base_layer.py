@@ -3132,8 +3132,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       flat_specs = [tf_utils.get_tensor_spec(x) for x in flat_kwarg]
       if any(s is None for s in flat_specs):
         continue
-      kwargs[key] = args_spec.append(
-          tf.nest.pack_sequence_as(kwarg, flat_specs))
+      kwargs_spec[key] = tf.nest.pack_sequence_as(kwarg, flat_specs)
 
     self._saved_model_inputs_spec = inputs_spec
     self._saved_model_arg_spec = ([inputs_spec] + args_spec, kwargs_spec)

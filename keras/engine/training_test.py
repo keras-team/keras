@@ -1930,6 +1930,39 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertEqual(training_module._get_verbosity(
         'auto', tf.distribute.MirroredStrategy()), 2)
 
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_save_spec(self):
+
+    class Model(training_module.Model):
+
+      def call(self, arg_input_1, arg_input_2, keyword_input, training=None):
+        return 0
+
+    # Test subclassed model save specs.
+    model = Model()
+    model(tf.ones([1, 1]), tf.ones([2, 2]), keyword_input=tf.ones([3, 3]),
+          training=False)
+    spec = model.save_spec(dynamic_batch=False)
+    self.assertEqual(spec[0][0].shape.as_list(), [1, 1])
+    self.assertEqual(spec[0][1].shape.as_list(), [2, 2])
+    self.assertEqual(spec[1]['keyword_input'].shape.as_list(), [3, 3])
+    spec = model.save_spec(dynamic_batch=True)
+    self.assertEqual(spec[0][0].shape.as_list(), [None, 1])
+
+    # Test functional model save specs.
+    input_1 = layers_module.Input((1,), batch_size=1)
+    input_2 = layers_module.Input((2,), batch_size=2)
+    input_3 = layers_module.Input((3,), batch_size=3)
+    output = model(input_1, input_2, keyword_input=input_3, training=True)
+    functional = training_module.Model([input_1, input_2, input_3], output)
+    # Functional models should ignore dynamic_batch if the input layers have a
+    # known batch size.
+    spec = functional.save_spec(dynamic_batch=True)
+    input_specs = spec[0][0]
+    self.assertEqual(input_specs[0].shape.as_list(), [1, 1])
+    self.assertEqual(input_specs[1].shape.as_list(), [2, 2])
+    self.assertEqual(input_specs[2].shape.as_list(), [3, 3])
+
 
 class TestExceptionsAndWarnings(keras_parameterized.TestCase):
 
