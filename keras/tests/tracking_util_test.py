@@ -27,6 +27,7 @@ from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
+from keras.layers import reshaping
 from keras.optimizer_v2 import adam
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.tracking import util as trackable_utils
@@ -871,7 +872,7 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
       # Create and save a model using Saver() before using a Checkpoint. This
       # generates a snapshot without the Checkpoint's `save_counter`.
       model = sequential.Sequential()
-      model.add(core.Flatten(input_shape=(1,)))
+      model.add(reshaping.Flatten(input_shape=(1,)))
       model.add(core.Dense(1))
       name_saver = tf.compat.v1.train.Saver(model.trainable_variables)
       save_path = name_saver.save(

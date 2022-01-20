@@ -83,6 +83,10 @@ from keras.layers.convolutional.separable_conv2d import SeparableConvolution2D
 from keras.layers.reshaping.cropping1d import Cropping1D
 from keras.layers.reshaping.cropping2d import Cropping2D
 from keras.layers.reshaping.cropping3d import Cropping3D
+from keras.layers.reshaping.flatten import Flatten
+from keras.layers.reshaping.permute import Permute
+from keras.layers.reshaping.repeat_vector import RepeatVector
+from keras.layers.reshaping.reshape import Reshape
 from keras.layers.reshaping.up_sampling1d import UpSampling1D
 from keras.layers.reshaping.up_sampling2d import UpSampling2D
 from keras.layers.reshaping.up_sampling3d import UpSampling3D
@@ -95,12 +99,8 @@ from keras.layers.core.activation import Activation
 from keras.layers.core.activity_regularization import ActivityRegularization
 from keras.layers.core.dense import Dense
 from keras.layers.core.dropout import Dropout
-from keras.layers.core.flatten import Flatten
 from keras.layers.core.lambda_layer import Lambda
 from keras.layers.core.masking import Masking
-from keras.layers.core.permute import Permute
-from keras.layers.core.repeat_vector import RepeatVector
-from keras.layers.core.reshape import Reshape
 from keras.layers.core.spatial_dropout import SpatialDropout1D
 from keras.layers.core.spatial_dropout import SpatialDropout2D
 from keras.layers.core.spatial_dropout import SpatialDropout3D
