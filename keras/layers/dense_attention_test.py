@@ -204,6 +204,31 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
                         dtype=np.float32)
     self.assertAllClose(expected, actual)
 
+  def test_calculate_scores_multi_dim_concat(self):
+    # Query tensor of shape [1, 2, 4]
+    q = np.array([[[1., 1.1, 1.2, 1.3], [2., 2.1, 2.2, 2.3]]], dtype=np.float32)
+    # Key tensor of shape [1, 3, 4]
+    k = np.array(
+        [[[1.5, 1.6, 1.7, 1.8], [2.5, 2.6, 2.7, 2.8], [3.5, 3.6, 3.7, 3.8]]],
+        dtype=np.float32)
+    attention_layer = dense_attention.Attention(score_mode='concat')
+    attention_layer.concat_score_weight = 1
+    attention_layer.build(input_shape=([1, 2, 4], [1, 3, 4]))
+    actual = keras.backend.get_value(
+        attention_layer._calculate_scores(query=q, key=k))
+
+    # pylint:disable=line-too-long
+    # expected000 = tanh(1.+1.5) + tanh(1.1+1.6) + tanh(1.2+1.7) + tanh(1.3+1.8) = 3.96753427840
+    # expected001 = tanh(1.+2.5) + tanh(1.1+2.6) + tanh(1.2+2.7) + tanh(1.3+2.8) = 3.99558784825
+    # expected002 = tanh(1.+3.5) + tanh(1.1+3.6) + tanh(1.2+3.7) + tanh(1.3+3.8) = 3.99940254147
+    # expected010 = tanh(2.+1.5) + tanh(2.1+1.6) + tanh(2.2+1.7) + tanh(2.3+1.8) = 3.99558784825
+    # expected011 = tanh(2.+2.5) + tanh(2.1+2.6) + tanh(2.2+2.7) + tanh(2.3+2.8) = 3.99940254147
+    # expected012 = tanh(2.+3.5) + tanh(2.1+3.6) + tanh(2.2+3.7) + tanh(2.3+3.8) = 3.99991913657
+    expected = np.array([[[3.96753427840, 3.99558784825, 3.99940254147],
+                          [3.99558784825, 3.99940254147, 3.99991913657]]],
+                        dtype=np.float32)
+    self.assertAllClose(expected, actual)
+
   def test_calculate_scores_one_dim_batch_size_two(self):
     # Query tensor of shape [2, 1, 1]
     q = np.array([[[1.1]], [[2.1]]], dtype=np.float32)
@@ -235,6 +260,25 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     expected = np.array([[[-3.52]]], dtype=np.float32)
     self.assertAllClose(expected, actual)
 
+  def test_calculate_scores_one_dim_with_scale_concat(self):
+    """Tests that scores are multiplied by scale."""
+    # Query tensor of shape [1, 1, 1]
+    q = np.array([[[1.1]]], dtype=np.float32)
+    # Key tensor of shape [1, 1, 1]
+    k = np.array([[[1.6]]], dtype=np.float32)
+    attention_layer = dense_attention.Attention(
+        use_scale=True, score_mode='concat')
+    attention_layer.concat_score_weight = 1
+    attention_layer.build(input_shape=([1, 1, 1], [1, 1, 1]))
+    attention_layer.scale = 2.
+    actual = keras.backend.get_value(
+        attention_layer._calculate_scores(query=q, key=k))
+
+    # Expected tensor of shape [1, 1, 1].
+    # expected000 = tanh(2*(1.1+1.6)) = 0.9999592018254402
+    expected = np.array([[[0.999959202]]], dtype=np.float32)
+    self.assertAllClose(expected, actual)
+
   def test_shape(self):
     # Query tensor of shape [1, 2, 4]
     q = np.array([[[1., 1.1, 1.2, 1.3], [2., 2.1, 2.2, 2.3]]], dtype=np.float32)
@@ -245,6 +289,22 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Value mask tensor of shape [1, 3]
     v_mask = np.array([[True, True, False]], dtype=np.bool_)
     attention_layer = dense_attention.Attention()
+    actual = attention_layer([q, v], mask=[None, v_mask])
+
+    expected_shape = [1, 2, 4]
+    self.assertAllEqual(expected_shape, tf.shape(actual))
+
+  def test_shape_concat(self):
+    # Query tensor of shape [1, 2, 4]
+    q = np.array([[[1., 1.1, 1.2, 1.3], [2., 2.1, 2.2, 2.3]]], dtype=np.float32)
+    # Value tensor of shape [1, 3, 4]
+    v = np.array(
+        [[[1.5, 1.6, 1.7, 1.8], [2.5, 2.6, 2.7, 2.8], [3.5, 3.6, 3.7, 3.8]]],
+        dtype=np.float32)
+    # Value mask tensor of shape [1, 3]
+    v_mask = np.array([[True, True, False]], dtype=np.bool_)
+    attention_layer = dense_attention.Attention(score_mode='concat')
+    attention_layer.concat_score_weight = 1
     actual = attention_layer([q, v], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]
@@ -264,6 +324,26 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Value mask tensor of shape [1, 3]
     v_mask = np.array([[True, True, False]], dtype=np.bool_)
     attention_layer = dense_attention.Attention()
+    actual = attention_layer([q, v, k], mask=[None, v_mask])
+
+    expected_shape = [1, 2, 4]
+    self.assertAllEqual(expected_shape, tf.shape(actual))
+
+  def test_shape_with_key_concat(self):
+    # Query tensor of shape [1, 2, 4]
+    q = np.array([[[1., 1.1, 1.2, 1.3], [2., 2.1, 2.2, 2.3]]], dtype=np.float32)
+    # Value tensor of shape [1, 3, 4]
+    v = np.array(
+        [[[1.5, 1.6, 1.7, 1.8], [2.5, 2.6, 2.7, 2.8], [3.5, 3.6, 3.7, 3.8]]],
+        dtype=np.float32)
+    # Key tensor of shape [1, 3, 4]
+    k = np.array(
+        [[[1.5, 1.6, 1.7, 1.8], [2.5, 2.6, 2.7, 2.8], [3.5, 3.6, 3.7, 3.8]]],
+        dtype=np.float32)
+    # Value mask tensor of shape [1, 3]
+    v_mask = np.array([[True, True, False]], dtype=np.bool_)
+    attention_layer = dense_attention.Attention(score_mode='concat')
+    attention_layer.concat_score_weight = 1
     actual = attention_layer([q, v, k], mask=[None, v_mask])
 
     expected_shape = [1, 2, 4]
