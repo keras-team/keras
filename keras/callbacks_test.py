@@ -1790,8 +1790,9 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
       values = []
       with open(fp) as f:
-        values = [x for x in csv.reader(f) if x]# In windows, due to \r\n line ends we may end up reading empty lines
-          # after each line. Skip empty lines.
+        # On Windows, due to \r\n line ends, we may end up reading empty lines
+        # after each line. Skip empty lines.
+        values = [x for x in csv.reader(f) if x]
         
       assert 'nan' in values[-1], 'The last epoch was not logged.'
 
