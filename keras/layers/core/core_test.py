@@ -481,81 +481,6 @@ class CoreLayersTest(keras_parameterized.TestCase):
         kwargs={'activation': keras.backend.relu},
         input_shape=(3, 2))
 
-  def test_reshape(self):
-    testing_utils.layer_test(
-        keras.layers.Reshape,
-        kwargs={'target_shape': (8, 1)},
-        input_shape=(3, 2, 4))
-
-    testing_utils.layer_test(
-        keras.layers.Reshape,
-        kwargs={'target_shape': (-1, 1)},
-        input_shape=(3, 2, 4))
-
-    testing_utils.layer_test(
-        keras.layers.Reshape,
-        kwargs={'target_shape': (1, -1)},
-        input_shape=(3, 2, 4))
-
-    testing_utils.layer_test(
-        keras.layers.Reshape,
-        kwargs={'target_shape': (-1, 1)},
-        input_shape=(None, None, 2))
-
-  def test_reshape_set_static_shape(self):
-    input_layer = keras.Input(batch_shape=(1, None))
-    reshaped = keras.layers.Reshape((1, 100))(input_layer)
-    # Make sure the batch dim is not lost after array_ops.reshape.
-    self.assertEqual(reshaped.shape, [1, 1, 100])
-
-  def test_permute(self):
-    testing_utils.layer_test(
-        keras.layers.Permute, kwargs={'dims': (2, 1)}, input_shape=(3, 2, 4))
-
-  def test_permute_errors_on_invalid_starting_dims_index(self):
-    with self.assertRaisesRegex(ValueError, r'Invalid permutation .*dims.*'):
-      testing_utils.layer_test(
-          keras.layers.Permute,
-          kwargs={'dims': (0, 1, 2)},
-          input_shape=(3, 2, 4))
-
-  def test_permute_errors_on_invalid_set_of_dims_indices(self):
-    with self.assertRaisesRegex(ValueError, r'Invalid permutation .*dims.*'):
-      testing_utils.layer_test(
-          keras.layers.Permute,
-          kwargs={'dims': (1, 4, 2)},
-          input_shape=(3, 2, 4))
-
-  def test_flatten(self):
-    testing_utils.layer_test(
-        keras.layers.Flatten, kwargs={}, input_shape=(3, 2, 4))
-
-    # Test channels_first
-    inputs = np.random.random((10, 3, 5, 5)).astype('float32')
-    outputs = testing_utils.layer_test(
-        keras.layers.Flatten,
-        kwargs={'data_format': 'channels_first'},
-        input_data=inputs)
-    target_outputs = np.reshape(
-        np.transpose(inputs, (0, 2, 3, 1)), (-1, 5 * 5 * 3))
-    self.assertAllClose(outputs, target_outputs)
-
-  def test_flatten_scalar_channels(self):
-    testing_utils.layer_test(keras.layers.Flatten, kwargs={}, input_shape=(3,))
-
-    # Test channels_first
-    inputs = np.random.random((10,)).astype('float32')
-    outputs = testing_utils.layer_test(
-        keras.layers.Flatten,
-        kwargs={'data_format': 'channels_first'},
-        input_data=inputs)
-    target_outputs = np.expand_dims(inputs, -1)
-    self.assertAllClose(outputs, target_outputs)
-
-  def test_repeat_vector(self):
-    testing_utils.layer_test(
-        keras.layers.RepeatVector, kwargs={'n': 3}, input_shape=(3, 2))
-
   def test_dense(self):
     testing_utils.layer_test(
         keras.layers.Dense, kwargs={'units': 3}, input_shape=(3, 2))
@@ -708,10 +633,6 @@ class CoreLayersTest(keras_parameterized.TestCase):
 
   def test_numpy_inputs(self):
     if tf.executing_eagerly():
-      layer = keras.layers.RepeatVector(2)
-      x = np.ones((10, 10))
-      self.assertAllEqual(np.ones((10, 2, 10)), layer(x))
-
       layer = keras.layers.Concatenate()
       x, y = np.ones((10, 10)), np.ones((10, 10))
       self.assertAllEqual(np.ones((10, 20)), layer([x, y]))

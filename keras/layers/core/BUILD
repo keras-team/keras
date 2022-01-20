@@ -27,14 +27,14 @@ py_library(
         ":activity_regularization",
         ":dense",
         ":dropout",
-        ":flatten",
         ":lambda",
         ":masking",
-        ":permute",
-        ":repeat_vector",
-        ":reshape",
         ":spatial_dropout",
         ":tf_op_layer",
+        "//keras/layers/reshaping:flatten",
+        "//keras/layers/reshaping:permute",
+        "//keras/layers/reshaping:repeat_vector",
+        "//keras/layers/reshaping:reshape",
     ],
 )
 
@@ -89,21 +89,6 @@ py_library(
 )
 
 py_library(
-    name = "flatten",
-    srcs = ["flatten.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:base_layer",
-        "//keras/initializers",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
     name = "lambda",
     srcs = ["lambda_layer.py"],
     deps = [
@@ -118,51 +103,6 @@ py_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
-    ],
-)
-
-py_library(
-    name = "permute",
-    srcs = ["permute.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:base_layer",
-        "//keras/initializers",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "repeat_vector",
-    srcs = ["repeat_vector.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:base_layer",
-        "//keras/initializers",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "reshape",
-    srcs = ["reshape.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:base_layer",
-        "//keras/initializers",
-        "//keras/utils:tf_utils",
     ],
 )
 

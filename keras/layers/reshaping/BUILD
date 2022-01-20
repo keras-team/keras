@@ -3,6 +3,9 @@
 
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
+# buildifier: disable=same-origin-load
+load("@org_keras//keras:keras.bzl", "tf_py_test")
+
 package(
     default_visibility = [
         "//keras:__subpackages__",
@@ -26,6 +29,10 @@ py_library(
         ":cropping1d",
         ":cropping2d",
         ":cropping3d",
+        ":flatten",
+        ":permute",
+        ":repeat_vector",
+        ":reshape",
         ":up_sampling1d",
         ":up_sampling2d",
         ":up_sampling3d",
@@ -68,6 +75,53 @@ py_library(
         "//keras/engine:base_layer",
         "//keras/engine:input_spec",
         "//keras/utils:engine_utils",
+    ],
+)
+
+py_library(
+    name = "flatten",
+    srcs = ["flatten.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/engine:base_layer",
+        "//keras/engine:input_spec",
+        "//keras/utils:engine_utils",
+    ],
+)
+
+py_library(
+    name = "permute",
+    srcs = ["permute.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/engine:base_layer",
+        "//keras/engine:input_spec",
+    ],
+)
+
+py_library(
+    name = "repeat_vector",
+    srcs = ["repeat_vector.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras/engine:base_layer",
+        "//keras/engine:input_spec",
+    ],
+)
+
+py_library(
+    name = "reshape",
+    srcs = ["reshape.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/engine:base_layer",
     ],
 )
 
@@ -159,6 +213,62 @@ cuda_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:testing_utils",
+    ],
+)
+
+tf_py_test(
+    name = "flatten_test",
+    size = "medium",
+    srcs = ["flatten_test.py"],
+    python_version = "PY3",
+    shard_count = 3,
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
+
+tf_py_test(
+    name = "permute_test",
+    size = "medium",
+    srcs = ["permute_test.py"],
+    python_version = "PY3",
+    shard_count = 3,
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
+
+tf_py_test(
+    name = "repeat_vector_test",
+    size = "medium",
+    srcs = ["repeat_vector_test.py"],
+    python_version = "PY3",
+    shard_count = 3,
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
+
+tf_py_test(
+    name = "reshape_test",
+    size = "medium",
+    srcs = ["reshape_test.py"],
+    python_version = "PY3",
+    shard_count = 3,
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )
 
