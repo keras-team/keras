@@ -1,7 +1,7 @@
 path: "tensorflow.keras.layers.Maximum"
 tf_class {
-  is_instance: "<class \'keras.layers.merge.Maximum\'>"
-  is_instance: "<class \'keras.layers.merge._Merge\'>"
+  is_instance: "<class \'keras.layers.merging.maximum.Maximum\'>"
+  is_instance: "<class \'keras.layers.merging.base_merge._Merge\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"

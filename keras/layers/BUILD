@@ -37,7 +37,6 @@ py_library(
         ":embeddings",
         ":kernelized",
         ":local",
-        ":merge",
         ":multi_head_attention",
         ":noise",
         ":recurrent",
@@ -47,6 +46,7 @@ py_library(
         "//keras/feature_column",
         "//keras/layers/convolutional",
         "//keras/layers/core",
+        "//keras/layers/merging",
         "//keras/layers/normalization",
         "//keras/layers/pooling",
         "//keras/layers/preprocessing",
@@ -206,18 +206,6 @@ py_library(
         "//keras/engine:input_spec",
         "//keras/initializers",
         "//keras/utils:engine_utils",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "merge",
-    srcs = ["merge.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:base_layer",
         "//keras/utils:tf_utils",
     ],
 )
@@ -412,21 +400,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = ["no_windows"],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
-    ],
-)
-
-tf_py_test(
-    name = "merge_test",
-    size = "medium",
-    srcs = ["merge_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",

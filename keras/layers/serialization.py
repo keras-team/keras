@@ -30,7 +30,7 @@ from keras.layers import dense_attention
 from keras.layers import einsum_dense
 from keras.layers import embeddings
 from keras.layers import local
-from keras.layers import merge
+from keras.layers import merging
 from keras.layers import multi_head_attention
 from keras.layers import noise
 from keras.layers import pooling
@@ -59,7 +59,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 ALL_MODULES = (base_layer, input_layer, advanced_activations, convolutional,
                convolutional_recurrent, core, cudnn_recurrent, dense_attention,
-               embeddings, einsum_dense, local, merge, noise,
+               embeddings, einsum_dense, local, merging, noise,
                batch_normalization_v1, layer_normalization, unit_normalization,
                pooling, image_preprocessing, recurrent, reshaping, wrappers,
                hashing, hashed_crossing, category_encoding, discretization,
@@ -132,15 +132,15 @@ def populate_deserializable_objects():
     from keras.feature_column.dense_features import DenseFeatures  # pylint: disable=g-import-not-at-top
     LOCAL.ALL_OBJECTS['DenseFeatures'] = DenseFeatures
 
-  # Merge layers, function versions.
-  LOCAL.ALL_OBJECTS['add'] = merge.add
-  LOCAL.ALL_OBJECTS['subtract'] = merge.subtract
-  LOCAL.ALL_OBJECTS['multiply'] = merge.multiply
-  LOCAL.ALL_OBJECTS['average'] = merge.average
-  LOCAL.ALL_OBJECTS['maximum'] = merge.maximum
-  LOCAL.ALL_OBJECTS['minimum'] = merge.minimum
-  LOCAL.ALL_OBJECTS['concatenate'] = merge.concatenate
-  LOCAL.ALL_OBJECTS['dot'] = merge.dot
+  # Merging layers, function versions.
+  LOCAL.ALL_OBJECTS['add'] = merging.add
+  LOCAL.ALL_OBJECTS['subtract'] = merging.subtract
+  LOCAL.ALL_OBJECTS['multiply'] = merging.multiply
+  LOCAL.ALL_OBJECTS['average'] = merging.average
+  LOCAL.ALL_OBJECTS['maximum'] = merging.maximum
+  LOCAL.ALL_OBJECTS['minimum'] = merging.minimum
+  LOCAL.ALL_OBJECTS['concatenate'] = merging.concatenate
+  LOCAL.ALL_OBJECTS['dot'] = merging.dot
 
 
 @keras_export('keras.layers.serialize')
