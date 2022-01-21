@@ -168,32 +168,32 @@ else:
 from keras.layers.kernelized import RandomFourierFeatures
 
 # Pooling layers.
-from keras.layers.pooling import MaxPooling1D
-from keras.layers.pooling import MaxPooling2D
-from keras.layers.pooling import MaxPooling3D
-from keras.layers.pooling import AveragePooling1D
-from keras.layers.pooling import AveragePooling2D
-from keras.layers.pooling import AveragePooling3D
-from keras.layers.pooling import GlobalAveragePooling1D
-from keras.layers.pooling import GlobalAveragePooling2D
-from keras.layers.pooling import GlobalAveragePooling3D
-from keras.layers.pooling import GlobalMaxPooling1D
-from keras.layers.pooling import GlobalMaxPooling2D
-from keras.layers.pooling import GlobalMaxPooling3D
+from keras.layers.pooling.average_pooling1d import AveragePooling1D
+from keras.layers.pooling.average_pooling2d import AveragePooling2D
+from keras.layers.pooling.average_pooling3d import AveragePooling3D
+from keras.layers.pooling.max_pooling1d import MaxPooling1D
+from keras.layers.pooling.max_pooling2d import MaxPooling2D
+from keras.layers.pooling.max_pooling3d import MaxPooling3D
+from keras.layers.pooling.global_average_pooling1d import GlobalAveragePooling1D
+from keras.layers.pooling.global_average_pooling2d import GlobalAveragePooling2D
+from keras.layers.pooling.global_average_pooling3d import GlobalAveragePooling3D
+from keras.layers.pooling.global_max_pooling1d import GlobalMaxPooling1D
+from keras.layers.pooling.global_max_pooling2d import GlobalMaxPooling2D
+from keras.layers.pooling.global_max_pooling3d import GlobalMaxPooling3D
 
 # Pooling layer aliases.
-from keras.layers.pooling import MaxPool1D
-from keras.layers.pooling import MaxPool2D
-from keras.layers.pooling import MaxPool3D
-from keras.layers.pooling import AvgPool1D
-from keras.layers.pooling import AvgPool2D
-from keras.layers.pooling import AvgPool3D
-from keras.layers.pooling import GlobalAvgPool1D
-from keras.layers.pooling import GlobalAvgPool2D
-from keras.layers.pooling import GlobalAvgPool3D
-from keras.layers.pooling import GlobalMaxPool1D
-from keras.layers.pooling import GlobalMaxPool2D
-from keras.layers.pooling import GlobalMaxPool3D
+from keras.layers.pooling.average_pooling1d import AvgPool1D
+from keras.layers.pooling.average_pooling2d import AvgPool2D
+from keras.layers.pooling.average_pooling3d import AvgPool3D
+from keras.layers.pooling.max_pooling1d import MaxPool1D
+from keras.layers.pooling.max_pooling2d import MaxPool2D
+from keras.layers.pooling.max_pooling3d import MaxPool3D
+from keras.layers.pooling.global_average_pooling1d import GlobalAvgPool1D
+from keras.layers.pooling.global_average_pooling2d import GlobalAvgPool2D
+from keras.layers.pooling.global_average_pooling3d import GlobalAvgPool3D
+from keras.layers.pooling.global_max_pooling1d import GlobalMaxPool1D
+from keras.layers.pooling.global_max_pooling2d import GlobalMaxPool2D
+from keras.layers.pooling.global_max_pooling3d import GlobalMaxPool3D
 
 # Recurrent layers.
 from keras.layers.recurrent import RNN
