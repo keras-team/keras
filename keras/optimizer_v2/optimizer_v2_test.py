@@ -295,6 +295,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       for decay_schedule in [
           learning_rate_schedule.InverseTimeDecay(
               0.5, decay_steps=1.0, decay_rate=0.1),
+          learning_rate_schedule.InverseTimeDecay(
+              tf.Variable(0.5), decay_steps=1.0, decay_rate=0.1),
           learning_rate_schedule.PiecewiseConstantDecay(
               [5], [1., .5])
       ]:

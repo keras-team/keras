@@ -1008,14 +1008,15 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
   def _decayed_lr(self, var_dtype):
     """Get decayed learning rate as a Tensor with dtype=var_dtype."""
     lr_t = self._get_hyper("learning_rate", var_dtype)
+    local_step = tf.cast(self.iterations, var_dtype)
+    decay_t = tf.cast(self._initial_decay, var_dtype)
     if isinstance(lr_t, learning_rate_schedule.LearningRateSchedule):
-      local_step = tf.cast(self.iterations, var_dtype)
       lr_t = tf.cast(lr_t(local_step), var_dtype)
-    if self._initial_decay > 0.:
-      local_step = tf.cast(self.iterations, var_dtype)
-      decay_t = tf.cast(self._initial_decay, var_dtype)
-      lr_t = lr_t / (1. + decay_t * local_step)
-    return lr_t
+    return tf.cond(
+      tf.greater(decay_t, 0.0),
+      lambda: lr_t / (1. + decay_t * local_step),
+      lambda: lr_t
+    )
 
   @abc.abstractmethod
   def get_config(self):
