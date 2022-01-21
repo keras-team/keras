@@ -2,7 +2,7 @@ path: "tensorflow.keras.mixed_precision.experimental"
 tf_module {
   member {
     name: "LossScaleOptimizer"
-    mtype: "<type \'type\'>"
+    mtype: "<class \'keras.mixed_precision.loss_scale_optimizer.LossScaleOptimizerMetaclass\'>"
   }
   member {
     name: "Policy"

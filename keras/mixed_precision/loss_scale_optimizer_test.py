@@ -74,6 +74,7 @@ def create_sgd(base_optimizer_cls, *args, **kwargs):
     return sgd_experimental.SGD(*args, **kwargs)
 
 
+# TODO(b/215568552): Remove this as the delegation is handled by metaclass.
 def create_lso(inner_optimizer,
                dynamic=True,
                initial_scale=None,
@@ -95,14 +96,11 @@ def create_lso(inner_optimizer,
     Returns a LossScaleOptimizerV3 or a LossScaleOptimizer, depending on the
     type of `inner_optimizer`.
   """
-  if isinstance(inner_optimizer, optimizer_v2.OptimizerV2):
-    return loss_scale_optimizer.LossScaleOptimizer(
-        inner_optimizer, dynamic, initial_scale, dynamic_growth_steps)
-  else:
-    assert isinstance(inner_optimizer, optimizer_experimental.Optimizer), (
-        f'Got object that is not optimizer: {inner_optimizer}')
-    return loss_scale_optimizer.LossScaleOptimizerV3(
-        inner_optimizer, dynamic, initial_scale, dynamic_growth_steps)
+  return loss_scale_optimizer.BaseLossScaleOptimizer(
+      inner_optimizer,
+      dynamic=dynamic,
+      initial_scale=initial_scale,
+      dynamic_growth_steps=dynamic_growth_steps)
 
 
 def opt_and_strategy_and_mode_combinations():
@@ -160,6 +158,15 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         expected_grad)
     loss = lambda: grad_check_fn(var) / strategy.num_replicas_in_sync
     return lambda: opt.minimize(loss, var_list=[var])
+
+  def testIsInstance(self):
+    optimizer = create_lso(sgd_experimental.SGD())
+    self.assertIsInstance(optimizer,
+                          loss_scale_optimizer.BaseLossScaleOptimizer)
+
+    optimizer = create_lso(gradient_descent.SGD())
+    self.assertIsInstance(optimizer,
+                          loss_scale_optimizer.BaseLossScaleOptimizer)
 
   @combinations.generate(opt_and_strategy_and_mode_combinations())
   def testFixedLossScaleAppliedToLossWithMinimize(self, opt_cls, strategy_fn,
