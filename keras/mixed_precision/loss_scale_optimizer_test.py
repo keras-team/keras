@@ -15,6 +15,7 @@
 """Tests for LossScaleOptimizer."""
 
 import os
+from unittest import mock
 
 from absl.testing import parameterized
 
@@ -33,6 +34,7 @@ import tensorflow.compat.v2 as tf
 # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras.optimizer_v2 import gradient_descent as legacy_sgd
+from tensorflow.python.platform import tf_logging
 
 # If called outside any strategy.scope() calls, this will return the default
 # strategy.
@@ -1237,6 +1239,38 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         TypeError, '"dynamic" argument to LossScaleOptimizer.__init__ must be '
                    "a bool, but got: 'dynamic'"):
       create_lso(opt, 'dynamic')
+
+  @combinations.generate(opt_combinations_only())
+  def testScalingWarning(self, opt_cls):
+    var = tf.Variable(1.0)
+    lso = create_lso(create_sgd(opt_cls))
+    with mock.patch.object(tf_logging, 'warning') as mock_warn:
+      lso.apply_gradients([(tf.constant(1.0), var)])
+      self.assertIn(
+          'You forgot to call LossScaleOptimizer.get_scaled_loss() and '
+          'LossScaleOptimizer.get_unscaled_gradients() before',
+          mock_warn.call_args_list[0][0][0])
+    lso = create_lso(create_sgd(opt_cls))
+    with mock.patch.object(tf_logging, 'warning') as mock_warn:
+      lso.get_scaled_loss(tf.constant(1.0))
+      lso.apply_gradients([(tf.constant(1.0), var)])
+      self.assertIn(
+          'You forgot to call LossScaleOptimizer.get_unscaled_gradients() '
+          'before',
+          mock_warn.call_args_list[0][0][0])
+    lso = create_lso(create_sgd(opt_cls))
+    with mock.patch.object(tf_logging, 'warning') as mock_warn:
+      lso.get_unscaled_gradients([tf.constant(1.0)])
+      lso.apply_gradients([(tf.constant(1.0), var)])
+      self.assertIn(
+          'You forgot to call LossScaleOptimizer.get_scaled_loss() before',
+          mock_warn.call_args_list[0][0][0])
+    lso = create_lso(create_sgd(opt_cls))
+    with mock.patch.object(tf_logging, 'warning') as mock_warn:
+      lso.get_scaled_loss(tf.constant(1.0))
+      lso.get_unscaled_gradients([tf.constant(1.0)])
+      lso.apply_gradients([(tf.constant(1.0), var)])
+      mock_warn.assert_not_called()
 
   @combinations.generate(opt_combinations_only())
   def testErrorWhenNesting(self, opt_cls):

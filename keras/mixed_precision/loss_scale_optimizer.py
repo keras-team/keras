@@ -78,6 +78,49 @@ def _assign_if_finite(var, value):
       tf.no_op)
 
 
+def _maybe_warn_about_scaling(loss_has_been_scaled,
+                              gradients_have_been_unscaled):
+  """Warn if the loss or gradients hasn't been scaled or unscaled."""
+  if loss_has_been_scaled and gradients_have_been_unscaled:
+    return
+
+  example_code = """
+    with tf.GradientTape() as tape:
+      loss = loss_fn()
+      scaled_loss = opt.get_scaled_loss(loss)
+    scaled_grads = tape.gradient(scaled_loss, vars)
+    grads = opt.get_unscaled_gradients(scaled_grads)
+    opt.apply_gradients([(grads, var)])"""
+
+  if not loss_has_been_scaled and not gradients_have_been_unscaled:
+    tf_logging.warning(
+        'You forgot to call LossScaleOptimizer.get_scaled_loss() and '
+        'LossScaleOptimizer.get_unscaled_gradients() before calling '
+        'LossScaleOptimizer.apply_gradients(). This will likely result in '
+        'worse model quality, so please call them in the correct places! For '
+        f'example:{example_code}\nFor more information, see '
+        'https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer'
+    )
+  elif not loss_has_been_scaled:
+    tf_logging.warning(
+        'You forgot to call LossScaleOptimizer.get_scaled_loss() before '
+        'calling LossScaleOptimizer.apply_gradients() (you did call '
+        'get_unscaled_gradients() however). This will likely result in worse '
+        'model quality, so please call get_scaled_loss() in the correct place! '
+        f'For example:{example_code}\nFor more information, see '
+        'https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer'
+    )
+  elif not gradients_have_been_unscaled:
+    tf_logging.warning(
+        'You forgot to call LossScaleOptimizer.get_unscaled_gradients() '
+        'before calling LossScaleOptimizer.apply_gradients() (you did call '
+        'get_scaled_loss() however). This will likely result in worse '
+        'model quality, so please call get_unscaled_gradients() in the correct '
+        f'place! For example:{example_code}\nFor more information, see '
+        'https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer'
+    )
+
+
 class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
   """The state of a dynamic loss scale."""
 
@@ -576,6 +619,11 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
         raise ValueError('"dynamic_growth_steps" must be None if "dynamic" '
                          'is False, but got: %s' % (dynamic_growth_steps,))
 
+    # Used to track whether get_scaled_loss() and get_unscaled_gradients() have
+    # been called
+    self._loss_has_been_scaled = False
+    self._gradients_have_been_unscaled = False
+
     # To support restoring TensorFlow 2.2 checkpoints.
     self._track_trackable(FakeOptimizerForRestoration(self._optimizer),
                           'base_optimizer')
@@ -618,6 +666,7 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
     return self._optimizer
 
   def get_scaled_loss(self, loss):
+    self._loss_has_been_scaled = True
     if callable(loss):
       def new_loss():
         loss_val = loss()
@@ -627,6 +676,7 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
       return loss * tf.cast(self.loss_scale, loss.dtype)
 
   def get_unscaled_gradients(self, grads):
+    self._gradients_have_been_unscaled = True
     loss_scale_reciprocal = 1. / self.loss_scale
     return [
         _multiply_gradient(g, loss_scale_reciprocal) if g is not None else None
@@ -664,6 +714,8 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
     # We check for the strategy here despite already checking in the constructor
     # as frequently the optimizer is created outside the strategy's scope.
     _raise_if_strategy_unsupported()
+    _maybe_warn_about_scaling(self._loss_has_been_scaled,
+                              self._gradients_have_been_unscaled)
 
     grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
     if experimental_aggregate_gradients:
@@ -1180,6 +1232,11 @@ class LossScaleOptimizerV3(tf.__internal__.tracking.DelegatingTrackableMixin,
         raise ValueError(f'"dynamic_growth_steps" must be None if "dynamic" '
                          f'is False, but got: {dynamic_growth_steps}')
 
+    # Used to track whether get_scaled_loss() and get_unscaled_gradients() have
+    # been called
+    self._loss_has_been_scaled = False
+    self._gradients_have_been_unscaled = False
+
   @property
   def dynamic(self):
     return isinstance(self._loss_scale, _DynamicLossScaleState)
@@ -1218,6 +1275,7 @@ class LossScaleOptimizerV3(tf.__internal__.tracking.DelegatingTrackableMixin,
     return self._optimizer
 
   def get_scaled_loss(self, loss):
+    self._loss_has_been_scaled = True
     if callable(loss):
       def new_loss():
         loss_val = loss()
@@ -1227,6 +1285,7 @@ class LossScaleOptimizerV3(tf.__internal__.tracking.DelegatingTrackableMixin,
       return loss * tf.cast(self.loss_scale, loss.dtype)
 
   def get_unscaled_gradients(self, grads):
+    self._gradients_have_been_unscaled = True
     loss_scale_reciprocal = 1. / self.loss_scale
     return [
         _multiply_gradient(g, loss_scale_reciprocal) if g is not None else None
@@ -1254,6 +1313,8 @@ class LossScaleOptimizerV3(tf.__internal__.tracking.DelegatingTrackableMixin,
     # We check for the strategy here despite already checking in the constructor
     # as frequently the optimizer is created outside the strategy's scope.
     _raise_if_strategy_unsupported()
+    _maybe_warn_about_scaling(self._loss_has_been_scaled,
+                              self._gradients_have_been_unscaled)
 
     grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
     if not skip_gradients_aggregation:
