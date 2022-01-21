@@ -1,7 +1,7 @@
 path: "tensorflow.keras.layers.GlobalAvgPool2D"
 tf_class {
-  is_instance: "<class \'keras.layers.pooling.GlobalAveragePooling2D\'>"
-  is_instance: "<class \'keras.layers.pooling.GlobalPooling2D\'>"
+  is_instance: "<class \'keras.layers.pooling.global_average_pooling2d.GlobalAveragePooling2D\'>"
+  is_instance: "<class \'keras.layers.pooling.base_global_pooling2d.GlobalPooling2D\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"
