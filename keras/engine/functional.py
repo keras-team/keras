@@ -15,7 +15,6 @@
 # pylint: disable=protected-access
 """A `Network` is way to compose layers: the topological form of a `Model`."""
 
-import tensorflow.compat.v2 as tf
 
 import collections
 import copy
@@ -34,6 +33,7 @@ from keras.saving.saved_model import network_serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.tools.docs import doc_controls
 
@@ -682,51 +682,6 @@ class Functional(training_lib.Model):
 
   def get_config(self):
     return copy.deepcopy(get_network_config(self))
-
-  @classmethod
-  def from_config(cls, config, custom_objects=None):
-    """Instantiates a Model from its config (output of `get_config()`).
-
-    Args:
-        config: Model config dictionary.
-        custom_objects: Optional dictionary mapping names
-            (strings) to custom classes or functions to be
-            considered during deserialization.
-
-    Returns:
-        A model instance.
-
-    Raises:
-        ValueError: In case of improperly formatted config dict.
-        TypeError: In case the config does match the cls constructor.
-    """
-
-    with generic_utils.SharedObjectLoadingScope():
-      if all(key in config for key in [
-          'name', 'layers', 'input_layers', 'output_layers']):
-        input_tensors, output_tensors, created_layers = reconstruct_from_config(
-            config, custom_objects)
-        model = cls(
-            inputs=input_tensors,
-            outputs=output_tensors,
-            name=config.get('name'))
-        connect_ancillary_layers(model, created_layers)
-        return model
-      # The config does not contain all the information necessary to revive a
-      # Functional model. This happens when the user creates subclassed models
-      # with a Functional constructor and has overridden the `get_config` method
-      # to return a completely new dictionary.
-      try:
-        return cls(**config)
-      except TypeError as e:
-        raise TypeError('Unable to revive model from config. When overriding '
-                        'the `get_config`, make sure that the returned config '
-                        'contains all items used as arguments in the '
-                        f'constructor to {cls}, which is the default behavior. '
-                        'You can override this default behavior by defining a '
-                        '`from_config` method to specify how to create an '
-                        f'instance of {cls.__name__} from the config. \n\n'
-                        f'Error encountered during deserialization:\n{e}')
 
   def _validate_graph_inputs_and_outputs(self):
     """Validates the inputs and outputs of a Graph Network."""

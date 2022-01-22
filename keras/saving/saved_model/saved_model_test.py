@@ -632,9 +632,15 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir, save_format='tf')
 
-    loaded = keras_load.load(saved_model_dir)
+    with keras.utils.generic_utils.custom_object_scope({'Model': Model}):
+      loaded = keras_load.load(saved_model_dir)
     self.assertAllClose(prediction,
                         loaded.predict(np.ones([1, 3]).astype('float32')))
+
+    loaded_without_scope = keras_load.load(saved_model_dir)
+    if tf.__internal__.tf2.enabled():
+      with self.assertRaises(NotImplementedError):
+        loaded_without_scope.predict(np.ones([1, 3]).astype('float32'))
 
   def testFeatureColumns(self):
     # TODO(b/120099662): Error with table initialization with Keras models in
@@ -974,9 +980,9 @@ class TestSavedModelFormat(tf.test.TestCase):
     self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
     return os.path.join(temp_dir, dirname)
 
-  def test_load_with_partially_failed_serialization(self):
+  def test_load_with_custom_model_and_layer(self):
 
-    class BadCustomLayer(keras.layers.Layer):
+    class CustomLayer(keras.layers.Layer):
 
       def __call__(self, inputs):
         return inputs
@@ -985,7 +991,7 @@ class TestSavedModelFormat(tf.test.TestCase):
 
       def __init__(self):
         super(Model, self).__init__()
-        self.layer = BadCustomLayer()
+        self.layer = CustomLayer()
 
       @tf.function(
           input_signature=[tf.TensorSpec([None, 1])])
@@ -998,10 +1004,32 @@ class TestSavedModelFormat(tf.test.TestCase):
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir, save_format='tf')
 
-    loaded = keras_load.load(saved_model_dir)
+    # Even if the `CustomLayer` is not provided in `custom_object_scope`,
+    # `Model` still has that reference.
+    with keras.utils.generic_utils.custom_object_scope({'Model': Model}):
+      loaded = keras_load.load(saved_model_dir)
     self.assertAllEqual([[1.0]], self.evaluate(loaded(inp)))
-    with self.assertRaisesRegex(ValueError, 'call function was not serialized'):
-      loaded.layer(inp)
+    self.assertAllEqual([[1.0]], self.evaluate(loaded.layer(inp)))
+    self.assertIsInstance(loaded.layer, CustomLayer)
+
+    # If `CustomLayer` is provided in `custom_object_scope`, it should of
+    # course use that custom class.
+    with keras.utils.generic_utils.custom_object_scope({
+        'Model': Model,
+        'CustomLayer': CustomLayer
+    }):
+      loaded = keras_load.load(saved_model_dir)
+    self.assertAllEqual([[1.0]], self.evaluate(loaded(inp)))
+    self.assertAllEqual([[1.0]], self.evaluate(loaded.layer(inp)))
+    self.assertIsInstance(loaded.layer, CustomLayer)
+
+    # If the symbol is no longer available, loading should raise an error.
+    del CustomLayer
+    with keras.utils.generic_utils.custom_object_scope({'Model': Model}):
+      with self.assertRaisesRegex(
+          NameError, 'free variable \'CustomLayer\' referenced '
+          'before assignment in enclosing scope'):
+        loaded = keras_load.load(saved_model_dir)
 
   def test_save_without_tracing(self):
 

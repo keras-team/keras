@@ -14,16 +14,12 @@
 # ==============================================================================
 """Utilities for unit-testing Keras."""
 
-import tensorflow.compat.v2 as tf
 
 import collections
 import contextlib
 import functools
 import itertools
 import threading
-
-import numpy as np
-from tensorflow.python.framework import test_util
 from keras import backend
 from keras import layers
 from keras import models
@@ -37,6 +33,9 @@ from keras.optimizer_v2 import nadam as nadam_v2
 from keras.optimizer_v2 import rmsprop as rmsprop_v2
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.framework import test_util
 
 
 def string_test(actual, expected):
@@ -537,6 +536,11 @@ class _SubclassModel(models.Model):
       layer = getattr(self, self._layer_name_for_i(i))
       x = layer(x)
     return x
+
+  def get_config(self):
+    # This test model relies on the default Keras serialization of a model,
+    # rather than providing the details of `model_layers`.
+    raise NotImplementedError
 
 
 class _SubclassModelCustomBuild(models.Model):
