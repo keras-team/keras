@@ -87,10 +87,14 @@ class Ftrl(optimizer_v2.OptimizerV2):
       When input is sparse shrinkage will only happen on the active weights.
     beta: A float value, representing the beta value from the paper.
       Defaults to 0.0.
-    **kwargs: Keyword arguments. Allowed to be one of
-      `"clipnorm"` or `"clipvalue"`.
-      `"clipnorm"` (float) clips gradients by norm; `"clipvalue"` (float) clips
-      gradients by value.
+    **kwargs: keyword arguments. Allowed arguments are `clipvalue`,
+      `clipnorm`, `global_clipnorm`.
+      If `clipvalue` (float) is set, the gradient of each weight
+      is clipped to be no higher than this value.
+      If `clipnorm` (float) is set, the gradient of each weight
+      is individually clipped so that its norm is no higher than this value.
+      If `global_clipnorm` (float) is set the gradient of all weights is
+      clipped so that their global norm is no higher than this value.
 
   Reference:
     - [McMahan et al., 2013](
