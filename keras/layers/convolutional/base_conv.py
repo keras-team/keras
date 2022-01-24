@@ -118,9 +118,9 @@ class Conv(Layer):
 
     if isinstance(filters, float):
       filters = int(filters)
-    if filters is not None and filters < 0:
-      raise ValueError(f'Received a negative value for `filters`.'
-                       f'Was expecting a positive value. Received {filters}.')
+    if filters is not None and filters =< 0:
+      raise ValueError(f'Received a non-positive value for `filters`.'
+                       f'Was expecting a strictly positive value. Received {filters}.')
     self.filters = filters
     self.groups = groups or 1
     self.kernel_size = conv_utils.normalize_tuple(
