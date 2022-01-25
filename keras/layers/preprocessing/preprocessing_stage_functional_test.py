@@ -24,7 +24,7 @@ from keras.engine import base_preprocessing_layer
 from keras.engine.input_layer import Input
 from keras.layers import convolutional
 from keras.layers import core
-from keras.layers import merge
+from keras.layers import merging
 from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import normalization
 from keras.layers.preprocessing import preprocessing_stage
@@ -400,11 +400,11 @@ class PreprocessingStageTest(keras_parameterized.TestCase,
     x1 = Input(shape=(10, 10, 3))
     x2 = Input(shape=(10, 10, 3))
 
-    y0 = merge.Add()([x0, x1])
+    y0 = merging.Add()([x0, x1])
     y1 = image_preprocessing.CenterCrop(8, 8)(x2)
     y1 = convolutional.ZeroPadding2D(padding=1)(y1)
 
-    z = merge.Add()([y0, y1])
+    z = merging.Add()([y0, y1])
     z = normalization.Normalization()(z)
     z = convolutional.Conv2D(4, 3)(z)
 

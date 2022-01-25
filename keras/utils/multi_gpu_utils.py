@@ -14,11 +14,11 @@
 # ==============================================================================
 """Utilities for multi-gpu training."""
 
-import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.engine.training import Model
 from keras.layers.core.lambda_layer import Lambda
-from keras.layers.merge import concatenate
+from keras.layers.merging import concatenate
+import tensorflow.compat.v2 as tf
 
 
 def _get_available_devices():
