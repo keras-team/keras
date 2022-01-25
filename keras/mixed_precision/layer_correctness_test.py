@@ -28,7 +28,7 @@ from keras.layers import core
 from keras.layers import dense_attention
 from keras.layers import embeddings
 from keras.layers import local
-from keras.layers import merge
+from keras.layers import merging
 from keras.layers import noise
 from keras.layers import pooling
 from keras.layers import recurrent
@@ -119,14 +119,14 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
       ('LocallyConnected1D', lambda: local.LocallyConnected1D(2, 2), (2, 2, 1)),
       ('LocallyConnected2D', lambda: local.LocallyConnected2D(2, 2),
        (2, 2, 2, 1)),
-      ('Add', merge.Add, [(2, 2), (2, 2)]),
-      ('Subtract', merge.Subtract, [(2, 2), (2, 2)]),
-      ('Multiply', merge.Multiply, [(2, 2), (2, 2)]),
-      ('Average', merge.Average, [(2, 2), (2, 2)]),
-      ('Maximum', merge.Maximum, [(2, 2), (2, 2)]),
-      ('Minimum', merge.Minimum, [(2, 2), (2, 2)]),
-      ('Concatenate', merge.Concatenate, [(2, 2), (2, 2)]),
-      ('Dot', lambda: merge.Dot(1), [(2, 2), (2, 2)]),
+      ('Add', merging.Add, [(2, 2), (2, 2)]),
+      ('Subtract', merging.Subtract, [(2, 2), (2, 2)]),
+      ('Multiply', merging.Multiply, [(2, 2), (2, 2)]),
+      ('Average', merging.Average, [(2, 2), (2, 2)]),
+      ('Maximum', merging.Maximum, [(2, 2), (2, 2)]),
+      ('Minimum', merging.Minimum, [(2, 2), (2, 2)]),
+      ('Concatenate', merging.Concatenate, [(2, 2), (2, 2)]),
+      ('Dot', lambda: merging.Dot(1), [(2, 2), (2, 2)]),
       ('GaussianNoise', lambda: noise.GaussianNoise(0.5), (2, 2)),
       ('GaussianDropout', lambda: noise.GaussianDropout(0.5), (2, 2)),
       ('AlphaDropout', lambda: noise.AlphaDropout(0.5), (2, 2)),

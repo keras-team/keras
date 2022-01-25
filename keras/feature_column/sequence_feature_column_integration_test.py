@@ -29,7 +29,7 @@ from tensorflow.python.framework import test_util
 from keras import backend
 from keras.feature_column import dense_features
 from keras.feature_column import sequence_feature_column as ksfc
-from keras.layers import merge
+from keras.layers import merging
 from keras.layers import recurrent
 
 
@@ -93,7 +93,7 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
     dense_input_layer = dense_features.DenseFeatures(ctx_cols)
     ctx_input = dense_input_layer(features)
     ctx_input = backend.repeat(ctx_input, tf.shape(seq_input)[1])
-    concatenated_input = merge.concatenate([seq_input, ctx_input])
+    concatenated_input = merging.concatenate([seq_input, ctx_input])
 
     rnn_layer = recurrent.RNN(recurrent.SimpleRNNCell(10))
     output = rnn_layer(concatenated_input)

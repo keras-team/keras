@@ -127,23 +127,25 @@ from keras.layers.multi_head_attention import MultiHeadAttention
 from keras.layers.local import LocallyConnected1D
 from keras.layers.local import LocallyConnected2D
 
-# Merge layers.
-from keras.layers.merge import Add
-from keras.layers.merge import Subtract
-from keras.layers.merge import Multiply
-from keras.layers.merge import Average
-from keras.layers.merge import Maximum
-from keras.layers.merge import Minimum
-from keras.layers.merge import Concatenate
-from keras.layers.merge import Dot
-from keras.layers.merge import add
-from keras.layers.merge import subtract
-from keras.layers.merge import multiply
-from keras.layers.merge import average
-from keras.layers.merge import maximum
-from keras.layers.merge import minimum
-from keras.layers.merge import concatenate
-from keras.layers.merge import dot
+# Merging layers.
+from keras.layers.merging.add import Add
+from keras.layers.merging.subtract import Subtract
+from keras.layers.merging.multiply import Multiply
+from keras.layers.merging.average import Average
+from keras.layers.merging.maximum import Maximum
+from keras.layers.merging.minimum import Minimum
+from keras.layers.merging.concatenate import Concatenate
+from keras.layers.merging.dot import Dot
+
+# Merging functions.
+from keras.layers.merging.add import add
+from keras.layers.merging.subtract import subtract
+from keras.layers.merging.multiply import multiply
+from keras.layers.merging.average import average
+from keras.layers.merging.maximum import maximum
+from keras.layers.merging.minimum import minimum
+from keras.layers.merging.concatenate import concatenate
+from keras.layers.merging.dot import dot
 
 # Noise layers.
 from keras.layers.noise import AlphaDropout

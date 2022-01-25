@@ -12,24 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for merge layers."""
-
-import tensorflow.compat.v2 as tf
+"""Tests for merging layers."""
 
 from absl.testing import parameterized
-import numpy as np
-
 import keras
 from keras import backend
 from keras import combinations
 from keras import keras_parameterized
 from keras import testing_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @keras_parameterized.run_all_keras_modes
-class MergeLayersTest(keras_parameterized.TestCase):
+class MergingLayersTest(keras_parameterized.TestCase):
 
-  def test_merge_add(self):
+  def test_add(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 5))
     i3 = keras.layers.Input(shape=(4, 5))
@@ -47,8 +45,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
     self.assertEqual(out.shape, (2, 4, 5))
     self.assertAllClose(out, x1 + x2 + x3, atol=1e-4)
 
-    self.assertEqual(
-        add_layer.compute_mask([i1, i2, i3], [None, None, None]), None)
+    self.assertIsNone(add_layer.compute_mask([i1, i2, i3], [None, None, None]))
     self.assertTrue(
         np.all(
             backend.eval(
@@ -62,7 +59,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, ' should have the same length.'):
       add_layer.compute_mask([i1, i2, i3], [None, None])
 
-  def test_merge_subtract(self):
+  def test_subtract(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 5))
     i3 = keras.layers.Input(shape=(4, 5))
@@ -79,7 +76,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
     self.assertEqual(out.shape, (2, 4, 5))
     self.assertAllClose(out, x1 - x2, atol=1e-4)
 
-    self.assertEqual(subtract_layer.compute_mask([i1, i2], [None, None]), None)
+    self.assertIsNone(subtract_layer.compute_mask([i1, i2], [None, None]))
     self.assertTrue(
         np.all(
             backend.eval(
@@ -97,7 +94,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
                                 'layer should be called on exactly 2 inputs'):
       subtract_layer([i1])
 
-  def test_merge_multiply(self):
+  def test_multiply(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 5))
     i3 = keras.layers.Input(shape=(4, 5))
@@ -113,7 +110,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
     self.assertEqual(out.shape, (2, 4, 5))
     self.assertAllClose(out, x1 * x2 * x3, atol=1e-4)
 
-  def test_merge_average(self):
+  def test_average(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 5))
     o = keras.layers.average([i1, i2])
@@ -127,7 +124,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
     self.assertEqual(out.shape, (2, 4, 5))
     self.assertAllClose(out, 0.5 * (x1 + x2), atol=1e-4)
 
-  def test_merge_maximum(self):
+  def test_maximum(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 5))
     o = keras.layers.maximum([i1, i2])
@@ -141,7 +138,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
     self.assertEqual(out.shape, (2, 4, 5))
     self.assertAllClose(out, np.maximum(x1, x2), atol=1e-4)
 
-  def test_merge_minimum(self):
+  def test_minimum(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 5))
     o = keras.layers.minimum([i1, i2])
@@ -155,7 +152,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
     self.assertEqual(out.shape, (2, 4, 5))
     self.assertAllClose(out, np.minimum(x1, x2), atol=1e-4)
 
-  def test_merge_concatenate(self):
+  def test_concatenate(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 5))
     concat_layer = keras.layers.Concatenate(axis=1)
@@ -170,7 +167,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
     self.assertEqual(out.shape, (2, 8, 5))
     self.assertAllClose(out, np.concatenate([x1, x2], axis=1), atol=1e-4)
 
-    self.assertEqual(concat_layer.compute_mask([i1, i2], [None, None]), None)
+    self.assertIsNone(concat_layer.compute_mask([i1, i2], [None, None]))
     self.assertTrue(
         np.all(
             backend.eval(
@@ -191,7 +188,13 @@ class MergeLayersTest(keras_parameterized.TestCase):
                                 'layer should be called on a list of inputs'):
       concat_layer(i1)
 
-  def test_merge_dot(self):
+  def test_concatenate_numpy_inputs(self):
+    if tf.executing_eagerly():
+      layer = keras.layers.Concatenate()
+      x, y = np.ones((10, 10)), np.ones((10, 10))
+      self.assertAllEqual(np.ones((10, 20)), layer([x, y]))
+
+  def test_dot(self):
     i1 = keras.layers.Input(shape=(4,))
     i2 = keras.layers.Input(shape=(4,))
     o = keras.layers.dot([i1, i2], axes=1)
@@ -226,33 +229,44 @@ class MergeLayersTest(keras_parameterized.TestCase):
       *testing_utils.generate_combinations_with_testcase_name(
           layer=[keras.layers.Add, keras.layers.Subtract,
                  keras.layers.Multiply, keras.layers.Minimum,
-                 keras.layers.Maximum, keras.layers.Average,
-                 keras.layers.Concatenate]))
-  def test_merge_with_ragged_input(self, layer):
+                 keras.layers.Maximum, keras.layers.Average]))
+  def test_merging_with_ragged_input(self, layer):
     ragged_data = tf.ragged.constant(
         [[1., 1., 1.], [1., 1.], [1., 1., 1., 1.]], ragged_rank=1)
     dense_data = ragged_data.to_tensor()
     input1 = keras.Input(shape=(None,), ragged=True)
     input2 = keras.Input(shape=(None,), ragged=True)
-    out = keras.layers.Add()([input1, input2])
+    out = layer()([input1, input2])
     model = keras.models.Model(inputs=[input1, input2], outputs=out)
     out_ragged = model.predict([ragged_data, ragged_data], steps=1)
     out_ragged = convert_ragged_tensor_value(out_ragged).to_tensor()
 
     input1 = keras.Input(shape=(None,))
     input2 = keras.Input(shape=(None,))
-    out = keras.layers.Add()([input1, input2])
+    out = layer()([input1, input2])
     model = keras.models.Model(inputs=[input1, input2], outputs=out)
     out_dense = model.predict([dense_data, dense_data], steps=1)
 
     self.assertAllEqual(out_dense, out_ragged)
+
+  def test_concatenate_with_ragged_input(self):
+    ragged1 = tf.ragged.constant([[1., 1.], [1.], [1., 1., 1.]], ragged_rank=1)
+    ragged2 = tf.ragged.constant([[2., 2., 2.], [2.], [2., 2.]], ragged_rank=1)
+    expected_concatenated_ragged = tf.ragged.constant(
+        [[1., 1., 2., 2., 2.], [1., 2.], [1., 1., 1., 2., 2.]], ragged_rank=1)
+    input1 = keras.Input(shape=(None,), ragged=True)
+    input2 = keras.Input(shape=(None,), ragged=True)
+    out = keras.layers.Concatenate(axis=1)([input1, input2])
+    model = keras.models.Model(inputs=[input1, input2], outputs=out)
+    out_ragged = model.predict([ragged1, ragged2], steps=1)
+    self.assertAllEqual(out_ragged, expected_concatenated_ragged)
 
   @parameterized.named_parameters(
       *testing_utils.generate_combinations_with_testcase_name(
           layer=[keras.layers.Add, keras.layers.Subtract,
                  keras.layers.Multiply, keras.layers.Minimum,
                  keras.layers.Maximum, keras.layers.Average]))
-  def test_merge_with_scalar_input(self, layer):
+  def test_merging_with_scalar_input(self, layer):
     x1 = np.array((1))
     x2 = np.array((2))
     out = layer()([x1, x2])
@@ -260,9 +274,9 @@ class MergeLayersTest(keras_parameterized.TestCase):
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
-class MergeLayersTestNoExecution(tf.test.TestCase):
+class MergingLayersTestNoExecution(tf.test.TestCase):
 
-  def test_merge_elementwise_errors(self):
+  def test_add_elementwise_errors(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 6))
     with self.assertRaises(ValueError):
@@ -326,7 +340,7 @@ class MergeLayersTestNoExecution(tf.test.TestCase):
       dot = keras.layers.Dot(1)
       dot.compute_output_shape(1)
 
-  def test_merge_subtract(self):
+  def test_subtract(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 5))
     y = keras.layers.subtract([i1, i2])
@@ -340,7 +354,7 @@ class MergeLayersTestNoExecution(tf.test.TestCase):
     with self.assertRaises(ValueError):
       keras.layers.subtract([i1, i1, i1])
 
-  def test_merge_add_masking(self):
+  def test_add_masking(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 5))
     m1 = keras.layers.Masking()(i1)
@@ -350,14 +364,14 @@ class MergeLayersTestNoExecution(tf.test.TestCase):
     mask = layer.output_mask
     self.assertListEqual(mask.shape.as_list(), [None, 4])
 
-  def test_merge_add_dynamic_shape(self):
+  def test_add_dynamic_shape(self):
     i1 = keras.Input(batch_shape=(4, None), dtype='float32')
     i2 = keras.Input(batch_shape=(4, 5), dtype='float32')
     layer = keras.layers.Add()
     o = layer([i1, i2])
     self.assertListEqual(o.shape.as_list(), [4, 5])
 
-  def test_merge_concatenate_masking(self):
+  def test_concatenate_masking(self):
     i1 = keras.layers.Input(shape=(4, 5))
     i2 = keras.layers.Input(shape=(4, 5))
     m1 = keras.layers.Masking()(i1)
@@ -367,7 +381,7 @@ class MergeLayersTestNoExecution(tf.test.TestCase):
     mask = layer.output_mask
     self.assertListEqual(mask.shape.as_list(), [None, 4])
 
-  def test_merge_concatenate_sparse_shape(self):
+  def test_concatenate_sparse_shape(self):
     i1 = keras.layers.Input(shape=(1,), batch_size=2, sparse=True)
     i2 = keras.layers.Input(shape=(2,), batch_size=2, sparse=True)
     layer = keras.layers.Concatenate(axis=1)
@@ -381,7 +395,7 @@ class MergeLayersTestNoExecution(tf.test.TestCase):
     o = layer([i1, i2])
     self.assertListEqual(o.shape.as_list(), [None, 3])
 
-  def test_user_changes_to_input_structure(self):
+  def test_concatenate_user_changes_to_input_structure(self):
     a = keras.layers.Input(shape=(4, 5))
     struct = [a, a]
     concat1 = keras.layers.Concatenate(1)

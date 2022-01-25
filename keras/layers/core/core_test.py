@@ -631,12 +631,6 @@ class CoreLayersTest(keras_parameterized.TestCase):
     config = layer.get_config()
     self.assertEqual(config.pop('l1'), 0.1)
 
-  def test_numpy_inputs(self):
-    if tf.executing_eagerly():
-      layer = keras.layers.Concatenate()
-      x, y = np.ones((10, 10)), np.ones((10, 10))
-      self.assertAllEqual(np.ones((10, 20)), layer([x, y]))
-
 
 @keras_parameterized.run_all_keras_modes
 class TFOpLambdaTest(keras_parameterized.TestCase):
