@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Contains the dropout layer."""
+"""Contains the Dropout layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 from keras import backend

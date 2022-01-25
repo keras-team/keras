@@ -26,6 +26,7 @@ from keras.engine import training
 from keras.layers import convolutional as conv_layer_lib
 from keras.layers import core as layer_lib
 from keras.layers import pooling as pool_layer_lib
+from keras.layers import regularization as regularization_layer_lib
 from keras.layers import reshaping as reshaping_layer_lib
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -140,10 +141,10 @@ def mnist_model(input_shape, enable_histograms=True):
           32, kernel_size=(3, 3), activation='relu', input_shape=input_shape))
   model.add(conv_layer_lib.Conv2D(64, (3, 3), activation='relu'))
   model.add(pool_layer_lib.MaxPooling2D(pool_size=(2, 2)))
-  model.add(layer_lib.Dropout(0.25))
+  model.add(regularization_layer_lib.Dropout(0.25))
   model.add(reshaping_layer_lib.Flatten())
   model.add(layer_lib.Dense(128, activation='relu'))
-  model.add(layer_lib.Dropout(0.5))
+  model.add(regularization_layer_lib.Dropout(0.5))
   model.add(layer_lib.Dense(NUM_CLASSES, activation='softmax'))
 
   # Adding custom pass-through layer for summary recording.

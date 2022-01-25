@@ -1,7 +1,7 @@
 path: "tensorflow.keras.layers.SpatialDropout3D"
 tf_class {
-  is_instance: "<class \'keras.layers.core.spatial_dropout.SpatialDropout3D\'>"
-  is_instance: "<class \'keras.layers.core.dropout.Dropout\'>"
+  is_instance: "<class \'keras.layers.regularization.spatial_dropout3d.SpatialDropout3D\'>"
+  is_instance: "<class \'keras.layers.regularization.dropout.Dropout\'>"
   is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
