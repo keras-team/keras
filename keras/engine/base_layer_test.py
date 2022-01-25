@@ -1416,67 +1416,6 @@ class NameScopingTest(keras_parameterized.TestCase):
     ])
     base_layer._apply_name_scope_on_model_declaration(False)
 
-  @testing_utils.run_v2_only
-  def test_apply_name_scope_on_nested_layer_model_declaration(self):
-    if not tf.executing_eagerly():
-      self.skipTest('`apply_name_scope_on_model_declaration` API is supported'
-                    ' only for V2 eager')
-
-    base_layer._apply_name_scope_on_model_declaration(True)
-
-    class ThreeDenses(layers.Layer):
-
-      def __init__(self, name='ThreeDenses', **kwargs):
-        super().__init__(name=name, **kwargs)
-        self.inner_dense_1 = layers.Dense(10, name='NestedDense1')
-        with tf.name_scope('inner1/inner2'):
-          self.inner_dense_2 = layers.Dense(20, name='NestedDense2')
-        self.inner_dense_3 = layers.Dense(30, name='NestedDense3')
-
-      def call(self, x):
-        x = self.inner_dense_1(x)
-        x = self.inner_dense_2(x)
-        x = self.inner_dense_3(x)
-        return x
-
-    inputs = input_layer.Input((3,))
-    with tf.name_scope('outer'):
-      x = ThreeDenses()(inputs)
-    outputs = layers.Dense(10, name='OuterDense')(x)
-
-    model = training_lib.Model(inputs, outputs)
-    node_names = self._get_model_node_names(model, np.random.random((1, 3)),
-                                            'call_scope')
-
-    self.assertListEqual(node_names, [
-        'call_scope/Const', 'call_scope/model/Cast',
-        'call_scope/model/outer/ThreeDenses/NestedDense1/MatMul/ReadVariableOp/resource',
-        'call_scope/model/outer/ThreeDenses/NestedDense1/MatMul/ReadVariableOp',
-        'call_scope/model/outer/ThreeDenses/NestedDense1/MatMul',
-        'call_scope/model/outer/ThreeDenses/NestedDense1/BiasAdd/ReadVariableOp/resource',
-        'call_scope/model/outer/ThreeDenses/NestedDense1/BiasAdd/ReadVariableOp',
-        'call_scope/model/outer/ThreeDenses/NestedDense1/BiasAdd',
-        'call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/MatMul/ReadVariableOp/resource',
-        'call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/MatMul/ReadVariableOp',
-        'call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/MatMul',
-        'call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/BiasAdd/ReadVariableOp/resource',
-        'call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/BiasAdd/ReadVariableOp',
-        'call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/BiasAdd',
-        'call_scope/model/outer/ThreeDenses/NestedDense3/MatMul/ReadVariableOp/resource',
-        'call_scope/model/outer/ThreeDenses/NestedDense3/MatMul/ReadVariableOp',
-        'call_scope/model/outer/ThreeDenses/NestedDense3/MatMul',
-        'call_scope/model/outer/ThreeDenses/NestedDense3/BiasAdd/ReadVariableOp/resource',
-        'call_scope/model/outer/ThreeDenses/NestedDense3/BiasAdd/ReadVariableOp',
-        'call_scope/model/outer/ThreeDenses/NestedDense3/BiasAdd',
-        'call_scope/model/OuterDense/MatMul/ReadVariableOp/resource',
-        'call_scope/model/OuterDense/MatMul/ReadVariableOp',
-        'call_scope/model/OuterDense/MatMul',
-        'call_scope/model/OuterDense/BiasAdd/ReadVariableOp/resource',
-        'call_scope/model/OuterDense/BiasAdd/ReadVariableOp',
-        'call_scope/model/OuterDense/BiasAdd', 'Identity', 'NoOp'
-    ])
-    base_layer._apply_name_scope_on_model_declaration(False)
-
   def _get_model_node_names(self, model, inputs, call_name_scope):
     """Returns a list of model's node names."""
 
