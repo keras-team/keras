@@ -1079,7 +1079,7 @@ class _ConfusionMatrixConditionCount(Metric):
     self.accumulator = self.add_weight(
         'accumulator',
         shape=(len(self.thresholds),),
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
 
   def update_state(self, y_true, y_pred, sample_weight=None):
     """Accumulates the metric statistics.
@@ -1404,11 +1404,11 @@ class Precision(Metric):
     self.true_positives = self.add_weight(
         'true_positives',
         shape=(len(self.thresholds),),
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
     self.false_positives = self.add_weight(
         'false_positives',
         shape=(len(self.thresholds),),
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
 
   def update_state(self, y_true, y_pred, sample_weight=None):
     """Accumulates true positive and false positive statistics.
@@ -1534,11 +1534,11 @@ class Recall(Metric):
     self.true_positives = self.add_weight(
         'true_positives',
         shape=(len(self.thresholds),),
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
     self.false_negatives = self.add_weight(
         'false_negatives',
         shape=(len(self.thresholds),),
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
 
   def update_state(self, y_true, y_pred, sample_weight=None):
     """Accumulates true positive and false negative statistics.
@@ -1612,19 +1612,19 @@ class SensitivitySpecificityBase(Metric, metaclass=abc.ABCMeta):
     self.true_positives = self.add_weight(
         'true_positives',
         shape=(num_thresholds,),
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
     self.true_negatives = self.add_weight(
         'true_negatives',
         shape=(num_thresholds,),
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
     self.false_positives = self.add_weight(
         'false_positives',
         shape=(num_thresholds,),
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
     self.false_negatives = self.add_weight(
         'false_negatives',
         shape=(num_thresholds,),
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
 
     # Compute `num_thresholds` thresholds in [0, 1]
     if num_thresholds == 1:
@@ -2249,13 +2249,10 @@ class AUC(Metric):
     self.multi_label = multi_label
     if label_weights is not None:
       label_weights = tf.constant(label_weights, dtype=self.dtype)
-      checks = [
-          tf.compat.v1.assert_non_negative(
-              label_weights,
-              message='All values of `label_weights` must be non-negative.')
-      ]
-      with tf.control_dependencies(checks):
-        self.label_weights = label_weights
+      tf.debugging.assert_non_negative(
+          label_weights,
+          message='All values of `label_weights` must be non-negative.')
+      self.label_weights = label_weights
 
     else:
       self.label_weights = None
@@ -2287,30 +2284,28 @@ class AUC(Metric):
             f'Found rank {shape.ndims}. '
             f'Full shape received for `y_true`: {shape}')
       self._num_labels = shape[1]
-      variable_shape = tf.TensorShape(
-          [tf.compat.v1.Dimension(self.num_thresholds), self._num_labels])
-
+      variable_shape = tf.TensorShape([self.num_thresholds, self._num_labels])
     else:
-      variable_shape = tf.TensorShape(
-          [tf.compat.v1.Dimension(self.num_thresholds)])
+      variable_shape = tf.TensorShape([self.num_thresholds])
+
     self._build_input_shape = shape
     # Create metric variables
     self.true_positives = self.add_weight(
         'true_positives',
         shape=variable_shape,
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
     self.true_negatives = self.add_weight(
         'true_negatives',
         shape=variable_shape,
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
     self.false_positives = self.add_weight(
         'false_positives',
         shape=variable_shape,
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
     self.false_negatives = self.add_weight(
         'false_negatives',
         shape=variable_shape,
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
 
     if self.multi_label:
       with tf.init_scope():
@@ -2335,7 +2330,6 @@ class AUC(Metric):
     Returns:
       Update op.
     """
-    deps = []
     if not self._built:
       self._build(tf.TensorShape(y_pred.shape))
 
@@ -2354,10 +2348,8 @@ class AUC(Metric):
       if self.label_weights is not None:
         # label_weights should be of length equal to the number of labels.
         shapes.append((self.label_weights, ('L',)))
-      deps = [
-          tf.compat.v1.debugging.assert_shapes(
-              shapes, message='Number of labels is not consistent.')
-      ]
+        tf.debugging.assert_shapes(
+            shapes, message='Number of labels is not consistent.')
 
     # Only forward label_weights to update_confusion_matrix_variables when
     # multi_label is False. Otherwise the averaging of individual label AUCs is
@@ -2367,25 +2359,24 @@ class AUC(Metric):
     if self._from_logits:
       y_pred = activations.sigmoid(y_pred)
 
-    with tf.control_dependencies(deps):
-      return metrics_utils.update_confusion_matrix_variables(
-          {
-              metrics_utils.ConfusionMatrix.TRUE_POSITIVES:
-                  self.true_positives,
-              metrics_utils.ConfusionMatrix.TRUE_NEGATIVES:
-                  self.true_negatives,
-              metrics_utils.ConfusionMatrix.FALSE_POSITIVES:
-                  self.false_positives,
-              metrics_utils.ConfusionMatrix.FALSE_NEGATIVES:
-                  self.false_negatives,
-          },
-          y_true,
-          y_pred,
-          self._thresholds,
-          thresholds_distributed_evenly=self._thresholds_distributed_evenly,
-          sample_weight=sample_weight,
-          multi_label=self.multi_label,
-          label_weights=label_weights)
+    return metrics_utils.update_confusion_matrix_variables(
+        {
+            metrics_utils.ConfusionMatrix.TRUE_POSITIVES:
+                self.true_positives,
+            metrics_utils.ConfusionMatrix.TRUE_NEGATIVES:
+                self.true_negatives,
+            metrics_utils.ConfusionMatrix.FALSE_POSITIVES:
+                self.false_positives,
+            metrics_utils.ConfusionMatrix.FALSE_NEGATIVES:
+                self.false_negatives,
+        },
+        y_true,
+        y_pred,
+        self._thresholds,
+        thresholds_distributed_evenly=self._thresholds_distributed_evenly,
+        sample_weight=sample_weight,
+        multi_label=self.multi_label,
+        label_weights=label_weights)
 
   def interpolate_pr_auc(self):
     """Interpolation formula inspired by section 4 of Davis & Goadrich 2006.
@@ -3060,7 +3051,7 @@ class _IoUBase(Metric):
     self.total_cm = self.add_weight(
         'total_confusion_matrix',
         shape=(num_classes, num_classes),
-        initializer=tf.compat.v1.zeros_initializer)
+        initializer='zeros')
 
   def update_state(self, y_true, y_pred, sample_weight=None):
     """Accumulates the confusion matrix statistics.
@@ -3678,9 +3669,9 @@ class MeanTensor(Metric):
     self._build_input_shape = self._shape
     # Create new state variables
     self._total = self.add_weight(
-        'total', shape=shape, initializer=tf.compat.v1.zeros_initializer)
+        name='total', shape=shape, initializer='zeros')
     self._count = self.add_weight(
-        'count', shape=shape, initializer=tf.compat.v1.zeros_initializer)
+        name='count', shape=shape, initializer='zeros')
     with tf.init_scope():
       if not tf.executing_eagerly():
         backend._initialize_variables(backend._get_session())  # pylint: disable=protected-access
@@ -4065,7 +4056,7 @@ def categorical_accuracy(y_true, y_pred):
   """
   return tf.cast(
       tf.equal(
-          tf.compat.v1.argmax(y_true, axis=-1), tf.compat.v1.argmax(y_pred, axis=-1)),
+          tf.math.argmax(y_true, axis=-1), tf.math.argmax(y_pred, axis=-1)),
       backend.floatx())
 
 
@@ -4100,7 +4091,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
   if (y_true_rank is not None) and (y_pred_rank is not None) and (len(
       backend.int_shape(y_true)) == len(backend.int_shape(y_pred))):
     y_true = tf.squeeze(y_true, [-1])
-  y_pred = tf.compat.v1.argmax(y_pred, axis=-1)
+  y_pred = tf.math.argmax(y_pred, axis=-1)
 
   # If the predicted output and actual output types don't match, force cast them
   # to match.
@@ -4133,8 +4124,9 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
     Top K categorical accuracy value.
   """
   return tf.cast(
-      tf.compat.v1.math.in_top_k(
-          y_pred, tf.compat.v1.argmax(y_true, axis=-1), k), backend.floatx())
+      tf.math.in_top_k(
+          predictions=y_pred, targets=tf.math.argmax(y_true, axis=-1), k=k),
+      dtype=backend.floatx())
 
 
 @keras_export('keras.metrics.sparse_top_k_categorical_accuracy')
@@ -4170,7 +4162,9 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
       y_true = tf.reshape(y_true, [-1])
 
   return tf.cast(
-      tf.compat.v1.math.in_top_k(y_pred, tf.cast(y_true, 'int32'), k), backend.floatx())
+      tf.math.in_top_k(
+          predictions=y_pred, targets=tf.cast(y_true, 'int32'), k=k),
+      dtype=backend.floatx())
 
 
 def cosine_proximity(y_true, y_pred, axis=-1):
