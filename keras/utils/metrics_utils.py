@@ -599,11 +599,11 @@ def update_confusion_matrix_variables(variables_to_update,
         f'Valid variable key options are: "{list(ConfusionMatrix)}"')
 
   with tf.control_dependencies([
-      tf.compat.v1.assert_greater_equal(
+      tf.debugging.assert_greater_equal(
           y_pred,
           tf.cast(0.0, dtype=y_pred.dtype),
           message='predictions must be >= 0'),
-      tf.compat.v1.assert_less_equal(
+      tf.debugging.assert_less_equal(
           y_pred,
           tf.cast(1.0, dtype=y_pred.dtype),
           message='predictions must be <= 1')
@@ -835,7 +835,7 @@ def _assert_splits_match(nested_splits_lists):
     if len(splits_list) != len(nested_splits_lists[0]):
       raise ValueError(error_msg)
   return [
-      tf.compat.v1.assert_equal(s1, s2, message=error_msg)  # pylint: disable=g-complex-comprehension
+      tf.debugging.assert_equal(s1, s2, message=error_msg)  # pylint: disable=g-complex-comprehension
       for splits_list in nested_splits_lists[1:]
       for (s1, s2) in zip(nested_splits_lists[0], splits_list)
   ]
