@@ -118,7 +118,7 @@ class Conv(Layer):
 
     if isinstance(filters, float):
       filters = int(filters)
-    if filters is not None and filters =< 0:
+    if filters is not None and filters <= 0:
       raise ValueError('Invalid value for argument `filters`. '
                        'Expected a strictly positive value. '
                        f'Received filters={filters}.')
