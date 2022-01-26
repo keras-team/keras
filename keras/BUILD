@@ -262,6 +262,15 @@ py_library(
     ],
 )
 
+py_library(
+    name = "keras_doctest_lib",
+    srcs = ["keras_doctest_lib.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+    ],
+)
+
 # Internally urllib.request.urlretrieve library requires Google
 # SSL context to be provided to work in python 3. This isn't needed in OSS.
 # copybara:uncomment_begin(google-only)
@@ -540,6 +549,39 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "keras_doctest",
+    srcs = ["keras_doctest.py"],
+    python_version = "PY3",
+    tags = [
+        "noasan",
+        "nomsan",
+        "notsan",
+    ],
+    deps = [
+        ":keras",
+        ":keras_doctest_lib",
+        "//third_party/py/tensorflow:tensorflow_no_contrib",
+    ],
+)
+
+py_test(
+    name = "keras_doctest_lib_test",
+    srcs = ["keras_doctest_lib_test.py"],
+    python_version = "PY3",
+    tags = [
+        "no_pip",
+        "noasan",
+        "nomsan",
+        "notsan",
+    ],
+    deps = [
+        ":keras_doctest_lib",
+        "//:expect_absl_installed",
+        "//third_party/py/absl/testing:absltest",
     ],
 )
 
