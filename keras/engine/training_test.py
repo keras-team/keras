@@ -19,7 +19,9 @@ import collections
 import io
 import sys
 import tempfile
+
 from absl.testing import parameterized
+import keras
 from keras import backend
 from keras import combinations
 from keras import keras_parameterized
@@ -34,11 +36,13 @@ from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training as training_module
 from keras.engine import training_utils_v1
+from keras.layers.preprocessing import string_lookup
 from keras.utils import data_utils
 from keras.utils import io_utils
 from keras.utils import np_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
+
 from tensorflow.python.framework import test_util as tf_test_util
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
@@ -119,6 +123,37 @@ class TrainingTest(keras_parameterized.TestCase):
     for i in range(4):
       model_input[i, i:, i:] = 0
     model.fit(model_input, np.random.random((10, 1)), epochs=1, batch_size=10)
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_compile_fit_with_mirrored_strategy(self):
+    # Test with jit_compile = True
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+      model = sequential.Sequential([layers_module.Dense(1)])
+    model.compile('sgd', loss='mse', run_eagerly=False, jit_compile=True)
+    x, y = np.ones((10, 1)), np.ones((10, 1))
+    model.fit(x, y, epochs=2)
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_verify_xla_compile_with_jit_compile(self):
+    vocab_data = ['earth', 'wind', 'and', 'fire']
+    input_array = np.array([['earth', 'wind', 'and', 'fire'],
+                            ['fire', 'and', 'earth', 'michigan']])
+    expected_output = np.array([[1, 2, 3, 4], [4, 3, 1, 0]])
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+      input_data = keras.Input(shape=(None,), dtype=tf.string)
+      layer = string_lookup.StringLookup(vocabulary=vocab_data)
+      int_data = layer(input_data)
+      model = keras.Model(inputs=input_data, outputs=int_data)
+      model.compile('sgd', loss='mse', run_eagerly=False, jit_compile=True)
+      # Added a string op unsupported by XLA compiler to make sure that an
+      # error is thrown, This ensures that the graph is indeed being compiled
+      # using XLA
+      with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                                  'Graph execution error'):
+        model.fit(input_array, expected_output, epochs=1)
+      model.predict(input_array)
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_fit_without_loss_at_compile(self):
