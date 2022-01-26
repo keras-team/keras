@@ -60,24 +60,26 @@ class HashedCrossing(base_layer.Layer):
 
   **Crossing two scalar features.**
 
-  >>> layer = tf.keras.layers.HashedCrossing(num_bins=5)
+  >>> layer = tf.keras.layers.experimental.preprocessing.HashedCrossing(
+  ...     num_bins=5)
   >>> feat1 = tf.constant(['A', 'B', 'A', 'B', 'A'])
   >>> feat2 = tf.constant([101, 101, 101, 102, 102])
   >>> layer((feat1, feat2))
-  <tf.Tensor: shape=(5, 1), dtype=int64, numpy=array([1, 4, 1, 6, 3])>
+  <tf.Tensor: shape=(5,), dtype=int64, numpy=array([1, 4, 1, 1, 3])>
 
   **Crossing and one-hotting two scalar features.**
 
-  >>> layer = tf.keras.layers.HashedCrossing(num_bins=5, output_mode='one_hot')
+  >>> layer = tf.keras.layers.experimental.preprocessing.HashedCrossing(
+  ...     num_bins=5, output_mode='one_hot')
   >>> feat1 = tf.constant(['A', 'B', 'A', 'B', 'A'])
   >>> feat2 = tf.constant([101, 101, 101, 102, 102])
   >>> layer((feat1, feat2))
-  <tf.Tensor: shape=(5, 10), dtype=float32, numpy=
-  array([[0., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
-         [0., 0., 0., 0., 1., 0., 0., 0., 0., 0.],
-         [0., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
-         [0., 0., 0., 0., 0., 0., 1., 0., 0., 0.],
-         [0., 0., 0., 1., 0., 0., 0., 0., 0., 0.]], dtype=float32)>
+  <tf.Tensor: shape=(5, 5), dtype=float32, numpy=
+    array([[0., 1., 0., 0., 0.],
+           [0., 0., 0., 0., 1.],
+           [0., 1., 0., 0., 0.],
+           [0., 1., 0., 0., 0.],
+           [0., 0., 0., 1., 0.]], dtype=float32)>
   """
 
   def __init__(self,

@@ -3139,7 +3139,7 @@ class IoU(_IoUBase):
   >>> # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
   >>> # iou = true_positives / (sum_row + sum_col - true_positives))
   >>> # iou = [0.33, 0.33]
-  >>> m = tf.keras.metrics.IoU(num_classes=2, target_class_id=[0])
+  >>> m = tf.keras.metrics.IoU(num_classes=2, target_class_ids=[0])
   >>> m.update_state([0, 0, 1, 1], [0, 1, 0, 1])
   >>> m.result().numpy()
   0.33333334
@@ -3152,7 +3152,7 @@ class IoU(_IoUBase):
   >>> # sum_row = [0.6, 0.4], sum_col = [0.6, 0.4], true_positives = [0.3, 0.1]
   >>> # iou = [0.33, 0.14]
   >>> m.result().numpy()
-  0.33
+  0.33333334
 
   Usage with `compile()` API:
 
@@ -3160,7 +3160,7 @@ class IoU(_IoUBase):
   model.compile(
     optimizer='sgd',
     loss='mse',
-    metrics=[tf.keras.metrics.IoU(num_classes=2, target_class_id=[0])])
+    metrics=[tf.keras.metrics.IoU(num_classes=2, target_class_ids=[0])])
   ```
   """
 
@@ -3261,7 +3261,7 @@ class BinaryIoU(IoU):
 
   Standalone usage:
 
-  >>> m = tf.keras.metrics.BinaryIoU(target_class_id=[0, 1], threshold=0.3)
+  >>> m = tf.keras.metrics.BinaryIoU(target_class_ids=[0, 1], threshold=0.3)
   >>> m.update_state([0, 1, 0, 1], [0.1, 0.2, 0.4, 0.7])
   >>> m.result().numpy()
   0.33333334
@@ -3274,7 +3274,7 @@ class BinaryIoU(IoU):
   >>> # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
   >>> # iou = [0.222, 0.125]
   >>> m.result().numpy()
-  0.17
+  0.17361112
 
   Usage with `compile()` API:
 
@@ -3282,7 +3282,7 @@ class BinaryIoU(IoU):
   model.compile(
     optimizer='sgd',
     loss='mse',
-    metrics=[tf.keras.metrics.BinaryIoU(target_class_id=[0], threshold=0.5)])
+    metrics=[tf.keras.metrics.BinaryIoU(target_class_ids=[0], threshold=0.5)])
   ```
   """
 
@@ -3458,9 +3458,9 @@ class OneHotIoU(IoU):
 
   >>> y_true = tf.constant([[0, 0, 1], [1, 0, 0], [0, 1, 0], [1, 0, 0]])
   >>> y_pred = tf.constant([[0.2, 0.3, 0.5], [0.1, 0.2, 0.7], [0.5, 0.3, 0.1],
-  >>>                       [0.1, 0.4, 0.5]])
+  ...                       [0.1, 0.4, 0.5]])
   >>> sample_weight = [0.1, 0.2, 0.3, 0.4]
-  >>> m = metrics.OneHotIoU(num_classes=3, target_class_ids=[0, 2])
+  >>> m = tf.keras.metrics.OneHotIoU(num_classes=3, target_class_ids=[0, 2])
   >>> m.update_state(y_true=y_true, y_pred=y_pred, sample_weight=sample_weight)
   >>> # cm = [[0, 0, 0.2+0.4],
   >>> #       [0.3, 0, 0],
@@ -3562,9 +3562,9 @@ class OneHotMeanIoU(MeanIoU):
 
   >>> y_true = tf.constant([[0, 0, 1], [1, 0, 0], [0, 1, 0], [1, 0, 0]])
   >>> y_pred = tf.constant([[0.2, 0.3, 0.5], [0.1, 0.2, 0.7], [0.5, 0.3, 0.1],
-  >>>                       [0.1, 0.4, 0.5]])
+  ...                       [0.1, 0.4, 0.5]])
   >>> sample_weight = [0.1, 0.2, 0.3, 0.4]
-  >>> m = metrics.OneHotMeanIoU(num_classes=3)
+  >>> m = tf.keras.metrics.OneHotMeanIoU(num_classes=3)
   >>> m.update_state(y_true=y_true, y_pred=y_pred, sample_weight=sample_weight)
   >>> # cm = [[0, 0, 0.2+0.4],
   >>> #       [0.3, 0, 0],
