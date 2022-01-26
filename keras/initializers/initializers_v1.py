@@ -150,7 +150,7 @@ class RandomNormal(tf.compat.v1.random_normal_initializer):
   >>> a = initializer(shape=(2, 2))
   >>> b = initializer(shape=(2, 2))
   >>> tf.reduce_sum(a - b) == 0
-  <tf.Tensor: shape=(), dtype=bool, numpy=True>
+  <tf.Tensor: shape=(), dtype=bool, numpy=False>
 
   @end_compatibility
   """
@@ -267,7 +267,7 @@ class RandomUniform(tf.compat.v1.random_uniform_initializer):
   >>> a = initializer(shape=(2, 2))
   >>> b = initializer(shape=(2, 2))
   >>> tf.reduce_sum(a - b) == 0
-  <tf.Tensor: shape=(), dtype=bool, numpy=True>
+  <tf.Tensor: shape=(), dtype=bool, numpy=False>
 
   @end_compatibility
   """
@@ -386,7 +386,7 @@ class TruncatedNormal(tf.compat.v1.truncated_normal_initializer):
   >>> a = initializer(shape=(2, 2))
   >>> b = initializer(shape=(2, 2))
   >>> tf.reduce_sum(a - b) == 0
-  <tf.Tensor: shape=(), dtype=bool, numpy=True>
+  <tf.Tensor: shape=(), dtype=bool, numpy=False>
 
   @end_compatibility
   """

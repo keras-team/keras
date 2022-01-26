@@ -1044,12 +1044,7 @@ def serialize(learning_rate_schedule):
   >>> lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
   ...   0.1, decay_steps=100000, decay_rate=0.96, staircase=True)
   >>> tf.keras.optimizers.schedules.serialize(lr_schedule)
-  {'class_name': 'ExponentialDecay',
-   'config': {'decay_rate': 0.96,
-      'decay_steps': 100000,
-      'initial_learning_rate': 0.1,
-      'name': None,
-      'staircase': True}}
+  {'class_name': 'ExponentialDecay', 'config': {...}}
   """
   return generic_utils.serialize_keras_object(learning_rate_schedule)
 

@@ -243,7 +243,7 @@ class IntegerLookup(index_lookup.IndexLookup):
   >>> idf_weights = [0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([[12, 1138, 42, 42], [42, 7, 36, 7]]) # Note OOV tokens
   >>> layer = tf.keras.layers.IntegerLookup(
-  ...     output_mode='tf_idf', vocab, idf_weights=idf_weights)
+  ...     output_mode='tf_idf', vocabulary=vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0.  , 0.25, 0.  , 0.6 , 0.8 ],
@@ -256,7 +256,7 @@ class IntegerLookup(index_lookup.IndexLookup):
   >>> idf_weights = [0.9, 0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([[12, 1138, 42, 42], [42, 7, 36, 7]]) # Note OOV tokens
   >>> layer = tf.keras.layers.IntegerLookup(
-  ...     output_mode='tf_idf', vocab, idf_weights=idf_weights)
+  ...     output_mode='tf_idf', vocabulary=vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0.  , 0.25, 0.  , 0.6 , 0.8 ],

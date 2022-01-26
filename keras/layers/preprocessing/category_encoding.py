@@ -80,7 +80,7 @@ class CategoryEncoding(base_layer.Layer):
     array([[0.1, 0.2, 0. , 0. ],
            [0.2, 0. , 0. , 0. ],
            [0. , 0.2, 0.3, 0. ],
-           [0. , 0.2, 0. , 0.4]])>
+           [0. , 0.2, 0. , 0.4]], dtype=float32)>
 
   Args:
     num_tokens: The total number of tokens the layer should support. All inputs

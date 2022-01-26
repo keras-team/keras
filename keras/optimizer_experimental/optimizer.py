@@ -610,11 +610,10 @@ class Optimizer(_BaseOptimizer):
 
   >>> var = tf.Variable(np.random.random(size=(1,)))
   >>> learning_rate = tf.keras.optimizers.schedules.ExponentialDecay(
-  ... initial_learning_rate=.01, decay_steps=20, decay_rate=.1)
+  ...   initial_learning_rate=.01, decay_steps=20, decay_rate=.1)
   >>> opt = tf.keras.optimizers.experimental.SGD(learning_rate=learning_rate)
   >>> loss = lambda: 3 * var
   >>> opt.minimize(loss, var_list=[var])
-  <tf.Variable...
 
   ### Gradients clipping
 
@@ -627,10 +626,10 @@ class Optimizer(_BaseOptimizer):
   >>> opt = tf.keras.optimizers.experimental.SGD(learning_rate=1, clipvalue=1)
   >>> var1, var2 = tf.Variable(2.0), tf.Variable(2.0)
   >>> with tf.GradientTape() as tape:
-    ... loss = 2 * var1 + 2 * var2
+  ...   loss = 2 * var1 + 2 * var2
   >>> grads = tape.gradient(loss, [var1, var2])
   >>> print([grads[0].numpy(), grads[1].numpy()])
-  [2.0., 2.0]
+  [2.0, 2.0]
   >>> opt.apply_gradients(zip(grads, [var1, var2]))
   >>> # Without clipping, we should get [0, 0], but as gradients are clipped to
   >>> # have max value 1, we get [1.0, 1.0].
