@@ -1720,7 +1720,7 @@ def log_cosh(y_true, y_pred):
   >>> x = y_pred - y_true
   >>> assert np.allclose(
   ...     loss.numpy(),
-  ...     np.mean(x + np.log(np.exp(-2. * x) + 1.) - math_ops.log(2.), axis=-1),
+  ...     np.mean(x + np.log(np.exp(-2. * x) + 1.) - tf.math.log(2.), axis=-1),
   ...     atol=1e-5)
 
   Args:

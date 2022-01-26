@@ -85,7 +85,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   >>> layer.adapt(adapt_data)
   >>> layer(input_data)
   <tf.Tensor: shape=(1, 3), dtype=float32, numpy=
-  array([0., 0., 0.], dtype=float32)>
+  array([-1., -1., -1.], dtype=float32)>
 
   Pass the mean and variance directly.
 
