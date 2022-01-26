@@ -50,7 +50,6 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        "//:expect_keras_preprocessing_installed",
         "//:expect_pillow_installed",
         "//:expect_tensorflow_installed",
         "//keras/utils:data_utils",
