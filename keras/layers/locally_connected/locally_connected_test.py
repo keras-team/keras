@@ -13,18 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for locally-connected layers."""
-
-import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
 
 import os
-from absl.testing import parameterized
-import numpy as np
 
+from absl.testing import parameterized
 import keras
-from tensorflow.python.framework import test_util as tf_test_util
 from keras import combinations
 from keras import testing_utils
+from keras.layers.locally_connected import locally_connected_utils
 from keras.optimizer_v2 import rmsprop
+import numpy as np
+import tensorflow.compat.v2 as tf
+
+from tensorflow.python.framework import test_util as tf_test_util
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
 
@@ -137,11 +139,11 @@ class LocallyConnected1DLayersTest(tf.test.TestCase, parameterized.TestCase):
       with self.cached_session():
         layer = keras.layers.LocallyConnected1D(**kwargs)
         layer.build((num_samples, num_steps, input_dim))
-        self.assertEqual(len(layer.losses), 2)
+        self.assertLen(layer.losses, 2)
         layer(
             keras.backend.variable(
                 np.ones((num_samples, num_steps, input_dim))))
-        self.assertEqual(len(layer.losses), 3)
+        self.assertLen(layer.losses, 3)
 
       k_constraint = keras.constraints.max_norm(0.01)
       b_constraint = keras.constraints.max_norm(0.01)
@@ -251,11 +253,11 @@ class LocallyConnected2DLayersTest(tf.test.TestCase, parameterized.TestCase):
       with self.cached_session():
         layer = keras.layers.LocallyConnected2D(**kwargs)
         layer.build((num_samples, num_row, num_col, stack_size))
-        self.assertEqual(len(layer.losses), 2)
+        self.assertLen(layer.losses, 2)
         layer(
             keras.backend.variable(
                 np.ones((num_samples, num_row, num_col, stack_size))))
-        self.assertEqual(len(layer.losses), 3)
+        self.assertLen(layer.losses, 3)
 
       k_constraint = keras.constraints.max_norm(0.01)
       b_constraint = keras.constraints.max_norm(0.01)
@@ -522,7 +524,7 @@ class LocallyConnectedImplementationModeTest(tf.test.TestCase,
                   int(np.prod(inputs.shape[split_dim:])))
       inputs_2d = np.reshape(inputs, shape_2d)
 
-      inputs_2d_tf = keras.layers.local.make_2d(inputs_tf, split_dim)
+      inputs_2d_tf = locally_connected_utils.make_2d(inputs_tf, split_dim)
       inputs_2d_tf = keras.backend.get_value(inputs_2d_tf)
 
       self.assertAllCloseAccordingToType(inputs_2d, inputs_2d_tf)
@@ -674,7 +676,7 @@ def copy_lc_weights_2_to_3(lc_layer_2_from, lc_layer_3_to):
   lc_2_kernel, lc_2_bias = lc_layer_2_from.weights
   lc_2_kernel_masked = lc_2_kernel * lc_layer_2_from.kernel_mask
 
-  lc_2_kernel_masked = keras.layers.local.make_2d(
+  lc_2_kernel_masked = locally_connected_utils.make_2d(
       lc_2_kernel_masked, split_dim=keras.backend.ndim(lc_2_kernel_masked) // 2)
   lc_2_kernel_masked = keras.backend.transpose(lc_2_kernel_masked)
   lc_2_kernel_mask = tf.not_equal(lc_2_kernel_masked, 0)
