@@ -354,3 +354,19 @@ py_library(
     srcs_version = "PY3",
     deps = [],
 )
+
+py_test(
+    name = "keras_doctest",
+    srcs = ["keras_doctest.py"],
+    python_version = "PY3",
+    tags = [
+        "no_pip",
+        "noasan",
+        "nomsan",
+        "notsan",
+    ],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/utils:keras_doctest_lib",
+    ],
+)
