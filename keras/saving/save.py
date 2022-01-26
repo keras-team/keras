@@ -59,6 +59,8 @@ def save_model(model,
   >>> x = tf.random.uniform((10, 3))
   >>> assert np.allclose(model.predict(x), loaded_model.predict(x))
 
+  Note that `model.save()` is an alias for `tf.keras.models.save_model()`.
+
   The SavedModel and HDF5 file contains:
 
   - the model's configuration (topology)
