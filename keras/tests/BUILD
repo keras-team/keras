@@ -202,9 +202,7 @@ cuda_py_test(
     size = "medium",
     srcs = ["memory_test.py"],
     tags = [
-        "manual",
         "no_oss",
-        "notap",  #TODO(b/140640597): this test is flaky at the moment
         "optonly",  # The test is too slow in non-opt mode
     ],
     # TODO(b/140065350): Re-enable
@@ -213,6 +211,7 @@ cuda_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/api:keras_api",
+        "//third_party/tensorflow/python/eager/memory_tests:memory_test_util",
     ],
 )
 
