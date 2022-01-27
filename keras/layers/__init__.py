@@ -57,6 +57,11 @@ from keras.layers.advanced_activations import ReLU
 from keras.layers.advanced_activations import ThresholdedReLU
 from keras.layers.advanced_activations import Softmax
 
+# Attention layers.
+from keras.layers.attention.multi_head_attention import MultiHeadAttention
+from keras.layers.attention.attention import Attention
+from keras.layers.attention.additive_attention import AdditiveAttention
+
 # Convolution layers.
 from keras.layers.convolutional.conv1d import Conv1D
 from keras.layers.convolutional.conv2d import Conv2D
@@ -115,18 +120,11 @@ from keras.layers.core.tf_op_layer import InstanceProperty
 from keras.layers.core.tf_op_layer import SlicingOpLambda
 from keras.layers.core.tf_op_layer import TFOpLambda
 
-# Dense Attention layers.
-from keras.layers.dense_attention import AdditiveAttention
-from keras.layers.dense_attention import Attention
-
 # Embedding layers.
 from keras.layers.embeddings import Embedding
 
 # Einsum-based dense layer/
 from keras.layers.einsum_dense import EinsumDense
-
-# Multi-head Attention layer.
-from keras.layers.multi_head_attention import MultiHeadAttention
 
 # Locally-connected layers.
 from keras.layers.local import LocallyConnected1D

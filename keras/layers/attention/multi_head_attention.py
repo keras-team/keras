@@ -13,16 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Keras-based attention layer."""
-
-import tensorflow.compat.v2 as tf
-# pylint: disable=g-classes-have-attributes
+"""Keras-based multi-head attention layer."""
+# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 import collections
 import math
 import string
 
-import numpy as np
 from keras import constraints
 from keras import initializers
 from keras import regularizers
@@ -31,6 +28,9 @@ from keras.layers import advanced_activations
 from keras.layers import einsum_dense
 from keras.layers import regularization
 from keras.utils import tf_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -469,8 +469,7 @@ class MultiHeadAttention(Layer):
 
     # Take the dot product between "query" and "key" to get the raw
     # attention scores.
-    attention_scores = tf.einsum(self._dot_product_equation, key,
-                                               query)
+    attention_scores = tf.einsum(self._dot_product_equation, key, query)
 
     attention_scores = self._masked_softmax(attention_scores, attention_mask)
 
@@ -481,7 +480,7 @@ class MultiHeadAttention(Layer):
 
     # `context_layer` = [B, T, N, H]
     attention_output = tf.einsum(self._combine_equation,
-                                               attention_scores_dropout, value)
+                                 attention_scores_dropout, value)
     return attention_output, attention_scores
 
   def call(self,

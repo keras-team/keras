@@ -22,10 +22,10 @@ from keras import keras_parameterized
 from keras import layers
 from keras import models
 from keras.layers import advanced_activations
+from keras.layers import attention
 from keras.layers import convolutional
 from keras.layers import convolutional_recurrent
 from keras.layers import core
-from keras.layers import dense_attention
 from keras.layers import embeddings
 from keras.layers import local
 from keras.layers import merging
@@ -110,11 +110,10 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
       ('Activation', lambda: core.Activation('sigmoid'), (2, 2)),
       ('Reshape', lambda: reshaping.Reshape((1, 4, 1)), (2, 2, 2)),
       ('Permute', lambda: reshaping.Permute((2, 1)), (2, 2, 2)),
-      ('Attention', dense_attention.Attention, [(2, 2, 3), (2, 3, 3),
-                                                (2, 3, 3)]),
-      ('AdditiveAttention', dense_attention.AdditiveAttention, [(2, 2, 3),
-                                                                (2, 3, 3),
-                                                                (2, 3, 3)]),
+      ('Attention', attention.Attention, [(2, 2, 3), (2, 3, 3), (2, 3, 3)]),
+      ('AdditiveAttention', attention.AdditiveAttention, [(2, 2, 3),
+                                                          (2, 3, 3),
+                                                          (2, 3, 3)]),
       ('Embedding', lambda: embeddings.Embedding(4, 4),
        (2, 4), 2e-3, 2e-3, np.random.randint(4, size=(2, 4))),
       ('LocallyConnected1D', lambda: local.LocallyConnected1D(2, 2), (2, 2, 1)),
@@ -157,13 +156,13 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
        (2, 2, 2)),
       ('Bidirectional',
        lambda: wrappers.Bidirectional(recurrent.SimpleRNN(units=4)), (2, 2, 2)),
-      ('AttentionLayerCausal', lambda: dense_attention.Attention(causal=True), [
+      ('AttentionLayerCausal', lambda: attention.Attention(causal=True), [
           (2, 2, 3), (2, 3, 3), (2, 3, 3)
       ]),
       ('AdditiveAttentionLayerCausal',
-       lambda: dense_attention.AdditiveAttention(causal=True), [(2, 3, 4),
-                                                                (2, 3, 4),
-                                                                (2, 3, 4)]),
+       lambda: attention.AdditiveAttention(causal=True), [(2, 3, 4),
+                                                          (2, 3, 4),
+                                                          (2, 3, 4)]),
       ('NormalizationAdapt', _create_normalization_layer_with_adapt, (4, 4)),
       ('NormalizationNoAdapt', _create_normalization_layer_without_adapt,
        (4, 4)),
