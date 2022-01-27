@@ -56,10 +56,14 @@ class SGD(optimizer_v2.OptimizerV2):
       Defaults to `False`.
     name: Optional name prefix for the operations created when applying
       gradients.  Defaults to `"SGD"`.
-    **kwargs: Keyword arguments. Allowed to be one of
-      `"clipnorm"` or `"clipvalue"`.
-      `"clipnorm"` (float) clips gradients by norm; `"clipvalue"` (float) clips
-      gradients by value.
+    **kwargs: keyword arguments. Allowed arguments are `clipvalue`,
+      `clipnorm`, `global_clipnorm`.
+      If `clipvalue` (float) is set, the gradient of each weight
+      is clipped to be no higher than this value.
+      If `clipnorm` (float) is set, the gradient of each weight
+      is individually clipped so that its norm is no higher than this value.
+      If `global_clipnorm` (float) is set the gradient of all weights is
+      clipped so that their global norm is no higher than this value.
 
   Usage:
 

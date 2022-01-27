@@ -46,12 +46,14 @@ class Adagrad(optimizer_v2.OptimizerV2):
     epsilon: Small floating point value used to maintain numerical stability.
     name: Optional name prefix for the operations created when applying
       gradients.  Defaults to `"Adagrad"`.
-    **kwargs: Keyword arguments. Allowed to be one of
-      `"clipnorm"` or `"clipvalue"`.
-      `"clipnorm"` (float) clips gradients by norm and represents
-      the maximum L2 norm of each weight variable;
-      `"clipvalue"` (float) clips gradient by value and represents the
-      maximum absolute value of each weight variable.
+    **kwargs: keyword arguments. Allowed arguments are `clipvalue`,
+      `clipnorm`, `global_clipnorm`.
+      If `clipvalue` (float) is set, the gradient of each weight
+      is clipped to be no higher than this value.
+      If `clipnorm` (float) is set, the gradient of each weight
+      is individually clipped so that its norm is no higher than this value.
+      If `global_clipnorm` (float) is set the gradient of all weights is
+      clipped so that their global norm is no higher than this value..
 
   Reference:
     - [Duchi et al., 2011](
