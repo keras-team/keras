@@ -154,6 +154,7 @@ distribute_py_test(
         "multi_and_single_gpu",
         "no_oss",  # TODO(b/194935930): Flaky test
         "nomultivm",  # TODO(b/170502145)
+        "notap",  # b/216629693
     ],
     deps = [
         "//:expect_absl_installed",
