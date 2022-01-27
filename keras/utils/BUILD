@@ -1,7 +1,6 @@
 # Description:
 #   Contains the Keras Utilities (internal TensorFlow version).
 
-load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
@@ -36,7 +35,6 @@ py_library(
         ":engine_utils",
         ":generic_utils",
         ":layer_utils",
-        ":multi_gpu_utils",
         ":np_utils",
         ":traceback_utils",
         ":vis_utils",
@@ -182,19 +180,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
-    ],
-)
-
-py_library(
-    name = "multi_gpu_utils",
-    srcs = [
-        "multi_gpu_utils.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras/layers",
     ],
 )
 
@@ -400,23 +385,6 @@ tf_py_test(
         ":layer_utils",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-    ],
-)
-
-cuda_py_test(
-    name = "multi_gpu_utils_test",
-    srcs = ["multi_gpu_utils_test.py"],
-    python_version = "PY3",
-    tags = [
-        "guitar",
-        "multi_gpu",
-    ],
-    xla_enable_strict_auto_jit = True,
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
     ],
 )
 

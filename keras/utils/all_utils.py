@@ -31,7 +31,6 @@ from keras.utils.generic_utils import get_custom_objects
 from keras.utils.generic_utils import Progbar
 from keras.utils.generic_utils import serialize_keras_object
 from keras.utils.layer_utils import get_source_inputs
-from keras.utils.multi_gpu_utils import multi_gpu_model
 from keras.utils.np_utils import normalize
 from keras.utils.np_utils import to_categorical
 from keras.utils.vis_utils import model_to_dot
