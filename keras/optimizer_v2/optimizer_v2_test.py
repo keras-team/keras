@@ -34,6 +34,7 @@ from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
+from keras.layers import regularization
 from keras.optimizer_v2 import adadelta
 from keras.optimizer_v2 import adagrad
 from keras.optimizer_v2 import adam
@@ -488,7 +489,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     dense = core.Dense(4, name='dense')
     c = dense(a)
     d = dense(b)
-    e = core.Dropout(0.5, name='dropout')(c)
+    e = regularization.Dropout(0.5, name='dropout')(c)
 
     model = training.Model([a, b], [d, e])
 
@@ -514,7 +515,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     a = input_layer.Input(shape=(3,), name='input_a')
     model = sequential.Sequential()
     model.add(core.Dense(4, kernel_initializer='zeros', name='dense'))
-    model.add(core.Dropout(0.5, name='dropout'))
+    model.add(regularization.Dropout(0.5, name='dropout'))
     model(a)
     optimizer = gradient_descent.SGD(learning_rate=0.1)
     model.compile(optimizer, loss='mse', metrics=['mae'])

@@ -50,6 +50,7 @@ py_library(
         "//keras/layers/normalization",
         "//keras/layers/pooling",
         "//keras/layers/preprocessing",
+        "//keras/layers/regularization",
         "//keras/layers/reshaping",
         "//keras/premade",
         "//keras/utils:tf_utils",
@@ -215,11 +216,9 @@ py_library(
     srcs = ["noise.py"],
     srcs_version = "PY3",
     deps = [
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:base_layer",
-        "//keras/utils:tf_utils",
+        "//keras/layers/regularization:alpha_dropout",
+        "//keras/layers/regularization:gaussian_dropout",
+        "//keras/layers/regularization:gaussian_noise",
     ],
 )
 
@@ -406,18 +405,6 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:combinations",
-    ],
-)
-
-tf_py_test(
-    name = "noise_test",
-    size = "medium",
-    srcs = ["noise_test.py"],
-    python_version = "PY3",
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
     ],
 )
 

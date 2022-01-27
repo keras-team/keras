@@ -28,8 +28,8 @@ from keras import initializers
 from keras import regularizers
 from keras.engine.base_layer import Layer
 from keras.layers import advanced_activations
-from keras.layers import core
 from keras.layers import einsum_dense
+from keras.layers import regularization
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
@@ -423,7 +423,7 @@ class MultiHeadAttention(Layer):
     norm_axes = tuple(
         range(attn_scores_rank - len(self._attention_axes), attn_scores_rank))
     self._softmax = advanced_activations.Softmax(axis=norm_axes)
-    self._dropout_layer = core.Dropout(rate=self._dropout)
+    self._dropout_layer = regularization.Dropout(rate=self._dropout)
 
   def _masked_softmax(self, attention_scores, attention_mask=None):
     # Normalize the attention scores to probabilities.

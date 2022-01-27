@@ -624,13 +624,6 @@ class CoreLayersTest(keras_parameterized.TestCase):
         r'innermost dimension is non-ragged. Received: inputs.shape=.*'):
       layer.call(tf.ragged.constant([[1., 2], [3, 4, 5]]))
 
-  def test_activity_regularization(self):
-    layer = keras.layers.ActivityRegularization(l1=0.1)
-    layer(keras.backend.variable(np.ones((2, 4))))
-    self.assertEqual(1, len(layer.losses))
-    config = layer.get_config()
-    self.assertEqual(config.pop('l1'), 0.1)
-
 
 @keras_parameterized.run_all_keras_modes
 class TFOpLambdaTest(keras_parameterized.TestCase):

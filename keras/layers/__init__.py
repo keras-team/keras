@@ -79,6 +79,16 @@ from keras.layers.convolutional.conv3d_transpose import Convolution3DTranspose
 from keras.layers.convolutional.separable_conv1d import SeparableConvolution1D
 from keras.layers.convolutional.separable_conv2d import SeparableConvolution2D
 
+# Regularization layers.
+from keras.layers.regularization.dropout import Dropout
+from keras.layers.regularization.spatial_dropout1d import SpatialDropout1D
+from keras.layers.regularization.spatial_dropout2d import SpatialDropout2D
+from keras.layers.regularization.spatial_dropout3d import SpatialDropout3D
+from keras.layers.regularization.gaussian_dropout import GaussianDropout
+from keras.layers.regularization.gaussian_noise import GaussianNoise
+from keras.layers.regularization.activity_regularization import ActivityRegularization
+from keras.layers.regularization.alpha_dropout import AlphaDropout
+
 # Reshaping layers.
 from keras.layers.reshaping.cropping1d import Cropping1D
 from keras.layers.reshaping.cropping2d import Cropping2D
@@ -96,14 +106,9 @@ from keras.layers.reshaping.zero_padding3d import ZeroPadding3D
 
 # Core layers.
 from keras.layers.core.activation import Activation
-from keras.layers.core.activity_regularization import ActivityRegularization
 from keras.layers.core.dense import Dense
-from keras.layers.core.dropout import Dropout
 from keras.layers.core.lambda_layer import Lambda
 from keras.layers.core.masking import Masking
-from keras.layers.core.spatial_dropout import SpatialDropout1D
-from keras.layers.core.spatial_dropout import SpatialDropout2D
-from keras.layers.core.spatial_dropout import SpatialDropout3D
 from keras.layers.core.tf_op_layer import ClassMethod
 from keras.layers.core.tf_op_layer import InstanceMethod
 from keras.layers.core.tf_op_layer import InstanceProperty
@@ -146,11 +151,6 @@ from keras.layers.merging.maximum import maximum
 from keras.layers.merging.minimum import minimum
 from keras.layers.merging.concatenate import concatenate
 from keras.layers.merging.dot import dot
-
-# Noise layers.
-from keras.layers.noise import AlphaDropout
-from keras.layers.noise import GaussianNoise
-from keras.layers.noise import GaussianDropout
 
 # Normalization layers.
 from keras.layers.normalization.layer_normalization import LayerNormalization

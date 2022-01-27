@@ -1,6 +1,6 @@
 path: "tensorflow.keras.layers.GaussianDropout"
 tf_class {
-  is_instance: "<class \'keras.layers.noise.GaussianDropout\'>"
+  is_instance: "<class \'keras.layers.regularization.gaussian_dropout.GaussianDropout\'>"
   is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"

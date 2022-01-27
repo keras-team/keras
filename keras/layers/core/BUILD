@@ -24,13 +24,15 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":activation",
-        ":activity_regularization",
         ":dense",
-        ":dropout",
         ":lambda",
         ":masking",
-        ":spatial_dropout",
         ":tf_op_layer",
+        "//keras/layers/regularization:activity_regularization",
+        "//keras/layers/regularization:dropout",
+        "//keras/layers/regularization:spatial_dropout1d",
+        "//keras/layers/regularization:spatial_dropout2d",
+        "//keras/layers/regularization:spatial_dropout3d",
         "//keras/layers/reshaping:flatten",
         "//keras/layers/reshaping:permute",
         "//keras/layers/reshaping:repeat_vector",
@@ -62,26 +64,8 @@ py_library(
 )
 
 py_library(
-    name = "activity_regularization",
-    srcs = ["activity_regularization.py"],
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-    ],
-)
-
-py_library(
     name = "dense",
     srcs = ["dense.py"],
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-    ],
-)
-
-py_library(
-    name = "dropout",
-    srcs = ["dropout.py"],
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -103,22 +87,6 @@ py_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
-    ],
-)
-
-py_library(
-    name = "spatial_dropout",
-    srcs = ["spatial_dropout.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":dropout",
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:base_layer",
-        "//keras/initializers",
-        "//keras/utils:tf_utils",
     ],
 )
 
