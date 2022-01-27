@@ -34,6 +34,7 @@ py_library(
         ":control_flow_util",
         ":engine_utils",
         ":generic_utils",
+        ":keras_doctest_lib",
         ":layer_utils",
         ":np_utils",
         ":traceback_utils",
@@ -448,5 +449,32 @@ tf_py_test(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras",
+    ],
+)
+
+# TODO(mattdangerw): For now, keras will maintain it's own doc checker.
+# If tensorflow exposes one, we could consider depending on that directly.
+py_library(
+    name = "keras_doctest_lib",
+    srcs = ["keras_doctest_lib.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+    ],
+)
+
+py_test(
+    name = "keras_doctest_lib_test",
+    srcs = ["keras_doctest_lib_test.py"],
+    python_version = "PY3",
+    tags = [
+        "noasan",
+        "nomsan",
+        "notsan",
+    ],
+    deps = [
+        ":keras_doctest_lib",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
     ],
 )
