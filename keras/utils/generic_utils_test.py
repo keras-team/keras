@@ -14,14 +14,16 @@
 # ==============================================================================
 """Tests for Keras generic Python utils."""
 
-import tensorflow.compat.v2 as tf
 
 from functools import partial
-
-import numpy as np
+import os
+import sys
 
 import keras
 from keras.utils import generic_utils
+from keras.utils import io_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 class SnakeCaseTest(tf.test.TestCase):
@@ -457,6 +459,59 @@ class SharedObjectScopeTest(tf.test.TestCase):
         self.assertIsNotNone(scope_2.get_config(my_obj))
       self.assertIsNotNone(scope_1.get_config(my_obj))
     self.assertIsNone(generic_utils._shared_object_saving_scope())
+
+  def test_custom_object_scope_correct_class(self):
+    train_step_message = 'This is my training step'
+    temp_dir = os.path.join(self.get_temp_dir(), 'my_model')
+
+    class CustomModelX(keras.Model):
+
+      def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dense1 = keras.layers.Dense(1)
+
+      def call(self, inputs):
+        return self.dense1(inputs)
+
+      def train_step(self, data):
+        tf.print(train_step_message)
+        x, y = data
+        with tf.GradientTape() as tape:
+          y_pred = self(x)
+          loss = self.compiled_loss(y, y_pred)
+
+        gradients = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+        return {}
+
+      def func_that_returns_one(self):
+        return 1
+
+    subclassed_model = CustomModelX()
+    subclassed_model.compile(optimizer='adam', loss='mse')
+
+    x = np.random.random((100, 32))
+    y = np.random.random((100, 1))
+    subclassed_model.fit(x, y, epochs=1)
+    subclassed_model.save(temp_dir, save_format='tf')
+
+    with keras.utils.generic_utils.custom_object_scope(
+        {'CustomModelX': CustomModelX}):
+      loaded_model = keras.models.load_model(temp_dir)
+
+    io_utils.enable_interactive_logging()
+    # `tf.print` writes to stderr.
+    with self.captureWritesToStream(sys.stderr) as printed:
+      loaded_model.fit(x, y, epochs=1)
+      if tf.__internal__.tf2.enabled():
+        # `tf.print` message is only available in stderr in TF2. Check that
+        # custom `train_step` is used.
+        self.assertRegex(printed.contents(), train_step_message)
+
+    # Check that the custom class does get used.
+    self.assertIsInstance(loaded_model, CustomModelX)
+    # Check that the custom method is available.
+    self.assertEqual(loaded_model.func_that_returns_one(), 1)
 
 
 if __name__ == '__main__':
