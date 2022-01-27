@@ -36,6 +36,7 @@ from keras.layers import noise
 from keras.layers import pooling
 from keras.layers import recurrent
 from keras.layers import recurrent_v2
+from keras.layers import regularization
 from keras.layers import reshaping
 from keras.layers import rnn_cell_wrapper_v2
 from keras.layers import wrappers
@@ -59,11 +60,11 @@ from tensorflow.python.util.tf_export import keras_export
 
 ALL_MODULES = (base_layer, input_layer, advanced_activations, convolutional,
                convolutional_recurrent, core, cudnn_recurrent, dense_attention,
-               embeddings, einsum_dense, local, merging, noise,
-               batch_normalization_v1, layer_normalization, unit_normalization,
-               pooling, image_preprocessing, recurrent, reshaping, wrappers,
-               hashing, hashed_crossing, category_encoding, discretization,
-               multi_head_attention, integer_lookup,
+               embeddings, einsum_dense, local, merging, batch_normalization_v1,
+               layer_normalization, unit_normalization, pooling,
+               image_preprocessing, recurrent, regularization, reshaping,
+               wrappers, hashing, hashed_crossing, category_encoding,
+               discretization, multi_head_attention, integer_lookup,
                preprocessing_normalization, string_lookup, text_vectorization)
 ALL_V2_MODULES = (rnn_cell_wrapper_v2, batch_normalization, layer_normalization,
                   recurrent_v2)

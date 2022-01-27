@@ -29,10 +29,10 @@ from keras.layers import dense_attention
 from keras.layers import embeddings
 from keras.layers import local
 from keras.layers import merging
-from keras.layers import noise
 from keras.layers import pooling
 from keras.layers import recurrent
 from keras.layers import recurrent_v2
+from keras.layers import regularization
 from keras.layers import reshaping
 from keras.layers import wrappers
 from keras.layers.normalization import batch_normalization
@@ -104,8 +104,9 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
        lambda: convolutional_recurrent.ConvLSTM2D(4, kernel_size=(2, 2)),
        (4, 4, 4, 4, 4)),
       ('Dense', lambda: core.Dense(2), (2, 2)),
-      ('Dropout', lambda: core.Dropout(0.5), (2, 2)),
-      ('SpatialDropout2D', lambda: core.SpatialDropout2D(0.5), (2, 2, 2, 2)),
+      ('Dropout', lambda: regularization.Dropout(0.5), (2, 2)),
+      ('SpatialDropout2D',
+       lambda: regularization.SpatialDropout2D(0.5), (2, 2, 2, 2)),
       ('Activation', lambda: core.Activation('sigmoid'), (2, 2)),
       ('Reshape', lambda: reshaping.Reshape((1, 4, 1)), (2, 2, 2)),
       ('Permute', lambda: reshaping.Permute((2, 1)), (2, 2, 2)),
@@ -127,9 +128,9 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
       ('Minimum', merging.Minimum, [(2, 2), (2, 2)]),
       ('Concatenate', merging.Concatenate, [(2, 2), (2, 2)]),
       ('Dot', lambda: merging.Dot(1), [(2, 2), (2, 2)]),
-      ('GaussianNoise', lambda: noise.GaussianNoise(0.5), (2, 2)),
-      ('GaussianDropout', lambda: noise.GaussianDropout(0.5), (2, 2)),
-      ('AlphaDropout', lambda: noise.AlphaDropout(0.5), (2, 2)),
+      ('GaussianNoise', lambda: regularization.GaussianNoise(0.5), (2, 2)),
+      ('GaussianDropout', lambda: regularization.GaussianDropout(0.5), (2, 2)),
+      ('AlphaDropout', lambda: regularization.AlphaDropout(0.5), (2, 2)),
       ('BatchNormalization', batch_normalization.BatchNormalization,
        (2, 2), 1e-2, 1e-2),
       ('LayerNormalization', layer_normalization.LayerNormalization, (2, 2)),

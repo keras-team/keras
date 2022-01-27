@@ -1,6 +1,6 @@
 path: "tensorflow.keras.layers.GaussianNoise"
 tf_class {
-  is_instance: "<class \'keras.layers.noise.GaussianNoise\'>"
+  is_instance: "<class \'keras.layers.regularization.gaussian_noise.GaussianNoise\'>"
   is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
