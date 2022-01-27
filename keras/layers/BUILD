@@ -32,18 +32,17 @@ py_library(
         ":advanced_activations",
         ":convolutional_recurrent",
         ":cudnn_recurrent",
-        ":dense_attention",
         ":einsum_dense",
         ":embeddings",
         ":kernelized",
         ":local",
-        ":multi_head_attention",
         ":noise",
         ":recurrent",
         ":recurrent_v2",
         ":rnn_cell_wrapper_v2",
         ":wrappers",
         "//keras/feature_column",
+        "//keras/layers/attention",
         "//keras/layers/convolutional",
         "//keras/layers/core",
         "//keras/layers/merging",
@@ -140,34 +139,8 @@ py_library(
 )
 
 py_library(
-    name = "dense_attention",
-    srcs = ["dense_attention.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:base_layer",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
     name = "einsum_dense",
     srcs = ["einsum_dense.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:activations",
-        "//keras:base_layer",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/initializers",
-    ],
-)
-
-py_library(
-    name = "multi_head_attention",
-    srcs = ["multi_head_attention.py"],
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
@@ -349,32 +322,6 @@ tf_py_test(
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-    ],
-)
-
-tf_py_test(
-    name = "dense_attention_test",
-    size = "medium",
-    srcs = ["dense_attention_test.py"],
-    python_version = "PY3",
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
-    ],
-)
-
-tf_py_test(
-    name = "multi_head_attention_test",
-    srcs = ["multi_head_attention_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":multi_head_attention",
-        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
     ],
