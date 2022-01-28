@@ -127,8 +127,8 @@ from keras.layers.embeddings import Embedding
 from keras.layers.einsum_dense import EinsumDense
 
 # Locally-connected layers.
-from keras.layers.local import LocallyConnected1D
-from keras.layers.local import LocallyConnected2D
+from keras.layers.locally_connected.locally_connected1d import LocallyConnected1D
+from keras.layers.locally_connected.locally_connected2d import LocallyConnected2D
 
 # Merging layers.
 from keras.layers.merging.add import Add

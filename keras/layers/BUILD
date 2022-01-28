@@ -35,7 +35,6 @@ py_library(
         ":einsum_dense",
         ":embeddings",
         ":kernelized",
-        ":local",
         ":noise",
         ":recurrent",
         ":recurrent_v2",
@@ -45,6 +44,7 @@ py_library(
         "//keras/layers/attention",
         "//keras/layers/convolutional",
         "//keras/layers/core",
+        "//keras/layers/locally_connected",
         "//keras/layers/merging",
         "//keras/layers/normalization",
         "//keras/layers/pooling",
@@ -162,25 +162,6 @@ py_library(
         "//keras:base_layer",
         "//keras/engine:input_spec",
         "//keras/initializers",
-    ],
-)
-
-py_library(
-    name = "local",
-    srcs = ["local.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras:activations",
-        "//keras:backend",
-        "//keras:base_layer",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:input_spec",
-        "//keras/initializers",
-        "//keras/utils:engine_utils",
-        "//keras/utils:tf_utils",
     ],
 )
 
@@ -336,22 +317,6 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-    ],
-)
-
-tf_py_test(
-    name = "local_test",
-    size = "medium",
-    srcs = ["local_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = ["no_windows"],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
     ],
 )
 
