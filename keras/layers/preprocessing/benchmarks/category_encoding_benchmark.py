@@ -23,8 +23,6 @@ import numpy as np
 import keras
 from keras.layers.preprocessing import category_encoding
 
-tf.compat.v1.enable_v2_behavior()
-
 
 class BenchmarkLayer(tf.test.Benchmark):
   """Benchmark the layer forward pass."""

@@ -21,6 +21,7 @@ import os
 import keras
 from keras import backend
 from keras import keras_parameterized
+from keras import testing_utils
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import preprocessing_test_utils
@@ -29,6 +30,7 @@ import tensorflow.compat.v2 as tf
 from tensorflow.python.framework import test_util
 
 
+@testing_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
@@ -147,5 +149,4 @@ class IndexLookupDistributionTest(
 
 
 if __name__ == "__main__":
-  tf.compat.v1.enable_v2_behavior()
   tf.__internal__.distribute.multi_process_runner.test_main()

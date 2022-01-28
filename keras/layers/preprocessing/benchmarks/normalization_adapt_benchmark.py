@@ -23,8 +23,6 @@ import numpy as np
 import keras
 from keras.layers.preprocessing import normalization
 
-tf.compat.v1.enable_v2_behavior()
-
 
 def reduce_fn(state, values):
   """tf.data.Dataset-friendly implementation of mean and variance."""

@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 from tensorflow.python.framework import test_util
+from keras import testing_utils
 from keras.distribute import dataset_creator_model_fit_test_base as test_base
 from keras.distribute import strategy_combinations
 from keras.utils import dataset_creator
@@ -26,6 +27,7 @@ from keras.utils import dataset_creator
 
 # TODO(rchao): Investigate why there cannot be single worker and multi worker
 # PS strategies running in the same shard.
+@testing_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
@@ -251,9 +253,9 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
 
   def testModelTrainTFFunction(self, strategy):
     model = self._model_fit(strategy)
-    self.assertIsInstance(model.train_tf_function, tf.__internal__.function.Function)
+    self.assertIsInstance(model.train_tf_function,
+                          tf.__internal__.function.Function)
 
 
 if __name__ == "__main__":
-  tf.compat.v1.enable_v2_behavior()
   tf.__internal__.distribute.multi_process_runner.test_main()

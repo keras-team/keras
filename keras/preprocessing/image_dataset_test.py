@@ -21,6 +21,7 @@ import shutil
 
 import numpy as np
 from keras import keras_parameterized
+from keras import testing_utils
 from keras.preprocessing import image as image_preproc
 from keras.preprocessing import image_dataset
 
@@ -30,6 +31,7 @@ except ImportError:
   PIL = None
 
 
+@testing_utils.run_v2_only
 class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
 
   def _get_images(self, count=16, color_mode='rgb'):
@@ -361,5 +363,4 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
     self.assertEqual(len(sample.shape), 3)
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_v2_behavior()
   tf.test.main()
