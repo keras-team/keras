@@ -70,7 +70,7 @@ keras_packages = [
     "keras.layers.core",
     "keras.layers.cudnn_recurrent",
     "keras.layers.embeddings",
-    "keras.layers.local",
+    "keras.layers.locally_connected",
     "keras.layers.legacy_rnn.rnn_cell_impl",
     "keras.layers.merging",
     "keras.layers.normalization.batch_normalization",

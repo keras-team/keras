@@ -28,7 +28,7 @@ from keras.layers import convolutional
 from keras.layers import convolutional_recurrent
 from keras.layers import core
 from keras.layers import embeddings
-from keras.layers import local
+from keras.layers import locally_connected
 from keras.layers import merging
 from keras.layers import pooling
 from keras.layers import recurrent
@@ -118,8 +118,9 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
                                                           (2, 3, 3)]),
       ('Embedding', lambda: embeddings.Embedding(4, 4),
        (2, 4), 2e-3, 2e-3, np.random.randint(4, size=(2, 4))),
-      ('LocallyConnected1D', lambda: local.LocallyConnected1D(2, 2), (2, 2, 1)),
-      ('LocallyConnected2D', lambda: local.LocallyConnected2D(2, 2),
+      ('LocallyConnected1D', lambda: locally_connected.LocallyConnected1D(2, 2),
+       (2, 2, 1)),
+      ('LocallyConnected2D', lambda: locally_connected.LocallyConnected2D(2, 2),
        (2, 2, 2, 1)),
       ('Add', merging.Add, [(2, 2), (2, 2)]),
       ('Subtract', merging.Subtract, [(2, 2), (2, 2)]),
