@@ -21,8 +21,6 @@ from keras.layers.preprocessing.benchmarks import feature_column_benchmark as fc
 import tensorflow.compat.v2 as tf
 from tensorflow.python.eager.def_function import function as tf_function
 
-tf.compat.v1.enable_v2_behavior()
-
 NUM_REPEATS = 10
 BATCH_SIZES = [32, 256]
 

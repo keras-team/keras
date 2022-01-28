@@ -22,6 +22,7 @@ from keras.distribute import model_combinations
 from keras.distribute import saved_model_test_base as test_base
 
 
+@testing_utils.run_v2_only
 @testing_utils.run_all_without_tensor_float_32(
     'Uses Dense layers, which call matmul')
 class SavedModelKerasModelTest(test_base.TestSavedModelBase):
@@ -83,6 +84,7 @@ class SavedModelKerasModelTest(test_base.TestSavedModelBase):
           self.assertEmpty(n.device)
 
 
+@testing_utils.run_v2_only
 class SavedModelTFModuleTest(test_base.TestSavedModelBase):
 
   def setUp(self):
@@ -169,5 +171,4 @@ class SavedModelTFModuleTest(test_base.TestSavedModelBase):
 
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_eager_execution()
   tf.test.main()

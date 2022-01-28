@@ -25,8 +25,6 @@ from keras.layers.preprocessing import discretization
 
 EPSILON = 0.1
 
-tf.compat.v1.enable_v2_behavior()
-
 
 def reduce_fn(state, values, epsilon=EPSILON):
   """tf.data.Dataset-friendly implementation of mean and variance."""

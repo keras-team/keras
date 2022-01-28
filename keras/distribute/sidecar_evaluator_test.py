@@ -15,7 +15,6 @@
 # ==============================================================================
 """Test covering sidecar_evaluator.py."""
 
-
 import enum
 import os
 import threading
@@ -23,6 +22,7 @@ import time
 
 from absl.testing import parameterized
 import keras
+from keras import testing_utils
 from keras.distribute import sidecar_evaluator as sidecar_evaluator_lib
 from keras.optimizer_v2 import gradient_descent
 import numpy as np
@@ -72,6 +72,7 @@ def _test_model_builder(model_type: ModelType, compile_model, build_model):
   return model
 
 
+@testing_utils.run_v2_only
 class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
 
   def assertSummaryEventsWritten(self, log_dir):
@@ -302,5 +303,4 @@ class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_v2_behavior()
   tf.test.main()

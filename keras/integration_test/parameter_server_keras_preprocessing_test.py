@@ -20,6 +20,7 @@ import os
 import random
 import tempfile
 from absl.testing import parameterized
+from keras import testing_utils
 import numpy as np
 import portpicker
 import tensorflow.compat.v2 as tf
@@ -66,6 +67,7 @@ def create_in_process_cluster(num_workers, num_ps):
   return cluster_spec
 
 
+@testing_utils.run_v2_only
 class KPLTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
@@ -262,6 +264,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
       self.assertIn(prediction1, ("yes", "no"))
 
 
+@testing_utils.run_v2_only
 class KPLCreatedInDatasetsFromFunctionTest(tf.test.TestCase,
                                            parameterized.TestCase):
 
@@ -320,5 +323,4 @@ class KPLCreatedInDatasetsFromFunctionTest(tf.test.TestCase,
 
 
 if __name__ == "__main__":
-  tf.compat.v1.enable_v2_behavior()
   tf.test.main()

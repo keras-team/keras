@@ -364,8 +364,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
   def test_ragged_string_input_multi_bucket(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = tf.ragged.constant([["earth", "wind", "fire"],
-                                               ["fire", "and", "earth",
-                                                "ohio"]])
+                                      ["fire", "and", "earth", "ohio"]])
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.string, ragged=True)
@@ -388,6 +387,4 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
       fn()
 
 if __name__ == "__main__":
-  # StringLookup is only exported as a TF2 API.
-  tf.compat.v1.enable_v2_behavior()
   tf.test.main()

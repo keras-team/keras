@@ -615,6 +615,4 @@ class IntegerLookupSavingTest(keras_parameterized.TestCase,
 
 
 if __name__ == "__main__":
-  # IntegerLookup is only exported as a TF2 API.
-  tf.compat.v1.enable_v2_behavior()
   tf.test.main()

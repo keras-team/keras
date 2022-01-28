@@ -158,5 +158,6 @@ tf_py_test(
         ":timeseries",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras:testing_utils",
     ],
 )

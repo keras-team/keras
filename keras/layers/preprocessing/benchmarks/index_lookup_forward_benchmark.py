@@ -26,8 +26,6 @@ import numpy as np
 import keras
 from keras.layers.preprocessing import index_lookup
 
-tf.compat.v1.enable_v2_behavior()
-
 
 # word_gen creates random sequences of ASCII letters (both lowercase and upper).
 # The number of unique strings is ~2,700.
