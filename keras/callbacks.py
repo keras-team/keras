@@ -2081,7 +2081,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   * Metrics summary plots
   * Training graph visualization
-  * Activation histograms
+  * Weight histograms
   * Sampled profiling
 
   When used in `Model.evaluate`, in addition to epoch summaries, there will be
@@ -2103,7 +2103,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
       log_dir: the path of the directory where to save the log files to be
         parsed by TensorBoard. e.g. log_dir = os.path.join(working_dir, 'logs')
         This directory should not be reused by any other callbacks.
-      histogram_freq: frequency (in epochs) at which to compute activation and
+      histogram_freq: frequency (in epochs) at which to compute
         weight histograms for the layers of the model. If set to 0, histograms
         won't be computed. Validation data (or split) must be specified for
         histogram visualizations.
