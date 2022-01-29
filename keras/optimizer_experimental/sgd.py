@@ -21,6 +21,7 @@ import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 
+# pylint: disable=g-classes-have-attributes
 @generic_utils.register_keras_serializable()
 @keras_export('keras.optimizers.experimental.SGD', v1=[])
 class SGD(optimizer.Optimizer):
@@ -46,7 +47,7 @@ class SGD(optimizer.Optimizer):
   w = w + momentum * velocity - learning_rate * g
   ```
 
-  Attributes:
+  Args:
     learning_rate: A `Tensor`, floating point value, or a schedule that is a
       `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
       that takes no arguments and returns the actual value to use. The
