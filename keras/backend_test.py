@@ -29,7 +29,7 @@ from keras import activations
 from keras import backend
 from keras import combinations
 from keras.engine import input_layer
-from keras.layers import advanced_activations
+from keras.layers import activation
 from keras.layers.normalization import batch_normalization_v1
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
@@ -557,7 +557,7 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
 
     # Test case for GitHub issue 35430, with integer dtype
     x = input_layer.Input(shape=(), name='x', dtype='int64')
-    _ = advanced_activations.ReLU(max_value=100., dtype='int64')(x)
+    _ = activation.ReLU(max_value=100., dtype='int64')(x)
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))

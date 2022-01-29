@@ -24,7 +24,7 @@ from keras import constraints
 from keras import initializers
 from keras import regularizers
 from keras.engine.base_layer import Layer
-from keras.layers import advanced_activations
+from keras.layers import activation
 from keras.layers import einsum_dense
 from keras.layers import regularization
 from keras.utils import tf_utils
@@ -422,7 +422,7 @@ class MultiHeadAttention(Layer):
         _build_attention_equation(rank, attn_axes=self._attention_axes))
     norm_axes = tuple(
         range(attn_scores_rank - len(self._attention_axes), attn_scores_rank))
-    self._softmax = advanced_activations.Softmax(axis=norm_axes)
+    self._softmax = activation.Softmax(axis=norm_axes)
     self._dropout_layer = regularization.Dropout(rate=self._dropout)
 
   def _masked_softmax(self, attention_scores, attention_mask=None):

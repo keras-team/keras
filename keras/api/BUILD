@@ -63,7 +63,7 @@ keras_packages = [
     "keras.initializers",
     "keras.initializers.initializers_v1",
     "keras.initializers.initializers_v2",
-    "keras.layers.advanced_activations",
+    "keras.layers.activation",
     "keras.layers.attention",
     "keras.layers.convolutional",
     "keras.layers.convolutional_recurrent",

@@ -21,7 +21,7 @@ import threading
 from keras.engine import base_layer
 from keras.engine import input_layer
 from keras.engine import input_spec
-from keras.layers import advanced_activations
+from keras.layers import activation
 from keras.layers import attention
 from keras.layers import convolutional
 from keras.layers import convolutional_recurrent
@@ -57,12 +57,12 @@ from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
 from tensorflow.python.util.tf_export import keras_export
 
-ALL_MODULES = (base_layer, input_layer, advanced_activations, attention,
-               convolutional, convolutional_recurrent, core, cudnn_recurrent,
-               embeddings, einsum_dense, locally_connected, merging,
-               batch_normalization_v1, layer_normalization, unit_normalization,
-               pooling, image_preprocessing, recurrent, regularization,
-               reshaping, wrappers, hashing, hashed_crossing, category_encoding,
+ALL_MODULES = (base_layer, input_layer, activation, attention, convolutional,
+               convolutional_recurrent, core, cudnn_recurrent, embeddings,
+               einsum_dense, locally_connected, merging, batch_normalization_v1,
+               layer_normalization, unit_normalization, pooling,
+               image_preprocessing, recurrent, regularization, reshaping,
+               wrappers, hashing, hashed_crossing, category_encoding,
                discretization, integer_lookup, preprocessing_normalization,
                string_lookup, text_vectorization)
 ALL_V2_MODULES = (rnn_cell_wrapper_v2, batch_normalization, layer_normalization,

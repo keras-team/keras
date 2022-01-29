@@ -22,7 +22,7 @@ from keras import keras_parameterized
 from keras import layers
 from keras import models
 from keras import testing_utils
-from keras.layers import advanced_activations
+from keras.layers import activation
 from keras.layers import attention
 from keras.layers import convolutional
 from keras.layers import convolutional_recurrent
@@ -84,12 +84,12 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
     return model
 
   @parameterized.named_parameters(
-      ('LeakyReLU', advanced_activations.LeakyReLU, (2, 2)),
-      ('PReLU', advanced_activations.PReLU, (2, 2)),
-      ('ELU', advanced_activations.ELU, (2, 2)),
-      ('ThresholdedReLU', advanced_activations.ThresholdedReLU, (2, 2)),
-      ('Softmax', advanced_activations.Softmax, (2, 2)),
-      ('ReLU', advanced_activations.ReLU, (2, 2)),
+      ('LeakyReLU', activation.LeakyReLU, (2, 2)),
+      ('PReLU', activation.PReLU, (2, 2)),
+      ('ELU', activation.ELU, (2, 2)),
+      ('ThresholdedReLU', activation.ThresholdedReLU, (2, 2)),
+      ('Softmax', activation.Softmax, (2, 2)),
+      ('ReLU', activation.ReLU, (2, 2)),
       ('Conv1D', lambda: convolutional.Conv1D(2, 2), (2, 2, 1)),
       ('Conv2D', lambda: convolutional.Conv2D(2, 2), (2, 2, 2, 1)),
       ('Conv3D', lambda: convolutional.Conv3D(2, 2), (2, 2, 2, 2, 1)),

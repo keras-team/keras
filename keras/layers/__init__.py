@@ -49,13 +49,13 @@ from keras.layers.preprocessing.normalization import Normalization
 from keras.layers.preprocessing.string_lookup import StringLookup
 from keras.layers.preprocessing.text_vectorization import TextVectorization
 
-# Advanced activations.
-from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.advanced_activations import PReLU
-from keras.layers.advanced_activations import ELU
-from keras.layers.advanced_activations import ReLU
-from keras.layers.advanced_activations import ThresholdedReLU
-from keras.layers.advanced_activations import Softmax
+# Activations layers.
+from keras.layers.activation.relu import ReLU
+from keras.layers.activation.softmax import Softmax
+from keras.layers.activation.leaky_relu import LeakyReLU
+from keras.layers.activation.prelu import PReLU
+from keras.layers.activation.elu import ELU
+from keras.layers.activation.thresholded_relu import ThresholdedReLU
 
 # Attention layers.
 from keras.layers.attention.multi_head_attention import MultiHeadAttention
