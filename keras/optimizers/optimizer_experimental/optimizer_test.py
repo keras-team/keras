@@ -13,6 +13,7 @@ from keras.optimizers import learning_rate_schedule
 from keras.optimizers.optimizer_experimental import adadelta as adadelta_new
 from keras.optimizers.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizers.optimizer_experimental import adam as adam_new
+from keras.optimizers.optimizer_experimental import adamw as adamw_new
 from keras.optimizers.optimizer_experimental import rmsprop as rmsprop_new
 from keras.optimizers.optimizer_experimental import sgd as sgd_new
 from keras.optimizers.optimizer_v2 import adadelta as adadelta_old
@@ -41,22 +42,29 @@ STRATEGIES = [
 adadelta_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladadelta",
     lambda: adadelta_new.Adadelta(  # pylint: disable=g-long-lambda
-        0.002, use_ema=True, ema_overwrite_frequency=None))
+        0.002,
+        use_ema=True,
+        ema_overwrite_frequency=None))
 adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladagrad", lambda: adagrad_new.Adagrad(0.002))
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladam", lambda: adam_new.Adam(0.002))
+adamw_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "experimentaladamw", lambda: adamw_new.AdamW(0.002, weight_decay=0.004))
 rmsprop_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalrmsprop", lambda: rmsprop_new.RMSprop(0.002))
 sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalsgdaverage",
     lambda: sgd_new.SGD(  # pylint: disable=g-long-lambda
-        0.002, use_ema=True, ema_overwrite_frequency=1))
+        0.002,
+        use_ema=True,
+        ema_overwrite_frequency=1))
 
 OPTIMIZER_FN = [
     adadelta_new_fn,
     adagrad_new_fn,
     adam_new_fn,
+    adamw_new_fn,
     rmsprop_new_fn,
     sgd_new_fn,
 ]
@@ -162,6 +170,13 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(optimizer.iterations, 3)
     with self.assertRaisesRegex(RuntimeError, "Cannot set*"):
       optimizer.iterations = 2
+
+  def testPassingMissingWDError(self):
+    with self.assertRaises(ValueError):
+      _ = adamw_new.AdamW(0.01, weight_decay=None)
+
+    with self.assertRaisesRegex(ValueError, "Missing value of"):
+      _ = adamw_new.AdamW(0.01, weight_decay=None)
 
   def testMovingAverageOptimizer(self):
     optimizer = sgd_new.SGD(
