@@ -4274,6 +4274,8 @@ def get(identifier):
   Raises:
     ValueError: If `identifier` cannot be interpreted.
   """
+  if identifier is None:
+    return None
   if isinstance(identifier, dict):
     return deserialize(identifier)
   elif isinstance(identifier, str):
