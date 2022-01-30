@@ -38,7 +38,7 @@ from keras.engine import sequential
 from keras.feature_column import dense_features
 from keras.feature_column import sequence_feature_column as ksfc
 from keras.layers import core
-from keras.premade.linear import LinearModel
+from keras.premade_models.linear import LinearModel
 from keras.saving import model_config
 from keras.saving import save
 from keras.utils import generic_utils

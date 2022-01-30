@@ -57,7 +57,7 @@ py_library(
         "//keras/legacy_tf_layers:layers",
         "//keras/mixed_precision:mixed_precision_experimental",
         "//keras/optimizer_v2",
-        "//keras/premade",
+        "//keras/premade_models",
         "//keras/preprocessing",
         "//keras/saving",
         "//keras/utils",

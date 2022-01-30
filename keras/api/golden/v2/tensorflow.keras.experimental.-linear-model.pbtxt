@@ -1,6 +1,6 @@
 path: "tensorflow.keras.experimental.LinearModel"
 tf_class {
-  is_instance: "<class \'keras.premade.linear.LinearModel\'>"
+  is_instance: "<class \'keras.premade_models.linear.LinearModel\'>"
   is_instance: "<class \'keras.engine.training.Model\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"

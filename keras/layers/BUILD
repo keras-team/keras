@@ -51,7 +51,7 @@ py_library(
         "//keras/layers/preprocessing",
         "//keras/layers/regularization",
         "//keras/layers/reshaping",
-        "//keras/premade",
+        "//keras/premade_models",
         "//keras/utils:tf_utils",
     ],
 )
