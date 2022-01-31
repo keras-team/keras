@@ -22,7 +22,7 @@ import numpy as np
 from keras import activations
 from keras import backend
 from keras import combinations
-from keras.layers import advanced_activations
+import keras.layers.activation as activation_layers
 from keras.layers import core
 from keras.layers import serialization
 
@@ -58,7 +58,7 @@ class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
       assert fn.__name__ == activation_map[fn_v2_key]
 
   def test_serialization_with_layers(self):
-    activation = advanced_activations.LeakyReLU(alpha=0.1)
+    activation = activation_layers.LeakyReLU(alpha=0.1)
     layer = core.Dense(3, activation=activation)
     config = serialization.serialize(layer)
     # with custom objects
@@ -255,7 +255,7 @@ class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
       activations.get('unknown')
 
     # The following should be possible but should raise a warning:
-    activations.get(advanced_activations.LeakyReLU())
+    activations.get(activation_layers.LeakyReLU())
 
 
 if __name__ == '__main__':

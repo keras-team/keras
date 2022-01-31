@@ -112,7 +112,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
-        "//keras/layers:advanced_activations",
+        "//keras/layers/activation",
         "//keras/utils:engine_utils",
     ],
 )
@@ -283,7 +283,7 @@ tf_py_test(
         "//:expect_scipy_installed",
         "//:expect_tensorflow_installed",
         "//keras/layers",
-        "//keras/layers:advanced_activations",
+        "//keras/layers/activation",
         "//keras/layers/core",
     ],
 )
