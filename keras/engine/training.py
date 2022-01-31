@@ -503,7 +503,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     Args:
         optimizer: String (name of optimizer) or optimizer instance. See
           `tf.keras.optimizers`.
-        loss: Loss function. Maybe be a string (name of loss function), or
+        loss: Loss function. May be a string (name of loss function), or
           a `tf.keras.losses.Loss` instance. See `tf.keras.losses`. A loss
           function is any callable with the signature `loss = fn(y_true,
           y_pred)`, where `y_true` are the ground truth values, and
