@@ -112,8 +112,8 @@ def populate_deserializable_objects():
 
   # Prevent circular dependencies.
   from keras import models  # pylint: disable=g-import-not-at-top
-  from keras.premade.linear import LinearModel  # pylint: disable=g-import-not-at-top
-  from keras.premade.wide_deep import WideDeepModel  # pylint: disable=g-import-not-at-top
+  from keras.premade_models.linear import LinearModel  # pylint: disable=g-import-not-at-top
+  from keras.premade_models.wide_deep import WideDeepModel  # pylint: disable=g-import-not-at-top
   from keras.feature_column.sequence_feature_column import SequenceFeatures  # pylint: disable=g-import-not-at-top
 
   LOCAL.ALL_OBJECTS['Input'] = input_layer.Input

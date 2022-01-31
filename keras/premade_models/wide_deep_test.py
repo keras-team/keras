@@ -25,8 +25,8 @@ from keras.engine import training
 from keras.feature_column import dense_features_v2
 from keras.layers import core
 from keras.optimizer_v2 import gradient_descent
-from keras.premade import linear
-from keras.premade import wide_deep
+from keras.premade_models import linear
+from keras.premade_models import wide_deep
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)

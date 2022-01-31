@@ -14,5 +14,5 @@
 # ==============================================================================
 """Premade Model API."""
 
-from keras.premade import linear
-from keras.premade import wide_deep
+from keras.premade_models import linear
+from keras.premade_models import wide_deep

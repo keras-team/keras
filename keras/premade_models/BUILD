@@ -10,7 +10,7 @@ package(
 )
 
 py_library(
-    name = "premade",
+    name = "premade_models",
     srcs = [
         "__init__.py",
         "linear.py",
@@ -31,7 +31,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 2,
     deps = [
-        ":premade",
+        ":premade_models",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -46,7 +46,7 @@ tf_py_test(
     shard_count = 2,
     srcs_version = "PY3",
     deps = [
-        ":premade",
+        ":premade_models",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

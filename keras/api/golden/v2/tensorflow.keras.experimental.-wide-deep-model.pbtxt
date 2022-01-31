@@ -1,6 +1,6 @@
 path: "tensorflow.keras.experimental.WideDeepModel"
 tf_class {
-  is_instance: "<class \'keras.premade.wide_deep.WideDeepModel\'>"
+  is_instance: "<class \'keras.premade_models.wide_deep.WideDeepModel\'>"
   is_instance: "<class \'keras.engine.training.Model\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
