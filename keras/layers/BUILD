@@ -29,7 +29,6 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        ":advanced_activations",
         ":convolutional_recurrent",
         ":cudnn_recurrent",
         ":einsum_dense",
@@ -41,6 +40,7 @@ py_library(
         ":rnn_cell_wrapper_v2",
         ":wrappers",
         "//keras/feature_column",
+        "//keras/layers/activation",
         "//keras/layers/attention",
         "//keras/layers/convolutional",
         "//keras/layers/core",
@@ -82,22 +82,6 @@ cuda_py_test(
         "//keras:combinations",
         "//keras:testing_utils",
         "//keras/layers",
-    ],
-)
-
-py_library(
-    name = "advanced_activations",
-    srcs = ["advanced_activations.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:base_layer",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:input_spec",
-        "//keras/initializers",
-        "//keras/utils:tf_utils",
     ],
 )
 
@@ -232,18 +216,6 @@ py_library(
         "//keras/utils:generic_utils",
         "//keras/utils:layer_utils",
         "//keras/utils:tf_utils",
-    ],
-)
-
-tf_py_test(
-    name = "advanced_activations_test",
-    size = "medium",
-    srcs = ["advanced_activations_test.py"],
-    python_version = "PY3",
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
     ],
 )
 

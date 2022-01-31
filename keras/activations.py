@@ -17,7 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 from keras import backend
-from keras.layers import advanced_activations
+import keras.layers.activation as activation_layers
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
 from tensorflow.python.util.tf_export import keras_export
@@ -547,8 +547,8 @@ def deserialize(name, custom_objects=None):
   globs = globals()
 
   # only replace missing activations
-  advanced_activations_globs = advanced_activations.get_globals()
-  for key, val in advanced_activations_globs.items():
+  activation_globs = activation_layers.get_globals()
+  for key, val in activation_globs.items():
     if key not in globs:
       globs[key] = val
 
