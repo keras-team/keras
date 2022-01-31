@@ -203,7 +203,7 @@ distribute_py_test(
         "//:expect_absl_installed",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
-        "//keras:metrics",
+        "//keras/metrics",
     ],
 )
 
@@ -436,7 +436,7 @@ distribute_py_test(
     deps = [
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//keras:metrics",
+        "//keras/metrics",
     ],
 )
 
@@ -614,8 +614,8 @@ cuda_py_test(
     ],
     deps = [
         "//:expect_tensorflow_installed",
-        "//keras:metrics",
         "//keras/layers/core",
+        "//keras/metrics",
     ],
 )
 

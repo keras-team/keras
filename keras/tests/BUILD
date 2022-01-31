@@ -246,9 +246,9 @@ tf_py_test(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:metrics",
         "//keras/api:keras_api",
         "//keras/layers/core",
+        "//keras/metrics",
         "//keras/optimizer_v2",
     ],
 )

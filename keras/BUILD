@@ -95,8 +95,8 @@ py_library(
 py_library(
     name = "engine",
     srcs = [
-        ":metrics",
         ":models",
+        "//keras/metrics",
     ],
     srcs_version = "PY3",
     deps = [
@@ -196,27 +196,6 @@ py_library(
 )
 
 py_library(
-    name = "metrics",
-    srcs = [
-        "metrics.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        ":activations",
-        ":backend",
-        ":losses",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/distribute",
-        "//keras/engine:base_layer",
-        "//keras/engine:base_layer_utils",
-        "//keras/utils:generic_utils",
-        "//keras/utils:metrics_utils",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
     name = "models",
     srcs = [
         "models.py",
@@ -224,11 +203,11 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
-        ":metrics",
         ":optimizers",
         "//:expect_tensorflow_installed",
         "//keras/engine",
         "//keras/engine:base_layer",
+        "//keras/metrics",
         "//keras/saving",
         "//keras/utils:generic_utils",
         "//keras/utils:version_utils",
@@ -378,69 +357,6 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/utils:engine_utils",
-    ],
-)
-
-tf_py_test(
-    name = "metrics_functional_test",
-    size = "small",
-    srcs = ["metrics_functional_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":combinations",
-        ":keras",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-tf_py_test(
-    name = "metrics_test",
-    size = "medium",
-    srcs = ["metrics_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    deps = [
-        ":combinations",
-        ":keras",
-        ":metrics",
-        ":testing_utils",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/layers",
-    ],
-)
-
-tf_py_test(
-    name = "metrics_confusion_matrix_test",
-    size = "medium",
-    srcs = ["metrics_confusion_matrix_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    deps = [
-        ":combinations",
-        ":metrics",
-        ":models",
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_scipy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/layers",
-        "//keras/utils:metrics_utils",
-    ],
-)
-
-tf_py_test(
-    name = "metrics_correctness_test",
-    size = "medium",
-    srcs = ["metrics_correctness_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    deps = [
-        ":keras",
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
     ],
 )
 
