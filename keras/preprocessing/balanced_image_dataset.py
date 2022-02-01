@@ -73,7 +73,7 @@ def balanced_image_dataset_from_directory(directory,
   Supported image formats: jpeg, png, bmp, gif.
   Animated gifs are truncated to the first frame.
 
-  Setting repeat to True does not guarantee that every epoch will include all
+  Setting safe_triplet to True does not guarantee that every epoch will include all
   different samples from the dataset. But as sampling is weighted per class, 
   every epoch will include a very high percentage of the dataset and should
   approach 100% as dataset size increases. This however guarantee that both
@@ -178,6 +178,9 @@ def balanced_image_dataset_from_directory(directory,
     - if `color_mode` is `rgba`,
       there are 4 channel in the image tensors.
 
+  Rules regarding samples_per_epoch:
+    - Only valid when safe_triplet is True
+    - Must be divisible by batch_size
   """
   if 'smart_resize' in kwargs:
     crop_to_aspect_ratio = kwargs.pop('smart_resize')
@@ -239,19 +242,25 @@ def balanced_image_dataset_from_directory(directory,
         f'When passing `label_mode="binary"`, there must be exactly 2 '
         f'class_names. Received: class_names={class_names}')
 
+  batch_size = int(num_classes_per_batch * num_images_per_class)
   if not safe_triplet:
     if samples_per_epoch is not None:
       raise ValueError(
-        f'You can only pass `samples_per_epoch` if '
-        f'safe_triplet is set to False '
+        f'You can only pass `samples_per_epoch` if safe_triplet is True'
         f'Received: safe_triplet={safe_triplet}, and '
         f'samples_per_epoch={samples_per_epoch}')
   else:
-    if not isinstance(samples_per_epoch, int) and samples_per_epoch is not None:
+    if not isinstance(samples_per_epoch, (int, type(None))):
       raise ValueError(
-        f'`samples_per_epoch` should only be of '
-        f'type integer. Received type={type(samples_per_epoch)}')
-
+        f'`samples_per_epoch` should only be of type integer. '
+        f'Received type={type(samples_per_epoch)}')
+    elif (isinstance(samples_per_epoch, int) and 
+          samples_per_epoch % batch_size != 0):
+      raise ValueError(
+        f'`samples_per_epoch` must be divisible by batch_size when '
+        f'safe_triplet is True. Received samples_per_epoch={samples_per_epoch}, '
+        f'batch_size={batch_size} and safe_triplet={safe_triplet}'
+      )
   image_paths, labels = dataset_utils.get_training_or_validation_split(
       image_paths, labels, validation_split, subset)
 

@@ -268,8 +268,8 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
     directory = self._prepare_directory(num_classes=2, count=16,
                                         nested_dirs=True)
     dataset = balanced_image_dataset.balanced_image_dataset_from_directory(
-        directory, num_classes_per_batch=2, num_images_per_class=4, image_size=(18, 18), label_mode=None,
-        follow_links=True)
+        directory, num_classes_per_batch=2, num_images_per_class=4, image_size=(18, 18), 
+        label_mode=None, follow_links=True)
     sample_count = 0
     for batch in dataset:
       sample_count += batch.shape[0]
@@ -286,7 +286,8 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
 
     directory = self._prepare_directory(num_classes=2, count=5)
     dataset = balanced_image_dataset.balanced_image_dataset_from_directory(
-        directory, num_classes_per_batch=2, num_images_per_class=2, image_size=(18, 18), crop_to_aspect_ratio=True)
+        directory, num_classes_per_batch=2, num_images_per_class=2, image_size=(18, 18), 
+        crop_to_aspect_ratio=True)
     batch = next(iter(dataset))
     self.assertLen(batch, 2)
     self.assertEqual(batch[0].shape, (4, 18, 18, 3))
@@ -297,11 +298,23 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
 
     directory = self._prepare_directory(num_classes=4, count=4)
     dataset = balanced_image_dataset.balanced_image_dataset_from_directory(
-        directory, num_classes_per_batch=4, num_images_per_class=2, image_size=(18, 18), safe_triplet=True)
+        directory, num_classes_per_batch=4, num_images_per_class=2, image_size=(18, 18), 
+        safe_triplet=True)
     batch = next(iter(dataset))
     self.assertLen(batch, 2)
     self.assertEqual(batch[0].shape, (8, 18, 18, 3))
 
+  def test_balanced_image_dataset_from_directory_samples_per_epoch(self):
+    if PIL is None:
+      return  # Skip test if PIL is not available.
+
+    directory = self._prepare_directory(num_classes=4, count=4)
+    dataset = balanced_image_dataset.balanced_image_dataset_from_directory(
+        directory, num_classes_per_batch=4, num_images_per_class=2, image_size=(18, 18), 
+        safe_triplet=True, samples_per_epoch=800)
+    batch = next(iter(dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8, 18, 18, 3))
 
   def test_balanced_image_dataset_from_directory_errors(self):
     if PIL is None:
@@ -359,6 +372,16 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'must provide a `seed`'):
       _ = balanced_image_dataset.balanced_image_dataset_from_directory(
           directory, validation_split=0.2, subset='training')
+
+    with self.assertRaisesRegex(ValueError, '`samples_per_epoch` must be divisible by batch_size'):
+      _ = balanced_image_dataset.balanced_image_dataset_from_directory(
+        directory, num_classes_per_batch=4, num_images_per_class=2, image_size=(18, 18), 
+        safe_triplet=True, samples_per_epoch=796)
+
+    with self.assertRaisesRegex(ValueError, 'You can only pass `samples_per_epoch` if safe_triplet is True'):
+      _ = balanced_image_dataset.balanced_image_dataset_from_directory(
+        directory, num_classes_per_batch=4, num_images_per_class=2, image_size=(18, 18), 
+        samples_per_epoch=796)
 
 if __name__ == '__main__':
   tf.test.main()
