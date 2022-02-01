@@ -360,18 +360,5 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
       _ = balanced_image_dataset.balanced_image_dataset_from_directory(
           directory, validation_split=0.2, subset='training')
 
-  # def test_balanced_image_dataset_from_directory_not_batched(self):
-  #   if PIL is None:
-  #     return  # Skip test if PIL is not available.
-
-  #   directory = self._prepare_directory(num_classes=2, count=2)
-  #   dataset = balanced_image_dataset.balanced_image_dataset_from_directory(
-  #       directory,
-  #       image_size=(18, 18),
-  #       label_mode=None,
-  #       shuffle=False)
-  #   sample = next(iter(dataset))
-  #   self.assertEqual(len(sample.shape), 3)
-
 if __name__ == '__main__':
   tf.test.main()
