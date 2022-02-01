@@ -31,6 +31,7 @@ py_library(
         "dataset_utils.py",
         "image.py",
         "image_dataset.py",
+        "balanced_image_dataset.py"
     ],
     srcs_version = "PY3",
     deps = [
@@ -102,6 +103,19 @@ tf_py_test(
     name = "image_dataset_test",
     size = "small",
     srcs = ["image_dataset_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":image",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
+
+tf_py_test(
+    name = "balanced_image_dataset_test",
+    size = "small",
+    srcs = ["balanced_image_dataset_test.py"],
     python_version = "PY3",
     deps = [
         ":image",
