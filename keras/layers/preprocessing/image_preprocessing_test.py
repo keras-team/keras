@@ -160,6 +160,30 @@ class ResizingTest(keras_parameterized.TestCase):
       expected_output = np.reshape(expected_output, (2, 2, 1))
       self.assertAllEqual(expected_output, output_image)
 
+  @parameterized.named_parameters(('crop_to_aspect_ratio_false', False),
+                                  ('crop_to_aspect_ratio_true', True))
+  def test_ragged_image(self, crop_to_aspect_ratio):
+    with testing_utils.use_gpu():
+      inputs = tf.ragged.constant([
+          np.ones((8, 8, 1)),
+          np.ones((8, 4, 1)),
+          np.ones((4, 8, 1)),
+          np.ones((2, 2, 1)),
+      ], dtype='float32')
+      layer = image_preprocessing.Resizing(
+          2,
+          2,
+          interpolation='nearest',
+          crop_to_aspect_ratio=crop_to_aspect_ratio)
+      outputs = layer(inputs)
+      expected_output = [[[[1.], [1.]], [[1.], [1.]]],
+                         [[[1.], [1.]], [[1.], [1.]]],
+                         [[[1.], [1.]], [[1.], [1.]]],
+                         [[[1.], [1.]], [[1.], [1.]]]]
+      self.assertIsInstance(outputs, tf.Tensor)
+      self.assertNotIsInstance(outputs, tf.RaggedTensor)
+      self.assertAllEqual(expected_output, outputs)
+
   @testing_utils.run_v2_only
   def test_output_dtypes(self):
     inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
