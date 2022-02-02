@@ -31,6 +31,7 @@ py_library(
         "vgg16.py",
         "vgg19.py",
         "xception.py",
+        "resnet_rs.py",
     ],
     srcs_version = "PY3",
     visibility = ["//visibility:public"],
