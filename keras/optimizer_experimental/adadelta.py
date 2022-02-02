@@ -21,6 +21,7 @@ import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 
+# pylint: disable=g-classes-have-attributes
 @generic_utils.register_keras_serializable()
 @keras_export('keras.optimizers.experimental.Adadelta', v1=[])
 class Adadelta(optimizer.Optimizer):
@@ -39,7 +40,7 @@ class Adadelta(optimizer.Optimizer):
   don't have to set an initial learning rate. In this version, the initial
   learning rate can be set, as in most other Keras optimizers.
 
-  Attributes:
+  Args:
     learning_rate: Initial value for the learning rate:
       either a floating point value,
       or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.

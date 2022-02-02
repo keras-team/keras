@@ -21,6 +21,7 @@ import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 
+# pylint: disable=g-classes-have-attributes
 @generic_utils.register_keras_serializable()
 @keras_export('keras.optimizers.experimental.Adam', v1=[])
 class Adam(optimizer.Optimizer):
@@ -36,7 +37,7 @@ class Adam(optimizer.Optimizer):
   gradients, and is well suited for problems that are large in terms of
   data/parameters*".
 
-  Attributes:
+  Args:
     learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
       `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
       that takes no arguments and returns the actual value to use. The
