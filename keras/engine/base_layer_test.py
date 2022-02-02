@@ -57,6 +57,7 @@ class InvalidLayer(base_layer.Layer):
     raise ValueError('You did something wrong!')
 
 
+@testing_utils.run_v2_only
 class BaseLayerTest(keras_parameterized.TestCase):
 
   @combinations.generate(combinations.keras_mode_combinations())
@@ -1002,6 +1003,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertLen(model.non_trainable_variables, 2)
 
 
+@testing_utils.run_v2_only
 class SymbolicSupportTest(keras_parameterized.TestCase):
 
   def test_using_symbolic_tensors_with_tf_ops(self):
@@ -1127,6 +1129,7 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
       layer(x)
 
 
+@testing_utils.run_v2_only
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
 class NestedTrackingTest(tf.test.TestCase):
 
@@ -1300,6 +1303,7 @@ class NestedTrackingTest(tf.test.TestCase):
     self.assertLen(s.weights, 4)
 
 
+@testing_utils.run_v2_only
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
 class NameScopingTest(keras_parameterized.TestCase):
 
@@ -1430,6 +1434,7 @@ class NameScopingTest(keras_parameterized.TestCase):
     ]
 
 
+@testing_utils.run_v2_only
 @combinations.generate(combinations.keras_mode_combinations(mode=['eager']))
 class AutographControlFlowTest(keras_parameterized.TestCase):
 
@@ -1708,6 +1713,7 @@ class IdentityLayer(base_layer.Layer):
     return inputs
 
 
+@testing_utils.run_v2_only
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
 class DTypeTest(keras_parameterized.TestCase):
 
@@ -1877,5 +1883,4 @@ class DTypeTest(keras_parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_eager_execution()
   tf.test.main()

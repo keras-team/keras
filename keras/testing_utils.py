@@ -14,16 +14,13 @@
 # ==============================================================================
 """Utilities for unit-testing Keras."""
 
-import tensorflow.compat.v2 as tf
 
 import collections
 import contextlib
 import functools
 import itertools
 import threading
-
-import numpy as np
-from tensorflow.python.framework import test_util
+import unittest
 from keras import backend
 from keras import layers
 from keras import models
@@ -37,6 +34,9 @@ from keras.optimizer_v2 import nadam as nadam_v2
 from keras.optimizer_v2 import rmsprop as rmsprop_v2
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.framework import test_util
 
 
 def string_test(actual, expected):
@@ -538,6 +538,11 @@ class _SubclassModel(models.Model):
       x = layer(x)
     return x
 
+  def get_config(self):
+    # This test model relies on the default Keras serialization of a model,
+    # rather than providing the details of `model_layers`.
+    raise NotImplementedError
+
 
 class _SubclassModelCustomBuild(models.Model):
   """A Keras subclass model that uses a custom build method."""
@@ -1005,7 +1010,7 @@ def run_all_without_tensor_float_32(description):  # pylint: disable=unused-argu
   return for_all_test_methods(run_without_tensor_float_32, description)
 
 
-def run_v2_only(func=None):
+def run_v2_only(obj=None):
   """Execute the decorated test only if running in v2 mode.
 
   This function is intended to be applied to tests that exercise v2 only
@@ -1015,28 +1020,28 @@ def run_v2_only(func=None):
   v1/v2/eager/graph combinations.
 
   Args:
-    func: function to be annotated. If `func` is None, this method returns a
-      decorator the can be applied to a function. If `func` is not None this
-      returns the decorator applied to `func`.
+    obj: function to be annotated. If None, return a
+      decorator the can be applied to a function or class. If `obj` is not None,
+      return the decorator applied to `obj`.
 
   Returns:
     Returns a decorator that will conditionally skip the decorated test method.
   """
+  condition = not tf.__internal__.tf2.enabled()
+  reason = 'Test is only compatible with TF v2.'
 
   def decorator(f):
     if tf_inspect.isclass(f):
-      raise ValueError('`run_v2_only` only supports test methods.')
+      return unittest.skipIf(condition=condition, reason=reason)(obj)
 
     def decorated(self, *args, **kwargs):
-      if not tf.__internal__.tf2.enabled():
-        self.skipTest('Test is only compatible with v2')
-
+      if condition:
+        self.skipTest(reason)
       return f(self, *args, **kwargs)
-
     return decorated
 
-  if func is not None:
-    return decorator(func)
+  if obj is not None:
+    return decorator(obj)
 
   return decorator
 

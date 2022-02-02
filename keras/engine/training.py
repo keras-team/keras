@@ -2637,7 +2637,32 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     return model_config
 
   def get_config(self):
-    raise NotImplementedError
+    """Returns the config of the `Model`.
+
+    Config is a Python dictionary (serializable) containing the configuration of
+    an object, which in this case is a `Model`. This allows the `Model` to be
+    be reinstantiated later (without its trained weights) from this
+    configuration.
+
+    Note that `get_config()` does not guarantee to return a fresh copy of dict
+    every time it is called. The callers should make a copy of the returned dict
+    if they want to modify it.
+
+    Developers of subclassed `Model` are advised to override this method, and
+    continue to update the dict from `super(MyModel, self).get_config()`
+    to provide the proper configuration of this `Model`. The default config
+    is an empty dict. Optionally, raise `NotImplementedError` to allow Keras to
+    attempt a default serialization.
+
+    Returns:
+        Python dictionary containing the configuration of this `Model`.
+    """
+
+    # Return an empty dict here because otherwise subclass model developers may
+    # see their model's `__init__()` be fed with unexpected keyword argument, if
+    # their `__init__()` takes no argument for example, and they don't override
+    # `from_config()`, which would use `cls(**config)` as a result.
+    return {}
 
   @classmethod
   def from_config(cls, config, custom_objects=None):
@@ -2647,14 +2672,32 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # `cls(...)` instead of `Functional.from_config`.
     from keras.engine import functional  # pylint: disable=g-import-not-at-top
     with generic_utils.SharedObjectLoadingScope():
-      input_tensors, output_tensors, created_layers = (
-          functional.reconstruct_from_config(config, custom_objects))
-      # Initialize a model belonging to `cls`, which can be user-defined or
-      # `Functional`.
-      model = cls(inputs=input_tensors, outputs=output_tensors,
-                  name=config.get('name'))
-      functional.connect_ancillary_layers(model, created_layers)
-      return model
+      functional_model_keys = [
+          'name', 'layers', 'input_layers', 'output_layers'
+      ]
+      if all(key in config for key in functional_model_keys):
+        inputs, outputs, layers = functional.reconstruct_from_config(
+            config, custom_objects)
+        model = cls(inputs=inputs, outputs=outputs, name=config.get('name'))
+        functional.connect_ancillary_layers(model, layers)
+        return model
+
+      # The config does not contain all the information necessary to revive a
+      # Functional model. This happens when the user creates subclassed models
+      # where `get_config()` is returning insufficient information to be
+      # considered a Functional model. In this case, we fall back to provide
+      # all config into the constructor of the class.
+      try:
+        return cls(**config)
+      except TypeError as e:
+        raise TypeError('Unable to revive model from config. When overriding '
+                        'the `get_config()`, make sure that the returned '
+                        'config contains all items used as arguments in the '
+                        f'constructor to {cls}, which is the default behavior. '
+                        'You can override this default behavior by defining a '
+                        '`from_config` method to specify how to create an '
+                        f'instance of {cls.__name__} from the config. \n\n'
+                        f'Error encountered during deserialization:\n{e}')
 
   def to_json(self, **kwargs):
     """Returns a JSON string containing the network configuration.

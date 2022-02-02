@@ -19,6 +19,7 @@ import os
 
 from absl import flags
 from keras import callbacks
+from keras import testing_utils
 from keras.distribute import distribute_strategy_test
 from keras.engine import base_layer
 from keras.engine import sequential as sequential_model_lib
@@ -153,11 +154,11 @@ def mnist_model(input_shape, enable_histograms=True):
   return model
 
 
+@testing_utils.run_v2_only
 class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
 
   def setUp(self):
     super(AutoOutsideCompilationWithKerasTest, self).setUp()
-    tf.compat.v1.enable_v2_behavior()
     set_soft_device_placement(True)
     self.summary_dir = self.get_temp_dir()
 
@@ -286,5 +287,4 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_eager_execution()
   tf.test.main()

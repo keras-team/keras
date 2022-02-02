@@ -24,6 +24,7 @@ from absl.testing import parameterized
 import numpy as np
 from keras import keras_parameterized
 from keras import layers
+from keras import testing_utils
 from keras.engine import sequential
 from keras.preprocessing import image as preprocessing_image
 
@@ -51,6 +52,7 @@ def _generate_test_images():
   return [rgb_images, gray_images]
 
 
+@testing_utils.run_v2_only
 class TestImage(keras_parameterized.TestCase):
 
   def test_smart_resize(self):
@@ -443,5 +445,4 @@ class TestImage(keras_parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_v2_behavior()
   tf.test.main()

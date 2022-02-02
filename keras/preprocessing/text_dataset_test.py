@@ -21,9 +21,11 @@ import random
 import shutil
 import string
 from keras import keras_parameterized
+from keras import testing_utils
 from keras.preprocessing import text_dataset
 
 
+@testing_utils.run_v2_only
 class TextDatasetFromDirectoryTest(keras_parameterized.TestCase):
 
   def _prepare_directory(self,
@@ -258,5 +260,4 @@ class TextDatasetFromDirectoryTest(keras_parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_v2_behavior()
   tf.test.main()

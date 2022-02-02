@@ -20,6 +20,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 from keras import keras_parameterized
 from keras import layers
+from keras import testing_utils
 from keras.engine import keras_tensor
 from keras.engine import training
 
@@ -46,6 +47,7 @@ class CustomTypeSpec2(CustomTypeSpec):
     return CustomTypeSpec2(new_shape, self.dtype)
 
 
+@testing_utils.run_v2_only
 class KerasTensorTest(keras_parameterized.TestCase):
 
   def test_repr_and_string(self):
@@ -218,6 +220,4 @@ class KerasTensorTest(keras_parameterized.TestCase):
 
 
 if __name__ == "__main__":
-  tf.compat.v1.enable_eager_execution()
-  tf.compat.v1.enable_v2_tensorshape()
   tf.test.main()

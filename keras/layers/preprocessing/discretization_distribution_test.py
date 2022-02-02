@@ -18,6 +18,7 @@
 
 import keras
 from keras import keras_parameterized
+from keras import testing_utils
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import discretization
 from keras.layers.preprocessing import preprocessing_test_utils
@@ -25,6 +26,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 
+@testing_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
@@ -56,5 +58,4 @@ class DiscretizationDistributionTest(
 
 
 if __name__ == "__main__":
-  tf.compat.v1.enable_v2_behavior()
   tf.__internal__.distribute.multi_process_runner.test_main()

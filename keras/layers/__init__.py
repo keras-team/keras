@@ -49,13 +49,18 @@ from keras.layers.preprocessing.normalization import Normalization
 from keras.layers.preprocessing.string_lookup import StringLookup
 from keras.layers.preprocessing.text_vectorization import TextVectorization
 
-# Advanced activations.
-from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.advanced_activations import PReLU
-from keras.layers.advanced_activations import ELU
-from keras.layers.advanced_activations import ReLU
-from keras.layers.advanced_activations import ThresholdedReLU
-from keras.layers.advanced_activations import Softmax
+# Activations layers.
+from keras.layers.activation.relu import ReLU
+from keras.layers.activation.softmax import Softmax
+from keras.layers.activation.leaky_relu import LeakyReLU
+from keras.layers.activation.prelu import PReLU
+from keras.layers.activation.elu import ELU
+from keras.layers.activation.thresholded_relu import ThresholdedReLU
+
+# Attention layers.
+from keras.layers.attention.multi_head_attention import MultiHeadAttention
+from keras.layers.attention.attention import Attention
+from keras.layers.attention.additive_attention import AdditiveAttention
 
 # Convolution layers.
 from keras.layers.convolutional.conv1d import Conv1D
@@ -115,22 +120,15 @@ from keras.layers.core.tf_op_layer import InstanceProperty
 from keras.layers.core.tf_op_layer import SlicingOpLambda
 from keras.layers.core.tf_op_layer import TFOpLambda
 
-# Dense Attention layers.
-from keras.layers.dense_attention import AdditiveAttention
-from keras.layers.dense_attention import Attention
-
 # Embedding layers.
 from keras.layers.embeddings import Embedding
 
 # Einsum-based dense layer/
 from keras.layers.einsum_dense import EinsumDense
 
-# Multi-head Attention layer.
-from keras.layers.multi_head_attention import MultiHeadAttention
-
 # Locally-connected layers.
-from keras.layers.local import LocallyConnected1D
-from keras.layers.local import LocallyConnected2D
+from keras.layers.locally_connected.locally_connected1d import LocallyConnected1D
+from keras.layers.locally_connected.locally_connected2d import LocallyConnected2D
 
 # Merging layers.
 from keras.layers.merging.add import Add

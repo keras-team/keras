@@ -30,6 +30,7 @@ except ImportError:
   h5py = None
 
 
+@testing_utils.run_v2_only
 class TestDeferredSequential(keras_parameterized.TestCase):
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -213,5 +214,4 @@ def get_model():
 
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_v2_behavior()
   tf.test.main()
