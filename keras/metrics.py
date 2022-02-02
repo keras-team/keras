@@ -4152,19 +4152,27 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
   Returns:
     Sparse top K categorical accuracy value.
   """
+  reshape_matches = False
   y_pred_rank = tf.convert_to_tensor(y_pred).shape.ndims
-  y_true_rank = tf.convert_to_tensor(y_true).shape.ndims
+  y_true_org_shape = tf.convert_to_tensor(y_true).shape
+  y_true_rank = y_true_org_shape.ndims
   # Flatten y_pred to (batch_size, num_samples) and y_true to (num_samples,)
   if (y_true_rank is not None) and (y_pred_rank is not None):
     if y_pred_rank > 2:
       y_pred = tf.reshape(y_pred, [-1, y_pred.shape[-1]])
     if y_true_rank > 1:
+      reshape_matches = True
       y_true = tf.reshape(y_true, [-1])
 
-  return tf.cast(
-      tf.math.in_top_k(
-          predictions=y_pred, targets=tf.cast(y_true, 'int32'), k=k),
-      dtype=backend.floatx())
+  matches = tf.cast(tf.math.in_top_k(
+                      predictions=y_pred, targets=tf.cast(y_true, 'int32'), k=k),
+                      dtype=backend.floatx())
+  
+  # returned matches is expected to have same shape as y_true input
+  if reshape_matches:
+    return tf.reshape(matches, shape=y_true_org_shape)
+
+  return matches
 
 
 def cosine_proximity(y_true, y_pred, axis=-1):
