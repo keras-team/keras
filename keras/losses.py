@@ -1467,7 +1467,7 @@ def _ragged_tensor_mae(y_true, y_pred):
               'keras.losses.mape', 'keras.losses.MAPE')
 @tf.__internal__.dispatch.add_dispatch_support
 def mean_absolute_percentage_error(y_true, y_pred):
-  """Computes the mean absolute percentage error between `y_true` and `y_pred`.
+  """Computes the mean absolute percentage error between labels and predictions.
 
   `loss = 100 * mean(abs((y_true - y_pred) / y_true), axis=-1)`
 
@@ -1511,7 +1511,7 @@ def _ragged_tensor_mape(y_true, y_pred):
               'keras.losses.msle', 'keras.losses.MSLE')
 @tf.__internal__.dispatch.add_dispatch_support
 def mean_squared_logarithmic_error(y_true, y_pred):
-  """Computes the mean squared logarithmic error between `y_true` and `y_pred`.
+  """Computes the mean squared logarithmic error between labels and predictions.
 
   `loss = mean(square(log(y_true + 1) - log(y_pred + 1)), axis=-1)`
 
