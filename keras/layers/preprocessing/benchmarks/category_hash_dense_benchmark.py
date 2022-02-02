@@ -21,9 +21,6 @@ from tensorflow.python.eager.def_function import function as tf_function
 from keras.layers.preprocessing import hashing
 from keras.layers.preprocessing.benchmarks import feature_column_benchmark as fc_bm
 
-# This is required as of 3/2021 because otherwise we drop into graph mode.
-tf.compat.v1.enable_v2_behavior()
-
 NUM_REPEATS = 10
 BATCH_SIZES = [32, 256]
 

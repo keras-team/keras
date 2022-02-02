@@ -20,9 +20,11 @@ from absl.testing import parameterized
 import numpy as np
 from keras import keras_parameterized
 from keras import layers
+from keras import testing_utils
 from keras.engine import training
 
 
+@testing_utils.run_v2_only
 class RaggedKerasTensorTest(keras_parameterized.TestCase):
 
   @parameterized.parameters(
@@ -179,6 +181,7 @@ class RaggedKerasTensorTest(keras_parameterized.TestCase):
       self.assertAllEqual(a, b)
 
 
+@testing_utils.run_v2_only
 class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
 
   def test_from_value_rowids(self):
@@ -372,6 +375,4 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_eager_execution()
-  tf.compat.v1.enable_v2_tensorshape()
   tf.test.main()

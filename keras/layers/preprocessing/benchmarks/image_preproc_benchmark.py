@@ -24,8 +24,6 @@ import numpy as np
 import keras
 from keras.layers.preprocessing import image_preprocessing
 
-tf.compat.v1.enable_v2_behavior()
-
 LOWER = .2
 UPPER = .4
 BATCH_SIZE = 32

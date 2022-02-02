@@ -26,6 +26,7 @@ def squared_l2_norm(x):
   return tf.reduce_sum(x ** 2)
 
 
+@testing_utils.run_v2_only
 class UnitNormalizationTest(keras_parameterized.TestCase):
 
   @keras_parameterized.run_all_keras_modes
@@ -74,5 +75,4 @@ class UnitNormalizationTest(keras_parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_v2_behavior()
   tf.test.main()

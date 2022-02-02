@@ -25,9 +25,6 @@ import numpy as np
 
 import keras
 
-# This is required as of 3/2021 because otherwise we drop into graph mode.
-tf.compat.v1.enable_v2_behavior()
-
 
 class LayerBenchmark(tf.test.Benchmark):
   """Benchmark the layer forward pass."""

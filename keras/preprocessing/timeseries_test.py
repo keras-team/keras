@@ -17,9 +17,11 @@
 import tensorflow.compat.v2 as tf
 
 import numpy as np
+from keras import testing_utils
 from keras.preprocessing import timeseries
 
 
+@testing_utils.run_v2_only
 class TimeseriesDatasetTest(tf.test.TestCase):
 
   def test_basics(self):
@@ -183,5 +185,4 @@ class TimeseriesDatasetTest(tf.test.TestCase):
     self.assertEqual(len(sample.shape), 1)
 
 if __name__ == '__main__':
-  tf.compat.v1.enable_v2_behavior()
   tf.test.main()

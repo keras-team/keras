@@ -17,6 +17,7 @@
 
 import keras
 from keras import keras_parameterized
+from keras import testing_utils
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import normalization
 from keras.layers.preprocessing import preprocessing_test_utils
@@ -89,6 +90,7 @@ def _get_layer_computation_test_cases():
   return crossed_test_cases
 
 
+@testing_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.times(
         tf.__internal__.test.combinations.combine(
@@ -119,5 +121,4 @@ class NormalizationTest(keras_parameterized.TestCase,
 
 
 if __name__ == "__main__":
-  tf.compat.v1.enable_v2_behavior()
   tf.__internal__.distribute.multi_process_runner.test_main()

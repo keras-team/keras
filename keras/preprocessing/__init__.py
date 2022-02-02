@@ -13,17 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 """Provides keras data preprocessing utils to pre-process tf.data.Datasets before they are fed to the model."""
-# pylint: disable=g-import-not-at-top
-# TODO(mihaimaruseac): remove the import of keras_preprocessing and injecting
-# once we update to latest version of keras_preprocessing
-import keras_preprocessing
-
 from keras import backend
 from keras.preprocessing import image
 from keras.preprocessing import sequence
 from keras.preprocessing import text
 from keras.preprocessing import timeseries
 from keras.utils import all_utils as utils
-
-# This exists for compatibility with prior version of keras_preprocessing.
-keras_preprocessing.set_keras_submodules(backend=backend, utils=utils)

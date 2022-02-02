@@ -6,11 +6,11 @@ tf_module {
   }
   member_method {
     name: "hashing_trick"
-    argspec: "args=[\'text\', \'n\', \'hash_function\', \'filters\', \'lower\', \'split\'], varargs=None, keywords=None, defaults=[\'None\', \'!\"#$%&()*+,-./:;<=>?@[\\\\]^_`{|}~\\t\\n\', \'True\', \' \'], "
+    argspec: "args=[\'text\', \'n\', \'hash_function\', \'filters\', \'lower\', \'split\', \'analyzer\'], varargs=None, keywords=None, defaults=[\'None\', \'!\"#$%&()*+,-./:;<=>?@[\\\\]^_`{|}~\\t\\n\', \'True\', \' \', \'None\'], "
   }
   member_method {
     name: "one_hot"
-    argspec: "args=[\'input_text\', \'n\', \'filters\', \'lower\', \'split\'], varargs=None, keywords=None, defaults=[\'!\"#$%&()*+,-./:;<=>?@[\\\\]^_`{|}~\\t\\n\', \'True\', \' \'], "
+    argspec: "args=[\'input_text\', \'n\', \'filters\', \'lower\', \'split\', \'analyzer\'], varargs=None, keywords=None, defaults=[\'!\"#$%&()*+,-./:;<=>?@[\\\\]^_`{|}~\\t\\n\', \'True\', \' \', \'None\'], "
   }
   member_method {
     name: "text_to_word_sequence"

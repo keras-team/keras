@@ -1,7 +1,7 @@
 path: "tensorflow.keras.layers.AdditiveAttention"
 tf_class {
-  is_instance: "<class \'keras.layers.dense_attention.AdditiveAttention\'>"
-  is_instance: "<class \'keras.layers.dense_attention.BaseDenseAttention\'>"
+  is_instance: "<class \'keras.layers.attention.additive_attention.AdditiveAttention\'>"
+  is_instance: "<class \'keras.layers.attention.base_dense_attention.BaseDenseAttention\'>"
   is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"

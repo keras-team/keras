@@ -20,6 +20,7 @@ import tensorflow.compat.v2 as tf
 import time
 
 import keras
+from keras import testing_utils
 from tensorflow.python.distribute import multi_worker_test_base
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from tensorflow.python.ops import resource_variable_ops
@@ -87,6 +88,7 @@ class MeanMetricAsCompositeTensor(keras.metrics.Mean,
     return KerasMetricTypeSpec(self.__class__, self.get_config(), self.weights)
 
 
+@testing_utils.run_v2_only
 class EvaluationTest(tf.test.TestCase):
 
   @classmethod
@@ -183,5 +185,4 @@ class EvaluationTest(tf.test.TestCase):
 
 
 if __name__ == "__main__":
-  tf.compat.v1.enable_v2_behavior()
   tf.__internal__.distribute.multi_process_runner.test_main()

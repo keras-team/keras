@@ -1,4 +1,4 @@
-# Copyright 2019 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Premade Model API."""
+"""Layers that act as activation functions."""
+# pylint: disable=g-bad-import-order
 
-from keras.premade import linear
-from keras.premade import wide_deep
+from keras.layers.activation.relu import ReLU
+from keras.layers.activation.softmax import Softmax
+from keras.layers.activation.leaky_relu import LeakyReLU
+from keras.layers.activation.prelu import PReLU
+from keras.layers.activation.elu import ELU
+from keras.layers.activation.thresholded_relu import ThresholdedReLU
+
+
+def get_globals():
+  return globals()

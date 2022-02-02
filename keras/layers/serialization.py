@@ -21,17 +21,16 @@ import threading
 from keras.engine import base_layer
 from keras.engine import input_layer
 from keras.engine import input_spec
-from keras.layers import advanced_activations
+from keras.layers import activation
+from keras.layers import attention
 from keras.layers import convolutional
 from keras.layers import convolutional_recurrent
 from keras.layers import core
 from keras.layers import cudnn_recurrent
-from keras.layers import dense_attention
 from keras.layers import einsum_dense
 from keras.layers import embeddings
-from keras.layers import local
+from keras.layers import locally_connected
 from keras.layers import merging
-from keras.layers import multi_head_attention
 from keras.layers import noise
 from keras.layers import pooling
 from keras.layers import recurrent
@@ -58,14 +57,14 @@ from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
 from tensorflow.python.util.tf_export import keras_export
 
-ALL_MODULES = (base_layer, input_layer, advanced_activations, convolutional,
-               convolutional_recurrent, core, cudnn_recurrent, dense_attention,
-               embeddings, einsum_dense, local, merging, batch_normalization_v1,
+ALL_MODULES = (base_layer, input_layer, activation, attention, convolutional,
+               convolutional_recurrent, core, cudnn_recurrent, embeddings,
+               einsum_dense, locally_connected, merging, batch_normalization_v1,
                layer_normalization, unit_normalization, pooling,
                image_preprocessing, recurrent, regularization, reshaping,
                wrappers, hashing, hashed_crossing, category_encoding,
-               discretization, multi_head_attention, integer_lookup,
-               preprocessing_normalization, string_lookup, text_vectorization)
+               discretization, integer_lookup, preprocessing_normalization,
+               string_lookup, text_vectorization)
 ALL_V2_MODULES = (rnn_cell_wrapper_v2, batch_normalization, layer_normalization,
                   recurrent_v2)
 # ALL_OBJECTS is meant to be a global mutable. Hence we need to make it
@@ -113,8 +112,8 @@ def populate_deserializable_objects():
 
   # Prevent circular dependencies.
   from keras import models  # pylint: disable=g-import-not-at-top
-  from keras.premade.linear import LinearModel  # pylint: disable=g-import-not-at-top
-  from keras.premade.wide_deep import WideDeepModel  # pylint: disable=g-import-not-at-top
+  from keras.premade_models.linear import LinearModel  # pylint: disable=g-import-not-at-top
+  from keras.premade_models.wide_deep import WideDeepModel  # pylint: disable=g-import-not-at-top
   from keras.feature_column.sequence_feature_column import SequenceFeatures  # pylint: disable=g-import-not-at-top
 
   LOCAL.ALL_OBJECTS['Input'] = input_layer.Input

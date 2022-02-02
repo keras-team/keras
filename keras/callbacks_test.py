@@ -14,7 +14,6 @@
 # ==============================================================================
 """Tests for Keras callbacks."""
 
-import tensorflow.compat.v2 as tf
 
 import collections
 import csv
@@ -29,7 +28,6 @@ import unittest
 from unittest import mock
 
 from absl.testing import parameterized
-import numpy as np
 import keras
 from keras import keras_parameterized
 from keras import testing_utils
@@ -42,6 +40,8 @@ from keras.optimizer_v2 import gradient_descent
 from keras.optimizer_v2 import learning_rate_schedule
 from keras.utils import io_utils
 from keras.utils import np_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 
 try:
@@ -3214,6 +3214,10 @@ class SummaryOpsTest(tf.test.TestCase):
       def call(self, inputs):
         x = self.dense(inputs)
         return self.activation(x)
+
+      # Intentionally erroring out at json serialization to test the warning.
+      def get_config(self):
+        raise NotImplementedError
 
     model = SimpleSubclass()
     with tf.compat.v1.test.mock.patch.object(logging, 'warning') as mock_log:

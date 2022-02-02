@@ -22,9 +22,6 @@ from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import string_lookup
 from keras.layers.preprocessing.benchmarks import feature_column_benchmark as fc_bm
 
-# This is required as of 3/2021 because otherwise we drop into graph mode.
-tf.compat.v1.enable_v2_behavior()
-
 NUM_REPEATS = 10
 BATCH_SIZES = [32, 256]
 
