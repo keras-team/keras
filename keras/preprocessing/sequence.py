@@ -218,7 +218,8 @@ class TimeseriesGenerator(data_utils.Sequence):
     return json.dumps(timeseries_generator_config, **kwargs)
 
 
-@keras_export('keras.preprocessing.sequence.pad_sequences')
+@keras_export('keras.utils.pad_sequences',
+              'keras.preprocessing.sequence.pad_sequences')
 def pad_sequences(sequences, maxlen=None, dtype='int32',
                   padding='pre', truncating='pre', value=0.):
   """Pads sequences to the same length.

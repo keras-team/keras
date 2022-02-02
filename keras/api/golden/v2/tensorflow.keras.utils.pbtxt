@@ -101,6 +101,10 @@ tf_module {
     argspec: "args=[\'x\', \'y\', \'sample_weight\'], varargs=None, keywords=None, defaults=[\'None\', \'None\'], "
   }
   member_method {
+    name: "pad_sequences"
+    argspec: "args=[\'sequences\', \'maxlen\', \'dtype\', \'padding\', \'truncating\', \'value\'], varargs=None, keywords=None, defaults=[\'None\', \'int32\', \'pre\', \'pre\', \'0.0\'], "
+  }
+  member_method {
     name: "plot_model"
     argspec: "args=[\'model\', \'to_file\', \'show_shapes\', \'show_dtype\', \'show_layer_names\', \'rankdir\', \'expand_nested\', \'dpi\', \'layer_range\', \'show_layer_activations\'], varargs=None, keywords=None, defaults=[\'model.png\', \'False\', \'False\', \'True\', \'TB\', \'False\', \'96\', \'None\', \'False\'], "
   }
