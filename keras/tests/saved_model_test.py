@@ -17,7 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 import os
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from keras.layers import core
 from keras.optimizers.optimizer_v2 import adam
 
@@ -47,7 +47,7 @@ class MemoryTests(tf.test.TestCase):
     super(MemoryTests, self).setUp()
     self._model = _ModelWithOptimizerUsingDefun()
 
-  @test_util.assert_no_garbage_created
+  @tf_test_utils.assert_no_garbage_created
   def DISABLED_test_no_reference_cycles(self):
     x = tf.constant([[3., 4.]])
     y = tf.constant([2.])

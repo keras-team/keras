@@ -15,14 +15,14 @@
 """Tests BaseDenseAttention layer."""
 
 from absl.testing import parameterized
-from keras import combinations
 from keras.layers.attention.base_dense_attention import _lower_triangular_mask
 from keras.layers.attention.base_dense_attention import BaseDenseAttention
+from keras.testing_infra import test_combinations
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BaseDenseAttentionTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_one_dim_with_mask(self):
@@ -148,7 +148,7 @@ class BaseDenseAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(expected_shape, tf.shape(actual))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class LowerTriangularMaskTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_square_shape(self):

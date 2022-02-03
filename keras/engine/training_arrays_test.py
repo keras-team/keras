@@ -23,16 +23,16 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from tensorflow.python.framework import test_util
-from keras import keras_parameterized
-from keras import testing_utils
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.layers import core
 from keras.utils import io_utils
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
-class ValidationDatasetNoLimitTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class ValidationDatasetNoLimitTest(test_combinations.TestCase):
 
   def create_dataset(self, num_samples, batch_size):
     input_data = np.random.rand(num_samples, 1)
@@ -44,7 +44,7 @@ class ValidationDatasetNoLimitTest(keras_parameterized.TestCase):
   def test_validation_dataset_with_no_step_arg(self):
     # Create a model that learns y=Mx.
     layers = [core.Dense(1)]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(1,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(1,))
     model.compile(loss="mse", optimizer="adam", metrics=["mean_absolute_error"])
 
     train_dataset = self.create_dataset(num_samples=200, batch_size=10)
@@ -60,10 +60,10 @@ class ValidationDatasetNoLimitTest(keras_parameterized.TestCase):
                            evaluation[-1], places=5)
 
 
-class PrintTrainingInfoTest(keras_parameterized.TestCase,
+class PrintTrainingInfoTest(test_combinations.TestCase,
                             parameterized.TestCase):
 
-  @test_util.run_v1_only("Only relevant in graph mode.")
+  @tf_test_utils.run_v1_only("Only relevant in graph mode.")
   def test_print_info_with_datasets(self):
     """Print training info should work with val datasets (b/133391839)."""
 
@@ -86,7 +86,7 @@ class PrintTrainingInfoTest(keras_parameterized.TestCase,
 
   @parameterized.named_parameters(
       ("with_validation", True), ("without_validation", False))
-  @test_util.run_v1_only("Only relevant in graph mode.")
+  @tf_test_utils.run_v1_only("Only relevant in graph mode.")
   def test_print_info_with_numpy(self, do_validation):
     """Print training info should work with val datasets (b/133391839)."""
 
@@ -109,7 +109,7 @@ class PrintTrainingInfoTest(keras_parameterized.TestCase,
     if do_validation:
       self.assertIn(", validate on 50 samples", mock_stdout.getvalue())
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_dict_float64_input(self):
 
     class MyModel(keras.Model):
@@ -131,7 +131,7 @@ class PrintTrainingInfoTest(keras_parameterized.TestCase,
     model.compile(
         loss="mae",
         optimizer="adam",
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     model.fit(
         x={

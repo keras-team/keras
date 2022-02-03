@@ -18,12 +18,12 @@ import builtins
 from pathlib import Path
 import sys
 
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras.utils import io_utils
 import tensorflow.compat.v2 as tf
 
 
-class TestIOUtils(keras_parameterized.TestCase):
+class TestIOUtils(test_combinations.TestCase):
 
   def test_ask_to_proceed_with_overwrite(self):
     with tf.compat.v1.test.mock.patch.object(builtins, 'input') as mock_log:

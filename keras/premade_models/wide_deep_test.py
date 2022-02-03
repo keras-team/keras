@@ -17,8 +17,8 @@
 import tensorflow.compat.v2 as tf
 
 import numpy as np
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
@@ -29,8 +29,8 @@ from keras.premade_models import linear
 from keras.premade_models import wide_deep
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class WideDeepModelTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class WideDeepModelTest(test_combinations.TestCase):
 
   def test_wide_deep_model(self):
     linear_model = linear.LinearModel(units=1)
@@ -44,7 +44,7 @@ class WideDeepModelTest(keras_parameterized.TestCase):
         optimizer=['sgd', 'adam'],
         loss='mse',
         metrics=[],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     wide_deep_model.fit(inputs, output, epochs=5)
     self.assertTrue(wide_deep_model.built)
 
@@ -64,7 +64,7 @@ class WideDeepModelTest(keras_parameterized.TestCase):
           optimizer=[linear_opt, dnn_opt],
           loss='mse',
           metrics=[],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       self.evaluate(tf.compat.v1.global_variables_initializer())
       wide_deep_model.fit(inputs, output, epochs=1)
       self.assertAllClose(
@@ -84,7 +84,7 @@ class WideDeepModelTest(keras_parameterized.TestCase):
         optimizer=['sgd', 'adam'],
         loss='mse',
         metrics=[],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     wide_deep_model.fit(inputs, output, epochs=5)
 
   def test_wide_deep_model_with_multi_outputs(self):
@@ -123,7 +123,7 @@ class WideDeepModelTest(keras_parameterized.TestCase):
         optimizer='sgd',
         loss='mse',
         metrics=[],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     wide_deep_model.fit(inputs, output, epochs=5)
     self.assertTrue(wide_deep_model.built)
 
@@ -147,7 +147,7 @@ class WideDeepModelTest(keras_parameterized.TestCase):
         optimizer='sgd',
         loss='mse',
         metrics=[],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit([linear_input_np, dnn_input_np, input_b_np], output_np, epochs=5)
 
   def test_wide_deep_model_with_sub_model_trained(self):
@@ -164,19 +164,19 @@ class WideDeepModelTest(keras_parameterized.TestCase):
         optimizer='sgd',
         loss='mse',
         metrics=[],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     dnn_model.compile(
         optimizer='adam',
         loss='mse',
         metrics=[],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     linear_model.fit(linear_inp, output, epochs=50)
     dnn_model.fit(dnn_inp, output, epochs=50)
     wide_deep_model.compile(
         optimizer=['sgd', 'adam'],
         loss='mse',
         metrics=[],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     wide_deep_model.fit(inputs, output, epochs=50)
 
   # This test is an example for cases where linear and dnn model accepts
@@ -204,7 +204,7 @@ class WideDeepModelTest(keras_parameterized.TestCase):
     combined.compile(
         opt,
         'mse', [],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     combined.fit(x={'symbol': data}, y=y, batch_size=32, epochs=10)
 
   # This test is an example for cases where linear and dnn model accepts
@@ -237,7 +237,7 @@ class WideDeepModelTest(keras_parameterized.TestCase):
     wide_deep_model.compile(
         opt,
         'mse', [],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     wide_deep_model.fit(x={'symbol': data}, y=y, batch_size=32, epochs=10)
 
   def test_config(self):

@@ -24,10 +24,9 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras.optimizers import optimizer_v1
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.engine import training
 from keras.saving import hdf5_format
 
@@ -37,7 +36,7 @@ except ImportError:
   h5py = None
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
 
   def _save_model_dir(self, dirname='saved_model'):
@@ -45,10 +44,10 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
     self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
     return os.path.join(temp_dir, dirname)
 
-  @keras_parameterized.run_with_all_weight_formats
+  @test_combinations.run_with_all_weight_formats
   def test_weight_loading(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     with self.cached_session():
       a = keras.layers.Input(shape=(2,))
       x = keras.layers.Dense(3)(a)
@@ -227,10 +226,10 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
 
       self.assertAllClose(y, ref_y)
 
-  @keras_parameterized.run_with_all_saved_model_formats(
+  @test_combinations.run_with_all_saved_model_formats(
       exclude_formats=['tf_no_traces'])
   def test_nested_model_weight_loading(self):
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     saved_model_dir = self._save_model_dir()
 
     batch_size = 5
@@ -347,27 +346,27 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose([3.5] * num_classes,
                           keras.backend.get_value(model.layers[1].bias))
 
-  @keras_parameterized.run_with_all_saved_model_formats(
+  @test_combinations.run_with_all_saved_model_formats(
       exclude_formats=['tf_no_traces'])
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_load_weights_from_saved_model(self):
     save_path = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
 
-    if save_format == 'h5' and testing_utils.get_model_type() == 'subclass':
+    if save_format == 'h5' and test_utils.get_model_type() == 'subclass':
       # TODO(b/173646281): HDF5 format currently does not allow saving
       # subclassed models.
       return
 
     with self.cached_session():
-      model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+      model = test_utils.get_small_mlp(1, 4, input_dim=3)
       data = np.random.random((1, 3))
       labels = np.random.random((1, 4))
       model.compile(loss='mse', optimizer='rmsprop')
       model.fit(data, labels)
       model.save(save_path, save_format=save_format)
-      new_model = testing_utils.get_small_mlp(1, 4, input_dim=3)
-      if testing_utils.get_model_type() == 'subclass':
+      new_model = test_utils.get_small_mlp(1, 4, input_dim=3)
+      if test_utils.get_model_type() == 'subclass':
         # Call on test data to build the model.
         new_model.predict(data)
       new_model.load_weights(save_path)
@@ -387,7 +386,8 @@ class SubclassedModel(training.Model):
 
 class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_tensorflow_format_overwrite(self):
     with self.cached_session() as session:
       model = SubclassedModel()
@@ -492,7 +492,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
       load_model.train_on_batch(train_x, train_y)
       self.assertAllClose(ref_y_after_train, self.evaluate(load_model(x)))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_weight_loading_graph_model(self):
     def _make_graph_model():
       a = keras.layers.Input(shape=(2,))
@@ -502,7 +503,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
 
     self._weight_loading_test_template(_make_graph_model)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_weight_loading_subclassed_model(self):
     self._weight_loading_test_template(SubclassedModel)
 
@@ -540,7 +542,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
       y = self.evaluate(model(x))
       self.assertAllClose(ref_y, y)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_weight_loading_graph_model_added_layer(self):
     def _save_graph_model():
       a = keras.layers.Input(shape=(2,))
@@ -557,7 +560,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
     self._new_layer_weight_loading_test_template(
         _save_graph_model, _restore_graph_model)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_weight_loading_graph_model_added_no_weight_layer(self):
     def _save_graph_model():
       a = keras.layers.Input(shape=(2,))
@@ -574,7 +578,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
     self._new_layer_weight_loading_test_template(
         _save_graph_model, _restore_graph_model)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_weight_loading_subclassed_model_added_layer(self):
 
     class SubclassedModelRestore(training.Model):
@@ -591,7 +596,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
     self._new_layer_weight_loading_test_template(
         SubclassedModel, SubclassedModelRestore)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_incompatible_checkpoint(self):
     save_path = tf.train.Checkpoint().save(
         os.path.join(self.get_temp_dir(), 'ckpt'))
@@ -604,7 +610,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
                                 'Nothing except the root object matched'):
       m.load_weights(save_path)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_directory_passed(self):
     with self.cached_session():
       m = DummySubclassModel()
@@ -616,7 +623,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
       m.load_weights(prefix)
       self.assertEqual(42., self.evaluate(v))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_relative_path(self):
     with self.cached_session():
       m = DummySubclassModel()
@@ -647,7 +655,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
       m.load_weights(prefix)
       self.assertEqual(44., self.evaluate(v))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_nonexistent_prefix_directory(self):
     with self.cached_session():
       m = DummySubclassModel()

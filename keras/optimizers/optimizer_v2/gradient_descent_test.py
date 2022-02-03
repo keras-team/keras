@@ -18,14 +18,15 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.optimizers import learning_rate_schedule
 
 
 class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasic(self):
     for dtype in [tf.half, tf.float32, tf.float64]:
       var0 = tf.Variable([1.0, 2.0], dtype=dtype)
@@ -74,7 +75,8 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         [3.0 - 3.0 * 0.01 - 2.0 * 0.01, 4.0 - 3.0 * 0.01 - 2.0 * 0.01],
         self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasicWithLearningRateDecay(self):
     for dtype in [tf.half, tf.float32, tf.float64]:
       learning_rate = 3.0
@@ -82,7 +84,8 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       sgd = gradient_descent.SGD(learning_rate=learning_rate, decay=decay)
       self._test_basic_sgd_with_learning_rate_decay(sgd, dtype)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasicWithLearningRateInverseTimeDecay(self):
     for dtype in [tf.half, tf.float32, tf.float64]:
       learning_rate = learning_rate_schedule.InverseTimeDecay(
@@ -90,7 +93,8 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       sgd = gradient_descent.SGD(learning_rate=learning_rate)
       self._test_basic_sgd_with_learning_rate_decay(sgd, dtype)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasicWithLearningRateInverseTimeDecaySerializeAndDeserialize(self):
     for dtype in [tf.half, tf.float32, tf.float64]:
       learning_rate = learning_rate_schedule.InverseTimeDecay(
@@ -99,7 +103,8 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       sgd = gradient_descent.SGD.from_config(sgd.get_config())
       self._test_basic_sgd_with_learning_rate_decay(sgd, dtype)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasicCallableParams(self):
     for dtype in [tf.half, tf.float32, tf.float64]:
       var0 = tf.Variable([1.0, 2.0], dtype=dtype)
@@ -118,7 +123,8 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllCloseAccordingToType([3.0 - 3.0 * 0.01, 4.0 - 3.0 * 0.01],
                                          self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testMinimizeResourceVariable(self):
     for dtype in [tf.half, tf.float32, tf.float64]:
       var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
@@ -244,7 +250,7 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllCloseAccordingToType(
             [[3.0], [4.0 - 3.0 * 0.01 - 2.0 * 0.01]], self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testCapturingInFunctionWhileExecutingEagerly(self):
     optimizer = gradient_descent.SGD(1.0)
 
@@ -290,7 +296,8 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     var += (accum * momentum - g * lr)
     return var, accum
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasic(self):
     for _, dtype in enumerate([tf.half, tf.float32, tf.float64]):
       var0 = tf.Variable([1.0, 2.0], dtype=dtype, name="var0")
@@ -435,7 +442,8 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         # Validate updated params
         self.assertAllCloseAccordingToType([[-111, -138]], self.evaluate(var0))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testMinimizeWith2DIndicesForEmbeddingLookup(self):
     var0 = tf.Variable(tf.ones([2, 2]))
 
@@ -643,7 +651,8 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 3.98 - ((0.9 * 0.01 + 0.01) * 2.0)
             ]), self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testConfig(self):
     opt = gradient_descent.SGD(learning_rate=1.0, momentum=0.9, nesterov=True)
     config = opt.get_config()
@@ -693,7 +702,7 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(self.evaluate(opt_2.lr), (1.0))
     self.assertAllClose(self.evaluate(opt_3.lr), (0.1))
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testMinimizeLossTensor(self):
     for dtype in [tf.half, tf.float32, tf.float64]:
       var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)

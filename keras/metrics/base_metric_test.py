@@ -18,19 +18,18 @@ import copy
 import os
 
 from absl.testing import parameterized
-from keras import combinations
-from keras import keras_parameterized
 from keras import layers
 from keras import metrics
 from keras import Model
-from keras import testing_utils
 from keras.engine import base_layer
 from keras.engine import training as training_module
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_sum(self):
@@ -148,11 +147,11 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(600., self.evaluate(restore_sum.result()))
 
 
-class MeanTest(keras_parameterized.TestCase):
+class MeanTest(test_combinations.TestCase):
 
   # TODO(b/120949004): Re-enable garbage collection check
-  # @test_util.run_in_graph_and_eager_modes(assert_no_eager_garbage=True)
-  @keras_parameterized.run_all_keras_modes
+  # @tf_test_util.run_in_graph_and_eager_modes(assert_no_eager_garbage=True)
+  @test_combinations.run_all_keras_modes
   def test_mean(self):
     m = metrics.Mean(name='my_mean')
 
@@ -194,7 +193,7 @@ class MeanTest(keras_parameterized.TestCase):
     self.assertEqual(m2.dtype, tf.float32)
     self.assertEqual(len(m2.variables), 2)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_function_wrapped_reset_state(self):
     m = metrics.Mean(name='my_mean')
 
@@ -208,7 +207,7 @@ class MeanTest(keras_parameterized.TestCase):
       self.evaluate(reset_in_fn())
     self.assertEqual(self.evaluate(m.count), 1)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_mean_with_sample_weight(self):
     m = metrics.Mean(dtype=tf.float64)
     self.assertEqual(m.dtype, tf.float64)
@@ -252,7 +251,7 @@ class MeanTest(keras_parameterized.TestCase):
     self.assertEqual(np.round(self.evaluate(m.total), decimals=2), 58.54)
     self.assertEqual(np.round(self.evaluate(m.count), decimals=2), 5.6)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_mean_graph_with_placeholder(self):
     with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
       m = metrics.Mean()
@@ -273,7 +272,7 @@ class MeanTest(keras_parameterized.TestCase):
       self.assertAlmostEqual(self.evaluate(m.count), 1.7, 2)  # 0.5 + 1.2
       self.assertAlmostEqual(result, 52 / 1.7, 2)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_save_restore(self):
     checkpoint_directory = self.get_temp_dir()
     checkpoint_prefix = os.path.join(checkpoint_directory, 'ckpt')
@@ -304,7 +303,7 @@ class MeanTest(keras_parameterized.TestCase):
     self.assertEqual(200., self.evaluate(restore_mean.result()))
     self.assertEqual(3, self.evaluate(restore_mean.count))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_multiple_instances(self):
     m = metrics.Mean()
     m2 = metrics.Mean()
@@ -313,10 +312,10 @@ class MeanTest(keras_parameterized.TestCase):
     self.assertEqual(m2.name, 'mean')
 
     self.assertEqual([v.name for v in m.variables],
-                     testing_utils.get_expected_metric_variable_names(
+                     test_utils.get_expected_metric_variable_names(
                          ['total', 'count']))
     self.assertEqual([v.name for v in m2.variables],
-                     testing_utils.get_expected_metric_variable_names(
+                     test_utils.get_expected_metric_variable_names(
                          ['total', 'count'], name_suffix='_1'))
 
     self.evaluate(tf.compat.v1.variables_initializer(m.variables))
@@ -342,7 +341,7 @@ class MeanTest(keras_parameterized.TestCase):
     self.assertEqual(self.evaluate(m.total), 100)
     self.assertEqual(self.evaluate(m.count), 1)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_deepcopy_of_metrics(self):
     m = metrics.Mean(name='my_mean')
 
@@ -362,7 +361,8 @@ class MeanTest(keras_parameterized.TestCase):
 
 class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_config(self):
     with self.test_session():
       m = metrics.MeanTensor(name='mean_by_element')
@@ -385,7 +385,8 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(m2.dtype, tf.float32)
       self.assertEmpty(m2.variables)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_unweighted(self):
     with self.test_session():
       m = metrics.MeanTensor(dtype=tf.float64)
@@ -410,7 +411,8 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose(self.evaluate(m.total), [0, 0])
       self.assertAllClose(self.evaluate(m.count), [0, 0])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_weighted(self):
     with self.test_session():
       m = metrics.MeanTensor(dtype=tf.float64)
@@ -449,7 +451,8 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose(self.evaluate(m.total), [[1], [1]])
       self.assertAllClose(self.evaluate(m.count), [[1], [0.2]])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_invalid_value_shape(self):
     m = metrics.MeanTensor(dtype=tf.float64)
     m([1])
@@ -457,7 +460,8 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
         ValueError, 'MeanTensor input values must always have the same shape'):
       m([1, 5])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_build_in_tf_function(self):
     """Ensure that variables are created correctly in a tf function."""
     m = metrics.MeanTensor(dtype=tf.float64)
@@ -472,7 +476,7 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose(self.evaluate(m.count), [1, 1])
       self.assertAllClose(self.evaluate(call_metric([20, 2])), [60, 21])
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_in_keras_model(self):
     class ModelWithMetric(Model):
 
@@ -563,7 +567,7 @@ class BinaryTruePositivesViaControlFlow(metrics.Metric):
     return 0.0
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class CustomMetricsTest(tf.test.TestCase):
 
   def test_config(self):

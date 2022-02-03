@@ -18,7 +18,7 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.optimizers.optimizer_v2 import adamax
 
 
@@ -160,7 +160,8 @@ class AdamaxOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAllClose(aggregated_update_var,
                               repeated_index_update_var.eval())
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasic(self):
     for i, dtype in enumerate([tf.half, tf.float32, tf.float64]):
       with self.session(graph=tf.Graph(), use_gpu=True):
@@ -209,7 +210,8 @@ class AdamaxOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAllCloseAccordingToType(
               var1_np, self.evaluate(var1), rtol=1e-2)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasicWithLearningRateDecay(self):
     for i, dtype in enumerate([tf.half, tf.float32, tf.float64]):
       with self.session(graph=tf.Graph(), use_gpu=True):
@@ -339,7 +341,7 @@ class AdamaxOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAllCloseAccordingToType(var0_np, var0)
           self.assertAllCloseAccordingToType(var1_np, var1)
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testSlotsUniqueEager(self):
     v1 = tf.Variable(1.)
     v2 = tf.Variable(1.)

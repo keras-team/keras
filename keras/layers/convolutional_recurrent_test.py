@@ -20,15 +20,15 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
-@keras_parameterized.run_all_keras_modes
-class ConvLSTM1DTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ConvLSTM1DTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
-      *testing_utils.generate_combinations_with_testcase_name(
+      *test_utils.generate_combinations_with_testcase_name(
           data_format=['channels_first', 'channels_last'],
           return_sequences=[True, False]))
   def test_conv_lstm(self, data_format, return_sequences):
@@ -68,7 +68,7 @@ class ConvLSTM1DTest(keras_parameterized.TestCase):
     self.assertAllClose(keras.backend.eval(layer.states[0]), state, atol=1e-4)
 
     # test for output shape:
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.ConvLSTM1D,
         kwargs={
             'data_format': data_format,
@@ -80,11 +80,11 @@ class ConvLSTM1DTest(keras_parameterized.TestCase):
         input_shape=inputs.shape)
 
 
-@keras_parameterized.run_all_keras_modes
-class ConvLSTM2DTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ConvLSTM2DTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
-      *testing_utils.generate_combinations_with_testcase_name(
+      *test_utils.generate_combinations_with_testcase_name(
           data_format=['channels_first', 'channels_last'],
           return_sequences=[True, False]))
   def test_conv_lstm(self, data_format, return_sequences):
@@ -125,7 +125,7 @@ class ConvLSTM2DTest(keras_parameterized.TestCase):
     self.assertAllClose(keras.backend.eval(layer.states[0]), state, atol=1e-4)
 
     # test for output shape:
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.ConvLSTM2D,
         kwargs={'data_format': data_format,
                 'return_sequences': return_sequences,
@@ -224,7 +224,7 @@ class ConvLSTM2DTest(keras_parameterized.TestCase):
   def test_conv_lstm_dropout(self):
     # check dropout
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ConvLSTM2D,
           kwargs={'data_format': 'channels_last',
                   'return_sequences': False,
@@ -276,7 +276,7 @@ class ConvLSTM2DTest(keras_parameterized.TestCase):
 
     model.compile(
         optimizer='sgd', loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x_1 = np.random.rand(num_samples, sequence_len, 32, 32, 3)
     x_2 = np.random.rand(num_samples, sequence_len, 32, 32, 4)
     y = np.random.rand(num_samples, 32, 32, 1)
@@ -285,11 +285,11 @@ class ConvLSTM2DTest(keras_parameterized.TestCase):
     model.predict([x_1, x_2])
 
 
-@keras_parameterized.run_all_keras_modes
-class ConvLSTM3DTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ConvLSTM3DTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
-      *testing_utils.generate_combinations_with_testcase_name(
+      *test_utils.generate_combinations_with_testcase_name(
           data_format=['channels_first', 'channels_last'],
           return_sequences=[True, False]))
   def test_conv_lstm(self, data_format, return_sequences):
@@ -333,7 +333,7 @@ class ConvLSTM3DTest(keras_parameterized.TestCase):
     self.assertAllClose(keras.backend.eval(layer.states[0]), state, atol=1e-4)
 
     # test for output shape:
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.ConvLSTM3D,
         kwargs={
             'data_format': data_format,

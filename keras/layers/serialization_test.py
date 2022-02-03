@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.layers import recurrent as rnn_v1
 from keras.layers import recurrent_v2 as rnn_v2
 from keras.layers.normalization import batch_normalization as batchnorm_v2
@@ -39,7 +39,7 @@ class SerializableInt(int):
     return cls(**config)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_serialize_deserialize(self):

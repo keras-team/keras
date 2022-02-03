@@ -17,12 +17,11 @@
 import tensorflow.compat.v2 as tf
 
 import math
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class LRDecayTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class LRDecayTest(test_combinations.TestCase):
 
   def testContinuous(self):
     self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -135,8 +134,8 @@ class LRDecayTest(keras_parameterized.TestCase):
     self.assertAllClose(self.evaluate(decayed_lr), 0.7, 1e-6)
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class LinearDecayTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class LinearDecayTest(test_combinations.TestCase):
 
   def testHalfWay(self):
     step = 5
@@ -180,8 +179,8 @@ class LinearDecayTest(keras_parameterized.TestCase):
     self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class SqrtDecayTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class SqrtDecayTest(test_combinations.TestCase):
 
   def testHalfWay(self):
     step = 5
@@ -234,8 +233,8 @@ class SqrtDecayTest(keras_parameterized.TestCase):
     self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class PolynomialDecayTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class PolynomialDecayTest(test_combinations.TestCase):
 
   def testBeginWithCycle(self):
     lr = 0.001
@@ -247,8 +246,8 @@ class PolynomialDecayTest(keras_parameterized.TestCase):
     self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class ExponentialDecayTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class ExponentialDecayTest(test_combinations.TestCase):
 
   def testDecay(self):
     initial_lr = 0.1
@@ -279,8 +278,8 @@ class ExponentialDecayTest(keras_parameterized.TestCase):
       self.evaluate(step.assign_add(1))
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class InverseDecayTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class InverseDecayTest(test_combinations.TestCase):
 
   def testDecay(self):
     initial_lr = 0.1
@@ -311,8 +310,8 @@ class InverseDecayTest(keras_parameterized.TestCase):
       self.evaluate(step.assign_add(1))
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class CosineDecayTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class CosineDecayTest(test_combinations.TestCase):
 
   def np_cosine_decay(self, step, decay_steps, alpha=0.0):
     step = min(step, decay_steps)
@@ -340,8 +339,8 @@ class CosineDecayTest(keras_parameterized.TestCase):
       self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class CosineDecayRestartsTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class CosineDecayRestartsTest(test_combinations.TestCase):
 
   def np_cosine_decay_restarts(self, step, decay_steps, t_mul=2.0, m_mul=1.0,
                                alpha=0.0):
@@ -398,8 +397,8 @@ class CosineDecayRestartsTest(keras_parameterized.TestCase):
       self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class LinearCosineDecayTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class LinearCosineDecayTest(test_combinations.TestCase):
 
   def np_linear_cosine_decay(self,
                              step,
@@ -438,8 +437,8 @@ class LinearCosineDecayTest(keras_parameterized.TestCase):
       self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class NoisyLinearCosineDecayTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class NoisyLinearCosineDecayTest(test_combinations.TestCase):
 
   def testDefaultNoisyLinearCosine(self):
     num_training_steps = 1000

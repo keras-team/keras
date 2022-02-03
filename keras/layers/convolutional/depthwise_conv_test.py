@@ -16,13 +16,13 @@
 
 from absl.testing import parameterized
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class DepthwiseConv1DTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class DepthwiseConv1DTest(test_combinations.TestCase):
 
   def _run_test(self, kwargs, expected_output_shape=None):
     num_samples = 2
@@ -30,7 +30,7 @@ class DepthwiseConv1DTest(keras_parameterized.TestCase):
     num_row = 7
 
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.DepthwiseConv1D,
           kwargs=kwargs,
           input_shape=(num_samples, num_row, stack_size),
@@ -84,8 +84,8 @@ class DepthwiseConv1DTest(keras_parameterized.TestCase):
     self._run_test(kwargs)
 
 
-@keras_parameterized.run_all_keras_modes
-class DepthwiseConv2DTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class DepthwiseConv2DTest(test_combinations.TestCase):
 
   def _run_test(self, kwargs, expected_output_shape=None):
     num_samples = 2
@@ -94,7 +94,7 @@ class DepthwiseConv2DTest(keras_parameterized.TestCase):
     num_col = 6
 
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.DepthwiseConv2D,
           kwargs=kwargs,
           input_shape=(num_samples, num_row, num_col, stack_size),

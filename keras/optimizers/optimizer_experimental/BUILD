@@ -40,7 +40,7 @@ distribute_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
         "//keras/optimizers",
+        "//keras/testing_infra:test_combinations",
     ],
 )

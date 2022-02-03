@@ -22,7 +22,7 @@ import numpy as np
 
 import keras
 from tensorflow.python.framework import convert_to_constants
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from tensorflow.python.saved_model.load import load
 from tensorflow.python.saved_model.save import save
 
@@ -90,7 +90,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
     for expected, actual in zip(expected_value, actual_value):
       np.testing.assert_almost_equal(expected.numpy(), actual.numpy())
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def testKerasModel(self):
     """Test a basic Keras model with Variables."""
     input_data = {"x": tf.constant(1., shape=[1, 1])}
@@ -113,7 +113,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
     root, output_func = self._freezeModel(to_save)
     self._testConvertedFunction(root, root.f, output_func, input_data)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def testKerasLSTM(self):
     """Test a Keras LSTM containing dynamic_rnn ops."""
     input_data = {
@@ -135,7 +135,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
     root, output_func = self._freezeModel(to_save)
     self._testConvertedFunction(root, root.f, output_func, input_data)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def testEmbeddings(self):
     """Test model with embeddings."""
     input_data = {

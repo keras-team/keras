@@ -20,7 +20,8 @@ COMMON_PIP_DEPS = [
     # release tests can run. (see py_test rule in keras.bzl for more context).
     # Essentially, everything needed to run the test (except the test file itself)
     # must be contained in the pip package since we strip away all deps.
-    "//keras:combinations",
+    "//keras/testing_infra:test_combinations",
+    "//keras/testing_infra:test_utils",
     "//keras/benchmarks:keras_benchmark_lib_pip",
     "//keras/distribute:distribute_test_lib_pip",
     "//keras/integration_test:preprocessing_test_utils",

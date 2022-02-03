@@ -18,7 +18,7 @@ import tensorflow.compat.v2 as tf
 
 import re
 
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.mixed_precision import device_compatibility_check
 from tensorflow.python.platform import tf_logging
 
@@ -32,7 +32,7 @@ def device_details(device_name, compute_capability=None):
   return details
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class DeviceCompatibilityCheckTest(tf.test.TestCase):
 
   def _test_compat_check(self, device_attr_list, should_warn, expected_regex,

@@ -213,7 +213,7 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:backend",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -233,6 +233,7 @@ tf_py_test(
         "//:expect_pandas_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -249,6 +250,7 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -264,6 +266,7 @@ tf_py_test(
         "//keras",
         "//keras:models",
         "//keras/layers",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -282,9 +285,9 @@ cuda_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
-        "//keras:combinations",
-        "//keras:testing_utils",
         "//keras/layers/convolutional",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )
 
@@ -303,6 +306,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -318,6 +322,7 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -333,6 +338,7 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -369,11 +375,11 @@ tf_py_test(
         "//keras",
         "//keras:backend",
         "//keras:callbacks",
-        "//keras:combinations",
         "//keras:losses",
-        "//keras:testing_utils",
         "//keras/layers",
         "//keras/metrics",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
         "//keras/utils:data_utils",
         "//keras/utils:np_utils",
     ],
@@ -391,6 +397,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -408,6 +415,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -425,6 +433,7 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/layers",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -445,12 +454,12 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
         "//keras:losses",
-        "//keras:testing_utils",
         "//keras/layers",
         "//keras/metrics",
         "//keras/optimizers/optimizer_v2",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
         "//keras/utils:data_utils",
     ],
 )
@@ -469,6 +478,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -486,6 +496,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -503,6 +514,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -520,6 +532,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -536,8 +549,8 @@ tf_py_test(
         ":base_layer",
         ":engine",
         "//keras",
-        "//keras:combinations",
-        "//keras:testing_utils",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
         "//keras/utils:layer_utils",
     ],
 )
@@ -560,11 +573,11 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:backend",
-        "//keras:combinations",
         "//keras:models",
-        "//keras:testing_utils",
         "//keras/initializers",
         "//keras/layers",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
         "//keras/utils:layer_utils",
         "//keras/utils:tf_utils",
     ],
@@ -583,7 +596,8 @@ tf_py_test(
         ":base_layer",
         ":engine",
         "//keras",
-        "//keras:testing_utils",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
         "//keras/utils:layer_utils",
     ],
 )
@@ -605,13 +619,13 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:backend",
-        "//keras:combinations",
         "//keras:regularizers",
-        "//keras:testing_utils",
         "//keras/layers",
         "//keras/legacy_tf_layers:core",
         "//keras/mixed_precision:policy",
         "//keras/optimizers/optimizer_v2",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
         "//keras/utils:tf_utils",
     ],
 )
@@ -630,6 +644,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -646,6 +661,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -662,5 +678,6 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )

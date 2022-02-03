@@ -19,9 +19,8 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 
 import keras
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.layers.normalization import layer_normalization
 
 
@@ -33,7 +32,7 @@ def _run_layernorm_correctness_test(layer, dtype='float32'):
   model.compile(
       loss='mse',
       optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01),
-      run_eagerly=testing_utils.should_run_eagerly())
+      run_eagerly=test_utils.should_run_eagerly())
 
   # centered on 5.0, variance 10.0
   x = (np.random.normal(loc=5.0, scale=10.0, size=(1000, 2, 2, 2))
@@ -47,53 +46,54 @@ def _run_layernorm_correctness_test(layer, dtype='float32'):
   np.testing.assert_allclose(out.std(), 1.0, atol=1e-1)
 
 
-class LayerNormalizationTest(keras_parameterized.TestCase):
+class LayerNormalizationTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_basic_layernorm(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LayerNormalization,
         kwargs={
             'gamma_regularizer': keras.regularizers.l2(0.01),
             'beta_regularizer': keras.regularizers.l2(0.01)
         },
         input_shape=(3, 4, 2))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LayerNormalization,
         kwargs={
             'gamma_initializer': 'ones',
             'beta_initializer': 'ones',
         },
         input_shape=(3, 4, 2))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LayerNormalization,
         kwargs={'scale': False,
                 'center': False},
         input_shape=(3, 3))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LayerNormalization,
         kwargs={'axis': (-3, -2, -1)},
         input_shape=(2, 8, 8, 3))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LayerNormalization,
         input_shape=(1, 0, 10))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_non_fused_layernorm(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LayerNormalization,
         kwargs={'axis': -2},
         input_shape=(3, 4, 2))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LayerNormalization,
         kwargs={'axis': (-3, -2)},
         input_shape=(2, 8, 8, 3))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LayerNormalization,
         kwargs={'axis': (-3, -1)},
         input_shape=(2, 8, 8, 3))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_layernorm_weights(self):
     layer = keras.layers.LayerNormalization(scale=False, center=False)
     layer.build((None, 3, 4))
@@ -105,7 +105,8 @@ class LayerNormalizationTest(keras_parameterized.TestCase):
     self.assertEqual(len(layer.trainable_weights), 2)
     self.assertEqual(len(layer.weights), 2)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_layernorm_regularization(self):
     layer = keras.layers.LayerNormalization(
         gamma_regularizer='l1', beta_regularizer='l1')
@@ -118,7 +119,7 @@ class LayerNormalizationTest(keras_parameterized.TestCase):
     self.assertEqual(layer.gamma.constraint, max_norm)
     self.assertEqual(layer.beta.constraint, max_norm)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_layernorm_convnet_channel_last(self):
     model = keras.models.Sequential()
     norm = keras.layers.LayerNormalization(input_shape=(4, 4, 3))
@@ -126,7 +127,7 @@ class LayerNormalizationTest(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     # centered on 5.0, variance 10.0
     x = np.random.normal(loc=5.0, scale=10.0, size=(1000, 4, 4, 3))
@@ -138,23 +139,25 @@ class LayerNormalizationTest(keras_parameterized.TestCase):
     np.testing.assert_allclose(np.mean(out, axis=(0, 1, 2)), 0.0, atol=1e-1)
     np.testing.assert_allclose(np.std(out, axis=(0, 1, 2)), 1.0, atol=1e-1)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_layernorm_correctness(self):
     _run_layernorm_correctness_test(
         layer_normalization.LayerNormalization, dtype='float32')
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_layernorm_mixed_precision(self):
     _run_layernorm_correctness_test(
         layer_normalization.LayerNormalization, dtype='float16')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testIncorrectAxisType(self):
     with self.assertRaisesRegex(TypeError,
                                 r'Expected an int or a list/tuple of ints'):
       _ = layer_normalization.LayerNormalization(axis={'axis': -1})
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInvalidAxis(self):
     with self.assertRaisesRegex(
         ValueError,
@@ -162,20 +165,22 @@ class LayerNormalizationTest(keras_parameterized.TestCase):
       layer_norm = layer_normalization.LayerNormalization(axis=3)
       layer_norm.build(input_shape=(2, 2, 2))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testDuplicateAxis(self):
     with self.assertRaisesRegex(ValueError, r'Duplicate axis:'):
       layer_norm = layer_normalization.LayerNormalization(axis=[-1, -1])
       layer_norm.build(input_shape=(2, 2, 2))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testFusedAttr(self):
     layer_norm = layer_normalization.LayerNormalization(axis=[-2, -1])
     layer_norm.build(input_shape=(2, 2, 2))
     self.assertEqual(layer_norm._fused, True)
 
 
-class LayerNormalizationNumericsTest(keras_parameterized.TestCase):
+class LayerNormalizationNumericsTest(test_combinations.TestCase):
   """Tests LayerNormalization has correct and numerically stable outputs."""
 
   def _expected_layer_norm(self, x, beta, gamma, batch_input_shape, axis,
@@ -234,7 +239,8 @@ class LayerNormalizationNumericsTest(keras_parameterized.TestCase):
         # some of the values are very close to zero.
         self.assertAllClose(expected, actual, rtol=tol, atol=tol)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_forward(self):
     # For numeric stability, we ensure the axis's dimension(s) have at least 4
     # elements.
@@ -316,7 +322,7 @@ class LayerNormalizationNumericsTest(keras_parameterized.TestCase):
         self.assertAllClose(gamma_grad_t, gamma_grad_ref, rtol=tol, atol=tol)
 
   # The gradient_checker_v2 does not work properly with LayerNorm in graph mode.
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_backward(self):
     # For numeric stability, we ensure the axis's dimension(s) have at least 4
     # elements.

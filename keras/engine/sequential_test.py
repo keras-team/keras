@@ -20,16 +20,16 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from tensorflow.python.framework import test_util
-from keras import keras_parameterized
-from keras import testing_utils
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
-class TestSequential(keras_parameterized.TestCase):
+class TestSequential(test_combinations.TestCase):
   """Most Sequential model API tests are covered in `training_test.py`.
   """
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_basic_methods(self):
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(1, input_dim=2))
@@ -40,7 +40,7 @@ class TestSequential(keras_parameterized.TestCase):
     self.assertEqual(len(model.weights), 2 * 2)
     self.assertEqual(model.get_layer(name='dp').name, 'dp')
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_input_defined_first_layer(self):
     model = keras.models.Sequential()
     model.add(keras.Input(shape=(2,), name='input_layer'))
@@ -52,24 +52,24 @@ class TestSequential(keras_parameterized.TestCase):
     self.assertLen(model.weights, 2 * 2)
     self.assertEqual(model.get_layer(name='dp').name, 'dp')
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_single_layer_in_init(self):
     model = keras.models.Sequential(keras.layers.Dense(1))
     self.assertLen(model.layers, 1)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_sequential_pop(self):
     num_hidden = 5
     input_dim = 3
     batch_size = 5
     num_classes = 2
 
-    model = testing_utils.get_small_sequential_mlp(
+    model = test_utils.get_small_sequential_mlp(
         num_hidden, num_classes, input_dim)
     model.compile(
         loss='mse',
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.random.random((batch_size, input_dim))
     y = np.random.random((batch_size, num_classes))
     model.fit(x, y, epochs=1)
@@ -79,7 +79,7 @@ class TestSequential(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     y = np.random.random((batch_size, num_hidden))
     model.fit(x, y, epochs=1)
 
@@ -95,19 +95,19 @@ class TestSequential(keras_parameterized.TestCase):
     with self.assertRaises(TypeError):
       model.pop()
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_sequential_deferred_build_with_np_arrays(self):
     num_hidden = 5
     input_dim = 3
     batch_size = 5
     num_classes = 2
 
-    model = testing_utils.get_small_sequential_mlp(num_hidden, num_classes)
+    model = test_utils.get_small_sequential_mlp(num_hidden, num_classes)
     model.compile(
         loss='mse',
         optimizer='rmsprop',
         metrics=[keras.metrics.CategoricalAccuracy()],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     self.assertEqual(len(model.layers), 2)
     with self.assertRaisesRegex(
         ValueError, 'Weights for model .* have not yet been created'):
@@ -120,7 +120,7 @@ class TestSequential(keras_parameterized.TestCase):
     self.assertTrue(model.built)
     self.assertEqual(len(model.weights), 2 * 2)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_sequential_deferred_build_with_dataset_iterators(self):
     num_hidden = 5
     input_dim = 3
@@ -128,12 +128,12 @@ class TestSequential(keras_parameterized.TestCase):
     num_samples = 50
     steps_per_epoch = 10
 
-    model = testing_utils.get_small_sequential_mlp(num_hidden, num_classes)
+    model = test_utils.get_small_sequential_mlp(num_hidden, num_classes)
     model.compile(
         loss='mse',
         optimizer='rmsprop',
         metrics=[keras.metrics.CategoricalAccuracy()],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     self.assertEqual(len(model.layers), 2)
     with self.assertRaisesRegex(
         ValueError, 'Weights for model .* have not yet been created'):
@@ -157,9 +157,9 @@ class TestSequential(keras_parameterized.TestCase):
 
       def get_model():
         if deferred:
-          model = testing_utils.get_small_sequential_mlp(10, 4)
+          model = test_utils.get_small_sequential_mlp(10, 4)
         else:
-          model = testing_utils.get_small_sequential_mlp(10, 4, input_dim=3)
+          model = test_utils.get_small_sequential_mlp(10, 4, input_dim=3)
         model.compile(
             optimizer='rmsprop',
             loss='categorical_crossentropy',
@@ -194,14 +194,14 @@ class TestSequential(keras_parameterized.TestCase):
           validation_data=(inputs, targets),
           validation_steps=2)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_invalid_use_cases(self):
     # Added objects must be layer instances
     with self.assertRaises(TypeError):
       model = keras.models.Sequential()
       model.add(None)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_nested_sequential_trainability(self):
     input_dim = 20
     num_units = 10
@@ -222,7 +222,7 @@ class TestSequential(keras_parameterized.TestCase):
     inner_model.trainable = True
     self.assertEqual(len(model.trainable_weights), 4)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_sequential_update_disabling(self):
     val_a = np.random.random((10, 4))
     val_out = np.random.random((10, 4))
@@ -245,19 +245,19 @@ class TestSequential(keras_parameterized.TestCase):
     x2 = model.predict(val_a)
     assert np.abs(np.sum(x1 - x2)) > 1e-5
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_sequential_deferred_build_serialization(self):
     num_hidden = 5
     input_dim = 3
     batch_size = 5
     num_classes = 2
 
-    model = testing_utils.get_small_sequential_mlp(num_hidden, num_classes)
+    model = test_utils.get_small_sequential_mlp(num_hidden, num_classes)
     model.compile(
         loss='mse',
         optimizer='rmsprop',
         metrics=[keras.metrics.CategoricalAccuracy()],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     self.assertFalse(model.built)
 
     x = np.random.random((batch_size, input_dim))
@@ -271,63 +271,63 @@ class TestSequential(keras_parameterized.TestCase):
         loss='mse',
         optimizer='rmsprop',
         metrics=[keras.metrics.CategoricalAccuracy()],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.random.random((batch_size, input_dim))
     y = np.random.random((batch_size, num_classes))
     new_model.train_on_batch(x, y)
     self.assertEqual(len(new_model.layers), 2)
     self.assertEqual(len(new_model.weights), 4)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_sequential_shape_inference_deferred(self):
-    model = testing_utils.get_small_sequential_mlp(4, 5)
+    model = test_utils.get_small_sequential_mlp(4, 5)
     output_shape = model.compute_output_shape((None, 7))
     self.assertEqual(tuple(output_shape.as_list()), (None, 5))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_sequential_build_deferred(self):
-    model = testing_utils.get_small_sequential_mlp(4, 5)
+    model = test_utils.get_small_sequential_mlp(4, 5)
 
     model.build((None, 10))
     self.assertTrue(model.built)
     self.assertEqual(len(model.weights), 4)
 
     # Test with nested model
-    model = testing_utils.get_small_sequential_mlp(4, 3)
-    inner_model = testing_utils.get_small_sequential_mlp(4, 5)
+    model = test_utils.get_small_sequential_mlp(4, 3)
+    inner_model = test_utils.get_small_sequential_mlp(4, 5)
     model.add(inner_model)
 
     model.build((None, 10))
     self.assertTrue(model.built)
     self.assertEqual(len(model.weights), 8)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_sequential_deferred_manual_build(self):
-    model = testing_utils.get_small_sequential_mlp(4, 5)
+    model = test_utils.get_small_sequential_mlp(4, 5)
     self.assertFalse(model.built)
     model(tf.zeros([1, 2]))
     self.assertTrue(model.built)
     model.compile(
         'rmsprop',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.train_on_batch(np.zeros((1, 2)), np.zeros((1, 5)))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_sequential_nesting(self):
-    model = testing_utils.get_small_sequential_mlp(4, 3)
-    inner_model = testing_utils.get_small_sequential_mlp(4, 5)
+    model = test_utils.get_small_sequential_mlp(4, 3)
+    inner_model = test_utils.get_small_sequential_mlp(4, 5)
     model.add(inner_model)
 
     model.compile(
         loss='mse',
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.random.random((2, 6))
     y = np.random.random((2, 5))
     model.fit(x, y, epochs=1)
 
-  @test_util.run_v1_only('Behavior changed in V2.')
+  @tf_test_utils.run_v1_only('Behavior changed in V2.')
   def test_variable_names_deferred(self):
     model = keras.models.Sequential([keras.layers.Dense(3)])
     model.add(keras.layers.Dense(2))
@@ -342,7 +342,7 @@ class TestSequential(keras_parameterized.TestCase):
          'sequential/dense_1/kernel:0', 'sequential/dense_1/bias:0'],
         [v.name for v in model.variables])
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_input_assumptions_propagation(self):
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(1))
@@ -351,17 +351,17 @@ class TestSequential(keras_parameterized.TestCase):
                                   'expected min_ndim=2, found ndim=0'):
         model(1.0)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_string_input(self):
     seq = keras.Sequential([
         keras.layers.InputLayer(input_shape=(1,), dtype=tf.string),
         keras.layers.Lambda(lambda x: x[0])
     ])
-    seq.run_eagerly = testing_utils.should_run_eagerly()
+    seq.run_eagerly = test_utils.should_run_eagerly()
     preds = seq.predict([['tensorflow eager']])
     self.assertEqual(preds.shape, (1,))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_multi_output_layer_not_accepted(self):
 
     class MultiOutputLayer(keras.layers.Layer):
@@ -384,7 +384,7 @@ class TestSequential(keras_parameterized.TestCase):
                                 'should have a single output tensor'):
       keras.Sequential([MultiOutputLayer()])(np.zeros((10, 10)))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_layer_add_after_compile_deferred(self):
     model = keras.Sequential([keras.layers.Dense(3)])
     self.assertFalse(model.built)
@@ -448,7 +448,7 @@ class TestSequential(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'should have unique names'):
       model.add(keras.layers.Dense(3, name='specific_name'))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_tf_module_call(self):
 
     class MyModule(tf.Module):
@@ -466,7 +466,7 @@ class TestSequential(keras_parameterized.TestCase):
     model.fit(x, y, batch_size=2)
     self.assertLen(model.trainable_variables, 1)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_tf_module_training(self):
 
     class MyModule(tf.Module):
@@ -486,7 +486,7 @@ class TestSequential(keras_parameterized.TestCase):
     model.fit(x, y, batch_size=2)
     self.assertLen(model.trainable_variables, 1)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_tf_module_error(self):
 
     class MyModule(tf.Module):
@@ -499,9 +499,9 @@ class TestSequential(keras_parameterized.TestCase):
       model.add(MyModule())
 
 
-class TestSequentialEagerIntegration(keras_parameterized.TestCase):
+class TestSequentialEagerIntegration(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_defun_on_call(self):
     # Check that one can subclass Sequential and place the `call` in a `defun`.
 
@@ -518,20 +518,20 @@ class TestSequentialEagerIntegration(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.random.random((2, 6))
     y = np.random.random((2, 5))
     model.fit(x, y, epochs=1)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_build_before_fit(self):
     # Fix for b/112433577
-    model = testing_utils.get_small_sequential_mlp(4, 5)
+    model = test_utils.get_small_sequential_mlp(4, 5)
     model.compile(
         loss='mse',
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     model.build((None, 6))
 
@@ -539,7 +539,7 @@ class TestSequentialEagerIntegration(keras_parameterized.TestCase):
     y = np.random.random((2, 5))
     model.fit(x, y, epochs=1)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_build_empty_network(self):
     x = np.random.random((2, 6))
     y = np.random.random((2, 5))
@@ -554,7 +554,7 @@ class TestSequentialEagerIntegration(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(x, y)
 
     model.pop()

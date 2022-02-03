@@ -23,9 +23,9 @@ import numpy as np
 
 import keras
 from keras import callbacks
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import metrics as metrics_module
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.utils import io_utils
 from tensorflow.python.platform import tf_logging as logging
 
@@ -43,12 +43,12 @@ class BatchCounterCallback(callbacks.Callback):
     self.batch_end_count += 1
 
 
-class TestTrainingWithDataset(keras_parameterized.TestCase):
+class TestTrainingWithDataset(test_combinations.TestCase):
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_calling_model_on_same_dataset(self):
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     optimizer = 'rmsprop'
     loss = 'mse'
     metrics = ['mae']
@@ -56,7 +56,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
         optimizer,
         loss,
         metrics=metrics,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.zeros((10, 3), np.float32)
     targets = np.zeros((10, 4), np.float32)
@@ -80,10 +80,10 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
         validation_data=dataset,
         validation_steps=2)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_training_and_eval_methods_on_dataset(self):
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     optimizer = 'rmsprop'
     loss = 'mse'
     metrics = ['mae', metrics_module.CategoricalAccuracy()]
@@ -91,7 +91,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
         optimizer,
         loss,
         metrics=metrics,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.zeros((10, 3), np.float32)
     targets = np.zeros((10, 4), np.float32)
@@ -146,8 +146,8 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     with self.assertRaises(ValueError):
       model.predict(dataset, verbose=0)
 
-  @keras_parameterized.run_with_all_model_types(exclude_models='sequential')
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types(exclude_models='sequential')
+  @test_combinations.run_all_keras_modes
   def test_training_and_eval_methods_on_multi_input_output_dataset(self):
     input_a = keras.layers.Input(shape=(3,), name='input_1')
     input_b = keras.layers.Input(shape=(3,), name='input_2')
@@ -156,11 +156,11 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     branch_a = [input_a, dense]
     branch_b = [input_b, dense, dropout]
 
-    model = testing_utils.get_multi_io_model(branch_a, branch_b)
+    model = test_utils.get_multi_io_model(branch_a, branch_b)
     model.compile(
         optimizer='rmsprop',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     input_a_np = np.random.random((10, 3)).astype(dtype=np.float32)
     input_b_np = np.random.random((10, 3)).astype(dtype=np.float32)
@@ -178,7 +178,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
 
     # Test with dict
     input_dict = {'input_1': input_a_np, 'input_2': input_b_np}
-    if testing_utils.get_model_type() == 'subclass':
+    if test_utils.get_model_type() == 'subclass':
       output_dict = {'output_1': output_d_np, 'output_2': output_e_np}
     else:
       output_dict = {'dense': output_d_np, 'dropout': output_e_np}
@@ -196,10 +196,10 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     predict_dataset_dict = predict_dataset_dict.batch(10)
     model.predict(predict_dataset_dict, steps=1)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_dataset_with_sample_weights(self):
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     optimizer = 'rmsprop'
     loss = 'mse'
     metrics = ['mae', metrics_module.CategoricalAccuracy()]
@@ -207,7 +207,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
         optimizer,
         loss,
         metrics=metrics,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.zeros((10, 3), np.float32)
     targets = np.zeros((10, 4), np.float32)
@@ -221,8 +221,8 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     model.evaluate(dataset, steps=2, verbose=1)
     model.predict(dataset, steps=2)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_dataset_with_sample_weights_correctness(self):
     x = keras.layers.Input(shape=(1,), name='input')
     y = keras.layers.Dense(
@@ -246,15 +246,15 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     #  equals 42.5 / 4 = 10.625
     self.assertEqual(result, 10.625)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_dataset_with_sparse_labels(self):
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     optimizer = 'rmsprop'
     model.compile(
         optimizer,
         loss='sparse_categorical_crossentropy',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.zeros((10, 3), dtype=np.float32)
     targets = np.random.randint(0, 4, size=10, dtype=np.int32)
@@ -264,7 +264,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
 
     model.fit(dataset, epochs=1, steps_per_epoch=2, verbose=1)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_dataset_fit_correctness(self):
 
     class SumLayer(keras.layers.Layer):
@@ -277,7 +277,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
 
     model = keras.Sequential([SumLayer(input_shape=(2,))])
     model.compile(
-        'rmsprop', loss='mae', run_eagerly=testing_utils.should_run_eagerly())
+        'rmsprop', loss='mae', run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.zeros((40, 2), dtype=np.float32)
     inputs[10:20, :] = 2
@@ -319,7 +319,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
 
   def test_dataset_input_shape_validation(self):
     with tf.compat.v1.get_default_graph().as_default(), self.cached_session():
-      model = testing_utils.get_small_functional_mlp(1, 4, input_dim=3)
+      model = test_utils.get_small_functional_mlp(1, 4, input_dim=3)
       model.compile(optimizer='rmsprop', loss='mse')
 
       # User forgets to batch the dataset
@@ -345,12 +345,12 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
                                   r'expected (.*?) to have shape \(3,\)'):
         model.train_on_batch(dataset)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_finite_dataset_known_cardinality_no_steps_arg(self):
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     model.compile(
-        'rmsprop', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+        'rmsprop', 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.zeros((100, 3), dtype=np.float32)
     targets = np.random.randint(0, 4, size=100, dtype=np.int32)
@@ -366,12 +366,12 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     out = model.predict(dataset)
     self.assertEqual(out.shape[0], 100)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_finite_dataset_unknown_cardinality_no_steps_arg(self):
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     model.compile(
-        'rmsprop', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+        'rmsprop', 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.zeros((100, 3), dtype=np.float32)
     targets = np.random.randint(0, 4, size=100, dtype=np.int32)
@@ -390,8 +390,8 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     out = model.predict(dataset)
     self.assertEqual(out.shape[0], 100)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_finite_dataset_unknown_cardinality_no_step_with_train_and_val(self):
 
     class CaptureStdout:
@@ -407,9 +407,9 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
         self.output = self._stringio.getvalue()
         sys.stdout = self._stdout
 
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     model.compile(
-        'rmsprop', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+        'rmsprop', 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.zeros((100, 3), dtype=np.float32)
     targets = np.random.randint(0, 4, size=100, dtype=np.int32)
@@ -439,12 +439,12 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     out = model.predict(dataset)
     self.assertEqual(out.shape[0], 100)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_finite_dataset_unknown_cardinality_out_of_data(self):
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     model.compile(
-        'rmsprop', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+        'rmsprop', 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.zeros((100, 3), dtype=np.float32)
     targets = np.random.randint(0, 4, size=100, dtype=np.int32)
@@ -478,7 +478,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     out = model.predict(dataset)
     self.assertEqual(out.shape[0], 100)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_with_external_loss(self):
     inp = keras.Input(shape=(4,), name='inp1')
     out = keras.layers.Dense(2)(inp)
@@ -491,14 +491,14 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     dataset = tf.data.Dataset.from_tensor_slices(x).repeat(10).batch(10)
     model.fit(dataset)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_train_eval_with_steps(self):
     # See b/142880049 for more details.
     inp = keras.Input(shape=(4,), name='inp1')
     out = keras.layers.Dense(2)(inp)
     model = keras.Model(inp, out)
     model.compile(
-        'rmsprop', loss='mse', run_eagerly=testing_utils.should_run_eagerly())
+        'rmsprop', loss='mse', run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.zeros((100, 4), dtype=np.float32)
     targets = np.random.randint(0, 2, size=100, dtype=np.int32)
@@ -530,10 +530,10 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     self.assertEqual(batch_counter.batch_end_count, 100)
 
 
-class TestMetricsWithDatasets(keras_parameterized.TestCase):
+class TestMetricsWithDatasets(test_combinations.TestCase):
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_metrics_correctness_with_dataset(self):
     layers = [
         keras.layers.Dense(
@@ -541,13 +541,13 @@ class TestMetricsWithDatasets(keras_parameterized.TestCase):
         keras.layers.Dense(1, activation='sigmoid', kernel_initializer='ones')
     ]
 
-    model = testing_utils.get_model_from_layers(layers, (4,))
+    model = test_utils.get_model_from_layers(layers, (4,))
 
     model.compile(
         loss='binary_crossentropy',
         metrics=['accuracy', metrics_module.BinaryAccuracy()],
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     np.random.seed(123)
     x = np.random.randint(10, size=(100, 4)).astype(np.float32)

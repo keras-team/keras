@@ -20,15 +20,15 @@ import copy
 import pickle
 import numpy as np
 
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
-class TestPickleProtocol(keras_parameterized.TestCase):
+class TestPickleProtocol(test_combinations.TestCase):
   """Tests pickle protoocol support."""
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.parameterized.named_parameters(
+  @test_combinations.run_with_all_model_types
+  @test_combinations.parameterized.named_parameters(
       ('copy', copy.copy), ('deepcopy', copy.deepcopy),
       *((f'pickle_protocol_level_{protocol}',
          lambda model: pickle.loads(pickle.dumps(model, protocol=protocol)))  # pylint: disable=cell-var-from-loop
@@ -37,7 +37,7 @@ class TestPickleProtocol(keras_parameterized.TestCase):
     """Built models should be copyable and picklable for all model types."""
     if not tf.__internal__.tf2.enabled():
       self.skipTest('pickle model only available in v2 when tf format is used.')
-    model = testing_utils.get_small_mlp(
+    model = test_utils.get_small_mlp(
         num_hidden=1, num_classes=2, input_dim=3)
     model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy')
 
@@ -57,8 +57,8 @@ class TestPickleProtocol(keras_parameterized.TestCase):
     # check that the predictions are the same
     self.assertNotAllClose(y2, y3)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.parameterized.named_parameters(
+  @test_combinations.run_with_all_model_types
+  @test_combinations.parameterized.named_parameters(
       ('copy', copy.copy),
       ('deepcopy', copy.deepcopy),
   )
@@ -66,7 +66,7 @@ class TestPickleProtocol(keras_parameterized.TestCase):
     """Unbuilt models should be copyable & deepcopyable for all model types."""
     if not tf.__internal__.tf2.enabled():
       self.skipTest('pickle model only available in v2 when tf format is used.')
-    original_model = testing_utils.get_small_mlp(
+    original_model = test_utils.get_small_mlp(
         num_hidden=1, num_classes=2, input_dim=3)
     # roundtrip without compiling or training
     model = serializer(original_model)

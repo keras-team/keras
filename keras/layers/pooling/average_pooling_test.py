@@ -16,18 +16,18 @@
 
 from absl.testing import parameterized
 import keras
-from keras import combinations
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class AveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_average_pooling_1d(self):
     for padding in ['valid', 'same']:
       for stride in [1, 2]:
-        testing_utils.layer_test(
+        test_utils.layer_test(
             keras.layers.AveragePooling1D,
             kwargs={
                 'strides': stride,
@@ -35,13 +35,13 @@ class AveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
             },
             input_shape=(3, 5, 4))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.AveragePooling1D,
         kwargs={'data_format': 'channels_first'},
         input_shape=(3, 2, 6))
 
   def test_average_pooling_2d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.AveragePooling2D,
         kwargs={
             'strides': (2, 2),
@@ -49,7 +49,7 @@ class AveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
             'pool_size': (2, 2)
         },
         input_shape=(3, 5, 6, 4))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.AveragePooling2D,
         kwargs={
             'strides': (2, 2),
@@ -64,7 +64,7 @@ class AveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
       # Only runs on GPU with CUDA, channels_first is not supported on CPU.
       # TODO(b/62340061): Support channels_first on CPU.
       if tf.test.is_gpu_available(cuda_only=True):
-        testing_utils.layer_test(
+        test_utils.layer_test(
             keras.layers.AveragePooling2D,
             kwargs={
                 'strides': (1, 1),
@@ -76,7 +76,7 @@ class AveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_average_pooling_3d(self):
     pool_size = (3, 3, 3)
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.AveragePooling3D,
         kwargs={
             'strides': 2,
@@ -84,7 +84,7 @@ class AveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
             'pool_size': pool_size
         },
         input_shape=(3, 11, 12, 10, 4))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.AveragePooling3D,
         kwargs={
             'strides': 3,

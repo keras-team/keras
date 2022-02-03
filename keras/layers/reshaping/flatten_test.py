@@ -15,22 +15,22 @@
 """Tests for flatten layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class FlattenTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class FlattenTest(test_combinations.TestCase):
 
   def test_flatten(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Flatten, kwargs={}, input_shape=(3, 2, 4))
 
     # Test channels_first
     inputs = np.random.random((10, 3, 5, 5)).astype('float32')
-    outputs = testing_utils.layer_test(
+    outputs = test_utils.layer_test(
         keras.layers.Flatten,
         kwargs={'data_format': 'channels_first'},
         input_data=inputs)
@@ -39,11 +39,11 @@ class FlattenTest(keras_parameterized.TestCase):
     self.assertAllClose(outputs, target_outputs)
 
   def test_flatten_scalar_channels(self):
-    testing_utils.layer_test(keras.layers.Flatten, kwargs={}, input_shape=(3,))
+    test_utils.layer_test(keras.layers.Flatten, kwargs={}, input_shape=(3,))
 
     # Test channels_first
     inputs = np.random.random((10,)).astype('float32')
-    outputs = testing_utils.layer_test(
+    outputs = test_utils.layer_test(
         keras.layers.Flatten,
         kwargs={'data_format': 'channels_first'},
         input_data=inputs)

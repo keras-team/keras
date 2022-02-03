@@ -23,9 +23,8 @@ import numpy as np
 
 import keras
 from tensorflow.python.framework import test_util as tf_test_util
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import base_layer_utils
 from keras.layers import core
 from keras.layers.rnn_cell_wrapper_v2 import ResidualWrapper
@@ -96,9 +95,10 @@ class _AddOneCell(keras.layers.AbstractRNNCell):
     return outputs, state
 
 
-class TimeDistributedTest(keras_parameterized.TestCase):
+class TimeDistributedTest(test_combinations.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_timedistributed_dense(self):
     model = keras.models.Sequential()
     model.add(
@@ -258,7 +258,8 @@ class TimeDistributedTest(keras_parameterized.TestCase):
         self.assertAllEqual(mask_outputs_val[i], ref_mask_val[i])
       self.assertIs(mask_outputs[-1], None)  # final layer
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_TimeDistributed_with_masking_layer(self):
     # test with Masking layer
     model = keras.models.Sequential()
@@ -303,7 +304,8 @@ class TimeDistributedTest(keras_parameterized.TestCase):
         '`TimeDistributed` Layer should be passed an `input_shape `'):
       time_dist(ph)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_TimeDistributed_reshape(self):
 
     class NoReshapeLayer(keras.layers.Layer):
@@ -324,7 +326,8 @@ class TimeDistributedTest(keras_parameterized.TestCase):
     td3 = keras.layers.TimeDistributed(NoReshapeLayer())
     self.assertFalse(td3._always_use_reshape)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_TimeDistributed_output_shape_return_types(self):
 
     class TestLayer(keras.layers.Layer):
@@ -361,7 +364,7 @@ class TimeDistributedTest(keras_parameterized.TestCase):
           input_layer.compute_output_shape([None, 2, 4]).as_list(),
           [None, 2, 8])
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   # TODO(scottzhu): check why v1 session failed.
   def test_TimeDistributed_with_mask_first_implementation(self):
     np.random.seed(100)
@@ -377,7 +380,7 @@ class TimeDistributedTest(keras_parameterized.TestCase):
     model_1.compile(
         'rmsprop',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     output_with_mask = model_1.predict(data, steps=1)
 
     y = keras.layers.TimeDistributed(rnn_layer)(x)
@@ -385,14 +388,14 @@ class TimeDistributedTest(keras_parameterized.TestCase):
     model_2.compile(
         'rmsprop',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     output = model_2.predict(data, steps=1)
 
     self.assertNotAllClose(output_with_mask, output, atol=1e-7)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   @parameterized.named_parameters(
-      *testing_utils.generate_combinations_with_testcase_name(
+      *test_utils.generate_combinations_with_testcase_name(
           layer=[keras.layers.LSTM,
                  keras.layers.Dense]))
   def test_TimeDistributed_with_ragged_input(self, layer):
@@ -409,7 +412,7 @@ class TimeDistributedTest(keras_parameterized.TestCase):
     x_ragged = keras.Input(shape=(None, 2, 1), dtype='float32', ragged=True)
     y_ragged = keras.layers.TimeDistributed(layer)(x_ragged)
     model_1 = keras.models.Model(x_ragged, y_ragged)
-    model_1._run_eagerly = testing_utils.should_run_eagerly()
+    model_1._run_eagerly = test_utils.should_run_eagerly()
     output_ragged = model_1.predict(ragged_data, steps=1)
 
     x_dense = keras.Input(shape=(None, 2, 1), dtype='float32')
@@ -417,13 +420,13 @@ class TimeDistributedTest(keras_parameterized.TestCase):
     y_dense = keras.layers.TimeDistributed(layer)(masking)
     model_2 = keras.models.Model(x_dense, y_dense)
     dense_data = ragged_data.to_tensor()
-    model_2._run_eagerly = testing_utils.should_run_eagerly()
+    model_2._run_eagerly = test_utils.should_run_eagerly()
     output_dense = model_2.predict(dense_data, steps=1)
 
     output_ragged = convert_ragged_tensor_value(output_ragged)
     self.assertAllEqual(output_ragged.to_tensor(), output_dense)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_TimeDistributed_with_ragged_input_with_batch_size(self):
     np.random.seed(100)
     layer = keras.layers.Dense(16)
@@ -458,7 +461,7 @@ class TimeDistributedTest(keras_parameterized.TestCase):
     # Make sure the batch dim is not lost after array_ops.reshape.
     self.assertListEqual(outputs.shape.as_list(), [1, None, 30, 30, 16])
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_TimeDistributed_with_mimo(self):
     dense_1 = keras.layers.Dense(8)
     dense_2 = keras.layers.Dense(16)
@@ -496,7 +499,7 @@ class TimeDistributedTest(keras_parameterized.TestCase):
     model_1.compile(
         optimizer='rmsprop',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     output_1 = model_1.predict((data_1, data_2), steps=1)
 
     y1 = dense_1(x1)
@@ -537,7 +540,7 @@ class TimeDistributedTest(keras_parameterized.TestCase):
     model.summary()
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.parameters(['sum', 'concat', 'ave', 'mul'])
@@ -1250,7 +1253,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         epochs=1,
         batch_size=10)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_wrapped_rnn_cell(self):
     # See https://github.com/tensorflow/tensorflow/issues/26581.
     batch = 20

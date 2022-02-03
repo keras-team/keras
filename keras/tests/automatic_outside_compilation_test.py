@@ -19,7 +19,6 @@ import os
 
 from absl import flags
 from keras import callbacks
-from keras import testing_utils
 from keras.distribute import distribute_strategy_test
 from keras.engine import base_layer
 from keras.engine import sequential as sequential_model_lib
@@ -29,6 +28,7 @@ from keras.layers import core as layer_lib
 from keras.layers import pooling as pool_layer_lib
 from keras.layers import regularization as regularization_layer_lib
 from keras.layers import reshaping as reshaping_layer_lib
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
@@ -36,7 +36,7 @@ from tensorboard.plugins.histogram import summary_v2 as histogram_summary_v2
 from tensorboard.plugins.image import summary_v2 as image_summary_v2
 from tensorboard.plugins.scalar import summary_v2 as scalar_summary_v2
 from tensorflow.python.eager.context import set_soft_device_placement  # pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.framework import test_util  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 
 NUM_CLASSES = 4
 
@@ -154,7 +154,7 @@ def mnist_model(input_shape, enable_histograms=True):
   return model
 
 
-@testing_utils.run_v2_only
+@test_utils.run_v2_only
 class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
 
   def setUp(self):
@@ -184,7 +184,7 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
     # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove this
     #   if histogram summaries are supported fully on non-MLIR bridge or
     #   non-MLIR bridge is no longer run.
-    enable_histograms = test_util.is_mlir_bridge_enabled()
+    enable_histograms = tf_test_utils.is_mlir_bridge_enabled()
     strategy = get_tpu_strategy()
 
     with strategy.scope():
@@ -217,7 +217,7 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
     # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove this
     #   if histogram summaries are supported fully on non-MLIR bridge or
     #   non-MLIR bridge is no longer run.
-    enable_histograms = test_util.is_mlir_bridge_enabled()
+    enable_histograms = tf_test_utils.is_mlir_bridge_enabled()
     strategy = get_tpu_strategy()
     with strategy.scope():
       model = CustomModel(enable_histograms=enable_histograms)

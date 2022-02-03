@@ -24,14 +24,14 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.layers import embeddings
 from keras.layers import recurrent_v2 as rnn_v2
 
 
-@keras_parameterized.run_all_keras_modes
-class RNNV2Test(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class RNNV2Test(test_combinations.TestCase):
 
   @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
   def test_device_placement(self, layer):
@@ -47,7 +47,7 @@ class RNNV2Test(keras_parameterized.TestCase):
 
     # Test when GPU is available but not used, the graph should be properly
     # created with CPU ops.
-    with testing_utils.device(should_use_gpu=False):
+    with test_utils.device(should_use_gpu=False):
       model = keras.Sequential([
           keras.layers.Embedding(vocab_size, embedding_dim,
                                  batch_input_shape=[batch_size, timestep]),
@@ -57,7 +57,7 @@ class RNNV2Test(keras_parameterized.TestCase):
       model.compile(
           optimizer='adam',
           loss='sparse_categorical_crossentropy',
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model.fit(x, y, epochs=1, shuffle=False)
 
   @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
@@ -120,7 +120,7 @@ class RNNV2Test(keras_parameterized.TestCase):
     lstm(embedded_inputs)
 
   @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_compare_ragged_with_masks(self, layer):
     vocab_size = 100
     timestep = 20
@@ -133,9 +133,9 @@ class RNNV2Test(keras_parameterized.TestCase):
     data_ragged = tf.ragged.boolean_mask(data, mask)
 
     outputs = []
-    devices = [testing_utils.device(should_use_gpu=False)]
+    devices = [test_utils.device(should_use_gpu=False)]
     if tf.test.is_gpu_available():
-      devices.append(testing_utils.device(should_use_gpu=True))
+      devices.append(test_utils.device(should_use_gpu=True))
     for device in devices:
       with device:
         outputs.append(tf.boolean_mask(layer(embedder(data), mask=mask), mask))

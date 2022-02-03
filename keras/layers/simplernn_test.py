@@ -22,11 +22,11 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import combinations
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
-@combinations.generate(combinations.keras_mode_combinations())
+@test_combinations.generate(test_combinations.keras_mode_combinations())
 class SimpleRNNLayerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_return_sequences_SimpleRNN(self):
@@ -34,19 +34,19 @@ class SimpleRNNLayerTest(tf.test.TestCase, parameterized.TestCase):
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SimpleRNN,
         kwargs={'units': units,
                 'return_sequences': True},
         input_shape=(num_samples, timesteps, embedding_dim))
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_float64_SimpleRNN(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SimpleRNN,
         kwargs={'units': units,
                 'return_sequences': True,
@@ -72,7 +72,7 @@ class SimpleRNNLayerTest(tf.test.TestCase, parameterized.TestCase):
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SimpleRNN,
         kwargs={'units': units,
                 'dropout': 0.1,
@@ -85,7 +85,7 @@ class SimpleRNNLayerTest(tf.test.TestCase, parameterized.TestCase):
     embedding_dim = 4
     units = 2
     for mode in [0, 1, 2]:
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.SimpleRNN,
           kwargs={'units': units,
                   'implementation': mode},
@@ -176,7 +176,7 @@ class SimpleRNNLayerTest(tf.test.TestCase, parameterized.TestCase):
     model.compile(
         optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01),
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     out1 = model.predict(np.ones((num_samples, timesteps)))
     self.assertEqual(out1.shape, (num_samples, units))
 

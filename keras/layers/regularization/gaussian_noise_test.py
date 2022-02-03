@@ -15,17 +15,17 @@
 """Tests for gaussian noise layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class NoiseLayersTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class NoiseLayersTest(test_combinations.TestCase):
 
   def test_GaussianNoise(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GaussianNoise,
         kwargs={'stddev': 1.},
         input_shape=(3, 2, 3))
@@ -43,7 +43,7 @@ class NoiseLayersTest(keras_parameterized.TestCase):
     model.compile(
         optimizer='sgd',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.train_on_batch(np.zeros((8, 32)), np.zeros((8, 8)))
 
   def test_gaussian_noise_float32(self):

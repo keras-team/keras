@@ -17,8 +17,8 @@
 import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
-from keras import combinations
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
 from keras.mixed_precision import policy as mp_policy
@@ -26,11 +26,11 @@ from keras.optimizers.optimizer_v2 import gradient_descent
 from tensorflow.python.platform import tf_logging
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class PolicyTest(tf.test.TestCase, parameterized.TestCase):
   """Tests Policies."""
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_dtype_attributes(self):
     for dtype in 'int32', 'bool', 'float16', 'float32':
       policy = mp_policy.Policy(dtype)
@@ -48,7 +48,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(policy.compute_dtype, None)
     self.assertEqual(policy.variable_dtype, None)
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_repr(self):
     # Test Policy repr
     for policy in ('float32', 'int8', 'mixed_float16', 'mixed_bfloat16',
@@ -67,7 +67,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
         repr(mp_policy.PolicyV1('mixed_float16')),
         '<PolicyV1 "mixed_float16", loss_scale=DynamicLossScale(')
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_policy_errors(self):
     # Test passing invalid strings
 
@@ -109,7 +109,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
         '\'int8_with_float32_vars\''):
       mp_policy.Policy('int8_with_float32_vars')
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_loss_scale(self):
     policy = mp_policy.PolicyV1('float32')
     self.assertEqual(policy.loss_scale, None)
@@ -133,7 +133,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
     policy = mp_policy.PolicyV1('mixed_bfloat16')
     self.assertEqual(policy.loss_scale, None)
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_global_policy(self):
     if base_layer_utils.v2_dtype_behavior_enabled():
       default_policy = 'float32'
@@ -153,7 +153,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
     finally:
       mp_policy.set_global_policy(None)
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_global_policy_dtype_error(self):
     with self.assertRaisesRegex(
         ValueError,
@@ -168,7 +168,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
         'got policy: complex64'):
       mp_policy.set_global_policy(mp_policy.Policy('complex64'))
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_loss_scale_warning(self):
     with tf.compat.v1.test.mock.patch.object(tf_logging, 'warning') as mock_warn:
       mp_policy.PolicyV1('float32', loss_scale=2.)
@@ -185,7 +185,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
         mp_policy.PolicyV1(policy_name, loss_scale=2.)
         mock_warn.assert_not_called()
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_device_compatibility_warning(self):
     if not tf.executing_eagerly():
       self.skipTest('Run in eager mode only.')
@@ -206,7 +206,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
         mp_policy.Policy('mixed_float16')
       mock_warn.assert_not_called()
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_policy_scope(self):
     if base_layer_utils.v2_dtype_behavior_enabled():
       default_policy = 'float32'
@@ -219,7 +219,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(mp_policy.global_policy().name, 'mixed_float16')
     self.assertEqual(mp_policy.global_policy().name, default_policy)
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_config(self):
     for policy in (
         mp_policy.Policy('float16'),
@@ -235,7 +235,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
       # same, as policy does not override the == operator.
       self.assertEqual(str(policy), str(new_policy))
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_serialization(self):
     # Test policies that are equivalent to a single dtype
     for policy_name in 'float16', 'float32', 'int8', 'string', 'bool':
@@ -293,7 +293,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
               }
           })
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_error_if_graph_rewrite_enabled(self):
     try:
       tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
@@ -307,7 +307,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
     finally:
       tf.compat.v1.mixed_precision.disable_mixed_precision_graph_rewrite()
 
-  @testing_utils.disable_v2_dtype_behavior
+  @test_utils.disable_v2_dtype_behavior
   def test_v1_dtype_behavior(self):
     # Setting global policies are not allowed with V1 dtype behavior
     with self.assertRaisesRegex(

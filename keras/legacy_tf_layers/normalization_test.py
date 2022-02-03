@@ -25,12 +25,12 @@ import os
 import numpy as np
 
 from tensorflow.core.protobuf import saver_pb2
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from keras.legacy_tf_layers import convolutional as conv_layers
 from keras.legacy_tf_layers import normalization as normalization_layers
 
 
-@test_util.run_v1_only('b/120545219')
+@tf_test_utils.run_v1_only('b/120545219')
 class BNTest(tf.test.TestCase):
 
   def _simple_model(self, image, fused, freeze_mode):

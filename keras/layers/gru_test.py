@@ -22,21 +22,20 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import np_utils
 
 
-@keras_parameterized.run_all_keras_modes
-class GRULayerTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class GRULayerTest(test_combinations.TestCase):
 
   def test_return_sequences_GRU(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GRU,
         kwargs={'units': units,
                 'return_sequences': True},
@@ -45,13 +44,13 @@ class GRULayerTest(keras_parameterized.TestCase):
   @tf.test.disable_with_predicate(
       pred=tf.test.is_built_with_rocm,
       skip_message='Double type is not yet supported in ROCm')
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_float64_GRU(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GRU,
         kwargs={'units': units,
                 'return_sequences': True,
@@ -70,7 +69,7 @@ class GRULayerTest(keras_parameterized.TestCase):
     model.compile(
         'rmsprop',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.random.random((num_samples, timesteps, embedding_dim))
     y = np.random.random((num_samples, units))
     model.train_on_batch(x, y)
@@ -80,7 +79,7 @@ class GRULayerTest(keras_parameterized.TestCase):
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GRU,
         kwargs={'units': units,
                 'dropout': 0.1,
@@ -98,7 +97,7 @@ class GRULayerTest(keras_parameterized.TestCase):
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GRU,
         kwargs={'units': units,
                 'implementation': implementation_mode},
@@ -110,7 +109,7 @@ class GRULayerTest(keras_parameterized.TestCase):
     embedding_dim = 4
     units = 2
 
-    (x_train, y_train), _ = testing_utils.get_test_data(
+    (x_train, y_train), _ = test_utils.get_test_data(
         train_samples=num_samples,
         test_samples=0,
         input_shape=(timesteps, embedding_dim),
@@ -125,7 +124,7 @@ class GRULayerTest(keras_parameterized.TestCase):
     gru_model.compile(
         'rmsprop',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     gru_model.fit(x_train, y_train)
     gru_model.predict(x_train)
 
@@ -143,7 +142,7 @@ class GRULayerTest(keras_parameterized.TestCase):
     model.compile(
         loss='categorical_crossentropy',
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(inputs, targets, epochs=1, batch_size=2, verbose=1)
 
   @tf.test.disable_with_predicate(
@@ -170,7 +169,7 @@ class GRULayerTest(keras_parameterized.TestCase):
     model.compile(
         optimizer='sgd',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     out1 = model.predict(np.ones((num_samples, timesteps)))
     self.assertEqual(out1.shape, (num_samples, units))
 
@@ -223,7 +222,7 @@ class GRULayerTest(keras_parameterized.TestCase):
     self.assertEqual(state.shape, initial_state.shape)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class GRULayerGenericTest(tf.test.TestCase):
 
   def test_constraints_GRU(self):

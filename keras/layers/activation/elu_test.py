@@ -15,27 +15,27 @@
 """Tests for ELU layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class ELUTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ELUTest(test_combinations.TestCase):
 
   def test_elu(self):
     for alpha in [0., .5, -1.]:
-      testing_utils.layer_test(keras.layers.ELU,
-                               kwargs={'alpha': alpha},
-                               input_shape=(2, 3, 4),
-                               supports_masking=True)
+      test_utils.layer_test(keras.layers.ELU,
+                            kwargs={'alpha': alpha},
+                            input_shape=(2, 3, 4),
+                            supports_masking=True)
 
   def test_elu_with_invalid_alpha(self):
     # Test case for GitHub issue 46993.
     with self.assertRaisesRegex(
         ValueError, 'Alpha of an ELU layer cannot be None, '
         'expecting a float. Received: None'):
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ELU,
           kwargs={'alpha': None},
           input_shape=(2, 3, 4),

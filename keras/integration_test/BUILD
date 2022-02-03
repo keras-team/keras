@@ -299,5 +299,6 @@ tf_py_test(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
+        "//keras/testing_infra:test_combinations",
     ],
 )

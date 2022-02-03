@@ -17,7 +17,7 @@
 import doctest
 
 from absl.testing import parameterized
-from keras.utils import keras_doctest_lib
+from keras.testing_infra import keras_doctest_lib
 import tensorflow.compat.v2 as tf
 
 

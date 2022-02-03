@@ -60,6 +60,7 @@ tf_py_test(
         ":applications",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -375,5 +376,6 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )

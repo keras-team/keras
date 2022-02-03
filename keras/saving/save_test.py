@@ -27,12 +27,9 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import combinations
-from keras import keras_parameterized
 from keras import losses
 from keras.optimizers import optimizer_v1
 from keras import optimizers
-from keras import testing_utils
 from keras.engine import functional
 from keras.engine import sequential
 from keras.feature_column import dense_features
@@ -41,6 +38,8 @@ from keras.layers import core
 from keras.premade_models.linear import LinearModel
 from keras.saving import model_config
 from keras.saving import save
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 
 
@@ -54,8 +53,8 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     super(TestSaveModel, self).setUp()
-    self.model = testing_utils.get_small_sequential_mlp(1, 2, 3)
-    self.subclassed_model = testing_utils.get_small_subclass_mlp(1, 2)
+    self.model = test_utils.get_small_sequential_mlp(1, 2, 3)
+    self.subclassed_model = test_utils.get_small_subclass_mlp(1, 2)
 
   def assert_h5_format(self, path):
     if h5py is not None:
@@ -66,25 +65,25 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
   def assert_saved_model(self, path):
     tf.__internal__.saved_model.parse_saved_model(path)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_load_file_not_found(self):
     path = pathlib.Path(self.get_temp_dir()) / 'does_not_exist'
     with self.assertRaisesRegex(IOError, 'No file or directory found at'):
       save.load_model(path)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_save_format_defaults(self):
     path = os.path.join(self.get_temp_dir(), 'model_path')
     save.save_model(self.model, path)
     self.assert_saved_model(path)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_save_format_defaults_pathlib(self):
     path = pathlib.Path(self.get_temp_dir()) / 'model_path'
     save.save_model(self.model, path)
     self.assert_saved_model(path)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_save_hdf5(self):
     path = os.path.join(self.get_temp_dir(), 'model')
     save.save_model(self.model, path, save_format='h5')
@@ -94,13 +93,13 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
         'requires the model to be a Functional model or a Sequential model.'):
       save.save_model(self.subclassed_model, path, save_format='h5')
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_save_load_hdf5_pathlib(self):
     path = pathlib.Path(self.get_temp_dir()) / 'model'
     save.save_model(self.model, path, save_format='h5')
     save.load_model(path)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_save_tf(self):
     path = os.path.join(self.get_temp_dir(), 'model')
     save.save_model(self.model, path, save_format='tf')
@@ -112,31 +111,32 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
     save.save_model(self.subclassed_model, path, save_format='tf')
     self.assert_saved_model(path)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_save_load_tf_string(self):
     path = os.path.join(self.get_temp_dir(), 'model')
     save.save_model(self.model, path, save_format='tf')
     save.load_model(path)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_save_load_tf_pathlib(self):
     path = pathlib.Path(self.get_temp_dir()) / 'model'
     save.save_model(self.model, path, save_format='tf')
     save.load_model(path)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_save_load_weights_tf_pathlib(self):
     path = pathlib.Path(self.get_temp_dir()) / 'model'
     self.model.save_weights(path, save_format='tf')
     self.model.load_weights(path)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_save_load_weights_hdf5_pathlib(self):
     path = pathlib.Path(self.get_temp_dir()) / 'model'
     self.model.save_weights(path, save_format='h5')
     self.model.load_weights(path)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_saving_h5_for_rnn_layers(self):
     # See https://github.com/tensorflow/tensorflow/issues/35731 for details.
     inputs = keras.Input([10, 91], name='train_input')
@@ -157,7 +157,8 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
                         rnn_layers[1].kernel.name)
     self.assertIn('rnn_cell1', rnn_layers[1].kernel.name)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_saving_optimizer_weights(self):
 
     class MyModel(keras.Model):
@@ -190,7 +191,8 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
     self.assertAllClose(batch_loss, new_batch_loss)
 
-  @combinations.generate(combinations.combine(mode=['eager', 'graph']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['eager', 'graph']))
   def test_save_include_optimizer_false(self):
 
     def get_variables(file_name):
@@ -212,7 +214,8 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
     for v in variables:
       self.assertNotIn('optimizer', v)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_saving_model_with_custom_object(self):
     with generic_utils.custom_object_scope(), self.cached_session():
 
@@ -274,10 +277,11 @@ class RegisteredSubLayer(keras.layers.Layer):
   pass
 
 
-class TestJson(keras_parameterized.TestCase):
+class TestJson(test_combinations.TestCase):
   """Tests to_json()/from_json()."""
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_saving_with_dense_features(self):
     cols = [
         tf.feature_column.numeric_column('a'),
@@ -313,7 +317,8 @@ class TestJson(keras_parameterized.TestCase):
 
       self.assertLen(loaded_model.predict({'a': inputs_a, 'b': inputs_b}), 10)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_saving_with_sequence_features(self):
     cols = [
         tf.feature_column.sequence_numeric_column('a'),
@@ -372,7 +377,8 @@ class TestJson(keras_parameterized.TestCase):
               'b': inputs_b
           }, steps=1), batch_size)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_nested_layers(self):
 
     class MyLayer(keras.layers.Layer):
@@ -402,8 +408,8 @@ class TestJson(keras_parameterized.TestCase):
     self.assertEqual(loaded_layer.sublayers[1].name, 'MySubLayer')
 
 
-@keras_parameterized.run_with_all_saved_model_formats
-class TestWholeModelSaving(keras_parameterized.TestCase):
+@test_combinations.run_with_all_saved_model_formats
+class TestWholeModelSaving(test_combinations.TestCase):
 
   def _save_model_dir(self, dirname='saved_model'):
     temp_dir = self.get_temp_dir()
@@ -420,7 +426,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     self.assertAllClose(model.weights, loaded_model.weights)
 
     if loaded_model.optimizer:
-      if testing_utils.get_save_format() == 'tf':
+      if test_utils.get_save_format() == 'tf':
         # TODO(b/153110928): Keras TF format doesn't restore optimizer weights
         # currently.
         return
@@ -436,22 +442,22 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       self.assertAllEqual([m.name for m in model.metrics],
                           [m.name for m in loaded_model.metrics])
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_save_and_load(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
-    save_kwargs = testing_utils.get_save_kwargs()
+    save_format = test_utils.get_save_format()
+    save_kwargs = test_utils.get_save_kwargs()
 
     if ((save_format == 'h5' or not save_kwargs.get('save_traces', True)) and
-        testing_utils.get_model_type() == 'subclass'):
+        test_utils.get_model_type() == 'subclass'):
       # HDF5 format currently does not allow saving subclassed models.
       # When saving with `save_traces=False`, the subclassed model must have a
       # get_config/from_config, which the autogenerated model does not have.
       return
 
     with self.cached_session():
-      model = testing_utils.get_model_from_layers(
+      model = test_utils.get_model_from_layers(
           [keras.layers.Dense(2),
            keras.layers.RepeatVector(3),
            keras.layers.TimeDistributed(keras.layers.Dense(3))],
@@ -490,10 +496,11 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       eval_out2 = loaded_model.evaluate(x, y)
       self.assertArrayNear(eval_out, eval_out2, 0.001)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_sequential_model_saving_without_input_shape(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     with self.cached_session():
       model = keras.models.Sequential()
       model.add(keras.layers.Dense(2))
@@ -525,10 +532,11 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       out2 = new_model.predict(x)
       self.assertAllClose(out, out2, atol=1e-05)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_sequential_model_saving_without_compile(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     with self.cached_session():
       model = keras.models.Sequential()
       model.add(keras.layers.Dense(2, input_shape=(3,)))
@@ -549,7 +557,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
   def test_sequential_model_saving_2(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
 
     with tf.Graph().as_default(), self.cached_session():
       # test with custom optimizer, loss
@@ -583,7 +591,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
   def test_saving_without_compilation(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(2, input_shape=(3,)))
     model.add(keras.layers.Dense(3))
@@ -594,7 +602,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
   def test_saving_with_tf_optimizer(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
 
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(2, input_shape=(3,)))
@@ -608,7 +616,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
   def test_saving_right_after_compilation(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     with self.cached_session():
       model = keras.models.Sequential()
       model.add(keras.layers.Dense(2, input_shape=(3,)))
@@ -621,7 +629,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
   def test_saving_lambda_numpy_array_arguments(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
 
     if h5py is None:
       self.skipTest('h5py required to run this test')
@@ -643,7 +651,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
   def test_saving_model_with_long_layer_names(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     with self.cached_session():
       # This layer name will make the `layers_name` HDF5 attribute blow
       # out of proportion. Note that it fits into the internal HDF5
@@ -681,7 +689,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
   def test_saving_model_with_long_weights_names(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
 
     with self.cached_session():
       x = keras.Input(shape=(2,), name='nested_model_input')
@@ -722,7 +730,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
   def test_model_saving_to_pre_created_h5py_file(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     with tf.Graph().as_default(), self.cached_session():
       inputs = keras.Input(shape=(3,))
       x = keras.layers.Dense(2)(inputs)
@@ -772,7 +780,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
   def test_model_saving_to_new_dir_path(self):
     saved_model_dir = os.path.join(self._save_model_dir(), 'newdir',
                                    'saved_model')
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
 
     with self.cached_session():
       model = keras.models.Sequential()
@@ -810,7 +818,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
   def test_saving_constant_initializer_with_numpy(self):
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
 
     model = keras.models.Sequential()
     model.add(
@@ -844,7 +852,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       self.skipTest('h5py required to run this test')
 
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(1, input_shape=[2]))
     model.save(saved_model_dir, save_format=save_format)
@@ -854,7 +862,8 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     h5file = h5py.File(saved_model_dir, 'r')
     self.assertRegex(h5file.attrs['keras_version'], r'^[\d]+\.[\d]+\.[\S]+$')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_functional_model_with_custom_loss_and_metric(self):
     def _make_model():
       inputs = keras.Input(shape=(4,))
@@ -867,7 +876,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       return model
 
     saved_model_dir = self._save_model_dir()
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
 
     with self.cached_session():
       model = _make_model()
@@ -894,11 +903,12 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
           evaluation_results['sparse_categorical_crossentropy'] +
           evaluation_results['custom_loss'], evaluation_results['loss'], 1e-6)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_save_uncompiled_model_with_optimizer(self):
     with self.cached_session() as session:
       saved_model_dir = self._save_model_dir()
-      save_format = testing_utils.get_save_format()
+      save_format = test_utils.get_save_format()
       model = keras.models.Sequential([keras.layers.Dense(1, input_shape=(3,))])
       # Set the model's optimizer but don't compile. This can happen if the
       # model is trained with a custom training loop.
@@ -913,7 +923,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
             loaded.optimizer,
             keras.optimizers.optimizer_v2.optimizer_v2.OptimizerV2)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_functional_model_with_getitem_op_layer(self):
     inp = keras.Input(shape=(8))
 
@@ -931,7 +941,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     self.assertAllEqual(model.predict(args, batch_size=batch_size), expected)
 
     # Make sure it can be successfully saved and loaded.
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     saved_model_dir = self._save_model_dir()
     keras.models.save_model(model, saved_model_dir, save_format=save_format)
 
@@ -941,7 +951,8 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     self.assertAllEqual(loaded_model.predict(args, batch_size=batch_size),
                         expected)
 
-  @combinations.generate(combinations.combine(mode=['eager', 'graph']))
+  @test_combinations.generate(test_combinations.combine(
+      mode=['eager', 'graph']))
   def test_custom_functional_registered(self):
 
     def _get_cls_definition():
@@ -965,7 +976,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       if not tf.executing_eagerly():
         sess.run([v.initializer for v in model.variables])
 
-      save_format = testing_utils.get_save_format()
+      save_format = test_utils.get_save_format()
       saved_model_dir = self._save_model_dir()
       keras.models.save_model(model, saved_model_dir, save_format=save_format)
 
@@ -981,7 +992,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
         saved_model_dir, custom_objects={'CustomModel': new_cls})
     self.assertIsInstance(reloaded_model, new_cls)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_shared_objects(self):
     class OuterLayer(keras.layers.Layer):
 
@@ -1066,7 +1077,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
         'OuterLayer': OuterLayer, 'InnerLayer': InnerLayer}):
 
       # Test saving and loading to disk
-      save_format = testing_utils.get_save_format()
+      save_format = test_utils.get_save_format()
       saved_model_dir = self._save_model_dir()
       keras.models.save_model(model, saved_model_dir, save_format=save_format)
       loaded = keras.models.load_model(saved_model_dir)
@@ -1079,7 +1090,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       loaded = keras.Model.from_config(config)
       _do_assertions(loaded)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_shared_objects_wrapper(self):
     """Tests that shared layers wrapped with `Wrapper` restore correctly."""
     input_ = keras.Input(shape=(1,))
@@ -1094,14 +1105,14 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     self.assertIs(loaded.layers[1], loaded.layers[2].layer)
 
     # Test saving and loading to disk
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     saved_model_dir = self._save_model_dir()
     keras.models.save_model(model, saved_model_dir, save_format=save_format)
     loaded = keras.models.load_model(saved_model_dir)
     self.assertIs(loaded.layers[1], loaded.layers[2].layer)
 
-  @combinations.generate(
-      combinations.combine(mode=['graph', 'eager'], fit=[True, False]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager'], fit=[True, False]))
   def test_multi_output_metrics_name_stay_same(self, fit):
     """Tests that metric names don't change with each save/load cycle.
 
@@ -1136,7 +1147,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       model.fit(x, y, verbose=0)
 
     # Save and reload.
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     saved_model_dir = self._save_model_dir()
     keras.models.save_model(model, saved_model_dir, save_format=save_format)
     loaded = keras.models.load_model(saved_model_dir)
@@ -1145,7 +1156,8 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     # model.
     self.assertSequenceEqual(model.metrics_names, loaded.metrics_names)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_warning_when_saving_invalid_custom_mask_layer(self):
 
     class MyMasking(keras.layers.Layer):
@@ -1166,7 +1178,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     model = keras.Sequential([MyMasking(), MyLayer()])
     model.predict(samples)
     with warnings.catch_warnings(record=True) as w:
-      model.save(self._save_model_dir(), testing_utils.get_save_format())
+      model.save(self._save_model_dir(), test_utils.get_save_format())
     self.assertIn(generic_utils.CustomMaskWarning,
                   {warning.category for warning in w})
 
@@ -1189,7 +1201,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     model = keras.Sequential([MyCorrectMasking(), MyLayer()])
     model.predict(samples)
     with warnings.catch_warnings(record=True) as w:
-      model.save(self._save_model_dir(), testing_utils.get_save_format())
+      model.save(self._save_model_dir(), test_utils.get_save_format())
     self.assertNotIn(generic_utils.CustomMaskWarning,
                      {warning.category for warning in w})
 
@@ -1258,7 +1270,7 @@ class _make_subclassed_built(_make_subclassed):  # pylint: disable=invalid-name
     self.build((None, input_size))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class TestWholeModelSavingWithNesting(tf.test.TestCase, parameterized.TestCase):
   """Tests saving a whole model that contains other models."""
 

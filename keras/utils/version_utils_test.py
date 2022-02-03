@@ -17,17 +17,17 @@
 import abc
 
 import keras
-from keras import keras_parameterized
 from keras.engine import base_layer
 from keras.engine import base_layer_v1
 from keras.engine import training
 from keras.engine import training_v1
+from keras.testing_infra import test_combinations
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class SplitUtilsTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class SplitUtilsTest(test_combinations.TestCase):
 
   def _check_model_class(self, model_class):
     if tf.compat.v1.executing_eagerly_outside_functions():

@@ -18,9 +18,9 @@ import math
 
 from absl.testing import parameterized
 
-from keras import combinations
 from keras.optimizers import learning_rate_schedule
 from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.testing_infra import test_combinations
 import numpy as np
 
 import tensorflow.compat.v2 as tf
@@ -34,8 +34,8 @@ def _maybe_serialized(lr_decay, serialize_and_deserialize):
     return lr_decay
 
 
-@combinations.generate(combinations.combine(serialize=[False, True],
-                                            mode=["graph", "eager"]))
+@test_combinations.generate(test_combinations.combine(serialize=[False, True],
+                                                      mode=["graph", "eager"]))
 class LRDecayTestV2(tf.test.TestCase, parameterized.TestCase):
 
   def testContinuous(self, serialize):
@@ -155,8 +155,8 @@ class LRDecayTestV2(tf.test.TestCase, parameterized.TestCase):
 # @parameterized.named_parameters(
 #     ("NotSerialized", False),
 #     ("Serialized", True))
-@combinations.generate(combinations.combine(serialize=[False, True],
-                                            mode=["graph", "eager"]))
+@test_combinations.generate(test_combinations.combine(serialize=[False, True],
+                                                      mode=["graph", "eager"]))
 class LinearDecayTestV2(tf.test.TestCase, parameterized.TestCase):
 
   def testHalfWay(self, serialize):
@@ -209,8 +209,8 @@ class LinearDecayTestV2(tf.test.TestCase, parameterized.TestCase):
 # @parameterized.named_parameters(
 #     ("NotSerialized", False),
 #     ("Serialized", True))
-@combinations.generate(combinations.combine(serialize=[False, True],
-                                            mode=["graph", "eager"]))
+@test_combinations.generate(test_combinations.combine(serialize=[False, True],
+                                                      mode=["graph", "eager"]))
 class SqrtDecayTestV2(tf.test.TestCase,
                       parameterized.TestCase):
 
@@ -273,8 +273,8 @@ class SqrtDecayTestV2(tf.test.TestCase,
 # @parameterized.named_parameters(
 #     ("NotSerialized", False),
 #     ("Serialized", True))
-@combinations.generate(combinations.combine(serialize=[False, True],
-                                            mode=["graph", "eager"]))
+@test_combinations.generate(test_combinations.combine(serialize=[False, True],
+                                                      mode=["graph", "eager"]))
 class PolynomialDecayTestV2(tf.test.TestCase,
                             parameterized.TestCase):
 
@@ -292,8 +292,8 @@ class PolynomialDecayTestV2(tf.test.TestCase,
 # @parameterized.named_parameters(
 #     ("NotSerialized", False),
 #     ("Serialized", True))
-@combinations.generate(combinations.combine(serialize=[False, True],
-                                            mode=["graph", "eager"]))
+@test_combinations.generate(test_combinations.combine(serialize=[False, True],
+                                                      mode=["graph", "eager"]))
 class InverseDecayTestV2(tf.test.TestCase, parameterized.TestCase):
 
   def testDecay(self, serialize):
@@ -327,8 +327,8 @@ class InverseDecayTestV2(tf.test.TestCase, parameterized.TestCase):
       self.evaluate(step.assign_add(1))
 
 
-@combinations.generate(combinations.combine(serialize=[False, True],
-                                            mode=["graph", "eager"]))
+@test_combinations.generate(test_combinations.combine(serialize=[False, True],
+                                                      mode=["graph", "eager"]))
 class CosineDecayTestV2(tf.test.TestCase, parameterized.TestCase):
 
   def np_cosine_decay(self, step, decay_steps, alpha=0.0):
@@ -370,8 +370,8 @@ class CosineDecayTestV2(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
 
 
-@combinations.generate(combinations.combine(serialize=[False, True],
-                                            mode=["graph", "eager"]))
+@test_combinations.generate(test_combinations.combine(serialize=[False, True],
+                                                      mode=["graph", "eager"]))
 class CosineDecayRestartsTestV2(tf.test.TestCase,
                                 parameterized.TestCase):
 

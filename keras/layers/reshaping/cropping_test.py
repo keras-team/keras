@@ -15,14 +15,14 @@
 """Tests for cropping layers."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class CroppingTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class CroppingTest(test_combinations.TestCase):
 
   def test_cropping_1d(self):
     num_samples = 2
@@ -31,7 +31,7 @@ class CroppingTest(keras_parameterized.TestCase):
     inputs = np.random.rand(num_samples, time_length, input_len_dim1)
 
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Cropping1D,
           kwargs={'cropping': (1, 1)},
           input_shape=inputs.shape)
@@ -62,7 +62,7 @@ class CroppingTest(keras_parameterized.TestCase):
                                 stack_size)
       with self.cached_session():
         # basic test
-        testing_utils.layer_test(
+        test_utils.layer_test(
             keras.layers.Cropping2D,
             kwargs={'cropping': cropping,
                     'data_format': data_format},
@@ -134,7 +134,7 @@ class CroppingTest(keras_parameterized.TestCase):
                                   input_len_dim3, stack_size)
         # basic test
         with self.cached_session():
-          testing_utils.layer_test(
+          test_utils.layer_test(
               keras.layers.Cropping3D,
               kwargs={'cropping': cropping,
                       'data_format': data_format},

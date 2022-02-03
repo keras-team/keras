@@ -19,13 +19,13 @@ from __future__ import print_function
 import os
 import sys
 
-from keras import testing_utils
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
 # `tf.print` message is only available in stderr in TF2, which this test checks.
-@testing_utils.run_v2_only
+@test_utils.run_v2_only
 class CustomObjectSavingTest(tf.test.TestCase):
   """Test for custom Keras object saving with `register_keras_serializable`."""
 

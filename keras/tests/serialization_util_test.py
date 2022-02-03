@@ -17,8 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 import json
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
@@ -26,8 +25,8 @@ from keras.layers import core
 from keras.saving.saved_model import json_utils
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class SerializationTests(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class SerializationTests(test_combinations.TestCase):
 
   def test_serialize_dense(self):
     dense = core.Dense(3)

@@ -18,12 +18,12 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 import keras
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.distribute import keras_correctness_test_base
 from keras.optimizers.optimizer_v2 import gradient_descent
 
 
-@testing_utils.run_all_without_tensor_float_32(
+@test_utils.run_all_without_tensor_float_32(
     'Uses Dense layers, which call matmul. Even if Dense layers run in '
     'float64, the test sometimes fails with TensorFloat-32 enabled for unknown '
     'reasons')

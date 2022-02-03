@@ -19,11 +19,11 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 import numpy as np
 
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
 from keras import losses
 from keras import metrics
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.utils import losses_utils
 
 
@@ -38,7 +38,7 @@ def get_multi_io_model():
 
   branch_a = [inp_1, x, out_1]
   branch_b = [inp_2, x, out_2]
-  return testing_utils.get_multi_io_model(branch_a, branch_b)
+  return test_utils.get_multi_io_model(branch_a, branch_b)
 
 
 def custom_generator_multi_io(sample_weights=None):
@@ -62,9 +62,9 @@ def custom_generator_multi_io(sample_weights=None):
     yield x, y, sw
 
 
-@keras_parameterized.run_with_all_model_types(exclude_models=['sequential'])
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class TestMetricsCorrectnessMultiIO(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types(exclude_models=['sequential'])
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class TestMetricsCorrectnessMultiIO(test_combinations.TestCase):
 
   def _get_compiled_multi_io_model(self):
     model = get_multi_io_model()
@@ -75,7 +75,7 @@ class TestMetricsCorrectnessMultiIO(keras_parameterized.TestCase):
         weighted_metrics=[
             metrics.MeanSquaredError(name='mean_squared_error_2')
         ],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     return model
 
   def setUp(self):
@@ -339,15 +339,15 @@ class TestMetricsCorrectnessMultiIO(keras_parameterized.TestCase):
                         self.expected_batch_result_with_weights_output_2, 1e-3)
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class TestMetricsCorrectnessSingleIO(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class TestMetricsCorrectnessSingleIO(test_combinations.TestCase):
 
   def _get_model(self):
     x = layers.Dense(3, kernel_initializer='ones', trainable=False)
     out = layers.Dense(
         1, kernel_initializer='ones', name='output', trainable=False)
-    model = testing_utils.get_model_from_layers([x, out], input_shape=(1,))
+    model = test_utils.get_model_from_layers([x, out], input_shape=(1,))
     model.compile(
         optimizer='rmsprop',
         loss='mse',
@@ -355,7 +355,7 @@ class TestMetricsCorrectnessSingleIO(keras_parameterized.TestCase):
         weighted_metrics=[
             metrics.MeanSquaredError(name='mean_squared_error_2')
         ],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     return model
 
   def _custom_generator(self, sample_weight=None):
@@ -550,21 +550,21 @@ class TestMetricsCorrectnessSingleIO(keras_parameterized.TestCase):
                         1e-3)
 
 
-@keras_parameterized.run_with_all_model_types(exclude_models=['sequential'])
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_combinations.run_with_all_model_types(exclude_models=['sequential'])
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 @parameterized.parameters([
     losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
     losses_utils.ReductionV2.AUTO,
     losses_utils.ReductionV2.SUM
 ])
-class TestOutputLossMetrics(keras_parameterized.TestCase):
+class TestOutputLossMetrics(test_combinations.TestCase):
 
   def _get_compiled_multi_io_model(self, loss):
     model = get_multi_io_model()
     model.compile(
         optimizer='rmsprop',
         loss=loss,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     return model
 
   def setUp(self):
