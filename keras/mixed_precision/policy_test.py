@@ -22,7 +22,7 @@ from keras import testing_utils
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
 from keras.mixed_precision import policy as mp_policy
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 from tensorflow.python.platform import tf_logging
 
 

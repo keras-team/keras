@@ -24,7 +24,7 @@ from keras.distribute import multi_worker_testing_utils
 from keras.engine import data_adapter
 from keras.engine import sequential
 from keras.layers import core as core_layers
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.utils import dataset_creator
 from tensorflow.python.training.server_lib import ClusterSpec
 

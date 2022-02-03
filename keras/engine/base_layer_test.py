@@ -31,7 +31,7 @@ from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training as training_lib
 from keras.legacy_tf_layers import core as legacy_core
-from keras.optimizer_v2 import rmsprop
+from keras.optimizers.optimizer_v2 import rmsprop
 from keras.utils import control_flow_util
 
 

@@ -67,7 +67,7 @@ class VectorClassificationIntegrationTest(keras_parameterized.TestCase):
         input_shape=x_train.shape[1:])
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
         run_eagerly=testing_utils.should_run_eagerly())
     history = model.fit(x_train, y_train, epochs=10, batch_size=10,
@@ -103,7 +103,7 @@ class VectorClassificationIntegrationTest(keras_parameterized.TestCase):
     model = keras.models.Model(x, y)
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
         run_eagerly=testing_utils.should_run_eagerly())
     self.assertLen(model.losses, 2)
@@ -143,7 +143,7 @@ class SequentialIntegrationTest(KerasIntegrationTest):
     ])
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
         run_eagerly=testing_utils.should_run_eagerly())
     model.fit(x_train, y_train, epochs=1, batch_size=10,
@@ -156,7 +156,7 @@ class SequentialIntegrationTest(KerasIntegrationTest):
 
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
         run_eagerly=testing_utils.should_run_eagerly())
     history = model.fit(x_train, y_train, epochs=10, batch_size=10,
@@ -192,7 +192,7 @@ class TimeseriesClassificationIntegrationTest(keras_parameterized.TestCase):
         layers, input_shape=x_train.shape[1:])
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
         run_eagerly=testing_utils.should_run_eagerly())
     history = model.fit(x_train, y_train, epochs=15, batch_size=10,
@@ -222,7 +222,7 @@ class TimeseriesClassificationIntegrationTest(keras_parameterized.TestCase):
                                                   dtype=tf.float32)))
       model.compile(
           loss='categorical_crossentropy',
-          optimizer=keras.optimizer_v2.adam.Adam(0.005),
+          optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
           metrics=['acc'],
           run_eagerly=testing_utils.should_run_eagerly())
 
@@ -261,7 +261,7 @@ class ImageClassificationIntegrationTest(keras_parameterized.TestCase):
         layers, input_shape=x_train.shape[1:])
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
         run_eagerly=testing_utils.should_run_eagerly())
     history = model.fit(x_train, y_train, epochs=10, batch_size=10,
@@ -305,7 +305,7 @@ class ActivationV2IntegrationTest(keras_parameterized.TestCase):
 
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['accuracy'],
         run_eagerly=testing_utils.should_run_eagerly())
     model.fit(x_train, y_train, epochs=2, batch_size=10,

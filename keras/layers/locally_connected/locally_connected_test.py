@@ -22,7 +22,7 @@ import keras
 from keras import combinations
 from keras import testing_utils
 from keras.layers.locally_connected import locally_connected_utils
-from keras.optimizer_v2 import rmsprop
+from keras.optimizers.optimizer_v2 import rmsprop
 import numpy as np
 import tensorflow.compat.v2 as tf
 

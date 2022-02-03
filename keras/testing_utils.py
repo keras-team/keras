@@ -25,13 +25,13 @@ from keras import backend
 from keras import layers
 from keras import models
 from keras.engine import base_layer_utils
-from keras.optimizer_v2 import adadelta as adadelta_v2
-from keras.optimizer_v2 import adagrad as adagrad_v2
-from keras.optimizer_v2 import adam as adam_v2
-from keras.optimizer_v2 import adamax as adamax_v2
-from keras.optimizer_v2 import gradient_descent as gradient_descent_v2
-from keras.optimizer_v2 import nadam as nadam_v2
-from keras.optimizer_v2 import rmsprop as rmsprop_v2
+from keras.optimizers.optimizer_v2 import adadelta as adadelta_v2
+from keras.optimizers.optimizer_v2 import adagrad as adagrad_v2
+from keras.optimizers.optimizer_v2 import adam as adam_v2
+from keras.optimizers.optimizer_v2 import adamax as adamax_v2
+from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_v2
+from keras.optimizers.optimizer_v2 import nadam as nadam_v2
+from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_v2
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 import numpy as np

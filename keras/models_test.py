@@ -27,7 +27,7 @@ from keras import backend
 from keras import keras_parameterized
 from keras import metrics
 from keras import models
-from keras import optimizer_v1
+from keras.optimizers import optimizer_v1
 from keras import testing_utils
 
 
@@ -261,7 +261,7 @@ class TestModelCloning(keras_parameterized.TestCase):
     model = keras.Model(inputs=inputs, outputs=outputs)
     model.compile(
         loss=keras.losses.CategoricalCrossentropy(),
-        optimizer=keras.optimizer_v2.rmsprop.RMSprop(lr=0.01),
+        optimizer=keras.optimizers.optimizer_v2.rmsprop.RMSprop(lr=0.01),
         metrics=['accuracy'])
     keras.models.clone_model(model)
 
@@ -452,7 +452,7 @@ class TestCloneAndBuildModel(keras_parameterized.TestCase):
     self.assertEqual('mse', model.loss)
     self.assertIsInstance(
         model.optimizer,
-        (optimizer_v1.RMSprop, keras.optimizer_v2.rmsprop.RMSprop))
+        (optimizer_v1.RMSprop, keras.optimizers.optimizer_v2.rmsprop.RMSprop))
 
   def _clone_and_build_test_helper(self, model, model_type):
     inp = np.random.random((10, 4))
@@ -549,7 +549,7 @@ class TestCloneAndBuildModel(keras_parameterized.TestCase):
     with tf.Graph().as_default():
       with self.session():
         model = testing_utils.get_small_sequential_mlp(3, 4)
-        optimizer = keras.optimizer_v2.adam.Adam()
+        optimizer = keras.optimizers.optimizer_v2.adam.Adam()
         model.compile(
             optimizer, 'mse', metrics=['acc', metrics.categorical_accuracy],
             )

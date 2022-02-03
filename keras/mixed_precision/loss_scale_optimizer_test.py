@@ -23,11 +23,11 @@ from keras import combinations
 from keras import optimizers
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import test_util as mp_test_util
-from keras.optimizer_experimental import optimizer as optimizer_experimental
-from keras.optimizer_experimental import sgd as sgd_experimental
-from keras.optimizer_v2 import adam
-from keras.optimizer_v2 import gradient_descent
-from keras.optimizer_v2 import optimizer_v2
+from keras.optimizers.optimizer_experimental import optimizer as optimizer_experimental
+from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
+from keras.optimizers.optimizer_v2 import adam
+from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import optimizer_v2
 
 import numpy as np
 import tensorflow.compat.v2 as tf

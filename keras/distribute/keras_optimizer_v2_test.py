@@ -20,8 +20,8 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras.optimizer_v2 import adam
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import adam
+from keras.optimizers.optimizer_v2 import gradient_descent
 
 
 def get_model():

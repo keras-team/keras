@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 import os
 from tensorflow.python.framework import test_util
 from keras.layers import core
-from keras.optimizer_v2 import adam
+from keras.optimizers.optimizer_v2 import adam
 
 
 class _ModelWithOptimizerUsingDefun(tf.train.Checkpoint):

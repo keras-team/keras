@@ -23,7 +23,7 @@ from keras import backend
 from keras import testing_utils
 from keras.distribute import keras_correctness_test_base
 from keras.distribute import strategy_combinations
-from keras.optimizer_v2 import gradient_descent as gradient_descent_keras
+from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_keras
 
 
 def all_strategy_combinations_with_eager_and_graph_modes():

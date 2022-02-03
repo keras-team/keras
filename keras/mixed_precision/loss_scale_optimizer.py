@@ -17,9 +17,9 @@
 from keras import backend
 from keras import optimizers
 from keras.mixed_precision import loss_scale as keras_loss_scale_module
-from keras.optimizer_experimental import optimizer as optimizer_experimental
-from keras.optimizer_v2 import optimizer_v2
-from keras.optimizer_v2 import utils as optimizer_utils
+from keras.optimizers.optimizer_experimental import optimizer as optimizer_experimental
+from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.optimizer_v2 import utils as optimizer_utils
 
 import tensorflow.compat.v2 as tf
 # pylint: disable=g-direct-tensorflow-import

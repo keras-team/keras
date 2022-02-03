@@ -84,6 +84,6 @@ tf_py_test(
         "//keras",
         "//keras:combinations",
         "//keras:testing_utils",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
     ],
 )

@@ -25,7 +25,7 @@ import keras
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.engine import keras_tensor
-from keras.optimizer_v2 import adam
+from keras.optimizers.optimizer_v2 import adam
 from keras.saving import model_config
 
 

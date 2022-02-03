@@ -18,7 +18,7 @@
 import tensorflow.compat.v2 as tf
 from keras import backend
 from keras import metrics as metrics_module
-from keras import optimizer_v1
+from keras.optimizers import optimizer_v1
 from keras.engine import functional
 from keras.engine import sequential
 from keras.engine import training
