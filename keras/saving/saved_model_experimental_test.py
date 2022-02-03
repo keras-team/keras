@@ -24,10 +24,10 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import optimizer_v1
+from keras.optimizers import optimizer_v1
 from keras.engine import training as model_lib
-from keras.optimizer_v2 import adadelta
-from keras.optimizer_v2 import rmsprop
+from keras.optimizers.optimizer_v2 import adadelta
+from keras.optimizers.optimizer_v2 import rmsprop
 from keras.saving import saved_model_experimental as keras_saved_model
 from keras.saving import utils_v1 as model_utils
 from keras.utils import control_flow_util

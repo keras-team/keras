@@ -20,7 +20,7 @@ import types
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
-from keras.optimizer_v2 import optimizer_v2
+from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import saving_utils

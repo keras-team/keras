@@ -57,7 +57,7 @@ class MemoryCheckerTest(tf.test.TestCase):
       ])
 
       model.compile(
-          optimizer=keras.optimizer_v2.gradient_descent.SGD(lr=0.01),
+          optimizer=keras.optimizers.optimizer_v2.gradient_descent.SGD(lr=0.01),
           loss='mean_squared_error',
           metrics=['accuracy'])
       states = [[1] * rows * columns for _ in range(20)]

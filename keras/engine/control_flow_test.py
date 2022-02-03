@@ -23,7 +23,7 @@ import keras
 from keras import keras_parameterized
 from keras import testing_utils
 from keras.engine import base_layer
-from keras.optimizer_v2 import rmsprop
+from keras.optimizers.optimizer_v2 import rmsprop
 
 
 class ControlFlowLayer1(base_layer.Layer):

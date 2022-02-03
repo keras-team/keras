@@ -22,7 +22,7 @@ from keras import keras_parameterized
 from keras import testing_utils
 from keras.mixed_precision import loss_scale_optimizer as loss_scale_optimizer_v2
 from keras.mixed_precision import policy
-from keras.optimizer_v2 import gradient_descent as gradient_descent_v2
+from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_v2
 
 
 class MixedPrecisionTest(keras_parameterized.TestCase):

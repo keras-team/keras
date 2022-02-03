@@ -25,7 +25,7 @@ import numpy as np
 
 import keras
 from keras import keras_parameterized
-from keras import optimizer_v1
+from keras.optimizers import optimizer_v1
 from keras import testing_utils
 from keras.tests import model_architectures
 

@@ -134,7 +134,7 @@ py_test(
         ":profiler_lib",
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
     ],
 )
 

@@ -20,7 +20,7 @@ import threading
 import unittest
 import keras
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.server_lib import ClusterSpec
 

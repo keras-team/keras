@@ -14,15 +14,15 @@
 # ==============================================================================
 """Strategy and optimizer combinations for combinations.combine()."""
 
-from keras.optimizer_experimental import adam as adam_experimental
-from keras.optimizer_v2 import adadelta as adadelta_keras_v2
-from keras.optimizer_v2 import adagrad as adagrad_keras_v2
-from keras.optimizer_v2 import adam as adam_keras_v2
-from keras.optimizer_v2 import adamax as adamax_keras_v2
-from keras.optimizer_v2 import ftrl as ftrl_keras_v2
-from keras.optimizer_v2 import gradient_descent as gradient_descent_keras_v2
-from keras.optimizer_v2 import nadam as nadam_keras_v2
-from keras.optimizer_v2 import rmsprop as rmsprop_keras_v2
+from keras.optimizers.optimizer_experimental import adam as adam_experimental
+from keras.optimizers.optimizer_v2 import adadelta as adadelta_keras_v2
+from keras.optimizers.optimizer_v2 import adagrad as adagrad_keras_v2
+from keras.optimizers.optimizer_v2 import adam as adam_keras_v2
+from keras.optimizers.optimizer_v2 import adamax as adamax_keras_v2
+from keras.optimizers.optimizer_v2 import ftrl as ftrl_keras_v2
+from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_keras_v2
+from keras.optimizers.optimizer_v2 import nadam as nadam_keras_v2
+from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_keras_v2
 import tensorflow.compat.v2 as tf
 
 

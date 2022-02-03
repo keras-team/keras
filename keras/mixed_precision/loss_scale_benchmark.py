@@ -18,7 +18,7 @@ import tensorflow.compat.v2 as tf
 
 import time
 from keras.mixed_precision import loss_scale_optimizer
-from keras.optimizer_v2 import adam
+from keras.optimizers.optimizer_v2 import adam
 
 
 def _get_strategy(num_gpus):

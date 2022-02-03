@@ -333,7 +333,7 @@ class TestStatefulLambda(keras_parameterized.TestCase):
 
     model = testing_utils.get_model_from_layers([layer], input_shape=(10,))
     model.compile(
-        keras.optimizer_v2.gradient_descent.SGD(0.1),
+        keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
         'mae',
         run_eagerly=testing_utils.should_run_eagerly())
     x, y = np.ones((10, 10), 'float32'), 2 * np.ones((10, 10), 'float32')
@@ -427,7 +427,7 @@ class TestStatefulLambda(keras_parameterized.TestCase):
 
     model = testing_utils.get_model_from_layers([layer], input_shape=(10,))
     model.compile(
-        keras.optimizer_v2.gradient_descent.SGD(0.1),
+        keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
         'mae',
         run_eagerly=testing_utils.should_run_eagerly())
     x, y = np.ones((10, 10), 'float32'), 2 * np.ones((10, 10), 'float32')

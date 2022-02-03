@@ -28,7 +28,7 @@ from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
 from keras.layers import reshaping
-from keras.optimizer_v2 import adam
+from keras.optimizers.optimizer_v2 import adam
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.tracking import util as trackable_utils
 

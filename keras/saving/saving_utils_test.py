@@ -27,7 +27,7 @@ from keras import keras_parameterized
 from keras import testing_utils
 from keras.engine import sequential
 from keras.feature_column import dense_features
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.saving import saving_utils
 
 

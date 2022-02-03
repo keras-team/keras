@@ -23,7 +23,7 @@ import keras
 from keras import keras_parameterized
 from keras import metrics as metrics_module
 from keras import testing_utils
-from keras.optimizer_v2 import rmsprop
+from keras.optimizers.optimizer_v2 import rmsprop
 
 
 class TrainingTest(keras_parameterized.TestCase):

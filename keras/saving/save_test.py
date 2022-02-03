@@ -30,7 +30,7 @@ import keras
 from keras import combinations
 from keras import keras_parameterized
 from keras import losses
-from keras import optimizer_v1
+from keras.optimizers import optimizer_v1
 from keras import optimizers
 from keras import testing_utils
 from keras.engine import functional
@@ -458,7 +458,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
           input_shape=(3,))
       model.compile(
           loss=keras.losses.MSE,
-          optimizer=keras.optimizer_v2.rmsprop.RMSprop(lr=0.0001),
+          optimizer=keras.optimizers.optimizer_v2.rmsprop.RMSprop(lr=0.0001),
           metrics=[
               keras.metrics.categorical_accuracy,
               keras.metrics.CategoricalCrossentropy(
@@ -902,15 +902,16 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       model = keras.models.Sequential([keras.layers.Dense(1, input_shape=(3,))])
       # Set the model's optimizer but don't compile. This can happen if the
       # model is trained with a custom training loop.
-      model.optimizer = keras.optimizer_v2.rmsprop.RMSprop(lr=0.0001)
+      model.optimizer = keras.optimizers.optimizer_v2.rmsprop.RMSprop(lr=0.0001)
       if not tf.executing_eagerly():
         session.run([v.initializer for v in model.variables])
       model.save(saved_model_dir, save_format=save_format)
 
       if save_format in ['tf', 'tensorflow']:
         loaded = keras.models.load_model(saved_model_dir)
-        self.assertIsInstance(loaded.optimizer,
-                              keras.optimizer_v2.optimizer_v2.OptimizerV2)
+        self.assertIsInstance(
+            loaded.optimizer,
+            keras.optimizers.optimizer_v2.optimizer_v2.OptimizerV2)
 
   @combinations.generate(combinations.combine(mode=['eager']))
   def test_functional_model_with_getitem_op_layer(self):

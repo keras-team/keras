@@ -28,8 +28,6 @@ from keras import keras_parameterized
 from keras import layers as layers_module
 from keras import losses
 from keras import metrics as metrics_module
-from keras import optimizer_experimental
-from keras import optimizer_v2
 from keras import testing_utils
 from keras.callbacks import Callback
 from keras.engine import input_layer
@@ -37,6 +35,8 @@ from keras.engine import sequential
 from keras.engine import training as training_module
 from keras.engine import training_utils_v1
 from keras.layers.preprocessing import string_lookup
+from keras.optimizers import optimizer_v2
+from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
 from keras.utils import data_utils
 from keras.utils import io_utils
 from keras.utils import np_utils
@@ -1938,7 +1938,7 @@ class TrainingTest(keras_parameterized.TestCase):
     tensors = tf.random.uniform((4, 4)), tf.random.uniform((4,))
     dataset = tf.data.Dataset.from_tensor_slices(tensors).repeat().batch(1)
 
-    optimizer = optimizer_experimental.sgd.SGD(use_ema=True, ema_momentum=1)
+    optimizer = sgd_experimental.SGD(use_ema=True, ema_momentum=1)
     model.compile(optimizer, loss='mse', steps_per_execution=10)
     initial_value = tf.Variable(model.trainable_variables[0])
     history = model.fit(dataset, epochs=2, steps_per_epoch=10)
