@@ -473,7 +473,7 @@ class NumpyArrayIterator(image.NumpyArrayIterator, Iterator):
         subset=subset,
         **kwargs)
 
-
+@keras_export('keras.preprocessing.image.DataFrameIterator')
 class DataFrameIterator(image.DataFrameIterator, Iterator):  # pylint: disable=inconsistent-mro
   """Iterator capable of reading images from a directory on disk as a dataframe.
 
