@@ -3240,10 +3240,8 @@ def categorical_accuracy(y_true, y_pred):
   Returns:
     Categorical accuracy values.
   """
-  return tf.cast(
-      tf.equal(
-          tf.math.argmax(y_true, axis=-1), tf.math.argmax(y_pred, axis=-1)),
-      backend.floatx())
+  y_true = tf.math.argmax(y_true, axis=-1)
+  return sparse_categorical_accuracy(y_true, y_pred)
 
 
 @keras_export('keras.metrics.sparse_categorical_accuracy')
