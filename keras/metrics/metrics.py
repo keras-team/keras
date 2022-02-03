@@ -3309,10 +3309,8 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
   Returns:
     Top K categorical accuracy value.
   """
-  return tf.cast(
-      tf.math.in_top_k(
-          predictions=y_pred, targets=tf.math.argmax(y_true, axis=-1), k=k),
-      dtype=backend.floatx())
+  y_true = tf.math.argmax(y_true, axis=-1)
+  return sparse_top_k_categorical_accuracy(y_true, y_pred, k=k)
 
 
 @keras_export('keras.metrics.sparse_top_k_categorical_accuracy')
