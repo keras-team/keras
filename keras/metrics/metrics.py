@@ -3209,12 +3209,12 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
       prediction values are 1 or 0.
 
   Returns:
-    Binary accuracy values. shape = `[batch_size, d0, .. dN-1]`
+    Binary accuracy values. shape = `[batch_size, d0, .. dN]`
   """
   y_pred = tf.convert_to_tensor(y_pred)
   threshold = tf.cast(threshold, y_pred.dtype)
   y_pred = tf.cast(y_pred > threshold, y_pred.dtype)
-  return backend.mean(tf.equal(y_true, y_pred), axis=-1)
+  return tf.cast(tf.equal(y_true, y_pred), tf.int8)
 
 
 @keras_export('keras.metrics.categorical_accuracy')
