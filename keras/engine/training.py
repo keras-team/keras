@@ -23,7 +23,6 @@ import weakref
 
 from keras import backend
 from keras import callbacks as callbacks_module
-from keras import optimizer_v1
 from keras import optimizers
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
@@ -32,7 +31,8 @@ from keras.engine import data_adapter
 from keras.engine import training_utils
 from keras.mixed_precision import loss_scale_optimizer as lso
 from keras.mixed_precision import policy
-from keras.optimizer_experimental import optimizer as optimizer_experimental
+from keras.optimizers import optimizer_v1
+from keras.optimizers.optimizer_experimental import optimizer as optimizer_experimental
 from keras.saving import hdf5_format
 from keras.saving import pickle_utils
 from keras.saving import save

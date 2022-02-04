@@ -22,7 +22,7 @@ import copy
 import os
 from keras import backend
 from keras import losses
-from keras import optimizer_v1
+from keras.optimizers import optimizer_v1
 from keras import optimizers
 from keras.engine import base_layer_utils
 from keras.utils import generic_utils
@@ -151,7 +151,7 @@ def trace_model_call(model, input_signature=None):
 def model_metadata(model, include_optimizer=True, require_config=True):
   """Returns a dictionary containing the model metadata."""
   from keras import __version__ as keras_version  # pylint: disable=g-import-not-at-top
-  from keras.optimizer_v2 import optimizer_v2  # pylint: disable=g-import-not-at-top
+  from keras.optimizers.optimizer_v2 import optimizer_v2  # pylint: disable=g-import-not-at-top
 
   model_config = {'class_name': model.__class__.__name__}
   try:

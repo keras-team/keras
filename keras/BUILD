@@ -56,7 +56,7 @@ py_library(
         "//keras/layers/legacy_rnn:rnn_cell_impl",
         "//keras/legacy_tf_layers:layers",
         "//keras/mixed_precision:mixed_precision_experimental",
-        "//keras/optimizer_v2",
+        "//keras/optimizers",
         "//keras/premade_models",
         "//keras/preprocessing",
         "//keras/saving",
@@ -203,29 +203,14 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
-        ":optimizers",
         "//:expect_tensorflow_installed",
         "//keras/engine",
         "//keras/engine:base_layer",
         "//keras/metrics",
+        "//keras/optimizers",
         "//keras/saving",
         "//keras/utils:generic_utils",
         "//keras/utils:version_utils",
-    ],
-)
-
-py_library(
-    name = "optimizers",
-    srcs = [
-        "optimizer_v1.py",
-        "optimizers.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        ":backend",
-        "//keras/optimizer_experimental:optimizer",
-        "//keras/optimizer_v2",
-        "//keras/utils:engine_utils",
     ],
 )
 
@@ -265,7 +250,7 @@ py_library(
         "//:expect_tensorflow_installed",
         "//keras/engine:base_layer_utils",
         "//keras/layers",
-        "//keras/optimizer_v2",
+        "//keras/optimizers",
     ],
 )
 
@@ -323,21 +308,6 @@ tf_py_test(
     deps = [
         ":keras",
         "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-tf_py_test(
-    name = "optimizers_test",
-    size = "medium",
-    srcs = ["optimizers_test.py"],
-    python_version = "PY3",
-    shard_count = 8,
-    tags = ["notsan"],
-    deps = [
-        ":keras",
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
     ],
 )

@@ -26,7 +26,7 @@ import numpy as np
 import keras
 from keras import combinations
 from keras import keras_parameterized
-from keras import optimizer_v1
+from keras.optimizers import optimizer_v1
 from keras import testing_utils
 from keras.engine import training
 from keras.saving import hdf5_format

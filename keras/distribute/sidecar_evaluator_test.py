@@ -24,7 +24,7 @@ from absl.testing import parameterized
 import keras
 from keras import testing_utils
 from keras.distribute import sidecar_evaluator as sidecar_evaluator_lib
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging  # pylint: disable=g-direct-tensorflow-import

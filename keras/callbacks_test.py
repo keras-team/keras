@@ -36,8 +36,8 @@ from keras.callbacks import BackupAndRestoreExperimental
 from keras.engine import sequential
 from keras.layers import Activation
 from keras.layers import Dense
-from keras.optimizer_v2 import gradient_descent
-from keras.optimizer_v2 import learning_rate_schedule
+from keras.optimizers import learning_rate_schedule
+from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.utils import io_utils
 from keras.utils import np_utils
 import numpy as np

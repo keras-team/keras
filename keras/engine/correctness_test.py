@@ -55,7 +55,7 @@ class SimpleBiasTest(keras_parameterized.TestCase):
     model = testing_utils.get_model_from_layers([testing_utils.Bias()],
                                                 input_shape=(1,))
     model.compile(
-        keras.optimizer_v2.gradient_descent.SGD(0.1),
+        keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
         'mae',
         run_eagerly=testing_utils.should_run_eagerly())
     return model
@@ -93,7 +93,7 @@ class MultipleInputTest(keras_parameterized.TestCase):
     else:
       model = multi_input_functional()
     model.compile(
-        keras.optimizer_v2.gradient_descent.SGD(0.1),
+        keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
         'mae',
         run_eagerly=testing_utils.should_run_eagerly())
     return model

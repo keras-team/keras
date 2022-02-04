@@ -23,7 +23,7 @@ import numpy as np
 from keras import backend
 from keras import losses
 from keras import metrics as metrics_module
-from keras import optimizer_v1
+from keras.optimizers import optimizer_v1
 from keras import optimizers
 from keras.distribute import distributed_training_utils
 from keras.distribute import distributed_training_utils_v1
@@ -37,7 +37,7 @@ from keras.engine import training_utils
 from keras.engine import training_utils_v1
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
-from keras.optimizer_v2 import optimizer_v2
+from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.saving import saving_utils
 from keras.saving.saved_model import model_serialization
 from keras.utils import data_utils

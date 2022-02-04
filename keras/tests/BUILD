@@ -249,7 +249,7 @@ tf_py_test(
         "//keras/api:keras_api",
         "//keras/layers/core",
         "//keras/metrics",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
     ],
 )
 
@@ -327,7 +327,7 @@ tf_py_test(
         "//keras/api:keras_api",
         "//keras/engine",
         "//keras/layers/core",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
     ],
 )
 

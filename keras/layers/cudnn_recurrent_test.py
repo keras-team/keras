@@ -27,7 +27,7 @@ from tensorflow.python.framework import test_util
 from keras import combinations
 from keras import keras_parameterized
 from keras import testing_utils
-from keras.optimizer_v2.rmsprop import RMSprop
+from keras.optimizers.optimizer_v2.rmsprop import RMSprop
 
 
 @keras_parameterized.run_all_keras_modes
