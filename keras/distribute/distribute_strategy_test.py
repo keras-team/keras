@@ -36,7 +36,7 @@ from keras.distribute.strategy_combinations import strategies_minus_tpu
 from keras.distribute.strategy_combinations import tpu_strategies
 from keras.engine import base_layer_utils
 from keras.mixed_precision import policy
-from keras.optimizer_v2 import gradient_descent as gradient_descent_keras
+from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_keras
 from keras.utils import losses_utils
 from keras.utils import np_utils
 

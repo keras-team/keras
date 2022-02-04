@@ -16,7 +16,7 @@
 
 from keras.legacy_tf_layers import core
 from keras.legacy_tf_layers import normalization
-from keras.optimizer_v2 import optimizer_v2
+from keras.optimizers.optimizer_v2 import optimizer_v2
 
 import tensorflow.compat.v2 as tf
 

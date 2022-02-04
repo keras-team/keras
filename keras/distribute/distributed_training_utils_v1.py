@@ -27,7 +27,7 @@ from keras import optimizers
 from keras.distribute import distribute_coordinator_utils as dc
 from keras.distribute import distributed_training_utils as dist_utils
 from keras.engine import training_utils_v1
-from keras.optimizer_v2 import optimizer_v2
+from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.utils import tf_contextlib
 from keras.utils.mode_keys import ModeKeys
 from tensorflow.python.platform import tf_logging as logging

@@ -67,7 +67,7 @@ tf_py_test(
         "//keras",
         "//keras:combinations",
         "//keras/mixed_precision:loss_scale_optimizer",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
     ],
 )
 
@@ -134,7 +134,7 @@ tf_py_test(
         ":autocast_variable",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
     ],
 )
 
@@ -156,7 +156,7 @@ py_library(
         ":loss_scale",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
     ],
 )
 
@@ -202,7 +202,7 @@ cuda_py_test(
         "//keras",
         "//keras:combinations",
         "//keras:testing_utils",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
     ],
 )
 

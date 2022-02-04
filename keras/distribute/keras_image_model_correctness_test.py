@@ -20,7 +20,7 @@ import numpy as np
 import keras
 from keras import testing_utils
 from keras.distribute import keras_correctness_test_base
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 
 
 @testing_utils.run_all_without_tensor_float_32(

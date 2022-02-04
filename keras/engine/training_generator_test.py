@@ -29,7 +29,7 @@ from keras import testing_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.engine import training_generator_v1
-from keras.optimizer_v2 import rmsprop
+from keras.optimizers.optimizer_v2 import rmsprop
 from keras.utils import data_utils
 
 

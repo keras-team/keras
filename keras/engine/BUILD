@@ -55,7 +55,6 @@ py_library(
         "//keras:callbacks_v1",
         "//keras:constraints",
         "//keras:losses",
-        "//keras:optimizers",
         "//keras:regularizers",
         "//keras/distribute",
         "//keras/distribute:distribute_coordinator_utils",
@@ -64,6 +63,7 @@ py_library(
         "//keras/mixed_precision:autocast_variable",
         "//keras/mixed_precision:loss_scale_optimizer",
         "//keras/mixed_precision:policy",
+        "//keras/optimizers",
         "//keras/saving",
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
@@ -450,7 +450,7 @@ tf_py_test(
         "//keras:testing_utils",
         "//keras/layers",
         "//keras/metrics",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
         "//keras/utils:data_utils",
     ],
 )
@@ -611,7 +611,7 @@ tf_py_test(
         "//keras/layers",
         "//keras/legacy_tf_layers:core",
         "//keras/mixed_precision:policy",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
         "//keras/utils:tf_utils",
     ],
 )

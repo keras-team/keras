@@ -26,7 +26,7 @@ import keras
 from keras import keras_parameterized
 from keras import layers
 from keras import metrics
-from keras import optimizer_v2
+from keras.optimizers import optimizer_v2
 from keras import testing_utils
 from keras.utils import generic_utils
 

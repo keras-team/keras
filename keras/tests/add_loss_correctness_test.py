@@ -22,7 +22,7 @@ from keras import keras_parameterized
 from keras import layers
 from keras import losses
 from keras import Model
-from keras import optimizer_v2
+from keras.optimizers import optimizer_v2
 from keras import Sequential
 from keras import testing_utils
 from tensorflow.python.platform import tf_logging as logging

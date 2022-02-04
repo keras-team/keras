@@ -23,7 +23,7 @@ import keras
 from tensorflow.python.eager import backprop
 from keras.engine import training as keras_training
 from keras.layers import core as keras_core
-from keras.optimizer_v2 import rmsprop
+from keras.optimizers.optimizer_v2 import rmsprop
 from keras.utils import kpl_test_utils
 from tensorflow.python.training import optimizer as optimizer_lib
 

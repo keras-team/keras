@@ -30,7 +30,7 @@ from keras.engine import input_spec
 from keras.mixed_precision import get_layer_policy
 from keras.mixed_precision import policy
 from keras.mixed_precision import test_util as mp_test_util
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 
 
 class MultiplyLayerWithFunction(mp_test_util.MultiplyLayer):
