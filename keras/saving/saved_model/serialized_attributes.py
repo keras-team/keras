@@ -32,9 +32,9 @@ training_lib = LazyLoader(
     "keras.engine.training")
 metrics = LazyLoader("metrics", globals(),
                      "keras.metrics")
-recurrent = LazyLoader(
-    "recurrent", globals(),
-    "keras.layers.recurrent")
+base_rnn = LazyLoader(
+    "base_rnn", globals(),
+    "keras.layers.rnn.base_rnn")
 # pylint:enable=g-inconsistent-quotes
 
 
@@ -147,7 +147,7 @@ class SerializedAttributes:
       return ModelAttributes()
     elif isinstance(obj, metrics.Metric):
       return MetricAttributes()
-    elif isinstance(obj, recurrent.RNN):
+    elif isinstance(obj, base_rnn.RNN):
       return RNNAttributes()
     elif isinstance(obj, base_layer.Layer):
       return LayerAttributes()

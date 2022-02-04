@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for LSTM layer."""
-
-import tensorflow.compat.v2 as tf
+"""Tests for LSTM V1 layer."""
 
 import copy
 
 from absl.testing import parameterized
-import numpy as np
-
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes

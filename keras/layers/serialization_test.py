@@ -20,8 +20,10 @@ from absl.testing import parameterized
 
 import keras
 from keras.testing_infra import test_combinations
-from keras.layers import recurrent as rnn_v1
-from keras.layers import recurrent_v2 as rnn_v2
+from keras.layers.rnn import gru
+from keras.layers.rnn import gru_v1
+from keras.layers.rnn import lstm
+from keras.layers.rnn import lstm_v1
 from keras.layers.normalization import batch_normalization as batchnorm_v2
 from keras.layers.normalization import batch_normalization_v1 as batchnorm_v1
 
@@ -133,33 +135,33 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(new_layer.gamma_regularizer.__class__,
                      keras.regularizers.L2)
 
-  @parameterized.parameters([rnn_v1.LSTM, rnn_v2.LSTM])
+  @parameterized.parameters([lstm_v1.LSTM, lstm.LSTM])
   def test_serialize_deserialize_lstm(self, layer):
-    lstm = layer(5, return_sequences=True)
-    config = keras.layers.serialize(lstm)
+    lstm_layer = layer(5, return_sequences=True)
+    config = keras.layers.serialize(lstm_layer)
     self.assertEqual(config['class_name'], 'LSTM')
     new_layer = keras.layers.deserialize(config)
     self.assertEqual(new_layer.units, 5)
     self.assertEqual(new_layer.return_sequences, True)
     if tf.__internal__.tf2.enabled():
-      self.assertIsInstance(new_layer, rnn_v2.LSTM)
+      self.assertIsInstance(new_layer, lstm.LSTM)
     else:
-      self.assertIsInstance(new_layer, rnn_v1.LSTM)
-      self.assertNotIsInstance(new_layer, rnn_v2.LSTM)
+      self.assertIsInstance(new_layer, lstm_v1.LSTM)
+      self.assertNotIsInstance(new_layer, lstm.LSTM)
 
-  @parameterized.parameters([rnn_v1.GRU, rnn_v2.GRU])
+  @parameterized.parameters([gru_v1.GRU, gru.GRU])
   def test_serialize_deserialize_gru(self, layer):
-    gru = layer(5, return_sequences=True)
-    config = keras.layers.serialize(gru)
+    gru_layer = layer(5, return_sequences=True)
+    config = keras.layers.serialize(gru_layer)
     self.assertEqual(config['class_name'], 'GRU')
     new_layer = keras.layers.deserialize(config)
     self.assertEqual(new_layer.units, 5)
     self.assertEqual(new_layer.return_sequences, True)
     if tf.__internal__.tf2.enabled():
-      self.assertIsInstance(new_layer, rnn_v2.GRU)
+      self.assertIsInstance(new_layer, gru.GRU)
     else:
-      self.assertIsInstance(new_layer, rnn_v1.GRU)
-      self.assertNotIsInstance(new_layer, rnn_v2.GRU)
+      self.assertIsInstance(new_layer, gru_v1.GRU)
+      self.assertNotIsInstance(new_layer, gru.GRU)
 
 
 if __name__ == '__main__':

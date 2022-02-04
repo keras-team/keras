@@ -1,6 +1,6 @@
 path: "tensorflow.keras.layers.Wrapper"
 tf_class {
-  is_instance: "<class \'keras.layers.wrappers.Wrapper\'>"
+  is_instance: "<class \'keras.layers.rnn.base_wrapper.Wrapper\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"
