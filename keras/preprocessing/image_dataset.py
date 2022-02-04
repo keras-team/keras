@@ -108,7 +108,8 @@ def image_dataset_from_directory(directory,
     seed: Optional random seed for shuffling and transformations.
     validation_split: Optional float between 0 and 1,
         fraction of data to reserve for validation.
-    subset: One of "training" or "validation".
+    subset: Subset of the data to return.
+        One of "training" or "validation".
         Only used if `validation_split` is set.
     interpolation: String, the interpolation method used when resizing images.
       Defaults to `bilinear`. Supports `bilinear`, `nearest`, `bicubic`,
