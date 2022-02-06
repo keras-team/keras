@@ -24,14 +24,14 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras.optimizers import optimizer_v1
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.tests import model_architectures
 
 
-@keras_parameterized.run_with_all_saved_model_formats
-class TestModelArchitectures(keras_parameterized.TestCase):
+@test_combinations.run_with_all_saved_model_formats
+class TestModelArchitectures(test_combinations.TestCase):
 
   def _save_model_dir(self, dirname='saved_model'):
     temp_dir = self.get_temp_dir()
@@ -72,7 +72,7 @@ class TestModelArchitectures(keras_parameterized.TestCase):
 
   @parameterized.named_parameters(*model_architectures.ALL_MODELS)
   def test_basic_saving_and_loading(self, model_fn):
-    save_format = testing_utils.get_save_format()
+    save_format = test_utils.get_save_format()
     custom_objects = self.get_custom_objects()
     if 'subclassed_in_functional' in model_fn.__name__:
       subclass_custom_objects = {

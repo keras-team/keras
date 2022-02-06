@@ -20,13 +20,13 @@ import os
 import random
 import shutil
 import string
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.preprocessing import text_dataset
 
 
-@testing_utils.run_v2_only
-class TextDatasetFromDirectoryTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class TextDatasetFromDirectoryTest(test_combinations.TestCase):
 
   def _prepare_directory(self,
                          num_classes=2,

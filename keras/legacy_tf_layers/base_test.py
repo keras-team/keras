@@ -25,7 +25,7 @@ import copy
 from absl.testing import parameterized
 import numpy as np
 from keras import backend
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.engine import base_layer as keras_base_layer
 from keras.engine import input_spec
 from keras.legacy_tf_layers import base as base_layers
@@ -34,7 +34,8 @@ from keras.legacy_tf_layers import core as core_layers
 
 class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testLayerProperties(self):
     layer = base_layers.Layer(name='my_layer')
     self.assertEqual(layer.variables, [])
@@ -56,13 +57,15 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
         keras_base_layer.keras_api_gauge.get_cell('legacy_layer').value())
     keras_base_layer.keras_api_gauge.get_cell('legacy_layer').set(False)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInt64Layer(self):
     layer = base_layers.Layer(name='my_layer', dtype='int64')
     layer.add_variable('my_var', [2, 2])
     self.assertEqual(layer.name, 'my_layer')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testKerasStyleAddWeight(self):
     keras_layer = keras_base_layer.Layer(name='keras_layer')
     with backend.name_scope('foo'):
@@ -87,7 +90,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
           'my_var', [2, 2], initializer=tf.compat.v1.zeros_initializer())
     self.assertEqual(variable.name, 'bar/my_var:0')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testAddWeight(self):
     layer = base_layers.Layer(name='my_layer')
 
@@ -177,7 +181,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(
           len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)), 3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testCall(self):
 
     class MyLayer(base_layers.Layer):
@@ -193,7 +198,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
       # op is only supported in GRAPH mode
       self.assertEqual(outputs.op.name, 'my_layer/Square')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testDeepCopy(self):
 
     class MyLayer(base_layers.Layer):
@@ -215,7 +221,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(layer_copy._scope.name, layer._scope.name)
     self.assertEqual(layer_copy._private_tensor, layer._private_tensor)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testScopeNaming(self):
 
     class PrivateLayer(base_layers.Layer):
@@ -263,7 +270,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
       my_layer_scoped1.apply(inputs)
       self.assertEqual(my_layer_scoped1._scope.name, 'var_scope/my_layer_1')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecNdimCheck(self):
 
     class CustomerLayer(base_layers.Layer):
@@ -285,7 +293,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     layer = CustomerLayer()
     layer.apply(tf.constant([[1], [2]]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecMinNdimCheck(self):
 
     class CustomLayer(base_layers.Layer):
@@ -308,7 +317,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     layer = CustomLayer()
     layer.apply(tf.constant([[[1], [2]]]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecMaxNdimCheck(self):
 
     class CustomerLayer(base_layers.Layer):
@@ -331,7 +341,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     layer = CustomerLayer()
     layer.apply(tf.constant([[1], [2]]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecDtypeCheck(self):
 
     class CustomerLayer(base_layers.Layer):
@@ -351,7 +362,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     layer = CustomerLayer()
     layer.apply(tf.constant(1.0, dtype=tf.float32))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecAxesCheck(self):
 
     class CustomerLayer(base_layers.Layer):
@@ -373,7 +385,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     layer = CustomerLayer()
     layer.apply(tf.constant([[1, 2], [3, 4], [5, 6]]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecShapeCheck(self):
 
     class CustomerLayer(base_layers.Layer):
@@ -393,7 +406,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     layer = CustomerLayer()
     layer.apply(tf.constant([[1, 2, 3], [4, 5, 6]]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testNoInputSpec(self):
 
     class CustomerLayer(base_layers.Layer):
@@ -414,7 +428,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
       layer.apply(tf.compat.v1.placeholder('int32'))
       layer.apply(tf.compat.v1.placeholder('int32', shape=(2, 3)))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_count_params(self):
     dense = core_layers.Dense(16)
     dense.build((None, 4))
@@ -424,7 +439,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaises(ValueError):
       dense.count_params()
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testDictInputOutput(self):
 
     class DictLayer(base_layers.Layer):
@@ -634,7 +650,7 @@ class IdentityLayer(base_layers.Layer):
     return inputs
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class DTypeTest(tf.test.TestCase, parameterized.TestCase):
 
   def _const(self, dtype):

@@ -18,10 +18,10 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
 from keras import models
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.layers import activation
 from keras.layers import attention
 from keras.layers import convolutional
@@ -62,8 +62,8 @@ def _create_normalization_layer_without_adapt():
   )
 
 
-@testing_utils.run_v2_only
-class LayerCorrectnessTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class LayerCorrectnessTest(test_combinations.TestCase):
 
   def setUp(self):
     super(LayerCorrectnessTest, self).setUp()

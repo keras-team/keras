@@ -25,8 +25,8 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.layers.preprocessing import integer_lookup
 from keras.layers.preprocessing import preprocessing_test_utils
 
@@ -68,8 +68,8 @@ def _get_end_to_end_test_cases():
   return crossed_test_cases
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IntegerLookupLayerTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class IntegerLookupLayerTest(test_combinations.TestCase,
                              preprocessing_test_utils.PreprocessingLayerTest):
 
   @parameterized.named_parameters(*_get_end_to_end_test_cases())
@@ -98,7 +98,7 @@ class IntegerLookupLayerTest(keras_parameterized.TestCase,
       vocab_data = tf.data.Dataset.from_tensor_slices(vocab_data).batch(
           input_shape[0])
 
-    output_data = testing_utils.layer_test(
+    output_data = test_utils.layer_test(
         cls,
         kwargs=kwargs,
         input_shape=input_shape,
@@ -118,9 +118,9 @@ class IntegerLookupLayerTest(keras_parameterized.TestCase,
     self.assertEqual(output.numpy().tolist(), expected_output.tolist())
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class CategoricalEncodingInputTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_sparse_int_input(self):
@@ -159,9 +159,9 @@ class CategoricalEncodingInputTest(
     self.assertAllEqual(expected_output, output_dataset)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class CategoricalEncodingMultiOOVTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_sparse_int_input_multi_bucket(self):
@@ -205,9 +205,9 @@ class CategoricalEncodingMultiOOVTest(
     self.assertAllEqual(expected_output, output_dataset)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class CategoricalEncodingAdaptTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_sparse_adapt(self):
@@ -246,8 +246,8 @@ class CategoricalEncodingAdaptTest(
     layer.adapt(batched_ds)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IntegerLookupOutputTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class IntegerLookupOutputTest(test_combinations.TestCase,
                               preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_int_output(self):
@@ -375,9 +375,9 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     self.assertAllEqual(expected_output, output_dataset)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class IntegerLookupVocabularyTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def _write_to_temp_file(self, file_name, vocab_list):
@@ -552,8 +552,8 @@ class IntegerLookupVocabularyTest(
       fn()
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IntegerLookupErrorTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class IntegerLookupErrorTest(test_combinations.TestCase,
                              preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_too_long_vocab_fails_in_single_setting(self):
@@ -569,8 +569,8 @@ class IntegerLookupErrorTest(keras_parameterized.TestCase,
       _ = integer_lookup.IntegerLookup(max_tokens=0, num_oov_indices=1)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IntegerLookupSavingTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class IntegerLookupSavingTest(test_combinations.TestCase,
                               preprocessing_test_utils.PreprocessingLayerTest):
 
   def tearDown(self):

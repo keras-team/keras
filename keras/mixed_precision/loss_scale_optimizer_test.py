@@ -19,7 +19,6 @@ from unittest import mock
 
 from absl.testing import parameterized
 
-from keras import combinations
 from keras import optimizers
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import test_util as mp_test_util
@@ -28,11 +27,12 @@ from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
 from keras.optimizers.optimizer_v2 import adam
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.testing_infra import test_combinations
 
 import numpy as np
 import tensorflow.compat.v2 as tf
 # pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.keras.optimizer_v2 import gradient_descent as legacy_sgd
 from tensorflow.python.platform import tf_logging
 
@@ -116,12 +116,12 @@ def opt_and_strategy_and_mode_combinations():
   # For the experimental optimizer, don't use graph mode directly since it's
   # unsupported. Instead, run both without and with a tf.function, in order to
   # test both graph and eager mode.
-  experimental_opt_combinations = combinations.combine(
+  experimental_opt_combinations = test_combinations.combine(
       opt_cls=optimizer_experimental.Optimizer,
       strategy_fn=STRATEGY_FNS,
       mode='eager',
       use_tf_function=[False, True])
-  orig_opt_combinations = combinations.combine(
+  orig_opt_combinations = test_combinations.combine(
       opt_cls=optimizer_v2.OptimizerV2,
       strategy_fn=STRATEGY_FNS,
       mode=['graph', 'eager'],
@@ -131,13 +131,14 @@ def opt_and_strategy_and_mode_combinations():
 
 def opt_combinations_only():
   """Returns two combinations for running with the two base optimizers."""
-  experimental_opt_combinations = combinations.combine(
+  experimental_opt_combinations = test_combinations.combine(
       mode='eager', opt_cls=optimizer_experimental.Optimizer)
-  orig_opt_combination = combinations.combine(opt_cls=optimizer_v2.OptimizerV2)
+  orig_opt_combination = test_combinations.combine(
+      opt_cls=optimizer_v2.OptimizerV2)
   return experimental_opt_combinations + orig_opt_combination
 
 
-@test_util.with_control_flow_v2
+@tf_test_utils.with_control_flow_v2
 class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   def _run_if_in_graph_mode(self, val):
@@ -170,7 +171,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIsInstance(optimizer,
                           loss_scale_optimizer.BaseLossScaleOptimizer)
 
-  @combinations.generate(opt_and_strategy_and_mode_combinations())
+  @test_combinations.generate(opt_and_strategy_and_mode_combinations())
   def testFixedLossScaleAppliedToLossWithMinimize(self, opt_cls, strategy_fn,
                                                   use_tf_function):
     with strategy_fn().scope() as strategy:
@@ -211,7 +212,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       # mp_test_util.create_identity_with_grad_check_fn added an assertion op.
       self.evaluate(run_op)
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testDynamicAttrsWithFixedLossScale(self, opt_cls):
     opt = create_sgd(opt_cls)
     opt = create_lso(opt, dynamic=False, initial_scale=2.)
@@ -219,7 +220,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIsNone(opt.dynamic_counter)
     self.assertIsNone(opt.dynamic_growth_steps)
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testGetScaledLoss(self, opt_cls):
     opt = create_sgd(opt_cls)
     opt = create_lso(opt, dynamic=False, initial_scale=2.)
@@ -230,7 +231,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(10., self.evaluate(opt.get_scaled_loss(loss)))
     self.assertEqual(10., self.evaluate(opt.get_scaled_loss(lambda: loss)()))
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testGetUnscaledGradients(self, opt_cls):
     opt = create_sgd(opt_cls)
     opt = create_lso(opt, dynamic=False, initial_scale=2)
@@ -242,26 +243,25 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     grads = [self.evaluate(g) if g is not None else g for g in grads]
     self.assertEqual([1.5, None, -2.], grads)
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testGetUnscaledSparseGradients(self, opt_cls):
     opt = create_sgd(opt_cls)
     opt = create_lso(opt, dynamic=False, initial_scale=2)
     sparse_scaled_grad = tf.IndexedSlices(
         tf.convert_to_tensor([[4., 2.], [8., 5.]]),
         tf.convert_to_tensor([1, 3], dtype='int32'),
-        dense_shape=tf.convert_to_tensor([5, 2],
-                                                           dtype='int32'))
+        dense_shape=tf.convert_to_tensor([5, 2], dtype='int32'))
     sparse_grad = opt.get_unscaled_gradients([sparse_scaled_grad])[0]
     self.assertIsInstance(sparse_grad, tf.IndexedSlices)
     self.assertAllEqual([[2., 1.], [4., 2.5]],
                         self.evaluate(sparse_grad.values))
 
-  @combinations.generate(opt_and_strategy_and_mode_combinations())
+  @test_combinations.generate(opt_and_strategy_and_mode_combinations())
   def testDynamicLossScale(self, opt_cls, strategy_fn, use_tf_function):
     strategy = strategy_fn()
     learning_rate = 2.
     expected_gradient = tf.Variable(learning_rate /
-                                           strategy.num_replicas_in_sync)
+                                    strategy.num_replicas_in_sync)
     with strategy.scope():
       var = tf.Variable([5.0])
       opt = create_sgd(opt_cls, learning_rate)
@@ -292,7 +292,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       # 1.
       self.assertAllClose([1.], self.evaluate(var))
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testDynamicLossScaleDefaultValues(self, opt_cls):
     opt = create_sgd(opt_cls)
     opt = create_lso(opt)
@@ -302,7 +302,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(self.evaluate(opt.loss_scale), 2 ** 15)
 
   # pylint: disable=cell-var-from-loop
-  @combinations.generate(opt_and_strategy_and_mode_combinations())
+  @test_combinations.generate(opt_and_strategy_and_mode_combinations())
   def testClipping(self, opt_cls, strategy_fn, use_tf_function):
     strategy = strategy_fn()
     learning_rate = 2.
@@ -352,7 +352,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(self.evaluate(opt.loss_scale), 4)
   # pylint: enable=cell-var-from-loop
 
-  @combinations.generate(opt_and_strategy_and_mode_combinations())
+  @test_combinations.generate(opt_and_strategy_and_mode_combinations())
   def testDynamicUpdate(self, opt_cls, strategy_fn, use_tf_function):
     with strategy_fn().scope() as strategy:
       var = tf.Variable([1.0, 2.0])
@@ -382,7 +382,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       # Loss scale should half due to NaN gradients.
       self.assertEqual(2., self.evaluate(opt.loss_scale))
 
-  @combinations.generate(opt_and_strategy_and_mode_combinations())
+  @test_combinations.generate(opt_and_strategy_and_mode_combinations())
   def testDynamicLossScaleWithFloat16Loss(self, opt_cls, strategy_fn,
                                           use_tf_function):
     strategy = strategy_fn()
@@ -404,7 +404,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       # and so the variable will be init_val - grad * lr == 5 - 1 * 2 == 3
       self.assertAllClose([3.], self.evaluate(var))
 
-  @combinations.generate(opt_and_strategy_and_mode_combinations())
+  @test_combinations.generate(opt_and_strategy_and_mode_combinations())
   def testNanOnOneReplicaOnly(self, opt_cls, strategy_fn, use_tf_function):
     if strategy_fn == default_strategy_fn:
       self.skipTest('The test is only useful for non-default strategies')
@@ -459,7 +459,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     # Loss scale should half due to NaN gradients.
     self.assertEqual(1., self.evaluate(opt.loss_scale))
 
-  @combinations.generate(opt_and_strategy_and_mode_combinations())
+  @test_combinations.generate(opt_and_strategy_and_mode_combinations())
   def testDynamicLossScaleWithSlots(self, opt_cls, strategy_fn,
                                     use_tf_function):
     strategy_obj = strategy_fn()
@@ -507,7 +507,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(lso.iterations, 7)
     self.assertEqual(opt.iterations, 7)
 
-  @combinations.generate(opt_and_strategy_and_mode_combinations())
+  @test_combinations.generate(opt_and_strategy_and_mode_combinations())
   def testIterationsIncremented(self, opt_cls, strategy_fn, use_tf_function):
     with strategy_fn().scope() as strategy:
       # Test iterations is incremented in opt.minimize.
@@ -594,7 +594,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       with self.assertRaises(AttributeError):
         lso.loss_scale = 2.
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testArbitraryAttributesNotExposed(self, opt_cls):
     opt = create_sgd(opt_cls)
     lso = create_lso(opt)
@@ -618,7 +618,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertNotIn('nesterov', dir_result)  # Attribute on inner optimizer
     self.assertIn('nesterov', dir(lso.inner_optimizer))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testApplyGradientsGetsUnwrappedTensors(self):
     # Tests that gradients passed to apply_gradients are not wrapped in a
     # DistributionStrategy wrapper, such as PerReplica, but instead are raw
@@ -648,8 +649,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       run_fn = lambda: opt.minimize(loss, [var])
       strategy.experimental_run(run_fn)
 
-  @combinations.generate(
-      combinations.combine(mode='eager', use_tf_function=[False, True]))
+  @test_combinations.generate(
+      test_combinations.combine(mode='eager', use_tf_function=[False, True]))
   def testApplyGradientsGetsUnwrappedTensorsWithNewOptimizer(
       self, use_tf_function):
     outer_self = self
@@ -675,8 +676,9 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         run_fn = tf.function(run_fn)
       strategy.experimental_run(run_fn)
 
-  @combinations.generate(
-      combinations.combine(strategy_fn=STRATEGY_FNS, mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(strategy_fn=STRATEGY_FNS,
+                                mode=['graph', 'eager']))
   def testV1Optimizer(self, strategy_fn):
     strategy = strategy_fn()
     learning_rate = 2.
@@ -720,8 +722,9 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       for s in strategy.experimental_local_results(opt.dynamic_counter):
         self.assertEqual(self.evaluate(s), 0)
 
-  @combinations.generate(
-      combinations.combine(strategy_fn=STRATEGY_FNS, mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(strategy_fn=STRATEGY_FNS,
+                                mode=['graph', 'eager']))
   def testPassingV1LossScale(self, strategy_fn):
     strategy = strategy_fn()
     learning_rate = 2.
@@ -790,7 +793,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                    'DynamicLossScale is no longer supported. Got:'):
       loss_scale_optimizer.LossScaleOptimizerV1(opt, MyLossScale())
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testLossScaleDelegationWithWrapper(self, opt_cls):
     # Test learning_rate is exposed when LossScaleOptimizer wraps another
     # wrapper.
@@ -828,14 +831,14 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(self.evaluate(
           opt.inner_optimizer.inner_optimizer.learning_rate), 2.0)
 
-  @combinations.generate(
-      combinations.combine(
+  @test_combinations.generate(
+      test_combinations.combine(
           opt_cls=optimizer_v2.OptimizerV2,
           strategy_fn=STRATEGY_FNS,
           mode=['graph', 'eager'],
           use_tf_function=False,
           save_with_ls=[False, True],
-          restore_with_ls=[False, True]) + combinations.combine(
+          restore_with_ls=[False, True]) + test_combinations.combine(
               opt_cls=optimizer_experimental.Optimizer,
               strategy_fn=STRATEGY_FNS,
               mode='eager',
@@ -955,10 +958,11 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       if opt_cls == optimizer_v2.OptimizerV2:
         self.assertEqual(self.evaluate(slot_var).item(), -1)
 
-  @combinations.generate(
-      combinations.combine(
+  @test_combinations.generate(
+      test_combinations.combine(
           get_config=['v1', 'v2', 'tf2_3'], from_config=['v1', 'v2']) +
-      combinations.combine(get_config='v3', from_config='v3', mode='eager'))
+      test_combinations.combine(
+          get_config='v3', from_config='v3', mode='eager'))
   def testGetConfigFixed(self, get_config, from_config):
     # Get a config from LossScaleOptimizerV1, LossScaleOptimizer,
     # LossScaleOptimizerV3, or the LossScaleOptimizer from TF 2.3. Then restore
@@ -1027,10 +1031,11 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self._run_if_in_graph_mode(run_op)
     self.assertEqual(self.evaluate(var), [3.])
 
-  @combinations.generate(
-      combinations.combine(
+  @test_combinations.generate(
+      test_combinations.combine(
           get_config=['v1', 'v2', 'tf2_3'], from_config=['v1', 'v2']) +
-      combinations.combine(get_config='v3', from_config='v3', mode='eager'))
+      test_combinations.combine(
+          get_config='v3', from_config='v3', mode='eager'))
   def testGetConfigDynamic(self, get_config, from_config):
     # Get a config from LossScaleOptimizerV1, LossScaleOptimizer,
     # LossScaleOptimizerV3, or the LossScaleOptimizer from TF 2.3. Then restore
@@ -1135,9 +1140,9 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, expected_error):
       loss_scale_optimizer.LossScaleOptimizerV1.from_config(config)
 
-  @combinations.generate(
-      combinations.combine(lso_type=['v1', 'v2']) +
-      combinations.combine(lso_type='v3', mode='eager'))
+  @test_combinations.generate(
+      test_combinations.combine(lso_type=['v1', 'v2']) +
+      test_combinations.combine(lso_type='v3', mode='eager'))
   def testSerializationWithBuiltInOptimizer(self, lso_type):
     if lso_type == 'v1':
       opt = gradient_descent.SGD(2., momentum=0.5)
@@ -1178,7 +1183,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(self.evaluate(var), [3.])
     self.assertEqual(self.evaluate(opt.dynamic_counter), 1)
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testSerializationWithCustomOptimizer(self, opt_cls):
     sgd_cls = type(create_sgd(opt_cls))
 
@@ -1203,7 +1208,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(opt.dynamic_growth_steps, 3.)
     self.assertEqual(opt.inner_optimizer.my_attribute, 123)
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testUnsupportedStrategy(self, opt_cls):
     strategy = tf.distribute.experimental.CentralStorageStrategy()
     expected_error = (
@@ -1220,7 +1225,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       with self.assertRaisesRegex(ValueError, expected_error):
         strategy.experimental_run(run_fn)
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testInvalidArgsWithFixedLossScale(self, opt_cls):
     opt = create_sgd(opt_cls)
     with self.assertRaisesRegex(
@@ -1232,7 +1237,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                     'False, but got: 2'):
       create_lso(opt, dynamic=False, initial_scale=1, dynamic_growth_steps=2)
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testDynamicMustBeBool(self, opt_cls):
     opt = create_sgd(opt_cls)
     with self.assertRaisesRegex(
@@ -1240,7 +1245,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                    "a bool, but got: 'dynamic'"):
       create_lso(opt, 'dynamic')
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testScalingWarning(self, opt_cls):
     var = tf.Variable(1.0)
     lso = create_lso(create_sgd(opt_cls))
@@ -1272,7 +1277,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       lso.apply_gradients([(tf.constant(1.0), var)])
       mock_warn.assert_not_called()
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testErrorWhenNesting(self, opt_cls):
     opt = create_sgd(opt_cls)
     opt = create_lso(opt)
@@ -1280,7 +1285,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         TypeError, 'LossScaleOptimizer cannot wrap another LossScaleOptimizer'):
       create_lso(opt)
 
-  @combinations.generate(opt_combinations_only())
+  @test_combinations.generate(opt_combinations_only())
   def testErrorWrappingSameOptimizerMultipleTimes(self, opt_cls):
     inner_opt = create_sgd(opt_cls)
     create_lso(inner_opt)

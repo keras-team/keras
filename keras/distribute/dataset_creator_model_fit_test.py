@@ -18,8 +18,8 @@
 import tensorflow.compat.v2 as tf
 
 import numpy as np
-from tensorflow.python.framework import test_util
-from keras import testing_utils
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from keras.testing_infra import test_utils
 from keras.distribute import dataset_creator_model_fit_test_base as test_base
 from keras.distribute import strategy_combinations
 from keras.utils import dataset_creator
@@ -27,7 +27,7 @@ from keras.utils import dataset_creator
 
 # TODO(rchao): Investigate why there cannot be single worker and multi worker
 # PS strategies running in the same shard.
-@testing_utils.run_v2_only
+@test_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
@@ -38,7 +38,7 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
 
   def setUp(self):
     super().setUp()
-    if test_util.is_xla_enabled():
+    if tf_test_utils.is_xla_enabled():
       self.skipTest("model.optimizer.iterations values is not as expected "
                     "with XLA: b/184384487")
 

@@ -16,18 +16,18 @@
 
 from absl.testing import parameterized
 import keras
-from keras import combinations
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class GlobalMaxPoolingTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_global_max_pooling_1d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling1D, input_shape=(3, 4, 5))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling1D,
         kwargs={'data_format': 'channels_first'},
         input_shape=(3, 4, 5))
@@ -52,56 +52,56 @@ class GlobalMaxPoolingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(output_ragged, output_dense)
 
   def test_global_max_pooling_2d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling2D,
         kwargs={'data_format': 'channels_first'},
         input_shape=(3, 4, 5, 6))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling2D,
         kwargs={'data_format': 'channels_last'},
         input_shape=(3, 5, 6, 4))
 
   def test_global_maxpooling_3d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling3D,
         kwargs={'data_format': 'channels_first'},
         input_shape=(3, 4, 3, 4, 3))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling3D,
         kwargs={'data_format': 'channels_last'},
         input_shape=(3, 4, 3, 4, 3))
 
   def test_global_max_pooling_1d_keepdims(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling1D,
         kwargs={'keepdims': True},
         input_shape=(3, 4, 5),
         expected_output_shape=(None, 1, 5))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling1D,
         kwargs={'data_format': 'channels_first', 'keepdims': True},
         input_shape=(3, 4, 5),
         expected_output_shape=(None, 4, 1))
 
   def test_global_max_pooling_2d_keepdims(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling2D,
         kwargs={'data_format': 'channels_first', 'keepdims': True},
         input_shape=(3, 4, 5, 6),
         expected_output_shape=(None, 4, 1, 1))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling2D,
         kwargs={'data_format': 'channels_last', 'keepdims': True},
         input_shape=(3, 4, 5, 6),
         expected_output_shape=(None, 1, 1, 6))
 
   def test_global_max_pooling_3d_keepdims(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling3D,
         kwargs={'data_format': 'channels_first', 'keepdims': True},
         input_shape=(3, 4, 3, 4, 3),
         expected_output_shape=(None, 4, 1, 1, 1))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalMaxPooling3D,
         kwargs={'data_format': 'channels_last', 'keepdims': True},
         input_shape=(3, 4, 3, 4, 3),

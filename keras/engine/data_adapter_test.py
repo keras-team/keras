@@ -22,8 +22,8 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import data_adapter
 from keras.utils import data_utils
 
@@ -56,7 +56,7 @@ def fail_on_convert(x, **kwargs):
 tf.register_tensor_conversion_function(DummyArrayLike, fail_on_convert)
 
 
-class DataAdapterTestBase(keras_parameterized.TestCase):
+class DataAdapterTestBase(test_combinations.TestCase):
 
   def setUp(self):
     super(DataAdapterTestBase, self).setUp()
@@ -163,10 +163,10 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
     with self.assertRaises(StopIteration):
       next(ds_iter)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training_numpy(self):
     self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=testing_utils.should_run_eagerly())
+                       run_eagerly=test_utils.should_run_eagerly())
     self.model.fit(self.numpy_input, self.numpy_target, batch_size=5)
 
   def test_can_handle_pandas(self):
@@ -182,7 +182,7 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
             pd.DataFrame(self.numpy_input),
             pd.DataFrame(self.numpy_input)[0]))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training_pandas(self):
     try:
       import pandas as pd  # pylint: disable=g-import-not-at-top
@@ -272,10 +272,10 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
     self.assertFalse(self.adapter_cls.can_handle(self.text_input))
     self.assertFalse(self.adapter_cls.can_handle(self.bytes_input))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training(self):
     self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=testing_utils.should_run_eagerly())
+                       run_eagerly=test_utils.should_run_eagerly())
     self.model.fit(self.tensor_input, self.tensor_target, batch_size=5)
 
   def test_size(self):
@@ -284,7 +284,7 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
     self.assertEqual(adapter.get_size(), 10)
     self.assertFalse(adapter.has_partial_batch())
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_shuffle_correctness(self):
     num_samples = 100
     batch_size = 32
@@ -317,7 +317,7 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
     # Check that each elements appears, and only once.
     self.assertAllClose(x, np.sort(second_epoch_data))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_batch_shuffle_correctness(self):
     num_samples = 100
     batch_size = 6
@@ -462,7 +462,7 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
     with self.assertRaises(StopIteration):
       next(ds_iter)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training(self):
     # First verify that DummyArrayLike can't be converted to a Tensor
     with self.assertRaises(TypeError):
@@ -472,7 +472,7 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
     # It should not be converted to a tensor directly (which would force it into
     # memory), only the sliced data should be converted.
     self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=testing_utils.should_run_eagerly())
+                       run_eagerly=test_utils.should_run_eagerly())
     self.model.fit(self.arraylike_input,
                    self.arraylike_target, batch_size=5)
     self.model.fit(self.arraylike_input,
@@ -485,10 +485,10 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
                         self.arraylike_target, batch_size=5)
     self.model.predict(self.arraylike_input, batch_size=5)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training_numpy_target(self):
     self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=testing_utils.should_run_eagerly())
+                       run_eagerly=test_utils.should_run_eagerly())
     self.model.fit(self.arraylike_input,
                    self.numpy_target, batch_size=5)
     self.model.fit(self.arraylike_input,
@@ -500,10 +500,10 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
     self.model.evaluate(self.arraylike_input,
                         self.numpy_target, batch_size=5)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training_tensor_target(self):
     self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=testing_utils.should_run_eagerly())
+                       run_eagerly=test_utils.should_run_eagerly())
     self.model.fit(self.arraylike_input,
                    self.tensor_target, batch_size=5)
     self.model.fit(self.arraylike_input,
@@ -515,7 +515,7 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
     self.model.evaluate(self.arraylike_input,
                         self.tensor_target, batch_size=5)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_shuffle_correctness(self):
     num_samples = 100
     batch_size = 32
@@ -548,7 +548,7 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
     # Check that each elements appears, and only once.
     self.assertAllClose(x, np.sort(second_epoch_data))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_batch_shuffle_correctness(self):
     num_samples = 100
     batch_size = 6
@@ -646,11 +646,11 @@ class DatasetAdapterTest(DataAdapterTestBase):
     self.assertFalse(self.adapter_cls.can_handle(self.generator_input))
     self.assertFalse(self.adapter_cls.can_handle(self.sequence_input))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training(self):
     dataset = self.adapter_cls(self.dataset_input).get_dataset()
     self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=testing_utils.should_run_eagerly())
+                       run_eagerly=test_utils.should_run_eagerly())
     self.model.fit(dataset)
 
   def test_size(self):
@@ -691,18 +691,18 @@ class GeneratorDataAdapterTest(DataAdapterTestBase):
     self.assertFalse(self.adapter_cls.can_handle(self.text_input))
     self.assertFalse(self.adapter_cls.can_handle(self.bytes_input))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training(self):
     self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=testing_utils.should_run_eagerly())
+                       run_eagerly=test_utils.should_run_eagerly())
     self.model.fit(self.generator_input, steps_per_epoch=10)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-  @testing_utils.run_v2_only
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  @test_utils.run_v2_only
   @data_utils.dont_use_multiprocessing_pool
   def test_with_multiprocessing_training(self):
     self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=testing_utils.should_run_eagerly())
+                       run_eagerly=test_utils.should_run_eagerly())
     self.model.fit(self.iterator_input, workers=1, use_multiprocessing=True,
                    max_queue_size=10, steps_per_epoch=10)
     # Fit twice to ensure there isn't any duplication that prevent the worker
@@ -734,7 +734,7 @@ class GeneratorDataAdapterTest(DataAdapterTestBase):
       self.adapter_cls(
           self.generator_input, sample_weights=self.generator_input)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_not_shuffled(self):
     def generator():
       for i in range(10):
@@ -776,18 +776,18 @@ class KerasSequenceAdapterTest(DataAdapterTestBase):
     self.assertFalse(self.adapter_cls.can_handle(self.text_input))
     self.assertFalse(self.adapter_cls.can_handle(self.bytes_input))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training(self):
     self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=testing_utils.should_run_eagerly())
+                       run_eagerly=test_utils.should_run_eagerly())
     self.model.fit(self.sequence_input)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-  @testing_utils.run_v2_only
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  @test_utils.run_v2_only
   @data_utils.dont_use_multiprocessing_pool
   def test_with_multiprocessing_training(self):
     self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=testing_utils.should_run_eagerly())
+                       run_eagerly=test_utils.should_run_eagerly())
     self.model.fit(self.sequence_input, workers=1, use_multiprocessing=True,
                    max_queue_size=10, steps_per_epoch=10)
     # Fit twice to ensure there isn't any duplication that prevent the worker
@@ -840,7 +840,7 @@ class KerasSequenceAdapterRaggedTest(KerasSequenceAdapterTest):
     ])
 
 
-class DataHandlerTest(keras_parameterized.TestCase):
+class DataHandlerTest(test_combinations.TestCase):
 
   def test_finite_dataset_with_steps_per_epoch(self):
     data = tf.data.Dataset.from_tensor_slices([0, 1, 2, 3]).batch(1)
@@ -1078,7 +1078,7 @@ class DataHandlerTest(keras_parameterized.TestCase):
         self.assertIsInstance(next(iterator), tf.Tensor)
 
 
-class TestValidationSplit(keras_parameterized.TestCase):
+class TestValidationSplit(test_combinations.TestCase):
 
   @parameterized.named_parameters(('numpy_arrays', True), ('tensors', False))
   def test_validation_split_unshuffled(self, use_numpy):

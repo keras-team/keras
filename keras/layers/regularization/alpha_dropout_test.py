@@ -15,17 +15,17 @@
 """Tests for alpha dropout layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class AlphaDropoutTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class AlphaDropoutTest(test_combinations.TestCase):
 
   def test_AlphaDropout(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.AlphaDropout, kwargs={'rate': 0.2}, input_shape=(3, 2, 3))
 
   def _make_model(self, dtype):
@@ -41,7 +41,7 @@ class AlphaDropoutTest(keras_parameterized.TestCase):
     model.compile(
         optimizer='sgd',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.train_on_batch(np.zeros((8, 32)), np.zeros((8, 8)))
 
   def test_alpha_dropout_float32(self):

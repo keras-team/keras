@@ -18,7 +18,7 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import adam
 from keras.optimizers import learning_rate_schedule
@@ -239,15 +239,17 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAllCloseAccordingToType(var0_np, self.evaluate(var0))
           self.assertAllCloseAccordingToType(var1_np, self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testResourceBasic(self):
     self.doTestBasic()
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testBasicCallableParams(self):
     self.doTestBasic(use_callable_params=True)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasicWithAmsgrad(self):
     for i, dtype in enumerate([tf.half, tf.float32, tf.float64]):
       with self.cached_session():
@@ -289,7 +291,8 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAllCloseAccordingToType(var0_np, self.evaluate(var0))
           self.assertAllCloseAccordingToType(var1_np, self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testSparseWithAmsgrad(self):
     # dtypes.half does not work on gpu + eager.
     for dtype in [tf.float32, tf.float64]:
@@ -514,7 +517,7 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAllCloseAccordingToType(var0_np, self.evaluate(var0))
           self.assertAllCloseAccordingToType(var1_np, self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testSlotsUniqueEager(self):
     v1 = tf.Variable(1.)
     v2 = tf.Variable(1.)
@@ -693,15 +696,17 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAllCloseAccordingToType(
               var1_np, self.evaluate(var1), rtol=1e-4, atol=1e-4)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testResourceBasic(self):
     self.doTestBasic()
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testBasicCallableParams(self):
     self.doTestBasic(use_callable_params=True)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasicWithAmsgrad(self):
     for i, dtype in enumerate([tf.half, tf.float32, tf.float64]):
       with self.cached_session():
@@ -745,7 +750,8 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAllCloseAccordingToType(
               var1_np, self.evaluate(var1), rtol=1e-4, atol=1e-4)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testSparseWithAmsgrad(self):
     # dtypes.half does not work on gpu + eager.
     for dtype in [tf.float32, tf.float64]:

@@ -20,18 +20,17 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.layers.normalization import batch_normalization
 from keras.layers.normalization import batch_normalization_v1
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
-class BatchNormalizationTest(keras_parameterized.TestCase):
+class BatchNormalizationTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_basic_batchnorm(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.BatchNormalization,
         kwargs={
             'momentum': 0.9,
@@ -40,7 +39,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
             'beta_regularizer': keras.regularizers.l2(0.01)
         },
         input_shape=(3, 4, 2))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.BatchNormalization,
         kwargs={
             'gamma_initializer': 'ones',
@@ -49,12 +48,12 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
             'moving_variance_initializer': 'ones'
         },
         input_shape=(3, 4, 2))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.BatchNormalization,
         kwargs={'scale': False,
                 'center': False},
         input_shape=(3, 3))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.BatchNormalization,
         kwargs={
             'gamma_initializer': 'ones',
@@ -64,7 +63,8 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
         },
         input_shape=(3, 2, 4, 2))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_batchnorm_weights(self):
     layer = keras.layers.BatchNormalization(scale=False, center=False)
     layer.build((None, 3, 4))
@@ -76,7 +76,8 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     self.assertEqual(len(layer.trainable_weights), 2)
     self.assertEqual(len(layer.weights), 4)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_batchnorm_regularization(self):
     layer = keras.layers.BatchNormalization(
         gamma_regularizer='l1', beta_regularizer='l1')
@@ -89,7 +90,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     self.assertEqual(layer.gamma.constraint, max_norm)
     self.assertEqual(layer.beta.constraint, max_norm)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_batchnorm_convnet(self):
     if tf.test.is_gpu_available(cuda_only=True):
       with self.session():
@@ -100,7 +101,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
         model.compile(
             loss='mse',
             optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01),
-            run_eagerly=testing_utils.should_run_eagerly())
+            run_eagerly=test_utils.should_run_eagerly())
 
         # centered on 5.0, variance 10.0
         x = np.random.normal(loc=5.0, scale=10.0, size=(1000, 3, 4, 4))
@@ -112,7 +113,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
         np.testing.assert_allclose(np.mean(out, axis=(0, 2, 3)), 0.0, atol=1e-1)
         np.testing.assert_allclose(np.std(out, axis=(0, 2, 3)), 1.0, atol=1e-1)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_batchnorm_convnet_channel_last(self):
     model = keras.models.Sequential()
     norm = keras.layers.BatchNormalization(
@@ -121,7 +122,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     # centered on 5.0, variance 10.0
     x = np.random.normal(loc=5.0, scale=10.0, size=(1000, 4, 4, 3))
@@ -133,22 +134,23 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     np.testing.assert_allclose(np.mean(out, axis=(0, 1, 2)), 0.0, atol=1e-1)
     np.testing.assert_allclose(np.std(out, axis=(0, 1, 2)), 1.0, atol=1e-1)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_batchnorm_correctness(self):
     _run_batchnorm_correctness_test(
         batch_normalization_v1.BatchNormalization, dtype='float32')
     _run_batchnorm_correctness_test(
         batch_normalization.BatchNormalization, dtype='float32')
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_batchnorm_float16(self):
     _run_batchnorm_correctness_test(
         batch_normalization_v1.BatchNormalization, dtype='float16')
     _run_batchnorm_correctness_test(
         batch_normalization.BatchNormalization, dtype='float16')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
-  @testing_utils.enable_v2_dtype_behavior
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
+  @test_utils.enable_v2_dtype_behavior
   def test_batchnorm_mixed_precision(self):
     norm = keras.layers.BatchNormalization(
         axis=-1,
@@ -164,9 +166,9 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     y = norm(x)
     self.assertEqual(y.dtype, 'float16')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager'],
-                                              fused=[True, False]))
-  @testing_utils.enable_v2_dtype_behavior
+  @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager'],
+                                                        fused=[True, False]))
+  @test_utils.enable_v2_dtype_behavior
   def test_batchnorm_mixed_precision_does_not_overflow(self, fused):
     norm = keras.layers.BatchNormalization(
         axis=-1,
@@ -178,7 +180,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     expected_y = np.array([-1.0, 1.0]).reshape((2, 1, 1, 1))
     self.assertAllClose(keras.backend.eval(y), expected_y)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_batchnorm_non_trainable_with_fit(self):
     # We use the same data shape for all the data we use in this test.
     # This will prevent any used tf.functions from retracing.
@@ -194,7 +196,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     model.compile(
         'rmsprop',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(np.random.random(data_shape), np.random.random(data_shape))
 
     test_data = np.random.random(data_shape)
@@ -205,11 +207,11 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     model.compile(
         'rmsprop',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     train_loss = model.train_on_batch(test_data, test_targets)
     self.assertAlmostEqual(test_loss, train_loss)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_eager_batchnorm_in_custom_model_call_with_tf_function(self):
 
     class MyModel(keras.Model):
@@ -232,7 +234,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     self.assertAllClose(model.bn.moving_mean.numpy(), [0.047], atol=3e-3)
     self.assertAllClose(model.bn.moving_variance.numpy(), [0.9], atol=3e-2)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_bessels_correction(self):
     # Bessel's correction is currently only used in the fused case. In the
     # future, it may be used in the nonfused case as well.
@@ -258,9 +260,10 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     self.assertAllEqual(self.evaluate(layer.moving_variance), [1.])
 
 
-class BatchNormalizationV1Test(keras_parameterized.TestCase):
+class BatchNormalizationV1Test(test_combinations.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_v1_fused_attribute(self):
     norm = batch_normalization_v1.BatchNormalization()
     inp = keras.layers.Input((4, 4, 4))
@@ -280,20 +283,21 @@ class BatchNormalizationV1Test(keras_parameterized.TestCase):
     self.assertEqual(norm.fused, False)
 
 
-class BatchNormalizationV2Test(keras_parameterized.TestCase):
+class BatchNormalizationV2Test(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_basic_batchnorm_v2(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         batch_normalization.BatchNormalization,
         kwargs={'fused': True},
         input_shape=(3, 3, 3, 3))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         batch_normalization.BatchNormalization,
         kwargs={'fused': None},
         input_shape=(3, 3, 3))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_v2_fused_attribute(self):
     norm = batch_normalization.BatchNormalization()
     self.assertIsNone(norm.fused)
@@ -366,14 +370,14 @@ class BatchNormalizationV2Test(keras_parameterized.TestCase):
     wrapped_fn = tf.compat.v1.wrap_function(my_func, [])
     wrapped_fn()
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_basic_batchnorm_v2_none_shape_and_virtual_batch_size(self):
     # Test case for GitHub issue for 32380
     norm = batch_normalization.BatchNormalization(virtual_batch_size=8)
     inp = keras.layers.Input(shape=(None, None, 3))
     _ = norm(inp)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_fused_batchnorm_empty_batch(self):
     # Test case for https://github.com/tensorflow/tensorflow/issues/52986
     # create a simple strategy with the enable_partial_batch_handling flag
@@ -412,7 +416,7 @@ def _run_batchnorm_correctness_test(layer, dtype='float32', fused=False):
   model.compile(
       loss='mse',
       optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01),
-      run_eagerly=testing_utils.should_run_eagerly())
+      run_eagerly=test_utils.should_run_eagerly())
 
   # centered on 5.0, variance 10.0
   x = (np.random.normal(loc=5.0, scale=10.0, size=(1000, 2, 2, 2))

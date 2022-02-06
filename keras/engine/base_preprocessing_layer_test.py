@@ -17,9 +17,9 @@
 import os
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.engine import base_preprocessing_layer
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
@@ -50,8 +50,8 @@ class AddingPreprocessingLayer(base_preprocessing_layer.PreprocessingLayer):
     return inputs + self.sum
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class PreprocessingLayerTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class PreprocessingLayerTest(test_combinations.TestCase):
 
   def test_adapt_bad_input_fails(self):
     """Test that non-Dataset/Numpy inputs cause a reasonable error."""
@@ -85,7 +85,7 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
     layer = AddingPreprocessingLayer()
     output = layer(input_data)
     model = keras.Model(input_data, output)
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model._run_eagerly = test_utils.should_run_eagerly()
 
     layer.set_total(15)
 
@@ -101,7 +101,7 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
     input_data = keras.Input(shape=(1,))
     output = layer(input_data)
     model = keras.Model(input_data, output)
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model._run_eagerly = test_utils.should_run_eagerly()
 
     self.assertAllEqual([[16], [17], [18]], model.predict([1., 2., 3.]))
 
@@ -113,7 +113,7 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
     layer = AddingPreprocessingLayer()
     output = layer(input_data)
     model = keras.Model(input_data, output)
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model._run_eagerly = test_utils.should_run_eagerly()
 
     layer.adapt(input_dataset)
 
@@ -130,7 +130,7 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
     input_data = keras.Input(shape=(1,))
     output = layer(input_data)
     model = keras.Model(input_data, output)
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model._run_eagerly = test_utils.should_run_eagerly()
 
     self.assertAllEqual([[16], [17], [18]], model.predict([1., 2., 3.]))
 
@@ -143,7 +143,7 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
     layer = AddingPreprocessingLayer()
     output = layer(input_data)
     model = keras.Model(input_data, output)
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model._run_eagerly = test_utils.should_run_eagerly()
 
     layer.adapt(input_dataset)
 
@@ -157,7 +157,7 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
       layer = AddingPreprocessingLayer()
       output = layer(input_data)
       model = keras.Model(input_data, output)
-      model._run_eagerly = testing_utils.should_run_eagerly()
+      model._run_eagerly = test_utils.should_run_eagerly()
       return (model, layer)
 
     input_dataset = np.array([1, 2, 3, 4, 5])
@@ -221,7 +221,7 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
     self.assertEqual(model.input_shape, (None, 1, 2))
 
 
-class PreprocessingLayerV1Test(keras_parameterized.TestCase):
+class PreprocessingLayerV1Test(test_combinations.TestCase):
 
   def test_adapt_fails(self):
     """Test that calling adapt leads to a runtime error."""

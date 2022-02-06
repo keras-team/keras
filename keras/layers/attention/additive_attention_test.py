@@ -16,14 +16,14 @@
 
 from absl.testing import parameterized
 import keras
-from keras import combinations
-from keras import testing_utils
 from keras.mixed_precision import policy
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_calculate_scores_one_dim(self):
@@ -263,7 +263,7 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
     new_layer = keras.layers.AdditiveAttention.from_config(config)
     self.assertEqual(new_layer.use_scale, True)
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_mixed_float16_policy(self):
     # Test case for GitHub issue:
     # https://github.com/tensorflow/tensorflow/issues/46064

@@ -23,8 +23,8 @@ import time
 from absl.testing import parameterized
 import numpy as np
 from keras import backend
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import keras_tensor
 from keras.engine import training_utils_v1
 from tensorflow.python.platform import tf_logging as logging
@@ -152,7 +152,7 @@ class DatasetUtilsTest(tf.test.TestCase, parameterized.TestCase):
       self.assertTrue(training_utils_v1.verify_dataset_shuffled(dataset))
 
 
-class StandardizeWeightsTest(keras_parameterized.TestCase):
+class StandardizeWeightsTest(test_combinations.TestCase):
 
   def test_sample_weights(self):
     y = np.array([0, 1, 0, 0, 2])
@@ -177,7 +177,7 @@ class StandardizeWeightsTest(keras_parameterized.TestCase):
     self.assertAllClose(weights, expected)
 
   def test_dataset_with_class_weight(self):
-    model = testing_utils.get_small_functional_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_functional_mlp(1, 4, input_dim=3)
     model.compile('rmsprop', 'mse')
 
     inputs = np.zeros((10, 3), np.float32)
@@ -235,7 +235,7 @@ _TEST_DATA = np.array((
     (1, 0, 3, 3, 3, 2, 1, 2, 3, 1),))
 
 
-class AggregationTest(keras_parameterized.TestCase):
+class AggregationTest(test_combinations.TestCase):
 
   def setUp(self):
     super(AggregationTest, self).setUp()
@@ -354,7 +354,7 @@ class AggregationTest(keras_parameterized.TestCase):
       self._run_without_steps()
 
 
-class CompositeTensorTestUtils(keras_parameterized.TestCase):
+class CompositeTensorTestUtils(test_combinations.TestCase):
 
   def test_is_composite(self):
     # Validate that all composite tensor and value types return true.

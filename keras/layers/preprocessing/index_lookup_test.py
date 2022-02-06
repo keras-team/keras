@@ -23,10 +23,10 @@ import string
 from absl.testing import parameterized
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import preprocessing_test_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils.generic_utils import CustomObjectScope
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -294,8 +294,8 @@ def _get_end_to_end_test_cases():
   return crossed_test_cases
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IndexLookupLayerTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class IndexLookupLayerTest(test_combinations.TestCase,
                            preprocessing_test_utils.PreprocessingLayerTest):
 
   @parameterized.named_parameters(*_get_end_to_end_test_cases())
@@ -331,7 +331,7 @@ class IndexLookupLayerTest(keras_parameterized.TestCase,
           input_shape[0])
 
     with CustomObjectScope({"IndexLookup": cls}):
-      output_data = testing_utils.layer_test(
+      output_data = test_utils.layer_test(
           cls,
           kwargs=kwargs,
           input_shape=input_shape,
@@ -346,9 +346,9 @@ class IndexLookupLayerTest(keras_parameterized.TestCase,
       self.assertAllClose(expected_output, output_data)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class CategoricalEncodingInputTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_sparse_string_input(self):
@@ -461,9 +461,9 @@ class CategoricalEncodingInputTest(
     self.assertAllEqual(expected_output, output_dataset)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class CategoricalEncodingMultiOOVTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_sparse_string_input_multi_bucket(self):
@@ -555,9 +555,9 @@ class CategoricalEncodingMultiOOVTest(
     self.assertAllEqual(expected_output, output_dataset)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class CategoricalEncodingAdaptTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_sparse_adapt(self):
@@ -676,8 +676,8 @@ class CategoricalEncodingAdaptTest(
     layer.adapt(batched_ds)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IndexLookupOutputTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class IndexLookupOutputTest(test_combinations.TestCase,
                             preprocessing_test_utils.PreprocessingLayerTest):
 
   def _write_to_temp_file(self, file_name, vocab_list):
@@ -1357,8 +1357,8 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     self.assertAllEqual(list(ds.as_numpy_iterator()), [[0], [1], [2]])
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IndexLookupVocabularyTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class IndexLookupVocabularyTest(test_combinations.TestCase,
                                 preprocessing_test_utils.PreprocessingLayerTest
                                ):
 
@@ -1640,9 +1640,9 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
           vocabulary_dtype=tf.int64)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class IndexLookupInverseVocabularyTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_int_output_explicit_vocab(self):
@@ -1763,8 +1763,8 @@ class IndexLookupInverseVocabularyTest(
       layer.set_vocabulary(vocab_data)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IndexLookupErrorTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class IndexLookupErrorTest(test_combinations.TestCase,
                            preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_too_long_vocab_fails_in_single_setting(self):
@@ -1790,8 +1790,8 @@ class IndexLookupErrorTest(keras_parameterized.TestCase,
           vocabulary_dtype=tf.string)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IndexLookupSavingTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class IndexLookupSavingTest(test_combinations.TestCase,
                             preprocessing_test_utils.PreprocessingLayerTest):
 
   def _write_to_temp_file(self, file_name, vocab_list):
@@ -2210,7 +2210,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     self.assertAllEqual(tf.sparse.to_dense(output), expected_output)
 
 
-class EagerExecutionDisabled(keras_parameterized.TestCase,
+class EagerExecutionDisabled(test_combinations.TestCase,
                              preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_lookup(self):
@@ -2218,7 +2218,7 @@ class EagerExecutionDisabled(keras_parameterized.TestCase,
     # which will call the layer in a legacy session. This could also happen
     # directly if a user calls disable_v2_behavior or disable_eager_execution.
     with tf.compat.v1.Session():
-      with testing_utils.run_eagerly_scope(False):
+      with test_utils.run_eagerly_scope(False):
         vocab_data = ["earth", "wind", "and", "fire"]
         input_array = np.array(["earth", "wind", "and", "fire"])
         expected_output = [1, 2, 3, 4]

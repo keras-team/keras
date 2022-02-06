@@ -34,7 +34,7 @@ tf_py_test(
         ":wrappers",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
-        "//keras:testing_utils",
+        "//keras/testing_infra:test_utils",
         "//keras/utils:np_utils",
     ],
 )

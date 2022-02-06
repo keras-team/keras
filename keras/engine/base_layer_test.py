@@ -21,11 +21,10 @@ import os
 
 import numpy as np
 from keras import backend
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
 from keras import regularizers
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.engine import base_layer
 from keras.engine import input_layer
 from keras.engine import sequential
@@ -57,10 +56,10 @@ class InvalidLayer(base_layer.Layer):
     raise ValueError('You did something wrong!')
 
 
-@testing_utils.run_v2_only
-class BaseLayerTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class BaseLayerTest(test_combinations.TestCase):
 
-  @combinations.generate(combinations.keras_mode_combinations())
+  @test_combinations.generate(test_combinations.keras_mode_combinations())
   def test_layer_instrumentation(self):
     layer = layers.Add()
     self.assertTrue(layer._instrumented_keras_api)
@@ -73,24 +72,24 @@ class BaseLayerTest(keras_parameterized.TestCase):
         base_layer.keras_api_gauge.get_cell('legacy_layer').value())
     base_layer.keras_api_gauge.get_cell('tf.keras.layers.Add').set(False)
 
-  @combinations.generate(combinations.keras_model_type_combinations())
+  @test_combinations.generate(test_combinations.keras_model_type_combinations())
   def test_dynamic_layer(self):
-    model = testing_utils.get_model_from_layers([DynamicLayer(dynamic=True)],
-                                                input_shape=(3,))
+    model = test_utils.get_model_from_layers([DynamicLayer(dynamic=True)],
+                                             input_shape=(3,))
     self.assertEqual(model.dynamic, True)
     model.compile(rmsprop.RMSprop(0.001), loss='mse')
     self.assertEqual(model.run_eagerly, True)
     model.train_on_batch(np.random.random((2, 3)), np.random.random((2, 3)))
 
-  @combinations.generate(combinations.keras_model_type_combinations())
+  @test_combinations.generate(test_combinations.keras_model_type_combinations())
   def test_dynamic_layer_error(self):
     # Functional Models hit the `dyanamic=True` error during construction.
     # Subclass Models should just throw the original autograph error during
     # execution.
     raised_error = False
     try:
-      model = testing_utils.get_model_from_layers([DynamicLayer()],
-                                                  input_shape=(3,))
+      model = test_utils.get_model_from_layers([DynamicLayer()],
+                                               input_shape=(3,))
       model.compile(rmsprop.RMSprop(0.001), loss='mse')
       model.train_on_batch(np.random.random((2, 3)), np.random.random((2, 3)))
     except tf.errors.OperatorNotAllowedInGraphError as e:
@@ -105,11 +104,11 @@ class BaseLayerTest(keras_parameterized.TestCase):
         raised_error = True
     self.assertTrue(raised_error)
 
-  @combinations.generate(combinations.keras_model_type_combinations())
+  @test_combinations.generate(test_combinations.keras_model_type_combinations())
   def test_dynamic_layer_error_running_in_graph_mode(self):
     with tf.compat.v1.get_default_graph().as_default():
-      model = testing_utils.get_model_from_layers([DynamicLayer(dynamic=True)],
-                                                  input_shape=(3,))
+      model = test_utils.get_model_from_layers([DynamicLayer(dynamic=True)],
+                                               input_shape=(3,))
       self.assertEqual(model.dynamic, True)
       # But then you cannot run the model since you're in a graph scope.
       with self.assertRaisesRegex(ValueError,
@@ -227,7 +226,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertEqual(new_layer.bias_regularizer, bias_reg)
     self.assertEqual(layer.get_config(), new_layer.get_config())
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_invalid_forward_pass(self):
     inputs = input_layer.Input((3,))
     with self.assertRaisesRegex(ValueError, 'You did something wrong!'):
@@ -267,20 +267,21 @@ class BaseLayerTest(keras_parameterized.TestCase):
       for l in layer:
         model.add(l)
 
-  @combinations.generate(
-      combinations.times(
-          combinations.keras_model_type_combinations(),
-          combinations.combine(mode=['graph', 'eager'])))
+  @test_combinations.generate(
+      test_combinations.times(
+          test_combinations.keras_model_type_combinations(),
+          test_combinations.combine(mode=['graph', 'eager'])))
   def test_build_with_numpy_data(self):
     model_layers = [
         layers.Dense(3, activation='relu', kernel_initializer='ones'),
         layers.Dense(1, activation='sigmoid', kernel_initializer='ones')
     ]
-    model = testing_utils.get_model_from_layers(model_layers, input_shape=(4,))
+    model = test_utils.get_model_from_layers(model_layers, input_shape=(4,))
     model(np.zeros((2, 4), dtype='float32'))
     self.assertTrue(model.built)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_default_add_weight(self):
 
     class TestLayer(base_layer.Layer):
@@ -302,7 +303,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
       # Cannot access tensor.name in eager execution.
       self.assertIn('Variable_2/Regularizer', layer.losses[0].name)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_add_weight_by_getter(self):
     layer = base_layer.Layer()
     variable = tf.Variable('abc')
@@ -310,7 +312,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
         dtype=tf.string, getter=lambda *_, **__: variable)
     self.assertIs(variable, added)
 
-  @combinations.generate(combinations.keras_mode_combinations(mode=['eager']))
+  @test_combinations.generate(
+      test_combinations.keras_mode_combinations(mode=['eager']))
   def test_learning_phase_freezing_for_layers(self):
 
     class LearningPhaseLayer(base_layer.Layer):
@@ -321,7 +324,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
 
     def get_learning_phase_value():
       model = sequential.Sequential([LearningPhaseLayer(input_shape=(1,))])
-      model._run_eagerly = testing_utils.should_run_eagerly()
+      model._run_eagerly = test_utils.should_run_eagerly()
       return np.sum(model(np.ones((1, 1))))
 
     self.assertEqual(get_learning_phase_value(), 0)
@@ -340,7 +343,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertEqual(get_learning_phase_value(), 0)
 
   # Cannot be enabled with `run_eagerly=True`, see b/123904578
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_layer_can_return_variable(self):
 
     class ComputeSum(base_layer.Layer):
@@ -376,12 +380,13 @@ class BaseLayerTest(keras_parameterized.TestCase):
     return TrainingLayer()
 
   # b/124459427: can't test with `run_eagerly=True` for now.
-  @combinations.generate(
-      combinations.times(combinations.keras_mode_combinations(),
-                         combinations.keras_model_type_combinations()))
+  @test_combinations.generate(
+      test_combinations.times(
+          test_combinations.keras_mode_combinations(),
+          test_combinations.keras_model_type_combinations()))
   def test_training_arg_in_defun(self):
     layer = self._get_layer_with_training_arg()
-    model = testing_utils.get_model_from_layers([layer], input_shape=(1,))
+    model = test_utils.get_model_from_layers([layer], input_shape=(1,))
     model.compile(rmsprop.RMSprop(0.),
                   loss='mae')
     history = model.fit(np.zeros((1, 1)), np.zeros((1, 1)))
@@ -401,9 +406,10 @@ class BaseLayerTest(keras_parameterized.TestCase):
     history = model.fit(np.zeros((1, 1)), np.zeros((1, 1)))
     self.assertEqual(history.history['loss'][0], 0.)
 
-  @combinations.generate(
-      combinations.times(combinations.keras_mode_combinations(),
-                         combinations.keras_model_type_combinations()))
+  @test_combinations.generate(
+      test_combinations.times(
+          test_combinations.keras_mode_combinations(),
+          test_combinations.keras_model_type_combinations()))
   def test_raw_variable_assignment(self):
 
     class RawVariableLayer(base_layer.Layer):
@@ -416,17 +422,17 @@ class BaseLayerTest(keras_parameterized.TestCase):
       def call(self, inputs):
         return inputs * self.var_list[0] * self.var_list[1]['a']
 
-    model = testing_utils.get_model_from_layers([RawVariableLayer()],
-                                                input_shape=(10,))
+    model = test_utils.get_model_from_layers([RawVariableLayer()],
+                                             input_shape=(10,))
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 10)), np.ones((10, 10))
     # Checks that variables get initialized.
     model.fit(x, y, batch_size=2, epochs=2)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_composite_variable_assignment(self):
 
     class Spec(tf.TypeSpec):
@@ -490,7 +496,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
                                 'Expected `name` argument to be a string'):
       base_layer.Layer(name=0)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_layer_names(self):
     inputs = input_layer.Input(shape=[2])
     add1 = inputs + inputs
@@ -510,7 +517,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     for actual, eager, graph in zip(actual_names, graph_names, eager_names):
       self.assertIn(actual, {eager, graph})
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_layer_names_after_loading(self):
     backend.clear_session()
     # Mimic loading a model that already contained add layers with
@@ -550,25 +557,27 @@ class BaseLayerTest(keras_parameterized.TestCase):
     layer.trainable = True
     self.assertListEqual(layer.trainable_weights, [layer.w])
 
-  @combinations.generate(
-      combinations.times(combinations.keras_mode_combinations(),
-                         combinations.keras_model_type_combinations()))
+  @test_combinations.generate(
+      test_combinations.times(
+          test_combinations.keras_mode_combinations(),
+          test_combinations.keras_model_type_combinations()))
   def test_passing_initial_weights_values(self):
     kernel_value = np.random.random((10, 2))
     layer_with_weights = layers.Dense(2, use_bias=False, weights=[kernel_value])
 
-    model = testing_utils.get_model_from_layers([layer_with_weights],
-                                                input_shape=(10,))
+    model = test_utils.get_model_from_layers([layer_with_weights],
+                                             input_shape=(10,))
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     inputs = np.random.random((3, 10))
     out = model.predict(inputs)
     self.assertAllClose(model.layers[-1].get_weights()[0], kernel_value)
     self.assertAllClose(out, np.dot(inputs, kernel_value))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_set_weights_and_get_weights(self):
     layer = layers.Dense(2)
     layer.build((None, 10))
@@ -586,7 +595,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
                                 'not compatible with provided weight shape'):
       layer.set_weights([kernel.T, bias])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_set_weights_accepts_output_of_get_weights(self):
     layer = layers.Layer()
     layer.add_weight(name='scalar_float', shape=(), dtype=tf.float32)
@@ -634,7 +644,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
     # arguments, no error is thrown:
     self.assertEqual(MyLayerNew2(name='New').get_config()['name'], 'New')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_count_params(self):
     dense = layers.Dense(16)
     dense.build((None, 4))
@@ -663,7 +674,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(RuntimeError, 'You must call `super()'):
       layer(np.random.random((10, 2)))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_first_arg_not_called_inputs(self):
     x, y = tf.ones((10, 1)), tf.ones((10, 1))
 
@@ -735,7 +747,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
     layer([tf.constant([1.0]), None, tf.constant([2.0])])
     self.assertEqual(layer.build_shape, [[1], None, [1]])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_layer_input_shape_raises_error(self):
     layer = layers.Dense(3)
     with self.assertRaisesRegex(AttributeError, 'no defined input shape'):
@@ -745,7 +758,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(AttributeError, 'no defined input shape'):
       _ = layer.input_shape
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_custom_layer_training_arg(self):
     class CustomLayerNoTrainingArg(base_layer.Layer):
 
@@ -811,7 +824,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
         CustomLayerDefaultTrainingFalse=CustomLayerDefaultTrainingFalse,
         CustomLayerDefaultTrainingTrue=CustomLayerDefaultTrainingTrue)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_custom_layer_training_arg_kwargonly(self):
     class CustomLayerNoTrainingArg(base_layer.Layer):
 
@@ -1003,8 +1016,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertLen(model.non_trainable_variables, 2)
 
 
-@testing_utils.run_v2_only
-class SymbolicSupportTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class SymbolicSupportTest(test_combinations.TestCase):
 
   def test_using_symbolic_tensors_with_tf_ops(self):
     # Single-input.
@@ -1040,7 +1053,8 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
     with self.assertRaises(TypeError):
       tf.matmul(x1, x2)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_mixing_keras_symbolic_tensors_and_eager_tensors(self):
     x1 = input_layer.Input((3,))
     x2 = tf.ones((3, 3))
@@ -1053,7 +1067,8 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
                         np.matmul(x_val, y_val),
                         atol=1e-5)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_mixing_keras_symbolic_tensors_and_numpy_arrays(self):
     x1 = input_layer.Input((3,))
     x2 = np.ones((3, 3), dtype='float32')
@@ -1066,7 +1081,8 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
                         np.matmul(x_val, y_val),
                         atol=1e-5)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_reraising_exception(self):
     # When layer is not dynamic, we have some pattern matching during exception
     # handling to detect when the user is trying to use python control flow.
@@ -1088,7 +1104,8 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
     except TypeError as e:
       self.assertIn('easily_identifiable_name', str(e))  # pylint: disable=g-assert-in-except
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_summaries_in_tf_function(self):
     if not tf.executing_eagerly():
       return
@@ -1119,7 +1136,8 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
         tags.add(val.tag)
     self.assertEqual(set(['my_layer/mean']), tags)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_error_when_passing_non_tensor(self):
     # layers that have an `input_spec` will raise an error when called on
     # non-tensors. This covers all built-in layers.
@@ -1129,8 +1147,8 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
       layer(x)
 
 
-@testing_utils.run_v2_only
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_utils.run_v2_only
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class NestedTrackingTest(tf.test.TestCase):
 
   def test_nested_layer_variable_tracking(self):
@@ -1303,9 +1321,9 @@ class NestedTrackingTest(tf.test.TestCase):
     self.assertLen(s.weights, 4)
 
 
-@testing_utils.run_v2_only
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
-class NameScopingTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+class NameScopingTest(test_combinations.TestCase):
 
   def test_name_scope_layer(self):
     x = backend.placeholder(shape=(10, 10))
@@ -1362,7 +1380,7 @@ class NameScopingTest(keras_parameterized.TestCase):
     self.assertEqual(layer.bias.name, 'MyName3/bias:0')
     self.assertEqual(layer.kernel.name, 'MyName3/kernel:0')
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_apply_name_scope_on_model_declaration(self):
     if not tf.executing_eagerly():
       self.skipTest('`apply_name_scope_on_model_declaration` API is supported'
@@ -1434,9 +1452,10 @@ class NameScopingTest(keras_parameterized.TestCase):
     ]
 
 
-@testing_utils.run_v2_only
-@combinations.generate(combinations.keras_mode_combinations(mode=['eager']))
-class AutographControlFlowTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+@test_combinations.generate(
+    test_combinations.keras_mode_combinations(mode=['eager']))
+class AutographControlFlowTest(test_combinations.TestCase):
 
   def test_disabling_in_context_is_matched(self):
 
@@ -1471,7 +1490,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     train_loss = model.train_on_batch(np.ones((2, 3)), np.ones((2, 3)))
     self.assertEqual(train_loss, 0.)
     test_loss = model.test_on_batch(np.ones((2, 3)), np.ones((2, 3)))
@@ -1495,7 +1514,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     train_loss = model.train_on_batch(np.ones((2, 3)), np.ones((2, 3)))
     self.assertEqual(train_loss, 2 * 3)
     test_loss = model.test_on_batch(np.ones((2, 3)), np.ones((2, 3)))
@@ -1519,7 +1538,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     for _ in range(3):
       _, train_metric = model.train_on_batch(np.ones((2, 3)),
                                              np.ones((2, 3)))
@@ -1552,7 +1571,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.train_on_batch(np.ones((2, 3)), np.ones((2, 3)))
     self.assertEqual(backend.get_value(layer.counter), 1.)
 
@@ -1562,7 +1581,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
 
       def __init__(self):
         super(MyLayer,
-              self).__init__(dynamic=testing_utils.should_run_eagerly())
+              self).__init__(dynamic=test_utils.should_run_eagerly())
 
       def call(self, inputs, training=None):
         if training:
@@ -1576,7 +1595,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
     layer = MyLayer()
     outputs = layer(inputs)
     model = training_lib.Model(inputs, outputs)
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
     loss = model.train_on_batch(np.ones((2, 3)), np.ones((2, 3)))
     self.assertEqual(loss, 2 * 3)
 
@@ -1585,7 +1604,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
         layers.Dense(
             1, kernel_regularizer=regularizers.l2(1e-4), input_shape=(1,))
     ])
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model._run_eagerly = test_utils.should_run_eagerly()
 
     def assert_graph(t):
       if not tf.executing_eagerly():
@@ -1607,7 +1626,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
 
       def __init__(self):
         super(MyLayer,
-              self).__init__(dynamic=testing_utils.should_run_eagerly())
+              self).__init__(dynamic=test_utils.should_run_eagerly())
 
       def call(self, inputs, training=None):
         if training:
@@ -1623,7 +1642,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
     layer = MyLayer()
     outputs = layer(inputs)
     model = training_lib.Model(inputs, outputs)
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
     history = model.fit(np.ones((2, 3)), np.ones((2, 3)))
     self.assertEqual(history.history['sum'][-1], 2 * 3)
 
@@ -1633,7 +1652,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
 
       def __init__(self):
         super(TestModel, self).__init__(
-            name='test_model', dynamic=testing_utils.should_run_eagerly())
+            name='test_model', dynamic=test_utils.should_run_eagerly())
         self.layer = layers.Dense(2, activity_regularizer='l2')
 
       def call(self, x, training=None):
@@ -1646,12 +1665,12 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer='sgd',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.ones(shape=(10, 1))
     y = np.ones(shape=(10, 2))
 
-    if testing_utils.should_run_eagerly():
+    if test_utils.should_run_eagerly():
       model.fit(x, y, epochs=2, batch_size=5)
     else:
       with self.assertRaisesRegex(ValueError, 'ActivityRegularizer'):
@@ -1663,7 +1682,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
 
       def __init__(self):
         super(TestModel, self).__init__(
-            name='test_model', dynamic=testing_utils.should_run_eagerly())
+            name='test_model', dynamic=test_utils.should_run_eagerly())
         self.layer = layers.TimeDistributed(
             layers.Dense(2, activity_regularizer='l2'), input_shape=(3, 4))
 
@@ -1677,12 +1696,12 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer='sgd',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.ones(shape=(10, 3, 4))
     y = np.ones(shape=(10, 3, 2))
 
-    if testing_utils.should_run_eagerly():
+    if test_utils.should_run_eagerly():
       model.fit(x, y, epochs=2, batch_size=5)
     else:
       with self.assertRaisesRegex(ValueError, 'ActivityRegularizer'):
@@ -1713,14 +1732,14 @@ class IdentityLayer(base_layer.Layer):
     return inputs
 
 
-@testing_utils.run_v2_only
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
-class DTypeTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+class DTypeTest(test_combinations.TestCase):
 
   def _const(self, dtype):
     return tf.constant(1, dtype=dtype)
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_dtype_defaults_to_floatx(self):
     layer = AddLayer()
     self.assertEqual(layer.dtype, 'float32')
@@ -1734,7 +1753,7 @@ class DTypeTest(keras_parameterized.TestCase):
     finally:
       backend.set_floatx('float32')
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_passing_dtype_to_constructor(self):
     layer = IdentityLayer(dtype='float64')
     layer(self._const('float32'))
@@ -1748,7 +1767,7 @@ class DTypeTest(keras_parameterized.TestCase):
     layer(self._const('float32'))
     self.assertEqual(layer.dtype, 'float64')
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def input_cast_to_dtype(self):
     layer = AddLayer()
 
@@ -1774,7 +1793,7 @@ class DTypeTest(keras_parameterized.TestCase):
     layer = IdentityLayer(dtype='float64')
     self.assertEqual(layer(1.).dtype, 'float64')
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def multiple_inputs_cast_to_dtype(self):
 
     class MultiIdentityLayer(base_layer.Layer):
@@ -1803,7 +1822,7 @@ class DTypeTest(keras_parameterized.TestCase):
     self.assertEqual(z.dtype, 'float64')
     self.assertEqual(w.dtype, 'complex64')
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_extra_args_and_kwargs_not_casted(self):
 
     class IdentityLayerWithArgs(base_layer.Layer):
@@ -1819,7 +1838,7 @@ class DTypeTest(keras_parameterized.TestCase):
     self.assertEqual(y.dtype, 'float16')
     self.assertEqual(z.dtype, 'float16')
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_layer_without_autocast(self):
 
     class IdentityLayerWithoutAutocast(IdentityLayer):
@@ -1831,7 +1850,7 @@ class DTypeTest(keras_parameterized.TestCase):
     layer = IdentityLayerWithoutAutocast(dtype='float64')
     self.assertEqual(layer(self._const('float32')).dtype, 'float32')
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_compute_output_signature(self):
 
     class IdentityLayerWithOutputShape(IdentityLayer):
@@ -1845,7 +1864,7 @@ class DTypeTest(keras_parameterized.TestCase):
     self.assertEqual(output_signature.shape, ())
     self.assertEqual(output_signature.dtype, 'float64')
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_composite_tensors_input_casting(self):
     sparse = tf.SparseTensor(
         indices=tf.constant([[0, 1], [2, 3]], dtype='int64'),
@@ -1863,14 +1882,14 @@ class DTypeTest(keras_parameterized.TestCase):
       self.assertEqual(y.dtype, 'float16')
       self.assertEqual(type(x), type(y))
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_passing_non_tensor(self):
     layer = IdentityLayer()
     x = object()
     y = layer(x)  # Layer should not cast 'x', as it's not a tensor
     self.assertIs(x, y)
 
-  @testing_utils.disable_v2_dtype_behavior
+  @test_utils.disable_v2_dtype_behavior
   def test_v1_behavior(self):
     # Test dtype defaults to None and inferred from input
     layer = IdentityLayer()

@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 
 import time
 import numpy as np
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras.engine import base_preprocessing_layer
 from keras.engine.input_layer import Input
 from keras.layers import convolutional
@@ -58,8 +58,8 @@ class PLSplit(PL):
     return inputs + 1, inputs - 1
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class PreprocessingStageTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class PreprocessingStageTest(test_combinations.TestCase,
                              preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_adapt_preprocessing_stage_with_single_input_output(self):

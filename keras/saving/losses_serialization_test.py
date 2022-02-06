@@ -23,11 +23,11 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
 from keras import losses
 from keras.optimizers import optimizer_v2
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 
@@ -55,13 +55,13 @@ def my_mae(y_true, y_pred):
 def _get_multi_io_model():
   inp_1 = layers.Input(shape=(1,), name='input_1')
   inp_2 = layers.Input(shape=(1,), name='input_2')
-  d = testing_utils.Bias(name='output')
+  d = test_utils.Bias(name='output')
   out_1 = d(inp_1)
   out_2 = d(inp_2)
   return keras.Model([inp_1, inp_2], [out_1, out_2])
 
 
-@keras_parameterized.run_all_keras_modes
+@test_combinations.run_all_keras_modes
 @parameterized.named_parameters([
     dict(testcase_name='string', value='mae'),
     dict(testcase_name='built_in_fn', value=losses.mae),
@@ -110,7 +110,7 @@ def _get_multi_io_model():
             'output_1': MyMeanAbsoluteError(),
         }),
 ])
-class LossesSerialization(keras_parameterized.TestCase):
+class LossesSerialization(test_combinations.TestCase):
 
   def setUp(self):
     super(LossesSerialization, self).setUp()
@@ -125,13 +125,13 @@ class LossesSerialization(keras_parameterized.TestCase):
     with generic_utils.custom_object_scope({
         'MyMeanAbsoluteError': MyMeanAbsoluteError,
         'my_mae': my_mae,
-        'Bias': testing_utils.Bias,
+        'Bias': test_utils.Bias,
     }):
       model = _get_multi_io_model()
       model.compile(
           optimizer_v2.gradient_descent.SGD(0.1),
           loss=value,
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       history = model.fit([self.x, self.x], [self.y, self.y],
                           batch_size=3,
                           epochs=3,
@@ -158,7 +158,7 @@ class LossesSerialization(keras_parameterized.TestCase):
     model.compile(
         optimizer_v2.gradient_descent.SGD(0.1),
         loss=value,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     history = model.fit([self.x, self.x], [self.y, self.y],
                         batch_size=3,
                         epochs=3,
@@ -177,7 +177,7 @@ class LossesSerialization(keras_parameterized.TestCase):
         custom_objects={
             'MyMeanAbsoluteError': MyMeanAbsoluteError,
             'my_mae': my_mae,
-            'Bias': testing_utils.Bias,
+            'Bias': test_utils.Bias,
         })
     loaded_model.predict([self.x, self.x])
     loaded_eval_results = loaded_model.evaluate([self.x, self.x],

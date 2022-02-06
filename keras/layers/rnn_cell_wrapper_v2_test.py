@@ -18,7 +18,7 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras import layers
 from keras.layers import rnn_cell_wrapper_v2
 from keras.layers.legacy_rnn import rnn_cell_impl
@@ -26,7 +26,7 @@ from keras.legacy_tf_layers import base as legacy_base_layer
 from keras.utils import generic_utils
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
 
   def testResidualWrapper(self):

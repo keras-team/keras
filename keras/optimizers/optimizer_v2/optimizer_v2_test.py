@@ -22,14 +22,11 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from keras import backend
 from keras import callbacks
-from keras import combinations
-from keras import keras_parameterized
 from keras import losses
 from keras.optimizers import optimizer_v1
-from keras import testing_utils
 from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
@@ -45,21 +42,24 @@ from keras.optimizers import learning_rate_schedule
 from keras.optimizers.optimizer_v2 import nadam
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.optimizers.optimizer_v2 import rmsprop
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import np_utils
 
 
 _DATA_TYPES = [tf.half, tf.float32, tf.float64]
 # TODO(b/141710709): complex support in NVCC and ROCM.
-if (not test_util.IsBuiltWithNvcc() and not tf.test.is_built_with_rocm()):
+if (not tf_test_utils.IsBuiltWithNvcc() and not tf.test.is_built_with_rocm()):
   _DATA_TYPES += [tf.complex64, tf.complex128]
 
 
 class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testBasic(self):
     for dtype in _DATA_TYPES:
-      with testing_utils.use_gpu():
+      with test_utils.use_gpu():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([3.0, 4.0], dtype=dtype)
         loss = lambda: 5 * var0 + 3 * var1  # pylint: disable=cell-var-from-loop
@@ -77,7 +77,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose([-14., -13.], self.evaluate(var0))
         self.assertAllClose([-6., -5.], self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testAdaptiveLearningRate(self):
     for dtype in _DATA_TYPES:
       with self.test_session():
@@ -121,10 +122,11 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         else:
           self.evaluate(opt_op)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testPrecomputedGradient(self):
     for dtype in _DATA_TYPES:
-      with testing_utils.use_gpu():
+      with test_utils.use_gpu():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([3.0, 4.0], dtype=dtype)
         loss = lambda: 5 * var0 + 3 * var1  # pylint: disable=cell-var-from-loop
@@ -145,10 +147,11 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose([3.0 - 3 * 3 * 42.0, 4.0 - 3 * 3 * (-42.0)],
                             self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testNoGradients(self):
     for dtype in _DATA_TYPES:
-      with testing_utils.use_gpu():
+      with test_utils.use_gpu():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([3.0, 4.0], dtype=dtype)
         loss = lambda: 5 * var0  # pylint: disable=cell-var-from-loop
@@ -157,10 +160,11 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
           # var1 has no gradient
           sgd_op.minimize(loss, var_list=[var1])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testNoGradientsForAnyVariables_Minimize(self):
     for dtype in _DATA_TYPES:
-      with testing_utils.use_gpu():
+      with test_utils.use_gpu():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([3.0, 4.0], dtype=dtype)
         loss = lambda: tf.constant(5.0)
@@ -170,10 +174,11 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
                                     'No gradients provided for any variable'):
           sgd_op.minimize(loss, var_list=[var0, var1])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testNoGradientsForAnyVariables_ApplyGradients(self):
     for dtype in _DATA_TYPES:
-      with testing_utils.use_gpu():
+      with test_utils.use_gpu():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([3.0, 4.0], dtype=dtype)
         sgd_op = gradient_descent.SGD(3.0)
@@ -181,10 +186,11 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
                                     'No gradients provided for any variable'):
           sgd_op.apply_gradients([(None, var0), (None, var1)])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testGradientsAsVariables(self):
     for i, dtype in enumerate(_DATA_TYPES):
-      with testing_utils.use_gpu():
+      with test_utils.use_gpu():
         var0 = tf.Variable([1.0, 2.0], dtype=dtype)
         var1 = tf.Variable([3.0, 4.0], dtype=dtype)
         loss = lambda: 5 * var0 + 3 * var1  # pylint: disable=cell-var-from-loop
@@ -220,9 +226,10 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose([-14., -13.], self.evaluate(var0))
         self.assertAllClose([-6., -5.], self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testComputeGradientsWithTensors(self):
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       x = tf.convert_to_tensor(1.0)
 
       def f():
@@ -238,11 +245,12 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       with self.assertRaises(NotImplementedError):
         sgd.apply_gradients(grads_and_vars)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testConstraint(self):
     constraint_01 = lambda x: tf.clip_by_value(x, -0.1, 0.)
     constraint_0 = lambda x: tf.clip_by_value(x, 0., 1.)
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       var0 = tf.Variable([1.0, 2.0],
                                 constraint=constraint_01)
       var1 = tf.Variable([3.0, 4.0],
@@ -262,16 +270,18 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose([-0.1, -0.1], self.evaluate(var0))
       self.assertAllClose([0., 0.], self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testIterationWithoutMinimize(self):
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       sgd = gradient_descent.SGD(3.0)
       self.evaluate(sgd.iterations.initializer)
       self.assertEqual(0, self.evaluate(sgd.iterations))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testConfig(self):
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       opt = gradient_descent.SGD(learning_rate=1.0)
       config = opt.get_config()
       opt2 = gradient_descent.SGD.from_config(config)
@@ -289,9 +299,10 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.evaluate(tf.compat.v1.global_variables_initializer())
       self.assertEqual(self.evaluate(lr), self.evaluate(lr3))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testConfigWithLearningRateDecay(self):
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       var0 = tf.Variable([[1.0], [2.0]], dtype=tf.float32)
       for decay_schedule in [
           learning_rate_schedule.InverseTimeDecay(
@@ -320,9 +331,10 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
             self.evaluate(opt._get_hyper('learning_rate')(step)),
             opt3._get_hyper('learning_rate')(step))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testGradClipValue(self):
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       var = tf.Variable([1.0, 2.0])
       loss = lambda: 3 * var
       opt = gradient_descent.SGD(learning_rate=1.0, clipvalue=1.0)
@@ -331,9 +343,10 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.evaluate(opt_op)
       self.assertAllClose([0., 1.], self.evaluate(var))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testGradClipNorm(self):
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       var = tf.Variable([1.0])
       loss = lambda: 3 * var
       opt = gradient_descent.SGD(learning_rate=1.0, clipnorm=1.0)
@@ -342,9 +355,10 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.evaluate(opt_op)
       self.assertAllClose([0.], self.evaluate(var))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testGradGlobalClipNorm(self):
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       # l2 norm is 5.0
       var1 = tf.Variable([1.0])
       var2 = tf.Variable([2.0])
@@ -358,13 +372,14 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       # grad2 = 4.0 * 2.0 / 5.0 = 1.6
       self.assertAllClose([.4], self.evaluate(var2))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInvalidClipNorm(self):
     with self.assertRaisesRegex(ValueError, '>= 0'):
       gradient_descent.SGD(learning_rate=1.0, clipnorm=-1.0)
 
-  @combinations.generate(
-      combinations.combine(
+  @test_combinations.generate(
+      test_combinations.combine(
           mode=['graph', 'eager'],
           clip_type=['clipnorm', 'global_clipnorm', 'clipvalue']))
   def testConfigWithCliping(self, clip_type):
@@ -373,14 +388,16 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     opt = gradient_descent.SGD.from_config(config)
     self.assertEqual(getattr(opt, clip_type), 2.0)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInvalidKwargs(self):
     with self.assertRaisesRegex(TypeError, 'Unexpected keyword argument'):
       gradient_descent.SGD(learning_rate=1.0, invalidkwargs=1.0)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testWeights(self):
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       opt1 = adam.Adam(learning_rate=1.0)
       var1 = tf.Variable([1.0, 2.0], dtype=tf.float32)
       loss1 = lambda: 3 * var1
@@ -423,7 +440,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose(
           self.evaluate([var3, var4]), self.evaluate([var5, var6]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testGettingHyperParameters(self):
     with self.test_session():
       opt = adam.Adam(learning_rate=1.0)
@@ -447,7 +465,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       with self.assertRaises(AttributeError):
         opt.not_an_attr += 3
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testGettingHyperParametersWithLrInConstructor(self):
     with self.test_session():
       opt = gradient_descent.SGD(lr=3.0)
@@ -471,7 +490,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       lr = self.evaluate(opt.lr)
       self.assertEqual(4.0, lr)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testDir(self):
     opt = gradient_descent.SGD(learning_rate=1.0, momentum=0.1)
     dir_result = set(dir(opt))
@@ -481,7 +501,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIn('nesterov', dir_result)  # Attribute
     self.assertIn('minimize', dir_result)  # Attribute
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testOptimizerWithKerasModel(self):
     a = input_layer.Input(shape=(3,), name='input_a')
     b = input_layer.Input(shape=(3,), name='input_b')
@@ -507,7 +528,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
               epochs=1,
               batch_size=5)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testOptimizerWithCallbacks(self):
     np.random.seed(1331)
     input_np = np.random.random((10, 3))
@@ -569,12 +591,13 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     new_step_value = self.evaluate(global_step)
     self.assertEqual(new_step_value, init_step_value + 1)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testOptimizerWithCallableVarList(self):
     train_samples = 20
     input_dim = 1
     num_classes = 2
-    (x, y), _ = testing_utils.get_test_data(
+    (x, y), _ = test_utils.get_test_data(
         train_samples=train_samples,
         test_samples=10,
         input_shape=(input_dim,),
@@ -582,7 +605,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     y = np_utils.to_categorical(y)
 
     num_hidden = 1
-    model = testing_utils.get_small_sequential_mlp(
+    model = test_utils.get_small_sequential_mlp(
         num_hidden=num_hidden, num_classes=num_classes)
     opt = adam.Adam()
 
@@ -631,13 +654,15 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertLen(opt_vars, 5)
       self.assertEqual('outter/Adam/var_2/m:0', opt_vars[3].name)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testEmptyVarList(self):
     opt = gradient_descent.SGD(1.)
     opt.minimize(lambda: tf.constant(1.), [])
     opt.apply_gradients([])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testAggregationTrue(self):
     # Test that experimental_aggregate_gradients=True works without distributed
     # strategy.
@@ -652,7 +677,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.evaluate(opt_op)
     self.assertAllClose([0.7, 1.7], self.evaluate(var))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testAggregationFalse(self):
     # Test that experimental_aggregate_gradients=False works without distributed
     # strategy.
@@ -667,7 +693,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.evaluate(opt_op)
     self.assertAllClose([0.7, 1.7], self.evaluate(var))
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testRestoringIterationsWithoutAnOptimizer(self):
     opt = gradient_descent.SGD(3.0)
     opt.iterations.assign(5)
@@ -684,7 +710,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertEqual(5, self.evaluate(iterations_var))
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testSlotWithNonstandardShapeRestoresBasedOnCheckpoint(self):
     # First create an optimizer and a slot variable with a non-standard shape.
     x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)
@@ -704,7 +730,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(slot_shape,
                      optimizer_2.get_slot(x, 'test_slot').shape.as_list())
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_gradient_aggregator(self):
     def gradient_aggregator(grads_and_vars):
       # Simulate an all-reduce where the other replica has zeros for gradients,
@@ -722,7 +749,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.evaluate(opt_op)
     self.assertEqual(self.evaluate(var), 1.0)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_override_aggregate_gradients(self):
     class MyOptimizer(gradient_descent.SGD):
 
@@ -743,19 +771,19 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(self.evaluate(var), 1.0)
 
 
-@keras_parameterized.run_all_keras_modes
-class OptimizersCompatibilityTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class OptimizersCompatibilityTest(test_combinations.TestCase):
 
   def _testOptimizersCompatibility(self, opt_v1, opt_v2, test_weights=True):
     if tf.executing_eagerly():
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     np.random.seed(1331)
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       train_samples = 20
       input_dim = 3
       num_classes = 2
-      (x, y), _ = testing_utils.get_test_data(
+      (x, y), _ = test_utils.get_test_data(
           train_samples=train_samples,
           test_samples=10,
           input_shape=(input_dim,),
@@ -763,23 +791,23 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
       y = np_utils.to_categorical(y)
 
       num_hidden = 5
-      model_v1 = testing_utils.get_small_sequential_mlp(
+      model_v1 = test_utils.get_small_sequential_mlp(
           num_hidden=num_hidden, num_classes=num_classes, input_dim=input_dim)
       model_v1.compile(
           opt_v1,
           loss='categorical_crossentropy',
           metrics=[],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model_v1.fit(x, y, batch_size=5, epochs=1)
 
-      model_v2 = testing_utils.get_small_sequential_mlp(
+      model_v2 = test_utils.get_small_sequential_mlp(
           num_hidden=num_hidden, num_classes=num_classes, input_dim=input_dim)
       model_v2.set_weights(model_v1.get_weights())
       model_v2.compile(
           opt_v2,
           loss='categorical_crossentropy',
           metrics=[],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       if not tf.compat.v1.executing_eagerly_outside_functions():
         model_v2._make_train_function()
       if test_weights:
@@ -837,11 +865,11 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     np.random.seed(1331)
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       train_samples = 20
       input_dim = 3
       num_classes = 2
-      (x, y), _ = testing_utils.get_test_data(
+      (x, y), _ = test_utils.get_test_data(
           train_samples=train_samples,
           test_samples=10,
           input_shape=(input_dim,),
@@ -849,12 +877,12 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
       y = np_utils.to_categorical(y)
 
       num_hidden = 5
-      model_k_v1 = testing_utils.get_small_sequential_mlp(
+      model_k_v1 = test_utils.get_small_sequential_mlp(
           num_hidden=num_hidden, num_classes=num_classes, input_dim=input_dim)
-      model_k_v2 = testing_utils.get_small_sequential_mlp(
+      model_k_v2 = test_utils.get_small_sequential_mlp(
           num_hidden=num_hidden, num_classes=num_classes, input_dim=input_dim)
       model_k_v2.set_weights(model_k_v1.get_weights())
-      model_tf = testing_utils.get_small_sequential_mlp(
+      model_tf = test_utils.get_small_sequential_mlp(
           num_hidden=num_hidden, num_classes=num_classes, input_dim=input_dim)
       model_tf.set_weights(model_k_v2.get_weights())
 
@@ -867,17 +895,17 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
           opt_k_v1,
           loss='categorical_crossentropy',
           metrics=[],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model_k_v2.compile(
           opt_k_v2,
           loss='categorical_crossentropy',
           metrics=[],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model_tf.compile(
           opt_tf,
           loss='categorical_crossentropy',
           metrics=[],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
 
       hist_k_v1 = model_k_v1.fit(x, y, batch_size=5, epochs=10, shuffle=False)
       hist_k_v2 = model_k_v2.fit(x, y, batch_size=5, epochs=10, shuffle=False)
@@ -894,11 +922,11 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     np.random.seed(1331)
-    with testing_utils.use_gpu():
+    with test_utils.use_gpu():
       train_samples = 20
       input_dim = 3
       num_classes = 2
-      (x, y), _ = testing_utils.get_test_data(
+      (x, y), _ = test_utils.get_test_data(
           train_samples=train_samples,
           test_samples=10,
           input_shape=(input_dim,),
@@ -906,9 +934,9 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
       y = np_utils.to_categorical(y)
 
       num_hidden = 5
-      model_k_v1 = testing_utils.get_small_sequential_mlp(
+      model_k_v1 = test_utils.get_small_sequential_mlp(
           num_hidden=num_hidden, num_classes=num_classes, input_dim=input_dim)
-      model_k_v2 = testing_utils.get_small_sequential_mlp(
+      model_k_v2 = test_utils.get_small_sequential_mlp(
           num_hidden=num_hidden, num_classes=num_classes, input_dim=input_dim)
       model_k_v2.set_weights(model_k_v1.get_weights())
 
@@ -919,12 +947,12 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
           opt_k_v1,
           loss='categorical_crossentropy',
           metrics=[],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model_k_v2.compile(
           opt_k_v2,
           loss='categorical_crossentropy',
           metrics=[],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
 
       hist_k_v1 = model_k_v1.fit(x, y, batch_size=5, epochs=10, shuffle=False)
       hist_k_v2 = model_k_v2.fit(x, y, batch_size=5, epochs=10, shuffle=False)
@@ -936,7 +964,7 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
 
 # Note: These tests are kept in a separate class to avoid bugs in some
 # distributions of Python that break AutoGraph which is used by tf.function.
-@combinations.generate(combinations.combine(mode=['eager']))
+@test_combinations.generate(test_combinations.combine(mode=['eager']))
 class OptimizerWithFunctionTest(tf.test.TestCase, parameterized.TestCase):
 
   def testBasic(self):
@@ -969,7 +997,7 @@ class OptimizerWithFunctionTest(tf.test.TestCase, parameterized.TestCase):
     a = tf.Variable([1., 2.], name='var')
     b = tf.Variable([1.], name='var')
 
-    @test_util.also_run_as_tf_function
+    @tf_test_utils.also_run_as_tf_function
     def var_key_test():
       self.assertFalse(a._in_graph_mode)
       self.assertFalse(b._in_graph_mode)
@@ -1218,7 +1246,7 @@ COEFFICIENT_PARAMS = (
 )
 
 
-class OptimizerCoefficientTest(keras_parameterized.TestCase):
+class OptimizerCoefficientTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(*COEFFICIENT_PARAMS)
   def test_duplicate_ops(self, optimizer_class, init_kwargs=None):

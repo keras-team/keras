@@ -31,13 +31,10 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        ":control_flow_util",
-        ":engine_utils",
+        ":data_utils",
         ":generic_utils",
-        ":keras_doctest_lib",
         ":layer_utils",
         ":np_utils",
-        ":traceback_utils",
         ":vis_utils",
     ],
 )
@@ -251,10 +248,10 @@ tf_py_test(
         ":dataset_creator",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
-        "//keras:combinations",
         "//keras/distribute:multi_worker_testing_utils",
         "//keras/engine",
         "//keras/layers/core",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -300,6 +297,7 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -312,7 +310,7 @@ tf_py_test(
         ":tf_utils",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -329,6 +327,7 @@ tf_py_test(
         "//keras",
         "//keras:engine",
         "//keras/layers",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -348,6 +347,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -425,7 +425,7 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -437,7 +437,7 @@ tf_py_test(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -449,32 +449,5 @@ tf_py_test(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras",
-    ],
-)
-
-# TODO(mattdangerw): For now, keras will maintain it's own doc checker.
-# If tensorflow exposes one, we could consider depending on that directly.
-py_library(
-    name = "keras_doctest_lib",
-    srcs = ["keras_doctest_lib.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_numpy_installed",
-    ],
-)
-
-py_test(
-    name = "keras_doctest_lib_test",
-    srcs = ["keras_doctest_lib_test.py"],
-    python_version = "PY3",
-    tags = [
-        "noasan",
-        "nomsan",
-        "notsan",
-    ],
-    deps = [
-        ":keras_doctest_lib",
-        "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
     ],
 )

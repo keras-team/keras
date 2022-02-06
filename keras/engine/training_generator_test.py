@@ -20,12 +20,11 @@ import itertools
 
 from absl.testing import parameterized
 import numpy as np
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers as layers_module
 from keras import losses
 from keras import metrics as metrics_module
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.engine import training_generator_v1
@@ -84,13 +83,13 @@ def custom_generator_changing_batch_size(mode=2):
 custom_generator_threads = data_utils.threadsafe_generator(custom_generator)
 
 
-class TestGeneratorMethods(keras_parameterized.TestCase):
+class TestGeneratorMethods(test_combinations.TestCase):
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   @data_utils.dont_use_multiprocessing_pool
   def test_fit_generator_method(self):
-    model = testing_utils.get_small_mlp(
+    model = test_utils.get_small_mlp(
         num_hidden=3, num_classes=4, input_dim=2)
     model.compile(
         loss='mse',
@@ -124,17 +123,17 @@ class TestGeneratorMethods(keras_parameterized.TestCase):
                         validation_steps=1,
                         workers=0)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   @data_utils.dont_use_multiprocessing_pool
   def test_evaluate_generator_method(self):
-    model = testing_utils.get_small_mlp(
+    model = test_utils.get_small_mlp(
         num_hidden=3, num_classes=4, input_dim=2)
     model.compile(
         loss='mse',
         optimizer=rmsprop.RMSprop(1e-3),
         metrics=['mae', metrics_module.CategoricalAccuracy()],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     model.evaluate_generator(custom_generator_threads(),
                              steps=5,
@@ -152,13 +151,13 @@ class TestGeneratorMethods(keras_parameterized.TestCase):
                              use_multiprocessing=False,
                              workers=0)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   @data_utils.dont_use_multiprocessing_pool
   def test_predict_generator_method(self):
-    model = testing_utils.get_small_mlp(
+    model = test_utils.get_small_mlp(
         num_hidden=3, num_classes=4, input_dim=2)
-    model.run_eagerly = testing_utils.should_run_eagerly()
+    model.run_eagerly = test_utils.should_run_eagerly()
 
     model.predict_generator(custom_generator_threads(),
                             steps=5,
@@ -188,16 +187,16 @@ class TestGeneratorMethods(keras_parameterized.TestCase):
                             max_queue_size=10,
                             workers=0)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_generator_methods_with_sample_weights(self):
-    model = testing_utils.get_small_mlp(
+    model = test_utils.get_small_mlp(
         num_hidden=3, num_classes=4, input_dim=2)
     model.compile(
         loss='mse',
         optimizer=rmsprop.RMSprop(1e-3),
         metrics=['mae', metrics_module.CategoricalAccuracy()],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     model.fit_generator(custom_generator(mode=3),
                         steps_per_epoch=5,
@@ -222,19 +221,19 @@ class TestGeneratorMethods(keras_parameterized.TestCase):
                              max_queue_size=10,
                              use_multiprocessing=False)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_generator_methods_invalid_use_case(self):
     def invalid_generator():
       while 1:
         yield (0, 0, 0, 0)
 
-    model = testing_utils.get_small_mlp(
+    model = test_utils.get_small_mlp(
         num_hidden=3, num_classes=4, input_dim=2)
     model.compile(
         loss='mse',
         optimizer=rmsprop.RMSprop(1e-3),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     with self.assertRaises(ValueError):
       model.fit_generator(invalid_generator(),
@@ -263,8 +262,8 @@ class TestGeneratorMethods(keras_parameterized.TestCase):
                                max_queue_size=10,
                                use_multiprocessing=False)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_generator_input_to_fit_eval_predict(self):
     val_data = np.ones([10, 10], np.float32), np.ones([10, 1], np.float32)
 
@@ -272,13 +271,13 @@ class TestGeneratorMethods(keras_parameterized.TestCase):
       while True:
         yield np.ones([10, 10], np.float32), np.ones([10, 1], np.float32)
 
-    model = testing_utils.get_small_mlp(
+    model = test_utils.get_small_mlp(
         num_hidden=10, num_classes=1, input_dim=10)
 
     model.compile(
         rmsprop.RMSprop(0.001),
         'binary_crossentropy',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(
         ones_generator(),
         steps_per_epoch=2,
@@ -288,7 +287,7 @@ class TestGeneratorMethods(keras_parameterized.TestCase):
     model.predict(ones_generator(), steps=2)
 
     # Test with a changing batch size
-    model = testing_utils.get_small_mlp(
+    model = test_utils.get_small_mlp(
         num_hidden=3, num_classes=4, input_dim=2)
     model.compile(
         loss='mse',
@@ -318,8 +317,8 @@ class TestGeneratorMethods(keras_parameterized.TestCase):
     model.evaluate(custom_generator_changing_batch_size(), steps=5)
     model.predict(custom_generator_changing_batch_size(), steps=5)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   @data_utils.dont_use_multiprocessing_pool
   def test_generator_dynamic_shapes(self):
 
@@ -359,21 +358,20 @@ class TestGeneratorMethods(keras_parameterized.TestCase):
         # Last partial batch
         yield pack_and_pad(queue)
 
-    model = testing_utils.get_model_from_layers([
+    model = test_utils.get_model_from_layers([
         layers_module.Embedding(input_dim=len(vocab) + 1, output_dim=4),
         layers_module.SimpleRNN(units=1),
         layers_module.Activation('sigmoid')
-    ],
-                                                input_shape=(None,))
+    ], input_shape=(None,))
 
     model.compile(loss=losses.binary_crossentropy, optimizer='sgd')
     model.fit(data_gen(), epochs=1, steps_per_epoch=5)
 
 
-class TestGeneratorMethodsWithSequences(keras_parameterized.TestCase):
+class TestGeneratorMethodsWithSequences(test_combinations.TestCase):
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   @data_utils.dont_use_multiprocessing_pool
   def test_training_with_sequences(self):
 
@@ -385,7 +383,7 @@ class TestGeneratorMethodsWithSequences(keras_parameterized.TestCase):
       def __len__(self):
         return 10
 
-    model = testing_utils.get_small_mlp(
+    model = test_utils.get_small_mlp(
         num_hidden=3, num_classes=4, input_dim=2)
     model.compile(loss='mse', optimizer=rmsprop.RMSprop(1e-3))
 
@@ -404,8 +402,8 @@ class TestGeneratorMethodsWithSequences(keras_parameterized.TestCase):
                         workers=0,
                         use_multiprocessing=False)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   @data_utils.dont_use_multiprocessing_pool
   def test_sequence_input_to_fit_eval_predict(self):
     val_data = np.ones([10, 10], np.float32), np.ones([10, 1], np.float32)
@@ -428,7 +426,7 @@ class TestGeneratorMethodsWithSequences(keras_parameterized.TestCase):
       def __len__(self):
         return 2
 
-    model = testing_utils.get_small_mlp(
+    model = test_utils.get_small_mlp(
         num_hidden=10, num_classes=1, input_dim=10)
 
     model.compile(rmsprop.RMSprop(0.001), 'binary_crossentropy')
@@ -449,7 +447,7 @@ class TestGeneratorMethodsWithSequences(keras_parameterized.TestCase):
     model.evaluate(CustomSequenceChangingBatchSize())
     model.predict(CustomSequenceChangingBatchSize())
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_sequence_on_epoch_end(self):
 
     class MySequence(data_utils.Sequence):
@@ -475,7 +473,7 @@ class TestGeneratorMethodsWithSequences(keras_parameterized.TestCase):
     self.assertEqual(my_seq.epochs, 2)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class TestConvertToGeneratorLike(tf.test.TestCase, parameterized.TestCase):
   simple_inputs = (np.ones((10, 10)), np.ones((10, 1)))
   nested_inputs = ((np.ones((10, 10)), np.ones((10, 20))), (np.ones((10, 1)),

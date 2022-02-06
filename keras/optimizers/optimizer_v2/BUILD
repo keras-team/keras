@@ -49,7 +49,7 @@ cuda_py_test(
     deps = [
         ":optimizer_v2",
         "//:expect_tensorflow_installed",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -65,7 +65,7 @@ cuda_py_test(
     deps = [
         ":optimizer_v2",
         "//:expect_tensorflow_installed",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -79,7 +79,7 @@ cuda_py_test(
     deps = [
         ":optimizer_v2",
         "//:expect_tensorflow_installed",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -92,7 +92,7 @@ cuda_py_test(
     deps = [
         ":optimizer_v2",
         "//:expect_tensorflow_installed",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -115,7 +115,7 @@ cuda_py_test(
     deps = [
         ":optimizer_v2",
         "//:expect_tensorflow_installed",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -143,7 +143,7 @@ cuda_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -157,6 +157,6 @@ cuda_py_test(
         ":optimizer_v2",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )

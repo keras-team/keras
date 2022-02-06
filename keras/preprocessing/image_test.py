@@ -22,9 +22,9 @@ import tempfile
 
 from absl.testing import parameterized
 import numpy as np
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.engine import sequential
 from keras.preprocessing import image as preprocessing_image
 
@@ -52,8 +52,8 @@ def _generate_test_images():
   return [rgb_images, gray_images]
 
 
-@testing_utils.run_v2_only
-class TestImage(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class TestImage(test_combinations.TestCase):
 
   def test_smart_resize(self):
     test_input = np.random.random((20, 40, 3))
@@ -348,15 +348,15 @@ class TestImage(keras_parameterized.TestCase):
 
     shutil.rmtree(tmp_folder)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_directory_iterator_with_validation_split_25_percent(self):
     self.directory_iterator_with_validation_split_test_helper(0.25)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_directory_iterator_with_validation_split_40_percent(self):
     self.directory_iterator_with_validation_split_test_helper(0.40)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_directory_iterator_with_validation_split_50_percent(self):
     self.directory_iterator_with_validation_split_test_helper(0.50)
 

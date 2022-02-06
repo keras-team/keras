@@ -18,17 +18,17 @@
 
 import keras
 from keras import backend
-from keras import keras_parameterized
-from keras import testing_utils as keras_testing_utils
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import text_vectorization
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 
 
-@keras_testing_utils.run_v2_only
+@test_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
@@ -37,12 +37,12 @@ from tensorflow.python.framework import test_util
         strategy_combinations.parameter_server_strategies_multi_worker,
         mode=["eager"]))
 class TextVectorizationDistributionTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_distribution_strategy_output(self, strategy):
     if (backend.is_tpu_strategy(strategy) and
-        not test_util.is_mlir_bridge_enabled()):
+        not tf_test_utils.is_mlir_bridge_enabled()):
       self.skipTest("TPU tests require MLIR bridge")
 
     vocab_data = ["earth", "wind", "and", "fire"]

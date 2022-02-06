@@ -23,11 +23,11 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
 from keras import metrics
 from keras.optimizers import optimizer_v2
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 
 try:
@@ -51,13 +51,13 @@ def _my_mae(y_true, y_pred):
 def _get_multi_io_model():
   inp_1 = layers.Input(shape=(1,), name='input_1')
   inp_2 = layers.Input(shape=(1,), name='input_2')
-  d = testing_utils.Bias(name='output')
+  d = test_utils.Bias(name='output')
   out_1 = d(inp_1)
   out_2 = d(inp_2)
   return keras.Model([inp_1, inp_2], [out_1, out_2])
 
 
-@keras_parameterized.run_all_keras_modes
+@test_combinations.run_all_keras_modes
 @parameterized.named_parameters(
     dict(testcase_name='string', value=['mae']),
     dict(testcase_name='built_in_fn', value=[metrics.mae]),
@@ -142,7 +142,7 @@ def _get_multi_io_model():
             'output_1': MyMeanAbsoluteError,
         }),
 )
-class MetricsSerialization(keras_parameterized.TestCase):
+class MetricsSerialization(test_combinations.TestCase):
 
   def setUp(self):
     super(MetricsSerialization, self).setUp()
@@ -168,7 +168,7 @@ class MetricsSerialization(keras_parameterized.TestCase):
     with generic_utils.custom_object_scope({
         'MyMeanAbsoluteError': MyMeanAbsoluteError,
         '_my_mae': _my_mae,
-        'Bias': testing_utils.Bias,
+        'Bias': test_utils.Bias,
     }):
       model = _get_multi_io_model()
       model.compile(
@@ -176,7 +176,7 @@ class MetricsSerialization(keras_parameterized.TestCase):
           'mae',
           metrics=metric_input,
           weighted_metrics=weighted_metric_input,
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       history = model.fit([self.x, self.x], [self.y, self.y],
                           batch_size=3,
                           epochs=3,
@@ -216,7 +216,7 @@ class MetricsSerialization(keras_parameterized.TestCase):
         'mae',
         metrics=metric_input,
         weighted_metrics=weighted_metric_input,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     history = model.fit([self.x, self.x], [self.y, self.y],
                         batch_size=3,
                         epochs=3,
@@ -235,7 +235,7 @@ class MetricsSerialization(keras_parameterized.TestCase):
         custom_objects={
             'MyMeanAbsoluteError': MyMeanAbsoluteError,
             '_my_mae': _my_mae,
-            'Bias': testing_utils.Bias,
+            'Bias': test_utils.Bias,
         })
     loaded_model.predict([self.x, self.x])
     loaded_eval_results = loaded_model.evaluate([self.x, self.x],

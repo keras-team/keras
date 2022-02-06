@@ -17,11 +17,11 @@
 from absl.testing import parameterized
 import keras
 from keras import optimizers
-from keras import testing_utils
 from keras.applications import resnet_v2
 from keras.datasets import fashion_mnist
 from keras.distribute import optimizer_combinations
 from keras.distribute import strategy_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
@@ -217,7 +217,7 @@ def iteration_outside_func(initial_weights,
             training_accuracy.result())
 
 
-@testing_utils.run_v2_only
+@test_utils.run_v2_only
 class TestDistributionStrategyDnnCorrectness(tf.test.TestCase,
                                              parameterized.TestCase):
   """Test custom training loop correctness with a simple DNN model."""

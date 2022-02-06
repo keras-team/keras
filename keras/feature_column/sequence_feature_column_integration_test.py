@@ -25,7 +25,7 @@ from google.protobuf import text_format
 
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from keras import backend
 from keras.feature_column import dense_features
 from keras.feature_column import sequence_feature_column as ksfc
@@ -106,7 +106,7 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
       output_r = sess.run(output)
       self.assertAllEqual(output_r.shape, [20, 10])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_shared_sequence_non_sequence_into_input_layer(self):
     non_seq = tf.feature_column.categorical_column_with_identity('non_seq',
                                                   num_buckets=10)

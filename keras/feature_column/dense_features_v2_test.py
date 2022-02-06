@@ -22,8 +22,7 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 from tensorflow.python.eager import backprop
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras.feature_column import dense_features_v2 as df
 
 
@@ -34,16 +33,17 @@ def _initialized_session(config=None):
   return sess
 
 
-class DenseFeaturesTest(keras_parameterized.TestCase):
+class DenseFeaturesTest(test_combinations.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_retrieving_input(self):
     features = {'a': [0.]}
     dense_features = df.DenseFeatures(tf.feature_column.numeric_column('a'))
     inputs = self.evaluate(dense_features(features))
     self.assertAllClose([[0.]], inputs)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_reuses_variables(self):
     sparse_input = tf.SparseTensor(
         indices=((0, 0), (1, 0), (2, 0)),
@@ -88,7 +88,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     self.assertEqual(1, len(variables))
     self.assertIs(variables[0], dense_features.variables[0])
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_feature_column_dense_features_gradient(self):
     sparse_input = tf.SparseTensor(
         indices=((0, 0), (1, 0), (2, 0)),

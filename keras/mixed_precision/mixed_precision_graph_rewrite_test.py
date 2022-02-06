@@ -17,15 +17,14 @@
 import tensorflow.compat.v2 as tf
 
 import os
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.mixed_precision import loss_scale_optimizer as loss_scale_optimizer_v2
 from keras.mixed_precision import policy
 from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_v2
 
 
-class MixedPrecisionTest(keras_parameterized.TestCase):
+class MixedPrecisionTest(test_combinations.TestCase):
 
   IGNORE_PERF_VAR = 'TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_IGNORE_PERFORMANCE'
 
@@ -46,7 +45,8 @@ class MixedPrecisionTest(keras_parameterized.TestCase):
     tf.compat.v1.mixed_precision.disable_mixed_precision_graph_rewrite()
     super(MixedPrecisionTest, self).tearDown()
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_wrap_optimizer(self):
     opt = gradient_descent_v2.SGD(1.0)
     opt = tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(opt, 123.)
@@ -54,7 +54,8 @@ class MixedPrecisionTest(keras_parameterized.TestCase):
         opt, loss_scale_optimizer_v2.LossScaleOptimizerV1)
     self.assertEqual(self.evaluate(opt.loss_scale), 123.)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_optimizer_errors(self):
     opt = gradient_descent_v2.SGD(1.0)
     opt = loss_scale_optimizer_v2.LossScaleOptimizerV1(opt, 'dynamic')
@@ -65,7 +66,7 @@ class MixedPrecisionTest(keras_parameterized.TestCase):
     self.assertFalse(tf.config.optimizer.get_experimental_options()
                      .get('auto_mixed_precision', False))
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_error_if_policy_is_set(self):
     with policy.policy_scope('mixed_float16'):
       with self.assertRaisesRegex(ValueError,

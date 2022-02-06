@@ -18,9 +18,9 @@
 import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.engine import keras_tensor
 from keras.engine import training
 
@@ -47,8 +47,8 @@ class CustomTypeSpec2(CustomTypeSpec):
     return CustomTypeSpec2(new_shape, self.dtype)
 
 
-@testing_utils.run_v2_only
-class KerasTensorTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class KerasTensorTest(test_combinations.TestCase):
 
   def test_repr_and_string(self):
     kt = keras_tensor.KerasTensor(

@@ -17,20 +17,20 @@
 import os
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class DropoutTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class DropoutTest(test_combinations.TestCase):
 
   def test_dropout(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Dropout, kwargs={'rate': 0.5}, input_shape=(3, 2))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Dropout,
         kwargs={
             'rate': 0.5,

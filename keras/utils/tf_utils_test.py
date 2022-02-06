@@ -16,7 +16,7 @@
 
 from absl.testing import parameterized
 import keras
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -27,7 +27,7 @@ except ImportError:
   attr = None
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
 
   def test_default_behavior(self):

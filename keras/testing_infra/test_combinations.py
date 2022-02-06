@@ -1,4 +1,4 @@
-# Copyright 2016 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2020 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities for unit-testing Keras."""
+# pylint: disable=g-bad-import-order
 
 import tensorflow.compat.v2 as tf
 
@@ -24,12 +25,14 @@ import unittest
 from absl.testing import parameterized
 
 import keras
-from keras import testing_utils
+from keras.testing_infra import test_utils
 
 try:
   import h5py  # pylint:disable=g-import-not-at-top
 except ImportError:
   h5py = None
+
+KERAS_MODEL_TYPES = ['functional', 'subclass', 'sequential']
 
 
 class TestCase(tf.test.TestCase, parameterized.TestCase):
@@ -45,7 +48,7 @@ def run_with_all_saved_model_formats(
   """Execute the decorated test with all Keras saved model formats).
 
   This decorator is intended to be applied either to individual test methods in
-  a `keras_parameterized.TestCase` class, or directly to a test class that
+  a `test_combinations.TestCase` class, or directly to a test class that
   extends it. Doing so will cause the contents of the individual test
   method (or all test methods in the class) to be executed multiple times - once
   for each Keras saved model format.
@@ -64,11 +67,11 @@ def run_with_all_saved_model_formats(
   For example, consider the following unittest:
 
   ```python
-  class MyTests(testing_utils.KerasTestCase):
+  class MyTests(test_utils.KerasTestCase):
 
-    @testing_utils.run_with_all_saved_model_formats
+    @test_utils.run_with_all_saved_model_formats
     def test_foo(self):
-      save_format = testing_utils.get_save_format()
+      save_format = test_utils.get_save_format()
       saved_model_dir = '/tmp/saved_model/'
       model = keras.models.Sequential()
       model.add(keras.layers.Dense(2, input_shape=(3,)))
@@ -88,11 +91,11 @@ def run_with_all_saved_model_formats(
   We can also annotate the whole class if we want this to apply to all tests in
   the class:
   ```python
-  @testing_utils.run_with_all_saved_model_formats
-  class MyTests(testing_utils.KerasTestCase):
+  @test_utils.run_with_all_saved_model_formats
+  class MyTests(test_utils.KerasTestCase):
 
     def test_foo(self):
-      save_format = testing_utils.get_save_format()
+      save_format = test_utils.get_save_format()
       saved_model_dir = '/tmp/saved_model/'
       model = keras.models.Sequential()
       model.add(keras.layers.Dense(2, input_shape=(3,)))
@@ -152,17 +155,17 @@ def run_with_all_saved_model_formats(
 
 
 def _test_h5_saved_model_format(f, test_or_class, *args, **kwargs):
-  with testing_utils.saved_model_format_scope('h5'):
+  with test_utils.saved_model_format_scope('h5'):
     f(test_or_class, *args, **kwargs)
 
 
 def _test_tf_saved_model_format(f, test_or_class, *args, **kwargs):
-  with testing_utils.saved_model_format_scope('tf'):
+  with test_utils.saved_model_format_scope('tf'):
     f(test_or_class, *args, **kwargs)
 
 
 def _test_tf_saved_model_format_no_traces(f, test_or_class, *args, **kwargs):
-  with testing_utils.saved_model_format_scope('tf', save_traces=False):
+  with test_utils.saved_model_format_scope('tf', save_traces=False):
     f(test_or_class, *args, **kwargs)
 
 
@@ -181,7 +184,7 @@ def run_with_all_model_types(
   """Execute the decorated test with all Keras model types.
 
   This decorator is intended to be applied either to individual test methods in
-  a `keras_parameterized.TestCase` class, or directly to a test class that
+  a `test_combinations.TestCase` class, or directly to a test class that
   extends it. Doing so will cause the contents of the individual test
   method (or all test methods in the class) to be executed multiple times - once
   for each Keras model type.
@@ -198,12 +201,12 @@ def run_with_all_model_types(
   For example, consider the following unittest:
 
   ```python
-  class MyTests(testing_utils.KerasTestCase):
+  class MyTests(test_utils.KerasTestCase):
 
-    @testing_utils.run_with_all_model_types(
+    @test_utils.run_with_all_model_types(
       exclude_models = ['sequential'])
     def test_foo(self):
-      model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+      model = test_utils.get_small_mlp(1, 4, input_dim=3)
       optimizer = RMSPropOptimizer(learning_rate=0.001)
       loss = 'mse'
       metrics = ['mae']
@@ -227,11 +230,11 @@ def run_with_all_model_types(
   We can also annotate the whole class if we want this to apply to all tests in
   the class:
   ```python
-  @testing_utils.run_with_all_model_types(exclude_models = ['sequential'])
-  class MyTests(testing_utils.KerasTestCase):
+  @test_utils.run_with_all_model_types(exclude_models = ['sequential'])
+  class MyTests(test_utils.KerasTestCase):
 
     def test_foo(self):
-      model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+      model = test_utils.get_small_mlp(1, 4, input_dim=3)
       optimizer = RMSPropOptimizer(learning_rate=0.001)
       loss = 'mse'
       metrics = ['mae']
@@ -292,17 +295,17 @@ def run_with_all_model_types(
 
 
 def _test_functional_model_type(f, test_or_class, *args, **kwargs):
-  with testing_utils.model_type_scope('functional'):
+  with test_utils.model_type_scope('functional'):
     f(test_or_class, *args, **kwargs)
 
 
 def _test_subclass_model_type(f, test_or_class, *args, **kwargs):
-  with testing_utils.model_type_scope('subclass'):
+  with test_utils.model_type_scope('subclass'):
     f(test_or_class, *args, **kwargs)
 
 
 def _test_sequential_model_type(f, test_or_class, *args, **kwargs):
-  with testing_utils.model_type_scope('sequential'):
+  with test_utils.model_type_scope('sequential'):
     f(test_or_class, *args, **kwargs)
 
 
@@ -314,7 +317,7 @@ def run_all_keras_modes(test_or_class=None,
   """Execute the decorated test with all keras execution modes.
 
   This decorator is intended to be applied either to individual test methods in
-  a `keras_parameterized.TestCase` class, or directly to a test class that
+  a `test_combinations.TestCase` class, or directly to a test class that
   extends it. Doing so will cause the contents of the individual test
   method (or all test methods in the class) to be executed multiple times -
   once executing in legacy graph mode, once running eagerly and with
@@ -330,17 +333,17 @@ def run_all_keras_modes(test_or_class=None,
   For example, consider the following unittest:
 
   ```python
-  class MyTests(testing_utils.KerasTestCase):
+  class MyTests(test_utils.KerasTestCase):
 
-    @testing_utils.run_all_keras_modes
+    @test_utils.run_all_keras_modes
     def test_foo(self):
-      model = testing_utils.get_small_functional_mlp(1, 4, input_dim=3)
+      model = test_utils.get_small_functional_mlp(1, 4, input_dim=3)
       optimizer = RMSPropOptimizer(learning_rate=0.001)
       loss = 'mse'
       metrics = ['mae']
       model.compile(
           optimizer, loss, metrics=metrics,
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
 
       inputs = np.zeros((10, 3))
       targets = np.zeros((10, 4))
@@ -412,20 +415,20 @@ def run_all_keras_modes(test_or_class=None,
 
 def _v1_session_test(f, test_or_class, config, *args, **kwargs):
   with tf.compat.v1.get_default_graph().as_default():
-    with testing_utils.run_eagerly_scope(False):
+    with test_utils.run_eagerly_scope(False):
       with test_or_class.test_session(config=config):
         f(test_or_class, *args, **kwargs)
 
 
 def _v2_eager_test(f, test_or_class, *args, **kwargs):
   with tf.__internal__.eager_context.eager_mode():
-    with testing_utils.run_eagerly_scope(True):
+    with test_utils.run_eagerly_scope(True):
       f(test_or_class, *args, **kwargs)
 
 
 def _v2_function_test(f, test_or_class, *args, **kwargs):
   with tf.__internal__.eager_context.eager_mode():
-    with testing_utils.run_eagerly_scope(False):
+    with test_utils.run_eagerly_scope(False):
       f(test_or_class, *args, **kwargs)
 
 
@@ -446,7 +449,7 @@ def _test_or_class_decorator(test_or_class, single_method_decorator):
   Args:
     test_or_class: A test method (that may have already been decorated with a
       parameterized decorator, or a test class that extends
-      keras_parameterized.TestCase
+      test_combinations.TestCase
     single_method_decorator:
       A parameterized decorator intended for a single test method.
   Returns:
@@ -473,3 +476,85 @@ def _test_or_class_decorator(test_or_class, single_method_decorator):
     return _decorate_test_or_class(test_or_class)
 
   return _decorate_test_or_class
+
+
+def keras_mode_combinations(mode=None, run_eagerly=None):
+  """Returns the default test combinations for tf.keras tests.
+
+  Note that if tf2 is enabled, then v1 session test will be skipped.
+
+  Args:
+    mode: List of modes to run the tests. The valid options are 'graph' and
+      'eager'. Default to ['graph', 'eager'] if not specified. If a empty list
+      is provide, then the test will run under the context based on tf's
+      version, eg graph for v1 and eager for v2.
+    run_eagerly: List of `run_eagerly` value to be run with the tests.
+      Default to [True, False] if not specified. Note that for `graph` mode,
+      run_eagerly value will only be False.
+
+  Returns:
+    A list contains all the combinations to be used to generate test cases.
+  """
+  if mode is None:
+    mode = ['eager'] if tf.__internal__.tf2.enabled() else ['graph', 'eager']
+  if run_eagerly is None:
+    run_eagerly = [True, False]
+  result = []
+  if 'eager' in mode:
+    result += tf.__internal__.test.combinations.combine(mode=['eager'], run_eagerly=run_eagerly)
+  if 'graph' in mode:
+    result += tf.__internal__.test.combinations.combine(mode=['graph'], run_eagerly=[False])
+  return result
+
+
+def keras_model_type_combinations():
+  return tf.__internal__.test.combinations.combine(model_type=KERAS_MODEL_TYPES)
+
+
+class KerasModeCombination(tf.__internal__.test.combinations.TestCombination):
+  """Combination for Keras test mode.
+
+  It by default includes v1_session, v2_eager and v2_tf_function.
+  """
+
+  def context_managers(self, kwargs):
+    run_eagerly = kwargs.pop('run_eagerly', None)
+
+    if run_eagerly is not None:
+      return [test_utils.run_eagerly_scope(run_eagerly)]
+    else:
+      return []
+
+  def parameter_modifiers(self):
+    return [tf.__internal__.test.combinations.OptionalParameter('run_eagerly')]
+
+
+class KerasModelTypeCombination(tf.__internal__.test.combinations.TestCombination):
+  """Combination for Keras model types when doing model test.
+
+  It by default includes 'functional', 'subclass', 'sequential'.
+
+  Various methods in `testing_utils` to get models will auto-generate a model
+  of the currently active Keras model type. This allows unittests to confirm
+  the equivalence between different Keras models.
+  """
+
+  def context_managers(self, kwargs):
+    model_type = kwargs.pop('model_type', None)
+    if model_type in KERAS_MODEL_TYPES:
+      return [test_utils.model_type_scope(model_type)]
+    else:
+      return []
+
+  def parameter_modifiers(self):
+    return [tf.__internal__.test.combinations.OptionalParameter('model_type')]
+
+
+_defaults = tf.__internal__.test.combinations.generate.keywords['test_combinations']
+generate = functools.partial(
+    tf.__internal__.test.combinations.generate,
+    test_combinations=_defaults +
+    (KerasModeCombination(), KerasModelTypeCombination()))
+combine = tf.__internal__.test.combinations.combine
+times = tf.__internal__.test.combinations.times
+NamedObject = tf.__internal__.test.combinations.NamedObject

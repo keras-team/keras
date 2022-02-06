@@ -16,13 +16,13 @@
 """Tests for `DatasetCreator` with `Model.fit` across usages and strategies."""
 
 from keras import callbacks as callbacks_lib
-from keras import testing_utils
 from keras.distribute import dataset_creator_model_fit_test_base as test_base
 from keras.distribute import strategy_combinations
+from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
 
 
-@testing_utils.run_v2_only
+@test_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.parameter_server_strategies_multi_worker,

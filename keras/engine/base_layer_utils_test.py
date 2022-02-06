@@ -19,13 +19,12 @@ import tensorflow.compat.v2 as tf
 
 import keras
 from keras import backend
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras.engine import base_layer_utils
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
-class TrackableWeightHandlerTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+class TrackableWeightHandlerTest(test_combinations.TestCase):
 
   def get_table_handler(self):
     # Note: There is some repetition in these tests' setup. However, Tensorflow
@@ -65,8 +64,8 @@ class TrackableWeightHandlerTest(keras_parameterized.TestCase):
     _ = backend.batch_get_value(table_handler.get_tensors())
 
 
-@combinations.generate(combinations.combine(mode=['eager']))
-class OpLayerTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=['eager']))
+class OpLayerTest(test_combinations.TestCase):
 
   def test_tensor_op_layer(self):
     int_values = keras.Input(shape=(2,), dtype=tf.int32)

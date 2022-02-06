@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 
 import keras
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.distribute import keras_correctness_test_base
 from keras.layers import recurrent as rnn_v1
 from keras.layers import recurrent_v2 as rnn_v2
@@ -64,7 +64,7 @@ class _DistributionStrategyRnnModelCorrectnessTest(
     return model
 
 
-@testing_utils.run_all_without_tensor_float_32(
+@test_utils.run_all_without_tensor_float_32(
     'Uses Dense layers, which call matmul')
 class DistributionStrategyGruModelCorrectnessTest(
     _DistributionStrategyRnnModelCorrectnessTest):
@@ -85,7 +85,7 @@ class DistributionStrategyGruModelCorrectnessTest(
     self.run_correctness_test(distribution, use_numpy, use_validation_data)
 
 
-@testing_utils.run_all_without_tensor_float_32(
+@test_utils.run_all_without_tensor_float_32(
     'Uses Dense layers, which call matmul')
 class DistributionStrategyLstmModelCorrectnessTest(
     _DistributionStrategyRnnModelCorrectnessTest):
@@ -108,7 +108,7 @@ class DistributionStrategyLstmModelCorrectnessTest(
   @tf.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.test_combinations_for_embedding_model() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_lstm_model_correctness_mixed_precision(self, distribution, use_numpy,
                                                   use_validation_data):
     if isinstance(distribution,

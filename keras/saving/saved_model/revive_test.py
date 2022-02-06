@@ -28,8 +28,8 @@ import numpy as np
 
 import keras
 from keras import backend
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.saving.saved_model import load as keras_load
 from keras.utils import generic_utils
 
@@ -199,7 +199,7 @@ class WideDeepModel(SubclassedModelWithConfig):
   pass
 
 
-class ReviveTestBase(keras_parameterized.TestCase):
+class ReviveTestBase(test_combinations.TestCase):
 
   def setUp(self):
     super(ReviveTestBase, self).setUp()
@@ -260,10 +260,10 @@ class ReviveTestBase(keras_parameterized.TestCase):
 # (putting them in the same TestCase resolves this).
 class TestBigModelRevive(ReviveTestBase):
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_revive(self):
     input_shape = None
-    if testing_utils.get_model_type() == 'functional':
+    if test_utils.get_model_type() == 'functional':
       input_shape = (2, 3)
 
     layer_with_config = CustomLayerWithConfig(1., 2)
@@ -308,7 +308,7 @@ class TestBigModelRevive(ReviveTestBase):
               inner_model_functional,
               inner_model_sequential,
               inner_model_subclassed]
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         layers, input_shape=input_shape)
     # Run data through the Model to create save spec and weights.
     model.predict(np.ones((10, 2, 3)), batch_size=10)
@@ -384,7 +384,7 @@ class TestModelRevive(ReviveTestBase):
       keras_load.load(self.path, compile=False)
 
   def test_load_compiled_metrics(self):
-    model = testing_utils.get_small_sequential_mlp(1, 3)
+    model = test_utils.get_small_sequential_mlp(1, 3)
 
     # Compile with dense categorical accuracy
     model.compile('rmsprop', 'mse', 'acc')

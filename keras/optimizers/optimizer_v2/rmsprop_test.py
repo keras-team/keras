@@ -22,9 +22,9 @@ import math
 
 from absl.testing import parameterized
 import numpy as np
-from tensorflow.python.framework import test_util
-from keras import combinations
-from keras import testing_utils
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.optimizers import learning_rate_schedule
 from keras.optimizers.optimizer_v2 import rmsprop
 
@@ -94,7 +94,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testDense(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for (dtype, learning_rate, rho, momentum, epsilon, centered) in _TESTPARAMS:
-      with tf.compat.v1.get_default_graph().as_default(), testing_utils.use_gpu():
+      with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():
         # Initialize variables for numpy implementation.
         var0_np = np.array([1.0, 2.0], dtype=dtype.as_numpy_dtype)
         grads0_np = np.array([0.1, 0.2], dtype=dtype.as_numpy_dtype)
@@ -367,7 +367,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testSparse(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for (dtype, learning_rate, rho, momentum, epsilon, centered) in _TESTPARAMS:
-      with tf.compat.v1.get_default_graph().as_default(), testing_utils.use_gpu():
+      with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():
         # Initialize variables for numpy implementation.
         var0_np = np.array([1.0, 2.0], dtype=dtype.as_numpy_dtype)
         grads0_np = np.array([0.1], dtype=dtype.as_numpy_dtype)
@@ -446,7 +446,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAllCloseAccordingToType(var0_np, self.evaluate(var0))
           self.assertAllCloseAccordingToType(var1_np, self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testCallableParams(self):
     for dtype in _DATA_TYPES:
       var0 = tf.Variable([1.0, 2.0], dtype=dtype)
@@ -508,7 +508,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(self.evaluate(opt_2.lr), (1.0))
     self.assertAllClose(self.evaluate(opt_3.lr), (0.1))
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testSlotsUniqueEager(self):
     v1 = tf.Variable(1.)
     v2 = tf.Variable(1.)
@@ -534,7 +534,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(
         self.evaluate(opt.variables()[0]), self.evaluate(opt.iterations))
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testMomentumProperValue(self):
     with self.assertRaisesRegex(ValueError,
                                 r"`momentum` must be between \[0, 1\]. "
@@ -543,11 +543,11 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       rmsprop.RMSprop(1., momentum=2.5, centered=False)
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class SlotColocationTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.parameters([True, False])
-  @test_util.run_gpu_only
+  @tf_test_utils.run_gpu_only
   def testRunMinimizeOnGPUForCPUVariables(self, use_resource):
     with tf.device("/device:CPU:0"):
       if use_resource:

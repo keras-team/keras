@@ -18,18 +18,18 @@ import os
 from absl.testing import parameterized
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.layers.preprocessing import hashing
 from keras.layers.preprocessing import preprocessing_test_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class HashingTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class HashingTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
       ('list', list),
@@ -356,7 +356,7 @@ class HashingTest(keras_parameterized.TestCase):
     self.assertEqual(output_spec.shape.dims, input_shape.dims)
     self.assertEqual(output_spec.dtype, tf.int64)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_config_with_custom_name(self):
     layer = hashing.Hashing(num_bins=2, name='hashing')
     config = layer.get_config()

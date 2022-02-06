@@ -15,18 +15,18 @@
 """Tests for repeat vector layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class RepeatVectorTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class RepeatVectorTest(test_combinations.TestCase):
 
   def test_repeat_vector(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.RepeatVector, kwargs={'n': 3}, input_shape=(3, 2))
 
   def test_numpy_inputs(self):

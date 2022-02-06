@@ -18,8 +18,8 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
-from keras import combinations
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.distribute import multi_worker_testing_utils
 from keras.engine import data_adapter
 from keras.engine import sequential
@@ -29,7 +29,7 @@ from keras.utils import dataset_creator
 from tensorflow.python.training.server_lib import ClusterSpec
 
 
-@testing_utils.run_v2_only
+@test_utils.run_v2_only
 class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_dataset_creator(self):
@@ -63,7 +63,8 @@ class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
 
     return dataset_fn
 
-  @combinations.generate(combinations.combine(use_input_options=[True, False]))
+  @test_combinations.generate(
+      test_combinations.combine(use_input_options=[True, False]))
   def test_dataset_creator_model_fit_without_strategy(self, use_input_options):
     model = sequential.Sequential([core_layers.Dense(10)])
     model.compile(gradient_descent.SGD(), loss="mse")
@@ -82,7 +83,8 @@ class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
     return tf.distribute.experimental.ParameterServerStrategy(
         SimpleClusterResolver(ClusterSpec(cluster_def), rpc_layer="grpc"))
 
-  @combinations.generate(combinations.combine(use_input_options=[True, False]))
+  @test_combinations.generate(
+      test_combinations.combine(use_input_options=[True, False]))
   def test_dataset_creator_usage_in_parameter_server_model_fit(
       self, use_input_options):
     strategy = self._get_parameter_server_strategy()
