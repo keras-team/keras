@@ -18,16 +18,16 @@
 from absl.testing import parameterized
 import keras
 from keras import backend
-from keras import keras_parameterized
 from keras.layers import core
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import preprocessing_test_utils
+from keras.testing_infra import test_combinations
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class CategoryEncodingInputTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class CategoryEncodingInputTest(test_combinations.TestCase,
                                 preprocessing_test_utils.PreprocessingLayerTest
                                ):
 
@@ -311,8 +311,8 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
     self.assertAllEqual(expected_output, output_dataset)
 
 
-@keras_parameterized.run_all_keras_modes
-class CategoryEncodingOutputTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes
+class CategoryEncodingOutputTest(test_combinations.TestCase,
                                  preprocessing_test_utils.PreprocessingLayerTest
                                 ):
 
@@ -491,7 +491,7 @@ class CategoryEncodingOutputTest(keras_parameterized.TestCase,
 
 
 class CategoryEncodingModelBuildingTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   @parameterized.named_parameters(

@@ -20,8 +20,8 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class MultiInputSubclassed(keras.Model):
@@ -30,7 +30,7 @@ class MultiInputSubclassed(keras.Model):
   def __init__(self):
     super(MultiInputSubclassed, self).__init__()
     self.add = keras.layers.Add()
-    self.bias = testing_utils.Bias()
+    self.bias = test_utils.Bias()
 
   def call(self, inputs):
     added = self.add(inputs)
@@ -43,21 +43,21 @@ def multi_input_functional():
   input_2 = keras.Input(shape=(1,))
   input_3 = keras.Input(shape=(1,))
   added = keras.layers.Add()([input_1, input_2, input_3])
-  output = testing_utils.Bias()(added)
+  output = test_utils.Bias()(added)
   return keras.Model([input_1, input_2, input_3], output)
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
-class SimpleBiasTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class SimpleBiasTest(test_combinations.TestCase):
 
   def _get_simple_bias_model(self):
-    model = testing_utils.get_model_from_layers([testing_utils.Bias()],
-                                                input_shape=(1,))
+    model = test_utils.get_model_from_layers([test_utils.Bias()],
+                                             input_shape=(1,))
     model.compile(
         keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
         'mae',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     return model
 
   def test_simple_bias_fit(self):
@@ -84,8 +84,8 @@ class SimpleBiasTest(keras_parameterized.TestCase):
     self.assertAllClose(x, pred)
 
 
-@keras_parameterized.run_all_keras_modes
-class MultipleInputTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class MultipleInputTest(test_combinations.TestCase):
 
   def _get_multiple_input_model(self, subclassed=True):
     if subclassed:
@@ -95,7 +95,7 @@ class MultipleInputTest(keras_parameterized.TestCase):
     model.compile(
         keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
         'mae',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     return model
 
   @parameterized.named_parameters(('subclassed', True), ('functional', False))

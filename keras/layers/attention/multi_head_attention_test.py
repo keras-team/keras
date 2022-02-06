@@ -16,15 +16,15 @@
 
 from absl.testing import parameterized
 import keras
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
 # This decorator runs the test in V1, V2-Eager, and V2-Functional mode. It
 # guarantees forward compatibility of this code for the V2 switchover.
-@keras_parameterized.run_all_keras_modes
-class MultiHeadAttentionTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class MultiHeadAttentionTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
       ("key_value_same_proj", None, None, [40, 80]),
@@ -249,8 +249,8 @@ class SubclassAttention(keras.layers.MultiHeadAttention):
     return value_tensor, None
 
 
-@keras_parameterized.run_all_keras_modes
-class AttentionSubclassTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class AttentionSubclassTest(test_combinations.TestCase):
 
   def test_initializer(self):
     """Test with a specified initializer."""
@@ -284,8 +284,8 @@ class TestModel(keras.Model):
     return self.attention(x, x, training=training)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class KerasModelSavingTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class KerasModelSavingTest(test_combinations.TestCase):
 
   def test_keras_saving_subclass(self):
     model = TestModel()

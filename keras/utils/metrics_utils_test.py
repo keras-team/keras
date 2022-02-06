@@ -17,11 +17,11 @@
 import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.utils import metrics_utils
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.parameters([
@@ -240,7 +240,7 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
           metrics_utils.ragged_assert_compatible_and_get_flat_values([x, y])
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class FilterTopKTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_one_dimensional(self):

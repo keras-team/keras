@@ -23,12 +23,9 @@ import tempfile
 from absl.testing import parameterized
 import keras
 from keras import backend
-from keras import combinations
-from keras import keras_parameterized
 from keras import layers as layers_module
 from keras import losses
 from keras import metrics as metrics_module
-from keras import testing_utils
 from keras.callbacks import Callback
 from keras.engine import input_layer
 from keras.engine import sequential
@@ -37,13 +34,15 @@ from keras.engine import training_utils_v1
 from keras.layers.preprocessing import string_lookup
 from keras.optimizers import optimizer_v2
 from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import data_utils
 from keras.utils import io_utils
 from keras.utils import np_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.framework import test_util as tf_test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
@@ -53,23 +52,23 @@ except ImportError:
   scipy_sparse = None
 
 
-class TrainingTest(keras_parameterized.TestCase):
+class TrainingTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
   def test_model_instrumentation(self):
     layers = [
         layers_module.Dense(10, dtype=np.float64),
         layers_module.Dense(10, dtype=np.float64)
     ]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(1,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(1,))
 
     self.assertTrue(model._instrumented_keras_api)
     self.assertTrue(model._instrumented_keras_model_class)
     self.assertFalse(model._instrumented_keras_layer_class)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_fit_training_arg(self):
 
     class ReturnTraining(layers_module.Layer):
@@ -84,19 +83,19 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     hist = model.fit(x=np.array([0.]), y=np.array([0.]))
     self.assertAllClose(hist.history['loss'][0], 10000)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_fit_on_empty(self):
     model = sequential.Sequential([layers_module.Dense(1)])
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
     with self.assertRaisesRegex(ValueError,
                                 'Unexpected result of `train_function`.*'):
       model.fit(x=np.array([]), y=np.array([]))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_compile_fit_with_jit_compile(self):
     # Test with jit_compile = True
     model = sequential.Sequential([layers_module.Dense(1)])
@@ -124,7 +123,7 @@ class TrainingTest(keras_parameterized.TestCase):
       model_input[i, i:, i:] = 0
     model.fit(model_input, np.random.random((10, 1)), epochs=1, batch_size=10)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_compile_fit_with_mirrored_strategy(self):
     # Test with jit_compile = True
     strategy = tf.distribute.MirroredStrategy()
@@ -134,7 +133,7 @@ class TrainingTest(keras_parameterized.TestCase):
     x, y = np.ones((10, 1)), np.ones((10, 1))
     model.fit(x, y, epochs=2)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_verify_xla_compile_with_jit_compile(self):
     vocab_data = ['earth', 'wind', 'and', 'fire']
     input_array = np.array([['earth', 'wind', 'and', 'fire'],
@@ -155,15 +154,15 @@ class TrainingTest(keras_parameterized.TestCase):
         model.fit(input_array, expected_output, epochs=1)
       model.predict(input_array)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_fit_without_loss_at_compile(self):
     model = sequential.Sequential([layers_module.Dense(1)])
-    model.compile('sgd', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 1)), np.ones((10, 1))
     with self.assertRaisesRegex(ValueError, 'No loss found..*'):
       model.fit(x, y, epochs=2)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_fit_without_loss_at_compile_but_with_add_loss(self):
 
     class MyModel(sequential.Sequential):
@@ -173,18 +172,18 @@ class TrainingTest(keras_parameterized.TestCase):
         return x
 
     model = MyModel([layers_module.Dense(1)])
-    model.compile('sgd', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 1)), np.ones((10, 1))
     model.fit(x, y, epochs=2)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_run_eagerly_setting(self):
     model = sequential.Sequential([layers_module.Dense(1)])
-    run_eagerly = testing_utils.should_run_eagerly()
+    run_eagerly = test_utils.should_run_eagerly()
     model.compile('sgd', 'mse', run_eagerly=run_eagerly)
     self.assertEqual(model.run_eagerly, run_eagerly)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   @parameterized.named_parameters(
       ('train_on_batch', 'train_on_batch'),
       ('test_on_batch', 'test_on_batch'),
@@ -195,7 +194,7 @@ class TrainingTest(keras_parameterized.TestCase):
   )
   def test_disallow_methods_inside_tf_function(self, method_name):
     model = sequential.Sequential([layers_module.Dense(1)])
-    run_eagerly = testing_utils.should_run_eagerly()
+    run_eagerly = test_utils.should_run_eagerly()
     model.compile('sgd', 'mse', run_eagerly=run_eagerly)
 
     @tf.function
@@ -206,7 +205,7 @@ class TrainingTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(RuntimeError, error_msg):
       my_fn()
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_fit_and_validate_learning_phase(self):
 
     class ReturnTraining(layers_module.Layer):
@@ -219,7 +218,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         loss='mae',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.ones((40, 2), dtype=np.float32)
     targets = np.ones((40, 1), dtype=np.float32)
@@ -237,7 +236,7 @@ class TrainingTest(keras_parameterized.TestCase):
     # The validation loss should be 1.0.
     self.assertAllClose(history.history['val_loss'][0], 1.0)
 
-  @keras_parameterized.run_all_keras_modes(
+  @test_combinations.run_all_keras_modes(
       always_skip_v1=True)
   def test_warn_on_evaluate(self):
     i = layers_module.Input((1,))
@@ -254,7 +253,7 @@ class TrainingTest(keras_parameterized.TestCase):
         any('`evaluate()` received a value for `sample_weight`' in log
             for log in logs.output))
 
-  @keras_parameterized.run_all_keras_modes(
+  @test_combinations.run_all_keras_modes(
       always_skip_v1=True)
   def test_sample_weight_warning_disable(self):
     i = layers_module.Input((1,))
@@ -271,7 +270,7 @@ class TrainingTest(keras_parameterized.TestCase):
         any('`evaluate()` received a value for `sample_weight`' in log
             for log in logs.output))
 
-  @keras_parameterized.run_all_keras_modes(
+  @test_combinations.run_all_keras_modes(
       always_skip_v1=True)
   def test_warn_on_evaluate_with_tf_dataset(self):
     i = layers_module.Input((1,))
@@ -291,7 +290,7 @@ class TrainingTest(keras_parameterized.TestCase):
         any('`evaluate()` received a value for `sample_weight`' in log
             for log in logs.output))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_fit_and_validate_training_arg(self):
 
     class ReturnTraining(layers_module.Layer):
@@ -306,7 +305,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         loss='mae',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.ones((40, 2), dtype=np.float32)
     targets = np.ones((40, 1), dtype=np.float32)
@@ -324,8 +323,8 @@ class TrainingTest(keras_parameterized.TestCase):
     # The validation loss should be 1.0.
     self.assertAllClose(history.history['val_loss'][0], 1.0)
 
-  @keras_parameterized.run_all_keras_modes
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
   def test_target_dtype_matches_output(self):
 
     def loss_fn(labels, preds):
@@ -336,18 +335,18 @@ class TrainingTest(keras_parameterized.TestCase):
         layers_module.Dense(10, dtype=np.float64),
         layers_module.Dense(10, dtype=np.float64)
     ]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(1,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(1,))
     inputs = np.ones(shape=(10, 1), dtype=np.float64)
     targets = np.ones(shape=(10, 1), dtype=np.float64)
     model.compile(
         'sgd',
         loss=loss_fn,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.train_on_batch(inputs, targets)
     model.test_on_batch(inputs, targets)
     self.assertEqual(model.predict(inputs).dtype, np.float64)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_fit_and_validate_nested_training_arg(self):
 
     class NestedReturnTraining(layers_module.Layer):
@@ -375,7 +374,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         loss='mae',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.ones((40, 2), dtype=np.float32)
     targets = np.ones((40, 1), dtype=np.float32)
@@ -393,8 +392,8 @@ class TrainingTest(keras_parameterized.TestCase):
     # The validation loss should be 1.0.
     self.assertAllClose(history.history['val_loss'][0], 1.0)
 
-  @keras_parameterized.run_with_all_model_types(exclude_models='sequential')
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types(exclude_models='sequential')
+  @test_combinations.run_all_keras_modes
   def test_fit_on_arrays(self):
     input_a = layers_module.Input(shape=(3,), name='input_a')
     input_b = layers_module.Input(shape=(3,), name='input_b')
@@ -404,7 +403,7 @@ class TrainingTest(keras_parameterized.TestCase):
     branch_a = [input_a, dense]
     branch_b = [input_b, dense, dropout]
 
-    model = testing_utils.get_multi_io_model(branch_a, branch_b)
+    model = test_utils.get_multi_io_model(branch_a, branch_b)
 
     optimizer = RMSPropOptimizer(learning_rate=0.001)
     loss = 'mse'
@@ -414,7 +413,7 @@ class TrainingTest(keras_parameterized.TestCase):
         loss,
         metrics=[metrics_module.CategoricalAccuracy(), 'mae'],
         loss_weights=loss_weights,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     input_a_np = np.random.random((10, 3))
     input_b_np = np.random.random((10, 3))
@@ -475,7 +474,7 @@ class TrainingTest(keras_parameterized.TestCase):
         verbose=0,
         validation_split=0.2)
 
-    if testing_utils.get_model_type() == 'functional':
+    if test_utils.get_model_type() == 'functional':
       # Test with dictionary inputs
       model.fit(
           {
@@ -531,7 +530,7 @@ class TrainingTest(keras_parameterized.TestCase):
         optimizer,
         loss,
         metrics=[metrics_module.CategoricalAccuracy(), 'mae'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(
         [input_a_np, input_b_np], [output_d_np, output_e_np],
         epochs=1,
@@ -539,7 +538,7 @@ class TrainingTest(keras_parameterized.TestCase):
         verbose=0)
 
     # Test with dictionaries for loss, metrics, loss weights
-    if testing_utils.get_model_type() == 'functional':
+    if test_utils.get_model_type() == 'functional':
       loss = {'dense': 'mse', 'dropout': 'mae'}
       loss_weights = {'dense': 1., 'dropout': 0.5}
       metrics = {
@@ -551,7 +550,7 @@ class TrainingTest(keras_parameterized.TestCase):
           loss,
           metrics=metrics,
           loss_weights=loss_weights,
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
     model.fit(
         [input_a_np, input_b_np], [output_d_np, output_e_np],
         epochs=1,
@@ -565,7 +564,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         optimizer,
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     # This will work
     model.fit([input_a_np], output_d_np, epochs=1)
 
@@ -598,7 +597,7 @@ class TrainingTest(keras_parameterized.TestCase):
                 batch_size=5,
                 verbose=2)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_evaluate_predict_on_arrays(self):
     a = layers_module.Input(shape=(3,), name='input_a')
     b = layers_module.Input(shape=(3,), name='input_b')
@@ -619,7 +618,7 @@ class TrainingTest(keras_parameterized.TestCase):
         metrics=['mae', metrics_module.CategoricalAccuracy()],
         loss_weights=loss_weights,
         sample_weight_mode=None,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     input_a_np = np.random.random((10, 3))
     input_b_np = np.random.random((10, 3))
@@ -753,8 +752,8 @@ class TrainingTest(keras_parameterized.TestCase):
 
       return XYSequence, XSequence
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_with_all_model_types
   @parameterized.named_parameters(
       ('dataset', 'dataset'),
       ('generator', 'generator'),
@@ -772,17 +771,17 @@ class TrainingTest(keras_parameterized.TestCase):
       evaluate_kwargs['steps'] = 4
       predict_kwargs['steps'] = 4
 
-    model = testing_utils.get_small_mlp(1, 1, 1)
+    model = test_utils.get_small_mlp(1, 1, 1)
     model.compile(
         loss='mse',
         optimizer='sgd',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     model.fit(xy_function(use_namedtuple=False), **fit_kwargs)
     model.evaluate(xy_function(use_namedtuple=False), **evaluate_kwargs)
     model.predict(x_function(use_namedtuple=False), **predict_kwargs)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_custom_mapping_in_config(self):
 
     class MyModel(training_module.Model):
@@ -823,7 +822,7 @@ class TrainingTest(keras_parameterized.TestCase):
                 epochs=1, batch_size=2, validation_split=0.5)
       model.evaluate(test_inputs, test_outputs, batch_size=2)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_compile_with_sparse_placeholders(self):
     inputs = layers_module.Input(shape=(10,), sparse=True)
     weights = tf.Variable(
@@ -835,9 +834,9 @@ class TrainingTest(keras_parameterized.TestCase):
         loss='binary_crossentropy',
         optimizer='adam',
         metrics=['accuracy'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_that_trainable_disables_updates(self):
     val_a = np.random.random((10, 4))
     val_out = np.random.random((10, 4))
@@ -854,7 +853,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     if not tf.compat.v1.executing_eagerly_outside_functions():
       self.assertEmpty(model.updates)
 
@@ -867,7 +866,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     if not tf.compat.v1.executing_eagerly_outside_functions():
       self.assertAllGreater(len(model.updates), 0)
 
@@ -879,7 +878,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     if not tf.compat.v1.executing_eagerly_outside_functions():
       self.assertEmpty(model.updates)
 
@@ -905,7 +904,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertLen(model.non_trainable_weights, 2)
     self.assertLen(model.weights, 6)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_weight_deduplication(self):
 
     class WatchingLayer(layers_module.Layer):
@@ -933,7 +932,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer=optimizer_v2.gradient_descent.SGD(0.24),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.ones((64 * 2,))
     y = 4.5 * x - 3.
@@ -944,7 +943,7 @@ class TrainingTest(keras_parameterized.TestCase):
     # be ~0.15, compared to the correct answer of O(1e-7).
     self.assertLess(history.history['loss'][-1], 1e-6)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_weight_shared_across_layers(self):
 
     class AddWeightLayer(layers_module.Layer):
@@ -981,7 +980,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertEqual(l.non_trainable_variables, [l.layer1.non_trainable_var])
     self.assertLen(l.get_weights(), 2)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_weight_tracking_for_template(self):
     def variable_scoped_function(trainable=True):
       return tf.compat.v1.get_variable(
@@ -1040,7 +1039,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertEqual([], model.templates.updates)
     self.assertEqual([], model.templates.losses)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_logs_passed_to_callbacks(self):
     input_dim = 5
     num_classes = 1
@@ -1062,17 +1061,17 @@ class TrainingTest(keras_parameterized.TestCase):
         self.batch_end_logs = logs
         self.batch_end_call_count += 1
 
-    model = testing_utils.get_small_sequential_mlp(
+    model = test_utils.get_small_sequential_mlp(
         num_hidden=10, num_classes=num_classes, input_dim=input_dim)
     model.compile(
         loss='binary_crossentropy',
         metrics=['acc'],
         weighted_metrics=['mae'],
         optimizer=RMSPropOptimizer(learning_rate=0.01),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     np.random.seed(1337)
-    (x_train, y_train), (_, _) = testing_utils.get_test_data(
+    (x_train, y_train), (_, _) = test_utils.get_test_data(
         train_samples=10,
         test_samples=10,
         input_shape=(input_dim,),
@@ -1096,7 +1095,7 @@ class TrainingTest(keras_parameterized.TestCase):
         set(test_callback.epoch_end_logs.keys()),
         set(['acc', 'loss', 'mae', 'val_acc', 'val_loss', 'val_mae']))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_mismatched_output_shape_and_target_shape(self):
     model = sequential.Sequential([
         layers_module.Dense(2, input_shape=(3, 4)),
@@ -1105,7 +1104,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         RMSPropOptimizer(learning_rate=0.001),
         loss='sparse_categorical_crossentropy',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     # Test with Numpy data
     x_train = np.random.random((10, 3, 4)).astype(np.float32)
     y_train = np.random.randint(0, 5, size=(10, 3)).astype(np.float32)
@@ -1127,7 +1126,7 @@ class TrainingTest(keras_parameterized.TestCase):
       # Test with eager execution and iterator
       model.fit(dataset, epochs=1, steps_per_epoch=2)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_losses_in_defun(self):
     layer = layers_module.Dense(1, kernel_regularizer='l1')
     layer(tf.ones([1, 10]))
@@ -1139,7 +1138,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertAllEqual(
         self.evaluate(layer.losses), self.evaluate(get_losses()))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_logging(self):
     mock_stdout = io.StringIO()
     model = sequential.Sequential()
@@ -1148,14 +1147,15 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         RMSPropOptimizer(learning_rate=0.001),
         loss='binary_crossentropy',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     io_utils.enable_interactive_logging()
     with tf.compat.v1.test.mock.patch.object(sys, 'stdout', mock_stdout):
       model.fit(
           np.ones((10, 10), 'float32'), np.ones((10, 1), 'float32'), epochs=10)
     self.assertTrue('Epoch 5/10' in mock_stdout.getvalue())
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_training_with_loss_instance(self):
     a = layers_module.Input(shape=(3,), name='input_a')
     b = layers_module.Input(shape=(3,), name='input_b')
@@ -1183,7 +1183,8 @@ class TrainingTest(keras_parameterized.TestCase):
               epochs=1,
               batch_size=5)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_static_batch_in_input_layer(self):
     if tf.executing_eagerly():
       self.skipTest('Not inferred in eager.')
@@ -1215,7 +1216,8 @@ class TrainingTest(keras_parameterized.TestCase):
       model.fit(x, y, callbacks=[counter])
       self.assertEqual(counter.batches, expected_batches)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_static_batch_in_input_layer_consistency_checks(self):
     if tf.executing_eagerly():
       self.skipTest('Not inferred in eager.')
@@ -1229,7 +1231,8 @@ class TrainingTest(keras_parameterized.TestCase):
                                 'incompatible with the specified batch size'):
       model.fit(x, y, batch_size=4)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_compatible_batch_size_functional_model(self):
 
     class MyLayer(layers_module.Layer):
@@ -1248,7 +1251,8 @@ class TrainingTest(keras_parameterized.TestCase):
           'Found incompatible static batch sizes among the inputs. '
           'Batch sizes: [2, 3]')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_calling_subclass_model_on_different_datasets(self):
 
     class SubclassedModel(training_module.Model):
@@ -1264,21 +1268,21 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertAllEqual([[6], [8], [10], [12]],
                         model.predict(dataset_two, steps=2))
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_training_on_sparse_categorical_crossentropy_loss_with_softmax(self):
     np.random.seed(1337)
     train_x = np.ones((100, 4))
     train_y = np.random.randint(0, 1, size=(100, 1))
 
-    reference_model = testing_utils.get_small_sequential_mlp(16, 2,
-                                                             input_dim=4)
+    reference_model = test_utils.get_small_sequential_mlp(16, 2,
+                                                          input_dim=4)
     reference_model.compile(loss='sparse_categorical_crossentropy',
                             optimizer=RMSPropOptimizer(learning_rate=0.001),
                             run_eagerly=True)
     fixed_weights = reference_model.get_weights()
     reference_model_loss = reference_model.train_on_batch(train_x, train_y)
 
-    test_model = testing_utils.get_small_sequential_mlp(16, 2, input_dim=4)
+    test_model = test_utils.get_small_sequential_mlp(16, 2, input_dim=4)
     test_model.compile(loss='sparse_categorical_crossentropy',
                        optimizer=RMSPropOptimizer(learning_rate=0.001),
                        run_eagerly=False)
@@ -1286,22 +1290,22 @@ class TrainingTest(keras_parameterized.TestCase):
     test_model_loss = test_model.train_on_batch(train_x, train_y)
     self.assertAlmostEqual(test_model_loss, reference_model_loss, places=4)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_training_on_categorical_crossentropy_loss_with_softmax(self):
     np.random.seed(1337)
     train_x = np.ones((100, 4))
     train_y = np_utils.to_categorical(
         np.random.randint(0, 1, size=(100, 1)), 2)
 
-    reference_model = testing_utils.get_small_sequential_mlp(16, 2,
-                                                             input_dim=4)
+    reference_model = test_utils.get_small_sequential_mlp(16, 2,
+                                                          input_dim=4)
     reference_model.compile(loss='categorical_crossentropy',
                             optimizer=RMSPropOptimizer(learning_rate=0.001),
                             run_eagerly=True)
     fixed_weights = reference_model.get_weights()
     reference_model_loss = reference_model.train_on_batch(train_x, train_y)
 
-    test_model = testing_utils.get_small_sequential_mlp(16, 2, input_dim=4)
+    test_model = test_utils.get_small_sequential_mlp(16, 2, input_dim=4)
     test_model.compile(loss='categorical_crossentropy',
                        optimizer=RMSPropOptimizer(learning_rate=0.001),
                        run_eagerly=False)
@@ -1309,19 +1313,19 @@ class TrainingTest(keras_parameterized.TestCase):
     test_model_loss = test_model.train_on_batch(train_x, train_y)
     self.assertAlmostEqual(test_model_loss, reference_model_loss, places=4)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_training_on_binary_crossentropy_loss(self):
     train_x = np.ones((100, 4), dtype=np.float32)
     train_y = np.ones((100, 1), dtype=np.float32)
-    reference_model = testing_utils.get_small_sequential_mlp(16, 1,
-                                                             input_dim=4)
+    reference_model = test_utils.get_small_sequential_mlp(16, 1,
+                                                          input_dim=4)
     reference_model.compile(loss='binary_crossentropy',
                             optimizer=RMSPropOptimizer(learning_rate=0.001),
                             run_eagerly=True)
     fixed_weights = reference_model.get_weights()
     reference_model_loss = reference_model.train_on_batch(train_x, train_y)
 
-    test_model = testing_utils.get_small_sequential_mlp(16, 1, input_dim=4)
+    test_model = test_utils.get_small_sequential_mlp(16, 1, input_dim=4)
     test_model.compile(loss='binary_crossentropy',
                        optimizer=RMSPropOptimizer(learning_rate=0.001),
                        run_eagerly=False)
@@ -1329,18 +1333,18 @@ class TrainingTest(keras_parameterized.TestCase):
     test_model_loss = test_model.train_on_batch(train_x, train_y)
     self.assertAlmostEqual(test_model_loss, reference_model_loss, places=4)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   @parameterized.named_parameters(
       ('default', 1, 4), ('integer_two', 2, 2), ('integer_four', 4, 1),
       ('simple_list', [1, 3, 4], 3), ('duplicated_list', [4, 2, 2], 2))
   def test_validation_freq(self, validation_freq, expected_runs):
     x, y = np.ones((10, 10)), np.ones((10, 1))
-    model = testing_utils.get_small_mlp(2, 1, 10)
+    model = test_utils.get_small_mlp(2, 1, 10)
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     class ValCounter(Callback):
 
@@ -1360,25 +1364,25 @@ class TrainingTest(keras_parameterized.TestCase):
         callbacks=[val_counter])
     self.assertEqual(val_counter.val_runs, expected_runs)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_validation_steps_without_data(self):
     if tf.executing_eagerly():
       self.skipTest('Check removed in new `fit`')
     x, y = np.ones((10, 10)), np.ones((10, 1))
-    model = testing_utils.get_small_mlp(2, 1, 10)
+    model = test_utils.get_small_mlp(2, 1, 10)
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     with self.assertRaisesRegex(
         ValueError, '`validation_steps` should not be specified if '
         '`validation_data` is None.'):
       model.fit(x, y, epochs=4, validation_data=None, validation_steps=3)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_layer_with_variable_output(self):
 
     class VariableOutputLayer(layers_module.Layer):
@@ -1389,7 +1393,7 @@ class TrainingTest(keras_parameterized.TestCase):
       def call(self, inputs):
         return self.v
 
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [VariableOutputLayer(), layers_module.Dense(1)], input_shape=(10,))
     # TODO(omalleyt): Make this work with `run_eagerly=True`.
     model.compile('sgd', 'mse', run_eagerly=False)
@@ -1397,9 +1401,9 @@ class TrainingTest(keras_parameterized.TestCase):
 
     self.assertLen(model.trainable_variables, 3)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
-  @testing_utils.enable_v2_dtype_behavior
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_utils.enable_v2_dtype_behavior
   def test_model_dtype(self):
 
     class AssertTypeLayer(layers_module.Layer):
@@ -1411,12 +1415,12 @@ class TrainingTest(keras_parameterized.TestCase):
         return inputs + 1.
 
     for dtype in ('float16', 'float32', 'float64'):
-      model = testing_utils.get_model_from_layers(
+      model = test_utils.get_model_from_layers(
           [AssertTypeLayer(dtype=dtype)], input_shape=(10,))
       model.compile(
           'sgd',
           'mse',
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
 
       x = np.ones((10, 10))
       y = np.ones((10, 10))
@@ -1424,22 +1428,22 @@ class TrainingTest(keras_parameterized.TestCase):
       model.test_on_batch(x, y)
       model(x)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
-  @testing_utils.enable_v2_dtype_behavior
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_utils.enable_v2_dtype_behavior
   def test_model_input_dtype(self):
-    model = testing_utils.get_small_mlp(1, 10, 10)
+    model = test_utils.get_small_mlp(1, 10, 10)
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.ones((10, 10)).astype(np.float64)
     y = np.ones((10, 10)).astype(np.float64)
     dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(2)
     model.fit(dataset)
     self.assertEqual(model._compute_dtype, 'float32')
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_subclassed_model_with_training_arg(self):
 
     class LayerWithTrainingArg(layers_module.Layer):
@@ -1464,7 +1468,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer='sgd',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(x, x, epochs=1)
 
     if tf.executing_eagerly():
@@ -1475,7 +1479,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertIs(model.training, expected_training_arg)
     self.assertIs(model.l1.training, expected_training_arg)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_error_when_model_is_not_compiled(self):
     inputs = input_layer.Input(shape=(1,))
     outputs = layers_module.Dense(1)(inputs)
@@ -1493,8 +1497,8 @@ class TrainingTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(RuntimeError, 'must compile your model'):
       model.fit(np.random.random((32, 1)), epochs=2)
 
-  @keras_parameterized.run_all_keras_modes
-  @testing_utils.enable_v2_dtype_behavior
+  @test_combinations.run_all_keras_modes
+  @test_utils.enable_v2_dtype_behavior
   def test_losses_of_different_dtypes(self):
     inp = input_layer.Input(shape=(2,))
     out_1 = layers_module.Dense(
@@ -1507,12 +1511,12 @@ class TrainingTest(keras_parameterized.TestCase):
     extra_loss = tf.reduce_sum(tf.cast(out_2, 'float64'))
     model.add_loss(extra_loss)
     model.compile('sgd', ['mse', 'mse'],
-                  run_eagerly=testing_utils.should_run_eagerly())
+                  run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 2)), np.ones((10, 2))
     model.fit(x, [y, y])
 
-  @keras_parameterized.run_all_keras_modes
-  @testing_utils.enable_v2_dtype_behavior
+  @test_combinations.run_all_keras_modes
+  @test_utils.enable_v2_dtype_behavior
   def test_losses_of_different_dtypes_with_subclassed_model(self):
 
     class MyModel(training_module.Model):
@@ -1525,12 +1529,12 @@ class TrainingTest(keras_parameterized.TestCase):
         return self.dense(inputs)
 
     model = MyModel(dtype='float32')
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 2)), np.ones((10, 2))
     model.fit(x, y)
 
-  @keras_parameterized.run_all_keras_modes
-  @testing_utils.enable_v2_dtype_behavior
+  @test_combinations.run_all_keras_modes
+  @test_utils.enable_v2_dtype_behavior
   def test_regularizer_of_different_dtype(self):
     inp = input_layer.Input(shape=(2,))
 
@@ -1541,16 +1545,16 @@ class TrainingTest(keras_parameterized.TestCase):
         2, dtype='float32', kernel_regularizer=regularizer)(
             inp)
     model = training_module.Model(inp, out)
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 2)), np.ones((10, 2))
     model.fit(x, y)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_outputs_are_floats(self):
     x, y = np.ones((10, 1)), np.ones((10, 1))
     model = sequential.Sequential([layers_module.Dense(1)])
     model.compile('sgd', 'mse', metrics=['accuracy'],
-                  run_eagerly=testing_utils.should_run_eagerly())
+                  run_eagerly=test_utils.should_run_eagerly())
 
     history = model.fit(x, y, epochs=2)
     self.assertIsInstance(history.history['loss'][0], float)
@@ -1568,7 +1572,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertIsInstance(loss, float)
     self.assertIsInstance(accuracy, float)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_int_output(self):
     x, y = np.ones((10, 1)), np.ones((10, 1))
     model = sequential.Sequential([layers_module.Dense(1)])
@@ -1582,11 +1586,11 @@ class TrainingTest(keras_parameterized.TestCase):
         return tf.constant(1, dtype='int64')
 
     model.compile('sgd', 'mse', metrics=[MyMetric()],
-                  run_eagerly=testing_utils.should_run_eagerly())
+                  run_eagerly=test_utils.should_run_eagerly())
     history = model.fit(x, y, epochs=2)
     self.assertIsInstance(history.history['my_metric'][0], int)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_calling_aggregate_gradient(self):
 
     class _Optimizer(optimizer_v2.gradient_descent.SGD):
@@ -1608,7 +1612,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.add(layers_module.Dense(10, activation='relu'))
 
     model.compile(mock_optimizer, 'mse',
-                  run_eagerly=testing_utils.should_run_eagerly())
+                  run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 10)), np.ones((10, 10))
     model.fit(x, y)
     self.assertEqual(model.optimizer.aggregate_gradients_called, True)
@@ -1628,12 +1632,12 @@ class TrainingTest(keras_parameterized.TestCase):
 
     mock_optimizer = _OptimizerOverrideApplyGradients()
     model.compile(mock_optimizer, 'mse',
-                  run_eagerly=testing_utils.should_run_eagerly())
+                  run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 10)), np.ones((10, 10))
     model.fit(x, y)
     self.assertEqual(model.optimizer.aggregate_gradients_called, True)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_gradients_are_none(self):
 
     class DenseWithExtraWeight(layers_module.Dense):
@@ -1649,7 +1653,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model = sequential.Sequential([DenseWithExtraWeight(4, input_shape=(4,))])
     # Test clipping can handle None gradients
     opt = optimizer_v2.adam.Adam(clipnorm=1.0, clipvalue=1.0)
-    model.compile(opt, 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile(opt, 'mse', run_eagerly=test_utils.should_run_eagerly())
     inputs = np.random.normal(size=(64, 4))
     targets = np.random.normal(size=(64, 4))
     old_kernel = model.get_weights()[1]
@@ -1657,7 +1661,7 @@ class TrainingTest(keras_parameterized.TestCase):
     new_kernel = model.get_weights()[1]
     self.assertNotAllEqual(old_kernel, new_kernel)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_layer_ordering(self):
 
     class MyLayer(layers_module.Layer):
@@ -1683,7 +1687,7 @@ class TrainingTest(keras_parameterized.TestCase):
     # Only direct sublayers, including those in data structures.
     self.assertEqual(['direct', 'dict'], [l.name for l in model.layers])
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_trainable_state_setting(self):
 
     class UpdateLayer(layers_module.Layer):
@@ -1699,12 +1703,12 @@ class TrainingTest(keras_parameterized.TestCase):
     layer = UpdateLayer()
     model_with_updates = sequential.Sequential([layer])
     model_with_updates.compile(
-        'sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+        'sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     layer.trainable = False
     model_without_updates = sequential.Sequential([layer])
     model_without_updates.compile(
-        'sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+        'sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     x, y = np.ones((10, 1)), np.ones((10, 1))
 
@@ -1716,7 +1720,7 @@ class TrainingTest(keras_parameterized.TestCase):
     # assign_add not called.
     self.assertEqual(self.evaluate(layer.v), 1.)
 
-  @keras_parameterized.run_all_keras_modes(
+  @test_combinations.run_all_keras_modes(
       always_skip_v1=True)
   @parameterized.named_parameters(
       ('numpy_array', 'numpy_array'),
@@ -1764,7 +1768,7 @@ class TrainingTest(keras_parameterized.TestCase):
     model.evaluate(x, batch_size=batch_size)
     model.predict(x, batch_size=batch_size)
 
-  @keras_parameterized.run_all_keras_modes(
+  @test_combinations.run_all_keras_modes(
       always_skip_v1=True)
   @parameterized.named_parameters(
       ('custom_metrics', False, True),
@@ -1797,10 +1801,10 @@ class TrainingTest(keras_parameterized.TestCase):
     model = MyModel(inputs, outputs)
     if use_compiled_metrics:
       model.compile('adam', 'mse', metrics=['mae', 'mape'],
-                    run_eagerly=testing_utils.should_run_eagerly())
+                    run_eagerly=test_utils.should_run_eagerly())
     else:
       model.compile('adam', 'mse',
-                    run_eagerly=testing_utils.should_run_eagerly())
+                    run_eagerly=test_utils.should_run_eagerly())
     x = np.random.random((4, 2))
     y = np.random.random((4, 3))
     results_list = model.evaluate(x, y)
@@ -1822,15 +1826,15 @@ class TrainingTest(keras_parameterized.TestCase):
       self.assertEqual(results_list,
                        [results_dict['mean'], results_dict['sum']])
 
-  @keras_parameterized.run_all_keras_modes
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
   def test_model_make_function(self):
     layers = [
         layers_module.Dense(10, dtype=np.float64),
         layers_module.Dense(10, dtype=np.float64)
     ]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(1,))
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model = test_utils.get_model_from_layers(layers, input_shape=(1,))
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     original_train_function = model.make_train_function()
     self.assertIsNotNone(original_train_function)
@@ -1853,7 +1857,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertNotEqual(
         model.make_predict_function(force=True), original_predict_function)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_custom_compute_metrics(self):
 
     class CustomMetric(metrics_module.Mean):
@@ -1892,7 +1896,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertNotEqual(self.evaluate(initial_result),
                         self.evaluate(after_fit_result))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_custom_compute_loss(self):
 
     class MyModel(training_module.Model):
@@ -1928,7 +1932,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertLen(history.history['loss'], 2)
     self.assertAllClose(history.history['loss'][1], model.loss_metric.result())
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_ema_overwrite(self):
 
     model = sequential.Sequential()
@@ -1945,7 +1949,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertLen(history.history['loss'], 2)
     self.assertAllClose(initial_value, model.trainable_variables[0])
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_get_verbosity(self):
     class MyStrategy(tf.distribute.Strategy):
 
@@ -1965,7 +1969,7 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertEqual(training_module._get_verbosity(
         'auto', tf.distribute.MirroredStrategy()), 2)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_save_spec(self):
 
     class Model(training_module.Model):
@@ -1999,10 +2003,10 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertEqual(input_specs[2].shape.as_list(), [3, 3])
 
 
-class TestExceptionsAndWarnings(keras_parameterized.TestCase):
+class TestExceptionsAndWarnings(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_with_all_model_types
   def test_fit_on_no_output(self):
     inputs = layers_module.Input((3,))
     outputs = layers_module.Dense(2)(inputs)
@@ -2012,8 +2016,8 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'Target data is missing..*'):
       model.fit(x)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_with_all_model_types
   def test_fit_on_wrong_output_type(self):
     inputs1 = layers_module.Input((3,), name='a')
     inputs2 = layers_module.Input((3,), name='b')
@@ -2026,7 +2030,7 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'Target data is missing..*'):
       model.fit({'a': x, 'b': x, 'c': y})
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_compile_warning_for_loss_missing_output(self):
     with self.cached_session():
       inp = layers_module.Input(shape=(16,), name='input_a')
@@ -2046,9 +2050,9 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
               'dense_2': 'categorical_accuracy',
               'dense_1': metrics_module.CategoricalAccuracy(),
           },
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_predict_error_with_empty_x(self):
     inputs = layers_module.Input(shape=(2,))
     outputs = layers_module.Dense(4)(inputs)
@@ -2059,7 +2063,7 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
                                 'Unexpected result of `predict_function`.*'):
       model.predict(np.array([]))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_on_batch_error_inconsistent_batch_size(self):
     input_node1 = layers_module.Input(shape=(5,))
     input_node2 = layers_module.Input(shape=(5,))
@@ -2080,9 +2084,9 @@ class TestExceptionsAndWarnings(keras_parameterized.TestCase):
       model.predict_on_batch([np.ones((10, 5)), np.ones((11, 5))])
 
 
-class LossWeightingTest(keras_parameterized.TestCase):
+class LossWeightingTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_class_weights(self):
     num_classes = 5
     batch_size = 5
@@ -2094,17 +2098,17 @@ class LossWeightingTest(keras_parameterized.TestCase):
     input_dim = 5
     learning_rate = 0.001
 
-    model = testing_utils.get_small_sequential_mlp(
+    model = test_utils.get_small_sequential_mlp(
         num_hidden=10, num_classes=num_classes, input_dim=input_dim)
     model.compile(
         loss='categorical_crossentropy',
         metrics=['acc', metrics_module.CategoricalAccuracy()],
         weighted_metrics=['mae', metrics_module.CategoricalAccuracy()],
         optimizer=RMSPropOptimizer(learning_rate=learning_rate),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     np.random.seed(1337)
-    (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+    (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
         train_samples=train_samples,
         test_samples=test_samples,
         input_shape=(input_dim,),
@@ -2150,7 +2154,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
     # TODO(b/152990697): Fix the class weights test here.
     # self.assertLess(score[0], ref_score[0])
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_temporal_sample_weights(self):
     num_classes = 5
     batch_size = 5
@@ -2172,7 +2176,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
       model.add(layers_module.Activation('softmax'))
 
       np.random.seed(1337)
-      (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+      (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
           train_samples=train_samples,
           test_samples=test_samples,
           input_shape=(input_dim,),
@@ -2210,7 +2214,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
           metrics=['acc', metrics_module.CategoricalAccuracy()],
           weighted_metrics=['mae', metrics_module.CategoricalAccuracy()],
           sample_weight_mode='temporal',
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
 
       model.fit(
           temporal_x_train,
@@ -2242,8 +2246,8 @@ class LossWeightingTest(keras_parameterized.TestCase):
             temporal_x_test[test_ids], temporal_y_test[test_ids], verbose=0)
         self.assertLess(score[0], ref_score[0])
 
-  @keras_parameterized.run_all_keras_modes
-  @keras_parameterized.run_with_all_model_types(exclude_models='sequential')
+  @test_combinations.run_all_keras_modes
+  @test_combinations.run_with_all_model_types(exclude_models='sequential')
   def test_fit_with_incorrect_weights(self):
     input_a = layers_module.Input(shape=(3,), name='input_a')
     input_b = layers_module.Input(shape=(3,), name='input_b')
@@ -2253,11 +2257,11 @@ class LossWeightingTest(keras_parameterized.TestCase):
     branch_a = [input_a, dense]
     branch_b = [input_b, dense, dropout]
 
-    model = testing_utils.get_multi_io_model(branch_a, branch_b)
+    model = test_utils.get_multi_io_model(branch_a, branch_b)
     model.compile(
         optimizer='adam',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.random.random((10, 3))
     y = np.random.random((10, 2))
 
@@ -2267,7 +2271,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
     with self.assertRaises(ValueError):
       model.fit([x, x], [y, y], epochs=1, class_weight={'unknown': 1})
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_default_sample_weight(self):
     """Verifies that fit works without having to set sample_weight."""
     num_classes = 5
@@ -2291,7 +2295,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
           optimizer,
           loss='mse',
           sample_weight_mode=[None],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model.fit(x, y, epochs=1, batch_size=10)
 
       # sample_weight_mode is a list and mode value is `temporal`
@@ -2299,7 +2303,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
           optimizer,
           loss='mse',
           sample_weight_mode=['temporal'],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model.fit(x, y, epochs=1, batch_size=10)
 
       # sample_weight_mode is a dict and mode value is None
@@ -2307,7 +2311,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
           optimizer,
           loss='mse',
           sample_weight_mode={'time_distributed': None},
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model.fit(x, y, epochs=1, batch_size=10)
 
       # sample_weight_mode is a dict and mode value is `temporal`
@@ -2315,7 +2319,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
           optimizer,
           loss='mse',
           sample_weight_mode={'time_distributed': 'temporal'},
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model.fit(x, y, epochs=1, batch_size=10)
 
       # sample_weight_mode is a not a list/dict and mode value is None
@@ -2323,7 +2327,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
           optimizer,
           loss='mse',
           sample_weight_mode=None,
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model.fit(x, y, epochs=1, batch_size=10)
 
       # sample_weight_mode is a not a list/dict and mode value is `temporal`
@@ -2331,7 +2335,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
           optimizer,
           loss='mse',
           sample_weight_mode='temporal',
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       model.fit(x, y, epochs=1, batch_size=10)
 
   def test_sample_weight_tensor(self):
@@ -2348,7 +2352,8 @@ class LossWeightingTest(keras_parameterized.TestCase):
       sample_weights = tf.constant(
           [[0, .4, 1, 1], [2, .4, .3, 1]])
       dataset = tf.data.Dataset.from_tensor_slices(sample_weights)
-      sample_weights = tf.compat.v1.data.make_one_shot_iterator(dataset).get_next()
+      sample_weights = tf.compat.v1.data.make_one_shot_iterator(
+          dataset).get_next()
       sample_weights = training_utils_v1.standardize_sample_weights(
           sample_weights, model.output_names)
 
@@ -2364,8 +2369,8 @@ class LossWeightingTest(keras_parameterized.TestCase):
             (2+ .4 + .3 + 1) / 4, sess.run(model.total_loss, feed_dict=feeds))
 
 
-@keras_parameterized.run_all_keras_modes
-class MaskingTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class MaskingTest(test_combinations.TestCase):
 
   def _get_model(self, input_shape=None):
     layers = [
@@ -2373,14 +2378,14 @@ class MaskingTest(keras_parameterized.TestCase):
         layers_module.TimeDistributed(
             layers_module.Dense(1, kernel_initializer='one'))
     ]
-    model = testing_utils.get_model_from_layers(layers, input_shape)
+    model = test_utils.get_model_from_layers(layers, input_shape)
     model.compile(
         loss='mse',
         optimizer=RMSPropOptimizer(learning_rate=0.001),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     return model
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_masking(self):
     model = self._get_model(input_shape=(2, 1))
     x = np.array([[[1], [1]], [[0], [0]]])
@@ -2388,7 +2393,7 @@ class MaskingTest(keras_parameterized.TestCase):
     loss = model.train_on_batch(x, y)
     self.assertEqual(loss, 0)
 
-  @keras_parameterized.run_with_all_model_types(exclude_models='functional')
+  @test_combinations.run_with_all_model_types(exclude_models='functional')
   def test_masking_deferred(self):
     model = self._get_model()
     x = np.array([[[1], [1]], [[0], [0]]])
@@ -2422,13 +2427,13 @@ class MaskingTest(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer=RMSPropOptimizer(learning_rate=0.001),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     y = np.random.random((5, 3))
     model.train_on_batch(x, y)
 
 
-@keras_parameterized.run_all_keras_modes
-class TestDynamicTrainability(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class TestDynamicTrainability(test_combinations.TestCase):
 
   def test_trainable_warning(self):
     x = np.random.random((5, 3))
@@ -2440,7 +2445,7 @@ class TestDynamicTrainability(keras_parameterized.TestCase):
     model.compile(
         'rmsprop',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.trainable = True
     model.train_on_batch(x, y)
     self.assertRaises(Warning)
@@ -2455,7 +2460,7 @@ class TestDynamicTrainability(keras_parameterized.TestCase):
       model.compile(
           'rmsprop',
           'mse',
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       out = model.predict(x)
       model.train_on_batch(x, y)
       out_2 = model.predict(x)
@@ -2468,7 +2473,7 @@ class TestDynamicTrainability(keras_parameterized.TestCase):
       model.compile(
           'rmsprop',
           'mse',
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       out = model.predict(x)
       model.train_on_batch(x, y)
       out_2 = model.predict(x)
@@ -2585,7 +2590,7 @@ class TestDynamicTrainability(keras_parameterized.TestCase):
     model1.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs2 = input_layer.Input(10)
     outputs2 = shared_layer(inputs2)
@@ -2594,7 +2599,7 @@ class TestDynamicTrainability(keras_parameterized.TestCase):
     model2.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x, y = np.ones((10, 10)), np.ones((10, 10))
 
@@ -2620,7 +2625,7 @@ class TestDynamicTrainability(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.ones((10, 1))
     y = 5 * x + 2
@@ -2634,7 +2639,7 @@ class TestDynamicTrainability(keras_parameterized.TestCase):
     self.assertAllClose([kernel[0, 0], bias[0]], [1.1176, 1.1176])
 
 
-class TestTrainingWithDataTensors(keras_parameterized.TestCase):
+class TestTrainingWithDataTensors(test_combinations.TestCase):
 
   def test_training_and_eval_methods_on_symbolic_tensors_single_io(self):
     with tf.Graph().as_default():
@@ -2760,7 +2765,7 @@ class TestTrainingWithDataTensors(keras_parameterized.TestCase):
     model.predict([input_a_tf, input_b_tf], steps=2)
     model.test_on_batch([input_a_tf, input_b_tf], [output_d_tf, output_e_tf])
 
-  @tf_test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_model_with_input_feed_tensor(self):
     """We test building a model with a TF variable as input.
 
@@ -2897,7 +2902,7 @@ class TestTrainingWithDataTensors(keras_parameterized.TestCase):
       out = model.predict(None, steps=3)
       self.assertEqual(out.shape, (10 * 3, 4))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_model_with_partial_loss(self):
     with self.cached_session():
       a = input_layer.Input(shape=(3,), name='input_a')
@@ -3152,10 +3157,10 @@ class TestTrainingWithDataTensors(keras_parameterized.TestCase):
                            [output_a_np, output_b_np])
 
 
-class TestTrainingWithMetrics(keras_parameterized.TestCase):
+class TestTrainingWithMetrics(test_combinations.TestCase):
   """Training tests related to metrics."""
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_metrics_names(self):
     a = layers_module.Input(shape=(3,), name='input_a')
     b = layers_module.Input(shape=(3,), name='input_b')
@@ -3173,7 +3178,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         optimizer,
         loss='mae',
         metrics=metrics,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     mse_metric = 'mse' if tf.executing_eagerly() else 'mean_squared_error'
     reference_metric_names = [
@@ -3193,7 +3198,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
               batch_size=5)
     self.assertEqual(reference_metric_names, model.metrics_names)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_metric_state_reset_between_fit_and_evaluate(self):
     model = sequential.Sequential()
     model.add(layers_module.Dense(3, activation='relu', input_dim=4))
@@ -3203,7 +3208,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         loss='mae',
         metrics=[acc_obj],
         optimizer=RMSPropOptimizer(learning_rate=0.001),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x_train = np.random.random((100, 4))
     y_train = np.random.random((100, 1))
@@ -3215,7 +3220,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.evaluate(x_test, y_test, batch_size=5)
     self.assertEqual(self.evaluate(acc_obj.count), 10)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_metric_state_reset_between_test_on_batch_and_evaluate(self):
     model = sequential.Sequential()
     model.add(layers_module.Dense(3, activation='relu', input_dim=4))
@@ -3225,7 +3230,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         loss='mae',
         metrics=[acc_obj],
         optimizer=RMSPropOptimizer(learning_rate=0.001),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x_test = np.random.random((10, 4))
     y_test = np.random.random((10, 1))
@@ -3238,8 +3243,8 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     self.assertEqual(loss_eval, loss_eval_1)
     self.assertEqual(acc_eval, acc_eval_1)
 
-  @keras_parameterized.run_with_all_model_types(exclude_models=['sequential'])
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types(exclude_models=['sequential'])
+  @test_combinations.run_all_keras_modes
   def test_metrics_valid_compile_input_formats(self):
     inp_1 = layers_module.Input(shape=(1,), name='input_1')
     inp_2 = layers_module.Input(shape=(1,), name='input_2')
@@ -3251,7 +3256,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
     branch_a = [inp_1, x, out_1]
     branch_b = [inp_2, x, out_2]
-    model = testing_utils.get_multi_io_model(branch_a, branch_b)
+    model = test_utils.get_multi_io_model(branch_a, branch_b)
 
     # list of metrics.
     model.compile(
@@ -3259,7 +3264,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         loss='mse',
         metrics=[metrics_module.MeanSquaredError()],
         weighted_metrics=[metrics_module.MeanSquaredError()],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     # list of list of metrics.
     model.compile(
@@ -3275,7 +3280,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
             [metrics_module.MeanSquaredError(),
              metrics_module.Accuracy()]
         ],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     # dict of metrics.
     model.compile(
@@ -3297,9 +3302,9 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
                 metrics_module.Accuracy()
             ],
         },
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_metrics_masking(self):
     np.random.seed(1337)
     model = sequential.Sequential()
@@ -3311,7 +3316,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         RMSPropOptimizer(learning_rate=0.001),
         loss='mse',
         weighted_metrics=['accuracy'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     # verify that masking is applied.
     x = np.array([[[1], [1]], [[1], [1]], [[0], [0]]])
@@ -3324,7 +3329,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     scores = model.train_on_batch(x, y, sample_weight=w)
     self.assertArrayNear(scores, [0.3328, 0.8], 0.001)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_add_metric_with_tensor_on_model(self):
     x = layers_module.Input(shape=(1,))
     y = layers_module.Dense(1, kernel_initializer='ones')(x)
@@ -3347,7 +3352,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.ones(shape=(10, 1))
     targets = np.ones(shape=(10, 1))
@@ -3367,7 +3372,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.train_on_batch(inputs, targets)
     model.test_on_batch(inputs, targets)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_add_metric_in_model_call(self):
 
     class TestModel(training_module.Model):
@@ -3389,7 +3394,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer=RMSPropOptimizer(0.01),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.ones(shape=(10, 1))
     y = np.ones(shape=(10, 2))
@@ -3407,8 +3412,8 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.train_on_batch(x, y)
     model.test_on_batch(x, y)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_add_metric_in_layer_call(self):
 
     class TestLayer(layers_module.Layer):
@@ -3427,11 +3432,11 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         TestLayer(input_shape=(1,)),
         layers_module.Dense(2, kernel_initializer='ones')
     ]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(1,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(1,))
     model.compile(
         loss='mse',
         optimizer=RMSPropOptimizer(0.01),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.ones(shape=(10, 1))
     y = np.ones(shape=(10, 2))
@@ -3439,7 +3444,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     self.assertEqual(history.history['metric_1'][-1], 5)
     self.assertAlmostEqual(history.history['val_metric_1'][-1], 5, 0)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_model_metrics_list(self):
 
     class LayerWithAddMetric(layers_module.Layer):
@@ -3490,7 +3495,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         'sgd',
         loss='mse',
         metrics=[metrics_module.Accuracy('metric_4')],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     model.fit(np.ones((10, 1)), np.ones((10, 1)), batch_size=10)
 
@@ -3499,7 +3504,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     self.assertEqual([m.name for m in model.metrics],
                      ['loss', 'metric_4', 'metric_2', 'metric_1', 'metric_3'])
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_model_metrics_list_in_call(self):
 
     class TestModel(training_module.Model):
@@ -3518,7 +3523,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         loss='mse',
         optimizer=RMSPropOptimizer(0.01),
         metrics=[metrics_module.Accuracy('acc')],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.ones(shape=(10, 1))
     y = np.ones(shape=(10, 2))
     model.fit(x, y, epochs=2, batch_size=5, validation_data=(x, y))
@@ -3526,7 +3531,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     self.assertEqual([m.name for m in model.metrics],
                      ['loss', 'acc', 'metric_1'])
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_multiple_add_metric_calls(self):
 
     class TestModel(training_module.Model):
@@ -3550,7 +3555,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer=RMSPropOptimizer(0.01),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.ones(shape=(10, 1))
     y = np.ones(shape=(10, 2))
@@ -3566,7 +3571,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.train_on_batch(x, y)
     model.test_on_batch(x, y)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_multiple_add_metric_calls_layer(self):
 
     class TestLayer(layers_module.Layer):
@@ -3601,7 +3606,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     self.assertListEqual([m.name for m in layer.metrics],
                          ['m_1', 'm_2', 'm_3', 'm_4', 'm_5', 'm_6'])
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_duplicate_metric_name_in_add_metric(self):
 
     class TestModel(training_module.Model):
@@ -3620,7 +3625,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer=RMSPropOptimizer(0.01),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.ones(shape=(10, 1))
     y = np.ones(shape=(10, 2))
@@ -3630,7 +3635,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         'We found 2 metrics with the name: "metric_1"'):
       model.fit(x, y, epochs=2, batch_size=5, validation_data=(x, y))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_add_metric_without_name(self):
 
     class TestModel(training_module.Model):
@@ -3647,7 +3652,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.compile(
         loss='mse',
         optimizer=RMSPropOptimizer(0.01),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.ones(shape=(10, 1))
     y = np.ones(shape=(10, 2))
 
@@ -3655,7 +3660,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
                                 'Please provide a name for your metric like'):
       model.fit(x, y, epochs=2, batch_size=5, validation_data=(x, y))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_add_metric_correctness(self):
     inputs = input_layer.Input(shape=(1,))
     targets = input_layer.Input(shape=(1,))
@@ -3684,7 +3689,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         loss='mae',
         optimizer=optimizer_v2.gradient_descent.SGD(0.1),
         metrics=[metrics_module.MeanAbsoluteError(name='mae_3')],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.array([[0.], [1.], [2.]])
     y = np.array([[0.5], [2.], [3.5]])
@@ -3694,7 +3699,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     for key in ['loss', 'mae_1', 'mae_2', 'mae_3']:
       self.assertAllClose(history.history[key], expected_val, 1e-3)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_add_metric_order(self):
 
     class MyLayer(layers_module.Layer):
@@ -3726,7 +3731,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.compile(
         optimizer='sgd',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     history = model.fit(dataset_train, epochs=3)
     self.assertDictEqual(
         history.history, {
@@ -3736,7 +3741,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
             'one': [1.0, 1.0, 1.0]
         })
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_add_metric_aggregation_mean(self):
 
     class TestModel(training_module.Model):
@@ -3752,10 +3757,10 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
     model = TestModel()
     model.compile(
-        'rmsprop', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+        'rmsprop', 'mse', run_eagerly=test_utils.should_run_eagerly())
     model.fit(np.ones(shape=(10, 1)), np.ones(shape=(10, 2)), batch_size=5)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_add_metric_aggregation_none(self):
 
     class TestModel(training_module.Model):
@@ -3771,10 +3776,10 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
     model = TestModel()
     model.compile(
-        'rmsprop', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+        'rmsprop', 'mse', run_eagerly=test_utils.should_run_eagerly())
     model.fit(np.ones(shape=(10, 1)), np.ones(shape=(10, 2)), batch_size=5)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def DISABLED_test_add_metric_invalid_aggregation(self):
     # TODO(psv): Re-enable test once it is fixed.
     x = layers_module.Input(shape=(1,))
@@ -3790,7 +3795,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
       model.add_metric(
           tf.reduce_sum(y), name='metric_1', aggregation=None)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_calling_evaluate_in_callback_during_fit(self):
     # Check fix for a bug that caused `evaluate` to hit a cached dataset
     # when run from inside a fit callback.
@@ -3806,7 +3811,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         (ones, ones)).batch(5)
     val_ds_2 = tf.data.Dataset.from_tensor_slices(
         (zeros, zeros)).batch(5)
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     class MyCallback(Callback):
 
@@ -3825,7 +3830,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     eval_result = model.evaluate(val_ds_2)
     self.assertLess(abs(eval_result), 1e-7)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_model_with_nested_compiled_model(self):
 
     class LayerWithAddMetric(layers_module.Layer):
@@ -3851,7 +3856,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         'sgd',
         loss='mse',
         metrics=[metrics_module.Accuracy('acc')],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     inner_model.fit(np.ones((10, 1)), np.ones((10, 1)), batch_size=10)
 
     self.assertEqual([m.name for m in inner_model.metrics],
@@ -3867,12 +3872,12 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         'sgd',
         loss='mse',
         metrics=[metrics_module.Accuracy('acc2')],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     outer_model.fit(np.ones((10, 1)), np.ones((10, 1)), batch_size=10)
     self.assertEqual([m.name for m in outer_model.metrics],
                      ['loss', 'acc2', 'mean', 'mean1', 'mean2'])
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_model_with_metric_class_that_returns_dict(self):
     x = layers_module.Input(shape=(2,))
     y = layers_module.Dense(3)(x)
@@ -3903,7 +3908,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     model.compile('sgd',
                   'mse',
                   metrics=['mae', DictMetric()],
-                  run_eagerly=testing_utils.should_run_eagerly())
+                  run_eagerly=test_utils.should_run_eagerly())
 
     history = model.fit(np.ones((10, 2)), np.ones((10, 3)))
     self.assertEqual(list(history.history.keys()),
@@ -3995,10 +4000,10 @@ class SubgraphUpdateLayer(layers_module.Layer):
     return inputs
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class TestAutoUpdates(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class TestAutoUpdates(test_combinations.TestCase):
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   @parameterized.named_parameters(
       ('bare_update', BareUpdateLayer),
       ('lambda_update', LambdaUpdateLayer),
@@ -4006,45 +4011,45 @@ class TestAutoUpdates(keras_parameterized.TestCase):
   def test_updates_in_model(self, layer_builder):
     layer = layer_builder()
     x, y = np.ones((10, 10)), np.ones((10, 1))
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [layer, layers_module.Dense(1)], input_shape=(10,))
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(x, y, batch_size=2, epochs=1)
     self.assertEqual(self.evaluate(layer.counter), 5)
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_lambda_updates_trainable_false(self):
     x, y = np.ones((10, 10)), np.ones((10, 1))
     layer = LambdaUpdateLayer()
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [layer, layers_module.Dense(1)], input_shape=(10,))
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(x, y, batch_size=2, epochs=1)
     self.assertEqual(self.evaluate(layer.counter), 5)
     layer.trainable = False
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(x, y, batch_size=2, epochs=1)
     self.assertEqual(self.evaluate(layer.counter), 5)
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_subgraph_updates_in_model(self):
     layer = SubgraphUpdateLayer()
     x, y = np.ones((10, 10)), np.ones((10, 1))
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [layer, layers_module.Dense(1)], input_shape=(10,))
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(x, y, batch_size=2, epochs=1)
     self.assertEqual(self.evaluate(layer.counter), 5)
 
@@ -4070,23 +4075,23 @@ class TestAutoUpdates(keras_parameterized.TestCase):
     self.evaluate(y)
     self.assertEqual(self.evaluate(layer.counter), 1)
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_batchnorm_trainable_false(self):
     bn = layers_module.BatchNormalization()
-    model = testing_utils.get_model_from_layers([bn, layers_module.Dense(1)],
-                                                input_shape=(10,))
+    model = test_utils.get_model_from_layers([bn, layers_module.Dense(1)],
+                                             input_shape=(10,))
     bn.trainable = False
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 10)), np.ones((10, 1))
     model.fit(x, y, batch_size=2, epochs=1)
     self.assertAllEqual(self.evaluate(bn.moving_mean), np.zeros((10,)))
     self.assertAllEqual(self.evaluate(bn.moving_variance), np.ones((10,)))
 
 
-class TestFunctionTracing(keras_parameterized.TestCase):
+class TestFunctionTracing(test_combinations.TestCase):
 
   def _seq_model_and_data(self):
     model = sequential.Sequential([layers_module.Dense(4, activation='relu')])
@@ -4095,7 +4100,7 @@ class TestFunctionTracing(keras_parameterized.TestCase):
     y = np.random.random((10, 4))
     return model, x, y
 
-  @keras_parameterized.run_all_keras_modes(
+  @test_combinations.run_all_keras_modes(
       always_skip_v1=True, always_skip_eager=True)
   def test_no_tracing_between_epoch(self):
     if _is_oss():
@@ -4110,7 +4115,7 @@ class TestFunctionTracing(keras_parameterized.TestCase):
     new_func_graph = 'INFO:absl:Creating new FuncGraph for Python function'
     self.assertEqual(sum(new_func_graph in log for log in logs.output), 9)
 
-  @keras_parameterized.run_all_keras_modes(
+  @test_combinations.run_all_keras_modes(
       always_skip_v1=True, always_skip_eager=True)
   def test_evaluate_no_cached_data(self):
     if _is_oss():
@@ -4126,9 +4131,9 @@ class TestFunctionTracing(keras_parameterized.TestCase):
     self.assertEqual(sum(new_func_graph in log for log in eval_logs.output), 20)
 
 
-class TestBuildCustomModel(keras_parameterized.TestCase):
+class TestBuildCustomModel(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_build_list_of_inputs(self):
 
     class MyModel(training_module.Model):
@@ -4153,7 +4158,7 @@ class TestBuildCustomModel(keras_parameterized.TestCase):
     self.assertEqual(model.l1.kernel.shape.as_list(), [1, 1])
     self.assertEqual(model.l2.kernel.shape.as_list(), [2, 2])
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_build_single_inputs(self):
 
     class MyModel(training_module.Model):
@@ -4172,7 +4177,7 @@ class TestBuildCustomModel(keras_parameterized.TestCase):
     model.build([None, 1])
     self.assertEqual(model.l1.kernel.shape.as_list(), [1, 1])
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_build_dict_inputs(self):
 
     class MyModel(training_module.Model):
@@ -4213,9 +4218,9 @@ class TestBuildCustomModel(keras_parameterized.TestCase):
     self.assertAllEqual(m1.get_weights(), m2.get_weights())
 
 
-class ScalarDataModelTest(keras_parameterized.TestCase):
+class ScalarDataModelTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_scalar_loss_reduction(self):
 
     class MyModel(training_module.Model):

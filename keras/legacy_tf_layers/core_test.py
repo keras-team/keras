@@ -25,15 +25,16 @@ import platform
 
 from absl.testing import parameterized
 import numpy as np
-from tensorflow.python.framework import test_util
-from keras import combinations
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from keras.testing_infra import test_combinations
 from keras.legacy_tf_layers import core as core_layers
 from tensorflow.python.ops import variable_scope
 
 
 class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testDenseProperties(self):
     dense = core_layers.Dense(2, activation=tf.nn.relu, name='my_dense')
     self.assertEqual(dense.units, 2)
@@ -51,7 +52,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     dense.apply(tf.random.uniform((5, 2)))
     self.assertEqual(dense.name, 'dense_2')
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testVariableInput(self):
     with self.cached_session():
       v = tf.compat.v1.get_variable(
@@ -60,7 +61,8 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
       self.evaluate(tf.compat.v1.global_variables_initializer())
       self.assertAllEqual(x, [[0.0]])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testCall(self):
     dense = core_layers.Dense(2, activation=tf.nn.relu, name='my_dense')
     inputs = tf.random.uniform((5, 4), seed=1)
@@ -76,7 +78,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(dense.kernel.name, 'my_dense/kernel:0')
     self.assertEqual(dense.bias.name, 'my_dense/bias:0')
 
-  @test_util.assert_no_new_pyobjects_executing_eagerly
+  @tf_test_utils.assert_no_new_pyobjects_executing_eagerly
   def testNoEagerLeak(self):
     # Tests that repeatedly constructing and building a Layer does not leak
     # Python objects.
@@ -84,14 +86,16 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     core_layers.Dense(5)(inputs)
     core_layers.Dense(2, activation=tf.nn.relu, name='my_dense')(inputs)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testCallTensorDot(self):
     dense = core_layers.Dense(2, activation=tf.nn.relu, name='my_dense')
     inputs = tf.random.uniform((5, 4, 3), seed=1)
     outputs = dense(inputs)
     self.assertListEqual([5, 4, 2], outputs.get_shape().as_list())
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testNoBias(self):
     dense = core_layers.Dense(2, use_bias=False, name='my_dense')
     inputs = tf.random.uniform((5, 2), seed=1)
@@ -105,7 +109,8 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(dense.kernel.name, 'my_dense/kernel:0')
     self.assertEqual(dense.bias, None)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testNonTrainable(self):
     dense = core_layers.Dense(2, trainable=False, name='my_dense')
     inputs = tf.random.uniform((5, 2), seed=1)
@@ -118,7 +123,8 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(
           len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)), 0)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testOutputShape(self):
     dense = core_layers.Dense(7, activation=tf.nn.relu, name='my_dense')
     inputs = tf.random.uniform((5, 3), seed=1)
@@ -133,7 +139,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     outputs = dense.apply(inputs)
     self.assertEqual(outputs.get_shape().as_list(), [1, 2, 4, 7])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testCallOnPlaceHolder(self):
     inputs = tf.compat.v1.placeholder(dtype=tf.float32)
     dense = core_layers.Dense(4, name='my_dense')
@@ -159,7 +165,8 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     dense = core_layers.Dense(4, name='my_dense')
     dense(inputs)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testActivation(self):
     dense = core_layers.Dense(2, activation=tf.nn.relu, name='dense1')
     inputs = tf.random.uniform((5, 3), seed=1)
@@ -173,7 +180,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     if not tf.executing_eagerly():
       self.assertEqual(outputs.op.name, 'dense2/BiasAdd')
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testActivityRegularizer(self):
     regularizer = lambda x: tf.reduce_sum(x) * 1e-3
     dense = core_layers.Dense(
@@ -184,7 +191,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(len(loss_keys), 1)
     self.assertListEqual(dense.losses, loss_keys)
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testKernelRegularizer(self):
     regularizer = lambda x: tf.reduce_sum(x) * 1e-3
     dense = core_layers.Dense(
@@ -196,7 +203,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.evaluate([v.initializer for v in dense.variables])
     self.assertAllEqual(self.evaluate(dense.losses), self.evaluate(loss_keys))
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testKernelRegularizerWithReuse(self):
     regularizer = lambda x: tf.reduce_sum(x) * 1e-3
     inputs = tf.random.uniform((5, 3), seed=1)
@@ -209,7 +216,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(
         len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)), 1)
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testBiasRegularizer(self):
     regularizer = lambda x: tf.reduce_sum(x) * 1e-3
     dense = core_layers.Dense(2, name='my_dense', bias_regularizer=regularizer)
@@ -220,7 +227,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.evaluate([v.initializer for v in dense.variables])
     self.assertAllEqual(self.evaluate(dense.losses), self.evaluate(loss_keys))
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testFunctionalDense(self):
     with self.cached_session():
       inputs = tf.random.uniform((5, 3), seed=1)
@@ -230,7 +237,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
           len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)), 2)
       self.assertEqual(outputs.op.name, 'my_dense/Relu')
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testFunctionalDenseTwice(self):
     inputs = tf.random.uniform((5, 3), seed=1)
     core_layers.dense(inputs, 2)
@@ -262,7 +269,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
         vars2 = tf.compat.v1.trainable_variables()
       self.assertEqual(vars1, vars2)
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testFunctionalDenseInitializerFromScope(self):
     with tf.compat.v1.variable_scope(
         'scope',
@@ -291,7 +298,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
       core_layers.dense(inputs, 2)
     self.assertEqual(called[0], 2)
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testFunctionalDenseInScope(self):
     with self.cached_session():
       with tf.compat.v1.variable_scope('test'):
@@ -313,7 +320,8 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
         var_key = 'test2/dense/kernel'
         self.assertEqual(var_dict[var_key].name, '%s:0' % var_key)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testComputeOutputShape(self):
     dense = core_layers.Dense(2, activation=tf.nn.relu, name='dense1')
     ts = tf.TensorShape
@@ -335,7 +343,8 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
         dense.compute_output_shape(ts([None, 4, 3])).as_list())
     # pylint: enable=protected-access
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testConstraints(self):
     k_constraint = lambda x: x / tf.reduce_sum(x)
     b_constraint = lambda x: x / tf.reduce_max(x)
@@ -357,7 +366,8 @@ def _get_variable_dict_from_varstore():
 
 class DropoutTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testDropoutProperties(self):
     dp = core_layers.Dropout(0.5, name='dropout')
     self.assertEqual(dp.rate, 0.5)
@@ -365,7 +375,8 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     dp.apply(tf.ones(()))
     self.assertEqual(dp.name, 'dropout')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testBooleanLearningPhase(self):
     dp = core_layers.Dropout(0.5)
     inputs = tf.ones((5, 3))
@@ -378,7 +389,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     np_output = self.evaluate(dropped)
     self.assertAllClose(np.ones((5, 3)), np_output)
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testDynamicLearningPhase(self):
     with self.cached_session() as sess:
       dp = core_layers.Dropout(0.5, seed=1)
@@ -391,7 +402,8 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
       np_output = sess.run(dropped, feed_dict={training: False})
       self.assertAllClose(np.ones((5, 5)), np_output)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testDynamicNoiseShape(self):
     inputs = tf.ones((5, 3, 2))
     noise_shape = [None, 1, None]
@@ -412,7 +424,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAlmostEqual(0., np_output.min())
     self.assertAllClose(np_output[:, 0, :], np_output[:, 1, :])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testFunctionalDropout(self):
     with self.cached_session():
       inputs = tf.ones((5, 5))
@@ -424,7 +436,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
       np_output = self.evaluate(dropped)
       self.assertAllClose(np.ones((5, 5)), np_output)
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testDynamicRate(self):
     with self.cached_session() as sess:
       rate = tf.compat.v1.placeholder(dtype='float32', name='rate')
@@ -440,7 +452,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
 
 class FlattenTest(tf.test.TestCase):
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testCreateFlatten(self):
     with self.cached_session() as sess:
       x = tf.compat.v1.placeholder(shape=(None, 2, 3), dtype='float32')
@@ -465,7 +477,7 @@ class FlattenTest(tf.test.TestCase):
     shape = core_layers.Flatten().compute_output_shape((None, 3, None))
     self.assertEqual(shape.as_list(), [None, None])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testDataFormat5d(self):
     np_input_channels_last = np.arange(
         120, dtype='float32').reshape([1, 5, 4, 3, 2])
@@ -483,7 +495,7 @@ class FlattenTest(tf.test.TestCase):
 
       self.assertAllEqual(np_output_cl, np_output_cf)
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testDataFormat4d(self):
     np_input_channels_last = np.arange(
         24, dtype='float32').reshape([1, 4, 3, 2])
@@ -501,13 +513,13 @@ class FlattenTest(tf.test.TestCase):
 
       self.assertAllEqual(np_output_cl, np_output_cf)
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testFunctionalFlatten(self):
     x = tf.compat.v1.placeholder(shape=(None, 2, 3), dtype='float32')
     y = core_layers.flatten(x, name='flatten')
     self.assertEqual(y.get_shape().as_list(), [None, 6])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testFlatten0D(self):
     x = tf.compat.v1.placeholder(shape=(None,), dtype='float32')
     y = core_layers.Flatten()(x)
@@ -516,7 +528,7 @@ class FlattenTest(tf.test.TestCase):
     self.assertEqual(list(np_output.shape), [5, 1])
     self.assertEqual(y.shape.as_list(), [None, 1])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testFlattenUnknownAxes(self):
     with self.cached_session() as sess:
       x = tf.compat.v1.placeholder(shape=(5, None, None), dtype='float32')
@@ -531,7 +543,7 @@ class FlattenTest(tf.test.TestCase):
       self.assertEqual(list(np_output.shape), [5, 6])
       self.assertEqual(y.get_shape().as_list(), [5, None])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testFlattenLargeDim(self):
     if any(platform.win32_ver()):
       self.skipTest('values are truncated on windows causing test failures')
@@ -540,7 +552,7 @@ class FlattenTest(tf.test.TestCase):
     y = core_layers.Flatten()(x)
     self.assertEqual(y.shape.as_list(), [None, 21316 * 21316 * 80])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def testFlattenLargeBatchDim(self):
     batch_size = np.iinfo(np.int32).max + 10
     x = tf.compat.v1.placeholder(

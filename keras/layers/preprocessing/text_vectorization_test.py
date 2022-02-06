@@ -24,8 +24,8 @@ import numpy as np
 
 import keras
 from keras import backend
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.layers import convolutional
 from keras.layers import core
 from keras.layers import embeddings
@@ -266,9 +266,9 @@ def _get_end_to_end_test_cases():
   return crossed_test_cases
 
 
-@testing_utils.run_v2_only
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class TextVectorizationLayerTest(keras_parameterized.TestCase,
+@test_utils.run_v2_only
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class TextVectorizationLayerTest(test_combinations.TestCase,
                                  preprocessing_test_utils.PreprocessingLayerTest
                                 ):
 
@@ -300,7 +300,7 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
       vocab_data = tf.data.Dataset.from_tensor_slices(vocab_data).batch(
           input_shape[0])
 
-    output_data = testing_utils.layer_test(
+    output_data = test_utils.layer_test(
         cls,
         kwargs=kwargs,
         input_shape=input_shape,
@@ -480,10 +480,10 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     self.assertAllEqual(expected, output)
 
 
-@testing_utils.run_v2_only
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_utils.run_v2_only
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class TextVectorizationPreprocessingTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def _write_to_temp_file(self, file_name, vocab_list):
@@ -860,10 +860,10 @@ class TextVectorizationPreprocessingTest(
     self.assertAllEqual(expected_output, output_dataset)
 
 
-@testing_utils.run_v2_only
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_utils.run_v2_only
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class TextVectorizationDistributionTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_distribution_strategy_output(self):
@@ -888,10 +888,10 @@ class TextVectorizationDistributionTest(
     self.assertAllEqual(expected_output, output_dataset)
 
 
-@testing_utils.run_v2_only
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_utils.run_v2_only
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class TextVectorizationOutputTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_int_output(self):
@@ -1449,10 +1449,10 @@ class TextVectorizationOutputTest(
     _ = layer(input_array)
 
 
-@testing_utils.run_v2_only
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_utils.run_v2_only
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class TextVectorizationModelBuildingTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   @parameterized.named_parameters(
@@ -1534,10 +1534,10 @@ class TextVectorizationModelBuildingTest(
     _ = model.predict(input_array)
 
 
-@testing_utils.run_v2_only
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_utils.run_v2_only
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class TextVectorizationVocbularyTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest,
 ):
 
@@ -1565,9 +1565,9 @@ class TextVectorizationVocbularyTest(
         ["earth", "wind", "and", "fire"])
 
 
-@testing_utils.run_v2_only
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class TextVectorizationErrorTest(keras_parameterized.TestCase,
+@test_utils.run_v2_only
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class TextVectorizationErrorTest(test_combinations.TestCase,
                                  preprocessing_test_utils.PreprocessingLayerTest
                                 ):
 
@@ -1695,10 +1695,10 @@ def custom_split_fn(x):
   return tf.strings.split(x, sep=">")
 
 
-@testing_utils.run_v2_only
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+@test_utils.run_v2_only
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class TextVectorizationSavingTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def tearDown(self):
@@ -1878,9 +1878,9 @@ class TextVectorizationSavingTest(
     self.assertAllEqual(expected_output, new_output_dataset)
 
 
-@testing_utils.run_v2_only
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class TextVectorizationE2ETest(keras_parameterized.TestCase,
+@test_utils.run_v2_only
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class TextVectorizationE2ETest(test_combinations.TestCase,
                                preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_keras_vocab_trimming_example(self):

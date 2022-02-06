@@ -19,8 +19,7 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
@@ -60,9 +59,10 @@ class HasList(training.Model):
     return bn(x) / aggregation
 
 
-class ListTests(keras_parameterized.TestCase):
+class ListTests(test_combinations.TestCase):
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testTracking(self):
     with self.test_session():
       model = HasList()
@@ -163,7 +163,8 @@ class ListTests(keras_parameterized.TestCase):
     m2(m2.null_input())
     self.assertLen(m2.trainable_variables, 6)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testUpdatesForwarded(self):
     model = HasList()
     model_input = tf.ones([32, 2])
@@ -175,7 +176,8 @@ class ListTests(keras_parameterized.TestCase):
       self.assertEqual(set(model.layers_with_updates[0].updates),
                        set(model.updates))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testLossesForwarded(self):
     model = HasList()
     model_input = tf.ones([32, 2])
@@ -197,7 +199,8 @@ class ListTests(keras_parameterized.TestCase):
     model.l2.append(second_layer)
     self.assertEqual([first_layer, second_layer], model.layers)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testTensorConversion(self):
 
     class ListToTensor(training.Model):
@@ -248,9 +251,10 @@ class HasMapping(training.Model):
     return self.layer_dict["output"](x) / aggregation
 
 
-class MappingTests(keras_parameterized.TestCase):
+class MappingTests(test_combinations.TestCase):
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testTracking(self):
     with self.test_session():
       model = HasMapping()
@@ -398,9 +402,10 @@ class HasTuple(training.Model):
     return bn(x) / aggregation
 
 
-class TupleTests(keras_parameterized.TestCase):
+class TupleTests(test_combinations.TestCase):
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testTracking(self):
     with self.test_session():
       model = HasTuple()
@@ -481,7 +486,8 @@ class TupleTests(keras_parameterized.TestCase):
     model(model_input)
     self.assertEmpty(model.updates)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testLossesForwarded(self):
     model = HasTuple()
     model_input = tf.ones([32, 2])
@@ -509,7 +515,8 @@ class TupleTests(keras_parameterized.TestCase):
     self.assertEqual(2, d[(second_layer,)])
     self.assertEqual([first_layer, second_layer], model.layers)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testTensorConversion(self):
 
     class TupleToTensor(training.Model):
@@ -527,7 +534,7 @@ class TupleTests(keras_parameterized.TestCase):
         self.evaluate(tf.raw_ops.Pack(values=TupleToTensor().l)))
 
 
-class InterfaceTests(keras_parameterized.TestCase):
+class InterfaceTests(test_combinations.TestCase):
 
   def testNoDependency(self):
     root = tf.Module()
@@ -551,7 +558,8 @@ class InterfaceTests(keras_parameterized.TestCase):
     nodeps = NoDependencyModel()
     self.assertEqual([nodeps], util.list_objects(nodeps))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testDictionariesBasic(self):
     a = training.Model()
     b = training.Model()
@@ -572,7 +580,8 @@ class InterfaceTests(keras_parameterized.TestCase):
     with self.cached_session():
       checkpoint.restore(save_path).assert_consumed().initialize_or_restore()
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testNoDepList(self):
     a = training.Model()
     a.l1 = data_structures.NoDependency([])

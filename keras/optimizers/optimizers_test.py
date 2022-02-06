@@ -22,9 +22,9 @@ import weakref
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.optimizers import optimizer_v1
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import np_utils
 from tensorflow.python.training.adam import AdamOptimizer
 from tensorflow.python.training.experimental.loss_scale_optimizer import MixedPrecisionLossScaleOptimizer
@@ -39,15 +39,15 @@ def _get_model(input_dim, num_hidden, output_dim):
   return model
 
 
-@keras_parameterized.run_all_keras_modes
-class KerasOptimizersTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class KerasOptimizersTest(test_combinations.TestCase):
 
   def _test_optimizer(self, optimizer, target=0.75):
     if tf.executing_eagerly():
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     np.random.seed(1337)
-    (x_train, y_train), _ = testing_utils.get_test_data(
+    (x_train, y_train), _ = test_utils.get_test_data(
         train_samples=1000, test_samples=200, input_shape=(10,), num_classes=2)
     y_train = np_utils.to_categorical(y_train)
     model = _get_model(x_train.shape[1], 20, y_train.shape[1])
@@ -55,7 +55,7 @@ class KerasOptimizersTest(keras_parameterized.TestCase):
         loss='categorical_crossentropy',
         optimizer=optimizer,
         metrics=['acc'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     np.testing.assert_equal(
         keras.backend.get_value(model.optimizer.iterations), 0)
     history = model.fit(x_train, y_train, epochs=2, batch_size=16, verbose=0)
@@ -92,7 +92,7 @@ class KerasOptimizersTest(keras_parameterized.TestCase):
         loss='categorical_crossentropy',
         optimizer=optimizer,
         metrics=['accuracy'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     np.testing.assert_equal(
         keras.backend.get_value(model.optimizer.iterations),
         126)  # Using same optimizer from before
@@ -169,7 +169,7 @@ class KerasOptimizersTest(keras_parameterized.TestCase):
     model.compile(
         loss='mean_squared_error',
         optimizer=optimizer,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     keras.backend.track_tf_optimizer(optimizer)
     model.fit(np.random.random((5, 3)),
               np.random.random((5, 2)),
@@ -212,7 +212,7 @@ class KerasOptimizersTest(keras_parameterized.TestCase):
       model.compile(
           loss='mean_squared_error',
           optimizer=optimizer,
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
       keras.backend.track_tf_optimizer(optimizer)
       self.assertEqual(keras.backend.get_value(model.optimizer.iterations), 0)
 
@@ -241,7 +241,7 @@ class KerasOptimizersTest(keras_parameterized.TestCase):
     model.compile(
         loss='mean_squared_error',
         optimizer=optimizer,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(
         np.random.random((5, 3)),
         np.random.random((5, 2)),

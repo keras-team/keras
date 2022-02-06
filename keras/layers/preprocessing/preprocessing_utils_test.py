@@ -15,14 +15,14 @@
 """Tests for preprocessing utils."""
 
 from absl.testing import parameterized
-from keras import keras_parameterized
 from keras.layers.preprocessing import preprocessing_utils
+from keras.testing_infra import test_combinations
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class ListifyTensorsTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class ListifyTensorsTest(test_combinations.TestCase):
 
   def test_tensor_input(self):
     inputs = tf.constant([0, 1, 2, 3, 4])
@@ -37,8 +37,8 @@ class ListifyTensorsTest(keras_parameterized.TestCase):
     self.assertIsInstance(outputs, list)
 
 
-@keras_parameterized.run_all_keras_modes
-class EncodeCategoricalInputsTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class EncodeCategoricalInputsTest(test_combinations.TestCase):
 
   def test_int_encoding(self):
     inputs = tf.constant([0, 1, 2])

@@ -20,15 +20,15 @@ saved_model's load() API is used. Keras's export_save_model() when used with
 tf.saved_model.save().
 """
 
-import tensorflow.compat.v2 as tf
-from keras import testing_utils
 from keras.distribute import saved_model_test_base as test_base
 from keras.saving import save
+from keras.testing_infra import test_utils
+import tensorflow.compat.v2 as tf
 
 _DEFAULT_FUNCTION_KEY = 'serving_default'
 
 
-@testing_utils.run_all_without_tensor_float_32(
+@test_utils.run_all_without_tensor_float_32(
     'Uses Dense layers, which call matmul')
 class SavedModelSaveAndLoadTest(test_base.TestSavedModelBase):
 

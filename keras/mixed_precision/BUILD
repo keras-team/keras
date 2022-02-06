@@ -65,9 +65,9 @@ tf_py_test(
         ":policy",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
         "//keras/mixed_precision:loss_scale_optimizer",
         "//keras/optimizers/optimizer_v2",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -88,7 +88,7 @@ cuda_py_test(
     deps = [
         ":device_compatibility_check",
         "//:expect_tensorflow_installed",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -171,7 +171,7 @@ cuda_py_test(
         ":test_util",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -200,9 +200,9 @@ cuda_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
-        "//keras:testing_utils",
         "//keras/optimizers/optimizer_v2",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )
 
@@ -230,7 +230,7 @@ cuda_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -253,7 +253,7 @@ cuda_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -270,5 +270,6 @@ cuda_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )

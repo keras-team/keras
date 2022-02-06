@@ -20,7 +20,7 @@ from absl.testing import parameterized
 import numpy as np
 
 from keras import backend
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras import metrics
 
 
@@ -71,7 +71,7 @@ class KerasFunctionalMetricsTest(tf.test.TestCase, parameterized.TestCase):
       y_pred = backend.variable(np.random.random((6, 7)))
       self.assertEqual(backend.eval(metric(y_true, y_pred)).shape, (6,))
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_sparse_categorical_accuracy_eager(self):
     """Tests that ints passed in via Eager return results. See b/113504761."""
     metric = metrics.sparse_categorical_accuracy
@@ -79,7 +79,7 @@ class KerasFunctionalMetricsTest(tf.test.TestCase, parameterized.TestCase):
     y_pred = np.arange(36).reshape([6, 6])
     self.assertAllEqual(metric(y_true, y_pred), [0., 0., 0., 0., 0., 1.])
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_sparse_categorical_accuracy_float_eager(self):
     """Tests that floats passed in via Eager return results. See b/113504761."""
     metric = metrics.sparse_categorical_accuracy

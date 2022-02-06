@@ -20,7 +20,7 @@ import copy
 
 from absl.testing import parameterized
 import numpy as np
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.optimizers.optimizer_v2 import adagrad
 from keras.optimizers import learning_rate_schedule
 
@@ -102,11 +102,12 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllCloseAccordingToType(var0_np, self.evaluate(var0))
         self.assertAllCloseAccordingToType(var1_np, self.evaluate(var1))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testBasic(self):
     self.doTestBasic()
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testBasicCallableParams(self):
     self.doTestBasic(use_callable_params=True)
 

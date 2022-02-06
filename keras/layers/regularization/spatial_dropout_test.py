@@ -15,27 +15,27 @@
 """Tests for spatial dropout layers."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class SpacialDropoutTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class SpacialDropoutTest(test_combinations.TestCase):
 
   def test_spatial_dropout_1d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SpatialDropout1D,
         kwargs={'rate': 0.5},
         input_shape=(2, 3, 4))
 
   def test_spatial_dropout_2d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SpatialDropout2D,
         kwargs={'rate': 0.5},
         input_shape=(2, 3, 4, 5))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SpatialDropout2D,
         kwargs={
             'rate': 0.5,
@@ -44,12 +44,12 @@ class SpacialDropoutTest(keras_parameterized.TestCase):
         input_shape=(2, 3, 4, 5))
 
   def test_spatial_dropout_3d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SpatialDropout3D,
         kwargs={'rate': 0.5},
         input_shape=(2, 3, 4, 4, 5))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SpatialDropout3D,
         kwargs={
             'rate': 0.5,

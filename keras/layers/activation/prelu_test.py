@@ -15,24 +15,24 @@
 """Tests for PReLU layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class PReLUTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class PReLUTest(test_combinations.TestCase):
 
   def test_prelu(self):
-    testing_utils.layer_test(keras.layers.PReLU, kwargs={},
-                             input_shape=(2, 3, 4),
-                             supports_masking=True)
+    test_utils.layer_test(keras.layers.PReLU, kwargs={},
+                          input_shape=(2, 3, 4),
+                          supports_masking=True)
 
   def test_prelu_share(self):
-    testing_utils.layer_test(keras.layers.PReLU,
-                             kwargs={'shared_axes': 1},
-                             input_shape=(2, 3, 4),
-                             supports_masking=True)
+    test_utils.layer_test(keras.layers.PReLU,
+                          kwargs={'shared_axes': 1},
+                          input_shape=(2, 3, 4),
+                          supports_masking=True)
 
 
 if __name__ == '__main__':

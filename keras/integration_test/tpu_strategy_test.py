@@ -20,7 +20,7 @@ import tempfile
 from absl import flags
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("tpu", "", "Name of TPU to connect to.")
@@ -114,7 +114,8 @@ class TpuStrategyTest(tf.test.TestCase):
         for i in dataset:
           strategy.run(step_fn, args=(i,))
 
-  @test_util.disable_mlir_bridge("TODO(b/168036682): Support dynamic padder")
+  @tf_test_utils.disable_mlir_bridge(
+      "TODO(b/168036682): Support dynamic padder")
   def test_train_and_serve(self):
     if not tf.compat.v1.executing_eagerly():
       self.skipTest("connect_to_cluster() can only be called in eager mode")

@@ -36,7 +36,7 @@ from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 
 
 def string_test(actual, expected):
@@ -76,7 +76,7 @@ def get_test_data(train_samples,
           (x[train_samples:], y[train_samples:]))
 
 
-@test_util.disable_cudnn_autotune
+@tf_test_utils.disable_cudnn_autotune
 def layer_test(layer_cls,
                kwargs=None,
                input_shape=None,

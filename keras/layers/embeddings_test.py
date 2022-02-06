@@ -16,22 +16,21 @@
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 import keras
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.mixed_precision import policy
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-class EmbeddingTest(keras_parameterized.TestCase):
+class EmbeddingTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_embedding(self):
     if tf.test.is_gpu_available():
       self.skipTest('Only test embedding on CPU.')
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Embedding,
         kwargs={'output_dim': 4,
                 'input_dim': 10,
@@ -40,7 +39,7 @@ class EmbeddingTest(keras_parameterized.TestCase):
         input_dtype='int32',
         expected_output_dtype='float32')
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Embedding,
         kwargs={'output_dim': 4,
                 'input_dim': 10,
@@ -49,7 +48,7 @@ class EmbeddingTest(keras_parameterized.TestCase):
         input_dtype='int32',
         expected_output_dtype='float32')
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Embedding,
         kwargs={'output_dim': 4,
                 'input_dim': 10,
@@ -58,7 +57,7 @@ class EmbeddingTest(keras_parameterized.TestCase):
         input_dtype='int32',
         expected_output_dtype='float32')
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Embedding,
         kwargs={'output_dim': 4,
                 'input_dim': 10,
@@ -68,13 +67,13 @@ class EmbeddingTest(keras_parameterized.TestCase):
         input_dtype='int32',
         expected_output_dtype='float32')
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_embedding_correctness(self):
     layer = keras.layers.Embedding(output_dim=2, input_dim=2)
     model = keras.models.Sequential([layer])
 
     layer.set_weights([np.array([[1, 1], [2, 2]])])
-    model.run_eagerly = testing_utils.should_run_eagerly()
+    model.run_eagerly = test_utils.should_run_eagerly()
     outputs = model.predict(np.array([[0, 1, 0]], dtype='int32'))
     self.assertAllClose(outputs, [[[1, 1], [2, 2], [1, 1]]])
 
@@ -85,7 +84,8 @@ class EmbeddingTest(keras_parameterized.TestCase):
     with self.assertRaises(ValueError):
       keras.layers.Embedding(input_dim=1, output_dim=0)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_eager_gpu_cpu(self):
     l = keras.layers.Embedding(output_dim=2, input_dim=2)
     l.build((None, 2))
@@ -97,7 +97,7 @@ class EmbeddingTest(keras_parameterized.TestCase):
     opt.apply_gradients(zip(gs, l.weights))
     self.assertAllEqual(len(gs), 1)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_embedding_with_ragged_input(self):
     layer = keras.layers.Embedding(
         input_dim=3,
@@ -112,7 +112,7 @@ class EmbeddingTest(keras_parameterized.TestCase):
     outputs = layer(outputs)
 
     model = keras.Model(inputs, outputs)
-    model.run_eagerly = testing_utils.should_run_eagerly()
+    model.run_eagerly = test_utils.should_run_eagerly()
     outputs = model.predict(
         tf.ragged.constant([[1., 2., 2.], [0.], [1., 2.]],
                                     ragged_rank=1))
@@ -122,7 +122,7 @@ class EmbeddingTest(keras_parameterized.TestCase):
             [[[1., 1.], [2., 2.], [2., 2.]], [[0., 0.]], [[1., 1.], [2., 2.]]],
             ragged_rank=1))
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_mixed_precision_embedding(self):
     try:
       policy.set_global_policy('mixed_float16')

@@ -20,8 +20,7 @@ import os
 
 from absl.testing import parameterized
 import numpy as np
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
 from keras import models
 from keras.engine import base_layer
@@ -71,8 +70,8 @@ TESTCASES = ({
 })
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
-class LayerTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+class LayerTest(test_combinations.TestCase):
   """Test mixed precision with Keras layers."""
 
   @parameterized.named_parameters(*TESTCASES)

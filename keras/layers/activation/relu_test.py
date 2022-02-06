@@ -15,20 +15,20 @@
 """Tests for ReLU layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class ReLUTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ReLUTest(test_combinations.TestCase):
 
   def test_relu(self):
-    testing_utils.layer_test(keras.layers.ReLU,
-                             kwargs={'max_value': 10},
-                             input_shape=(2, 3, 4),
-                             supports_masking=True)
+    test_utils.layer_test(keras.layers.ReLU,
+                          kwargs={'max_value': 10},
+                          input_shape=(2, 3, 4),
+                          supports_masking=True)
     x = keras.backend.ones((3, 4))
     if not tf.executing_eagerly():
       # Test that we use `leaky_relu` when appropriate in graph mode.
@@ -42,7 +42,7 @@ class ReLUTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'max_value of a ReLU layer cannot be a negative '
         'value. Received: -10'):
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ReLU,
           kwargs={'max_value': -10},
           input_shape=(2, 3, 4),
@@ -52,7 +52,7 @@ class ReLUTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'negative_slope of a ReLU layer cannot be a negative '
         'value. Received: None'):
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ReLU,
           kwargs={'negative_slope': None},
           input_shape=(2, 3, 4),
@@ -61,7 +61,7 @@ class ReLUTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'negative_slope of a ReLU layer cannot be a negative '
         'value. Received: -10'):
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ReLU,
           kwargs={'negative_slope': -10},
           input_shape=(2, 3, 4),
@@ -71,7 +71,7 @@ class ReLUTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'threshold of a ReLU layer cannot be a negative '
         'value. Received: None'):
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ReLU,
           kwargs={'threshold': None},
           input_shape=(2, 3, 4),
@@ -80,20 +80,20 @@ class ReLUTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'threshold of a ReLU layer cannot be a negative '
         'value. Received: -10'):
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ReLU,
           kwargs={'threshold': -10},
           input_shape=(2, 3, 4),
           supports_masking=True)
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_relu_layer_as_activation(self):
     layer = keras.layers.Dense(1, activation=keras.layers.ReLU())
-    model = testing_utils.get_model_from_layers([layer], input_shape=(10,))
+    model = test_utils.get_model_from_layers([layer], input_shape=(10,))
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(np.ones((10, 10)), np.ones((10, 1)), batch_size=2)
 
 

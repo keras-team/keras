@@ -22,19 +22,19 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
-@keras_parameterized.run_all_keras_modes
-class LSTMLayerTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class LSTMLayerTest(test_combinations.TestCase):
 
   def test_return_sequences_LSTM(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LSTM,
         kwargs={'units': units,
                 'return_sequences': True},
@@ -43,13 +43,13 @@ class LSTMLayerTest(keras_parameterized.TestCase):
   @tf.test.disable_with_predicate(
       pred=tf.test.is_built_with_rocm,
       skip_message='Double type is yet not supported in ROCm')
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_float64_LSTM(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LSTM,
         kwargs={'units': units,
                 'return_sequences': True,
@@ -83,7 +83,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     model.compile(
         'rmsprop',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.random.random((num_samples, timesteps, embedding_dim))
     y = np.random.random((num_samples, units))
@@ -94,7 +94,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LSTM,
         kwargs={'units': units,
                 'dropout': 0.1,
@@ -112,7 +112,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     timesteps = 3
     embedding_dim = 4
     units = 2
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.LSTM,
         kwargs={'units': units,
                 'implementation': implementation_mode},
@@ -152,7 +152,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     model.compile(
         loss='categorical_crossentropy',
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(inputs, targets, epochs=1, batch_size=2, verbose=1)
 
   @parameterized.parameters([True, False])
@@ -168,7 +168,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     model.compile(
         loss='categorical_crossentropy',
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(inputs, targets, epochs=1, batch_size=2, verbose=1)
 
   def test_from_config_LSTM(self):
@@ -207,7 +207,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     model.compile(
         loss='categorical_crossentropy',
         optimizer=tf.compat.v1.train.AdamOptimizer(),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.random.random((num_samples, timesteps, embedding_dim))
     initial_state = [np.random.random((num_samples, units))
@@ -234,7 +234,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     model.compile(
         loss='categorical_crossentropy',
         optimizer=tf.compat.v1.train.AdamOptimizer(),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.random.random((num_samples, timesteps, embedding_dim))
     targets = np.random.random((num_samples, units))
@@ -286,7 +286,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     model.compile(
         loss='categorical_crossentropy',
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.random.random((num_samples, timesteps, embedding_dim))
     initial_state = [np.random.random((num_samples, units))
@@ -351,7 +351,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     model.compile(
         loss='categorical_crossentropy',
         optimizer=tf.compat.v1.train.AdamOptimizer(),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     main_inputs = np.random.random((num_samples, timesteps, embedding_dim))
     initial_state = [np.random.random((num_samples, units))
@@ -403,7 +403,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     model.compile(
         optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01),
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     out1 = model.predict(np.ones((num_samples, timesteps)))
     self.assertEqual(out1.shape, (num_samples, units))
 

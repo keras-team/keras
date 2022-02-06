@@ -18,16 +18,15 @@ import json
 import math
 
 from keras import backend
-from keras import combinations
-from keras import keras_parameterized
 from keras import layers
 from keras import metrics
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class KerasAccuracyTest(tf.test.TestCase):
 
   def test_accuracy(self):
@@ -271,7 +270,7 @@ class KerasAccuracyTest(tf.test.TestCase):
     self.assertEqual(acc_fn, metrics.accuracy)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class CosineSimilarityTest(tf.test.TestCase):
 
   def l2_norm(self, x, axis):
@@ -332,7 +331,7 @@ class CosineSimilarityTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MeanAbsoluteErrorTest(tf.test.TestCase):
 
   def test_config(self):
@@ -370,7 +369,7 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
     self.assertAllClose(0.54285, self.evaluate(result), atol=1e-5)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
 
   def test_config(self):
@@ -410,7 +409,7 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
     self.assertAllClose(40e7, self.evaluate(result), atol=1e-5)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_config(self):
@@ -448,7 +447,7 @@ class MeanSquaredErrorTest(tf.test.TestCase):
     self.assertAllClose(0.54285, self.evaluate(result), atol=1e-5)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
 
   def test_config(self):
@@ -488,7 +487,7 @@ class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
     self.assertAllClose(0.26082, self.evaluate(result), atol=1e-5)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class HingeTest(tf.test.TestCase):
 
   def test_config(self):
@@ -543,7 +542,7 @@ class HingeTest(tf.test.TestCase):
     self.assertAllClose(0.493, self.evaluate(result), atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class SquaredHingeTest(tf.test.TestCase):
 
   def test_config(self):
@@ -604,7 +603,7 @@ class SquaredHingeTest(tf.test.TestCase):
     self.assertAllClose(0.347, self.evaluate(result), atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class CategoricalHingeTest(tf.test.TestCase):
 
   def test_config(self):
@@ -644,7 +643,7 @@ class CategoricalHingeTest(tf.test.TestCase):
     self.assertAllClose(0.5, self.evaluate(result), atol=1e-5)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class RootMeanSquaredErrorTest(tf.test.TestCase):
 
   def test_config(self):
@@ -678,7 +677,7 @@ class RootMeanSquaredErrorTest(tf.test.TestCase):
     self.assertAllClose(math.sqrt(13), self.evaluate(result), atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class TopKCategoricalAccuracyTest(tf.test.TestCase):
 
   def test_config(self):
@@ -725,7 +724,7 @@ class TopKCategoricalAccuracyTest(tf.test.TestCase):
     self.assertAllClose(1.0, self.evaluate(result), atol=1e-5)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class SparseTopKCategoricalAccuracyTest(tf.test.TestCase):
 
   def test_config(self):
@@ -772,7 +771,7 @@ class SparseTopKCategoricalAccuracyTest(tf.test.TestCase):
     self.assertAllClose(1.0, self.evaluate(result), atol=1e-5)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class LogCoshErrorTest(tf.test.TestCase):
 
   def setup(self):
@@ -815,7 +814,7 @@ class LogCoshErrorTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class PoissonTest(tf.test.TestCase):
 
   def setup(self):
@@ -861,7 +860,7 @@ class PoissonTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class KLDivergenceTest(tf.test.TestCase):
 
   def setup(self):
@@ -908,7 +907,7 @@ class KLDivergenceTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MeanRelativeErrorTest(tf.test.TestCase):
 
   def test_config(self):
@@ -964,7 +963,7 @@ class MeanRelativeErrorTest(tf.test.TestCase):
     self.assertEqual(self.evaluate(result), 0)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class IoUTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1051,7 +1050,7 @@ class IoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BinaryIoUTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1158,7 +1157,7 @@ class BinaryIoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MeanIoUTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1241,7 +1240,7 @@ class MeanIoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class OneHotIoUTest(tf.test.TestCase):
 
   def test_unweighted(self):
@@ -1281,7 +1280,7 @@ class OneHotIoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class OneHotMeanIoUTest(tf.test.TestCase):
 
   def test_unweighted(self):
@@ -1333,7 +1332,7 @@ class OneHotMeanIoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BinaryCrossentropyTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1453,7 +1452,7 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.assertAllClose(expected_value, self.evaluate(result), atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class CategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1579,7 +1578,7 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(loss), 3.667, atol=1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1783,18 +1782,18 @@ def _get_model(compile_metrics):
       layers.Dense(3, activation='relu', kernel_initializer='ones'),
       layers.Dense(1, activation='sigmoid', kernel_initializer='ones')]
 
-  model = testing_utils.get_model_from_layers(model_layers, input_shape=(4,))
+  model = test_utils.get_model_from_layers(model_layers, input_shape=(4,))
   model.compile(
       loss='mae',
       metrics=compile_metrics,
       optimizer='rmsprop',
-      run_eagerly=testing_utils.should_run_eagerly())
+      run_eagerly=test_utils.should_run_eagerly())
   return model
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
-class ResetStatesTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class ResetStatesTest(test_combinations.TestCase):
 
   def test_reset_state_false_positives(self):
     fp_obj = metrics.FalsePositives()
@@ -1939,12 +1938,12 @@ class ResetStatesTest(keras_parameterized.TestCase):
     auc_obj = metrics.AUC(num_thresholds=3, from_logits=True)
 
     model_layers = [layers.Dense(1, kernel_initializer='ones', use_bias=False)]
-    model = testing_utils.get_model_from_layers(model_layers, input_shape=(4,))
+    model = test_utils.get_model_from_layers(model_layers, input_shape=(4,))
     model.compile(
         loss='mae',
         metrics=[auc_obj],
         optimizer='rmsprop',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = np.concatenate((np.ones((25, 4)), -np.ones((25, 4)), -np.ones(
         (25, 4)), np.ones((25, 4))))
@@ -2004,8 +2003,8 @@ class ResetStatesTest(keras_parameterized.TestCase):
       backend.set_floatx('float32')
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
-class MergeStateTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+class MergeStateTest(test_combinations.TestCase):
 
   def test_merge_state_incompatible_metrics(self):
     with self.assertRaisesRegex(ValueError,

@@ -24,9 +24,9 @@ from absl.testing import parameterized
 import numpy as np
 from keras import callbacks
 from keras import callbacks_v1
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras import layers
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
@@ -49,7 +49,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
     temp_dir = self.get_temp_dir()
     self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
 
-    (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+    (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
         train_samples=TRAIN_SAMPLES,
         test_samples=TEST_SAMPLES,
         input_shape=(INPUT_DIM,),
@@ -157,7 +157,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
     with tf.Graph().as_default(), self.cached_session():
       filepath = os.path.join(tmpdir, 'logs')
 
-      (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+      (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
           train_samples=TRAIN_SAMPLES,
           test_samples=TEST_SAMPLES,
           input_shape=(INPUT_DIM,),
@@ -260,7 +260,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
     np.random.seed(1337)
     tmpdir = self.get_temp_dir()
     self.addCleanup(shutil.rmtree, tmpdir, ignore_errors=True)
-    (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+    (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
         train_samples=TRAIN_SAMPLES,
         test_samples=TEST_SAMPLES,
         input_shape=(INPUT_DIM,),
@@ -313,7 +313,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
         yield x, y
 
     with tf.Graph().as_default(), self.cached_session():
-      model = testing_utils.get_small_sequential_mlp(
+      model = test_utils.get_small_sequential_mlp(
           num_hidden=10, num_classes=10, input_dim=100)
       model.compile(
           loss='categorical_crossentropy',
@@ -355,7 +355,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
       temp_dir = self.get_temp_dir()
       self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
 
-      (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+      (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
           train_samples=TRAIN_SAMPLES,
           test_samples=TEST_SAMPLES,
           input_shape=(INPUT_DIM,),
@@ -363,7 +363,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
       y_test = np_utils.to_categorical(y_test)
       y_train = np_utils.to_categorical(y_train)
 
-      model = testing_utils.get_small_sequential_mlp(
+      model = test_utils.get_small_sequential_mlp(
           num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES, input_dim=INPUT_DIM)
       model.compile(
           loss='binary_crossentropy', optimizer='sgd', metrics=['accuracy'])
@@ -461,12 +461,13 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(epoch_step, 0)
       self.assertEqual(epoch_summary.value[0].simple_value, 10.0)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_Tensorboard_eager(self):
     temp_dir = tempfile.mkdtemp(dir=self.get_temp_dir())
     self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
 
-    (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+    (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
         train_samples=TRAIN_SAMPLES,
         test_samples=TEST_SAMPLES,
         input_shape=(INPUT_DIM,),
@@ -474,7 +475,7 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
-    model = testing_utils.get_small_sequential_mlp(
+    model = test_utils.get_small_sequential_mlp(
         num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES, input_dim=INPUT_DIM)
     model.compile(
         loss='binary_crossentropy',

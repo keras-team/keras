@@ -17,8 +17,7 @@
 import tensorflow.compat.v2 as tf
 from tensorflow.python.framework import type_spec
 from keras import backend
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras.engine import functional
 from keras.engine import input_layer as input_layer_lib
 from keras.layers import core
@@ -105,9 +104,10 @@ type_spec.register_type_spec_from_value_converter(
     TwoTensors, TwoTensorsSpecNoOneDtype.from_value)
 
 
-class InputLayerTest(keras_parameterized.TestCase):
+class InputLayerTest(test_combinations.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testBasicOutputShapeNoBatchSize(self):
     # Create a Keras Input
     x = input_layer_lib.Input(shape=(32,), name='input_a')
@@ -118,7 +118,8 @@ class InputLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual(model(tf.ones((3, 32))),
                         tf.ones((3, 32)) * 2.0)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testBasicOutputShapeWithBatchSize(self):
     # Create a Keras Input
     x = input_layer_lib.Input(batch_size=6, shape=(32,), name='input_b')
@@ -129,7 +130,7 @@ class InputLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual(model(tf.ones(x.shape)),
                         tf.ones(x.shape) * 2.0)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testBasicOutputShapeNoBatchSizeInTFFunction(self):
     model = None
     @tf.function
@@ -147,7 +148,8 @@ class InputLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual(run_model(tf.ones((10, 8))),
                         tf.ones((10, 8)) * 2.0)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputTensorArg(self):
     # Create a Keras Input
     x = input_layer_lib.Input(tensor=tf.zeros((7, 32)))
@@ -158,7 +160,7 @@ class InputLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual(model(tf.ones(x.shape)),
                         tf.ones(x.shape) * 2.0)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testInputTensorArgInTFFunction(self):
     # We use a mutable model container instead of a model python variable,
     # because python 2.7 does not have `nonlocal`
@@ -178,7 +180,7 @@ class InputLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual(run_model(tf.ones((10, 16))),
                         tf.ones((10, 16)) * 3.0)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testCompositeInputTensorArg(self):
     # Create a Keras Input
     rt = tf.RaggedTensor.from_row_splits(
@@ -193,7 +195,7 @@ class InputLayerTest(keras_parameterized.TestCase):
         values=[3, 21, 4, 1, 53, 9, 2, 6], row_splits=[0, 4, 4, 7, 8, 8])
     self.assertAllEqual(model(rt), rt * 2)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testCompositeInputTensorArgInTFFunction(self):
     # We use a mutable model container instead of a model python variable,
     # because python 2.7 does not have `nonlocal`
@@ -216,7 +218,7 @@ class InputLayerTest(keras_parameterized.TestCase):
         values=[3, 21, 4, 1, 53, 9, 2, 6], row_splits=[0, 4, 4, 7, 8, 8])
     self.assertAllEqual(run_model(rt), rt * 3)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testNoMixingArgsWithTypeSpecArg(self):
     with self.assertRaisesRegexp(
         ValueError, 'all other args except `name` must be None'):
@@ -244,7 +246,7 @@ class InputLayerTest(keras_parameterized.TestCase):
           ragged=True,
           type_spec=tf.TensorSpec((7, 32), tf.float32))
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testTypeSpecArg(self):
     # Create a Keras Input
     x = input_layer_lib.Input(
@@ -265,7 +267,7 @@ class InputLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual(model(tf.ones(x.shape)),
                         tf.ones(x.shape) * 2.0)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testTypeSpecArgInTFFunction(self):
     # We use a mutable model container instead of a model python variable,
     # because python 2.7 does not have `nonlocal`
@@ -286,7 +288,7 @@ class InputLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual(run_model(tf.ones((10, 16))),
                         tf.ones((10, 16)) * 3.0)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testCompositeTypeSpecArg(self):
     # Create a Keras Input
     rt = tf.RaggedTensor.from_row_splits(
@@ -307,7 +309,7 @@ class InputLayerTest(keras_parameterized.TestCase):
     model = model_config.model_from_json(model.to_json())
     self.assertAllEqual(model(rt), rt * 2)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testCompositeTypeSpecArgInTFFunction(self):
     # We use a mutable model container instead of a model pysthon variable,
     # because python 2.7 does not have `nonlocal`
@@ -330,7 +332,7 @@ class InputLayerTest(keras_parameterized.TestCase):
         values=[3, 21, 4, 1, 53, 9, 2, 6], row_splits=[0, 4, 4, 7, 8, 8])
     self.assertAllEqual(run_model(rt), rt * 3)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def testCompositeTypeSpecArgWithoutDtype(self):
     for assign_variant_dtype in [False, True]:
       # Create a Keras Input

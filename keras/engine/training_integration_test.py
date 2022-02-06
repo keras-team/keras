@@ -23,8 +23,8 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 def _conv2d_filter(**kwargs):
@@ -112,11 +112,11 @@ def _gather_test_cases():
 OUTPUT_TEST_CASES = _gather_test_cases()
 
 
-class CoreLayerIntegrationTest(keras_parameterized.TestCase):
+class CoreLayerIntegrationTest(test_combinations.TestCase):
   """Test that layers and models produce the correct tensor types."""
 
   # In v1 graph there are only symbolic tensors.
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   @parameterized.named_parameters(*OUTPUT_TEST_CASES)
   def test_layer_output_type(self, layer_to_test, input_shape, _, layer_kwargs):
     layer = layer_to_test(**layer_kwargs)
@@ -142,7 +142,7 @@ class CoreLayerIntegrationTest(keras_parameterized.TestCase):
   def _run_fit_eval_predict(self, layer_to_test, input_shape, data_shape,
                             layer_kwargs):
     batch_size = 2
-    run_eagerly = testing_utils.should_run_eagerly()
+    run_eagerly = test_utils.should_run_eagerly()
 
     def map_fn(_):
       x = keras.backend.random_uniform(shape=data_shape)
@@ -177,7 +177,7 @@ class CoreLayerIntegrationTest(keras_parameterized.TestCase):
     pred_dataset = pred_dataset.map(pred_map_fn).batch(batch_size)
     model.predict(pred_dataset, verbose=2)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=False)
+  @test_combinations.run_all_keras_modes(always_skip_v1=False)
   @parameterized.named_parameters(*OUTPUT_TEST_CASES)
   def test_model_loops(self, layer_to_test, input_shape, fuzz_dims,
                        layer_kwargs):

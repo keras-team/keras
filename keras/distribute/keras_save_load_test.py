@@ -14,13 +14,13 @@
 # ==============================================================================
 """Tests for saving and loading using keras save/load APIs with DS."""
 
-import tensorflow.compat.v2 as tf
-from keras import testing_utils
 from keras.distribute import saved_model_test_base as test_base
 from keras.saving import save
+from keras.testing_infra import test_utils
+import tensorflow.compat.v2 as tf
 
 
-@testing_utils.run_all_without_tensor_float_32(
+@test_utils.run_all_without_tensor_float_32(
     'Uses Dense layers, which call matmul')
 class KerasSaveLoadTest(test_base.TestSavedModelBase):
 

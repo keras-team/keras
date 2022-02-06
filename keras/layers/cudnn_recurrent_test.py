@@ -23,43 +23,42 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from tensorflow.python.framework import test_util
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.optimizers.optimizer_v2.rmsprop import RMSprop
 
 
-@keras_parameterized.run_all_keras_modes
-class CuDNNTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class CuDNNTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
-      *testing_utils.generate_combinations_with_testcase_name(
+      *test_utils.generate_combinations_with_testcase_name(
           layer_class=[keras.layers.CuDNNGRU, keras.layers.CuDNNLSTM],
           return_sequences=[True, False]))
-  @test_util.run_gpu_only
+  @tf_test_utils.run_gpu_only
   def test_cudnn_rnn_return_sequence(self, layer_class, return_sequences):
     input_size = 10
     timesteps = 6
     units = 2
     num_samples = 32
-    testing_utils.layer_test(
+    test_utils.layer_test(
         layer_class,
         kwargs={'units': units,
                 'return_sequences': return_sequences},
         input_shape=(num_samples, timesteps, input_size))
 
   @parameterized.named_parameters(
-      *testing_utils.generate_combinations_with_testcase_name(
+      *test_utils.generate_combinations_with_testcase_name(
           layer_class=[keras.layers.CuDNNGRU, keras.layers.CuDNNLSTM],
           go_backwards=[True, False]))
-  @test_util.run_gpu_only
+  @tf_test_utils.run_gpu_only
   def test_cudnn_rnn_go_backward(self, layer_class, go_backwards):
     input_size = 10
     timesteps = 6
     units = 2
     num_samples = 32
-    testing_utils.layer_test(
+    test_utils.layer_test(
         layer_class,
         kwargs={'units': units,
                 'go_backwards': go_backwards},
@@ -69,7 +68,7 @@ class CuDNNTest(keras_parameterized.TestCase):
       ('cudnngru', keras.layers.CuDNNGRU),
       ('cudnnlstm', keras.layers.CuDNNLSTM),
   )
-  @test_util.run_gpu_only
+  @tf_test_utils.run_gpu_only
   def test_return_state(self, layer_class):
     input_size = 10
     timesteps = 6
@@ -83,7 +82,7 @@ class CuDNNTest(keras_parameterized.TestCase):
     _, state = outputs[0], outputs[1:]
     self.assertEqual(len(state), num_states)
     model = keras.models.Model(inputs, state[0])
-    model.run_eagerly = testing_utils.should_run_eagerly()
+    model.run_eagerly = test_utils.should_run_eagerly()
 
     inputs = np.random.random((num_samples, timesteps, input_size))
     state = model.predict(inputs)
@@ -94,7 +93,7 @@ class CuDNNTest(keras_parameterized.TestCase):
       ('cudnngru', keras.layers.CuDNNGRU),
       ('cudnnlstm', keras.layers.CuDNNLSTM),
   )
-  @test_util.run_gpu_only
+  @tf_test_utils.run_gpu_only
   def test_time_major_input(self, layer_class):
     input_size = 10
     timesteps = 6
@@ -120,7 +119,7 @@ class CuDNNTest(keras_parameterized.TestCase):
       ('cudnngru', keras.layers.CuDNNGRU),
       ('cudnnlstm', keras.layers.CuDNNLSTM),
   )
-  @test_util.run_gpu_only
+  @tf_test_utils.run_gpu_only
   def test_specify_initial_state_keras_tensor(self, layer_class):
     input_size = 10
     timesteps = 6
@@ -143,7 +142,7 @@ class CuDNNTest(keras_parameterized.TestCase):
     model.compile(
         loss='categorical_crossentropy',
         optimizer=RMSprop(learning_rate=0.001),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = np.random.random((num_samples, timesteps, input_size))
     initial_state = [
@@ -153,13 +152,13 @@ class CuDNNTest(keras_parameterized.TestCase):
     model.fit([inputs] + initial_state, targets)
 
 
-class CuDNNGraphOnlyTest(keras_parameterized.TestCase):
+class CuDNNGraphOnlyTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
       ('cudnngru', keras.layers.CuDNNGRU),
       ('cudnnlstm', keras.layers.CuDNNLSTM),
   )
-  @test_util.run_gpu_only
+  @tf_test_utils.run_gpu_only
   def test_regularizer(self, layer_class):
     input_size = 10
     timesteps = 6
@@ -191,8 +190,8 @@ class CuDNNGraphOnlyTest(keras_parameterized.TestCase):
       ('cudnngru', keras.layers.CuDNNGRU),
       ('cudnnlstm', keras.layers.CuDNNLSTM),
   )
-  @test_util.run_gpu_only
-  @test_util.run_v1_only('b/120941292')
+  @tf_test_utils.run_gpu_only
+  @tf_test_utils.run_v1_only('b/120941292')
   def test_statefulness(self, layer_class):
     input_size = 10
     timesteps = 6
@@ -239,10 +238,10 @@ class CuDNNGraphOnlyTest(keras_parameterized.TestCase):
       self.assertNotEqual(out4.max(), out5.max())
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
-class CuDNNV1OnlyTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+class CuDNNV1OnlyTest(test_combinations.TestCase):
 
-  @test_util.run_gpu_only
+  @tf_test_utils.run_gpu_only
   def test_trainability(self):
     input_size = 10
     units = 2
@@ -262,12 +261,12 @@ class CuDNNV1OnlyTest(keras_parameterized.TestCase):
       self.assertEqual(len(layer.non_trainable_weights), 0)
 
   @parameterized.named_parameters(
-      *testing_utils.generate_combinations_with_testcase_name(
+      *test_utils.generate_combinations_with_testcase_name(
           rnn_type=['LSTM', 'GRU'], to_cudnn=[True, False],
           bidirectional=[True, False], implementation=[1, 2],
           model_nest_level=[1, 2], model_type=['seq', 'func']))
-  @test_util.run_v1_only('b/120911602, b/112083752')
-  @test_util.run_gpu_only
+  @tf_test_utils.run_v1_only('b/120911602, b/112083752')
+  @tf_test_utils.run_gpu_only
   def test_load_weights_between_noncudnn_rnn(self, rnn_type, to_cudnn,
                                              bidirectional, implementation,
                                              model_nest_level, model_type):
@@ -345,10 +344,10 @@ class CuDNNV1OnlyTest(keras_parameterized.TestCase):
     os.remove(fname)
 
   @parameterized.named_parameters(
-      *testing_utils.generate_combinations_with_testcase_name(
+      *test_utils.generate_combinations_with_testcase_name(
           rnn_type=['LSTM', 'GRU'], to_cudnn=[True, False]))
-  @test_util.run_v1_only('b/120911602')
-  @test_util.run_gpu_only
+  @tf_test_utils.run_v1_only('b/120911602')
+  @tf_test_utils.run_gpu_only
   def test_load_weights_between_noncudnn_rnn_time_distributed(self, rnn_type,
                                                               to_cudnn):
     # Similar test as test_load_weights_between_noncudnn_rnn() but has different
@@ -391,7 +390,7 @@ class CuDNNV1OnlyTest(keras_parameterized.TestCase):
     self.assertAllClose(model.predict(inputs), cudnn_model.predict(inputs),
                         atol=1e-4)
 
-  @test_util.run_gpu_only
+  @tf_test_utils.run_gpu_only
   def test_cudnnrnn_bidirectional(self):
     rnn = keras.layers.CuDNNGRU
     samples = 2
@@ -446,7 +445,7 @@ class CuDNNV1OnlyTest(keras_parameterized.TestCase):
     model.compile(loss='mse', optimizer='rmsprop')
     model.fit(x, y, epochs=1, batch_size=1)
 
-  @test_util.run_gpu_only
+  @tf_test_utils.run_gpu_only
   def test_preprocess_weights_for_loading_gru_incompatible(self):
     """Test loading weights between incompatible layers.
 

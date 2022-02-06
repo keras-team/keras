@@ -18,11 +18,11 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
 from keras import metrics
 from keras.optimizers import optimizer_v2
-from keras import testing_utils
+from keras.testing_infra import test_utils
 
 
 class Bias(layers.Layer):
@@ -48,7 +48,7 @@ def get_multi_io_temporal_model():
 
   branch_a = [inp_1, x, out_1]
   branch_b = [inp_2, x, out_2]
-  return testing_utils.get_multi_io_model(branch_a, branch_b)
+  return test_utils.get_multi_io_model(branch_a, branch_b)
 
 
 def get_compiled_multi_io_model_temporal(sample_weight_mode):
@@ -59,7 +59,7 @@ def get_compiled_multi_io_model_temporal(sample_weight_mode):
       metrics=[metrics.MeanAbsoluteError(name='mae')],
       weighted_metrics=[metrics.MeanAbsoluteError(name='mae_2')],
       sample_weight_mode=sample_weight_mode,
-      run_eagerly=testing_utils.should_run_eagerly())
+      run_eagerly=test_utils.should_run_eagerly())
   return model
 
 
@@ -96,9 +96,9 @@ def run_with_different_sample_weight_mode_inputs(fn, partial_sw=True):
     # fn(model)
 
 
-@keras_parameterized.run_with_all_model_types(exclude_models=['sequential'])
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class TestMetricsCorrectnessMultiIOTemporal(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types(exclude_models=['sequential'])
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class TestMetricsCorrectnessMultiIOTemporal(test_combinations.TestCase):
 
   def custom_generator_multi_io_temporal(self, sample_weights=None):
     """Generator for getting data for temporal multi io model.

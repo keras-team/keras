@@ -17,11 +17,11 @@
 import tensorflow.compat.v2 as tf
 
 import numpy as np
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.preprocessing import timeseries
 
 
-@testing_utils.run_v2_only
+@test_utils.run_v2_only
 class TimeseriesDatasetTest(tf.test.TestCase):
 
   def test_basics(self):

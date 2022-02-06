@@ -19,10 +19,10 @@ import os
 
 from absl.testing import parameterized
 import keras
-from keras import combinations
-from keras import testing_utils
 from keras.layers.locally_connected import locally_connected_utils
 from keras.optimizers.optimizer_v2 import rmsprop
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
@@ -81,7 +81,7 @@ _DATA_FORMAT_PADDING_IMPLEMENTATION = [{
 }]
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class LocallyConnected1DLayersTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.parameters(_DATA_FORMAT_PADDING_IMPLEMENTATION)
@@ -109,7 +109,7 @@ class LocallyConnected1DLayersTest(tf.test.TestCase, parameterized.TestCase):
           self.assertRaises(ValueError, keras.layers.LocallyConnected1D,
                             **kwargs)
         else:
-          testing_utils.layer_test(
+          test_utils.layer_test(
               keras.layers.LocallyConnected1D,
               kwargs=kwargs,
               input_shape=(num_samples, num_steps, input_dim))
@@ -167,7 +167,7 @@ class LocallyConnected1DLayersTest(tf.test.TestCase, parameterized.TestCase):
       layer.build((None, 5, 2))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class LocallyConnected2DLayersTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.parameters(_DATA_FORMAT_PADDING_IMPLEMENTATION)
@@ -198,7 +198,7 @@ class LocallyConnected2DLayersTest(tf.test.TestCase, parameterized.TestCase):
           self.assertRaises(ValueError, keras.layers.LocallyConnected2D,
                             **kwargs)
         else:
-          testing_utils.layer_test(
+          test_utils.layer_test(
               keras.layers.LocallyConnected2D,
               kwargs=kwargs,
               input_shape=(num_samples, num_row, num_col, stack_size))
@@ -223,7 +223,7 @@ class LocallyConnected2DLayersTest(tf.test.TestCase, parameterized.TestCase):
       if padding == 'same' and implementation == 1:
         self.assertRaises(ValueError, keras.layers.LocallyConnected2D, **kwargs)
       else:
-        testing_utils.layer_test(
+        test_utils.layer_test(
             keras.layers.LocallyConnected2D,
             kwargs=kwargs,
             input_shape=(num_samples, num_row, num_col, stack_size))
@@ -281,7 +281,7 @@ class LocallyConnected2DLayersTest(tf.test.TestCase, parameterized.TestCase):
       layer.build((None, 5, 5, 2))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class LocallyConnectedImplementationModeTest(tf.test.TestCase,
                                              parameterized.TestCase):
 

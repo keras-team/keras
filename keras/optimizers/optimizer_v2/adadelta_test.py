@@ -18,7 +18,7 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.optimizers.optimizer_v2 import adadelta
 
 _DATA_TYPES = [
@@ -132,11 +132,12 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                   self.evaluate(var1),
                   rtol=1e-5)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testResourceBasic(self):
     self.doTestBasic(use_resource=True)
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testBasicCallableParams(self):
     self.doTestBasic(use_resource=True, use_callable_params=True)
 

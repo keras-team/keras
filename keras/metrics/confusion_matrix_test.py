@@ -20,7 +20,7 @@ import json
 
 from absl.testing import parameterized
 import numpy as np
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras import layers
 from keras import metrics
 from keras import models
@@ -28,7 +28,7 @@ from keras.utils import metrics_utils
 from tensorflow.python.platform import tf_logging
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class FalsePositivesTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_config(self):
@@ -108,7 +108,7 @@ class FalsePositivesTest(tf.test.TestCase, parameterized.TestCase):
       metrics.FalsePositives(thresholds=[None])
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class FalseNegativesTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_config(self):
@@ -176,7 +176,7 @@ class FalseNegativesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose([4., 16., 23.], self.evaluate(result))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class TrueNegativesTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_config(self):
@@ -244,7 +244,7 @@ class TrueNegativesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose([5., 15., 23.], self.evaluate(result))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class TruePositivesTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_config(self):
@@ -311,7 +311,7 @@ class TruePositivesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose([222., 111., 37.], self.evaluate(result))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_config(self):
@@ -516,7 +516,7 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAlmostEqual(0, self.evaluate(p_obj.false_positives))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class RecallTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_config(self):
@@ -720,7 +720,7 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAlmostEqual(3, self.evaluate(r_obj.false_negatives))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class SensitivityAtSpecificityTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_config(self):
@@ -834,7 +834,7 @@ class SensitivityAtSpecificityTest(tf.test.TestCase, parameterized.TestCase):
       metrics.SensitivityAtSpecificity(0.4, num_thresholds=-1)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class SpecificityAtSensitivityTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_config(self):
@@ -947,7 +947,7 @@ class SpecificityAtSensitivityTest(tf.test.TestCase, parameterized.TestCase):
       metrics.SpecificityAtSensitivity(0.4, num_thresholds=-1)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class PrecisionAtRecallTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_config(self):
@@ -1061,7 +1061,7 @@ class PrecisionAtRecallTest(tf.test.TestCase, parameterized.TestCase):
       metrics.PrecisionAtRecall(0.4, num_thresholds=-1)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_config(self):
@@ -1194,7 +1194,7 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
       metrics.RecallAtPrecision(0.4, num_thresholds=-1)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class AUCTest(tf.test.TestCase, parameterized.TestCase):
 
   def setup(self):
@@ -1492,7 +1492,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
       tf_logging.warning('Cannot test special functions: %s' % str(e))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
 
   def setup(self):
@@ -1778,7 +1778,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllEqual(auc_obj.true_positives, np.zeros((5, 2)))
 
 
-@combinations.generate(combinations.combine(mode=['eager']))
+@test_combinations.generate(test_combinations.combine(mode=['eager']))
 class ThresholdsTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.parameters([

@@ -16,13 +16,13 @@
 
 import tensorflow.compat.v2 as tf
 from keras import backend
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import losses as losses_mod
 from keras import metrics as metrics_mod
 from keras.engine import compile_utils
 
 
-class LossesContainerTest(keras_parameterized.TestCase):
+class LossesContainerTest(test_combinations.TestCase):
 
   def test_single_loss(self):
     loss_container = compile_utils.LossesContainer('mse')
@@ -395,7 +395,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
     self.assertEqual(loss_container._losses[0].name, 'custom_loss_fn')
 
 
-class MetricsContainerTest(keras_parameterized.TestCase):
+class MetricsContainerTest(test_combinations.TestCase):
 
   def test_single_metric(self):
     metric_container = compile_utils.MetricsContainer('mse')

@@ -22,16 +22,15 @@ import numpy as np
 
 import keras
 from keras import backend
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import sequential
 from keras.feature_column import dense_features
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.saving import saving_utils
 
 
-class TraceModelCallTest(keras_parameterized.TestCase):
+class TraceModelCallTest(test_combinations.TestCase):
 
   def _assert_all_close(self, expected, actual):
     if not tf.executing_eagerly():
@@ -41,11 +40,11 @@ class TraceModelCallTest(keras_parameterized.TestCase):
     else:
       self.assertAllClose(expected, actual)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_trace_model_outputs(self):
-    input_dim = 5 if testing_utils.get_model_type() == 'functional' else None
-    model = testing_utils.get_small_mlp(10, 3, input_dim)
+    input_dim = 5 if test_utils.get_model_type() == 'functional' else None
+    model = test_utils.get_small_mlp(10, 3, input_dim)
     inputs = tf.ones((8, 5))
 
     if input_dim is None:
@@ -62,15 +61,15 @@ class TraceModelCallTest(keras_parameterized.TestCase):
 
     self._assert_all_close(expected_outputs, signature_outputs)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_trace_model_outputs_after_fitting(self):
-    input_dim = 5 if testing_utils.get_model_type() == 'functional' else None
-    model = testing_utils.get_small_mlp(10, 3, input_dim)
+    input_dim = 5 if test_utils.get_model_type() == 'functional' else None
+    model = test_utils.get_small_mlp(10, 3, input_dim)
     model.compile(
         optimizer='sgd',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(
         x=np.random.random((8, 5)).astype(np.float32),
         y=np.random.random((8, 3)).astype(np.float32),
@@ -87,8 +86,8 @@ class TraceModelCallTest(keras_parameterized.TestCase):
 
     self._assert_all_close(expected_outputs, signature_outputs)
 
-  @keras_parameterized.run_with_all_model_types(exclude_models='sequential')
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types(exclude_models='sequential')
+  @test_combinations.run_all_keras_modes
   def test_trace_multi_io_model_outputs(self):
     input_dim = 5
     num_classes = 3
@@ -102,21 +101,21 @@ class TraceModelCallTest(keras_parameterized.TestCase):
     branch_a = [input_a, dense]
     branch_b = [input_b, dense, dense2, dropout]
 
-    model = testing_utils.get_multi_io_model(branch_a, branch_b)
+    model = test_utils.get_multi_io_model(branch_a, branch_b)
 
     input_a_ts = tf.constant(
         np.random.random((10, input_dim)).astype(np.float32))
     input_b_ts = tf.constant(
         np.random.random((10, input_dim)).astype(np.float32))
 
-    if testing_utils.get_model_type() == 'subclass':
+    if test_utils.get_model_type() == 'subclass':
       with self.assertRaisesRegex(ValueError, '.*input shape is not availabl*'):
         saving_utils.trace_model_call(model)
 
     model.compile(
         optimizer='sgd',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(x=[np.random.random((8, input_dim)).astype(np.float32),
                  np.random.random((8, input_dim)).astype(np.float32)],
               y=[np.random.random((8, num_classes)).astype(np.float32),
@@ -128,7 +127,7 @@ class TraceModelCallTest(keras_parameterized.TestCase):
     # ConcreteFunction. For some reason V1 models defines the inputs as a list,
     # while V2 models sets the inputs as a tuple.
     if (not tf.executing_eagerly() and
-        testing_utils.get_model_type() != 'functional'):
+        test_utils.get_model_type() != 'functional'):
       signature_outputs = fn([input_a_ts, input_b_ts])
     else:
       signature_outputs = fn((input_a_ts, input_b_ts))
@@ -142,7 +141,8 @@ class TraceModelCallTest(keras_parameterized.TestCase):
       expected_outputs = {'output_1': outputs[0], 'output_2': outputs[1]}
     self._assert_all_close(expected_outputs, signature_outputs)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_trace_features_layer(self):
     columns = [tf.feature_column.numeric_column('x')]
     model = sequential.Sequential([dense_features.DenseFeatures(columns)])
@@ -162,9 +162,10 @@ class TraceModelCallTest(keras_parameterized.TestCase):
     fn = saving_utils.trace_model_call(model)
     self.assertAllClose({'output_1': [[1., 2.]]}, fn(model_input))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_specify_input_signature(self):
-    model = testing_utils.get_small_sequential_mlp(10, 3, None)
+    model = test_utils.get_small_sequential_mlp(10, 3, None)
     inputs = tf.ones((8, 5))
 
     with self.assertRaisesRegex(ValueError, '.*input shape is not availabl*'):
@@ -179,7 +180,8 @@ class TraceModelCallTest(keras_parameterized.TestCase):
       expected_outputs = {'output_1': model(inputs)}
     self._assert_all_close(expected_outputs, signature_outputs)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_subclassed_model_with_input_signature(self):
 
     class Model(keras.Model):
@@ -203,15 +205,15 @@ class TraceModelCallTest(keras_parameterized.TestCase):
     signature_outputs = fn([x, y])
     self._assert_all_close(expected_outputs, signature_outputs)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_model_with_fixed_input_dim(self):
     """Ensure that the batch_dim is removed when saving.
 
     When serving or retraining, it is important to reset the batch dim.
     This can be an issue inside of tf.function. See b/132783590 for context.
     """
-    model = testing_utils.get_small_mlp(10, 3, 5)
+    model = test_utils.get_small_mlp(10, 3, 5)
 
     loss_object = keras.losses.MeanSquaredError()
     optimizer = gradient_descent.SGD()
@@ -301,9 +303,9 @@ class BasicAutographedMetricModel(keras.models.Model):
     return self._layer(inputs)
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class ModelSaveTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class ModelSaveTest(test_combinations.TestCase):
 
   def test_model_save_preserves_autograph(self):
     model = BasicAutographedMetricModel()
@@ -331,10 +333,10 @@ class ModelSaveTest(keras_parameterized.TestCase):
 
   def test_model_save(self):
     input_dim = 5
-    model = testing_utils.get_small_mlp(10, 3, input_dim)
+    model = test_utils.get_small_mlp(10, 3, input_dim)
     inputs = tf.ones((8, 5))
 
-    if testing_utils.get_model_type() == 'subclass':
+    if test_utils.get_model_type() == 'subclass':
       model._set_inputs(inputs)
 
     save_dir = os.path.join(self.get_temp_dir(), 'saved_model')
@@ -352,7 +354,7 @@ class ModelSaveTest(keras_parameterized.TestCase):
                                           {input_name: np.ones((8, 5))}))
 
 
-class ExtractModelMetricsTest(keras_parameterized.TestCase):
+class ExtractModelMetricsTest(test_combinations.TestCase):
 
   def test_extract_model_metrics(self):
     # saving_utils.extract_model_metrics is used in V1 only API
@@ -394,7 +396,7 @@ class ExtractModelMetricsTest(keras_parameterized.TestCase):
       self.assertEqual(set(extract_metric_names), set(extract_metrics.keys()))
 
 
-class UnbuiltModelSavingErrorMessageTest(keras_parameterized.TestCase):
+class UnbuiltModelSavingErrorMessageTest(test_combinations.TestCase):
 
   def setUp(self):
     super(UnbuiltModelSavingErrorMessageTest, self).setUp()

@@ -21,8 +21,8 @@ import unittest
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 try:
   import h5py  # pylint:disable=g-import-not-at-top
@@ -30,10 +30,10 @@ except ImportError:
   h5py = None
 
 
-@testing_utils.run_v2_only
-class TestDeferredSequential(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class TestDeferredSequential(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_build_behavior(self):
     # Test graph network creation after __call__
     model = get_model()
@@ -73,7 +73,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
         loss='mse',
         optimizer='rmsprop',
         metrics=[keras.metrics.CategoricalAccuracy()],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(np.zeros((2, 6)), np.zeros((2, 2)))
     self.assertLen(model.weights, 4)
     self.assertTrue(model._is_graph_network)
@@ -86,7 +86,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
     self.assertEqual(model.inputs[0].shape.as_list()[-1], 6)
     self.assertEqual(model.outputs[0].shape.as_list()[-1], 2)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_add_and_pop(self):
     model = get_model()
     model.build((None, 6))
@@ -105,7 +105,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
     self.assertLen(model.layers, 3)
     self.assertLen(model.weights, 4)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_feature_extraction(self):
     # This tests layer connectivity reset when rebuilding
     model = get_model()
@@ -117,7 +117,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
     # Check that inputs and outputs are connected
     _ = extractor(np.random.random((4, 6)))
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_saving_savedmodel(self):
     model = get_model()
     model(np.random.random((3, 6)))  # Build model
@@ -134,7 +134,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
         self.assertAllClose(w1, w2)
 
   @unittest.skipIf(h5py is None, 'Test requires h5py')
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_saving_h5(self):
     path = os.path.join(self.get_temp_dir(), 'model_path.h5')
     model = get_model()
@@ -151,7 +151,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
       for w1, w2 in zip(layer1.weights, layer2.weights):
         self.assertAllClose(w1, w2)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_shared_layer(self):
     # This tests that preexisting layer connectivity is preserved
     # when auto-building graph networks
@@ -166,7 +166,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
     m2 = keras.Sequential([shared_layer, m1])
     m2(np.random.random((3, 2)))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_loss_layer(self):
     class LossLayer(keras.layers.Layer):
 
@@ -176,7 +176,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
 
     # Test loss layer alone
     model = keras.Sequential([LossLayer()])
-    model.compile('rmsprop', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('rmsprop', run_eagerly=test_utils.should_run_eagerly())
     loss = model.train_on_batch(np.ones((2, 2)))
     self.assertAllClose(loss, 4.)
     model(np.random.random((4, 2)))  # Triggers a rebuild
@@ -187,7 +187,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
     model = keras.Sequential([
         keras.layers.Dense(1, kernel_initializer='ones'),
         LossLayer()])
-    model.compile('rmsprop', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('rmsprop', run_eagerly=test_utils.should_run_eagerly())
     loss = model.train_on_batch(np.ones((2, 2)))
     self.assertAllClose(loss, 4.)
     model(np.random.random((4, 2)))  # Triggers a rebuild
@@ -199,7 +199,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
         keras.layers.Dense(1, kernel_initializer='ones'),
         LossLayer()])
     model.compile('rmsprop', 'mse',
-                  run_eagerly=testing_utils.should_run_eagerly())
+                  run_eagerly=test_utils.should_run_eagerly())
     loss = model.train_on_batch(np.ones((2, 2)), np.ones((2, 2)))
     model(np.random.random((4, 2)))  # Triggers a rebuild
     loss = model.train_on_batch(np.ones((1, 2)), np.ones((1, 2)))

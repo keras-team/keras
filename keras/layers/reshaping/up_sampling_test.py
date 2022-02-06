@@ -16,22 +16,22 @@
 # pylint: disable=g-direct-tensorflow-import
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 
 
-@test_util.for_all_test_methods(test_util.disable_xla,
-                                'align_corners=False not supported by XLA')
-@keras_parameterized.run_all_keras_modes
-class UpSamplingTest(keras_parameterized.TestCase):
+@tf_test_utils.for_all_test_methods(tf_test_utils.disable_xla,
+                                    'align_corners=False not supported by XLA')
+@test_combinations.run_all_keras_modes
+class UpSamplingTest(test_combinations.TestCase):
 
   def test_upsampling_1d(self):
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.UpSampling1D, kwargs={'size': 2}, input_shape=(3, 5, 4))
 
   def test_upsampling_2d(self):
@@ -50,7 +50,7 @@ class UpSamplingTest(keras_parameterized.TestCase):
 
       # basic test
       with self.cached_session():
-        testing_utils.layer_test(
+        test_utils.layer_test(
             keras.layers.UpSampling2D,
             kwargs={'size': (2, 2),
                     'data_format': data_format},
@@ -96,11 +96,11 @@ class UpSamplingTest(keras_parameterized.TestCase):
         inputs = np.random.rand(num_samples, input_num_row, input_num_col,
                                 stack_size)
 
-      testing_utils.layer_test(keras.layers.UpSampling2D,
-                               kwargs={'size': (2, 2),
-                                       'data_format': data_format,
-                                       'interpolation': 'bilinear'},
-                               input_shape=inputs.shape)
+      test_utils.layer_test(keras.layers.UpSampling2D,
+                            kwargs={'size': (2, 2),
+                                    'data_format': data_format,
+                                    'interpolation': 'bilinear'},
+                            input_shape=inputs.shape)
 
       if not tf.executing_eagerly():
         for length_row in [2]:
@@ -135,7 +135,7 @@ class UpSamplingTest(keras_parameterized.TestCase):
 
       # basic test
       with self.cached_session():
-        testing_utils.layer_test(
+        test_utils.layer_test(
             keras.layers.UpSampling3D,
             kwargs={'size': (2, 2, 2),
                     'data_format': data_format},
