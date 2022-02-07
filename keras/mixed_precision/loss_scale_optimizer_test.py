@@ -1294,11 +1294,19 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         '"inner_optimizer" is already wrapped by a LossScaleOptimizer.'):
       create_lso(inner_opt)
 
+  def testErrorWhenWrappingNonOptimizer(self):
+    with self.assertRaisesRegex(
+        TypeError,
+        '"inner_optimizer" must be an instance of '
+        '`tf.keras.optimizers.Optimizer` or '
+        '`tf.keras.optimizers.experimental.Optimizer`, but got: 1'):
+      loss_scale_optimizer.BaseLossScaleOptimizer(1)
+
   def testErrorWhenWrappingLegacyKerasOptimizers(self):
     sgd = legacy_sgd.SGD()
     with self.assertRaisesRegex(
         TypeError, 'not an instance of `tensorflow.python.keras.optimizers`'):
-      loss_scale_optimizer.LossScaleOptimizer(sgd)
+      loss_scale_optimizer.BaseLossScaleOptimizer(sgd)
 
   def testErrorWhenV3LsoWrapsV2Optimizer(self):
     sgd = gradient_descent.SGD()
