@@ -318,6 +318,18 @@ class LossScaleOptimizerMetaclass(type):
     elif isinstance(inner_optimizer, optimizer_experimental.Optimizer):
       return LossScaleOptimizerV3(inner_optimizer, *args, **kwargs)
 
+    # Raise TypeError because inner_optimizer is not an optimizer
+    msg = (f'"inner_optimizer" must be an instance of '
+           f'`tf.keras.optimizers.Optimizer` or '
+           f'`tf.keras.optimizers.experimental.Optimizer`, but got: '
+           f'{inner_optimizer}.')
+    if isinstance(inner_optimizer, legacy_optimizer.OptimizerV2):
+      msg += (' Please make sure "inner_optimizer" is not an instance of '
+              '`tensorflow.python.keras.optimizers`, which is '
+              'the legacy keras code and will be removed in future release. '
+              'Please use the tf.keras public API instead.')
+    raise TypeError(msg)
+
 
 # TODO(b/215389169): Delete this class after `OptimizerV2` is deprecated.
 # pylint: disable=g-classes-have-attributes
