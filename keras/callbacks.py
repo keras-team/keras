@@ -1640,8 +1640,7 @@ class BackupAndRestore(Callback):
   ...   def on_epoch_begin(self, epoch, logs=None):
   ...     if epoch == 4:
   ...       raise RuntimeError('Interrupting!')
-  >>> callback = tf.keras.callbacks.experimental.BackupAndRestore(
-  ... backup_dir="/tmp/backup")
+  >>> callback = tf.keras.callbacks.BackupAndRestore(backup_dir="/tmp/backup")
   >>> model = tf.keras.models.Sequential([tf.keras.layers.Dense(10)])
   >>> model.compile(tf.keras.optimizers.SGD(), loss='mse')
   >>> try:
