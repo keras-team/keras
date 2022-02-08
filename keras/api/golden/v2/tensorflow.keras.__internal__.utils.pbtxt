@@ -1,6 +1,10 @@
 path: "tensorflow.keras.__internal__.utils"
 tf_module {
   member_method {
+    name: "layer_test"
+    argspec: "args=[\'self\'], varargs=args, keywords=kwargs, defaults=None"
+  }
+  member_method {
     name: "register_symbolic_tensor_type"
     argspec: "args=[\'cls\'], varargs=None, keywords=None, defaults=None"
   }
