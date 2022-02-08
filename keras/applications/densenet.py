@@ -328,10 +328,11 @@ def DenseNet121(include_top=True,
                 input_tensor=None,
                 input_shape=None,
                 pooling=None,
-                classes=1000):
+                classes=1000,
+                classifier_activation='softmax'):
   """Instantiates the Densenet121 architecture."""
   return DenseNet([6, 12, 24, 16], include_top, weights, input_tensor,
-                  input_shape, pooling, classes)
+                  input_shape, pooling, classes, classifier_activation)
 
 
 @keras_export('keras.applications.densenet.DenseNet169',
@@ -341,10 +342,11 @@ def DenseNet169(include_top=True,
                 input_tensor=None,
                 input_shape=None,
                 pooling=None,
-                classes=1000):
+                classes=1000,
+                classifier_activation='softmax'):
   """Instantiates the Densenet169 architecture."""
   return DenseNet([6, 12, 32, 32], include_top, weights, input_tensor,
-                  input_shape, pooling, classes)
+                  input_shape, pooling, classes, classifier_activation)
 
 
 @keras_export('keras.applications.densenet.DenseNet201',
@@ -354,10 +356,11 @@ def DenseNet201(include_top=True,
                 input_tensor=None,
                 input_shape=None,
                 pooling=None,
-                classes=1000):
+                classes=1000,
+                classifier_activation='softmax'):
   """Instantiates the Densenet201 architecture."""
   return DenseNet([6, 12, 48, 32], include_top, weights, input_tensor,
-                  input_shape, pooling, classes)
+                  input_shape, pooling, classes, classifier_activation)
 
 
 @keras_export('keras.applications.densenet.preprocess_input')
@@ -420,6 +423,11 @@ DOC = """
     classes: optional number of classes to classify images
       into, only to be specified if `include_top` is True, and
       if no `weights` argument is specified.
+    classifier_activation: A `str` or callable. The activation function to use
+      on the "top" layer. Ignored unless `include_top=True`. Set
+      `classifier_activation=None` to return the logits of the "top" layer.
+      When loading pretrained weights, `classifier_activation` can only
+      be `None` or `"softmax"`.
 
   Returns:
     A Keras model instance.
