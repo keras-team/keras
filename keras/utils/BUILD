@@ -77,6 +77,7 @@ py_library(
     deps = [
         ":data_utils",
         ":io_utils",
+        ":tf_utils",
         "//keras:backend",
     ],
 )

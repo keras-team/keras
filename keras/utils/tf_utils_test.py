@@ -228,6 +228,29 @@ class TestIsExtensionType(tf.test.TestCase):
     self.assertFalse(tf_utils.is_extension_type(tensor))
 
 
+class TestIsTensorOrExtensionType(tf.test.TestCase):
+
+  def test_is_tensor_or_extension_type_return_true_for_ragged_tensor(self):
+    self.assertTrue(tf_utils.is_tensor_or_extension_type(
+        tf.ragged.constant([[1, 2], [3]])))
+
+  def test_is_tensor_or_extension_type_return_true_for_sparse_tensor(self):
+    self.assertTrue(tf_utils.is_tensor_or_extension_type(
+        tf.sparse.from_dense([[1, 2], [3, 4]])))
+
+  def test_is_tensor_or_extension_type_return_true_for_dense_tensor(self):
+    self.assertTrue(tf_utils.is_tensor_or_extension_type(
+        tf.constant([[1, 2], [3, 4]])))
+
+  def test_is_tensor_or_extension_type_return_true_for_custom_ext_types(self):
+    class DummyExtensionType(tf.experimental.ExtensionType):
+      ...
+    self.assertTrue(tf_utils.is_tensor_or_extension_type(DummyExtensionType()))
+
+  def test_is_tensor_or_extension_type_return_false_for_list(self):
+    self.assertFalse(tf_utils.is_tensor_or_extension_type([1., 2., 3.]))
+
+
 class TestRandomSeedSetting(tf.test.TestCase):
 
   def test_seeds(self):
