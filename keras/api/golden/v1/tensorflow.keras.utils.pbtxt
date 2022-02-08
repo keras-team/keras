@@ -82,7 +82,7 @@ tf_module {
   }
   member_method {
     name: "load_img"
-    argspec: "args=[\'path\', \'grayscale\', \'color_mode\', \'target_size\', \'interpolation\'], varargs=None, keywords=None, defaults=[\'False\', \'rgb\', \'None\', \'nearest\'], "
+    argspec: "args=[\'path\', \'grayscale\', \'color_mode\', \'target_size\', \'interpolation\', \'keep_aspect_ratio\'], varargs=None, keywords=None, defaults=[\'False\', \'rgb\', \'None\', \'nearest\', \'False\'], "
   }
   member_method {
     name: "model_to_dot"
