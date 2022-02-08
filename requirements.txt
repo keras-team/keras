@@ -8,3 +8,4 @@ portpicker
 pyyaml
 Pillow
 numpy ~= 1.21.4  # Sync with the numpy version used in TF
+tb-nightly == 2.9.0a20220203  # Pin the tb-nightly to an old version until we fix the build
