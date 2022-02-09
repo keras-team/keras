@@ -3258,8 +3258,15 @@ def concat(tensors, axis=0):
   return tf.concat(tensors, axis=axis)
 
 
-def potentially_variable_concat(tensors):
-  """Concats `tensor`s along `axis`. When non-batch dimensions are variable, a RaggedTensor is returned instead."""
+def potentially_ragged_concat(tensors):
+  """Concats `Tensor`s along their first dimension.
+
+  Args:
+    tensors: `list` of `Tensor`s
+
+  Returns:
+    `Tensor` if input shapes are compatible or `RaggedTensor` if not.
+    """
   if isinstance(tensors[0], tf.SparseTensor):
     return tf.sparse.concat(axis=0, sp_inputs=tensors)
   non_batch_shapes = tf.stack([tf.shape(tensor)[1:] for tensor in tensors])
