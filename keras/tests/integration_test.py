@@ -317,5 +317,49 @@ class ActivationV2IntegrationTest(test_combinations.TestCase):
     loaded_model = keras.models.load_model(output_path)
     self.assertEqual(model.summary(), loaded_model.summary())
 
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class TokenClassificationIntegrationTest(test_combinations.TestCase):
+  """Tests a very simple token classification model.
+
+  The main purpose of this test is to verify that everything works as expected when
+  input sequences have variable length, and batches are padded only to the maximum length
+  of each batch. This is very common in NLP, and results in the sequence dimension varying
+  with each batch step for both the features and the labels.
+  """
+  def test_token_classification(self):
+    np.random.seed(1337)
+    data = [np.random.randint(low=0, high=16, size=random.randint(4, 16)) for _ in range(100)]
+    labels = [np.random.randint(low=0, high=3, size=len(arr)) for arr in data]
+    features_dataset = tf.data.Dataset.from_tensor_slices(data)
+    labels_dataset = tf.data.Dataset.from_tensor_slices(labels)
+    dataset = tf.data.Dataset.zip(features_dataset, labels_dataset)
+    dataset = dataset.padded_batch(batch_size=10)  # Pads with 0 values by default
+
+    layers = [
+        keras.layers.Embedding(16, 4),
+        keras.layers.Conv1D(4, 5, padding='same', activation='relu'),
+        keras.layers.Conv1D(8, 5, padding='same'),
+        keras.layers.BatchNormalization(),
+        keras.layers.Conv2D(3, 5, padding='same', activation='softmax'),
+    ]
+    model = test_utils.get_model_from_layers(
+        layers, input_shape=(None,))
+    model.compile(
+        loss='categorical_crossentropy',
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
+        metrics=['acc'],
+        run_eagerly=test_utils.should_run_eagerly())
+    history = model.fit(dataset, epochs=10,
+                        validation_data=dataset,
+                        verbose=2)
+    self.assertGreater(history.history['val_acc'][-1], 0.7)
+    _, val_acc = model.evaluate(dataset)
+    self.assertAlmostEqual(history.history['val_acc'][-1], val_acc)
+    predictions = model.predict(dataset)
+    self.assertTrue(isinstance(predictions, tf.RaggedTensor))
+    self.assertEqual(predictions.shape[0], len(dataset) * 10)
+    self.assertEqual(predictions.shape[-1], 3)
+
 if __name__ == '__main__':
   tf.test.main()
