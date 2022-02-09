@@ -466,6 +466,11 @@ def is_tensor_or_variable(x):
   return tf.is_tensor(x) or isinstance(x, tf.Variable)
 
 
+def is_tensor_or_extension_type(x):
+  """Returns true if 'x' is a TF-native type or an ExtensionType."""
+  return tf.is_tensor(x) or is_extension_type(x)
+
+
 def assert_no_legacy_layers(layers):
   """Prevent tf.layers.Layers from being used with Keras.
 
