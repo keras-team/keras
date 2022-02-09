@@ -92,7 +92,8 @@ def text_dataset_from_directory(directory,
     seed: Optional random seed for shuffling and transformations.
     validation_split: Optional float between 0 and 1,
         fraction of data to reserve for validation.
-    subset: One of "training" or "validation".
+    subset: Subset of the data to return.
+        One of "training" or "validation".
         Only used if `validation_split` is set.
     follow_links: Whether to visits subdirectories pointed to by symlinks.
         Defaults to False.
