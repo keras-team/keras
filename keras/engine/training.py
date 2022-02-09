@@ -3268,6 +3268,7 @@ def potentially_variable_concat(tensors, axis=0):
     return tf.concat(tensors, axis=axis)
   # First, identify constant inner dimensions by finding the rightmost dimension that is not constant
   constant_inner_dimensions = constant_dims.numpy().tolist()[::-1].index(False)
+  # If there are constant inner dimensions, define a constant inner shape
   if constant_inner_dimensions == 0:
     constant_inner_shape = None
   else:
