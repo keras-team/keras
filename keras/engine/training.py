@@ -2011,7 +2011,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                          'information of where went wrong, or file a '
                          'issue/bug to `tf.keras`.')
       callbacks.on_predict_end()
-    all_outputs = tf.__internal__.nest.map_structure_up_to(batch_outputs, concat, outputs)
+    all_outputs = tf.__internal__.nest.map_structure_up_to(batch_outputs, potentially_variable_concat, outputs)
 
     # If originally PSS strategy was used, then replace it back since predict
     # is running under `OneDeviceStrategy` after the swap and once its done
@@ -3256,6 +3256,23 @@ def concat(tensors, axis=0):
   if isinstance(tensors[0], tf.SparseTensor):
     return tf.sparse.concat(axis=axis, sp_inputs=tensors)
   return tf.concat(tensors, axis=axis)
+
+
+def potentially_variable_concat(tensors, axis=0):
+  """Concats `tensor`s along `axis`. When non-batch dimensions are variable, a RaggedTensor is returned instead."""
+  if isinstance(tensors[0], tf.SparseTensor):
+    return tf.sparse.concat(axis=axis, sp_inputs=tensors)
+  non_batch_shapes = tf.stack([tf.shape(tensor)[1:] for tensor in tensors])
+  constant_dims = tf.math.reduce_all(non_batch_shapes == non_batch_shapes[:1], axis=0)
+  if tf.math.reduce_all(constant_dims).numpy().item():  # All non-batch dimensions are constant
+    return tf.concat(tensors, axis=axis)
+  # First, identify constant inner dimensions by finding the rightmost dimension that is not constant
+  constant_inner_dimensions = constant_dims.numpy().tolist()[::-1].index(False)
+  if constant_inner_dimensions == 0:
+    constant_inner_shape = None
+  else:
+    constant_inner_shape = tensors[0].shape[-constant_inner_dimensions:]
+  return tf.ragged.constant([tensor.numpy() for tensor in tensors], inner_shape=constant_inner_shape).merge_dims(0, 1)
 
 
 def _get_verbosity(verbose, distribute_strategy):
