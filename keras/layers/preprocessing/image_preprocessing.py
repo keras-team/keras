@@ -1240,7 +1240,7 @@ class RandomHeight(base_layer.BaseRandomLayer):
       lower bound. For instance, `factor=(0.2, 0.3)` results in an output with
       height changed by a random amount in the range `[20%, 30%]`.
       `factor=(-0.2, 0.3)` results in an output with height changed by a random
-      amount in the range `[-20%, +30%]. `factor=0.2` results in an output with
+      amount in the range `[-20%, +30%]`. `factor=0.2` results in an output with
       height changed by a random amount in the range `[-20%, +20%]`.
     interpolation: String, the interpolation method. Defaults to `"bilinear"`.
       Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`,
