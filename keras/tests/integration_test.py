@@ -349,14 +349,14 @@ class TokenClassificationIntegrationTest(test_combinations.TestCase):
     model = test_utils.get_model_from_layers(
         layers, input_shape=(None,))
     model.compile(
-        loss='categorical_crossentropy',
+        loss='sparse_categorical_crossentropy',
         optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
         run_eagerly=test_utils.should_run_eagerly())
     history = model.fit(dataset, epochs=10,
                         validation_data=dataset,
                         verbose=2)
-    self.assertGreater(history.history['val_acc'][-1], 0.7)
+    self.assertGreater(history.history['val_acc'][-1], 0.5)
     _, val_acc = model.evaluate(dataset)
     self.assertAlmostEqual(history.history['val_acc'][-1], val_acc)
     predictions = model.predict(dataset)
