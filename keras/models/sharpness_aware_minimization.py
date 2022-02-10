@@ -147,7 +147,8 @@ class SharpnessAwareMinimization(Model):
     config = copy.deepcopy(config)
     model = deserialize_layer(
         config.pop("model"), custom_objects=custom_objects)
-    return cls(model, **config)
+    config["model"] = model
+    return super().from_config(config, custom_objects)
 
   def _distributed_apply_epsilon_w(self, var, epsilon_w, strategy):
     # Helper function to apply epsilon_w on model variables.

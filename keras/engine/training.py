@@ -38,6 +38,7 @@ from keras.saving import hdf5_format
 from keras.saving import pickle_utils
 from keras.saving import save
 from keras.saving import saving_utils
+from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import model_serialization
 from keras.utils import generic_utils
@@ -642,8 +643,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       self._run_eagerly = run_eagerly
 
       self.optimizer = self._get_optimizer(optimizer)
-      self.compiled_loss = compile_utils.LossesContainer(
-          loss, loss_weights, output_names=self.output_names)
+      if isinstance(loss, compile_utils.LossesContainer):
+        self.compiled_loss = loss
+      else:
+        self.compiled_loss = compile_utils.LossesContainer(
+            loss, loss_weights, output_names=self.output_names)
       self.compiled_metrics = compile_utils.MetricsContainer(
           metrics, weighted_metrics, output_names=self.output_names,
           from_serialized=from_serialized)
@@ -2714,7 +2718,17 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # see their model's `__init__()` be fed with unexpected keyword argument, if
     # their `__init__()` takes no argument for example, and they don't override
     # `from_config()`, which would use `cls(**config)` as a result.
-    return {}
+    config = {}
+
+    if saving_lib._ENABLED:  # pylint: disable=protected-access
+      if self.optimizer:
+        config['optimizer'] = saving_lib.serialize_keras_object(self.optimizer)
+      if self.compiled_loss:
+        config['loss'] = saving_lib.serialize_keras_object(self.compiled_loss)
+      if self.built:
+        config['input_shape'] = self._build_input_shape
+
+    return config
 
   @classmethod
   def from_config(cls, config, custom_objects=None):
@@ -2739,8 +2753,20 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       # where `get_config()` is returning insufficient information to be
       # considered a Functional model. In this case, we fall back to provide
       # all config into the constructor of the class.
+      optimizer, loss = None, None
+
+      optimizer_dict = config.pop('optimizer', {})
+      if optimizer_dict:
+        optimizer = saving_lib.deserialize_keras_object(optimizer_dict)
+
+      loss_dict = config.pop('loss', {})
+      if loss_dict:
+        loss = saving_lib.deserialize_keras_object(loss_dict)
+
+      input_shape = config.pop('input_shape', {})
+
       try:
-        return cls(**config)
+        model = cls(**config)
       except TypeError as e:
         raise TypeError('Unable to revive model from config. When overriding '
                         'the `get_config()`, make sure that the returned '
@@ -2751,6 +2777,16 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         f'instance of {cls.__name__} from the config. \n\n'
                         f'Error encountered during deserialization:\n{e}')
 
+      if saving_lib._ENABLED:  # pylint: disable=protected-access
+
+        if optimizer or loss:
+          model.compile(optimizer=optimizer, loss=loss)
+
+        if input_shape:
+          model.build(input_shape)
+
+      return model
+
   def to_json(self, **kwargs):
     """Returns a JSON string containing the network configuration.
 
@@ -2758,8 +2794,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     `keras.models.model_from_json(json_string, custom_objects={})`.
 
     Args:
-        **kwargs: Additional keyword arguments
-            to be passed to `json.dumps()`.
+        **kwargs: Additional keyword arguments to be passed to `json.dumps()`.
 
     Returns:
         A JSON string.
@@ -3275,6 +3310,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   @property
   def _compile_was_called(self):
     return self._is_compiled
+
+  def _save_new(self, dirpath):
+    return saving_lib.save(self, dirpath)
 
 
 def reduce_per_replica(values, strategy, reduction='first'):

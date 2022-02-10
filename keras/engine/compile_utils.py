@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+# pylint: disable=g-classes-have-attributes
 """Utilities for `Model.compile`."""
 
 
 import copy
 from keras import losses as losses_mod
 from keras import metrics as metrics_mod
+from keras.saving.experimental import saving_lib
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import tf_utils
@@ -98,9 +100,23 @@ class Container:
 
 
 class LossesContainer(Container):
-  """A container class for losses passed to `Model.compile`."""
+  """A container class for losses passed to `Model.compile()`.
 
-  def __init__(self, losses, loss_weights=None, output_names=None):
+  Args:
+    losses: Struct of loss function(s). See `Model.compile()` doc for more
+      information.
+    loss_weights: Weights of the losses contributions of different model
+      outputs. See `Model.compile()` doc for more information.
+    output_names: List of string. Per-output metric names.
+    total_loss_mean: A `keras.metrics.Mean` instance that is used to track the
+      mean of all losses (including compiled and regularization losses).
+  """
+
+  def __init__(self,
+               losses,
+               loss_weights=None,
+               output_names=None,
+               total_loss_mean=None):
     super(LossesContainer, self).__init__(output_names=output_names)
 
     # Keep user-supplied values untouched for recompiling and serialization.
@@ -110,8 +126,36 @@ class LossesContainer(Container):
     self._losses = losses
     self._loss_weights = loss_weights
     self._per_output_metrics = None  # Per-output losses become metrics.
-    self._loss_metric = metrics_mod.Mean(name='loss')  # Total loss.
+
+    # Mean of the total loss.
+    self._total_loss_mean = total_loss_mean or metrics_mod.Mean(name='loss')
     self._built = False
+
+  def get_config(self):
+    # In case `self._losses` is a single string where we convert it to a list.
+    self._losses = tf.nest.flatten(self._losses)
+    return {
+        'losses': [
+            saving_lib.serialize_keras_object(obj)
+            for obj in self._losses
+            if obj is not None
+        ],
+        'total_loss_mean':
+            saving_lib.serialize_keras_object(self._total_loss_mean)
+    }
+
+  @classmethod
+  def from_config(cls, config):
+    """Returns the `LossesContainer` instance given the `config`."""
+    deserialized_config = {}
+    for key, value in config.items():
+      if isinstance(value, list):
+        deserialized_config[key] = [
+            saving_lib.deserialize_keras_object(item) for item in value
+        ]
+      else:
+        deserialized_config[key] = saving_lib.deserialize_keras_object(value)
+    return cls(**deserialized_config)
 
   @property
   def metrics(self):
@@ -122,7 +166,7 @@ class LossesContainer(Container):
         metric_obj for metric_obj in tf.nest.flatten(self._per_output_metrics)
         if metric_obj is not None
     ]
-    return [self._loss_metric] + per_output_metrics
+    return [self._total_loss_mean] + per_output_metrics
 
   def build(self, y_pred):
     """One-time setup of loss objects."""
@@ -188,7 +232,7 @@ class LossesContainer(Container):
     sample_weight = tf.nest.flatten(sample_weight)
 
     loss_values = []  # Used for gradient calculation.
-    loss_metric_values = []  # Used for loss metric calculation.
+    total_loss_mean_values = []  # Used for loss metric calculation.
     batch_dim = None
     zip_args = (y_true, y_pred, sample_weight, self._losses, self._loss_weights,
                 self._per_output_metrics)
@@ -200,10 +244,11 @@ class LossesContainer(Container):
       sw = apply_mask(y_p, sw, get_mask(y_p))
       loss_value = loss_obj(y_t, y_p, sample_weight=sw)
 
-      loss_metric_value = loss_value
+      total_loss_mean_value = loss_value
       # Correct for the `Mean` loss metrics counting each replica as a batch.
       if loss_obj.reduction == losses_utils.ReductionV2.SUM:
-        loss_metric_value *= tf.distribute.get_strategy().num_replicas_in_sync
+        total_loss_mean_value *= tf.distribute.get_strategy(
+        ).num_replicas_in_sync
 
       if batch_dim is None:
         if tf_utils.is_ragged(y_t):
@@ -212,32 +257,32 @@ class LossesContainer(Container):
           batch_dim = tf.shape(y_t)[0]
 
       if metric_obj is not None:
-        metric_obj.update_state(loss_metric_value, sample_weight=batch_dim)
+        metric_obj.update_state(total_loss_mean_value, sample_weight=batch_dim)
 
       if loss_weight is not None:
         loss_value *= loss_weight
-        loss_metric_value *= loss_weight
+        total_loss_mean_value *= loss_weight
 
       if (loss_obj.reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE or
           loss_obj.reduction == losses_utils.ReductionV2.AUTO):
         loss_value = losses_utils.scale_loss_for_distribution(loss_value)
 
       loss_values.append(loss_value)
-      loss_metric_values.append(loss_metric_value)
+      total_loss_mean_values.append(total_loss_mean_value)
 
     if regularization_losses:
       regularization_losses = losses_utils.cast_losses_to_common_dtype(
           regularization_losses)
       reg_loss = tf.add_n(regularization_losses)
-      loss_metric_values.append(reg_loss)
+      total_loss_mean_values.append(reg_loss)
       loss_values.append(losses_utils.scale_loss_for_distribution(reg_loss))
 
     if loss_values:
-      loss_metric_values = losses_utils.cast_losses_to_common_dtype(
-          loss_metric_values)
-      total_loss_metric_value = tf.add_n(loss_metric_values)
-      self._loss_metric.update_state(
-          total_loss_metric_value, sample_weight=batch_dim)
+      total_loss_mean_values = losses_utils.cast_losses_to_common_dtype(
+          total_loss_mean_values)
+      total_total_loss_mean_value = tf.add_n(total_loss_mean_values)
+      self._total_loss_mean.update_state(
+          total_total_loss_mean_value, sample_weight=batch_dim)
 
       loss_values = losses_utils.cast_losses_to_common_dtype(loss_values)
       total_loss = tf.add_n(loss_values)
@@ -249,7 +294,8 @@ class LossesContainer(Container):
     """Resets the state of loss metrics."""
     if not self._built:
       return
-    metrics = [self._loss_metric] + tf.nest.flatten(self._per_output_metrics)
+    metrics = [self._total_loss_mean] + tf.nest.flatten(
+        self._per_output_metrics)
     for metric_obj in metrics:
       if metric_obj is not None:
         metric_obj.reset_state()
