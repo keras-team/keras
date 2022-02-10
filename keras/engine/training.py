@@ -3269,6 +3269,8 @@ def potentially_ragged_concat(tensors):
     """
   if isinstance(tensors[0], tf.SparseTensor):
     return tf.sparse.concat(axis=0, sp_inputs=tensors)
+  elif isinstance(tensors[0], tf.RaggedTensor):
+    return tf.concat(tensors, axis=0)
   non_batch_shapes = tf.stack([tf.shape(tensor)[1:] for tensor in tensors])
   constant_dims = tf.math.reduce_all(non_batch_shapes == non_batch_shapes[:1], axis=0)
   if tf.math.reduce_all(constant_dims).numpy().item():  # All non-batch dimensions are constant
