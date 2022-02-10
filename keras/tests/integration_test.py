@@ -344,7 +344,7 @@ class TokenClassificationIntegrationTest(test_combinations.TestCase):
         keras.layers.Conv1D(4, 5, padding='same', activation='relu'),
         keras.layers.Conv1D(8, 5, padding='same'),
         keras.layers.BatchNormalization(),
-        keras.layers.Conv2D(3, 5, padding='same', activation='softmax'),
+        keras.layers.Conv1D(3, 5, padding='same', activation='softmax'),
     ]
     model = test_utils.get_model_from_layers(
         layers, input_shape=(None,))
