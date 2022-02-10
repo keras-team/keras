@@ -3335,9 +3335,12 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
     Sparse top K categorical accuracy value.
   """
   reshape_matches = False
-  y_pred_rank = tf.convert_to_tensor(y_pred).shape.ndims
-  y_true_org_shape = tf.convert_to_tensor(y_true).shape
-  y_true_rank = y_true_org_shape.ndims
+  y_true = tf.convert_to_tensor(y_true)
+  y_pred = tf.convert_to_tensor(y_pred)
+  y_true_rank = y_true.shape.ndims
+  y_pred_rank = y_pred.shape.ndims
+  y_true_org_shape = tf.shape(y_true)
+
   # Flatten y_pred to (batch_size, num_samples) and y_true to (num_samples,)
   if (y_true_rank is not None) and (y_pred_rank is not None):
     if y_pred_rank > 2:
