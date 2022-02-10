@@ -329,12 +329,15 @@ class TokenClassificationIntegrationTest(test_combinations.TestCase):
   """
   def test_token_classification(self):
     np.random.seed(1337)
-    data = [np.random.randint(low=0, high=16, size=random.randint(4, 16)) for _ in range(100)]
-    labels = [np.random.randint(low=0, high=3, size=len(arr)) for arr in data]
+    def densify(x, y):
+        return x.to_tensor(), y.to_tensor()
+    data = tf.ragged.stack([np.random.randint(low=0, high=16, size=random.randint(4, 16)) for _ in range(100)])
+    labels = tf.ragged.stack([np.random.randint(low=0, high=3, size=len(arr)) for arr in data])
     features_dataset = tf.data.Dataset.from_tensor_slices(data)
     labels_dataset = tf.data.Dataset.from_tensor_slices(labels)
-    dataset = tf.data.Dataset.zip(features_dataset, labels_dataset)
-    dataset = dataset.padded_batch(batch_size=10)  # Pads with 0 values by default
+    dataset = tf.data.Dataset.zip((features_dataset, labels_dataset))
+    dataset = dataset.batch(batch_size=10)
+    dataset = dataset.map(densify)  # Pads with 0 values by default
 
     layers = [
         keras.layers.Embedding(16, 4),
