@@ -2011,7 +2011,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                          'information of where went wrong, or file a '
                          'issue/bug to `tf.keras`.')
       callbacks.on_predict_end()
-    all_outputs = tf.__internal__.nest.map_structure_up_to(batch_outputs, potentially_variable_concat, outputs)
+    all_outputs = tf.__internal__.nest.map_structure_up_to(batch_outputs, potentially_ragged_concat, outputs)
 
     # If originally PSS strategy was used, then replace it back since predict
     # is running under `OneDeviceStrategy` after the swap and once its done
