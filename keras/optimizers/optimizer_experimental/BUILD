@@ -12,6 +12,7 @@ package(
 py_library(
     name = "optimizer",
     srcs = [
+        "__init__.py",
         "adadelta.py",
         "adagrad.py",
         "adam.py",
