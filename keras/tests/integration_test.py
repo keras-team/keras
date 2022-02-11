@@ -26,7 +26,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.layers.legacy_rnn import rnn_cell_impl as rnn_cell
 from keras.legacy_tf_layers import base as base_layer
-from keras.utils import np_utils
+from keras.utils import np_utils, tf_utils
 
 
 class KerasIntegrationTest(test_combinations.TestCase):
@@ -317,8 +317,8 @@ class ActivationV2IntegrationTest(test_combinations.TestCase):
     loaded_model = keras.models.load_model(output_path)
     self.assertEqual(model.summary(), loaded_model.summary())
 
-@test_combinations.run_with_all_model_types(always_skip_v1=True)
-@test_combinations.run_all_keras_modes
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class TokenClassificationIntegrationTest(test_combinations.TestCase):
   """Tests a very simple token classification model.
 
@@ -331,8 +331,7 @@ class TokenClassificationIntegrationTest(test_combinations.TestCase):
   def test_token_classification(self):
     def densify(x, y):
         return x.to_tensor(), y.to_tensor()
-    np.random.seed(1337)
-    keras.utils.set_random_seed(1337)
+    tf_utils.set_random_seed(1337)
     data = tf.ragged.stack(
         [np.random.randint(low=0, high=16, size=random.randint(4, 16)) for _ in
          range(100)])
@@ -355,7 +354,7 @@ class TokenClassificationIntegrationTest(test_combinations.TestCase):
         layers, input_shape=(None,))
     model.compile(
         loss='sparse_categorical_crossentropy',
-        optimizer='adam'
+        optimizer='adam',
         metrics=['acc'],
         run_eagerly=test_utils.should_run_eagerly())
     history = model.fit(dataset, epochs=10,
