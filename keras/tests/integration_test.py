@@ -317,22 +317,27 @@ class ActivationV2IntegrationTest(test_combinations.TestCase):
     loaded_model = keras.models.load_model(output_path)
     self.assertEqual(model.summary(), loaded_model.summary())
 
-@test_combinations.run_with_all_model_types
+@test_combinations.run_with_all_model_types(always_skip_v1=True)
 @test_combinations.run_all_keras_modes
 class TokenClassificationIntegrationTest(test_combinations.TestCase):
   """Tests a very simple token classification model.
 
-  The main purpose of this test is to verify that everything works as expected when
-  input sequences have variable length, and batches are padded only to the maximum length
-  of each batch. This is very common in NLP, and results in the sequence dimension varying
-  with each batch step for both the features and the labels.
+  The main purpose of this test is to verify that everything works as expected
+  when input sequences have variable length, and batches are padded only to the
+  maximum length of each batch. This is very common in NLP, and results in the
+  sequence dimension varying with each batch step for both the features
+  and the labels.
   """
   def test_token_classification(self):
-    np.random.seed(1337)
     def densify(x, y):
         return x.to_tensor(), y.to_tensor()
-    data = tf.ragged.stack([np.random.randint(low=0, high=16, size=random.randint(4, 16)) for _ in range(100)])
-    labels = tf.ragged.stack([np.random.randint(low=0, high=3, size=len(arr)) for arr in data])
+    np.random.seed(1337)
+    keras.utils.set_random_seed(1337)
+    data = tf.ragged.stack(
+        [np.random.randint(low=0, high=16, size=random.randint(4, 16)) for _ in
+         range(100)])
+    labels = tf.ragged.stack(
+        [np.random.randint(low=0, high=3, size=len(arr)) for arr in data])
     features_dataset = tf.data.Dataset.from_tensor_slices(data)
     labels_dataset = tf.data.Dataset.from_tensor_slices(labels)
     dataset = tf.data.Dataset.zip((features_dataset, labels_dataset))
@@ -350,7 +355,7 @@ class TokenClassificationIntegrationTest(test_combinations.TestCase):
         layers, input_shape=(None,))
     model.compile(
         loss='sparse_categorical_crossentropy',
-        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
+        optimizer='adam'
         metrics=['acc'],
         run_eagerly=test_utils.should_run_eagerly())
     history = model.fit(dataset, epochs=10,
