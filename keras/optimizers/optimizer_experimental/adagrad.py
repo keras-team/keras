@@ -22,6 +22,7 @@ import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 
+# pylint: disable=g-classes-have-attributes
 @generic_utils.register_keras_serializable()
 @keras_export('keras.optimizers.experimental.Adagrad', v1=[])
 class Adagrad(optimizer.Optimizer):
@@ -32,7 +33,7 @@ class Adagrad(optimizer.Optimizer):
   updated during training. The more updates a parameter receives,
   the smaller the updates.
 
-  Attributes:
+  Args:
     learning_rate: Initial value for the learning rate:
       either a floating point value,
       or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
