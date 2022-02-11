@@ -29,7 +29,7 @@ import tensorflow.compat.v2 as tf
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
         strategy_combinations.multi_worker_mirrored_strategies,
-        mode=["eager", "graph"]))
+        mode=["eager"]))
 class ImagePreprocessingDistributionTest(
     test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):

@@ -365,38 +365,6 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
-    name: "RandomContrast"
-    mtype: "<type \'type\'>"
-  }
-  member {
-    name: "RandomCrop"
-    mtype: "<type \'type\'>"
-  }
-  member {
-    name: "RandomFlip"
-    mtype: "<type \'type\'>"
-  }
-  member {
-    name: "RandomHeight"
-    mtype: "<type \'type\'>"
-  }
-  member {
-    name: "RandomRotation"
-    mtype: "<type \'type\'>"
-  }
-  member {
-    name: "RandomTranslation"
-    mtype: "<type \'type\'>"
-  }
-  member {
-    name: "RandomWidth"
-    mtype: "<type \'type\'>"
-  }
-  member {
-    name: "RandomZoom"
-    mtype: "<type \'type\'>"
-  }
-  member {
     name: "ReLU"
     mtype: "<type \'type\'>"
   }
