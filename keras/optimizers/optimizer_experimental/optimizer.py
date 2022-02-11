@@ -518,6 +518,7 @@ class _BaseOptimizer(tf.Module):
     return cls(**config)
 
 
+# pylint: disable=g-classes-have-attributes
 @keras_export("keras.optimizers.experimental.Optimizer", v1=[])
 class Optimizer(_BaseOptimizer):
   """Abstract optimizer base class.
@@ -525,7 +526,7 @@ class Optimizer(_BaseOptimizer):
   This class supports distributed training. If you want to implement your own
   optimizer, please subclass this class instead of _BaseOptimizer.
 
-  Attributes:
+  Args:
     name: string. The name to use for momentum accumulator weights created by
       the optimizer.
     clipnorm: float. If set, the gradient of each weight is individually

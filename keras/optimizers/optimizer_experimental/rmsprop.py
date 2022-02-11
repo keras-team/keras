@@ -19,6 +19,7 @@ from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
 
 
+# pylint: disable=g-classes-have-attributes
 @generic_utils.register_keras_serializable()
 class RMSprop(optimizer.Optimizer):
   r"""Optimizer that implements the RMSprop algorithm.
@@ -33,7 +34,7 @@ class RMSprop(optimizer.Optimizer):
   The centered version additionally maintains a moving average of the
   gradients, and uses that average to estimate the variance.
 
-  Attributes:
+  Args:
     learning_rate: Initial value for the learning rate:
       either a floating point value,
       or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
