@@ -2,7 +2,7 @@
 # The rest of the packages are mostly used for testing purpose.
 pandas
 pydot
-scipy ~= 1.5.2
+scipy == 1.5.2
 tf-nightly
 portpicker
 pyyaml
