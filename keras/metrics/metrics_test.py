@@ -20,6 +20,7 @@ import math
 from keras import backend
 from keras import layers
 from keras import metrics
+from keras import Model
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 import numpy as np
@@ -769,6 +770,31 @@ class SparseTopKCategoricalAccuracyTest(tf.test.TestCase):
     sample_weight = tf.constant((1.0, 0.0, 1.0))
     result = a_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(1.0, self.evaluate(result), atol=1e-5)
+
+  def test_sparse_top_k_categorical_accuracy_mismatched_dims_dynamic(self):
+
+    if not tf.compat.v1.executing_eagerly():
+      # Test will fail in v1 graph mode since the metric is not a normal layer.
+      # It will aggregate the output by batch dim, which failed on v1 code.
+      self.skipTest('v2 eager mode only')
+
+    class AccLayer(layers.Layer):
+
+      def build(self, _):
+        self.acc = metrics.SparseTopKCategoricalAccuracy(k=1)
+
+      def call(self, y_true, y_pred):
+        return self.acc(y_true, y_pred)
+
+    label = layers.Input(shape=[1])
+    predict = layers.Input(shape=[3])
+    metric_result = AccLayer()(label, predict)
+    model = Model([label, predict], metric_result)
+
+    result = model.predict([tf.constant([[2], [1]]),
+                            tf.constant([[0.1, 0.1, 0.8], [0.05, 0, 0.95]])],
+                           steps=1)
+    self.assertAllClose(result, 0.5)
 
 
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
