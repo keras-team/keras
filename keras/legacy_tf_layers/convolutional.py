@@ -291,7 +291,7 @@ def conv1d(inputs,
       name=name,
       _reuse=reuse,
       _scope=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.Conv2D'])
@@ -572,7 +572,7 @@ def conv2d(inputs,
       name=name,
       _reuse=reuse,
       _scope=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.Conv3D'])
@@ -855,7 +855,7 @@ def conv3d(inputs,
       name=name,
       _reuse=reuse,
       _scope=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.SeparableConv1D'])
@@ -1306,7 +1306,7 @@ def separable_conv1d(inputs,
       name=name,
       _reuse=reuse,
       _scope=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.separable_conv2d'])
@@ -1473,7 +1473,7 @@ def separable_conv2d(inputs,
       name=name,
       _reuse=reuse,
       _scope=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.Conv2DTranspose'])
@@ -1733,7 +1733,7 @@ def conv2d_transpose(inputs,
       name=name,
       _reuse=reuse,
       _scope=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.Conv3DTranspose'])
@@ -1984,7 +1984,7 @@ def conv3d_transpose(inputs,
       name=name,
       _reuse=reuse,
       _scope=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 # Aliases

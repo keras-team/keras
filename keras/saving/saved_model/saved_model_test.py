@@ -73,7 +73,7 @@ class LayerWithLearningPhase(keras.engine.base_layer.Layer):
 class LayerWithLoss(keras.layers.Layer):
 
   def call(self, inputs):
-    self.add_loss(tf.reduce_sum(inputs), inputs=inputs)
+    self.add_loss(tf.reduce_sum(inputs))
     return inputs * 2
 
 
@@ -155,12 +155,6 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
     if tf.executing_eagerly():
       self.assertAllClose(sorted(self.evaluate(model.losses)),
                           sorted(self.evaluate(loaded.losses)))
-    else:
-      self.assertAllClose(self.evaluate(model.get_losses_for(None)),
-                          self.evaluate(loaded.get_losses_for(None)))
-      self.assertAllClose(
-          sorted(self.evaluate(model.get_losses_for(input_arr))),
-          sorted(self.evaluate(loaded.get_losses_for(input_arr))))
 
   @test_combinations.run_with_all_model_types
   def test_model_save_and_load(self):
@@ -915,7 +909,7 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
     class CustomLayer(keras.layers.Layer):
 
       def call(self, *input_list):
-        self.add_loss(input_list[-2] * 2, inputs=True)
+        self.add_loss(input_list[-2] * 2)
         return sum(input_list[:-1])  # The test's last input is a non-tensor arg
 
     class CustomModel(keras.Model):
@@ -932,16 +926,12 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
     inp = [tf.constant(i, shape=[1, 1], dtype=tf.float32)
            for i in range(1, 5)]
     expected = model(*inp)
-    expected_loss = model.get_losses_for(inp)
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir, save_format='tf')
     loaded = keras_load.load(saved_model_dir)
     actual = loaded(*inp)
-    actual_loss = loaded.get_losses_for(inp)
     self.assertAllEqual(self.evaluate(expected),
                         self.evaluate(actual))
-    self.assertAllEqual(self.evaluate(expected_loss),
-                        self.evaluate(actual_loss))
 
   def test_wrapped_layer_training(self):
     class Custom(keras.models.Model):

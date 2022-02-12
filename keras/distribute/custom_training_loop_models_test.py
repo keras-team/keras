@@ -490,7 +490,7 @@ class KerasModelsXLATest(tf.test.TestCase, parameterized.TestCase):
         self.num_outputs = num_outputs
 
       def build(self, input_shape):
-        self.kernel = self.add_variable(
+        self.kernel = self.add_weight(
             "kernel", shape=[int(input_shape[-1]), self.num_outputs])
 
       @tf.function(jit_compile=True)

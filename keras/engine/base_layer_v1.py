@@ -13,15 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
+# pylint: disable=g-bad-import-order
 """Contains the base Layer class, from which all layers inherit."""
 
 import tensorflow.compat.v2 as tf
 
-import collections
 import functools
 import itertools
 import threading
-import warnings
 
 import numpy as np
 from keras import backend
@@ -884,7 +883,7 @@ class Layer(base_layer.Layer):
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def input_spec(self, value):
     for v in tf.nest.flatten(value):
-      if v is not None and not isinstance(v, base_layer.InputSpec):
+      if v is not None and not isinstance(v, input_spec.InputSpec):
         raise TypeError('Layer input_spec must be an instance of InputSpec. '
                         'Got: {}'.format(v))
     self._input_spec = value
@@ -992,9 +991,6 @@ class Layer(base_layer.Layer):
     # Weight regularization.
     model.add_loss(lambda: tf.reduce_mean(x.kernel))
     ```
-
-    The `get_losses_for` method allows to retrieve the losses relevant to a
-    specific set of inputs.
 
     Args:
       losses: Loss tensor, or list/tuple of tensors. Rather than tensors, losses
@@ -1132,7 +1128,7 @@ class Layer(base_layer.Layer):
       self._graph_network_add_metric(value, aggregation, name)
 
   @doc_controls.for_subclass_implementers
-  def add_update(self, updates, inputs=None):
+  def add_update(self, updates):
     """Add update op(s), potentially dependent on layer inputs.
 
     Weight updates (for instance, the updates of the moving mean and variance
@@ -1154,12 +1150,7 @@ class Layer(base_layer.Layer):
         that returns an update op. A zero-arg callable should be passed in
         order to disable running the updates by setting `trainable=False`
         on this Layer, when executing in Eager mode.
-      inputs: Deprecated, will be automatically inferred.
     """
-    if inputs is not None:
-      tf_logging.warning(
-          '`add_update` `inputs` kwarg has been deprecated. You no longer need '
-          'to pass a value to `inputs` as it is being automatically inferred.')
     call_context = base_layer_utils.call_context()
 
     if (tf.distribute.has_strategy() and
@@ -1661,37 +1652,6 @@ class Layer(base_layer.Layer):
   # Methods & attributes below are public aliases of other methods.            #
   ##############################################################################
 
-  @doc_controls.do_not_doc_inheritable
-  def apply(self, inputs, *args, **kwargs):
-    """Deprecated, do NOT use!
-
-    This is an alias of `self.__call__`.
-
-    Args:
-      inputs: Input tensor(s).
-      *args: additional positional arguments to be passed to `self.call`.
-      **kwargs: additional keyword arguments to be passed to `self.call`.
-
-    Returns:
-      Output tensor(s).
-    """
-    warnings.warn(
-        '`layer.apply` is deprecated and '
-        'will be removed in a future version. '
-        'Please use `layer.__call__` method instead.',
-        stacklevel=2)
-    return self.__call__(inputs, *args, **kwargs)
-
-  @doc_controls.do_not_doc_inheritable
-  def add_variable(self, *args, **kwargs):
-    """Deprecated, do NOT use! Alias for `add_weight`."""
-    warnings.warn(
-        '`layer.add_variable` is deprecated and '
-        'will be removed in a future version. '
-        'Please use `layer.add_weight` method instead.',
-        stacklevel=2)
-    return self.add_weight(*args, **kwargs)
-
   @property
   def variables(self):
     """Returns the list of all layer variables/weights.
@@ -1968,8 +1928,8 @@ class Layer(base_layer.Layer):
     if not self._should_compute_mask:
       return None
 
-    input_masks = tf.nest.map_structure(lambda t: getattr(t, '_keras_mask', None),
-                                     inputs)
+    input_masks = tf.nest.map_structure(
+        lambda t: getattr(t, '_keras_mask', None), inputs)
     if generic_utils.is_all_none(input_masks):
       return None
     return input_masks
@@ -2188,7 +2148,8 @@ class Layer(base_layer.Layer):
         # Exclude @property.setters from tracking
         hasattr(self.__class__, name)):
       try:
-        super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)  # pylint: disable=bad-super-call
+        super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
+            name, value)  # pylint: disable=bad-super-call
       except AttributeError:
         raise AttributeError(
             ('Can\'t set the attribute "{}", likely because it conflicts with '
@@ -2364,33 +2325,3 @@ class Layer(base_layer.Layer):
     state['_thread_local'] = threading.local()
     # Bypass Trackable logic as `__dict__` already contains this info.
     object.__setattr__(self, '__dict__', state)
-
-
-class KerasHistory(
-    collections.namedtuple('KerasHistory',
-                           ['layer', 'node_index', 'tensor_index'])):
-  """Tracks the Layer call that created a Tensor, for Keras Graph Networks.
-
-  During construction of Keras Graph Networks, this metadata is added to
-  each Tensor produced as the output of a Layer, starting with an
-  `InputLayer`. This allows Keras to track how each Tensor was produced, and
-  this information is later retraced by the `keras.engine.Network` class to
-  reconstruct the Keras Graph Network.
-
-  Attributes:
-    layer: The Layer that produced the Tensor.
-    node_index: The specific call to the Layer that produced this Tensor. Layers
-      can be called multiple times in order to share weights. A new node is
-      created every time a Tensor is called.
-    tensor_index: The output index for this Tensor. Always zero if the Layer
-      that produced this Tensor only has one output. Nested structures of
-      Tensors are deterministically assigned an index via `nest.flatten`.
-  """
-  # Added to maintain memory and performance characteristics of `namedtuple`
-  # while subclassing.
-  __slots__ = ()
-
-
-# Avoid breaking users who directly import this symbol from this file.
-# TODO(fchollet): remove this.
-InputSpec = input_spec.InputSpec  # pylint:disable=invalid-name

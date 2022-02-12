@@ -165,7 +165,7 @@ def average_pooling1d(inputs, pool_size, strides,
                            padding=padding,
                            data_format=data_format,
                            name=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.MaxPooling1D'])
@@ -307,7 +307,7 @@ def max_pooling1d(inputs, pool_size, strides,
                        padding=padding,
                        data_format=data_format,
                        name=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.AveragePooling2D'])
@@ -452,7 +452,7 @@ def average_pooling2d(inputs,
   layer = AveragePooling2D(pool_size=pool_size, strides=strides,
                            padding=padding, data_format=data_format,
                            name=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.MaxPooling2D'])
@@ -597,7 +597,7 @@ def max_pooling2d(inputs,
   layer = MaxPooling2D(pool_size=pool_size, strides=strides,
                        padding=padding, data_format=data_format,
                        name=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.AveragePooling3D'])
@@ -746,7 +746,7 @@ def average_pooling3d(inputs,
   layer = AveragePooling3D(pool_size=pool_size, strides=strides,
                            padding=padding, data_format=data_format,
                            name=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.MaxPooling3D'])
@@ -893,7 +893,7 @@ def max_pooling3d(inputs,
   layer = MaxPooling3D(pool_size=pool_size, strides=strides,
                        padding=padding, data_format=data_format,
                        name=name)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 # Aliases
 

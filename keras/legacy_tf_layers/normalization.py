@@ -460,7 +460,7 @@ def batch_normalization(inputs,
       name=name,
       _reuse=reuse,
       _scope=name)
-  return layer.apply(inputs, training=training)
+  return layer(inputs, training=training)
 
 
 # Aliases

@@ -3419,7 +3419,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class TestLayer(layers_module.Layer):
 
       def build(self, input_shape):
-        self.a = self.add_variable(
+        self.a = self.add_weight(
             'a', (1, 1), initializer='ones', trainable=False)
         self.built = True
 
@@ -3668,7 +3668,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class Bias(layers_module.Layer):
 
       def build(self, input_shape):
-        self.bias = self.add_variable('bias', (1,), initializer='zeros')
+        self.bias = self.add_weight('bias', (1,), initializer='zeros')
         self.mae = metrics_module.MeanAbsoluteError(name='mae_1')
 
       def call(self, inputs):

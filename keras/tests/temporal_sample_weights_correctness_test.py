@@ -29,7 +29,7 @@ class Bias(layers.Layer):
   """Layer that add a bias to its inputs."""
 
   def build(self, input_shape):
-    self.bias = self.add_variable('bias', (1,), initializer='zeros')
+    self.bias = self.add_weight('bias', (1,), initializer='zeros')
 
   def call(self, inputs):
     return inputs + self.bias

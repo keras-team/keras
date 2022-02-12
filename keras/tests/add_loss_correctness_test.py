@@ -329,7 +329,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
     class LayerWithLoss(layers.Layer):
 
       def call(self, inputs):
-        self.add_loss(tf.reduce_sum(inputs), inputs=inputs)
+        self.add_loss(tf.reduce_sum(inputs))
         return inputs * 2
 
     shared_layer = LayerWithLoss()
@@ -346,7 +346,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
     class LayerWithLoss(layers.Layer):
 
       def call(self, inputs):
-        self.add_loss(tf.reduce_sum(inputs), inputs=inputs)
+        self.add_loss(tf.reduce_sum(inputs))
         return inputs * 2
 
     class LayerWithNestedLayerWithLoss(layers.Layer):

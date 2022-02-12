@@ -46,10 +46,10 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
     # Test auto-naming
     dense = core_layers.Dense(2, activation=tf.nn.relu)
-    dense.apply(tf.random.uniform((5, 2)))
+    dense(tf.random.uniform((5, 2)))
     self.assertEqual(dense.name, 'dense_1')
     dense = core_layers.Dense(2, activation=tf.nn.relu)
-    dense.apply(tf.random.uniform((5, 2)))
+    dense(tf.random.uniform((5, 2)))
     self.assertEqual(dense.name, 'dense_2')
 
   @tf_test_utils.run_deprecated_v1
@@ -128,7 +128,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
   def testOutputShape(self):
     dense = core_layers.Dense(7, activation=tf.nn.relu, name='my_dense')
     inputs = tf.random.uniform((5, 3), seed=1)
-    outputs = dense.apply(inputs)
+    outputs = dense(inputs)
     self.assertEqual(outputs.get_shape().as_list(), [5, 7])
 
     inputs = tf.random.uniform((5, 2, 3), seed=1)
@@ -136,7 +136,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(outputs.get_shape().as_list(), [5, 2, 7])
 
     inputs = tf.random.uniform((1, 2, 4, 3), seed=1)
-    outputs = dense.apply(inputs)
+    outputs = dense(inputs)
     self.assertEqual(outputs.get_shape().as_list(), [1, 2, 4, 7])
 
   @tf_test_utils.run_deprecated_v1
@@ -372,7 +372,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     dp = core_layers.Dropout(0.5, name='dropout')
     self.assertEqual(dp.rate, 0.5)
     self.assertEqual(dp.noise_shape, None)
-    dp.apply(tf.ones(()))
+    dp(tf.ones(()))
     self.assertEqual(dp.name, 'dropout')
 
   @test_combinations.generate(
@@ -380,12 +380,12 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
   def testBooleanLearningPhase(self):
     dp = core_layers.Dropout(0.5)
     inputs = tf.ones((5, 3))
-    dropped = dp.apply(inputs, training=True)
+    dropped = dp(inputs, training=True)
     if not tf.executing_eagerly():
       self.evaluate(tf.compat.v1.global_variables_initializer())
     np_output = self.evaluate(dropped)
     self.assertAlmostEqual(0., np_output.min())
-    dropped = dp.apply(inputs, training=False)
+    dropped = dp(inputs, training=False)
     np_output = self.evaluate(dropped)
     self.assertAllClose(np.ones((5, 3)), np_output)
 
@@ -395,7 +395,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
       dp = core_layers.Dropout(0.5, seed=1)
       inputs = tf.ones((5, 5))
       training = tf.compat.v1.placeholder(dtype='bool')
-      dropped = dp.apply(inputs, training=training)
+      dropped = dp(inputs, training=training)
       self.evaluate(tf.compat.v1.global_variables_initializer())
       np_output = sess.run(dropped, feed_dict={training: True})
       self.assertAlmostEqual(0., np_output.min())
@@ -408,7 +408,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.ones((5, 3, 2))
     noise_shape = [None, 1, None]
     dp = core_layers.Dropout(0.5, noise_shape=noise_shape, seed=1)
-    dropped = dp.apply(inputs, training=True)
+    dropped = dp(inputs, training=True)
     self.evaluate(tf.compat.v1.global_variables_initializer())
     np_output = self.evaluate(dropped)
     self.assertAlmostEqual(0., np_output.min())
@@ -418,7 +418,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.ones((5, 3, 2))
     noise_shape = [5, 1, 2]
     dp = core_layers.Dropout(0.5, noise_shape=noise_shape, seed=1)
-    dropped = dp.apply(inputs, training=True)
+    dropped = dp(inputs, training=True)
     self.evaluate(tf.compat.v1.global_variables_initializer())
     np_output = self.evaluate(dropped)
     self.assertAlmostEqual(0., np_output.min())
@@ -442,7 +442,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
       rate = tf.compat.v1.placeholder(dtype='float32', name='rate')
       dp = core_layers.Dropout(rate, name='dropout')
       inputs = tf.ones((5, 5))
-      dropped = dp.apply(inputs, training=True)
+      dropped = dp(inputs, training=True)
       self.evaluate(tf.compat.v1.global_variables_initializer())
       np_output = sess.run(dropped, feed_dict={rate: 0.5})
       self.assertAlmostEqual(0., np_output.min())
