@@ -151,7 +151,8 @@ def map_structure_with_atomic(is_atomic_fn, map_fn, nested):
   # Recursively convert.
   if not tf.nest.is_nested(nested):
     raise ValueError(
-        f'Received non-atomic and non-sequence element: {nested}')
+        f'Received non-atomic and non-sequence element: {nested} '
+        f'of type {type(nested)}')
   if tf.__internal__.nest.is_mapping(nested):
     values = [nested[k] for k in sorted(nested.keys())]
   elif tf.__internal__.nest.is_attrs(nested):
