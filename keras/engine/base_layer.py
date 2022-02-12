@@ -3378,6 +3378,8 @@ class BaseRandomLayer(Layer):
     super().__init__(**kwargs)
     self._random_generator = backend.RandomGenerator(
         seed, force_generator=force_generator)
+    # Eagerly init the generator to avoid any issue like b/206821407
+    self._random_generator._maybe_init()
 
   def _trackable_children(self, save_type='checkpoint', **kwargs):
     if save_type == 'savedmodel':
@@ -3386,8 +3388,10 @@ class BaseRandomLayer(Layer):
       # that any input shape changes are applied before getting the config of
       # the model.
       children = self._trackable_saved_model_saver.trackable_children(cache)
+      # This method exposes the self._random_generator to SavedModel only
+      # (not layer.weights and checkpoint).
+      children['_random_generator'] = self._random_generator
     else:
       children = {}
     children.update(super()._trackable_children(save_type, **kwargs))
-    children['_random_generator'] = self._random_generator
     return children
