@@ -267,7 +267,7 @@ class RNNCell(base_layer.Layer):
 
   def build(self, _):
     # This tells the parent Layer object that it's OK to call
-    # self.add_variable() inside the call() method.
+    # self.add_weight() inside the call() method.
     pass
 
   def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
@@ -454,10 +454,10 @@ class BasicRNNCell(LayerRNNCell):
     _check_supported_dtypes(self.dtype)
 
     input_depth = inputs_shape[-1]
-    self._kernel = self.add_variable(
+    self._kernel = self.add_weight(
         _WEIGHTS_VARIABLE_NAME,
         shape=[input_depth + self._num_units, self._num_units])
-    self._bias = self.add_variable(
+    self._bias = self.add_weight(
         _BIAS_VARIABLE_NAME,
         shape=[self._num_units],
         initializer=tf.compat.v1.zeros_initializer(dtype=self.dtype))
@@ -567,21 +567,21 @@ class GRUCell(LayerRNNCell):
           f"received shape: {inputs_shape}")
     _check_supported_dtypes(self.dtype)
     input_depth = inputs_shape[-1]
-    self._gate_kernel = self.add_variable(
+    self._gate_kernel = self.add_weight(
         "gates/%s" % _WEIGHTS_VARIABLE_NAME,
         shape=[input_depth + self._num_units, 2 * self._num_units],
         initializer=self._kernel_initializer)
-    self._gate_bias = self.add_variable(
+    self._gate_bias = self.add_weight(
         "gates/%s" % _BIAS_VARIABLE_NAME,
         shape=[2 * self._num_units],
         initializer=(self._bias_initializer
                      if self._bias_initializer is not None else
                      tf.compat.v1.constant_initializer(1.0, dtype=self.dtype)))
-    self._candidate_kernel = self.add_variable(
+    self._candidate_kernel = self.add_weight(
         "candidate/%s" % _WEIGHTS_VARIABLE_NAME,
         shape=[input_depth + self._num_units, self._num_units],
         initializer=self._kernel_initializer)
-    self._candidate_bias = self.add_variable(
+    self._candidate_bias = self.add_weight(
         "candidate/%s" % _BIAS_VARIABLE_NAME,
         shape=[self._num_units],
         initializer=(self._bias_initializer
@@ -751,10 +751,10 @@ class BasicLSTMCell(LayerRNNCell):
     _check_supported_dtypes(self.dtype)
     input_depth = inputs_shape[-1]
     h_depth = self._num_units
-    self._kernel = self.add_variable(
+    self._kernel = self.add_weight(
         _WEIGHTS_VARIABLE_NAME,
         shape=[input_depth + h_depth, 4 * self._num_units])
-    self._bias = self.add_variable(
+    self._bias = self.add_weight(
         _BIAS_VARIABLE_NAME,
         shape=[4 * self._num_units],
         initializer=tf.compat.v1.zeros_initializer(dtype=self.dtype))
@@ -981,7 +981,7 @@ class LSTMCell(LayerRNNCell):
     maybe_partitioner = (
         tf.compat.v1.fixed_size_partitioner(self._num_unit_shards)
         if self._num_unit_shards is not None else None)
-    self._kernel = self.add_variable(
+    self._kernel = self.add_weight(
         _WEIGHTS_VARIABLE_NAME,
         shape=[input_depth + h_depth, 4 * self._num_units],
         initializer=self._initializer,
@@ -990,23 +990,23 @@ class LSTMCell(LayerRNNCell):
       initializer = tf.compat.v1.zeros_initializer
     else:
       initializer = tf.compat.v1.zeros_initializer(dtype=self.dtype)
-    self._bias = self.add_variable(
+    self._bias = self.add_weight(
         _BIAS_VARIABLE_NAME,
         shape=[4 * self._num_units],
         initializer=initializer)
     if self._use_peepholes:
-      self._w_f_diag = self.add_variable(
+      self._w_f_diag = self.add_weight(
           "w_f_diag", shape=[self._num_units], initializer=self._initializer)
-      self._w_i_diag = self.add_variable(
+      self._w_i_diag = self.add_weight(
           "w_i_diag", shape=[self._num_units], initializer=self._initializer)
-      self._w_o_diag = self.add_variable(
+      self._w_o_diag = self.add_weight(
           "w_o_diag", shape=[self._num_units], initializer=self._initializer)
 
     if self._num_proj is not None:
       maybe_proj_partitioner = (
           tf.compat.v1.fixed_size_partitioner(self._num_proj_shards)
           if self._num_proj_shards is not None else None)
-      self._proj_kernel = self.add_variable(
+      self._proj_kernel = self.add_weight(
           "projection/%s" % _WEIGHTS_VARIABLE_NAME,
           shape=[self._num_units, self._num_proj],
           initializer=self._initializer,

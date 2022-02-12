@@ -1230,13 +1230,11 @@ class NestedTrackingTest(tf.test.TestCase):
       inputs = tf.ones((3, 1))
       _ = layer(inputs)
       self.assertEqual(len(layer.losses), 3)
-      self.assertLen(layer.get_losses_for(None), 3)
     else:
       inputs = input_layer.Input((1,))
       _ = layer(inputs)
       self.assertEqual(len(layer.losses), 3)
       self.assertEqual(len(layer.updates), 3)
-      self.assertLen(layer.get_losses_for(None), 3)
 
   def test_attribute_reassignment(self):
     l = base_layer.Layer()

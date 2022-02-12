@@ -638,7 +638,7 @@ def get_model_from_layers(model_layers,
 class Bias(layers.Layer):
 
   def build(self, input_shape):
-    self.bias = self.add_variable('bias', (1,), initializer='zeros')
+    self.bias = self.add_weight('bias', (1,), initializer='zeros')
 
   def call(self, inputs):
     return inputs + self.bias

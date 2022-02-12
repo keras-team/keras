@@ -140,7 +140,7 @@ def no_manual_dependency_tracking_scope(obj):
   class TestLayer(tf.keras.Layer):
     def build():
       with no_manual_dependency_tracking_scope(self):
-        var = self.add_variable("name1")  # Creates a var and doesn't track it
+        var = self.add_weight("name1")  # Creates a var and doesn't track it
       self._track_trackable("name2", var)  # We track variable with name `name2`
 
   Args:

@@ -54,7 +54,7 @@ class ConvTest(tf.test.TestCase):
     height, width = 7, 9
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.Conv2D(32, [3, 3], activation=tf.nn.relu)
-    output = layer.apply(images)
+    output = layer(images)
     if not tf.executing_eagerly():
       self.assertEqual(output.op.name, 'conv2d/Relu')
     self.assertListEqual(output.get_shape().as_list(),
@@ -73,7 +73,7 @@ class ConvTest(tf.test.TestCase):
     height, width = 7, 9
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.Conv2D(32, 3)
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height - 2, width - 2, 32])
     self.assertListEqual(layer.kernel.get_shape().as_list(), [3, 3, 4, 32])
@@ -84,7 +84,7 @@ class ConvTest(tf.test.TestCase):
       height, width = 7, 9
       images = tf.random.uniform((5, 4, height, width))
       layer = conv_layers.Conv2D(32, [3, 3], data_format='channels_first')
-      output = layer.apply(images)
+      output = layer(images)
       self.assertListEqual(output.get_shape().as_list(),
                            [5, 32, height - 2, width - 2])
       self.assertListEqual(layer.kernel.get_shape().as_list(), [3, 3, 4, 32])
@@ -97,20 +97,20 @@ class ConvTest(tf.test.TestCase):
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
           'should be defined. The input_shape received is'):
-        _ = layer.apply(images)
+        _ = layer(images)
 
       images = tf.compat.v1.placeholder(tf.float32, (5, None, 7, 9))
       layer = conv_layers.Conv2D(32, [3, 3], data_format='channels_first')
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
           'should be defined. The input_shape received is'):
-        _ = layer.apply(images)
+        _ = layer(images)
 
   def testConv2DPaddingSame(self):
     height, width = 7, 9
     images = tf.random.uniform((5, height, width, 32), seed=1)
     layer = conv_layers.Conv2D(64, images.get_shape()[1:3], padding='same')
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(), [5, height, width, 64])
 
   def testCreateConvWithStrides(self):
@@ -118,19 +118,19 @@ class ConvTest(tf.test.TestCase):
     # Test strides tuple
     images = tf.random.uniform((5, height, width, 3), seed=1)
     layer = conv_layers.Conv2D(32, [3, 3], strides=(2, 2), padding='same')
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height / 2, width / 2, 32])
 
     # Test strides integer
     layer = conv_layers.Conv2D(32, [3, 3], strides=2, padding='same')
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height / 2, width / 2, 32])
 
     # Test unequal strides
     layer = conv_layers.Conv2D(32, [3, 3], strides=(2, 1), padding='same')
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height / 2, width, 32])
 
@@ -138,7 +138,7 @@ class ConvTest(tf.test.TestCase):
     width = 7
     data = tf.random.uniform((5, width, 4))
     layer = conv_layers.Conv1D(32, 3, activation=tf.nn.relu)
-    output = layer.apply(data)
+    output = layer(data)
     if not tf.executing_eagerly():
       self.assertEqual(output.op.name, 'conv1d/Relu')
     self.assertListEqual(output.get_shape().as_list(), [5, width - 2, 32])
@@ -156,7 +156,7 @@ class ConvTest(tf.test.TestCase):
       width = 7
       data = tf.random.uniform((5, 4, width))
       layer = conv_layers.Conv1D(32, 3, data_format='channels_first')
-      output = layer.apply(data)
+      output = layer(data)
       self.assertListEqual(output.get_shape().as_list(), [5, 32, width - 2])
       self.assertListEqual(layer.kernel.get_shape().as_list(), [3, 4, 32])
       self.assertListEqual(layer.bias.get_shape().as_list(), [32])
@@ -168,20 +168,20 @@ class ConvTest(tf.test.TestCase):
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
           'should be defined. The input_shape received is'):
-        _ = layer.apply(data)
+        _ = layer(data)
 
       data = tf.compat.v1.placeholder(tf.float32, (5, None, 4))
       layer = conv_layers.Conv1D(32, 3, data_format='channels_first')
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
           'should be defined. The input_shape received is'):
-        _ = layer.apply(data)
+        _ = layer(data)
 
   def testCreateConv3D(self):
     depth, height, width = 6, 7, 9
     volumes = tf.random.uniform((5, depth, height, width, 4))
     layer = conv_layers.Conv3D(32, [3, 3, 3], activation=tf.nn.relu)
-    output = layer.apply(volumes)
+    output = layer(volumes)
     if not tf.executing_eagerly():
       self.assertEqual(output.op.name, 'conv3d/Relu')
     self.assertListEqual(output.get_shape().as_list(),
@@ -196,7 +196,7 @@ class ConvTest(tf.test.TestCase):
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
           'should be defined. The input_shape received is'):
-        _ = layer.apply(volumes)
+        _ = layer(volumes)
 
   def testConv2DKernelRegularizer(self):
     with tf.Graph().as_default():
@@ -204,7 +204,7 @@ class ConvTest(tf.test.TestCase):
       images = tf.random.uniform((5, height, width, 4))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.Conv2D(32, [3, 3], kernel_regularizer=reg)
-      layer.apply(images)
+      layer(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -217,7 +217,7 @@ class ConvTest(tf.test.TestCase):
       images = tf.random.uniform((5, height, width, 4))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.Conv2D(32, [3, 3], bias_regularizer=reg)
-      layer.apply(images)
+      layer(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -229,7 +229,7 @@ class ConvTest(tf.test.TestCase):
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.Conv2D(
         32, [3, 3], activation=tf.nn.relu, use_bias=False)
-    output = layer.apply(images)
+    output = layer(images)
     if not tf.executing_eagerly():
       self.assertEqual(output.op.name, 'conv2d/Relu')
     self.assertListEqual(output.get_shape().as_list(),
@@ -241,14 +241,14 @@ class ConvTest(tf.test.TestCase):
     height, width = 7, 9
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.Conv2D(32, [3, 3], dilation_rate=3)
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(), [5, 1, 3, 32])
     self.assertListEqual(layer.kernel.get_shape().as_list(), [3, 3, 4, 32])
     self.assertListEqual(layer.bias.get_shape().as_list(), [32])
 
     # Test tuple dilation rate
     layer = conv_layers.Conv2D(32, [3, 3], dilation_rate=(1, 3))
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(), [5, height - 2, 3, 32])
 
   def testFunctionalConv2DReuse(self):
@@ -370,7 +370,7 @@ class SeparableConv1DTest(tf.test.TestCase):
     length = 9
     data = tf.random.uniform((5, length, 4))
     layer = conv_layers.SeparableConv1D(32, 3, activation=tf.nn.relu)
-    output = layer.apply(data)
+    output = layer(data)
     if not tf.executing_eagerly():
       self.assertEqual(output.op.name, 'separable_conv1d/Relu')
     self.assertEqual(output.get_shape().as_list(), [5, length - 2, 32])
@@ -382,7 +382,7 @@ class SeparableConv1DTest(tf.test.TestCase):
     length = 9
     data = tf.random.uniform((5, length, 4))
     layer = conv_layers.SeparableConv1D(32, 3, depth_multiplier=2)
-    output = layer.apply(data)
+    output = layer(data)
     self.assertEqual(output.get_shape().as_list(), [5, length - 2, 32])
     self.assertEqual(layer.depthwise_kernel.get_shape().as_list(), [3, 4, 2])
     self.assertEqual(layer.pointwise_kernel.get_shape().as_list(), [1, 8, 32])
@@ -393,7 +393,7 @@ class SeparableConv1DTest(tf.test.TestCase):
       length = 9
       data = tf.random.uniform((5, 4, length))
       layer = conv_layers.SeparableConv1D(32, 3, data_format='channels_first')
-      output = layer.apply(data)
+      output = layer(data)
       self.assertEqual(output.get_shape().as_list(), [5, 32, length - 2])
       self.assertEqual(layer.depthwise_kernel.get_shape().as_list(), [3, 4, 1])
       self.assertEqual(layer.pointwise_kernel.get_shape().as_list(), [1, 4, 32])
@@ -404,14 +404,14 @@ class SeparableConv1DTest(tf.test.TestCase):
     data = tf.random.uniform((5, length, 32), seed=1)
     layer = conv_layers.SeparableConv1D(
         64, length, padding='same')
-    output = layer.apply(data)
+    output = layer(data)
     self.assertEqual(output.get_shape().as_list(), [5, length, 64])
 
   def testCreateSeparableConv1DWithStrides(self):
     length = 10
     data = tf.random.uniform((5, length, 3), seed=1)
     layer = conv_layers.SeparableConv1D(32, 3, strides=2, padding='same')
-    output = layer.apply(data)
+    output = layer(data)
     self.assertEqual(output.get_shape().as_list(), [5, length // 2, 32])
 
   def testCreateSeparableConv1DWithStridesChannelsFirst(self):
@@ -421,7 +421,7 @@ class SeparableConv1DTest(tf.test.TestCase):
       data = tf.random.uniform((5, 3, length), seed=1)
       layer = conv_layers.SeparableConv1D(
           32, 3, strides=2, padding='same', data_format=data_format)
-      output = layer.apply(data)
+      output = layer(data)
       self.assertEqual(output.get_shape().as_list(), [5, 32, length // 2])
 
   def testFunctionalConv1DReuse(self):
@@ -459,7 +459,7 @@ class SeparableConv1DTest(tf.test.TestCase):
       data = tf.random.uniform((5, length, 4))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.SeparableConv1D(32, 3, depthwise_regularizer=reg)
-      layer.apply(data)
+      layer(data)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -472,7 +472,7 @@ class SeparableConv1DTest(tf.test.TestCase):
       data = tf.random.uniform((5, length, 4))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.SeparableConv1D(32, 3, pointwise_regularizer=reg)
-      layer.apply(data)
+      layer(data)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -485,7 +485,7 @@ class SeparableConv1DTest(tf.test.TestCase):
       data = tf.random.uniform((5, length, 4))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.SeparableConv1D(32, 3, bias_regularizer=reg)
-      layer.apply(data)
+      layer(data)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -498,7 +498,7 @@ class SeparableConv1DTest(tf.test.TestCase):
       data = tf.random.uniform((5, length, 4))
       layer = conv_layers.SeparableConv1D(
           32, 3, activation=tf.nn.relu, use_bias=False)
-      output = layer.apply(data)
+      output = layer(data)
       self.assertEqual(output.op.name, 'separable_conv1d/Relu')
       self.assertEqual(layer.bias, None)
 
@@ -547,7 +547,7 @@ class SeparableConv2DTest(tf.test.TestCase):
     height, width = 7, 9
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.SeparableConv2D(32, [3, 3], activation=tf.nn.relu)
-    output = layer.apply(images)
+    output = layer(images)
     if not tf.executing_eagerly():
       self.assertEqual(output.op.name, 'separable_conv2d/Relu')
     self.assertListEqual(output.get_shape().as_list(),
@@ -562,7 +562,7 @@ class SeparableConv2DTest(tf.test.TestCase):
     height, width = 7, 9
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.SeparableConv2D(32, [3, 3], depth_multiplier=2)
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height - 2, width - 2, 32])
     self.assertListEqual(layer.depthwise_kernel.get_shape().as_list(),
@@ -575,7 +575,7 @@ class SeparableConv2DTest(tf.test.TestCase):
     height, width = 7, 9
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.SeparableConv2D(32, 3)
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height - 2, width - 2, 32])
     self.assertListEqual(layer.depthwise_kernel.get_shape().as_list(),
@@ -590,7 +590,7 @@ class SeparableConv2DTest(tf.test.TestCase):
       images = tf.random.uniform((5, 4, height, width))
       layer = conv_layers.SeparableConv2D(
           32, [3, 3], data_format='channels_first')
-      output = layer.apply(images)
+      output = layer(images)
       self.assertListEqual(output.get_shape().as_list(),
                            [5, 32, height - 2, width - 2])
       self.assertListEqual(layer.depthwise_kernel.get_shape().as_list(),
@@ -604,7 +604,7 @@ class SeparableConv2DTest(tf.test.TestCase):
     images = tf.random.uniform((5, height, width, 32), seed=1)
     layer = conv_layers.SeparableConv2D(
         64, images.get_shape()[1:3], padding='same')
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(), [5, height, width, 64])
 
   def testCreateSeparableConvWithStrides(self):
@@ -614,20 +614,20 @@ class SeparableConv2DTest(tf.test.TestCase):
       images = tf.random.uniform((5, height, width, 3), seed=1)
       layer = conv_layers.SeparableConv2D(
           32, [3, 3], strides=(2, 2), padding='same')
-      output = layer.apply(images)
+      output = layer(images)
       self.assertListEqual(output.get_shape().as_list(),
                            [5, height / 2, width / 2, 32])
 
       # Test strides integer
       layer = conv_layers.SeparableConv2D(32, [3, 3], strides=2, padding='same')
-      output = layer.apply(images)
+      output = layer(images)
       self.assertListEqual(output.get_shape().as_list(),
                            [5, height / 2, width / 2, 32])
 
       # Test unequal strides
       layer = conv_layers.SeparableConv2D(
           32, [3, 3], strides=(2, 1), padding='same')
-      output = layer.apply(images)
+      output = layer(images)
       self.assertListEqual(output.get_shape().as_list(),
                            [5, height / 2, width, 32])
 
@@ -639,21 +639,21 @@ class SeparableConv2DTest(tf.test.TestCase):
       images = tf.random.uniform((5, 3, height, width), seed=1)
       layer = conv_layers.SeparableConv2D(
           32, [3, 3], strides=(2, 2), padding='same', data_format=data_format)
-      output = layer.apply(images)
+      output = layer(images)
       self.assertListEqual(output.get_shape().as_list(),
                            [5, 32, height / 2, width / 2])
 
       # Test strides integer
       layer = conv_layers.SeparableConv2D(32, [3, 3], strides=2, padding='same',
                                           data_format=data_format)
-      output = layer.apply(images)
+      output = layer(images)
       self.assertListEqual(output.get_shape().as_list(),
                            [5, 32, height / 2, width / 2])
 
       # Test unequal strides
       layer = conv_layers.SeparableConv2D(
           32, [3, 3], strides=(2, 1), padding='same', data_format=data_format)
-      output = layer.apply(images)
+      output = layer(images)
       self.assertListEqual(output.get_shape().as_list(),
                            [5, 32, height / 2, width])
 
@@ -713,7 +713,7 @@ class SeparableConv2DTest(tf.test.TestCase):
       images = tf.random.uniform((5, height, width, 4))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.SeparableConv2D(32, [3, 3], depthwise_regularizer=reg)
-      layer.apply(images)
+      layer(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -726,7 +726,7 @@ class SeparableConv2DTest(tf.test.TestCase):
       images = tf.random.uniform((5, height, width, 4))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.SeparableConv2D(32, [3, 3], pointwise_regularizer=reg)
-      layer.apply(images)
+      layer(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -739,7 +739,7 @@ class SeparableConv2DTest(tf.test.TestCase):
       images = tf.random.uniform((5, height, width, 4))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.SeparableConv2D(32, [3, 3], bias_regularizer=reg)
-      layer.apply(images)
+      layer(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -752,7 +752,7 @@ class SeparableConv2DTest(tf.test.TestCase):
       images = tf.random.uniform((5, height, width, 4))
       layer = conv_layers.SeparableConv2D(
           32, [3, 3], activation=tf.nn.relu, use_bias=False)
-      output = layer.apply(images)
+      output = layer(images)
       self.assertEqual(output.op.name, 'separable_conv2d/Relu')
       self.assertListEqual(output.get_shape().as_list(),
                            [5, height - 2, width - 2, 32])
@@ -807,7 +807,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
     height, width = 7, 9
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.Conv2DTranspose(32, [3, 3], activation=tf.nn.relu)
-    output = layer.apply(images)
+    output = layer(images)
     if not tf.executing_eagerly():
       self.assertEqual(output.op.name, 'conv2d_transpose/Relu')
     self.assertListEqual(output.get_shape().as_list(),
@@ -827,7 +827,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
     height, width = 7, 9
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.Conv2DTranspose(32, 3)
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height + 2, width + 2, 32])
     self.assertListEqual(layer.kernel.get_shape().as_list(), [3, 3, 32, 4])
@@ -838,7 +838,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
     images = tf.random.uniform((5, 4, height, width))
     layer = conv_layers.Conv2DTranspose(
         32, [3, 3], data_format='channels_first')
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, 32, height + 2, width + 2])
     self.assertListEqual(layer.kernel.get_shape().as_list(), [3, 3, 32, 4])
@@ -849,7 +849,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
     images = tf.random.uniform((5, height, width, 32), seed=1)
     layer = conv_layers.Conv2DTranspose(
         64, images.get_shape()[1:3], padding='same')
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(), [5, height, width, 64])
 
   def testCreateConv2DTransposeWithStrides(self):
@@ -858,20 +858,20 @@ class Conv2DTransposeTest(tf.test.TestCase):
     images = tf.random.uniform((5, height, width, 3), seed=1)
     layer = conv_layers.Conv2DTranspose(
         32, [3, 3], strides=(2, 2), padding='same')
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height * 2, width * 2, 32])
 
     # Test strides integer
     layer = conv_layers.Conv2DTranspose(32, [3, 3], strides=2, padding='same')
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height * 2, width * 2, 32])
 
     # Test unequal strides
     layer = conv_layers.Conv2DTranspose(
         32, [3, 3], strides=(2, 1), padding='same')
-    output = layer.apply(images)
+    output = layer(images)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height * 2, width, 32])
 
@@ -881,7 +881,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
       images = tf.random.uniform((5, height, width, 4))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.Conv2DTranspose(32, [3, 3], kernel_regularizer=reg)
-      layer.apply(images)
+      layer(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -894,7 +894,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
       images = tf.random.uniform((5, height, width, 4))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.Conv2DTranspose(32, [3, 3], bias_regularizer=reg)
-      layer.apply(images)
+      layer(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -907,7 +907,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
       images = tf.random.uniform((5, height, width, 4))
       layer = conv_layers.Conv2DTranspose(
           32, [3, 3], activation=tf.nn.relu, use_bias=False)
-      output = layer.apply(images)
+      output = layer(images)
       self.assertEqual(output.op.name, 'conv2d_transpose/Relu')
       self.assertListEqual(output.get_shape().as_list(),
                            [5, height + 2, width + 2, 32])
@@ -1004,7 +1004,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
     depth, height, width = 5, 7, 9
     volumes = tf.random.uniform((5, depth, height, width, 32))
     layer = conv_layers.Conv3DTranspose(4, [3, 3, 3], activation=tf.nn.relu)
-    output = layer.apply(volumes)
+    output = layer(volumes)
     if not tf.executing_eagerly():
       self.assertEqual(output.op.name, 'conv3d_transpose/Relu')
     self.assertListEqual(output.get_shape().as_list(),
@@ -1016,7 +1016,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
     depth, height, width = 5, 7, 9
     volumes = tf.random.uniform((5, depth, height, width, 32))
     layer = conv_layers.Conv3DTranspose(4, 3)
-    output = layer.apply(volumes)
+    output = layer(volumes)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, depth + 2, height + 2, width + 2, 4])
     self.assertListEqual(layer.kernel.get_shape().as_list(), [3, 3, 3, 4, 32])
@@ -1028,7 +1028,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
       volumes = tf.random.uniform((5, 32, depth, height, width))
       layer = conv_layers.Conv3DTranspose(
           4, [3, 3, 3], data_format='channels_first')
-      output = layer.apply(volumes)
+      output = layer(volumes)
       self.assertListEqual(output.get_shape().as_list(),
                            [5, 4, depth + 2, height + 2, width + 2])
       self.assertListEqual(layer.kernel.get_shape().as_list(), [3, 3, 3, 4, 32])
@@ -1039,7 +1039,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
     volumes = tf.random.uniform((5, depth, height, width, 64), seed=1)
     layer = conv_layers.Conv3DTranspose(
         32, volumes.get_shape()[1:4], padding='same')
-    output = layer.apply(volumes)
+    output = layer(volumes)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, depth, height, width, 32])
 
@@ -1049,20 +1049,20 @@ class Conv3DTransposeTest(tf.test.TestCase):
     volumes = tf.random.uniform((5, depth, height, width, 32), seed=1)
     layer = conv_layers.Conv3DTranspose(
         4, [3, 3, 3], strides=(2, 2, 2), padding='same')
-    output = layer.apply(volumes)
+    output = layer(volumes)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, depth * 2, height * 2, width * 2, 4])
 
     # Test strides integer.
     layer = conv_layers.Conv3DTranspose(4, [3, 3, 3], strides=2, padding='same')
-    output = layer.apply(volumes)
+    output = layer(volumes)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, depth * 2, height * 2, width * 2, 4])
 
     # Test unequal strides.
     layer = conv_layers.Conv3DTranspose(
         4, [3, 3, 3], strides=(2, 1, 1), padding='same')
-    output = layer.apply(volumes)
+    output = layer(volumes)
     self.assertListEqual(output.get_shape().as_list(),
                          [5, depth * 2, height, width, 4])
 
@@ -1072,7 +1072,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
       volumes = tf.random.uniform((5, depth, height, width, 32))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.Conv3DTranspose(4, [3, 3, 3], kernel_regularizer=reg)
-      layer.apply(volumes)
+      layer(volumes)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -1085,7 +1085,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
       volumes = tf.random.uniform((5, depth, height, width, 32))
       reg = lambda x: 0.1 * tf.reduce_sum(x)
       layer = conv_layers.Conv3DTranspose(4, [3, 3, 3], bias_regularizer=reg)
-      layer.apply(volumes)
+      layer(volumes)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
       self.assertEqual(len(loss_keys), 1)
       self.evaluate([v.initializer for v in layer.variables])
@@ -1098,7 +1098,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
       volumes = tf.random.uniform((5, depth, height, width, 32))
       layer = conv_layers.Conv3DTranspose(
           4, [3, 3, 3], activation=tf.nn.relu, use_bias=False)
-      output = layer.apply(volumes)
+      output = layer(volumes)
       self.assertEqual(output.op.name, 'conv3d_transpose/Relu')
       self.assertListEqual(output.get_shape().as_list(),
                            [5, depth + 2, height + 2, width + 2, 4])

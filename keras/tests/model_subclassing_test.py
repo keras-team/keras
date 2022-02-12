@@ -142,7 +142,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
         self.embedding_dim = embedding_dim
 
       def build(self, _):
-        self.embedding = self.add_variable(
+        self.embedding = self.add_weight(
             'embedding_kernel',
             shape=[self.vocab_size, self.embedding_dim],
             dtype=np.float32,

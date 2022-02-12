@@ -150,7 +150,7 @@ tf_class {
   }
   member_method {
     name: "add_update"
-    argspec: "args=[\'self\', \'updates\', \'inputs\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    argspec: "args=[\'self\', \'updates\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "add_variable"
@@ -159,10 +159,6 @@ tf_class {
   member_method {
     name: "add_weight"
     argspec: "args=[\'self\', \'name\', \'shape\', \'dtype\', \'initializer\', \'regularizer\', \'trainable\', \'constraint\', \'use_resource\', \'synchronization\', \'aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'VariableSynchronization.AUTO\', \'VariableAggregationV2.NONE\'], "
-  }
-  member_method {
-    name: "apply"
-    argspec: "args=[\'self\', \'inputs\'], varargs=args, keywords=kwargs, defaults=None"
   }
   member_method {
     name: "build"
@@ -217,10 +213,6 @@ tf_class {
     argspec: "args=[\'self\', \'node_index\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
-    name: "get_losses_for"
-    argspec: "args=[\'self\', \'inputs\'], varargs=None, keywords=None, defaults=None"
-  }
-  member_method {
     name: "get_output_at"
     argspec: "args=[\'self\', \'node_index\'], varargs=None, keywords=None, defaults=None"
   }
@@ -231,10 +223,6 @@ tf_class {
   member_method {
     name: "get_output_shape_at"
     argspec: "args=[\'self\', \'node_index\'], varargs=None, keywords=None, defaults=None"
-  }
-  member_method {
-    name: "get_updates_for"
-    argspec: "args=[\'self\', \'inputs\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "get_vocabulary"

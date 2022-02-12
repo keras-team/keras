@@ -120,7 +120,7 @@ class CustomLayerNoConfig(keras.layers.Layer):
         tf.constant(1.0, shape=input_shape[1:]), name=self.name+'_c')
 
   def call(self, inputs):
-    self.add_loss(tf.reduce_sum(inputs), inputs=inputs)
+    self.add_loss(tf.reduce_sum(inputs))
     self.add_metric(self.sum_metric(inputs))
     self.add_metric(inputs, aggregation='mean', name='mean')
 

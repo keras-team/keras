@@ -23,7 +23,7 @@ import tensorflow.compat.v2 as tf
 import copy
 import warnings
 from keras import backend
-from keras.engine import base_layer
+from keras.engine import base_layer_v1 as base_layer
 from keras.engine import base_layer_utils
 from keras.legacy_tf_layers import variable_scope_shim
 from keras.mixed_precision import policy
@@ -32,9 +32,6 @@ from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export
 
-# Avoid breaking users who directly import this symbol from this file.
-# TODO(fchollet): remove this.
-InputSpec = base_layer.InputSpec  # pylint: disable=invalid-name
 
 _KERAS_STYLE_SCOPE = False
 
@@ -238,6 +235,9 @@ class Layer(base_layer.Layer):
     else:
       self._scope = None
     self._current_scope = None
+
+  def apply(self, *args, **kwargs):
+    return self(*args, **kwargs)
 
   # We no longer track graph in tf.layers layers. This property is only kept to
   # maintain API backward compatibility.

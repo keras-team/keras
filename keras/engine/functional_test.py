@@ -17,7 +17,6 @@
 import warnings
 
 from keras import backend
-from keras import initializers
 from keras import layers
 from keras import losses
 from keras import models
@@ -59,22 +58,21 @@ class NetworkConstructionTest(test_combinations.TestCase):
     class MyLayer(layers.Layer):
 
       def build(self, input_shape):
-        self.a = self.add_variable('a',
-                                   (1, 1),
-                                   'float32',
-                                   trainable=False)
-        self.b = self.add_variable('b',
-                                   (1, 1),
-                                   'float32',
-                                   trainable=False)
-        self.add_update(tf.compat.v1.assign_add(self.a, [[1.]],
-                                             name='unconditional_update'))
+        self.a = self.add_weight('a',
+                                 (1, 1),
+                                 'float32',
+                                 trainable=False)
+        self.b = self.add_weight('b',
+                                 (1, 1),
+                                 'float32',
+                                 trainable=False)
+        self.add_update(tf.compat.v1.assign_add(
+            self.a, [[1.]], name='unconditional_update'))
         self.built = True
 
       def call(self, inputs):
-        self.add_update(tf.compat.v1.assign_add(self.b, inputs,
-                                             name='conditional_update'),
-                        inputs=True)
+        self.add_update(
+            tf.compat.v1.assign_add(self.b, inputs, name='conditional_update'))
         return inputs + 1
 
     with tf.Graph().as_default():
@@ -103,7 +101,7 @@ class NetworkConstructionTest(test_combinations.TestCase):
       network.add_update(tf.compat.v1.assign_add(layer.a, [[1]]))
       self.assertEqual(len(network.updates), 6)
 
-      network.add_update(tf.compat.v1.assign_add(layer.b, x4), inputs=True)
+      network.add_update(tf.compat.v1.assign_add(layer.b, x4))
       self.assertEqual(len(network.updates), 7)
 
   @test_combinations.generate(test_combinations.combine(mode=['graph']))
@@ -726,7 +724,7 @@ class NetworkConstructionTest(test_combinations.TestCase):
       a = tf.constant([2] * 32)
       mask = tf.constant([0, 1] * 16)
       a._keras_mask = mask
-      b = MaskedLayer().apply(a)
+      b = MaskedLayer()(a)
       self.assertTrue(hasattr(b, '_keras_mask'))
       self.assertAllEqual(
           self.evaluate(tf.ones_like(mask)),
@@ -1443,7 +1441,8 @@ class NetworkConstructionTest(test_combinations.TestCase):
     self.assertEqual('subclassed', model.name)
     self.assertTrue(model.dynamic)
     self.assertTrue(model.trainable)
-    w = model.add_weight('w', [], initializer=tf.compat.v1.constant_initializer(1))
+    w = model.add_weight(
+        'w', [], initializer=tf.compat.v1.constant_initializer(1))
     self.assertEqual(tf.int64, w.dtype)
 
   def test_disconnected_inputs(self):

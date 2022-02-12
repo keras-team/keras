@@ -868,10 +868,10 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
       assert not layer.updates
       # TODO(b/128684069): Remove when Wrapper sublayers are __call__'d.
       with base_layer_utils.call_context().enter(layer, x, True, None):
-        layer.forward_layer.add_update(x_reachable_update, inputs=x)
-        layer.forward_layer.add_update(1, inputs=None)
-        layer.backward_layer.add_update(x_reachable_update, inputs=x)
-        layer.backward_layer.add_update(1, inputs=None)
+        layer.forward_layer.add_update(x_reachable_update)
+        layer.forward_layer.add_update(1)
+        layer.backward_layer.add_update(x_reachable_update)
+        layer.backward_layer.add_update(1)
       assert len(layer.updates) == 4
 
   def test_Bidirectional_losses(self):
@@ -887,7 +887,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
     loss = x * x
     layer.forward_layer.add_loss(loss)
-    layer.backward_layer.add_loss(loss, inputs=x)
+    layer.backward_layer.add_loss(loss)
     assert len(layer.losses) == 8
 
   def test_Bidirectional_with_constants(self):
