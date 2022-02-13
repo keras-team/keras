@@ -92,7 +92,7 @@ py_library(
         "//keras/engine",
         "//keras/engine:input_spec",
         "//keras/preprocessing:image",
-        "//keras/utils:control_flow_util",
+        "//keras/utils:tf_utils",
     ],
 )
 
