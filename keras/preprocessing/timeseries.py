@@ -77,6 +77,8 @@ def timeseries_dataset_from_array(
       data points later (exclusive) than `end_index` will not be used
       in the output sequences. This is useful to reserve part of the
       data for test or validation.
+    multi_array: data (and targets if not None) is list of timeseries arrays
+      or tensors.
 
   Returns:
     A tf.data.Dataset instance. If `targets` was passed, the dataset yields
@@ -206,7 +208,7 @@ def timeseries_dataset_from_array(
     num_seqs = [min(len(tgt), num) for tgt, num in zip(targets, num_seqs)]
     targets = np.concatenate(
       [np.resize(tgt, end) for tgt, end in zip(targets, end_data)])
-  if sum(end_data) < 2147483647:
+  if sum(end_data[:-1]) + num_seqs[-1] < 2147483647:
     index_dtype = 'int32'
   else:
     index_dtype = 'int64'
