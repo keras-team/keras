@@ -1162,7 +1162,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             The validation data is selected from the last samples
             in the `x` and `y` data provided, before shuffling. This argument is
             not supported when `x` is a dataset, generator or
-           `keras.utils.Sequence` instance.
+            `keras.utils.Sequence` instance.
+            If both `validation_data` and `validation_split` are provided,
+            `validation_data` will override `validation_split`.
             `validation_split` is not yet supported with
             `tf.distribute.experimental.ParameterServerStrategy`.
         validation_data: Data on which to evaluate
@@ -1305,7 +1307,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     verbose = _get_verbosity(verbose, self.distribute_strategy)
 
-    if validation_split:
+    if validation_split and validation_data is None:
       # Create the validation data using the training data. Only supported for
       # `Tensor` and `NumPy` input.
       (x, y, sample_weight), validation_data = (
