@@ -27,8 +27,6 @@ from keras.engine.base_layer import AddMetric
 from keras.engine.base_layer import Layer
 from keras.engine.input_layer import Input
 from keras.engine.input_layer import InputLayer
-from keras.saving import model_config
-from keras.saving import save
 from keras.utils import generic_utils
 from keras.utils import version_utils
 from keras.utils.generic_utils import CustomObjectScope
@@ -39,12 +37,6 @@ from tensorflow.python.util.tf_export import keras_export
 # API entries importable from `keras.models`:
 Model = training.Model  # pylint: disable=invalid-name
 Sequential = sequential.Sequential  # pylint: disable=invalid-name
-Functional = functional.Functional  # pylint: disable=invalid-name
-save_model = save.save_model
-load_model = save.load_model
-model_from_config = model_config.model_from_config
-model_from_yaml = model_config.model_from_yaml
-model_from_json = model_config.model_from_json
 
 
 # Callable used to clone a layer with weights preserved.

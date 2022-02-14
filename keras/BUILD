@@ -55,6 +55,7 @@ py_library(
         "//keras/layers/rnn:legacy_cells",
         "//keras/legacy_tf_layers:layers",
         "//keras/mixed_precision:mixed_precision_experimental",
+        "//keras/models",
         "//keras/optimizers",
         "//keras/premade_models",
         "//keras/preprocessing",
@@ -96,8 +97,8 @@ py_library(
 py_library(
     name = "engine",
     srcs = [
-        ":models",
         "//keras/metrics",
+        "//keras/models",
     ],
     srcs_version = "PY3",
     deps = [
@@ -181,25 +182,6 @@ py_library(
     deps = [
         ":backend",
         "//keras/utils:engine_utils",
-    ],
-)
-
-py_library(
-    name = "models",
-    srcs = [
-        "models.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        ":backend",
-        "//:expect_tensorflow_installed",
-        "//keras/engine",
-        "//keras/engine:base_layer",
-        "//keras/metrics",
-        "//keras/optimizers",
-        "//keras/saving",
-        "//keras/utils:generic_utils",
-        "//keras/utils:version_utils",
     ],
 )
 
@@ -326,24 +308,6 @@ tf_py_test(
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
         "//keras/utils:np_utils",
-    ],
-)
-
-tf_py_test(
-    name = "models_test",
-    size = "medium",
-    srcs = ["models_test.py"],
-    python_version = "PY3",
-    shard_count = 8,
-    tags = [
-        "notsan",  # b/67509773
-    ],
-    deps = [
-        ":keras",
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/testing_infra:test_combinations",
     ],
 )
 
