@@ -56,8 +56,8 @@ def check_pydot():
 
 def is_wrapped_model(layer):
   from keras.engine import functional
-  from keras.layers import wrappers
-  return (isinstance(layer, wrappers.Wrapper) and
+  from keras.layers import Wrapper
+  return (isinstance(layer, Wrapper) and
           isinstance(layer.layer, functional.Functional))
 
 
@@ -144,7 +144,7 @@ def model_to_dot(model,
                      'Build the model first by calling `build()` or by calling '
                      'the model on a batch of data.')
 
-  from keras.layers import wrappers
+  from keras.layers import Wrapper
   from keras.engine import sequential
   from keras.engine import functional
 
@@ -214,7 +214,7 @@ def model_to_dot(model,
     layer_name = layer.name
     class_name = layer.__class__.__name__
 
-    if isinstance(layer, wrappers.Wrapper):
+    if isinstance(layer, Wrapper):
       if expand_nested and isinstance(layer.layer,
                                       functional.Functional):
         submodel_wrapper = model_to_dot(

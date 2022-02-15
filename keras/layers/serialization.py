@@ -24,21 +24,19 @@ from keras.engine import input_spec
 from keras.layers import activation
 from keras.layers import attention
 from keras.layers import convolutional
-from keras.layers import convolutional_recurrent
 from keras.layers import core
-from keras.layers import cudnn_recurrent
 from keras.layers import einsum_dense
 from keras.layers import embeddings
 from keras.layers import locally_connected
 from keras.layers import merging
 from keras.layers import noise
 from keras.layers import pooling
-from keras.layers import recurrent
-from keras.layers import recurrent_v2
 from keras.layers import regularization
 from keras.layers import reshaping
-from keras.layers import rnn_cell_wrapper_v2
-from keras.layers import wrappers
+from keras.layers import rnn
+from keras.layers.rnn import cell_wrappers
+from keras.layers.rnn import gru
+from keras.layers.rnn import lstm
 from keras.layers.normalization import batch_normalization
 from keras.layers.normalization import batch_normalization_v1
 from keras.layers.normalization import layer_normalization
@@ -58,15 +56,14 @@ from keras.utils import tf_inspect as inspect
 from tensorflow.python.util.tf_export import keras_export
 
 ALL_MODULES = (base_layer, input_layer, activation, attention, convolutional,
-               convolutional_recurrent, core, cudnn_recurrent, embeddings,
-               einsum_dense, locally_connected, merging, batch_normalization_v1,
-               layer_normalization, unit_normalization, pooling,
-               image_preprocessing, recurrent, regularization, reshaping,
-               wrappers, hashing, hashed_crossing, category_encoding,
-               discretization, integer_lookup, preprocessing_normalization,
-               string_lookup, text_vectorization)
-ALL_V2_MODULES = (rnn_cell_wrapper_v2, batch_normalization, layer_normalization,
-                  recurrent_v2)
+               core, embeddings, einsum_dense, locally_connected, merging,
+               batch_normalization_v1, layer_normalization, unit_normalization,
+               pooling, image_preprocessing, regularization, reshaping, rnn,
+               hashing, hashed_crossing, category_encoding, discretization,
+               integer_lookup, preprocessing_normalization, string_lookup,
+               text_vectorization)
+ALL_V2_MODULES = (batch_normalization, layer_normalization, cell_wrappers, gru,
+                  lstm)
 # ALL_OBJECTS is meant to be a global mutable. Hence we need to make it
 # thread-local to avoid concurrent mutations.
 LOCAL = threading.local()

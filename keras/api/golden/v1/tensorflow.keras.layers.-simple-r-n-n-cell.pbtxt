@@ -1,7 +1,7 @@
 path: "tensorflow.keras.layers.SimpleRNNCell"
 tf_class {
-  is_instance: "<class \'keras.layers.recurrent.SimpleRNNCell\'>"
-  is_instance: "<class \'keras.layers.recurrent.DropoutRNNCellMixin\'>"
+  is_instance: "<class \'keras.layers.rnn.simple_rnn.SimpleRNNCell\'>"
+  is_instance: "<class \'keras.layers.rnn.dropout_rnn_cell_mixin.DropoutRNNCellMixin\'>"
   is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"

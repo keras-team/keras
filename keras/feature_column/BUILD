@@ -116,9 +116,9 @@ tf_py_test(
         ":dense_features",
         ":sequence_feature_column",
         "//:expect_tensorflow_installed",
-        "//keras/layers:recurrent",
         "//keras/layers/core",
         "//keras/layers/merging",
+        "//keras/layers/rnn",
         "//keras/metrics",  # Import it here since base_layer didn't import it due to circular dependency.
     ],
 )

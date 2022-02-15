@@ -13,8 +13,8 @@ COMMON_PIP_DEPS = [
     "//keras/legacy_tf_layers:layers_base",
     "//keras/legacy_tf_layers:normalization",
     "//keras/legacy_tf_layers:pooling",
-    "//keras/layers/legacy_rnn:rnn_cell_impl",
-    "//keras/layers/legacy_rnn:rnn_cell_wrapper_impl",
+    "//keras/layers/rnn:legacy_cell_wrappers",
+    "//keras/layers/rnn:legacy_cells",
     "//keras/optimizers:legacy_learning_rate_decay",
     # Need to include testing libraries in pip package so our pip
     # release tests can run. (see py_test rule in keras.bzl for more context).

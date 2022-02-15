@@ -24,7 +24,7 @@ import numpy as np
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.layers.legacy_rnn import rnn_cell_impl as rnn_cell
+from keras.layers.rnn import legacy_cells
 from keras.legacy_tf_layers import base as base_layer
 from keras.utils import np_utils
 
@@ -215,11 +215,12 @@ class TimeseriesClassificationIntegrationTest(test_combinations.TestCase):
 
     with base_layer.keras_style_scope():
       model = keras.models.Sequential()
-      model.add(keras.layers.RNN(rnn_cell.LSTMCell(5), return_sequences=True,
+      model.add(keras.layers.RNN(legacy_cells.LSTMCell(5),
+                                 return_sequences=True,
                                  input_shape=x_train.shape[1:]))
-      model.add(keras.layers.RNN(rnn_cell.GRUCell(y_train.shape[-1],
-                                                  activation='softmax',
-                                                  dtype=tf.float32)))
+      model.add(keras.layers.RNN(legacy_cells.GRUCell(y_train.shape[-1],
+                                                      activation='softmax',
+                                                      dtype=tf.float32)))
       model.compile(
           loss='categorical_crossentropy',
           optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
