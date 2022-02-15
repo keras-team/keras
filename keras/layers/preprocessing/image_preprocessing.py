@@ -1143,7 +1143,9 @@ class RandomContrast(base_layer.BaseRandomLayer):
   `(x - mean) * contrast_factor + mean`.
 
   Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-  of interger or floating point dtype. By default, the layer will output floats.
+  in integer or floating point dtype. By default, the layer will output floats.
+  The output value will be clipped to the range `[0, 255]`, the valid
+  range of RGB colors.
 
   For an overview and full list of preprocessing layers, see the preprocessing
   [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
@@ -1160,7 +1162,9 @@ class RandomContrast(base_layer.BaseRandomLayer):
     factor: a positive float represented as fraction of value, or a tuple of
       size 2 representing lower and upper bound. When represented as a single
       float, lower = upper. The contrast factor will be randomly picked between
-      `[1.0 - lower, 1.0 + upper]`.
+      `[1.0 - lower, 1.0 + upper]`. For any pixel x in the channel, the output
+      will be `(x - mean) * factor + mean` where `mean` is the mean value of the
+      channel.
     seed: Integer. Used to create a random seed.
   """
 
@@ -1191,6 +1195,7 @@ class RandomContrast(base_layer.BaseRandomLayer):
         output = tf.image.random_contrast(
             inputs, 1. - self.lower, 1. + self.upper,
             seed=self._random_generator.make_legacy_seed())
+      output = tf.clip_by_value(output, 0, 255)
       output.set_shape(inputs.shape)
       return output
 
