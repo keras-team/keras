@@ -16,23 +16,26 @@
 
 See also: lstm_test.py, gru_test.py, simplernn_test.py.
 """
-
-import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
 
 import collections
 
 from absl.testing import parameterized
-import numpy as np
-
 import keras
+from keras.engine import base_layer_utils
+from keras.layers.rnn import gru
+from keras.layers.rnn import gru_v1
+from keras.layers.rnn import legacy_cells
+from keras.layers.rnn import lstm
+from keras.layers.rnn import lstm_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.engine import base_layer_utils
-from keras.layers import recurrent as rnn_v1
-from keras.layers import recurrent_v2 as rnn_v2
-from keras.layers.legacy_rnn import rnn_cell_impl
 from keras.utils import generic_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.training.tracking import util as trackable_util
+
 
 # Used for nested input/output/state RNN test.
 NestedInput = collections.namedtuple('NestedInput', ['t1', 't2'])
@@ -246,8 +249,8 @@ class RNNTest(test_combinations.TestCase):
     y = layer(x)
     model = keras.models.Model(x, y)
     model.compile(
-        optimizer="rmsprop",
-        loss="mse",
+        optimizer='rmsprop',
+        loss='mse',
         run_eagerly=test_utils.should_run_eagerly())
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
@@ -405,10 +408,10 @@ class RNNTest(test_combinations.TestCase):
     self.assertAllClose(y_np, y_np_3, atol=1e-4)
 
     # Test stacking.
-    cells = [keras.layers.recurrent.GRUCell(8),
+    cells = [gru_v1.GRUCell(8),
              RNNCellWithConstants(12, constant_size=3),
              RNNCellWithConstants(32, constant_size=3)]
-    layer = keras.layers.recurrent.RNN(cells)
+    layer = keras.layers.RNN(cells)
     y = layer(x, constants=c)
     model = keras.models.Model([x, c], y)
     model.compile(
@@ -423,8 +426,8 @@ class RNNTest(test_combinations.TestCase):
     # Test GRUCell reset_after property.
     x = keras.Input((None, 5))
     c = keras.Input((3,))
-    cells = [keras.layers.recurrent.GRUCell(32, reset_after=True)]
-    layer = keras.layers.recurrent.RNN(cells)
+    cells = [gru_v1.GRUCell(32, reset_after=True)]
+    layer = keras.layers.RNN(cells)
     y = layer(x, constants=c)
     model = keras.models.Model([x, c], y)
     model.compile(
@@ -443,7 +446,7 @@ class RNNTest(test_combinations.TestCase):
     weights = model.get_weights()
     config = layer.get_config()
     with generic_utils.CustomObjectScope(custom_objects):
-      layer = keras.layers.recurrent.RNN.from_config(config.copy())
+      layer = keras.layers.RNN.from_config(config.copy())
     y = layer(x, constants=c)
     model = keras.models.Model([x, c], y)
     model.set_weights(weights)
@@ -466,10 +469,10 @@ class RNNTest(test_combinations.TestCase):
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
     # Test stacking.
-    cells = [keras.layers.recurrent.GRUCell(8),
+    cells = [gru_v1.GRUCell(8),
              RNNCellWithConstants(12, constant_size=3),
              RNNCellWithConstants(32, constant_size=3)]
-    layer = keras.layers.recurrent.RNN(cells)
+    layer = keras.layers.RNN(cells)
     y = layer(x, constants=c)
     model = keras.models.Model(x, y)
     model.compile(
@@ -543,10 +546,10 @@ class RNNTest(test_combinations.TestCase):
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
     # Test stacking.
-    cells = [keras.layers.recurrent.GRUCell(8),
+    cells = [gru_v1.GRUCell(8),
              RNNCellWithConstants(12, constant_size=3),
              RNNCellWithConstants(32, constant_size=3)]
-    layer = keras.layers.recurrent.RNN(cells)
+    layer = keras.layers.RNN(cells)
     s = [tf.zeros([6, 8], dtype=tf.float32),
          tf.zeros([6, 12], dtype=tf.float32),
          tf.zeros([6, 32], dtype=tf.float32)]
@@ -735,8 +738,10 @@ class RNNTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
       *test_utils.generate_combinations_with_testcase_name(
-          layer=[rnn_v1.SimpleRNN, rnn_v1.GRU, rnn_v1.LSTM,
-                 rnn_v2.GRU, rnn_v2.LSTM],
+          layer=[
+              keras.layers.SimpleRNN, gru_v1.GRU, lstm_v1.LSTM, gru.GRU,
+              lstm.LSTM
+          ],
           unroll=[True, False]))
   def test_rnn_dropout(self, layer, unroll):
     rnn_layer = layer(3, dropout=0.1, recurrent_dropout=0.1, unroll=unroll)
@@ -1348,7 +1353,7 @@ class RNNTest(test_combinations.TestCase):
         recurrent_activation='sigmoid',
         implementation=2)
     tf_lstm_cell_output = _run_cell(
-        rnn_cell_impl.LSTMCell,
+        legacy_cells.LSTMCell,
         use_peepholes=True,
         initializer=tf.compat.v1.ones_initializer)
     self.assertNotAllClose(first_implementation_output, no_peephole_output)
@@ -1504,7 +1509,7 @@ class RNNTest(test_combinations.TestCase):
     model.predict(np.ones((batch, timesteps, input_dim)))
 
     new_states = tf.nest.map_structure(lambda s: np.ones((batch, s)),
-                                    layer.cell.state_size)
+                                       layer.cell.state_size)
     layer.reset_states(new_states)
     model.predict(np.ones((batch, timesteps, input_dim)))
 
@@ -1635,7 +1640,7 @@ class RNNTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
       *test_utils.generate_combinations_with_testcase_name(layer=[
-          rnn_v1.SimpleRNN, rnn_v1.GRU, rnn_v1.LSTM, rnn_v2.GRU, rnn_v2.LSTM
+          keras.layers.SimpleRNN, gru_v1.GRU, lstm_v1.LSTM, gru.GRU, lstm.LSTM
       ]))
   def test_rnn_with_ragged_input(self, layer):
     ragged_data = tf.ragged.constant(
@@ -1800,7 +1805,7 @@ class RNNTest(test_combinations.TestCase):
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 5)))
 
   @parameterized.parameters(
-      [rnn_v1.SimpleRNN, rnn_v1.GRU, rnn_v1.LSTM, rnn_v2.GRU, rnn_v2.LSTM])
+      [keras.layers.SimpleRNN, gru_v1.GRU, lstm_v1.LSTM, gru.GRU, lstm.LSTM])
   def test_for_enable_caching_device_for_layer(self, layer_cls):
     expected_caching_device = tf.compat.v1.executing_eagerly_outside_functions()
     layer = layer_cls(1)
@@ -1817,8 +1822,8 @@ class RNNTest(test_combinations.TestCase):
     self.assertEqual(config['enable_caching_device'], non_default_value)
 
   @parameterized.parameters(
-      [rnn_v1.SimpleRNNCell, rnn_v1.GRUCell, rnn_v1.LSTMCell, rnn_v2.GRUCell,
-       rnn_v2.LSTMCell])
+      [keras.layers.SimpleRNNCell, gru_v1.GRUCell, lstm_v1.LSTMCell,
+       gru.GRUCell, lstm.LSTMCell])
   def test_for_enable_caching_device_for_cell(self, cell_cls):
     expected_caching_device = tf.compat.v1.executing_eagerly_outside_functions()
     cell = cell_cls(1)
@@ -1906,15 +1911,15 @@ class Minimal2DRNNCell(keras.layers.Layer):
     prev_output = states[0]
     h = tf.einsum('bij,ijkl->bkl', inputs, self.kernel)
     h += tf.expand_dims(self.bias, axis=0)
-    output = h + tf.einsum('bij,ijkl->bkl', prev_output,
-                                         self.recurring_kernel)
+    output = h + tf.einsum('bij,ijkl->bkl', prev_output, self.recurring_kernel)
     return output, [output]
 
 
 class PlusOneRNNCell(keras.layers.Layer):
   """Add one to the input and state.
 
-  This cell is used for testing state_size and output_size."""
+  This cell is used for testing state_size and output_size.
+  """
 
   def __init__(self, num_unit, **kwargs):
     self.state_size = num_unit
@@ -1966,8 +1971,7 @@ class NestedCell(keras.layers.Layer):
     s1, s2 = states
 
     output_1 = tf.matmul(flatten_inputs[0], self.kernel_1)
-    output_2_3 = tf.einsum('bij,ijkl->bkl', flatten_inputs[1],
-                                         self.kernel_2_3)
+    output_2_3 = tf.einsum('bij,ijkl->bkl', flatten_inputs[1], self.kernel_2_3)
     state_1 = s1 + output_1
     state_2_3 = s2 + output_2_3
 

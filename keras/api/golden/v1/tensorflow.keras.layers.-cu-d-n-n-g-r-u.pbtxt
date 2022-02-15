@@ -1,8 +1,8 @@
 path: "tensorflow.keras.layers.CuDNNGRU"
 tf_class {
-  is_instance: "<class \'keras.layers.cudnn_recurrent.CuDNNGRU\'>"
-  is_instance: "<class \'keras.layers.cudnn_recurrent._CuDNNRNN\'>"
-  is_instance: "<class \'keras.layers.recurrent.RNN\'>"
+  is_instance: "<class \'keras.layers.rnn.cudnn_gru.CuDNNGRU\'>"
+  is_instance: "<class \'keras.layers.rnn.base_cudnn_rnn._CuDNNRNN\'>"
+  is_instance: "<class \'keras.layers.rnn.base_rnn.RNN\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"

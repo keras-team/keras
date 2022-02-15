@@ -12,25 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for GRU layer."""
-
-import tensorflow.compat.v2 as tf
+"""Tests for GRU V1 layer."""
 
 import copy
 
 from absl.testing import parameterized
-import numpy as np
-
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes
 class GRULayerTest(test_combinations.TestCase):
 
-  def test_return_sequences_GRU(self):
+  def test_return_sequences_gru(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
@@ -45,7 +43,7 @@ class GRULayerTest(test_combinations.TestCase):
       pred=tf.test.is_built_with_rocm,
       skip_message='Double type is not yet supported in ROCm')
   @test_utils.run_v2_only
-  def test_float64_GRU(self):
+  def test_float64_gru(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
@@ -58,7 +56,7 @@ class GRULayerTest(test_combinations.TestCase):
         input_shape=(num_samples, timesteps, embedding_dim),
         input_dtype='float64')
 
-  def test_dynamic_behavior_GRU(self):
+  def test_dynamic_behavior_gru(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
@@ -74,7 +72,7 @@ class GRULayerTest(test_combinations.TestCase):
     y = np.random.random((num_samples, units))
     model.train_on_batch(x, y)
 
-  def test_dropout_GRU(self):
+  def test_dropout_gru(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
@@ -92,7 +90,7 @@ class GRULayerTest(test_combinations.TestCase):
     self.assertEqual(layer.implementation, 1)
 
   @parameterized.parameters([0, 1, 2])
-  def test_implementation_mode_GRU(self, implementation_mode):
+  def test_implementation_mode_gru(self, implementation_mode):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
@@ -103,7 +101,7 @@ class GRULayerTest(test_combinations.TestCase):
                 'implementation': implementation_mode},
         input_shape=(num_samples, timesteps, embedding_dim))
 
-  def test_reset_after_GRU(self):
+  def test_reset_after_gru(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
@@ -131,7 +129,7 @@ class GRULayerTest(test_combinations.TestCase):
   @tf.test.disable_with_predicate(
       pred=tf.test.is_built_with_rocm,
       skip_message='MIOpen only supports packed input output')
-  def test_with_masking_layer_GRU(self):
+  def test_with_masking_layer_gru(self):
     layer_class = keras.layers.GRU
     inputs = np.random.random((2, 3, 4))
     targets = np.abs(np.random.random((2, 3, 5)))
@@ -148,7 +146,7 @@ class GRULayerTest(test_combinations.TestCase):
   @tf.test.disable_with_predicate(
       pred=tf.test.is_built_with_rocm,
       skip_message='MIOpen only supports packed input output')
-  def test_statefulness_GRU(self):
+  def test_statefulness_gru(self):
     num_samples = 2
     timesteps = 3
     embedding_dim = 4
@@ -225,7 +223,7 @@ class GRULayerTest(test_combinations.TestCase):
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class GRULayerGenericTest(tf.test.TestCase):
 
-  def test_constraints_GRU(self):
+  def test_constraints_gru(self):
     embedding_dim = 4
     layer_class = keras.layers.GRU
     k_constraint = keras.constraints.max_norm(0.01)
@@ -244,20 +242,20 @@ class GRULayerGenericTest(tf.test.TestCase):
     self.assertEqual(layer.cell.recurrent_kernel.constraint, r_constraint)
     self.assertEqual(layer.cell.bias.constraint, b_constraint)
 
-  def test_from_config_GRU(self):
+  def test_from_config_gru(self):
     layer_class = keras.layers.GRU
     for stateful in (False, True):
       l1 = layer_class(units=1, stateful=stateful)
       l2 = layer_class.from_config(l1.get_config())
       assert l1.get_config() == l2.get_config()
 
-  def test_deep_copy_GRU(self):
+  def test_deep_copy_gru(self):
     cell = keras.layers.GRUCell(5)
     copied_cell = copy.deepcopy(cell)
     self.assertEqual(copied_cell.units, 5)
     self.assertEqual(cell.get_config(), copied_cell.get_config())
 
-  def test_regularizers_GRU(self):
+  def test_regularizers_gru(self):
     embedding_dim = 4
     layer_class = keras.layers.GRU
     layer = layer_class(
@@ -270,14 +268,14 @@ class GRULayerGenericTest(tf.test.TestCase):
         bias_regularizer='l2',
         activity_regularizer='l1')
     layer.build((None, None, 2))
-    self.assertEqual(len(layer.losses), 3)
+    self.assertLen(layer.losses, 3)
 
     x = keras.backend.variable(np.ones((2, 3, 2)))
     layer(x)
     if tf.executing_eagerly():
-      self.assertEqual(len(layer.losses), 4)
+      self.assertLen(layer.losses, 4)
     else:
-      self.assertEqual(len(layer.get_losses_for(x)), 1)
+      self.assertLen(layer.get_losses_for(x), 1)
 
 
 if __name__ == '__main__':

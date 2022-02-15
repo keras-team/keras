@@ -1743,7 +1743,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
     s = sequential.Sequential()
     s.add(layers.Dense(5, input_shape=(4,)))
 
-    x = layers.wrappers.TimeDistributed(s)(x)
+    x = layers.TimeDistributed(s)(x)
     model = training_lib.Model(inputs=inputs, outputs=x)
     model.compile(
         optimizer='rmsprop',

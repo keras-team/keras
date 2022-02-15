@@ -1,9 +1,9 @@
 path: "tensorflow.keras.layers.LSTM"
 tf_class {
-  is_instance: "<class \'keras.layers.recurrent_v2.LSTM\'>"
-  is_instance: "<class \'keras.layers.recurrent.DropoutRNNCellMixin\'>"
-  is_instance: "<class \'keras.layers.recurrent.LSTM\'>"
-  is_instance: "<class \'keras.layers.recurrent.RNN\'>"
+  is_instance: "<class \'keras.layers.rnn.lstm.LSTM\'>"
+  is_instance: "<class \'keras.layers.rnn.dropout_rnn_cell_mixin.DropoutRNNCellMixin\'>"
+  is_instance: "<class \'keras.layers.rnn.lstm_v1.LSTM\'>"
+  is_instance: "<class \'keras.layers.rnn.base_rnn.RNN\'>"
   is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"

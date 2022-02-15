@@ -1,7 +1,7 @@
 path: "tensorflow.keras.layers.SimpleRNN"
 tf_class {
-  is_instance: "<class \'keras.layers.recurrent.SimpleRNN\'>"
-  is_instance: "<class \'keras.layers.recurrent.RNN\'>"
+  is_instance: "<class \'keras.layers.rnn.simple_rnn.SimpleRNN\'>"
+  is_instance: "<class \'keras.layers.rnn.base_rnn.RNN\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"
