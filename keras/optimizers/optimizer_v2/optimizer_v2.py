@@ -30,7 +30,7 @@ from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
 
 
 keras_optimizers_gauge = tf.__internal__.monitoring.BoolGauge(
@@ -656,12 +656,12 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             "`tf.distribute.get_replica_context`.")
 
       strategy = tf.distribute.get_strategy()
-      if (not experimental_aggregate_gradients and strategy and
-          isinstance(strategy,
-                     (tf.compat.v1.distribute.experimental.ParameterServerStrategy,
-                      tf.distribute.experimental.ParameterServerStrategy,
-                      tf.distribute.experimental.CentralStorageStrategy,
-                      tf.compat.v1.distribute.experimental.CentralStorageStrategy))):
+      if (not experimental_aggregate_gradients and strategy and isinstance(
+          strategy,
+          (tf.compat.v1.distribute.experimental.ParameterServerStrategy,
+           tf.distribute.experimental.ParameterServerStrategy,
+           tf.distribute.experimental.CentralStorageStrategy,
+           tf.compat.v1.distribute.experimental.CentralStorageStrategy))):
         raise NotImplementedError(
             "`experimental_aggregate_gradients=False is not supported for "
             "ParameterServerStrategy and CentralStorageStrategy. Used: "
@@ -812,6 +812,34 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
   def _create_slots(self, var_list):
     pass
 
+  def _create_slots_for_sharded_variables(self, var_list):
+    """Add ShardedVariables to slots to later reconstruct for checkpointing.
+
+    ShardedVariables don't have slot variables created for them; their shards
+    do. This function allows users to call get_slot with a ShardedVariable input
+    and receive a ShardedVariable output containing the appropriate slot vars.
+
+    Iterate over the variables to find shards, and aggregate the sharded
+    containers in a set. Add these ShardedVariables to _slots so that get_slot
+    can retrieve the proper slot variables for their component shards, and
+    reconstruct those into a ShardedVariable.
+
+    Args:
+      var_list: list or tuple of `Variable` objects that will be minimized
+        using this optimizer.
+    """
+    sharded_vars = set()
+    for var in var_list:
+      if getattr(var, "_sharded_container", False):
+        sharded_vars.add(var._sharded_container())  # pylint: disable=protected-access
+
+    for sharded_var in sharded_vars:
+      sharded_key = _var_key(sharded_var)
+      slot_dict = {}
+      for slot in self.get_slot_names():
+        slot_dict[slot] = sharded_var
+      self._slots[sharded_key] = slot_dict
+
   def _create_all_weights(self, var_list):
     """Creates all weights, including iterations, hyperparameters and slot vars.
 
@@ -828,6 +856,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     _ = self.iterations
     self._create_hypers()
     self._create_slots(var_list)
+    self._create_slots_for_sharded_variables(var_list)
 
   def __getattribute__(self, name):
     """Overridden to support hyperparameter access."""
@@ -890,9 +919,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     if weight is None:
       if isinstance(initializer, str) or callable(initializer):
         initializer = initializers.get(initializer)
-        if isinstance(
-            initializer,
-            tf.__internal__.tracking.CheckpointInitialValueCallable) or (shape is not None):
+        if isinstance(initializer, tf.__internal__.tracking
+                      .CheckpointInitialValueCallable) or (shape is not None):
           slot_shape = shape
         else:
           slot_shape = var.shape
@@ -929,7 +957,20 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
   def get_slot(self, var, slot_name):
     var_key = _var_key(var)
     slot_dict = self._slots[var_key]
-    return slot_dict[slot_name]
+    slot_variable = slot_dict[slot_name]
+    if isinstance(slot_variable,
+                  tf.__internal__.distribute.ShardedVariable):
+      # Construct a ShardedVariable that points to the input ShardedVariable's
+      # component shard's slot variables.
+      shard_vars = []
+      for shard in slot_variable.variables:
+        slot_shard = self.get_slot(shard, slot_name)
+        shard_vars.append(slot_shard)
+      slot_variable = (
+          tf.__internal__.distribute.ShardedVariable(
+              shard_vars, name=slot_variable.name)
+          )
+    return slot_variable
 
   def _prepare(self, var_list):
     keys = set()
@@ -1407,6 +1448,11 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       # instead special-case this dependency and otherwise pretend it's a normal
       # graph.
     if slot_variable is not None:
+      # For sharded variables, we need the logic in get_slot to combine slot
+      # variables for its shards
+      if (slot_variable is variable) and (isinstance(
+          variable, tf.__internal__.distribute.ShardedVariable)):
+        return self.get_slot(variable, slot_name)
       # If we've either made this slot variable, or if we've pulled out an
       # existing slot variable, we should restore it.
       return slot_variable
@@ -1448,7 +1494,7 @@ def _var_key(var):
   # Get the distributed variable if it exists.
   if hasattr(var, "_distributed_container"):
     var = var._distributed_container()
-  if var._in_graph_mode:
+  if getattr(var, "_in_graph_mode", False):
     return var._shared_name
   return var._unique_id
 
