@@ -323,7 +323,7 @@ def try_build_compiled_arguments(model):
       if not model.compiled_loss.built:
         model.compiled_loss.build(model.outputs)
       if not model.compiled_metrics.built:
-        model.compiled_metrics.build(model.outputs, model.outputs)
+        model.compiled_metrics.build(model.outputs, model.target)
     except:  # pylint: disable=bare-except
       logging.warning(
           'Compiled the loaded model, but the compiled metrics have yet to '
