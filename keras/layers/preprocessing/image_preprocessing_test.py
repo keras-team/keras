@@ -667,6 +667,14 @@ class RandomContrastTest(test_combinations.TestCase):
     layer_1 = image_preprocessing.RandomContrast.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
 
+  def test_output_value_clip(self):
+    input_images = np.random.random((5, 8, 3)).astype(np.float32) * 255.0
+    # Give a factor range [1.0, 11.0] so that it will produce large contrast.
+    layer = image_preprocessing.RandomContrast((0.0, 10.0))
+    output = layer(input_images)
+    self.assertLessEqual(tf.reduce_max(output), 255.0)
+    self.assertGreaterEqual(tf.reduce_min(output), 0.0)
+
   def test_unbatched_image(self):
     np.random.seed(1337)
     mock_random = 0.2
