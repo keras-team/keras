@@ -839,3 +839,21 @@ def _assert_splits_match(nested_splits_lists):
       for splits_list in nested_splits_lists[1:]
       for (s1, s2) in zip(nested_splits_lists[0], splits_list)
   ]
+
+
+def binary_matches(y_true, y_pred, threshold=0.5):
+  """Creates int Tensor, 1 for label-prediction match, 0 for mismatch.
+
+  Args:
+    y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
+    y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
+    threshold: (Optional) Float representing the threshold for deciding whether
+      prediction values are 1 or 0.
+
+  Returns:
+    Binary matches. shape = `[batch_size, d0, .. dN]`
+  """
+  y_pred = tf.convert_to_tensor(y_pred)
+  threshold = tf.cast(threshold, y_pred.dtype)
+  y_pred = tf.cast(y_pred > threshold, y_pred.dtype)
+  return tf.cast(tf.equal(y_true, y_pred), tf.int8)

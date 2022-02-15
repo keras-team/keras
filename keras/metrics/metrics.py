@@ -209,7 +209,7 @@ class BinaryAccuracy(base_metric.MeanMetricWrapper):
 
   def __init__(self, name='binary_accuracy', dtype=None, threshold=0.5):
     super(BinaryAccuracy, self).__init__(
-        binary_accuracy, name, dtype=dtype, threshold=threshold)
+        metrics_utils.binary_matches, name, dtype=dtype, threshold=threshold)
 
 
 @keras_export('keras.metrics.CategoricalAccuracy')
@@ -3211,10 +3211,8 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
   Returns:
     Binary accuracy values. shape = `[batch_size, d0, .. dN-1]`
   """
-  y_pred = tf.convert_to_tensor(y_pred)
-  threshold = tf.cast(threshold, y_pred.dtype)
-  y_pred = tf.cast(y_pred > threshold, y_pred.dtype)
-  return backend.mean(tf.equal(y_true, y_pred), axis=-1)
+
+  return backend.mean(metrics_utils.binary_matches(y_true, y_pred, threshold), axis=-1)
 
 
 @keras_export('keras.metrics.categorical_accuracy')
