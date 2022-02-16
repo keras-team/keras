@@ -637,10 +637,6 @@ def type_spec_with_shape(spec, shape):
     # private fields.)
     shape = tf.TensorShape(shape)
     spec._shape = shape
-    if shape.rank is None:
-      spec._shape_tuple = None
-    else:
-      spec._shape_tuple = tuple(shape.as_list())
     return spec
   elif isinstance(spec, tf.RaggedTensorSpec):
     return tf.RaggedTensorSpec(shape, spec.dtype, spec.ragged_rank,
