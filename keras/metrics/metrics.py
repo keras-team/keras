@@ -3195,7 +3195,7 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
   """Calculates how often predictions match binary labels.
 
   Note: calls metrics_utils.binary_matches with mean reduction. This maintains
-  public facing binary_accuracy behavior and decouples it from the vital
+  public facing binary_accuracy behavior and seperates it from the vital
   behavior of the binary_matches method needed in backend dependencies.
 
   Standalone usage:
@@ -3224,7 +3224,7 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
 def categorical_accuracy(y_true, y_pred):
   """Calculates how often predictions match one-hot labels.
 
-  Note: wraps metrics_utils.categorical_matches. This decouples public facing
+  Note: wraps metrics_utils.categorical_matches. This seperates public facing
   categorical_accuracy behavior from the vital behavior of the 
   categorical_matches method needed in backend dependencies.
 
@@ -3254,7 +3254,7 @@ def categorical_accuracy(y_true, y_pred):
 def sparse_categorical_accuracy(y_true, y_pred):
   """Calculates how often predictions match integer labels.
 
-  Note: wraps metrics_utils.sparse_categorical_matches. This decouples
+  Note: wraps metrics_utils.sparse_categorical_matches. This seperates
   public facing sparse_categorical_accuracy behavior from the vital behavior
   of the sparse_categorical_matches method needed in backend dependencies.
 
@@ -3284,7 +3284,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
 def top_k_categorical_accuracy(y_true, y_pred, k=5):
   """Computes how often targets are in the top `K` predictions.
 
-  Note: wraps metrics_utils.top_k_categorical_matches. This decouples
+  Note: wraps metrics_utils.top_k_categorical_matches. This seperates
   public facing top_k_categorical_accuracy behavior from the vital behavior
   of the top_k_categorical_matches method needed in backend dependencies.
 
@@ -3313,7 +3313,7 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
 def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
   """Computes how often integer targets are in the top `K` predictions.
 
-  Note: wraps metrics_utils.sparse_top_k_categorical_matches. This decouples
+  Note: wraps metrics_utils.sparse_top_k_categorical_matches. This seperates
   public facing sparse_top_k_categorical_accuracy behavior from the vital
   behavior of the sparse_top_k_categorical_matches method needed in backend
   dependencies.
