@@ -25,17 +25,21 @@ from keras.testing_infra import test_utils
 from keras.layers import activation
 from keras.layers import attention
 from keras.layers import convolutional
-from keras.layers import convolutional_recurrent
 from keras.layers import core
 from keras.layers import embeddings
 from keras.layers import locally_connected
 from keras.layers import merging
 from keras.layers import pooling
-from keras.layers import recurrent
-from keras.layers import recurrent_v2
 from keras.layers import regularization
 from keras.layers import reshaping
-from keras.layers import wrappers
+from keras.layers.rnn import bidirectional
+from keras.layers.rnn import conv_lstm2d
+from keras.layers.rnn import simple_rnn
+from keras.layers.rnn import gru
+from keras.layers.rnn import gru_v1
+from keras.layers.rnn import lstm
+from keras.layers.rnn import lstm_v1
+from keras.layers.rnn import time_distributed
 from keras.layers.normalization import batch_normalization
 from keras.layers.normalization import layer_normalization
 from keras.layers.preprocessing import image_preprocessing
@@ -103,8 +107,7 @@ class LayerCorrectnessTest(test_combinations.TestCase):
       ('ZeroPadding2D', reshaping.ZeroPadding2D, (2, 2, 2, 1)),
       ('Cropping2D', reshaping.Cropping2D, (2, 3, 3, 1)),
       ('ConvLSTM2D',
-       lambda: convolutional_recurrent.ConvLSTM2D(4, kernel_size=(2, 2)),
-       (4, 4, 4, 4, 4)),
+       lambda: conv_lstm2d.ConvLSTM2D(4, kernel_size=(2, 2)), (4, 4, 4, 4, 4)),
       ('Dense', lambda: core.Dense(2), (2, 2)),
       ('Dropout', lambda: regularization.Dropout(0.5), (2, 2)),
       ('SpatialDropout2D',
@@ -142,23 +145,24 @@ class LayerCorrectnessTest(test_combinations.TestCase):
       ('AveragePooling2D', pooling.AveragePooling2D, (2, 2, 2, 1)),
       ('GlobalMaxPooling2D', pooling.GlobalMaxPooling2D, (2, 2, 2, 1)),
       ('GlobalAveragePooling2D', pooling.GlobalAveragePooling2D, (2, 2, 2, 1)),
-      ('SimpleRNN', lambda: recurrent.SimpleRNN(units=4),
+      ('SimpleRNN', lambda: simple_rnn.SimpleRNN(units=4),
        (4, 4, 4), 1e-2, 1e-2),
       ('SimpleRNN_stateful',
-       lambda: recurrent.SimpleRNN(units=4, stateful=True),
+       lambda: simple_rnn.SimpleRNN(units=4, stateful=True),
        (4, 4, 4), 1e-2, 1e-2),
-      ('GRU', lambda: recurrent.GRU(units=4), (4, 4, 4)),
-      ('LSTM', lambda: recurrent.LSTM(units=4), (4, 4, 4)),
-      ('GRUV2', lambda: recurrent_v2.GRU(units=4), (4, 4, 4)),
-      ('GRUV2_stateful', lambda: recurrent_v2.GRU(units=4, stateful=True),
+      ('GRU', lambda: gru_v1.GRU(units=4), (4, 4, 4)),
+      ('LSTM', lambda: lstm_v1.LSTM(units=4), (4, 4, 4)),
+      ('GRUV2', lambda: gru.GRU(units=4), (4, 4, 4)),
+      ('GRUV2_stateful', lambda: gru.GRU(units=4, stateful=True),
        (4, 4, 4)),
-      ('LSTMV2', lambda: recurrent_v2.LSTM(units=4), (4, 4, 4)),
-      ('LSTMV2_stateful', lambda: recurrent_v2.LSTM(units=4, stateful=True),
+      ('LSTMV2', lambda: lstm.LSTM(units=4), (4, 4, 4)),
+      ('LSTMV2_stateful', lambda: lstm.LSTM(units=4, stateful=True),
        (4, 4, 4)),
-      ('TimeDistributed', lambda: wrappers.TimeDistributed(core.Dense(2)),
-       (2, 2, 2)),
+      ('TimeDistributed',
+       lambda: time_distributed.TimeDistributed(core.Dense(2)), (2, 2, 2)),
       ('Bidirectional',
-       lambda: wrappers.Bidirectional(recurrent.SimpleRNN(units=4)), (2, 2, 2)),
+       lambda: bidirectional.Bidirectional(simple_rnn.SimpleRNN(units=4)),
+       (2, 2, 2)),
       ('AttentionLayerCausal', lambda: attention.Attention(causal=True), [
           (2, 2, 3), (2, 3, 3), (2, 3, 3)
       ]),

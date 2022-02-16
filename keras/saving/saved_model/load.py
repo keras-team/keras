@@ -64,9 +64,9 @@ training_lib_v1 = LazyLoader(
     "keras.engine.training_v1")
 metrics = LazyLoader("metrics", globals(),
                      "keras.metrics")
-recurrent = LazyLoader(
-    "recurrent", globals(),
-    "keras.layers.recurrent")
+base_rnn = LazyLoader(
+    "base_rnn", globals(),
+    "keras.layers.rnn.base_rnn")
 # pylint:enable=g-inconsistent-quotes
 
 
@@ -923,7 +923,7 @@ def _finalize_config_layers(layers):
     _restore_layer_metrics(layer)
 
     # Restore RNN layer states.
-    if (isinstance(layer, recurrent.RNN) and
+    if (isinstance(layer, base_rnn.RNN) and
         layer.stateful and
         hasattr(_get_keras_attr(layer), 'states')):
       layer.states = getattr(_get_keras_attr(layer), 'states', None)

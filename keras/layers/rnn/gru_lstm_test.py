@@ -12,28 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for recurrent v2 layers functionality other than GRU, LSTM.
+"""Tests that are common for GRU and LSTM.
 
-See also: lstm_v2_test.py, gru_v2_test.py.
+See also: lstm_test.py, gru_test.py.
 """
 
-import tensorflow.compat.v2 as tf
-
 import os
-from absl.testing import parameterized
-import numpy as np
 
+from absl.testing import parameterized
 import keras
+from keras.layers import embeddings
+from keras.layers.rnn import gru
+from keras.layers.rnn import lstm
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.layers import embeddings
-from keras.layers import recurrent_v2 as rnn_v2
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes
 class RNNV2Test(test_combinations.TestCase):
 
-  @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
+  @parameterized.parameters([lstm.LSTM, gru.GRU])
   def test_device_placement(self, layer):
     if not tf.test.is_gpu_available():
       self.skipTest('Need GPU for testing.')
@@ -60,7 +60,7 @@ class RNNV2Test(test_combinations.TestCase):
           run_eagerly=test_utils.should_run_eagerly())
       model.fit(x, y, epochs=1, shuffle=False)
 
-  @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
+  @parameterized.parameters([lstm.LSTM, gru.GRU])
   def test_reset_dropout_mask_between_batch(self, layer):
     # See https://github.com/tensorflow/tensorflow/issues/29187 for more details
     batch_size = 8
@@ -87,7 +87,7 @@ class RNNV2Test(test_combinations.TestCase):
                                self.evaluate(recurrent_dropout))
         previous_recurrent_dropout = recurrent_dropout
 
-  @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
+  @parameterized.parameters([lstm.LSTM, gru.GRU])
   def test_recurrent_dropout_with_stateful_RNN(self, layer):
     # See https://github.com/tensorflow/tensorflow/issues/27829 for details.
     # The issue was caused by using inplace mul for a variable, which was a
@@ -97,11 +97,12 @@ class RNNV2Test(test_combinations.TestCase):
               batch_input_shape=[32, None, 5], recurrent_dropout=0.2)
     ])
 
-  def test_recurrent_dropout_saved_model(self):
+  @parameterized.parameters([lstm.LSTM, gru.GRU])
+  def test_recurrent_dropout_saved_model(self, layer):
     if not tf.executing_eagerly():
       self.skipTest('v2-only test')
     inputs = keras.Input(shape=(784, 3), name='digits')
-    x = keras.layers.GRU(64, activation='relu', name='GRU', dropout=0.1)(inputs)
+    x = layer(64, activation='relu', name='RNN', dropout=0.1)(inputs)
     x = keras.layers.Dense(64, activation='relu', name='dense')(x)
     outputs = keras.layers.Dense(
         10, activation='softmax', name='predictions')(
@@ -109,17 +110,17 @@ class RNNV2Test(test_combinations.TestCase):
     model = keras.Model(inputs=inputs, outputs=outputs, name='3_layer')
     model.save(os.path.join(self.get_temp_dir(), 'model'), save_format='tf')
 
-  @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
+  @parameterized.parameters([lstm.LSTM, gru.GRU])
   def test_ragged(self, layer):
     vocab_size = 100
     inputs = tf.ragged.constant(
         np.random.RandomState(0).randint(0, vocab_size, [128, 25]))
     embedder = embeddings.Embedding(input_dim=vocab_size, output_dim=16)
     embedded_inputs = embedder(inputs)
-    lstm = layer(32)
-    lstm(embedded_inputs)
+    layer = layer(32)
+    layer(embedded_inputs)
 
-  @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
+  @parameterized.parameters([lstm.LSTM, gru.GRU])
   @test_utils.run_v2_only
   def test_compare_ragged_with_masks(self, layer):
     vocab_size = 100

@@ -21,8 +21,10 @@ import numpy as np
 import keras
 from keras.testing_infra import test_utils
 from keras.distribute import keras_correctness_test_base
-from keras.layers import recurrent as rnn_v1
-from keras.layers import recurrent_v2 as rnn_v2
+from keras.layers.rnn import gru
+from keras.layers.rnn import gru_v1
+from keras.layers.rnn import lstm
+from keras.layers.rnn import lstm_v1
 from keras.mixed_precision import policy
 from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_keras
 
@@ -73,9 +75,9 @@ class DistributionStrategyGruModelCorrectnessTest(
     if tf.__internal__.tf2.enabled():
       if not tf.executing_eagerly():
         self.skipTest("GRU v2 and legacy graph mode don't work together.")
-      return rnn_v2.GRU
+      return gru.GRU
     else:
-      return rnn_v1.GRU
+      return gru_v1.GRU
 
   @tf.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.test_combinations_for_embedding_model() +
@@ -94,9 +96,9 @@ class DistributionStrategyLstmModelCorrectnessTest(
     if tf.__internal__.tf2.enabled():
       if not tf.executing_eagerly():
         self.skipTest("LSTM v2 and legacy graph mode don't work together.")
-      return rnn_v2.LSTM
+      return lstm.LSTM
     else:
-      return rnn_v1.LSTM
+      return lstm_v1.LSTM
 
   @tf.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.test_combinations_for_embedding_model() +
