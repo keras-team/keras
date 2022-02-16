@@ -44,11 +44,11 @@ class _BaseOptimizer(tf.Module):
                jit_compile=False,
                **kwargs):
     self._name = name
-    self._clipnorm = clipnorm
-    self._global_clipnorm = global_clipnorm
-    self._clipvalue = clipvalue
-    self._use_ema = use_ema
-    self._jit_compile = jit_compile
+    self.clipnorm = clipnorm
+    self.global_clipnorm = global_clipnorm
+    self.clipvalue = clipvalue
+    self.use_ema = use_ema
+    self.jit_compile = jit_compile
     if use_ema:
       # Verify the arguments related to EMA.
       if ema_momentum > 1 or ema_momentum < 0:
@@ -59,13 +59,13 @@ class _BaseOptimizer(tf.Module):
         raise ValueError(
             "`ema_overwrite_frequency` must be an integer > 1 or None. "
             f"Received: ema_overwrite_frequency={ema_overwrite_frequency}")
-    self._ema_momentum = ema_momentum
-    self._ema_overwrite_frequency = ema_overwrite_frequency
+    self.ema_momentum = ema_momentum
+    self.ema_overwrite_frequency = ema_overwrite_frequency
 
-    if self._clipnorm is not None and self._global_clipnorm is not None:
+    if self.clipnorm is not None and self.global_clipnorm is not None:
       raise ValueError(f"At most one of `clipnorm` and `global_clipnorm` can "
-                       f"be set. Received: clipnorm={self._clipnorm}, "
-                       f"global_clipnorm={self._global_clipnorm}.")
+                       f"be set. Received: clipnorm={self.clipnorm}, "
+                       f"global_clipnorm={self.global_clipnorm}.")
 
     self._create_iteration_variable()
     self._process_kwargs(kwargs)
@@ -134,7 +134,7 @@ class _BaseOptimizer(tf.Module):
     return self.update_step(gradient, variable)
 
   def _update_step(self, gradient, variable):
-    if self._jit_compile:
+    if self.jit_compile:
       self._update_step_xla(gradient, variable, id(self._var_key(variable)))
     else:
       self.update_step(gradient, variable)
@@ -168,18 +168,18 @@ class _BaseOptimizer(tf.Module):
 
   def _clip_gradients(self, grads):
     clipped_grads = []
-    if self._clipnorm and self._clipnorm > 0:
+    if self.clipnorm and self.clipnorm > 0:
       for g in grads:
         if g is None:
           clipped_grads.append(g)
         else:
-          clipped_grads.append(tf.clip_by_norm(g, self._clipnorm))
+          clipped_grads.append(tf.clip_by_norm(g, self.clipnorm))
       return clipped_grads
 
-    if self._global_clipnorm and self._global_clipnorm > 0:
-      return tf.clip_by_global_norm(grads, self._global_clipnorm)[0]
+    if self.global_clipnorm and self.global_clipnorm > 0:
+      return tf.clip_by_global_norm(grads, self.global_clipnorm)[0]
 
-    if self._clipvalue and self._clipvalue > 0:
+    if self.clipvalue and self.clipvalue > 0:
       for g in grads:
         if g is None:
           clipped_grads.append(g)
@@ -187,16 +187,11 @@ class _BaseOptimizer(tf.Module):
           clipped_grads.append(
               tf.clip_by_value(
                   g,
-                  clip_value_min=-self._clipvalue,  # pylint: disable=invalid-unary-operand-type
-                  clip_value_max=self._clipvalue))
+                  clip_value_min=-self.clipvalue,  # pylint: disable=invalid-unary-operand-type
+                  clip_value_max=self.clipvalue))
       return clipped_grads
 
     return grads
-
-  @property
-  def use_ema(self):
-    """Returns whether the optimizer uses EMA of weights."""
-    return self._use_ema
 
   @property
   def iterations(self):
@@ -286,7 +281,7 @@ class _BaseOptimizer(tf.Module):
     if getattr(self, "_built", False):
       return
     self._build_index_dict(var_list)
-    if self._use_ema:
+    if self.use_ema:
       self._model_variables_moving_average = []
       for var in var_list:
         # Make a copy of the model variables, we will use the copy to store the
@@ -429,10 +424,10 @@ class _BaseOptimizer(tf.Module):
 
   def _update_model_variables_moving_average(self, var_list):
     """Update the stored moving average using the latest value."""
-    if self._use_ema:
+    if self.use_ema:
       for (var, average) in zip(var_list, self._model_variables_moving_average):
-        average.assign(self._ema_momentum * average +
-                       (1 - self._ema_momentum) * var)
+        average.assign(self.ema_momentum * average +
+                       (1 - self.ema_momentum) * var)
 
   def _overwrite_model_variables_with_average_value(self, var_list):
     """Overwrite model variables with its moving average."""
@@ -458,7 +453,7 @@ class _BaseOptimizer(tf.Module):
     Args:
       var_list: list of model variables.
     """
-    if self._use_ema:
+    if self.use_ema:
       # If the optimizer uses EMA, then when finalizing, we replace the model
       # variable value with its moving average stored inside optimizer.
       self._overwrite_model_variables_with_average_value(var_list)
@@ -488,13 +483,13 @@ class _BaseOptimizer(tf.Module):
         Python dictionary.
     """
     config = {
-        "clipnorm": self._clipnorm,
-        "global_clipnorm": self._global_clipnorm,
-        "clipvalue": self._clipvalue,
-        "use_ema": self._use_ema,
-        "ema_momentum": self._ema_momentum,
-        "ema_overwrite_frequency": self._ema_overwrite_frequency,
-        "jit_compile": self._jit_compile,
+        "clipnorm": self.clipnorm,
+        "global_clipnorm": self.global_clipnorm,
+        "clipvalue": self.clipvalue,
+        "use_ema": self.use_ema,
+        "ema_momentum": self.ema_momentum,
+        "ema_overwrite_frequency": self.ema_overwrite_frequency,
+        "jit_compile": self.jit_compile,
     }
     return config
 
@@ -827,10 +822,10 @@ class Optimizer(_BaseOptimizer):
 
   def _update_model_variables_moving_average(self, var_list):
     """Update the stored moving average using the latest value."""
-    if self._use_ema:
+    if self.use_ema:
       def update_average(average, var):
-        average.assign(self._ema_momentum * average +
-                       (1 - self._ema_momentum) * var)
+        average.assign(self.ema_momentum * average +
+                       (1 - self.ema_momentum) * var)
 
       for (var, average) in zip(var_list, self._model_variables_moving_average):
         self._distribution_strategy.extended.update(
@@ -848,14 +843,14 @@ class Optimizer(_BaseOptimizer):
           var, apply_grad_to_update_var, args=(grad,), group=False)
     self.iterations.assign_add(1)
 
-    if self._use_ema:
+    if self.use_ema:
       _, var_list = zip(*grads_and_vars)
       self._update_model_variables_moving_average(var_list)
-      if self._ema_overwrite_frequency:
-        # Only when self._ema_overwrite_frequency is not None, we overwrite the
+      if self.ema_overwrite_frequency:
+        # Only when self.ema_overwrite_frequency is not None, we overwrite the
         # model variables.
         should_overwrite_model_vars = (
-            self.iterations % self._ema_overwrite_frequency == 0)
+            self.iterations % self.ema_overwrite_frequency == 0)
         tf.cond(
             tf.cast(should_overwrite_model_vars, tf.bool),
             true_fn=lambda: self._overwrite_model_variables_with_average_value(  # pylint: disable=g-long-lambda
