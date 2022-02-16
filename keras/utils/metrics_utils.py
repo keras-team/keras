@@ -856,7 +856,7 @@ def binary_matches(y_true, y_pred, threshold=0.5):
   y_pred = tf.convert_to_tensor(y_pred)
   threshold = tf.cast(threshold, y_pred.dtype)
   y_pred = tf.cast(y_pred > threshold, y_pred.dtype)
-  return tf.cast(tf.equal(y_true, y_pred), tf.int8)
+  return tf.cast(tf.equal(y_true, y_pred), backend.floatx())
 
 
 def sparse_categorical_matches(y_true, y_pred):
