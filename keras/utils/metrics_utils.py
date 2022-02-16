@@ -944,6 +944,7 @@ def sparse_top_k_categorical_matches(y_true, y_pred, k=5):
 
   return matches
 
+
 def top_k_categorical_matches(y_true, y_pred, k=5):
   """Creates float Tensor for how often topK_predictions match one-hot labels.
 
