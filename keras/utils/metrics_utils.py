@@ -857,3 +857,104 @@ def binary_matches(y_true, y_pred, threshold=0.5):
   threshold = tf.cast(threshold, y_pred.dtype)
   y_pred = tf.cast(y_pred > threshold, y_pred.dtype)
   return tf.cast(tf.equal(y_true, y_pred), tf.int8)
+
+
+def sparse_categorical_matches(y_true, y_pred):
+  """Creates float Tensor, 1.0 for label-prediction match, 0.0 for mismatch.
+
+  You can provide logits of classes as `y_pred`, since argmax of
+  logits and probabilities are same.
+
+  Args:
+    y_true: Integer ground truth values.
+    y_pred: The prediction values.
+
+  Returns:
+    Match tensor: 1.0 for label-prediction match, 0.0 for mismatch.
+  """
+  y_pred = tf.convert_to_tensor(y_pred)
+  y_true = tf.convert_to_tensor(y_true)
+  y_pred_rank = y_pred.shape.ndims
+  y_true_rank = y_true.shape.ndims
+  # If the shape of y_true is (num_samples, 1), squeeze to (num_samples,)
+  if (y_true_rank is not None) and (y_pred_rank is not None) and (len(
+      backend.int_shape(y_true)) == len(backend.int_shape(y_pred))):
+    y_true = tf.squeeze(y_true, [-1])
+  y_pred = tf.math.argmax(y_pred, axis=-1)
+
+  # If the predicted output and actual output types don't match, force cast them
+  # to match.
+  if backend.dtype(y_pred) != backend.dtype(y_true):
+    y_pred = tf.cast(y_pred, backend.dtype(y_true))
+  return tf.cast(tf.equal(y_true, y_pred), backend.floatx())
+
+
+def categorical_matches(y_true, y_pred):
+  """Creates float Tensor for how often predictions match one-hot labels.
+
+  You can provide logits of classes as `y_pred`, since argmax of
+  logits and probabilities are same.
+
+  Args:
+    y_true: One-hot ground truth values.
+    y_pred: The prediction values.
+
+  Returns:
+    Match tensor: 1.0 for label-prediction match, 0.0 for mismatch.
+  """
+  y_true = tf.math.argmax(y_true, axis=-1)
+  return sparse_categorical_matches(y_true, y_pred)
+
+
+def sparse_top_k_categorical_matches(y_true, y_pred, k=5):
+  """Creates float Tensor, 1.0 for label-TopK_prediction match, 0.0 for mismatch.
+
+  Args:
+    y_true: tensor of true targets.
+    y_pred: tensor of predicted targets.
+    k: (Optional) Number of top elements to look at for computing accuracy.
+      Defaults to 5.
+
+  Returns:
+    Match tensor: 1.0 for label-prediction match, 0.0 for mismatch.
+  """
+  reshape_matches = False
+  y_true = tf.convert_to_tensor(y_true)
+  y_pred = tf.convert_to_tensor(y_pred)
+  y_true_rank = y_true.shape.ndims
+  y_pred_rank = y_pred.shape.ndims
+  y_true_org_shape = tf.shape(y_true)
+
+  # Flatten y_pred to (batch_size, num_samples) and y_true to (num_samples,)
+  if (y_true_rank is not None) and (y_pred_rank is not None):
+    if y_pred_rank > 2:
+      y_pred = tf.reshape(y_pred, [-1, y_pred.shape[-1]])
+    if y_true_rank > 1:
+      reshape_matches = True
+      y_true = tf.reshape(y_true, [-1])
+
+  matches = tf.cast(
+      tf.math.in_top_k(
+          predictions=y_pred, targets=tf.cast(y_true, 'int32'), k=k),
+      dtype=backend.floatx())
+
+  # returned matches is expected to have same shape as y_true input
+  if reshape_matches:
+    return tf.reshape(matches, shape=y_true_org_shape)
+
+  return matches
+
+def top_k_categorical_matches(y_true, y_pred, k=5):
+  """Creates float Tensor for how often topK_predictions match one-hot labels.
+
+  Args:
+    y_true: The ground truth values.
+    y_pred: The prediction values.
+    k: (Optional) Number of top elements to look at for computing accuracy.
+      Defaults to 5.
+
+  Returns:
+    Match tensor: 1.0 for label-prediction match, 0.0 for mismatch.
+  """
+  y_true = tf.math.argmax(y_true, axis=-1)
+  return sparse_top_k_categorical_matches(y_true, y_pred, k=k)

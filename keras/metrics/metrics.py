@@ -261,7 +261,7 @@ class CategoricalAccuracy(base_metric.MeanMetricWrapper):
 
   def __init__(self, name='categorical_accuracy', dtype=None):
     super(CategoricalAccuracy, self).__init__(
-        categorical_accuracy, name, dtype=dtype)
+        metrics_utils.categorical_matches, name, dtype=dtype)
 
 
 @keras_export('keras.metrics.SparseCategoricalAccuracy')
@@ -312,7 +312,7 @@ class SparseCategoricalAccuracy(base_metric.MeanMetricWrapper):
 
   def __init__(self, name='sparse_categorical_accuracy', dtype=None):
     super(SparseCategoricalAccuracy, self).__init__(
-        sparse_categorical_accuracy, name, dtype=dtype)
+        metrics_utils.sparse_categorical_matches, name, dtype=dtype)
 
 
 _SPARSE_CATEGORICAL_UPDATE_STATE_DOCSTRING = """Accumulates metric statistics.
@@ -377,7 +377,7 @@ class TopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
 
   def __init__(self, k=5, name='top_k_categorical_accuracy', dtype=None):
     super(TopKCategoricalAccuracy, self).__init__(
-        top_k_categorical_accuracy, name, dtype=dtype, k=k)
+        metrics_utils.top_k_categorical_matches, name, dtype=dtype, k=k)
 
 
 @keras_export('keras.metrics.SparseTopKCategoricalAccuracy')
@@ -415,7 +415,7 @@ class SparseTopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
 
   def __init__(self, k=5, name='sparse_top_k_categorical_accuracy', dtype=None):
     super(SparseTopKCategoricalAccuracy, self).__init__(
-        sparse_top_k_categorical_accuracy, name, dtype=dtype, k=k)
+        metrics_utils.sparse_top_k_categorical_matches, name, dtype=dtype, k=k)
 
 
 SparseTopKCategoricalAccuracy.update_state.__doc__ = _SPARSE_CATEGORICAL_UPDATE_STATE_DOCSTRING
@@ -3238,8 +3238,7 @@ def categorical_accuracy(y_true, y_pred):
   Returns:
     Categorical accuracy values.
   """
-  y_true = tf.math.argmax(y_true, axis=-1)
-  return sparse_categorical_accuracy(y_true, y_pred)
+  return metrics_utils.categorical_matches(y_true, y_pred)
 
 
 @keras_export('keras.metrics.sparse_categorical_accuracy')
@@ -3265,22 +3264,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
   Returns:
     Sparse categorical accuracy values.
   """
-  y_pred = tf.convert_to_tensor(y_pred)
-  y_true = tf.convert_to_tensor(y_true)
-  y_pred_rank = y_pred.shape.ndims
-  y_true_rank = y_true.shape.ndims
-  # If the shape of y_true is (num_samples, 1), squeeze to (num_samples,)
-  if (y_true_rank is not None) and (y_pred_rank is not None) and (len(
-      backend.int_shape(y_true)) == len(backend.int_shape(y_pred))):
-    y_true = tf.squeeze(y_true, [-1])
-  y_pred = tf.math.argmax(y_pred, axis=-1)
-
-  # If the predicted output and actual output types don't match, force cast them
-  # to match.
-  if backend.dtype(y_pred) != backend.dtype(y_true):
-    y_pred = tf.cast(y_pred, backend.dtype(y_true))
-
-  return tf.cast(tf.equal(y_true, y_pred), backend.floatx())
+  return metrics_utils.sparse_categorical_matches(y_true, y_pred)
 
 
 @keras_export('keras.metrics.top_k_categorical_accuracy')
@@ -3305,8 +3289,7 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
   Returns:
     Top K categorical accuracy value.
   """
-  y_true = tf.math.argmax(y_true, axis=-1)
-  return sparse_top_k_categorical_accuracy(y_true, y_pred, k=k)
+  return metrics_utils.top_k_categorical_matches(y_true, y_pred, k)
 
 
 @keras_export('keras.metrics.sparse_top_k_categorical_accuracy')
@@ -3332,31 +3315,7 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
   Returns:
     Sparse top K categorical accuracy value.
   """
-  reshape_matches = False
-  y_true = tf.convert_to_tensor(y_true)
-  y_pred = tf.convert_to_tensor(y_pred)
-  y_true_rank = y_true.shape.ndims
-  y_pred_rank = y_pred.shape.ndims
-  y_true_org_shape = tf.shape(y_true)
-
-  # Flatten y_pred to (batch_size, num_samples) and y_true to (num_samples,)
-  if (y_true_rank is not None) and (y_pred_rank is not None):
-    if y_pred_rank > 2:
-      y_pred = tf.reshape(y_pred, [-1, y_pred.shape[-1]])
-    if y_true_rank > 1:
-      reshape_matches = True
-      y_true = tf.reshape(y_true, [-1])
-
-  matches = tf.cast(
-      tf.math.in_top_k(
-          predictions=y_pred, targets=tf.cast(y_true, 'int32'), k=k),
-      dtype=backend.floatx())
-
-  # returned matches is expected to have same shape as y_true input
-  if reshape_matches:
-    return tf.reshape(matches, shape=y_true_org_shape)
-
-  return matches
+  return metrics_utils.sparse_top_k_categorical_matches(y_true, y_pred, k)
 
 
 def cosine_similarity(y_true, y_pred, axis=-1):
