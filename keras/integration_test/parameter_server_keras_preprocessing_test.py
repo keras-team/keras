@@ -135,7 +135,8 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
       tf.__internal__.test.combinations.combine(
           mode=["eager"],
           use_adapt=[True, False],
-          load_under_strategy=[True, False]))
+          # TODO(b/1949359300): `load_under_strategy=True` flakily times out.
+          load_under_strategy=[False]))
   def testTrainAndServe(self, use_adapt, load_under_strategy):
 
     with self.coordinator.strategy.scope():
