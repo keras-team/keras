@@ -702,6 +702,136 @@ class RandomContrastTest(test_combinations.TestCase):
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
+class RandomBrightnessTest(test_combinations.TestCase):
+
+  def test_factor_input_validation(self):
+    with self.assertRaisesRegex(ValueError, r'in the range \[-1.0, 1.0\]'):
+      image_preprocessing.RandomBrightness(2.0)
+
+    with self.assertRaisesRegex(ValueError, 'list of two numbers'):
+      image_preprocessing.RandomBrightness([1.0])
+
+    with self.assertRaisesRegex(ValueError, 'should be a number'):
+      image_preprocessing.RandomBrightness('one')
+
+  def test_factor_normalize(self):
+    layer = image_preprocessing.RandomBrightness(1.0)
+    self.assertEqual(layer._factor, [-1.0, 1.0])
+
+    layer = image_preprocessing.RandomBrightness((0.5, 0.3))
+    self.assertEqual(layer._factor, [0.3, 0.5])
+
+    layer = image_preprocessing.RandomBrightness(-0.2)
+    self.assertEqual(layer._factor, [-0.2, 0.2])
+
+  @test_utils.run_v2_only
+  def test_output_value_range(self):
+    # Always scale up to 255
+    layer = image_preprocessing.RandomBrightness([1.0, 1.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    output_min = tf.math.reduce_min(output)
+    output_max = tf.math.reduce_max(output)
+    self.assertEqual(output_min, 255)
+    self.assertEqual(output_max, 255)
+
+    # Always scale down to 0
+    layer = image_preprocessing.RandomBrightness([-1.0, -1.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    output_min = tf.math.reduce_min(output)
+    output_max = tf.math.reduce_max(output)
+    self.assertEqual(output_min, 0)
+    self.assertEqual(output_max, 0)
+
+  def test_output(self):
+    # Always scale up, but randomly between 0 ~ 255
+    layer = image_preprocessing.RandomBrightness([0, 1.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    diff = output - inputs
+    self.assertGreaterEqual(tf.math.reduce_min(diff), 0)
+    self.assertGreater(tf.math.reduce_mean(diff), 0)
+
+    # Always scale down, but randomly between 0 ~ 255
+    layer = image_preprocessing.RandomBrightness([-1.0, 0.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    diff = output - inputs
+    self.assertLessEqual(tf.math.reduce_max(diff), 0)
+    self.assertLess(tf.math.reduce_mean(diff), 0)
+
+  @test_utils.run_v2_only
+  def test_scale_output(self):
+    layer = image_preprocessing.RandomBrightness([0, 1.0], seed=1337)
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+
+    # Create a new layer with same seed but different value range
+    layer2 = image_preprocessing.RandomBrightness(
+        [0, 1.0], value_range=[0, 1], seed=1337)
+    inputs2 = inputs / 255.0
+    output2 = layer2(inputs2)
+    # Make sure the outputs are the same, but just scaled with 255
+    self.assertAllClose(output, output2 * 255.0)
+
+  def test_different_adjustment_within_batch(self):
+    layer = image_preprocessing.RandomBrightness([0.2, 0.3])
+    inputs = np.zeros(shape=(2, 10, 10, 3))  # 2 images with all zeros
+    output = layer(inputs)
+    diff = output - inputs
+    # Make sure two images gets the different adjustment
+    self.assertNotAllClose(diff[0], diff[1])
+    # Make sure all the pixel are the same with the same image
+    image1 = output[0]
+    # The reduced mean pixel value among width and height are the same as
+    # any of the pixel in the image.
+    self.assertAllClose(
+        tf.reduce_mean(image1), image1[0, 0, 0], rtol=1e-5, atol=1e-5)
+
+  def test_inference(self):
+    layer = image_preprocessing.RandomBrightness([0, 1.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs, training=False)
+    self.assertAllClose(inputs, output)
+
+  @test_utils.run_v2_only
+  def test_dtype(self):
+    layer = image_preprocessing.RandomBrightness([0, 1.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    self.assertEqual(output.dtype, tf.float32)
+
+    layer = image_preprocessing.RandomBrightness([0, 1.0], dtype='uint8')
+    output = layer(inputs)
+    self.assertEqual(output.dtype, tf.uint8)
+
+  def test_seed(self):
+    layer = image_preprocessing.RandomBrightness([0, 1.0], seed=1337)
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output_1 = layer(inputs)
+
+    layer2 = image_preprocessing.RandomBrightness([0, 1.0], seed=1337)
+    output_2 = layer2(inputs)
+
+    self.assertAllClose(output_1, output_2)
+
+  def test_config(self):
+    layer = image_preprocessing.RandomBrightness(
+        [0, 1.0], value_range=[0.0, 1.0], seed=1337)
+    config = layer.get_config()
+    self.assertEqual(config['factor'], [0.0, 1.0])
+    self.assertEqual(config['value_range'], [0.0, 1.0])
+    self.assertEqual(config['seed'], 1337)
+
+    reconstructed_layer = image_preprocessing.RandomBrightness.from_config(
+        config)
+    self.assertEqual(reconstructed_layer._factor, layer._factor)
+    self.assertEqual(reconstructed_layer._value_range, layer._value_range)
+    self.assertEqual(reconstructed_layer._seed, layer._seed)
+
+
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class RandomTranslationTest(test_combinations.TestCase):
 
   def _run_test(self, height_factor, width_factor):
