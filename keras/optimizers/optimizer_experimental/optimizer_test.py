@@ -118,7 +118,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
 
   def testPassingLegacyClipnorm(self):
     optimizer = adam_new.Adam(clipnorm=1)
-    self.assertEqual(optimizer._clipnorm, 1)
+    self.assertEqual(optimizer.clipnorm, 1)
 
   def testReturnAllOptimizerVariables(self):
     x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)
@@ -268,7 +268,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         [keras.layers.Input(shape=(1,)),
          keras.layers.Dense(1)])
     optimizer = optimizer_fn()
-    optimizer._clipnorm = 0.1
+    optimizer.clipnorm = 0.1
     x = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
     y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
     model.compile(loss="mse", optimizer=optimizer)
@@ -282,7 +282,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     loaded_optimizer = loaded_model.optimizer
     self.assertEqual(type(optimizer), type(loaded_optimizer))
     self.assertEqual(loaded_optimizer.learning_rate, 0.002)
-    self.assertEqual(loaded_optimizer._clipnorm, 0.1)
+    self.assertEqual(loaded_optimizer.clipnorm, 0.1)
 
     # Save in Keras SavedModel format.
     model.fit(x, y)
@@ -293,7 +293,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     loaded_optimizer = loaded_model.optimizer
     self.assertEqual(type(optimizer), type(loaded_optimizer))
     self.assertEqual(loaded_optimizer.learning_rate, 0.002)
-    self.assertEqual(loaded_optimizer._clipnorm, 0.1)
+    self.assertEqual(loaded_optimizer.clipnorm, 0.1)
 
 
 class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
@@ -352,14 +352,14 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
       y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
       model.compile(loss="mse", optimizer=optimizer)
     model.fit(x, y, epochs=1, steps_per_epoch=5)
-    if optimizer._name == "Adam":
+    if optimizer.name == "Adam":
       # Assert the momentum variable is not 0.
       self.assertNotEqual(self.evaluate(optimizer._momentums._storage[0]), 0)
-    elif optimizer._name == "Adadelta":
+    elif optimizer.name == "Adadelta":
       # Assert the accumulated variable is not 0.
       self.assertNotEqual(
           self.evaluate(optimizer._accumulated_grads._storage[0]), 0)
-    elif optimizer._name == "Adagrad":
+    elif optimizer.name == "Adagrad":
       # Assert the accumulated variable is not 0.
       self.assertNotEqual(self.evaluate(optimizer._accumulators._storage[0]), 0)
 
