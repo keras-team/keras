@@ -48,6 +48,7 @@ class ImagePreprocessingDistributionTest(
           image_preprocessing.Resizing(height=256, width=256),
           image_preprocessing.RandomCrop(height=224, width=224),
           image_preprocessing.RandomTranslation(.1, .1),
+          image_preprocessing.RandomBrightness(.1, value_range=(0, 1)),
           image_preprocessing.RandomRotation(.2),
           image_preprocessing.RandomFlip(),
           image_preprocessing.RandomZoom(.2, .2)])
