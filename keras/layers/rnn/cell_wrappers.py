@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Module implementing for RNN wrappers for TF v2."""
+"""Module implementing RNN wrappers."""
+# pylint: disable=g-direct-tensorflow-import
 
 # Note that all the APIs under this module are exported as tf.nn.*. This is due
 # to the fact that those APIs were from tf.nn.rnn_cell_impl. They are ported
@@ -21,13 +22,15 @@
 # existing Keras RNN API.
 
 
-from keras.layers import recurrent
-from keras.layers.legacy_rnn import rnn_cell_wrapper_impl
+from keras.layers.rnn import base_cell_wrappers
+from keras.layers.rnn import lstm_v1
+from keras.layers.rnn.abstract_rnn_cell import AbstractRNNCell
 from keras.utils import tf_inspect
+
 from tensorflow.python.util.tf_export import tf_export
 
 
-class _RNNCellWrapperV2(recurrent.AbstractRNNCell):
+class _RNNCellWrapper(AbstractRNNCell):
   """Base class for cells wrappers V2 compatibility.
 
   This class along with `rnn_cell_impl._RNNCellWrapperV1` allows to define
@@ -36,7 +39,7 @@ class _RNNCellWrapperV2(recurrent.AbstractRNNCell):
   """
 
   def __init__(self, cell, *args, **kwargs):
-    super(_RNNCellWrapperV2, self).__init__(*args, **kwargs)
+    super(_RNNCellWrapper, self).__init__(*args, **kwargs)
     self.cell = cell
     cell_call_spec = tf_inspect.getfullargspec(cell.call)
     self._expects_training_arg = ("training" in cell_call_spec.args) or (
@@ -79,7 +82,7 @@ class _RNNCellWrapperV2(recurrent.AbstractRNNCell):
             "config": self.cell.get_config()
         },
     }
-    base_config = super(_RNNCellWrapperV2, self).get_config()
+    base_config = super(_RNNCellWrapper, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -91,37 +94,35 @@ class _RNNCellWrapperV2(recurrent.AbstractRNNCell):
 
 
 @tf_export("nn.RNNCellDropoutWrapper", v1=[])
-class DropoutWrapper(rnn_cell_wrapper_impl.DropoutWrapperBase,
-                     _RNNCellWrapperV2):
+class DropoutWrapper(base_cell_wrappers.DropoutWrapperBase, _RNNCellWrapper):
   """Operator adding dropout to inputs and outputs of the given cell."""
 
   def __init__(self, *args, **kwargs):  # pylint: disable=useless-super-delegation
     super(DropoutWrapper, self).__init__(*args, **kwargs)
-    if isinstance(self.cell, recurrent.LSTMCell):
+    if isinstance(self.cell, lstm_v1.LSTMCell):
       raise ValueError("keras LSTM cell does not work with DropoutWrapper. "
                        "Please use LSTMCell(dropout=x, recurrent_dropout=y) "
                        "instead.")
 
-  __init__.__doc__ = rnn_cell_wrapper_impl.DropoutWrapperBase.__init__.__doc__
+  __init__.__doc__ = base_cell_wrappers.DropoutWrapperBase.__init__.__doc__
 
 
 @tf_export("nn.RNNCellResidualWrapper", v1=[])
-class ResidualWrapper(rnn_cell_wrapper_impl.ResidualWrapperBase,
-                      _RNNCellWrapperV2):
+class ResidualWrapper(base_cell_wrappers.ResidualWrapperBase,
+                      _RNNCellWrapper):
   """RNNCell wrapper that ensures cell inputs are added to the outputs."""
 
   def __init__(self, *args, **kwargs):  # pylint: disable=useless-super-delegation
     super(ResidualWrapper, self).__init__(*args, **kwargs)
 
-  __init__.__doc__ = rnn_cell_wrapper_impl.ResidualWrapperBase.__init__.__doc__
+  __init__.__doc__ = base_cell_wrappers.ResidualWrapperBase.__init__.__doc__
 
 
 @tf_export("nn.RNNCellDeviceWrapper", v1=[])
-class DeviceWrapper(rnn_cell_wrapper_impl.DeviceWrapperBase,
-                    _RNNCellWrapperV2):
+class DeviceWrapper(base_cell_wrappers.DeviceWrapperBase, _RNNCellWrapper):
   """Operator that ensures an RNNCell runs on a particular device."""
 
   def __init__(self, *args, **kwargs):  # pylint: disable=useless-super-delegation
     super(DeviceWrapper, self).__init__(*args, **kwargs)
 
-  __init__.__doc__ = rnn_cell_wrapper_impl.DeviceWrapperBase.__init__.__doc__
+  __init__.__doc__ = base_cell_wrappers.DeviceWrapperBase.__init__.__doc__

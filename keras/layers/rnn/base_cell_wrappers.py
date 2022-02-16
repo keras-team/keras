@@ -12,19 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Module contains the implementation of RNN cell wrappers."""
+"""Module contains the base implementation of RNN cell wrappers."""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
-import tensorflow.compat.v2 as tf
 
 import hashlib
 import numbers
 import sys
 import types as python_types
 import warnings
+
 from keras.utils import generic_utils
+import tensorflow.compat.v2 as tf
 
 
 class DropoutWrapperBase:
@@ -494,7 +495,7 @@ def _parse_config_to_function(config, custom_objects, func_attr_name,
 
 
 def _default_dropout_state_filter_visitor(substate):
-  from keras.layers.legacy_rnn.rnn_cell_impl import LSTMStateTuple  # pylint: disable=g-import-not-at-top
+  from keras.layers.rnn.legacy_cells import LSTMStateTuple  # pylint: disable=g-import-not-at-top
   if isinstance(substate, LSTMStateTuple):
     # Do not perform dropout on the memory state.
     return LSTMStateTuple(c=False, h=True)
@@ -511,5 +512,6 @@ def _enumerated_map_structure_up_to(shallow_structure, map_fn, *args, **kwargs):
     ix[0] += 1
     return r
 
-  return tf.__internal__.nest.map_structure_up_to(shallow_structure, enumerated_fn, *args,
-                                  **kwargs)
+  return tf.__internal__.nest.map_structure_up_to(shallow_structure,
+                                                  enumerated_fn, *args,
+                                                  **kwargs)
