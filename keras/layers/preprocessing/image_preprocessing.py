@@ -222,7 +222,8 @@ class CenterCrop(base_layer.Layer):
 
 
 @keras_export('keras.layers.RandomCrop',
-              'keras.layers.experimental.preprocessing.RandomCrop')
+              'keras.layers.experimental.preprocessing.RandomCrop',
+              v1=[])
 class RandomCrop(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly crops images during training.
 
@@ -265,8 +266,6 @@ class RandomCrop(base_layer.BaseRandomLayer):
     self.seed = seed
 
   def call(self, inputs, training=True):
-    if training is None:
-      training = backend.learning_phase()
     inputs = utils.ensure_tensor(inputs, dtype=self.compute_dtype)
     input_shape = tf.shape(inputs)
     h_diff = input_shape[H_AXIS] - self.height
@@ -369,7 +368,8 @@ HORIZONTAL_AND_VERTICAL = 'horizontal_and_vertical'
 
 
 @keras_export('keras.layers.RandomFlip',
-              'keras.layers.experimental.preprocessing.RandomFlip')
+              'keras.layers.experimental.preprocessing.RandomFlip',
+              v1=[])
 class RandomFlip(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly flips images during training.
 
@@ -463,7 +463,8 @@ class RandomFlip(base_layer.BaseRandomLayer):
 
 # TODO(tanzheny): Add examples, here and everywhere.
 @keras_export('keras.layers.RandomTranslation',
-              'keras.layers.experimental.preprocessing.RandomTranslation')
+              'keras.layers.experimental.preprocessing.RandomTranslation',
+              v1=[])
 class RandomTranslation(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly translates images during training.
 
@@ -793,7 +794,8 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
 
 
 @keras_export('keras.layers.RandomRotation',
-              'keras.layers.experimental.preprocessing.RandomRotation')
+              'keras.layers.experimental.preprocessing.RandomRotation',
+              v1=[])
 class RandomRotation(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly rotates images during training.
 
@@ -922,7 +924,8 @@ class RandomRotation(base_layer.BaseRandomLayer):
 
 
 @keras_export('keras.layers.RandomZoom',
-              'keras.layers.experimental.preprocessing.RandomZoom')
+              'keras.layers.experimental.preprocessing.RandomZoom',
+              v1=[])
 class RandomZoom(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly zooms images during training.
 
@@ -1130,7 +1133,8 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
 
 
 @keras_export('keras.layers.RandomContrast',
-              'keras.layers.experimental.preprocessing.RandomContrast')
+              'keras.layers.experimental.preprocessing.RandomContrast',
+              v1=[])
 class RandomContrast(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly adjusts contrast during training.
 
@@ -1217,7 +1221,8 @@ class RandomContrast(base_layer.BaseRandomLayer):
 
 
 @keras_export('keras.layers.RandomHeight',
-              'keras.layers.experimental.preprocessing.RandomHeight')
+              'keras.layers.experimental.preprocessing.RandomHeight',
+              v1=[])
 class RandomHeight(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly varies image height during training.
 
@@ -1326,7 +1331,8 @@ class RandomHeight(base_layer.BaseRandomLayer):
 
 
 @keras_export('keras.layers.RandomWidth',
-              'keras.layers.experimental.preprocessing.RandomWidth')
+              'keras.layers.experimental.preprocessing.RandomWidth',
+              v1=[])
 class RandomWidth(base_layer.BaseRandomLayer):
   """A preprocessing layer which randomly varies image width during training.
 
@@ -1390,7 +1396,6 @@ class RandomWidth(base_layer.BaseRandomLayer):
 
   def call(self, inputs, training=True):
     inputs = utils.ensure_tensor(inputs)
-
     def random_width_inputs(inputs):
       """Inputs width-adjusted with random ops."""
       inputs_shape = tf.shape(inputs)
