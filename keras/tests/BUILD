@@ -122,7 +122,7 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/api:keras_api",
-        "//keras/layers/legacy_rnn:rnn_cell_impl",
+        "//keras/layers/rnn:legacy_cells",
         "//keras/legacy_tf_layers:layers_base",
         "//keras/testing_infra:test_combinations",
     ],

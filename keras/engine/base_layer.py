@@ -2688,19 +2688,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         self.set_weights(self._initial_weights)
       self._initial_weights = None
 
-  def _symbolic_call(self, inputs):
-    input_shapes = tf.nest.map_structure(lambda x: x.shape, inputs)
-    output_shapes = self.compute_output_shape(input_shapes)
-    # Convert to TensorShape so that nest.map_structure will not map into
-    # individual dim of the shape.
-    output_shapes = tf_utils.convert_shapes(output_shapes, to_tuples=False)
-
-    def _make_placeholder_like(shape):
-      ph = backend.placeholder(shape=shape, dtype=self.dtype)
-      ph._keras_mask = None
-      return ph
-    return tf.nest.map_structure(_make_placeholder_like, output_shapes)
-
   def _get_trainable_state(self):
     """Get the `trainable` state of each sublayer.
 

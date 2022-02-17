@@ -1,8 +1,8 @@
 path: "tensorflow.keras.experimental.PeepholeLSTMCell"
 tf_class {
-  is_instance: "<class \'keras.layers.recurrent.PeepholeLSTMCell\'>"
-  is_instance: "<class \'keras.layers.recurrent.LSTMCell\'>"
-  is_instance: "<class \'keras.layers.recurrent.DropoutRNNCellMixin\'>"
+  is_instance: "<class \'keras.layers.rnn.lstm_v1.PeepholeLSTMCell\'>"
+  is_instance: "<class \'keras.layers.rnn.lstm_v1.LSTMCell\'>"
+  is_instance: "<class \'keras.layers.rnn.dropout_rnn_cell_mixin.DropoutRNNCellMixin\'>"
   is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"

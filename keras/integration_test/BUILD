@@ -158,9 +158,11 @@ distribute_py_test(
     ],
     deps = [
         "//:expect_absl_installed",
+        "//:expect_numpy_installed",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
+        "//keras/testing_infra:test_utils",
     ],
 )
 

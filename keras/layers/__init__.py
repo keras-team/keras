@@ -196,58 +196,58 @@ from keras.layers.pooling.global_max_pooling2d import GlobalMaxPool2D
 from keras.layers.pooling.global_max_pooling3d import GlobalMaxPool3D
 
 # Recurrent layers.
-from keras.layers.recurrent import RNN
-from keras.layers.recurrent import AbstractRNNCell
-from keras.layers.recurrent import StackedRNNCells
-from keras.layers.recurrent import SimpleRNNCell
-from keras.layers.recurrent import PeepholeLSTMCell
-from keras.layers.recurrent import SimpleRNN
+from keras.layers.rnn.base_rnn import RNN
+from keras.layers.rnn.abstract_rnn_cell import AbstractRNNCell
+from keras.layers.rnn.stacked_rnn_cells import StackedRNNCells
+from keras.layers.rnn.simple_rnn import SimpleRNNCell
+from keras.layers.rnn.lstm_v1 import PeepholeLSTMCell
+from keras.layers.rnn.simple_rnn import SimpleRNN
 
 if tf.__internal__.tf2.enabled():
-  from keras.layers.recurrent_v2 import GRU
-  from keras.layers.recurrent_v2 import GRUCell
-  from keras.layers.recurrent_v2 import LSTM
-  from keras.layers.recurrent_v2 import LSTMCell
-  from keras.layers.recurrent import GRU as GRUV1
-  from keras.layers.recurrent import GRUCell as GRUCellV1
-  from keras.layers.recurrent import LSTM as LSTMV1
-  from keras.layers.recurrent import LSTMCell as LSTMCellV1
+  from keras.layers.rnn.gru import GRU
+  from keras.layers.rnn.gru import GRUCell
+  from keras.layers.rnn.lstm import LSTM
+  from keras.layers.rnn.lstm import LSTMCell
+  from keras.layers.rnn.gru_v1 import GRU as GRUV1
+  from keras.layers.rnn.gru_v1 import GRUCell as GRUCellV1
+  from keras.layers.rnn.lstm_v1 import LSTM as LSTMV1
+  from keras.layers.rnn.lstm_v1 import LSTMCell as LSTMCellV1
   GRUV2 = GRU
   GRUCellV2 = GRUCell
   LSTMV2 = LSTM
   LSTMCellV2 = LSTMCell
 else:
-  from keras.layers.recurrent import GRU
-  from keras.layers.recurrent import GRUCell
-  from keras.layers.recurrent import LSTM
-  from keras.layers.recurrent import LSTMCell
-  from keras.layers.recurrent_v2 import GRU as GRUV2
-  from keras.layers.recurrent_v2 import GRUCell as GRUCellV2
-  from keras.layers.recurrent_v2 import LSTM as LSTMV2
-  from keras.layers.recurrent_v2 import LSTMCell as LSTMCellV2
+  from keras.layers.rnn.gru_v1 import GRU
+  from keras.layers.rnn.gru_v1 import GRUCell
+  from keras.layers.rnn.lstm_v1 import LSTM
+  from keras.layers.rnn.lstm_v1 import LSTMCell
+  from keras.layers.rnn.gru import GRU as GRUV2
+  from keras.layers.rnn.gru import GRUCell as GRUCellV2
+  from keras.layers.rnn.lstm import LSTM as LSTMV2
+  from keras.layers.rnn.lstm import LSTMCell as LSTMCellV2
   GRUV1 = GRU
   GRUCellV1 = GRUCell
   LSTMV1 = LSTM
   LSTMCellV1 = LSTMCell
 
 # Convolutional-recurrent layers.
-from keras.layers.convolutional_recurrent import ConvLSTM1D
-from keras.layers.convolutional_recurrent import ConvLSTM2D
-from keras.layers.convolutional_recurrent import ConvLSTM3D
+from keras.layers.rnn.conv_lstm1d import ConvLSTM1D
+from keras.layers.rnn.conv_lstm2d import ConvLSTM2D
+from keras.layers.rnn.conv_lstm3d import ConvLSTM3D
 
 # cuDNN recurrent layers.
-from keras.layers.cudnn_recurrent import CuDNNLSTM
-from keras.layers.cudnn_recurrent import CuDNNGRU
+from keras.layers.rnn.cudnn_lstm import CuDNNLSTM
+from keras.layers.rnn.cudnn_gru import CuDNNGRU
 
 # Wrapper functions.
-from keras.layers.wrappers import Wrapper
-from keras.layers.wrappers import Bidirectional
-from keras.layers.wrappers import TimeDistributed
+from keras.layers.rnn.base_wrapper import Wrapper
+from keras.layers.rnn.bidirectional import Bidirectional
+from keras.layers.rnn.time_distributed import TimeDistributed
 
 # RNN Cell wrappers.
-from keras.layers.rnn_cell_wrapper_v2 import DeviceWrapper
-from keras.layers.rnn_cell_wrapper_v2 import DropoutWrapper
-from keras.layers.rnn_cell_wrapper_v2 import ResidualWrapper
+from keras.layers.rnn.cell_wrappers import DeviceWrapper
+from keras.layers.rnn.cell_wrappers import DropoutWrapper
+from keras.layers.rnn.cell_wrappers import ResidualWrapper
 
 # Serialization functions.
 from keras.layers import serialization
