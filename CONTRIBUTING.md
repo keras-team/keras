@@ -63,7 +63,7 @@ for your reference.
 
 To setup the development environment, We provide two options. One is to use our
 Dockerfile, which builds into a container the required dev tools. Another one is
-to setup a local environment by install the dev tools needed.
+to setup a local environment by installing the dev tools needed.
 
 ### Option 1: Use a Docker container
 
