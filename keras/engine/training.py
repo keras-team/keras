@@ -281,6 +281,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._init_batch_counters()
     self._base_model_initialized = True
 
+    # `jit_compile` starts off with None as default and gets overwritten by the
+    # value specified in `Model.compile`, and this is effective for `fit`,
+    # `evaluate`, and `predict`.
+    self._jit_compile = None
+
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _init_batch_counters(self):
     # Untracked Variables, used to keep track of mini-batches seen in `fit`,
@@ -1507,6 +1512,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           model._test_counter.assign_add(1)  # pylint: disable=protected-access
         return outputs
 
+      if self._jit_compile:
+        run_step = tf.function(
+            run_step, jit_compile=True, experimental_relax_shapes=True)
+
       data = next(iterator)
       outputs = model.distribute_strategy.run(run_step, args=(data,))
       outputs = reduce_per_replica(
@@ -1790,6 +1799,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         with tf.control_dependencies(_minimum_control_deps(outputs)):
           model._predict_counter.assign_add(1)  # pylint: disable=protected-access
         return outputs
+
+      if self._jit_compile:
+        run_step = tf.function(
+            run_step, jit_compile=True, experimental_relax_shapes=True)
 
       data = next(iterator)
       outputs = model.distribute_strategy.run(run_step, args=(data,))
