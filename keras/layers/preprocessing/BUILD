@@ -491,7 +491,7 @@ distribute_py_test(
     srcs = ["normalization_distribution_test.py"],
     main = "normalization_distribution_test.py",
     python_version = "PY3",
-    shard_count = 4,
+    shard_count = 8,
     tags = [
         "no_oss",
         "nomultivm",  # TODO(b/170502145)
