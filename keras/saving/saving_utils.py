@@ -317,12 +317,29 @@ def _enforce_names_consistency(specs):
 
 
 def try_build_compiled_arguments(model):
+  """Trying to build compiled metrics."""
   if (not version_utils.is_v1_layer_or_model(model) and
       model.outputs is not None):
     try:
       if not model.compiled_loss.built:
         model.compiled_loss.build(model.outputs)
       if not model.compiled_metrics.built:
+        # check if the loss = `sparse_categorical_crossentropy'
+        if ((isinstance(model.loss, str) and
+             ('sparse' in model.loss) and
+             (model.metrics_names[1].lower() in ['accuracy', 'acc']))):
+          logging.warning(
+              'The compiled metrics are yet to be built. Saving a model before '
+              'training or evaluating, may result in erroneous performance. '
+              'One workaround is to recompile the model before training.')
+        # check if the loss = tf.keras.losses.SparseCategoricalCrossentropy()
+        elif ((isinstance(model.loss.name, str)) and
+              ('sparse' in model.loss.name) and
+              (model.metrics_names[1].lower() in ['accuracy', 'acc'])):
+          logging.warning(
+              'The compiled metrics are yet to be built. Saving a model before '
+              'training or evaluating, may result in erroneous performance. '
+              'One workaround is to recompile the model before training.')
         model.compiled_metrics.build(model.outputs, model.outputs)
     except:  # pylint: disable=bare-except
       logging.warning(
@@ -332,5 +349,6 @@ def try_build_compiled_arguments(model):
 
 
 def is_hdf5_filepath(filepath):
+  """Checks whether the filepath includes .h5/.hdf5/.keras."""
   return (filepath.endswith('.h5') or filepath.endswith('.keras') or
           filepath.endswith('.hdf5'))
