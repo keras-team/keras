@@ -93,9 +93,8 @@ def deserialize(config, custom_objects=None):
       'ftrl': ftrl.Ftrl,
       'lossscaleoptimizer': loss_scale_optimizer.LossScaleOptimizer,
       'lossscaleoptimizerv3': loss_scale_optimizer.LossScaleOptimizerV3,
-      # LossScaleOptimizerV1 deserializes into LossScaleOptimizer, as
-      # LossScaleOptimizerV1 will be removed soon but deserializing it will
-      # still be supported.
+      # LossScaleOptimizerV1 was an old version of LSO that was removed.
+      # Deserializing it turns it into a LossScaleOptimizer
       'lossscaleoptimizerv1': loss_scale_optimizer.LossScaleOptimizer,
   }
 
