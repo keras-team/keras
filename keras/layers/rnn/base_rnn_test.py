@@ -25,7 +25,6 @@ import keras
 from keras.engine import base_layer_utils
 from keras.layers.rnn import gru
 from keras.layers.rnn import gru_v1
-from keras.layers.rnn import legacy_cells
 from keras.layers.rnn import lstm
 from keras.layers.rnn import lstm_v1
 from keras.testing_infra import test_combinations
@@ -1318,48 +1317,6 @@ class RNNTest(test_combinations.TestCase):
         [np.zeros((batch, t, o1)),
          np.zeros((batch, t, o2, o3))])
     self.assertEqual(model.output_shape, [(None, t, o1), (None, t, o2, o3)])
-
-  def test_peephole_lstm_cell(self):
-
-    def _run_cell(cell_fn, **kwargs):
-      inputs = tf.one_hot([1, 2, 3, 4], 4)
-      cell = cell_fn(5, **kwargs)
-      cell.build(inputs.shape)
-      initial_state = cell.get_initial_state(
-          inputs=inputs, batch_size=4, dtype=tf.float32)
-      inputs, _ = cell(inputs, initial_state)
-      output = inputs
-      if not tf.executing_eagerly():
-        self.evaluate(tf.compat.v1.global_variables_initializer())
-        output = self.evaluate(output)
-      return output
-
-    tf.compat.v1.set_random_seed(12345)
-    # `recurrent_activation` kwarg is set to sigmoid as that is hardcoded into
-    # rnn_cell.LSTMCell.
-    no_peephole_output = _run_cell(
-        keras.layers.LSTMCell,
-        kernel_initializer='ones',
-        recurrent_activation='sigmoid',
-        implementation=1)
-    first_implementation_output = _run_cell(
-        keras.layers.PeepholeLSTMCell,
-        kernel_initializer='ones',
-        recurrent_activation='sigmoid',
-        implementation=1)
-    second_implementation_output = _run_cell(
-        keras.layers.PeepholeLSTMCell,
-        kernel_initializer='ones',
-        recurrent_activation='sigmoid',
-        implementation=2)
-    tf_lstm_cell_output = _run_cell(
-        legacy_cells.LSTMCell,
-        use_peepholes=True,
-        initializer=tf.compat.v1.ones_initializer)
-    self.assertNotAllClose(first_implementation_output, no_peephole_output)
-    self.assertAllClose(first_implementation_output,
-                        second_implementation_output)
-    self.assertAllClose(first_implementation_output, tf_lstm_cell_output)
 
   def test_masking_rnn_with_output_and_states(self):
 
