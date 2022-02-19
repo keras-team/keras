@@ -25,17 +25,17 @@ from tensorflow.python.util.tf_export import keras_export
               'keras.preprocessing.timeseries_dataset_from_array',
               v1=[])
 def timeseries_dataset_from_array(
-  data,
-  targets,
-  sequence_length,
-  sequence_stride=1,
-  sampling_rate=1,
-  batch_size=128,
-  shuffle=False,
-  seed=None,
-  start_index=None,
-  end_index=None,
-  multi_array=False):
+    data,
+    targets,
+    sequence_length,
+    sequence_stride=1,
+    sampling_rate=1,
+    batch_size=128,
+    shuffle=False,
+    seed=None,
+    start_index=None,
+    end_index=None,
+    multi_array=False):
   """Creates a dataset of sliding windows over a timeseries provided as array
   or, when multi_array is set to True, a list of arrays.
 
@@ -260,6 +260,7 @@ def timeseries_dataset_from_array(
     if shuffle:
       dataset = dataset.shuffle(buffer_size=1024, seed=seed)
   return dataset
+
 
 def sequences_from_indices(array, indices_ds, start_index, end_index):
   dataset = tf.data.Dataset.from_tensors(array[start_index : end_index])
