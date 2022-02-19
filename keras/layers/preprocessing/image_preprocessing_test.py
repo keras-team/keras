@@ -496,8 +496,9 @@ class RandomFlipTest(test_combinations.TestCase):
     orig_width = 8
     channels = 3
     if mock_random is None:
-      mock_random = [1 for _ in range(num_samples)]
-      mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+      mock_random = [0.0 for _ in range(num_samples)]
+      if mode == 'horizontal_and_vertical':
+        mock_random *= 2
     inp = np.random.random((num_samples, orig_height, orig_width, channels))
     if expected_output is None:
       expected_output = inp
@@ -508,7 +509,7 @@ class RandomFlipTest(test_combinations.TestCase):
     with tf.compat.v1.test.mock.patch.object(
         stateless_random_ops,
         'stateless_random_uniform',
-        return_value=mock_random,
+        side_effect=mock_random,
     ):
       with test_utils.use_gpu():
         layer = image_preprocessing.RandomFlip(mode)
@@ -524,8 +525,7 @@ class RandomFlipTest(test_combinations.TestCase):
 
   def test_random_flip_horizontal_half(self):
     np.random.seed(1337)
-    mock_random = [1, 0]
-    mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+    mock_random = [0.0, 1.0]
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = input_images.copy()
     expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=1)
@@ -533,8 +533,7 @@ class RandomFlipTest(test_combinations.TestCase):
 
   def test_random_flip_vertical_half(self):
     np.random.seed(1337)
-    mock_random = [1, 0]
-    mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+    mock_random = [0.0, 1.0]
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = input_images.copy()
     expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=0)
@@ -551,12 +550,11 @@ class RandomFlipTest(test_combinations.TestCase):
   def test_random_flip_default(self):
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = np.flip(np.flip(input_images, axis=1), axis=2)
-    mock_random = [1, 1]
-    mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+    mock_random = [0.0, 0.0, 0.0, 0.0]
     with tf.compat.v1.test.mock.patch.object(
         stateless_random_ops,
         'stateless_random_uniform',
-        return_value=mock_random,
+        side_effect=mock_random,
     ):
       with self.cached_session():
         layer = image_preprocessing.RandomFlip()
