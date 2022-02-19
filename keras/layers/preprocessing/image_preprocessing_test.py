@@ -1866,5 +1866,66 @@ class DeterminismTest(test_combinations.TestCase):
                         layer2_output.numpy().tolist())
 
 
+class RandomAddLayer(image_preprocessing.BaseImageAugmentationLayer):
+
+  def __init__(self, value_range=(0., 1.0), fixed_value=None, **kwargs):
+    super().__init__(**kwargs)
+    self.value_range = value_range
+    self.fixed_value = fixed_value
+
+  def get_random_tranformation(self):
+    if self.fixed_value:
+      return self.fixed_value
+    return self._random_generator.random_uniform(
+        [], minval=self.value_range[0], maxval=self.value_range[1])
+
+  def augment_image(self, image, transformation=None):
+    return image + transformation
+
+  def augment_label(self, label, transformation=None):
+    return label + transformation
+
+
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class BaseImageAugmentationLayerTest(test_combinations.TestCase):
+
+  def test_augment_single_image(self):
+    add_layer = RandomAddLayer(fixed_value=2.0)
+    image = np.random.random(size=(8, 8, 3)).astype('float32')
+    output = add_layer(image)
+
+    self.assertAllClose(image + 2.0, output)
+
+  def test_augment_batch_images(self):
+    add_layer = RandomAddLayer()
+    images = np.random.random(size=(2, 8, 8, 3)).astype('float32')
+    output = add_layer(images)
+
+    diff = output - images
+    # Make sure the first image and second image get different augmentation
+    self.assertNotAllClose(diff[0], diff[1])
+
+  def test_augment_image_and_label(self):
+    add_layer = RandomAddLayer(fixed_value=2.0)
+    image = np.random.random(size=(8, 8, 3)).astype('float32')
+    label = np.random.random(size=(1,)).astype('float32')
+
+    output = add_layer({'images': image, 'labels': label})
+    expected_output = {'images': image + 2.0, 'labels': label + 2.0}
+    self.assertAllClose(output, expected_output)
+
+  def test_augment_batch_images_and_labels(self):
+    add_layer = RandomAddLayer()
+    images = np.random.random(size=(2, 8, 8, 3)).astype('float32')
+    labels = np.random.random(size=(2, 1)).astype('float32')
+    output = add_layer({'images': images, 'labels': labels})
+
+    image_diff = output['images'] - images
+    label_diff = output['labels'] - labels
+    # Make sure the first image and second image get different augmentation
+    self.assertNotAllClose(image_diff[0], image_diff[1])
+    self.assertNotAllClose(label_diff[0], label_diff[1])
+
+
 if __name__ == '__main__':
   tf.test.main()

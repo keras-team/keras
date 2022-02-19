@@ -87,7 +87,6 @@ keras_packages = [
     "keras.legacy_tf_layers.pooling",
     "keras.losses",
     "keras.metrics",
-    "keras.mixed_precision.get_layer_policy",
     "keras.mixed_precision.loss_scale_optimizer",
     "keras.mixed_precision.policy",
     "keras.models",

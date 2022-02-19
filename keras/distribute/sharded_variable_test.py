@@ -15,10 +15,10 @@
 # ==============================================================================
 """Tests for ClusterCoordinator and Keras models."""
 
-import tensorflow.compat.v2 as tf
 import keras
 from keras.distribute import multi_worker_testing_utils
 from keras.engine import base_layer
+import tensorflow.compat.v2 as tf
 
 
 class ShardedVariableTest(tf.test.TestCase):
@@ -28,7 +28,8 @@ class ShardedVariableTest(tf.test.TestCase):
     super().setUpClass()
     cls.strategy = tf.distribute.experimental.ParameterServerStrategy(
         multi_worker_testing_utils.make_parameter_server_cluster(3, 2),
-        variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(2))
+        variable_partitioner=tf.distribute.experimental.partitioners
+        .FixedShardsPartitioner(2))
 
   def assert_list_all_equal(self, list1, list2):
     """Used in lieu of `assertAllEqual`.
@@ -157,6 +158,110 @@ class ShardedVariableTest(tf.test.TestCase):
       with self.strategy.scope():
         keras.models.load_model(saved_dir)
 
+  def test_slot_variable_checkpointing(self):
+
+    with self.strategy.scope():
+      # Set a name so the ShardedVariable is well-named for slot var keying
+      var = tf.Variable([1., 2., 3., 4., 5., 6.], name='test')
+
+    opt = keras.optimizers.optimizer_v2.adam.Adam()
+
+    # Run once to trigger apply_gradients to populate optimizer slot variables.
+    def train_step():
+      with tf.GradientTape() as tape:
+        loss = sum(var)
+      opt.minimize(loss, var.variables, tape=tape)
+
+    self.strategy.run(train_step)
+
+    # Check that we can call get_slot using each slot, before and after
+    # Checkpointing, and get the same results
+    pre_ckpt_slots = []
+    for slot in opt.get_slot_names():
+      pre_ckpt_slots.extend([v.numpy() for v in opt.get_slot(var, slot)])
+
+    ckpt = tf.train.Checkpoint(var=var, opt=opt)
+
+    # Assert that checkpoint has slots for each shard and the ShardedVariable
+    self.assertLen(ckpt.opt._slots, 3)
+    for var_name in ckpt.opt._slots.keys():
+      self.assertLen(ckpt.opt._slots[var_name], 2)
+      self.assertEqual(ckpt.opt._slots[var_name].keys(), {'m', 'v'})
+      if hasattr(ckpt.opt._slots[var_name]['m'], 'variables'):
+        self.assertLen(ckpt.opt._slots[var_name]['m'].variables, 2)
+        self.assertLen(ckpt.opt._slots[var_name]['v'].variables, 2)
+
+    saved_dir = self.get_temp_dir()
+    ckpt_prefix = f'{saved_dir}/ckpt'
+    ckpt.save(ckpt_prefix)
+
+    # Run once more to alter slot variables and ensure checkpoint restores
+    # the earlier values.
+    self.strategy.run(train_step)
+
+    changed_ckpt_slots = []
+    for slot in opt.get_slot_names():
+      changed_ckpt_slots.extend([v.numpy() for v in opt.get_slot(var, slot)])
+    self.assertNotAllClose(pre_ckpt_slots, changed_ckpt_slots)
+
+    ckpt.restore(tf.train.latest_checkpoint(saved_dir))
+
+    post_ckpt_slots = []
+    for slot in opt.get_slot_names():
+      post_ckpt_slots.extend([v.numpy() for v in opt.get_slot(var, slot)])
+
+    self.assertAllClose(pre_ckpt_slots, post_ckpt_slots)
+
+  def test_slot_variable_checkpoint_load_with_diff_shards(self):
+
+    with self.strategy.scope():
+      # Set a name so the ShardedVariable is well-named for slot var keying
+      var = tf.Variable([1., 2., 3., 4., 5., 6.], name='test')
+
+    opt = keras.optimizers.optimizer_v2.adam.Adam()
+
+    # Run once to trigger apply_gradients to populate optimizer slot variables.
+    def train_step():
+      with tf.GradientTape() as tape:
+        loss = sum(var)
+      opt.minimize(loss, var.variables, tape=tape)
+
+    self.strategy.run(train_step)
+
+    # Check that we can call get_slot using each slot, before and after
+    # Checkpointing, and get the same results
+    pre_ckpt_slots = []
+    for slot in opt.get_slot_names():
+      pre_ckpt_slots.extend(
+          tf.concat(list(opt.get_slot(var, slot)), axis=0).numpy())
+
+    ckpt = tf.train.Checkpoint(var=var, opt=opt)
+    saved_dir = self.get_temp_dir()
+    ckpt_prefix = f'{saved_dir}/ckpt'
+    ckpt.save(ckpt_prefix)
+
+    # Create new strategy with different number of shards
+    strategy2 = tf.distribute.experimental.ParameterServerStrategy(
+        multi_worker_testing_utils.make_parameter_server_cluster(3, 2),
+        variable_partitioner=tf.distribute.experimental.partitioners
+        .FixedShardsPartitioner(3))
+
+    # Create new variable with different values, to be overwritten by ckpt.
+    with strategy2.scope():
+      var = tf.Variable([0., 1., 2., 3., 4., 5.], name='test')
+
+    opt = keras.optimizers.optimizer_v2.adam.Adam()
+    # Run once to trigger apply_gradients to populate optimizer slot variables.
+    strategy2.run(train_step)
+
+    new_ckpt = tf.train.Checkpoint(var=var, opt=opt)
+    new_ckpt.restore(tf.train.latest_checkpoint(saved_dir))
+    post_ckpt_slots = []
+    for slot in new_ckpt.opt.get_slot_names():
+      post_ckpt_slots.extend(
+          tf.concat(list(new_ckpt.opt.get_slot(var, slot)),
+                    axis=0).numpy())
+    self.assertAllClose(pre_ckpt_slots, post_ckpt_slots)
 
 if __name__ == '__main__':
   tf.compat.v1.enable_v2_behavior()

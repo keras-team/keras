@@ -221,6 +221,175 @@ class CenterCrop(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
+class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
+  """Abstract base layer for image augmentaion.
+
+  This layer contains base functionalities for preprocessing layers which
+  augment image related data, eg. image and in future, label and bounding boxes.
+  The subclasses could avoid making certain mistakes and reduce code
+  duplications.
+
+  This layer requires you to implement one method: `augment_image()`, which
+  augments one single image during the training. There are a few additional
+  methods that you can implement for added functionality on the layer:
+
+  `augment_label()`, which handles label augmentation if the layer supports
+  that.
+
+  `augment_bounding_box()`, which handles the bounding box augmentation, if the
+  layer supports that.
+
+  `get_random_tranformation()`, which should produce a random transformation
+  setting. The tranformation object, which could be any type, will be passed to
+  `augment_image`, `augment_label` and `augment_bounding_box`, to coodinate
+  the randomness behavior, eg, in the RandomFlip layer, the image and
+  bounding_box should be changed in the same way.
+
+  The `call()` method support two formats of inputs:
+  1. Single image tensor with 3D (HWC) or 4D (NHWC) format.
+  2. A dict of tensors with stabel keys. The supported keys are:
+    `"images"`, `"labels"` and `"bounding_boxes"` at the moment. We might add
+    more keys in future when we support more types of augmentation.
+
+  The output of the `call()` will be in two formats, which will be the same
+  structure as the inputs to the inputs.
+
+  The `call()` will handle the logic detecting the training/inference
+  mode, unpack the inputs, forward to the correct function, and pack the output
+  back to the same structure as the inputs.
+
+  Example:
+
+  ```python
+  class RandomContrast(BaseAugmentationLayer):
+
+    def __init__(self, factor=(0.5, 1.5), **kwargs):
+      super().__init__(**kwargs)
+      self._factor = factor
+
+    def augment_image(self, image, transformation=None):
+      random_factor = tf.random.uniform([], self._factor[0], self._factor[1])
+      mean = tf.math.reduced_mean(inputs, axis=-1, keep_dim=True)
+      output = (inputs - mean) * random_factor + mean
+  ```
+
+  Note that since the randomness is also a common functionnality, this layer
+  also includes a tf.keras.backend.RandomGenerator, which can be used to produce
+  the random numbers.
+  """
+
+  def __init__(self, rate=1.0, seed=None, **kwargs):
+    super().__init__(seed=seed, **kwargs)
+    self.rate = rate
+
+  def augment_image(self, image, transformation=None):
+    """Augment a single image during training.
+
+    Args:
+      image: 3D image input tensor to the layer. Forwarded from `layer.call()`.
+      transformation: The transformation object produced by
+        `get_random_tranformation`. Used to coordinate the randomness between
+        image, label and bounding box.
+
+    Returns:
+      output 3D tensor, which will be forward to `layer.call()`.
+    """
+    raise NotImplementedError()
+
+  def augment_label(self, label, transformation=None):
+    """Augment a single label during training.
+
+    Args:
+      label: 1D label to the layer. Forwarded from `layer.call()`.
+      transformation: The transformation object produced by
+        `get_random_tranformation`. Used to coordinate the randomness between
+        image, label and bounding box.
+
+    Returns:
+      output 1D tensor, which will be forward to `layer.call()`.
+    """
+    raise NotImplementedError()
+
+  def augment_bounding_box(self, bounding_box, transformation=None):
+    """Augment bounding boxes for one image during training.
+
+    Args:
+      bounding_box: 2D bounding boxex to the layer. Forwarded from `call()`.
+      transformation: The transformation object produced by
+        `get_random_tranformation`. Used to coordinate the randomness between
+        image, label and bounding box.
+
+    Returns:
+      output 2D tensor, which will be forward to `layer.call()`.
+    """
+    raise NotImplementedError()
+
+  def get_random_tranformation(self):
+    """Produce random transformation config.
+
+    This is used to produce same randomness between image/label/bounding_box.
+
+    Returns:
+      Any type of object, which will be forwarded to `augment_image`,
+      `augment_label` and `augment_bounding_box` as the `transformation`
+      parameter.
+    """
+    return None
+
+  def call(self, inputs, training=True):
+    if training:
+      inputs = self._format_inputs(inputs)
+      images = inputs['images']
+      if images.shape.rank == 3:
+        return self._format_output(self._augment(inputs))
+      elif images.shape.rank == 4:
+        return self._format_output(self._batch_augment(inputs))
+      else:
+        raise ValueError('Image augmentation layers are expecting inputs to be '
+                         'rank 3 (HWC) or 4D (NHWC) tensors. Got shape: '
+                         f'{images.shape}')
+    else:
+      return inputs
+
+  def _augment(self, inputs):
+    transformation = self.get_random_tranformation()  # pylint: disable=assignment-from-none
+    image = inputs.get('images', None)
+    label = inputs.get('labels', None)
+    bounding_box = inputs.get('bounding_boxes', None)
+
+    image = utils.ensure_tensor(image, self.compute_dtype)
+    image = self.augment_image(image, transformation=transformation)
+    result = {'images': image}
+    if label is not None:
+      label = self.augment_label(label, transformation=transformation)
+      result['labels'] = label
+    if bounding_box is not None:
+      bounding_box = self.augment_bounding_box(
+          bounding_box, transformation=transformation)
+      result['bounding_boxes'] = bounding_box
+    return result
+
+  def _batch_augment(self, inputs):
+    return tf.map_fn(self._augment, inputs)
+
+  def _format_inputs(self, inputs):
+    if tf.is_tensor(inputs):
+      # single image input tensor
+      return {'images': inputs}
+    elif isinstance(inputs, dict):
+      # TODO(scottzhu): Check if it only contains the valid keys
+      return inputs
+    else:
+      raise ValueError(
+          f'Expect the inputs to be image tensor or dict. Got {inputs}')
+
+  def _format_output(self, output):
+    if isinstance(output, dict) and len(output) == 1:
+      return output['images']
+    else:
+      return output
+
+
 @keras_export('keras.layers.RandomCrop',
               'keras.layers.experimental.preprocessing.RandomCrop',
               v1=[])

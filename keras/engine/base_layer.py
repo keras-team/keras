@@ -20,6 +20,7 @@
 import tensorflow.compat.v2 as tf
 
 import collections
+import contextlib
 import copy
 import functools
 import itertools
@@ -82,6 +83,42 @@ keras_premade_model_gauge = tf.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/keras/premade_models', 'premade keras model usage', 'type')
 
 _is_name_scope_on_model_declaration_enabled = False
+
+_name_scope_unnester_stack = threading.local()
+
+
+@contextlib.contextmanager
+def _name_scope_unnester(full_name_scope):
+  """Helper to get relative name scope from fully specified nested name scopes.
+
+  Args:
+    full_name_scope: full(absolute) name scope path.
+
+  Yields:
+    Relative name scope path from the parent `_name_scope_unnester` context
+    manager.
+
+  Example:
+  ```
+  with _name_scope_unnester('a') as name1:  # name1 == 'a'
+    with _name_scope_unnester('a/b') as name2:  # name2 == 'b'
+      with _name_scope_unnester('a/b/c') as name3:  # name3 == 'c'
+        pass
+  ```
+  """
+  if not getattr(_name_scope_unnester_stack, 'value', None):
+    _name_scope_unnester_stack.value = ['']
+
+  _name_scope_unnester_stack.value.append(full_name_scope)
+
+  try:
+    full_name_scope = _name_scope_unnester_stack.value[-1]
+    outer_name_scope = _name_scope_unnester_stack.value[-2]
+    relative_name_scope = full_name_scope.lstrip(outer_name_scope)
+    relative_name_scope = relative_name_scope.lstrip('/')
+    yield relative_name_scope
+  finally:
+    _name_scope_unnester_stack.value.pop()
 
 
 @keras_export('keras.layers.Layer')
@@ -346,12 +383,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Ensures the same metric is not added multiple times in `MirroredStrategy`.
     self._metrics_lock = threading.Lock()
 
-    # Both graph and subclassed networks have a dtype policy. For graph
-    # networks, the policy's compute and variable dtypes are ignored. Such
-    # networks only use the policy if it is a PolicyV1, in which case it uses
-    # the PolicyV1's loss_scale (Policy does not have a loss_scale). For
-    # subclassed networks, the compute and variable dtypes are used as like any
-    # ordinary layer.
+    # Note that models also have a dtype policy, as they are layers. For
+    # functional models, the policy is only used in Model.compile, which wraps
+    # the optimizer with a LossScaleOptimizer if the policy name is
+    # "mixed_float16". Subclassed models additionally use the policy's compute
+    # and variable dtypes, as like any ordinary layer.
     self._set_dtype_policy(dtype)
     # Boolean indicating whether the layer automatically casts its inputs to the
     # layer's compute_dtype.
@@ -414,7 +450,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     # Save outer name scope at layer declaration so that it is preserved at
     # the actual layer construction.
-    self._outer_name_scope = tf.get_current_name_scope()
+    self._name_scope_on_declaration = tf.get_current_name_scope()
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   @generic_utils.default
@@ -929,17 +965,23 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         training=training_mode):
 
       input_spec.assert_input_compatibility(self.input_spec, inputs, self.name)
+
       if eager:
         call_fn = self.call
         name_scope = self._name
       else:
-        name_scope = self._name_scope()  # Avoid autoincrementing.  # pylint: disable=not-callable
+        name_scope = self._get_unnested_name_scope()
         call_fn = self._autographed_call()
+
       call_fn = traceback_utils.inject_argument_info_in_traceback(
           call_fn,
           object_name=f'layer "{self.name}" (type {self.__class__.__name__})')
+      with contextlib.ExitStack() as namescope_stack:
+        if _is_name_scope_on_model_declaration_enabled:
+          namescope_stack.enter_context(_name_scope_unnester(
+              self._name_scope_on_declaration))
+        namescope_stack.enter_context(tf.name_scope(name_scope))
 
-      with tf.name_scope(name_scope):
         if not self.built:
           self._maybe_build(inputs)
 
@@ -958,6 +1000,24 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
           self._set_save_spec(inputs, args, kwargs)
 
         return outputs
+
+  def _get_unnested_name_scope(self):
+    if _is_name_scope_on_model_declaration_enabled:
+      with _name_scope_unnester(self._name_scope_on_declaration
+                               ) as relative_name_scope_on_declaration:
+      # To avoid `tf.name_scope` autoincrement, use absolute path.
+        relative_name_scope = filter(
+            None,
+            [tf.get_current_name_scope(), relative_name_scope_on_declaration])
+        current_name_scope = '/'.join(relative_name_scope) + '/'
+        if current_name_scope == '/':
+          current_name_scope = self._name_scope_on_declaration
+        with tf.name_scope(current_name_scope):
+          name_scope = self._name_scope()  # Avoid autoincrementing.  # pylint: disable=not-callable
+    else:
+      name_scope = self._name_scope()
+
+    return name_scope
 
   @property
   def dtype(self):
@@ -2424,8 +2484,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     if not tf.__internal__.tf2.enabled():
       return self.name
     name_scope = self.name
-    if _is_name_scope_on_model_declaration_enabled and self._outer_name_scope:
-      name_scope = self._outer_name_scope + '/' + name_scope
     current_name_scope = tf.__internal__.get_name_scope()
     if current_name_scope:
       name_scope = current_name_scope + '/' + name_scope
