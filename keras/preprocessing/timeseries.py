@@ -25,19 +25,21 @@ from tensorflow.python.util.tf_export import keras_export
               'keras.preprocessing.timeseries_dataset_from_array',
               v1=[])
 def timeseries_dataset_from_array(
-    data,
-    targets,
-    sequence_length,
-    sequence_stride=1,
-    sampling_rate=1,
-    batch_size=128,
-    shuffle=False,
-    seed=None,
-    start_index=None,
-    end_index=None):
-  """Creates a dataset of sliding windows over a timeseries provided as array.
+  data,
+  targets,
+  sequence_length,
+  sequence_stride=1,
+  sampling_rate=1,
+  batch_size=128,
+  shuffle=False,
+  seed=None,
+  start_index=None,
+  end_index=None,
+  multi_array=False):
+  """Creates a dataset of sliding windows over a timeseries provided as array
+  or, when multi_array is set to True, a list of arrays.
 
-  This function takes in a sequence of data-points gathered at
+  This function takes in one or more sequences of data-points gathered at
   equal intervals, along with time series parameters such as
   length of the sequences/windows, spacing between two sequence/windows, etc.,
   to produce batches of timeseries inputs and targets.
@@ -46,6 +48,7 @@ def timeseries_dataset_from_array(
     data: Numpy array or eager tensor
       containing consecutive data points (timesteps).
       Axis 0 is expected to be the time dimension.
+      Or, if multi_array == True, a list of the same.
     targets: Targets corresponding to timesteps in `data`.
       `targets[i]` should be the target
       corresponding to the window that starts at index `i`
@@ -66,13 +69,16 @@ def timeseries_dataset_from_array(
     shuffle: Whether to shuffle output samples,
       or instead draw them in chronological order.
     seed: Optional int; random seed for shuffling.
-    start_index: Optional int; data points earlier (exclusive)
-      than `start_index` will not be used
+    start_index: Optional int (list of ints for multi_array);
+      data points earlier (exclusive) than `start_index` will not be used
       in the output sequences. This is useful to reserve part of the
       data for test or validation.
-    end_index: Optional int; data points later (exclusive) than `end_index`
-      will not be used in the output sequences.
-      This is useful to reserve part of the data for test or validation.
+    end_index: Optional int (list of ints for multi_array);
+      data points later (exclusive) than `end_index` will not be used
+      in the output sequences. This is useful to reserve part of the
+      data for test or validation.
+    multi_array: data (and targets if not None) is list of timeseries arrays
+      or tensors.
 
   Returns:
     A tf.data.Dataset instance. If `targets` was passed, the dataset yields
@@ -143,24 +149,34 @@ def timeseries_dataset_from_array(
     break
   ```
   """
+  if not multi_array:
+    if start_index is not None:
+      start_index = [start_index]
+    if end_index is not None:
+      end_index = [end_index]
+    if targets is not None:
+      targets = [targets]
+    data = [data]
+  end_data = [*map(len, data)]
+
   if start_index:
-    if start_index < 0:
+    if any(i < 0 for i in start_index):
       raise ValueError(f'`start_index` must be 0 or greater. Received: '
                        f'start_index={start_index}')
-    if start_index >= len(data):
+    if any(i >= j for i, j in zip(start_index, end_data)):
       raise ValueError(f'`start_index` must be lower than the length of the '
                        f'data. Received: start_index={start_index}, for data '
-                       f'of length {len(data)}')
+                       f'of length {end_data}')
   if end_index:
-    if start_index and end_index <= start_index:
+    if start_index and any(i <= j for i, j in zip(end_index, start_index)):
       raise ValueError(f'`end_index` must be higher than `start_index`. '
                        f'Received: start_index={start_index}, and '
                        f'end_index={end_index} ')
-    if end_index >= len(data):
+    if any(i >= j for i, j in zip(end_index, end_data)):
       raise ValueError(f'`end_index` must be lower than the length of the '
-                       f'data. Received: end_index={end_index}, for data of '
-                       f'length {len(data)}')
-    if end_index <= 0:
+                       f'data. Received: end_index={end_index}, for data '
+                       f'of length {end_data}')
+    if any(i <= 0 for i in end_index):
       raise ValueError('`end_index` must be higher than 0. '
                        f'Received: end_index={end_index}')
 
@@ -168,34 +184,43 @@ def timeseries_dataset_from_array(
   if sampling_rate <= 0:
     raise ValueError(f'`sampling_rate` must be higher than 0. Received: '
                      f'sampling_rate={sampling_rate}')
-  if sampling_rate >= len(data):
+  if sampling_rate >= min(end_data):
     raise ValueError(f'`sampling_rate` must be lower than the length of the '
                      f'data. Received: sampling_rate={sampling_rate}, for data '
-                     f'of length {len(data)}')
+                     f'of length {end_data}')
   if sequence_stride <= 0:
     raise ValueError(f'`sequence_stride` must be higher than 0. Received: '
                      f'sequence_stride={sequence_stride}')
-  if sequence_stride >= len(data):
+  if sequence_stride >= min(end_data):
     raise ValueError(f'`sequence_stride` must be lower than the length of the '
                      f'data. Received: sequence_stride={sequence_stride}, for '
-                     f'data of length {len(data)}')
+                     f'data of length {end_data}')
 
   if start_index is None:
-    start_index = 0
+    start_index = [0] * len(data)
   if end_index is None:
-    end_index = len(data)
+    end_index = end_data
 
   # Determine the lowest dtype to store start positions (to lower memory usage).
-  num_seqs = end_index - start_index - (sequence_length * sampling_rate) + 1
+  num_seqs = [end - start - (sequence_length * sampling_rate) + 1
+              for start, end in zip(start_index, end_index)]
   if targets is not None:
-    num_seqs = min(num_seqs, len(targets))
-  if num_seqs < 2147483647:
+    num_seqs = [min(len(tgt), num) for tgt, num in zip(targets, num_seqs)]
+    targets = np.concatenate(
+      [np.resize(tgt, end) for tgt, end in zip(targets, end_data)])
+  if sum(end_data[:-1]) + num_seqs[-1] < 2147483647:
     index_dtype = 'int32'
   else:
     index_dtype = 'int64'
 
   # Generate start positions
-  start_positions = np.arange(0, num_seqs, sequence_stride, dtype=index_dtype)
+  start_positions = np.concatenate([
+      start + np.arange(0, num, sequence_stride, dtype=index_dtype)
+      for start, num in zip(np.cumsum([0] + end_data), num_seqs)])
+  data = np.concatenate(data)
+  start_index = start_index[0]
+  end_index = sum(end_index)
+
   if shuffle:
     if seed is None:
       seed = np.random.randint(1e6)
@@ -235,7 +260,6 @@ def timeseries_dataset_from_array(
     if shuffle:
       dataset = dataset.shuffle(buffer_size=1024, seed=seed)
   return dataset
-
 
 def sequences_from_indices(array, indices_ds, start_index, end_index):
   dataset = tf.data.Dataset.from_tensors(array[start_index : end_index])
