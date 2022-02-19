@@ -184,5 +184,34 @@ class TimeseriesDatasetTest(tf.test.TestCase):
     sample = next(iter(dataset))
     self.assertEqual(len(sample.shape), 1)
 
+  def test_basics_multi_array(self):
+    # Test ordering, targets, sequence length, batch size
+    data = [np.arange(100), np.arange(57), np.arange(33)]
+    targets = [np.arange(99) * 2, np.arange(100) * 2, np.arange(17) * 2]
+    dataset = timeseries.timeseries_dataset_from_array(
+        data, targets, sequence_length=9, batch_size=5, multi_array=True)
+    # Expect ceil((91 + 48 + 17) / 5) = 32 batches
+    for i, batch in enumerate(dataset):
+      self.assertLen(batch, 2)
+      inputs, targets = batch
+      # Check inputs don't cross array boundaries
+      self.assertTrue(all(inp[-1] == inp[0] + 8 for inp in inputs))
+      if i < 31:
+        self.assertEqual(inputs.shape, (5, 9))
+      else:
+        # Last batch: size 3
+        self.assertEqual(inputs.shape, (3, 9))
+      # Check target values
+      self.assertAllClose(targets, inputs[:, 0] * 2)
+      for j in range(min(5, len(inputs))):
+        # Check each sample in the batch
+        expected = np.arange(i * 5 + j, i * 5 + j + 9)
+        if i * 5 + j >= 92:
+          expected -= 92
+        if i * 5 + j >= 92 + 49:
+          expected -= 49
+        self.assertAllClose(inputs[j], expected)
+
+
 if __name__ == '__main__':
   tf.test.main()
