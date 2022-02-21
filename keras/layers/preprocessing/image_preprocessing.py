@@ -26,6 +26,7 @@ from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 ResizeMethod = tf.image.ResizeMethod
 
@@ -247,12 +248,12 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
 
   The `call()` method support two formats of inputs:
   1. Single image tensor with 3D (HWC) or 4D (NHWC) format.
-  2. A dict of tensors with stabel keys. The supported keys are:
+  2. A dict of tensors with stable keys. The supported keys are:
     `"images"`, `"labels"` and `"bounding_boxes"` at the moment. We might add
     more keys in future when we support more types of augmentation.
 
   The output of the `call()` will be in two formats, which will be the same
-  structure as the inputs to the inputs.
+  structure as the inputs.
 
   The `call()` will handle the logic detecting the training/inference
   mode, unpack the inputs, forward to the correct function, and pack the output
@@ -282,6 +283,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     super().__init__(seed=seed, **kwargs)
     self.rate = rate
 
+  @doc_controls.for_subclass_implementers
   def augment_image(self, image, transformation=None):
     """Augment a single image during training.
 
@@ -296,6 +298,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     """
     raise NotImplementedError()
 
+  @doc_controls.for_subclass_implementers
   def augment_label(self, label, transformation=None):
     """Augment a single label during training.
 
@@ -310,6 +313,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     """
     raise NotImplementedError()
 
+  @doc_controls.for_subclass_implementers
   def augment_bounding_box(self, bounding_box, transformation=None):
     """Augment bounding boxes for one image during training.
 
@@ -324,6 +328,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     """
     raise NotImplementedError()
 
+  @doc_controls.for_subclass_implementers
   def get_random_tranformation(self):
     """Produce random transformation config.
 
@@ -539,7 +544,7 @@ HORIZONTAL_AND_VERTICAL = 'horizontal_and_vertical'
 @keras_export('keras.layers.RandomFlip',
               'keras.layers.experimental.preprocessing.RandomFlip',
               v1=[])
-class RandomFlip(base_layer.BaseRandomLayer):
+class RandomFlip(BaseImageAugmentationLayer):
   """A preprocessing layer which randomly flips images during training.
 
   This layer will flip the images horizontally and or vertically based on the
@@ -589,34 +594,26 @@ class RandomFlip(base_layer.BaseRandomLayer):
                        'argument {arg}'.format(name=self.name, arg=mode))
     self.seed = seed
 
-  def call(self, inputs, training=True):
-    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
-
-    def random_flipped_inputs(inputs):
-      flipped_outputs = inputs
-      if self.horizontal:
-        seed = self._random_generator.make_seed_for_stateless_op()
-        if seed is not None:
-          flipped_outputs = tf.image.stateless_random_flip_left_right(
-              flipped_outputs, seed=seed)
-        else:
-          flipped_outputs = tf.image.random_flip_left_right(
-              flipped_outputs, self._random_generator.make_legacy_seed())
-      if self.vertical:
-        seed = self._random_generator.make_seed_for_stateless_op()
-        if seed is not None:
-          flipped_outputs = tf.image.stateless_random_flip_up_down(
-              flipped_outputs, seed=seed)
-        else:
-          flipped_outputs = tf.image.random_flip_up_down(
-              flipped_outputs, self._random_generator.make_legacy_seed())
-      flipped_outputs.set_shape(inputs.shape)
-      return flipped_outputs
-
-    if training:
-      return random_flipped_inputs(inputs)
-    else:
-      return inputs
+  def augment_image(self, image, transformation=None):
+    flipped_outputs = image
+    if self.horizontal:
+      seed = self._random_generator.make_seed_for_stateless_op()
+      if seed is not None:
+        flipped_outputs = tf.image.stateless_random_flip_left_right(
+            flipped_outputs, seed=seed)
+      else:
+        flipped_outputs = tf.image.random_flip_left_right(
+            flipped_outputs, self._random_generator.make_legacy_seed())
+    if self.vertical:
+      seed = self._random_generator.make_seed_for_stateless_op()
+      if seed is not None:
+        flipped_outputs = tf.image.stateless_random_flip_up_down(
+            flipped_outputs, seed=seed)
+      else:
+        flipped_outputs = tf.image.random_flip_up_down(
+            flipped_outputs, self._random_generator.make_legacy_seed())
+    flipped_outputs.set_shape(image.shape)
+    return flipped_outputs
 
   def compute_output_shape(self, input_shape):
     return input_shape
