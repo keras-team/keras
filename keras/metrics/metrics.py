@@ -3216,7 +3216,7 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
     Binary accuracy values. shape = `[batch_size, d0, .. dN-1]`
   """
 
-  return backend.mean(metrics_utils.binary_matches(y_true, y_pred, threshold), axis=-1)
+  return tf.reduce_mean(metrics_utils.binary_matches(y_true, y_pred, threshold), axis=-1)
 
 
 @keras_export('keras.metrics.categorical_accuracy')
