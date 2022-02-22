@@ -7,10 +7,12 @@ from keras.utils import tf_utils
 
 import tensorflow.compat.v2 as tf
 
-from keras.dtensor.python import mesh_util
-from keras.dtensor.python import tpu_util
 from keras.dtensor.tests import test_util
-from tensorflow.dtensor import python as dtensor  # pylint: disable=g-direct-tensorflow-import
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.dtensor import python as dtensor
+from tensorflow.dtensor.python import mesh_util
+from tensorflow.dtensor.python import tpu_util
+# pylint: enable=g-direct-tensorflow-import
 
 
 class MnistTest(test_util.DTensorBaseTest):
