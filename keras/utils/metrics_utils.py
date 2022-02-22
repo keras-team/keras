@@ -845,13 +845,13 @@ def binary_matches(y_true, y_pred, threshold=0.5):
   """Creates int Tensor, 1 for label-prediction match, 0 for mismatch.
 
   Args:
-    y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
-    y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
+    y_true: Ground truth values, of shape (batch_size, d0, .. dN).
+    y_pred: The predicted values, of shape (batch_size, d0, .. dN).
     threshold: (Optional) Float representing the threshold for deciding whether
       prediction values are 1 or 0.
 
   Returns:
-    Binary matches. shape = `[batch_size, d0, .. dN]`
+    Binary matches, of shape = (batch_size, d0, .. dN).
   """
   y_pred = tf.convert_to_tensor(y_pred)
   threshold = tf.cast(threshold, y_pred.dtype)
