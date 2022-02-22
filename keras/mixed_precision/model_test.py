@@ -40,7 +40,6 @@ from keras.engine import base_layer_utils
 from keras.engine import input_spec
 from keras.engine import sequential
 from keras.layers import core
-from keras.mixed_precision import get_layer_policy
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
 from keras.mixed_precision import test_util as mp_test_util
@@ -144,11 +143,6 @@ class KerasModelTest(test_combinations.TestCase):
           'strategy_fn': create_mirrored_strategy,
           'save_format': 'h5',
           'use_regularizer': True,
-      }, {
-          'testcase_name': 'saved_model_v1_policy',
-          'strategy_fn': create_mirrored_strategy,
-          'use_v1_policy': True,
-          'save_format': 'tf',
       })
   def test_model(self,
                  strategy_fn,
@@ -157,8 +151,7 @@ class KerasModelTest(test_combinations.TestCase):
                  policy_name='mixed_float16',
                  get_config=False,
                  save_format=None,
-                 use_input_spec=False,
-                 use_v1_policy=False):
+                 use_input_spec=False):
     self._skip_if_strategy_unsupported(strategy_fn)
     self._skip_if_save_format_unsupported(save_format)
     if use_regularizer:
@@ -167,8 +160,7 @@ class KerasModelTest(test_combinations.TestCase):
     else:
       weight_regularizer = activity_regularizer = None
     with strategy_fn().scope():
-      cls = policy.PolicyV1 if use_v1_policy else policy.Policy
-      with policy.policy_scope(cls(policy_name)):
+      with policy.policy_scope(policy_name):
         layer = mp_test_util.MultiplyLayer(
             assert_type=tf.float16,
             use_operator=use_operator,
@@ -249,13 +241,10 @@ class KerasModelTest(test_combinations.TestCase):
 
     # Ensure various dtype-related aspects of the layer are correct
     self.assertEqual(layer.dtype, 'float32')
-    self.assertEqual(get_layer_policy.get_layer_policy(layer).name,
-                     'mixed_float16')
+    self.assertEqual(layer.dtype_policy.name, 'mixed_float16')
     self.assertEqual(layer.v.dtype, 'float32')
     self.assertEqual(layer(np.ones((2, 1))).dtype, 'float16')
 
-    # Loading a model always loads with a v2 Policy, even if saved with a
-    # PolicyV1.
     self.assertEqual(type(model.dtype_policy), policy.Policy)
     self.assertEqual(layer.get_config()['dtype'],
                      {'class_name': 'Policy', 'config': {
@@ -401,29 +390,13 @@ class KerasModelTest(test_combinations.TestCase):
           'testcase_name': 'distribute',
           'strategy_fn': create_mirrored_strategy,
       }, {
-          'testcase_name': 'pass_loss_scale_to_policy',
-          'strategy_fn': create_mirrored_strategy,
-          'pass_loss_scale_to_policy': True,
-      }, {
           'testcase_name': 'get_config',
           'strategy_fn': create_mirrored_strategy,
           'get_config': True,
-      }, {
-          'testcase_name': 'get_config_v1_lso',
-          'strategy_fn': create_mirrored_strategy,
-          'get_config': True,
-          'use_v1_loss_scale_optimizer': True,
-      }, {
-          'testcase_name': 'get_config_and_pass_loss_scale_to_policy',
-          'strategy_fn': create_mirrored_strategy,
-          'get_config': True,
-          'pass_loss_scale_to_policy': True,
       })
   def test_dynamic_loss_scaling(self,
                                 strategy_fn,
-                                pass_loss_scale_to_policy=False,
-                                get_config=False,
-                                use_v1_loss_scale_optimizer=False):
+                                get_config=False):
     strategy = strategy_fn()
     initial_loss_scale = 2.
     batch_size = 4
@@ -433,21 +406,9 @@ class KerasModelTest(test_combinations.TestCase):
     have_nan_gradients = backend.variable(False, dtype=tf.bool)
     with strategy.scope():
       opt = gradient_descent.SGD(1.)
-      if pass_loss_scale_to_policy:
-        loss_scale = tf.mixed_precision.experimental.DynamicLossScale(
-            initial_loss_scale=initial_loss_scale, increment_period=2)
-        p = policy.PolicyV1('mixed_float16', loss_scale=loss_scale)
-      elif use_v1_loss_scale_optimizer:
-        loss_scale = tf.mixed_precision.experimental.DynamicLossScale(
-            initial_loss_scale=initial_loss_scale, increment_period=2)
-        p = policy.Policy('mixed_float16')
-        opt = loss_scale_optimizer.LossScaleOptimizerV1(
-            opt, loss_scale)
-      else:
-        p = policy.Policy('mixed_float16')
-        opt = loss_scale_optimizer.LossScaleOptimizer(
-            opt, initial_scale=initial_loss_scale, dynamic_growth_steps=2)
-      with policy.policy_scope(p):
+      opt = loss_scale_optimizer.LossScaleOptimizer(
+          opt, initial_scale=initial_loss_scale, dynamic_growth_steps=2)
+      with policy.policy_scope('mixed_float16'):
         x = layers.Input(
             shape=(1,), batch_size=batch_size, dtype=tf.float16)
         layer = mp_test_util.MultiplyLayer(assert_type=tf.float16)
@@ -514,34 +475,46 @@ class KerasModelTest(test_combinations.TestCase):
 
   @test_combinations.generate(
       test_combinations.combine(mode=['graph', 'eager']))
-  def test_loss_scale_optimizer_overrides_policy_v1_loss_scale(self):
-    with policy.policy_scope(policy.PolicyV1('float32', loss_scale=10.)):
-      opt = gradient_descent.SGD(1.)
-      opt = loss_scale_optimizer.LossScaleOptimizer(opt, dynamic=False,
-                                                    initial_scale=5.)
-      x = layers.Input(shape=(1,))
-      y = mp_test_util.MultiplyLayer()(x)
-      model = models.Model(x, y)
-      model.compile(opt, loss='mse')
-      self.assertEqual(self.evaluate(model.optimizer.loss_scale), 5.)
+  def test_compile_wraps_with_loss_scale_optimizer(self):
+    x = layers.Input(shape=(1,))
+    y = mp_test_util.MultiplyLayer()(x)
 
-  @test_combinations.generate(
-      test_combinations.combine(mode=['graph', 'eager']))
-  def test_policy_v1_without_loss_scale(self):
-    with policy.policy_scope(policy.PolicyV1('mixed_float16',
-                                             loss_scale=None)):
-      opt = gradient_descent.SGD(1.)
-      x = layers.Input(shape=(1,))
-      y = mp_test_util.MultiplyLayer()(x)
+    with policy.policy_scope('mixed_float16'):
+      # Test optimizer is automatically wrapped with LSO
       model = models.Model(x, y)
-      model.compile(opt, loss='mse')
+      model.compile(gradient_descent.SGD(1.), 'mse')
+      self.assertIsInstance(model.optimizer,
+                            loss_scale_optimizer.LossScaleOptimizer)
+      self.assertEqual(backend.get_value(model.optimizer.learning_rate), 1.)
+
+      # Test optimizer specified as string is automatically wrapped in LSO
+      model = models.Model(x, y)
+      model.compile('sgd', 'mse')
+      self.assertIsInstance(model.optimizer,
+                            loss_scale_optimizer.LossScaleOptimizer)
+
+      # Test if an LSO is passed, optimizer is not automatically wrapped with
+      # another LSO
+      model = models.Model(x, y)
+      optimizer = loss_scale_optimizer.LossScaleOptimizer(
+          gradient_descent.SGD(1.), dynamic_growth_steps=2)
+      model.compile(optimizer, 'mse')
+      self.assertIsInstance(model.optimizer,
+                            loss_scale_optimizer.LossScaleOptimizer)
+      self.assertEqual(model.optimizer.dynamic_growth_steps, 2)
+
+    with policy.policy_scope('mixed_bfloat16'):
+      # Test mixed_bfloat16 models are not automatically wrapped with LSO
+      model = models.Model(x, y)
+      model.compile(gradient_descent.SGD(1.), 'mse')
       self.assertNotIsInstance(model.optimizer,
                                loss_scale_optimizer.LossScaleOptimizer)
+      self.assertIsInstance(model.optimizer, gradient_descent.SGD)
 
   @test_combinations.generate(
       test_combinations.combine(mode=['graph', 'eager']))
   def test_pass_invalid_optimizer_with_loss_scaling(self):
-    with policy.policy_scope(policy.PolicyV1('float32', loss_scale=10.)):
+    with policy.policy_scope(policy.Policy('mixed_float16')):
       x = layers.Input(shape=(1,))
       y = mp_test_util.MultiplyLayer()(x)
       model = models.Model(x, y)
@@ -761,10 +734,6 @@ class KerasModelTest(test_combinations.TestCase):
           'testcase_name': 'distribute',
           'strategy_fn': create_mirrored_strategy,
       }, {
-          'testcase_name': 'use_v1_lso',
-          'strategy_fn': create_mirrored_strategy,
-          'use_v1_loss_scale_optimizer': True
-      }, {
           'testcase_name': 'base_h5',
           'strategy_fn': default_strategy_fn,
           'h5': True,
@@ -774,7 +743,7 @@ class KerasModelTest(test_combinations.TestCase):
           'h5': True,
       })
   def test_save_model_with_dynamic_loss_scaling(
-      self, strategy_fn, h5=False, use_v1_loss_scale_optimizer=False):
+      self, strategy_fn, h5=False):
     # TODO(reedwm): Support and test saving model with a mixed_[b]float16 policy
     # as well.
     strategy = strategy_fn()
@@ -790,13 +759,8 @@ class KerasModelTest(test_combinations.TestCase):
       model = models.Model(inputs=x, outputs=y)
 
       opt = gradient_descent.SGD(1.)
-      if use_v1_loss_scale_optimizer:
-        loss_scale = tf.mixed_precision.experimental.DynamicLossScale(
-            initial_loss_scale=1., increment_period=2.)
-        opt = loss_scale_optimizer.LossScaleOptimizerV1(opt, loss_scale)
-      else:
-        opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=1.,
-                                                      dynamic_growth_steps=2.)
+      opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=1.,
+                                                    dynamic_growth_steps=2.)
       model.compile(
           optimizer=opt,
           loss='mse',

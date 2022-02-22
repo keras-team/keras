@@ -496,8 +496,9 @@ class RandomFlipTest(test_combinations.TestCase):
     orig_width = 8
     channels = 3
     if mock_random is None:
-      mock_random = [1 for _ in range(num_samples)]
-      mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+      mock_random = [0.0 for _ in range(num_samples)]
+      if mode == 'horizontal_and_vertical':
+        mock_random *= 2
     inp = np.random.random((num_samples, orig_height, orig_width, channels))
     if expected_output is None:
       expected_output = inp
@@ -508,7 +509,7 @@ class RandomFlipTest(test_combinations.TestCase):
     with tf.compat.v1.test.mock.patch.object(
         stateless_random_ops,
         'stateless_random_uniform',
-        return_value=mock_random,
+        side_effect=mock_random,
     ):
       with test_utils.use_gpu():
         layer = image_preprocessing.RandomFlip(mode)
@@ -524,8 +525,7 @@ class RandomFlipTest(test_combinations.TestCase):
 
   def test_random_flip_horizontal_half(self):
     np.random.seed(1337)
-    mock_random = [1, 0]
-    mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+    mock_random = [0.0, 1.0]
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = input_images.copy()
     expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=1)
@@ -533,8 +533,7 @@ class RandomFlipTest(test_combinations.TestCase):
 
   def test_random_flip_vertical_half(self):
     np.random.seed(1337)
-    mock_random = [1, 0]
-    mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+    mock_random = [0.0, 1.0]
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = input_images.copy()
     expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=0)
@@ -551,12 +550,11 @@ class RandomFlipTest(test_combinations.TestCase):
   def test_random_flip_default(self):
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = np.flip(np.flip(input_images, axis=1), axis=2)
-    mock_random = [1, 1]
-    mock_random = np.reshape(mock_random, [2, 1, 1, 1])
+    mock_random = [0.0, 0.0, 0.0, 0.0]
     with tf.compat.v1.test.mock.patch.object(
         stateless_random_ops,
         'stateless_random_uniform',
-        return_value=mock_random,
+        side_effect=mock_random,
     ):
       with self.cached_session():
         layer = image_preprocessing.RandomFlip()
@@ -699,6 +697,136 @@ class RandomContrastTest(test_combinations.TestCase):
     self.assertAllEqual(layer(inputs).dtype, 'float32')
     layer = image_preprocessing.RandomContrast((.5, .6), dtype='uint8')
     self.assertAllEqual(layer(inputs).dtype, 'uint8')
+
+
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class RandomBrightnessTest(test_combinations.TestCase):
+
+  def test_factor_input_validation(self):
+    with self.assertRaisesRegex(ValueError, r'in the range \[-1.0, 1.0\]'):
+      image_preprocessing.RandomBrightness(2.0)
+
+    with self.assertRaisesRegex(ValueError, 'list of two numbers'):
+      image_preprocessing.RandomBrightness([1.0])
+
+    with self.assertRaisesRegex(ValueError, 'should be a number'):
+      image_preprocessing.RandomBrightness('one')
+
+  def test_factor_normalize(self):
+    layer = image_preprocessing.RandomBrightness(1.0)
+    self.assertEqual(layer._factor, [-1.0, 1.0])
+
+    layer = image_preprocessing.RandomBrightness((0.5, 0.3))
+    self.assertEqual(layer._factor, [0.3, 0.5])
+
+    layer = image_preprocessing.RandomBrightness(-0.2)
+    self.assertEqual(layer._factor, [-0.2, 0.2])
+
+  @test_utils.run_v2_only
+  def test_output_value_range(self):
+    # Always scale up to 255
+    layer = image_preprocessing.RandomBrightness([1.0, 1.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    output_min = tf.math.reduce_min(output)
+    output_max = tf.math.reduce_max(output)
+    self.assertEqual(output_min, 255)
+    self.assertEqual(output_max, 255)
+
+    # Always scale down to 0
+    layer = image_preprocessing.RandomBrightness([-1.0, -1.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    output_min = tf.math.reduce_min(output)
+    output_max = tf.math.reduce_max(output)
+    self.assertEqual(output_min, 0)
+    self.assertEqual(output_max, 0)
+
+  def test_output(self):
+    # Always scale up, but randomly between 0 ~ 255
+    layer = image_preprocessing.RandomBrightness([0, 1.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    diff = output - inputs
+    self.assertGreaterEqual(tf.math.reduce_min(diff), 0)
+    self.assertGreater(tf.math.reduce_mean(diff), 0)
+
+    # Always scale down, but randomly between 0 ~ 255
+    layer = image_preprocessing.RandomBrightness([-1.0, 0.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    diff = output - inputs
+    self.assertLessEqual(tf.math.reduce_max(diff), 0)
+    self.assertLess(tf.math.reduce_mean(diff), 0)
+
+  @test_utils.run_v2_only
+  def test_scale_output(self):
+    layer = image_preprocessing.RandomBrightness([0, 1.0], seed=1337)
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+
+    # Create a new layer with same seed but different value range
+    layer2 = image_preprocessing.RandomBrightness(
+        [0, 1.0], value_range=[0, 1], seed=1337)
+    inputs2 = inputs / 255.0
+    output2 = layer2(inputs2)
+    # Make sure the outputs are the same, but just scaled with 255
+    self.assertAllClose(output, output2 * 255.0)
+
+  def test_different_adjustment_within_batch(self):
+    layer = image_preprocessing.RandomBrightness([0.2, 0.3])
+    inputs = np.zeros(shape=(2, 10, 10, 3))  # 2 images with all zeros
+    output = layer(inputs)
+    diff = output - inputs
+    # Make sure two images gets the different adjustment
+    self.assertNotAllClose(diff[0], diff[1])
+    # Make sure all the pixel are the same with the same image
+    image1 = output[0]
+    # The reduced mean pixel value among width and height are the same as
+    # any of the pixel in the image.
+    self.assertAllClose(
+        tf.reduce_mean(image1), image1[0, 0, 0], rtol=1e-5, atol=1e-5)
+
+  def test_inference(self):
+    layer = image_preprocessing.RandomBrightness([0, 1.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs, training=False)
+    self.assertAllClose(inputs, output)
+
+  @test_utils.run_v2_only
+  def test_dtype(self):
+    layer = image_preprocessing.RandomBrightness([0, 1.0])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    self.assertEqual(output.dtype, tf.float32)
+
+    layer = image_preprocessing.RandomBrightness([0, 1.0], dtype='uint8')
+    output = layer(inputs)
+    self.assertEqual(output.dtype, tf.uint8)
+
+  def test_seed(self):
+    layer = image_preprocessing.RandomBrightness([0, 1.0], seed=1337)
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output_1 = layer(inputs)
+
+    layer2 = image_preprocessing.RandomBrightness([0, 1.0], seed=1337)
+    output_2 = layer2(inputs)
+
+    self.assertAllClose(output_1, output_2)
+
+  def test_config(self):
+    layer = image_preprocessing.RandomBrightness(
+        [0, 1.0], value_range=[0.0, 1.0], seed=1337)
+    config = layer.get_config()
+    self.assertEqual(config['factor'], [0.0, 1.0])
+    self.assertEqual(config['value_range'], [0.0, 1.0])
+    self.assertEqual(config['seed'], 1337)
+
+    reconstructed_layer = image_preprocessing.RandomBrightness.from_config(
+        config)
+    self.assertEqual(reconstructed_layer._factor, layer._factor)
+    self.assertEqual(reconstructed_layer._value_range, layer._value_range)
+    self.assertEqual(reconstructed_layer._seed, layer._seed)
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
@@ -1734,6 +1862,67 @@ class DeterminismTest(test_combinations.TestCase):
 
     self.assertAllClose(layer1_output.numpy().tolist(),
                         layer2_output.numpy().tolist())
+
+
+class RandomAddLayer(image_preprocessing.BaseImageAugmentationLayer):
+
+  def __init__(self, value_range=(0., 1.0), fixed_value=None, **kwargs):
+    super().__init__(**kwargs)
+    self.value_range = value_range
+    self.fixed_value = fixed_value
+
+  def get_random_tranformation(self):
+    if self.fixed_value:
+      return self.fixed_value
+    return self._random_generator.random_uniform(
+        [], minval=self.value_range[0], maxval=self.value_range[1])
+
+  def augment_image(self, image, transformation=None):
+    return image + transformation
+
+  def augment_label(self, label, transformation=None):
+    return label + transformation
+
+
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class BaseImageAugmentationLayerTest(test_combinations.TestCase):
+
+  def test_augment_single_image(self):
+    add_layer = RandomAddLayer(fixed_value=2.0)
+    image = np.random.random(size=(8, 8, 3)).astype('float32')
+    output = add_layer(image)
+
+    self.assertAllClose(image + 2.0, output)
+
+  def test_augment_batch_images(self):
+    add_layer = RandomAddLayer()
+    images = np.random.random(size=(2, 8, 8, 3)).astype('float32')
+    output = add_layer(images)
+
+    diff = output - images
+    # Make sure the first image and second image get different augmentation
+    self.assertNotAllClose(diff[0], diff[1])
+
+  def test_augment_image_and_label(self):
+    add_layer = RandomAddLayer(fixed_value=2.0)
+    image = np.random.random(size=(8, 8, 3)).astype('float32')
+    label = np.random.random(size=(1,)).astype('float32')
+
+    output = add_layer({'images': image, 'labels': label})
+    expected_output = {'images': image + 2.0, 'labels': label + 2.0}
+    self.assertAllClose(output, expected_output)
+
+  def test_augment_batch_images_and_labels(self):
+    add_layer = RandomAddLayer()
+    images = np.random.random(size=(2, 8, 8, 3)).astype('float32')
+    labels = np.random.random(size=(2, 1)).astype('float32')
+    output = add_layer({'images': images, 'labels': labels})
+
+    image_diff = output['images'] - images
+    label_diff = output['labels'] - labels
+    # Make sure the first image and second image get different augmentation
+    self.assertNotAllClose(image_diff[0], image_diff[1])
+    self.assertNotAllClose(label_diff[0], label_diff[1])
 
 
 if __name__ == '__main__':

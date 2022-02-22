@@ -26,7 +26,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.layers.rnn import legacy_cells
 from keras.legacy_tf_layers import base as base_layer
-from keras.utils import np_utils
+from keras.utils import all_utils as utils
 
 
 class KerasIntegrationTest(test_combinations.TestCase):
@@ -58,7 +58,7 @@ class VectorClassificationIntegrationTest(test_combinations.TestCase):
         test_samples=0,
         input_shape=(10,),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
     model = test_utils.get_model_from_layers(
         [keras.layers.Dense(16, activation='relu'),
@@ -88,7 +88,7 @@ class VectorClassificationIntegrationTest(test_combinations.TestCase):
         test_samples=0,
         input_shape=(10,),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
     base_model = test_utils.get_model_from_layers(
         [keras.layers.Dense(16,
@@ -135,7 +135,7 @@ class SequentialIntegrationTest(KerasIntegrationTest):
         test_samples=0,
         input_shape=(10,),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
     model = keras.Sequential([
         keras.layers.Dense(16, activation='relu'),
         keras.layers.Dropout(0.1),
@@ -182,7 +182,7 @@ class TimeseriesClassificationIntegrationTest(test_combinations.TestCase):
         test_samples=0,
         input_shape=(4, 10),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
     layers = [
         keras.layers.LSTM(5, return_sequences=True),
@@ -211,7 +211,7 @@ class TimeseriesClassificationIntegrationTest(test_combinations.TestCase):
         test_samples=0,
         input_shape=(4, 10),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
     with base_layer.keras_style_scope():
       model = keras.models.Sequential()
@@ -248,7 +248,7 @@ class ImageClassificationIntegrationTest(test_combinations.TestCase):
         test_samples=0,
         input_shape=(10, 10, 3),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
     layers = [
         keras.layers.Conv2D(4, 3, padding='same', activation='relu'),
@@ -291,7 +291,7 @@ class ActivationV2IntegrationTest(test_combinations.TestCase):
         test_samples=0,
         input_shape=(10,),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
     model = keras.Sequential([
         keras.layers.Flatten(input_shape=x_train.shape[1:]),
@@ -317,6 +317,58 @@ class ActivationV2IntegrationTest(test_combinations.TestCase):
     model.save(output_path, save_format='tf')
     loaded_model = keras.models.load_model(output_path)
     self.assertEqual(model.summary(), loaded_model.summary())
+
+
+@test_combinations.run_with_all_model_types
+@test_utils.run_v2_only
+class TokenClassificationIntegrationTest(test_combinations.TestCase):
+  """Tests a very simple token classification model.
+
+  The main purpose of this test is to verify that everything works as expected
+  when input sequences have variable length, and batches are padded only to the
+  maximum length of each batch. This is very common in NLP, and results in the
+  sequence dimension varying with each batch step for both the features
+  and the labels.
+  """
+
+  def test_token_classification(self):
+
+    def densify(x, y):
+      return x.to_tensor(), y.to_tensor()
+
+    utils.set_random_seed(1337)
+    data = tf.ragged.stack([
+        np.random.randint(low=0, high=16, size=random.randint(4, 16))
+        for _ in range(100)
+    ])
+    labels = tf.ragged.stack(
+        [np.random.randint(low=0, high=3, size=len(arr)) for arr in data])
+    features_dataset = tf.data.Dataset.from_tensor_slices(data)
+    labels_dataset = tf.data.Dataset.from_tensor_slices(labels)
+    dataset = tf.data.Dataset.zip((features_dataset, labels_dataset))
+    dataset = dataset.batch(batch_size=10)
+    dataset = dataset.map(densify)  # Pads with 0 values by default
+
+    layers = [
+        keras.layers.Embedding(16, 4),
+        keras.layers.Conv1D(4, 5, padding='same', activation='relu'),
+        keras.layers.Conv1D(8, 5, padding='same'),
+        keras.layers.BatchNormalization(),
+        keras.layers.Conv1D(3, 5, padding='same', activation='softmax'),
+    ]
+    model = test_utils.get_model_from_layers(layers, input_shape=(None,))
+    model.compile(
+        loss='sparse_categorical_crossentropy',
+        optimizer='adam',
+        metrics=['acc'])
+    history = model.fit(dataset, epochs=10, validation_data=dataset, verbose=2)
+    self.assertGreater(history.history['val_acc'][-1], 0.5)
+    _, val_acc = model.evaluate(dataset)
+    self.assertAlmostEqual(history.history['val_acc'][-1], val_acc)
+    predictions = model.predict(dataset)
+    self.assertIsInstance(predictions, tf.RaggedTensor)
+    self.assertEqual(predictions.shape[0], len(dataset) * 10)
+    self.assertEqual(predictions.shape[-1], 3)
 
 if __name__ == '__main__':
   tf.test.main()

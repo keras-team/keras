@@ -8,10 +8,6 @@ tf_module {
     name: "Policy"
     mtype: "<type \'type\'>"
   }
-  member {
-    name: "experimental"
-    mtype: "<type \'module\'>"
-  }
   member_method {
     name: "global_policy"
     argspec: "args=[], varargs=None, keywords=None, defaults=None"

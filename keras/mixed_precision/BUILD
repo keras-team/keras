@@ -34,7 +34,6 @@ py_library(
     srcs = ["__init__.py"],
     srcs_version = "PY3",
     deps = [
-        ":get_layer_policy",
         ":loss_scale_optimizer",
         ":policy",
     ],
@@ -65,7 +64,6 @@ tf_py_test(
         ":policy",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras/mixed_precision:loss_scale_optimizer",
         "//keras/optimizers/optimizer_v2",
         "//keras/testing_infra:test_combinations",
     ],
@@ -89,27 +87,6 @@ cuda_py_test(
         ":device_compatibility_check",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
-    ],
-)
-
-py_library(
-    name = "get_layer_policy",
-    srcs = ["get_layer_policy.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//keras/engine:base_layer",
-    ],
-)
-
-tf_py_test(
-    name = "get_layer_policy_test",
-    srcs = ["get_layer_policy_test.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":get_layer_policy",
-        ":policy",
-        "//:expect_tensorflow_installed",
-        "//keras/layers",
     ],
 )
 

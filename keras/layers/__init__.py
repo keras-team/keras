@@ -200,7 +200,6 @@ from keras.layers.rnn.base_rnn import RNN
 from keras.layers.rnn.abstract_rnn_cell import AbstractRNNCell
 from keras.layers.rnn.stacked_rnn_cells import StackedRNNCells
 from keras.layers.rnn.simple_rnn import SimpleRNNCell
-from keras.layers.rnn.lstm_v1 import PeepholeLSTMCell
 from keras.layers.rnn.simple_rnn import SimpleRNN
 
 if tf.__internal__.tf2.enabled():
