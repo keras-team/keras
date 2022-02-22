@@ -171,12 +171,11 @@ class Layer(base_layer.Layer):
     # added using the `add_metric` API.
     self._metrics = []
 
-    # Both graph and subclassed networks have a dtype policy. For graph
-    # networks, the policy's compute and variable dtypes are ignored. Such
-    # networks only use the policy if it is a PolicyV1, in which case it uses
-    # the PolicyV1's loss_scale (Policy does not have a loss_scale). For
-    # subclassed networks, the compute and variable dtypes are used as like any
-    # ordinary layer.
+    # Note that models also have a dtype policy, as they are layers. For
+    # functional models, the policy is only used in Model.compile, which wraps
+    # the optimizer with a LossScaleOptimizer if the policy name is
+    # "mixed_float16". Subclassed models additionally use the policy's compute
+    # and variable dtypes, as like any ordinary layer.
     self._set_dtype_policy(dtype)
     # Boolean indicating whether the layer automatically casts its inputs to the
     # layer's compute_dtype.

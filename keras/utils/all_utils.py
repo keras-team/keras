@@ -33,5 +33,6 @@ from keras.utils.generic_utils import serialize_keras_object
 from keras.utils.layer_utils import get_source_inputs
 from keras.utils.np_utils import normalize
 from keras.utils.np_utils import to_categorical
+from keras.utils.tf_utils import set_random_seed
 from keras.utils.vis_utils import model_to_dot
 from keras.utils.vis_utils import plot_model
