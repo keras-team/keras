@@ -851,7 +851,7 @@ def binary_matches(y_true, y_pred, threshold=0.5):
       prediction values are 1 or 0.
 
   Returns:
-    Binary matches, of shape = (batch_size, d0, .. dN).
+    Binary matches, of shape (batch_size, d0, .. dN).
   """
   y_pred = tf.convert_to_tensor(y_pred)
   threshold = tf.cast(threshold, y_pred.dtype)
