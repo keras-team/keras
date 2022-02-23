@@ -441,26 +441,32 @@ class RandomCrop(base_layer.BaseRandomLayer):
 
   def call(self, inputs, training=True):
     inputs = utils.ensure_tensor(inputs, dtype=self.compute_dtype)
+    if training:
+      input_shape = tf.shape(inputs)
+      h_diff = input_shape[H_AXIS] - self.height
+      w_diff = input_shape[W_AXIS] - self.width
+      return tf.cond(
+          tf.reduce_all((h_diff >= 0, w_diff >= 0)),
+          lambda: self._random_crop(inputs),
+          lambda: self._resize(inputs))
+    else:
+      return self._resize(inputs)
+
+  def _random_crop(self, inputs):
     input_shape = tf.shape(inputs)
     h_diff = input_shape[H_AXIS] - self.height
     w_diff = input_shape[W_AXIS] - self.width
+    dtype = input_shape.dtype
+    rands = self._random_generator.random_uniform([2], 0, dtype.max, dtype)
+    h_start = rands[0] % (h_diff + 1)
+    w_start = rands[1] % (w_diff + 1)
+    return tf.image.crop_to_bounding_box(inputs, h_start, w_start,
+                                         self.height, self.width)
 
-    def random_crop():
-      dtype = input_shape.dtype
-      rands = self._random_generator.random_uniform([2], 0, dtype.max, dtype)
-      h_start = rands[0] % (h_diff + 1)
-      w_start = rands[1] % (w_diff + 1)
-      return tf.image.crop_to_bounding_box(inputs, h_start, w_start,
-                                           self.height, self.width)
-
-    def resize():
-      outputs = smart_resize(inputs, [self.height, self.width])
-      # smart_resize will always output float32, so we need to re-cast.
-      return tf.cast(outputs, self.compute_dtype)
-
-    return tf.cond(
-        tf.reduce_all((training, h_diff >= 0, w_diff >= 0)), random_crop,
-        resize)
+  def _resize(self, inputs):
+    outputs = smart_resize(inputs, [self.height, self.width])
+    # smart_resize will always output float32, so we need to re-cast.
+    return tf.cast(outputs, self.compute_dtype)
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
