@@ -1,4 +1,4 @@
-path: "tensorflow.keras.optimizers"
+path: "tensorflow.keras.optimizers.legacy"
 tf_module {
   member {
     name: "Adadelta"
@@ -35,25 +35,5 @@ tf_module {
   member {
     name: "SGD"
     mtype: "<type \'type\'>"
-  }
-  member {
-    name: "legacy"
-    mtype: "<type \'module\'>"
-  }
-  member {
-    name: "schedules"
-    mtype: "<type \'module\'>"
-  }
-  member_method {
-    name: "deserialize"
-    argspec: "args=[\'config\', \'custom_objects\'], varargs=None, keywords=None, defaults=[\'None\'], "
-  }
-  member_method {
-    name: "get"
-    argspec: "args=[\'identifier\'], varargs=None, keywords=None, defaults=None"
-  }
-  member_method {
-    name: "serialize"
-    argspec: "args=[\'optimizer\'], varargs=None, keywords=None, defaults=None"
   }
 }
