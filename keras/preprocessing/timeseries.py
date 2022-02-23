@@ -157,25 +157,25 @@ def timeseries_dataset_from_array(
     if targets is not None:
       targets = [targets]
     data = [data]
-  end_data = [*map(len, data)]
+  row_lengths = [*map(len, data)]
 
   if start_index:
     if any(i < 0 for i in start_index):
       raise ValueError(f'`start_index` must be 0 or greater. Received: '
                        f'start_index={start_index}')
-    if any(i >= j for i, j in zip(start_index, end_data)):
+    if any(i >= j for i, j in zip(start_index, row_lengths)):
       raise ValueError(f'`start_index` must be lower than the length of the '
                        f'data. Received: start_index={start_index}, for data '
-                       f'of length {end_data}')
+                       f'of length {row_lengths}')
   if end_index:
     if start_index and any(i <= j for i, j in zip(end_index, start_index)):
       raise ValueError(f'`end_index` must be higher than `start_index`. '
                        f'Received: start_index={start_index}, and '
                        f'end_index={end_index} ')
-    if any(i >= j for i, j in zip(end_index, end_data)):
+    if any(i >= j for i, j in zip(end_index, row_lengths)):
       raise ValueError(f'`end_index` must be lower than the length of the '
                        f'data. Received: end_index={end_index}, for data '
-                       f'of length {end_data}')
+                       f'of length {row_lengths}')
     if any(i <= 0 for i in end_index):
       raise ValueError('`end_index` must be higher than 0. '
                        f'Received: end_index={end_index}')
@@ -184,22 +184,22 @@ def timeseries_dataset_from_array(
   if sampling_rate <= 0:
     raise ValueError(f'`sampling_rate` must be higher than 0. Received: '
                      f'sampling_rate={sampling_rate}')
-  if sampling_rate >= min(end_data):
+  if sampling_rate >= min(row_lengths):
     raise ValueError(f'`sampling_rate` must be lower than the length of the '
                      f'data. Received: sampling_rate={sampling_rate}, for data '
-                     f'of length {end_data}')
+                     f'of length {row_lengths}')
   if sequence_stride <= 0:
     raise ValueError(f'`sequence_stride` must be higher than 0. Received: '
                      f'sequence_stride={sequence_stride}')
-  if sequence_stride >= min(end_data):
+  if sequence_stride >= min(row_lengths):
     raise ValueError(f'`sequence_stride` must be lower than the length of the '
                      f'data. Received: sequence_stride={sequence_stride}, for '
-                     f'data of length {end_data}')
+                     f'data of length {row_lengths}')
 
   if start_index is None:
     start_index = [0] * len(data)
   if end_index is None:
-    end_index = end_data
+    end_index = row_lengths
 
   # Determine the lowest dtype to store start positions (to lower memory usage).
   num_seqs = [end - start - (sequence_length * sampling_rate) + 1
@@ -207,8 +207,8 @@ def timeseries_dataset_from_array(
   if targets is not None:
     num_seqs = [min(len(tgt), num) for tgt, num in zip(targets, num_seqs)]
     targets = np.concatenate(
-      [np.resize(tgt, end) for tgt, end in zip(targets, end_data)])
-  if sum(end_data[:-1]) + num_seqs[-1] < 2147483647:
+      [np.resize(tgt, end) for tgt, end in zip(targets, row_lengths)])
+  if sum(row_lengths[:-1]) + num_seqs[-1] < 2147483647:
     index_dtype = 'int32'
   else:
     index_dtype = 'int64'
@@ -216,7 +216,7 @@ def timeseries_dataset_from_array(
   # Generate start positions
   start_positions = np.concatenate([
       start + np.arange(0, num, sequence_stride, dtype=index_dtype)
-      for start, num in zip(np.cumsum([0] + end_data), num_seqs)])
+      for start, num in zip(np.cumsum([0] + row_lengths), num_seqs)])
   data = np.concatenate(data)
   start_index = start_index[0]
   end_index = sum(end_index)
