@@ -17,6 +17,9 @@
 import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
+import numpy as np
+
+from keras import backend
 from keras.testing_infra import test_combinations
 from keras.utils import metrics_utils
 
@@ -288,6 +291,59 @@ class FilterTopKTest(tf.test.TestCase, parameterized.TestCase):
         .3, metrics_utils.NEG_INF, metrics_utils.NEG_INF, metrics_utils.NEG_INF,
         42.
     ])
+
+class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
+
+  def test_sparse_categorical_matches_int(self):
+    with self.cached_session():
+      matches_method = metrics_utils.sparse_categorical_matches
+      
+      # Test return tensor is type float
+      y_true = backend.variable(np.random.randint(0, 7, (6,)))
+      y_pred = backend.variable(np.random.random((6, 7)))
+      self.assertEqual(backend.eval(matches_method(y_true, y_pred)).dtype,
+                        backend.floatx())
+
+      # Tests that resulting Tensor always has same shape as y_true. Tests from
+      # 1 dim to 4 dims
+      dims = []
+      for _ in range(4):
+          dims.append(np.random.randint(1, 7))
+          y_true = backend.variable(np.random.randint(0, 7, dims))
+          y_pred = backend.variable(np.random.random(dims+[3]))
+          self.assertEqual(backend.eval(matches_method(y_true, y_pred)).shape,
+                            y_true.shape)
+
+      # Test correctness if the shape of y_true is (num_samples,)
+      y_true = backend.variable([1., 0., 0., 0.])
+      y_pred = backend.variable(
+          [[0.8, 0.2], [0.6, 0.4], [0.7, 0.3], [0.9, 0.1]])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred)), [0., 1., 1., 1.])
+
+      # Test correctness if the shape of y_true is (num_samples, 1)
+      y_true = backend.variable([[1.], [0.], [0.], [0.]])
+      y_pred = backend.variable(
+          [[0.8, 0.2], [0.6, 0.4], [0.7, 0.3], [0.9, 0.1]])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred)), [0., 1., 1., 1.])
+
+      # Test correctness if the shape of y_true is (batch_size, seq_length) and
+      # y_pred is (batch_size, seq_length, num_classes)
+      y_pred = backend.variable(
+          np.array([[[0.2, 0.3, 0.1], [0.1, 0.2, 0.7]],
+                    [[0.3, 0.2, 0.1], [0.7, 0.2, 0.1]]]))
+      y_true = backend.variable(np.array([[1, 0], [1, 0]]))
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred)), [[1., 0.], [0., 1.]])
+
+  def test_sparse_categorical_accuracy_float(self):
+    with self.cached_session():
+      matches_method = metrics_utils.sparse_categorical_matches
+      y_true = backend.variable(np.random.random((6,)))
+      y_pred = backend.variable(np.random.random((6, 7)))
+      self.assertEqual(backend.eval(matches_method(y_true, y_pred)).shape, (6,))
+
 
 
 if __name__ == '__main__':
