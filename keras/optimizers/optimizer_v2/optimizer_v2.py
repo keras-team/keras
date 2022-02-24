@@ -92,7 +92,10 @@ def name_scope_only_in_function_or_graph(name):
     return NullContextmanager()
 
 
-@keras_export("keras.optimizers.Optimizer", metaclass=abc.ABCMeta)
+@keras_export(
+    "keras.optimizers.Optimizer",
+    "keras.optimizers.legacy.Optimizer",
+    metaclass=abc.ABCMeta)
 class OptimizerV2(tf.__internal__.tracking.Trackable):
   """Base class for Keras optimizers.
 
