@@ -889,23 +889,6 @@ def sparse_categorical_matches(y_true, y_pred):
   return tf.cast(tf.equal(y_true, y_pred), backend.floatx())
 
 
-def categorical_matches(y_true, y_pred):
-  """Creates float Tensor for how often predictions match one-hot labels.
-
-  You can provide logits of classes as `y_pred`, since argmax of
-  logits and probabilities are same.
-
-  Args:
-    y_true: One-hot ground truth values.
-    y_pred: The prediction values.
-
-  Returns:
-    Match tensor: 1.0 for label-prediction match, 0.0 for mismatch.
-  """
-  y_true = tf.math.argmax(y_true, axis=-1)
-  return sparse_categorical_matches(y_true, y_pred)
-
-
 def sparse_top_k_categorical_matches(y_true, y_pred, k=5):
   """Creates float Tensor, 1.0 for label-TopK_prediction match, 0.0 for mismatch.
 
@@ -943,19 +926,3 @@ def sparse_top_k_categorical_matches(y_true, y_pred, k=5):
     return tf.reshape(matches, shape=y_true_org_shape)
 
   return matches
-
-
-def top_k_categorical_matches(y_true, y_pred, k=5):
-  """Creates float Tensor for how often topK_predictions match one-hot labels.
-
-  Args:
-    y_true: The ground truth values.
-    y_pred: The prediction values.
-    k: (Optional) Number of top elements to look at for computing accuracy.
-      Defaults to 5.
-
-  Returns:
-    Match tensor: 1.0 for label-prediction match, 0.0 for mismatch.
-  """
-  y_true = tf.math.argmax(y_true, axis=-1)
-  return sparse_top_k_categorical_matches(y_true, y_pred, k=k)
