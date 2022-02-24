@@ -637,7 +637,7 @@ class RandomFlip(BaseImageAugmentationLayer):
 @keras_export('keras.layers.RandomTranslation',
               'keras.layers.experimental.preprocessing.RandomTranslation',
               v1=[])
-class RandomTranslation(base_layer.BaseRandomLayer):
+class RandomTranslation(BaseImageAugmentationLayer):
   """A preprocessing layer which randomly translates images during training.
 
   This layer will apply random translations to each image during training,
@@ -739,52 +739,57 @@ class RandomTranslation(base_layer.BaseRandomLayer):
     self.interpolation = interpolation
     self.seed = seed
 
-  def call(self, inputs, training=True):
-    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
+  @tf.function
+  def augment_image(self, image, transformation=None):
+    """Translated inputs with random ops."""
+    # The transform op only accepts rank 4 inputs, so if we have an unbatched
+    # image, we need to temporarily expand dims to a batch.
+    original_shape = image.shape
+    inputs = tf.expand_dims(image, 0)
 
-    def random_translated_inputs(inputs):
-      """Translated inputs with random ops."""
-      # The transform op only accepts rank 4 inputs, so if we have an unbatched
-      # image, we need to temporarily expand dims to a batch.
-      original_shape = inputs.shape
-      unbatched = inputs.shape.rank == 3
-      if unbatched:
-        inputs = tf.expand_dims(inputs, 0)
+    inputs_shape = tf.shape(inputs)
+    img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+    img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
 
-      inputs_shape = tf.shape(inputs)
-      batch_size = inputs_shape[0]
-      img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-      img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-      height_translate = self._random_generator.random_uniform(
-          shape=[batch_size, 1],
-          minval=self.height_lower,
-          maxval=self.height_upper,
-          dtype=tf.float32)
-      height_translate = height_translate * img_hd
-      width_translate = self._random_generator.random_uniform(
-          shape=[batch_size, 1],
-          minval=self.width_lower,
-          maxval=self.width_upper,
-          dtype=tf.float32)
-      width_translate = width_translate * img_wd
-      translations = tf.cast(
-          tf.concat([width_translate, height_translate], axis=1),
-          dtype=tf.float32)
-      output = transform(
-          inputs,
-          get_translation_matrix(translations),
-          interpolation=self.interpolation,
-          fill_mode=self.fill_mode,
-          fill_value=self.fill_value)
-      if unbatched:
-        output = tf.squeeze(output, 0)
-      output.set_shape(original_shape)
-      return output
+    if transformation is None:
+      transformation = self.get_random_tranformation()
+    height_translation = transformation['height_translation']
+    width_translation = transformation['width_translation']
+    height_translation = height_translation * img_hd
+    width_translation = width_translation * img_wd
+    translations = tf.cast(
+        tf.concat([width_translation, height_translation], axis=1),
+        dtype=tf.float32)
+    output = transform(
+        inputs,
+        get_translation_matrix(translations),
+        interpolation=self.interpolation,
+        fill_mode=self.fill_mode,
+        fill_value=self.fill_value)
 
-    if training:
-      return random_translated_inputs(inputs)
-    else:
-      return inputs
+    output = tf.squeeze(output, 0)
+    output.set_shape(original_shape)
+    return output
+
+  def get_random_tranformation(self):
+    batch_size = 1
+    height_translation = self._random_generator.random_uniform(
+        shape=[batch_size, 1],
+        minval=self.height_lower,
+        maxval=self.height_upper,
+        dtype=tf.float32)
+    width_translation = self._random_generator.random_uniform(
+        shape=[batch_size, 1],
+        minval=self.width_lower,
+        maxval=self.width_upper,
+        dtype=tf.float32)
+    return {'height_translation': height_translation,
+            'width_translation': width_translation}
+
+  def _batch_augment(self, inputs):
+    # Change to vectorized_map for better performance, as well as work around
+    # issue for different tensorspec between inputs and outputs.
+    return tf.vectorized_map(self._augment, inputs)
 
   def compute_output_shape(self, input_shape):
     return input_shape
