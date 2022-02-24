@@ -571,7 +571,7 @@ class RandomFlip(BaseImageAugmentationLayer):
     3D (unbatched) or 4D (batched) tensor with shape:
     `(..., height, width, channels)`, in `"channels_last"` format.
 
-  Attributes:
+  Arguments:
     mode: String indicating which flip mode to use. Can be `"horizontal"`,
       `"vertical"`, or `"horizontal_and_vertical"`. Defaults to
       `"horizontal_and_vertical"`. `"horizontal"` is a left-right flip and
@@ -997,7 +997,7 @@ class RandomRotation(base_layer.BaseRandomLayer):
     3D (unbatched) or 4D (batched) tensor with shape:
     `(..., height, width, channels)`, in `"channels_last"` format
 
-  Attributes:
+  Arguments:
     factor: a float represented as fraction of 2 Pi, or a tuple of size 2
       representing lower and upper bound for rotating clockwise and
       counter-clockwise. A positive values means rotating counter clock-wise,
@@ -1339,7 +1339,7 @@ class RandomContrast(base_layer.BaseRandomLayer):
     3D (unbatched) or 4D (batched) tensor with shape:
     `(..., height, width, channels)`, in `"channels_last"` format.
 
-  Attributes:
+  Arguments:
     factor: a positive float represented as fraction of value, or a tuple of
       size 2 representing lower and upper bound. When represented as a single
       float, lower = upper. The contrast factor will be randomly picked between
