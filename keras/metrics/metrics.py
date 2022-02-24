@@ -261,7 +261,10 @@ class CategoricalAccuracy(base_metric.MeanMetricWrapper):
 
   def __init__(self, name='categorical_accuracy', dtype=None):
     super(CategoricalAccuracy, self).__init__(
-        metrics_utils.categorical_matches, name, dtype=dtype)
+        lambda y_true, y_pred: metrics_utils.sparse_categorical_matches(
+          tf.math.argmax(y_true, axis=-1),
+          y_pred),
+        name, dtype=dtype)
 
 
 @keras_export('keras.metrics.SparseCategoricalAccuracy')
@@ -377,7 +380,11 @@ class TopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
 
   def __init__(self, k=5, name='top_k_categorical_accuracy', dtype=None):
     super(TopKCategoricalAccuracy, self).__init__(
-        metrics_utils.top_k_categorical_matches, name, dtype=dtype, k=k)
+        lambda y_true, y_pred, k: metrics_utils.sparse_top_k_categorical_matches(
+          tf.math.argmax(y_true, axis=-1),
+          y_pred,
+          k),
+        name, dtype=dtype, k=k)
 
 
 @keras_export('keras.metrics.SparseTopKCategoricalAccuracy')
@@ -3245,7 +3252,7 @@ def categorical_accuracy(y_true, y_pred):
   # categorical_accuracy behavior from the vital behavior of the 
   # categorical_matches method needed in backend dependencies.
 
-  return metrics_utils.categorical_matches(y_true, y_pred)
+  return metrics_utils.sparse_categorical_matches(tf.math.argmax(y_true, axis=-1), y_pred)
 
 
 @keras_export('keras.metrics.sparse_categorical_accuracy')
@@ -3304,7 +3311,7 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
   # public facing top_k_categorical_accuracy behavior from the vital behavior
   # of the top_k_categorical_matches method needed in backend dependencies.
 
-  return metrics_utils.top_k_categorical_matches(y_true, y_pred, k)
+  return metrics_utils.sparse_top_k_categorical_matches(tf.math.argmax(y_true, axis=-1), y_pred, k)
 
 
 @keras_export('keras.metrics.sparse_top_k_categorical_accuracy')
