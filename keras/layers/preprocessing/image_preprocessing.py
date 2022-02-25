@@ -222,6 +222,7 @@ class CenterCrop(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
+@keras_export('keras.__internal__.layers.BaseImageAugmentationLayer')
 class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
   """Abstract base layer for image augmentaion.
 
