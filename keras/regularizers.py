@@ -13,9 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 """Built-in regularizers."""
+# pylint: disable=g-classes-have-attributes
+# pylint: disable=invalid-name
 
 import tensorflow.compat.v2 as tf
-# pylint: disable=invalid-name
 
 import math
 
@@ -150,16 +151,11 @@ class Regularizer:
   training and executing models, exporting to and from SavedModels, or saving
   and loading weight checkpoints.
 
-  Registration is required for Keras `model_to_estimator`, saving and
-  loading models to HDF5 formats, Keras model cloning, some visualization
+  Registration is required for saving and
+  loading models to HDF5 format, Keras model cloning, some visualization
   utilities, and exporting models to and from JSON. If using this functionality,
   you must make sure any python process running your model has also defined
   and registered your custom regularizer.
-
-  `tf.keras.utils.register_keras_serializable` is only available in TF 2.1 and
-  beyond. In earlier versions of TensorFlow you must pass your custom
-  regularizer to the `custom_objects` argument of methods that expect custom
-  regularizers to be registered as serializable.
   """
 
   def __call__(self, x):
@@ -223,7 +219,7 @@ class L1L2(Regularizer):
 
   In this case, the default values used are `l1=0.01` and `l2=0.01`.
 
-  Attributes:
+  Arguments:
       l1: Float; L1 regularization factor.
       l2: Float; L2 regularization factor.
   """
@@ -265,7 +261,7 @@ class L1(Regularizer):
 
   In this case, the default value used is `l1=0.01`.
 
-  Attributes:
+  Arguments:
       l1: Float; L1 regularization factor.
   """
 
@@ -299,7 +295,7 @@ class L2(Regularizer):
 
   In this case, the default value used is `l2=0.01`.
 
-  Attributes:
+  Arguments:
       l2: Float; L2 regularization factor.
   """
 

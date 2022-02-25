@@ -145,7 +145,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
   Output shape:
     Same as input shape.
 
-  Attributes:
+  Arguments:
     bin_boundaries: A list of bin boundaries. The leftmost and rightmost bins
       will always extend to `-inf` and `inf`, so `bin_boundaries=[0., 1., 2.]`
       generates bins `(-inf, 0.)`, `[0., 1.)`, `[1., 2.)`, and `[2., +inf)`. If
