@@ -21,8 +21,7 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
 
 
-# pylint: disable=g-classes-have-attributes
-@keras_export('keras.optimizers.Ftrl', 'keras.optimizers.legacy.Ftrl')
+@keras_export('keras.optimizers.Ftrl')
 class Ftrl(optimizer_v2.OptimizerV2):
   r"""Optimizer that implements the FTRL algorithm.
 
