@@ -13,6 +13,7 @@ from keras.optimizers import learning_rate_schedule
 from keras.optimizers.optimizer_experimental import adadelta as adadelta_new
 from keras.optimizers.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizers.optimizer_experimental import adam as adam_new
+from keras.optimizers.optimizer_experimental import adamax as adamax_new
 from keras.optimizers.optimizer_experimental import adamw as adamw_new
 from keras.optimizers.optimizer_experimental import rmsprop as rmsprop_new
 from keras.optimizers.optimizer_experimental import sgd as sgd_new
@@ -49,6 +50,8 @@ adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladagrad", lambda: adagrad_new.Adagrad(0.002))
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladam", lambda: adam_new.Adam(0.002))
+adamax_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "experimentaladamax", lambda: adamax_new.Adamax(0.002))
 adamw_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladamw", lambda: adamw_new.AdamW(0.002, weight_decay=0.004))
 rmsprop_new_fn = tf.__internal__.test.combinations.NamedObject(
@@ -64,6 +67,7 @@ OPTIMIZER_FN = [
     adadelta_new_fn,
     adagrad_new_fn,
     adam_new_fn,
+    adamax_new_fn,
     adamw_new_fn,
     rmsprop_new_fn,
     sgd_new_fn,
@@ -329,12 +333,12 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
     self._compare_numerical(adagrad_old.Adagrad(), adagrad_new.Adagrad())
 
   def testRMSprop(self):
-    self._compare_numerical(rmsprop_new.RMSprop(), rmsprop_old.RMSprop())
+    self._compare_numerical(rmsprop_old.RMSprop(), rmsprop_new.RMSprop())
 
   @parameterized.product(nesterov=[True, False])
   def testSgd(self, nesterov):
     self._compare_numerical(
-        sgd_old.SGD(nesterov=True), sgd_new.SGD(nesterov=True))
+        sgd_old.SGD(nesterov=nesterov), sgd_new.SGD(nesterov=nesterov))
 
 
 class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):

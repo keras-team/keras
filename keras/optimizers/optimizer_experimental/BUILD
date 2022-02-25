@@ -16,6 +16,7 @@ py_library(
         "adadelta.py",
         "adagrad.py",
         "adam.py",
+        "adamax.py",
         "adamw.py",
         "optimizer.py",
         "rmsprop.py",
