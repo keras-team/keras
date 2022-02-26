@@ -3282,7 +3282,13 @@ def sparse_categorical_accuracy(y_true, y_pred):
   # public facing sparse_categorical_accuracy behavior from the vital behavior
   # of the sparse_categorical_matches method needed in backend dependencies.
 
-  return metrics_utils.sparse_categorical_matches(y_true, y_pred)
+  matches = metrics_utils.sparse_categorical_matches(y_true, y_pred)
+
+  # if shape is (num_samples, 1) squeeze
+  if matches.shape.ndims > 1 and matches.shape[-1] == 1:
+    matches = tf.squeeze(matches, [-1])
+
+  return matches
 
 
 @keras_export('keras.metrics.top_k_categorical_accuracy')
@@ -3341,7 +3347,8 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
   # public facing sparse_top_k_categorical_accuracy behavior from the vital
   # behavior of the sparse_top_k_categorical_matches method needed in backend
   # dependencies.
-  
+
+
   return metrics_utils.sparse_top_k_categorical_matches(y_true, y_pred, k)
 
 
