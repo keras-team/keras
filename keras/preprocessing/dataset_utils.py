@@ -63,8 +63,10 @@ def index_directory(directory,
     class_names = subdirs
   else:
     subdirs = []
-    for subdir in sorted(os.listdir(directory)):
-      if os.path.isdir(os.path.join(directory, subdir)):
+    for subdir in sorted(tf.io.gfile.listdir(directory)):
+      if tf.io.gfile.isdir(tf.io.gfile.join(directory, subdir)):
+        if subdir.endswith('/'):
+          subdir = subdir[:-1]
         subdirs.append(subdir)
     if not class_names:
       class_names = subdirs
@@ -83,7 +85,7 @@ def index_directory(directory,
   results = []
   filenames = []
 
-  for dirpath in (os.path.join(directory, subdir) for subdir in subdirs):
+  for dirpath in (tf.io.gfile.join(directory, subdir) for subdir in subdirs):
     results.append(
         pool.apply_async(index_subdirectory,
                          (dirpath, class_indices, follow_links, formats)))
@@ -112,7 +114,7 @@ def index_directory(directory,
           (len(filenames), len(class_names)))
   pool.close()
   pool.join()
-  file_paths = [os.path.join(directory, fname) for fname in filenames]
+  file_paths = [tf.io.gfile.join(directory, fname) for fname in filenames]
 
   if shuffle:
     # Shuffle globally to erase macro-structure
@@ -126,7 +128,10 @@ def index_directory(directory,
 
 
 def iter_valid_files(directory, follow_links, formats):
-  walk = os.walk(directory, followlinks=follow_links)
+  if not follow_links:
+    walk = tf.io.gfile.walk(directory)
+  else:
+    walk = os.walk(directory, followlinks=follow_links)
   for root, _, files in sorted(walk, key=lambda x: x[0]):
     for fname in sorted(files):
       if fname.lower().endswith(formats):
@@ -154,8 +159,8 @@ def index_subdirectory(directory, class_indices, follow_links, formats):
   filenames = []
   for root, fname in valid_files:
     labels.append(class_indices[dirname])
-    absolute_path = os.path.join(root, fname)
-    relative_path = os.path.join(
+    absolute_path = tf.io.gfile.join(root, fname)
+    relative_path = tf.io.gfile.join(
         dirname, os.path.relpath(absolute_path, directory))
     filenames.append(relative_path)
   return filenames, labels

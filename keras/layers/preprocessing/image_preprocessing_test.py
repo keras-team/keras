@@ -829,6 +829,7 @@ class RandomBrightnessTest(test_combinations.TestCase):
     self.assertEqual(reconstructed_layer._seed, layer._seed)
 
 
+@test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class RandomTranslationTest(test_combinations.TestCase):
 
