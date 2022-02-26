@@ -294,7 +294,7 @@ class FilterTopKTest(tf.test.TestCase, parameterized.TestCase):
 
 class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
 
-  def test_sparse_categorical_matches_int(self):
+  def test_sparse_categorical_matches(self):
     with self.cached_session():
       matches_method = metrics_utils.sparse_categorical_matches
       
@@ -326,7 +326,7 @@ class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
       y_pred = backend.variable(
           [[0.8, 0.2], [0.6, 0.4], [0.7, 0.3], [0.9, 0.1]])
       self.assertAllEqual(
-          backend.eval(matches_method(y_true, y_pred)), [0., 1., 1., 1.])
+          backend.eval(matches_method(y_true, y_pred)), [[0.], [1.], [1.], [1.]])
 
       # Test correctness if the shape of y_true is (batch_size, seq_length) and
       # y_pred is (batch_size, seq_length, num_classes)
@@ -337,13 +337,99 @@ class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllEqual(
           backend.eval(matches_method(y_true, y_pred)), [[1., 0.], [0., 1.]])
 
-  def test_sparse_categorical_accuracy_float(self):
+  def test_sparse_top_k_categorical_matches(self):
     with self.cached_session():
-      matches_method = metrics_utils.sparse_categorical_matches
-      y_true = backend.variable(np.random.random((6,)))
+      matches_method = metrics_utils.sparse_top_k_categorical_matches
+      
+      # Test return tensor is type float
+      y_true = backend.variable(np.random.randint(0, 7, (6,)))
       y_pred = backend.variable(np.random.random((6, 7)))
-      self.assertEqual(backend.eval(matches_method(y_true, y_pred)).shape, (6,))
+      self.assertEqual(backend.eval(matches_method(y_true, y_pred, 1)).dtype,
+                        backend.floatx())
 
+      # Tests that resulting Tensor always has same shape as y_true. Tests from
+      # 1 dim to 4 dims
+      dims = []
+      for _ in range(4):
+          dims.append(np.random.randint(1, 7))
+          y_true = backend.variable(np.random.randint(0, 7, dims))
+          y_pred = backend.variable(np.random.random(dims+[3]))
+          self.assertEqual(backend.eval(matches_method(y_true, y_pred, 1)).shape,
+                            y_true.shape)
+
+      # Test correctness if the shape of y_true is (num_samples,) for k = 1,2,3
+      y_true = backend.variable([1., 0., 0., 0.])
+      y_pred = backend.variable(
+          [[0.7, 0.2, 0.1], [0.5, 0.3, 0.2], [0.6, 0.3, 0.1], [0.0, 0.1, 0.9]])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, 1)), [0., 1., 1., 0.])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, 2)), [1., 1., 1., 0.])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, 3)), [1., 1., 1., 1.])
+    
+      # Test correctness if the shape of y_true is (num_samples, 1) for k = 1,2,3
+      y_true = backend.variable([[1.], [0.], [0.], [0.]])
+      y_pred = backend.variable(
+          [[0.7, 0.2, 0.1], [0.5, 0.3, 0.2], [0.6, 0.3, 0.1], [0.0, 0.1, 0.9]])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, 1)), [[0.], [1.], [1.], [0.]])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, 2)), [[1.], [1.], [1.], [0.]])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, 3)), [[1.], [1.], [1.], [1.]])
+
+      # Test correctness if the shape of y_true is (batch_size, seq_length) and
+      # y_pred is (batch_size, seq_length, num_classes) for k = 1,2,3
+      y_pred = backend.variable(
+          np.array([[[0.2, 0.3, 0.1], [0.1, 0.2, 0.7]],
+                    [[0.3, 0.2, 0.1], [0.7, 0.2, 0.1]]]))
+      y_true = backend.variable(np.array([[1, 0], [1, 0]]))
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, 1)), [[1., 0.], [0., 1.]])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, 2)), [[1., 0.], [1., 1.]])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, 3)), [[1., 1.], [1., 1.]])
+  
+  def test_binary_matches(self):
+    with self.cached_session():
+      matches_method = metrics_utils.binary_matches
+      
+      # Test return tensor is type float
+      y_true = backend.variable(np.random.random((6, 7)))
+      y_pred = backend.variable(np.random.random((6, 7)))
+      self.assertEqual(backend.eval(matches_method(y_true, y_pred, .5)).dtype,
+                        backend.floatx())
+
+      # Tests that resulting Tensor always has same shape as y_true. Tests from
+      # 1 dim to 4 dims.
+      dims = []
+      for _ in range(4):
+          dims.append(np.random.randint(1, 7))
+          y_true = y_pred = backend.variable(np.random.random(dims))
+          self.assertEqual(backend.eval(matches_method(y_true, y_pred, 0.)).shape,
+                            y_true.shape)
+      
+      # Testing for correctness shape (num_samples, 1)
+      y_true = backend.variable([[1.], [0.], [1.], [1.]])
+      y_pred = backend.variable([[.75], [.2], [.2], [.75]])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, .5)), [[1.],[1.],[0.],[1.]])
+
+      # Testing for correctness shape (num_samples,)
+      y_true = backend.variable([1., 0., 1., 1.])
+      y_pred = backend.variable([.75, .2, .2, .75])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, .5)), [1.,1.,0.,1.])
+
+      # Testing for correctness batches of sequences
+      # shape (num_samples, seq_len)
+      y_true = backend.variable([[1., 0.], [0., 1.], [1., 0.], [1., 0.]])
+      y_pred = backend.variable([[.75, .2], [.2, .75], [.2, .75], [.75, .2]])
+      self.assertAllEqual(
+          backend.eval(matches_method(y_true, y_pred, .5)),
+                                    [[1., 1.],[1., 1.],[0., 0.],[1., 1.]])
 
 
 if __name__ == '__main__':
