@@ -3278,7 +3278,8 @@ def sparse_categorical_accuracy(y_true, y_pred):
   Returns:
     Sparse categorical accuracy values.
   """
-  # Note: wraps metrics_utils.sparse_categorical_matches. This seperates
+  # Note: wraps metrics_utils.sparse_categorical_matches method and checks for 
+  # squeezing to align with expected public facing behavior. This seperates
   # public facing sparse_categorical_accuracy behavior from the vital behavior
   # of the sparse_categorical_matches method needed in backend dependencies.
 
