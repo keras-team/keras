@@ -874,13 +874,9 @@ def sparse_categorical_matches(y_true, y_pred):
   """
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.convert_to_tensor(y_true)
-  y_pred_rank = y_pred.shape.ndims
-  y_true_rank = y_true.shape.ndims
-  # If the shape of y_true is (num_samples, 1), squeeze to (num_samples,)
-  if (y_true_rank is not None) and (y_pred_rank is not None) and (len(
-      backend.int_shape(y_true)) == len(backend.int_shape(y_pred))):
-    y_true = tf.squeeze(y_true, [-1])
-  y_pred = tf.math.argmax(y_pred, axis=-1)
+
+  # Reshape to ensure comparable to y_true in tf.equal
+  y_pred = tf.reshape(tf.math.argmax(y_pred, axis=-1), shape=tf.shape(y_true))
 
   # If the predicted output and actual output types don't match, force cast them
   # to match.
