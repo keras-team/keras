@@ -25,3 +25,5 @@ RUN apt update && apt install bazel -y
 
 USER $USERNAME
 ENV PATH="/home/$USERNAME/.local/bin:${PATH}"
+
+CMD ["/bin/bash"]

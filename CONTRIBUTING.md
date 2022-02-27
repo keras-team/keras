@@ -90,7 +90,7 @@ In the container shell, you need to install the latest dependencies with the
 following command.
 
 ```shell
-pip install -r /home/keras/requirements.txt
+pip install -r /home/keras/requirements.txt && pip uninstall keras-nightly -y
 ```
 
 Now, the environment setup is complete. You are ready to run the tests.
