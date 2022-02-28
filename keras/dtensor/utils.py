@@ -16,9 +16,8 @@
 
 import inspect
 
+from keras.dtensor import dtensor_api as dtensor
 import tensorflow.compat.v2 as tf
-
-from tensorflow.dtensor import python as dtensor  # pylint: disable=g-direct-tensorflow-import
 
 
 # All the variable names in the default keras layers. We will use those to map
