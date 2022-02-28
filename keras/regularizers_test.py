@@ -210,6 +210,68 @@ class KerasRegularizersTest(test_combinations.TestCase,
     if hasattr(regularizer, 'l2'):
       self.assertAllClose(regularizer.l2, expected_value)
 
+  @test_utils.run_v2_only
+  def test_orthogonal_regularizer(self):
+    # Test correctness.
+    factor = 0.1
+    reg_rows = regularizers.OrthogonalRegularizer(factor=factor, mode='rows')
+    reg_cols = regularizers.OrthogonalRegularizer(factor=factor, mode='columns')
+
+    # Test with square matrix
+    inputs = tf.constant([[1, 1, 1, 1],
+                          [2, 0, 0, 0],
+                          [0, 0, 3, 1]], dtype='float32')
+    normalized_rows = tf.math.l2_normalize(inputs, axis=1)
+    normalized_cols = tf.math.l2_normalize(inputs, axis=0)
+    rows_pairs = [
+        tf.reduce_sum(normalized_rows[0] * normalized_rows[1]),
+        tf.reduce_sum(normalized_rows[0] * normalized_rows[2]),
+        tf.reduce_sum(normalized_rows[1] * normalized_rows[2]),
+    ]
+    col_pairs = [
+        tf.reduce_sum(normalized_cols[:, 0] * normalized_cols[:, 1]),
+        tf.reduce_sum(normalized_cols[:, 0] * normalized_cols[:, 2]),
+        tf.reduce_sum(normalized_cols[:, 0] * normalized_cols[:, 3]),
+        tf.reduce_sum(normalized_cols[:, 1] * normalized_cols[:, 2]),
+        tf.reduce_sum(normalized_cols[:, 1] * normalized_cols[:, 3]),
+        tf.reduce_sum(normalized_cols[:, 2] * normalized_cols[:, 3]),
+    ]
+    num_row_pairs = 3
+    num_col_pairs = 6
+    # Expected: factor * sum(pairwise_dot_products_of_rows) / num_row_pairs
+    self.assertAllClose(reg_rows(inputs),
+                        factor * sum(rows_pairs) / num_row_pairs)
+    # Expected: factor * sum(pairwise_dot_products_of_columns) / num_col_pairs
+    self.assertAllClose(reg_cols(inputs),
+                        factor * sum(col_pairs) / num_col_pairs)
+
+    # Test incorrect usage.
+    with self.assertRaisesRegex(ValueError, 'must have rank 2'):
+      reg_rows(tf.constant([1, 1], dtype='float32'))
+
+    # Test serialization
+    self.assertDictEqual(reg_cols.get_config(),
+                         {'factor': factor, 'mode': 'columns'})
+
+    # Test usage in model.
+    model_inputs = keras.Input((3,))
+    model_outputs = keras.layers.Dense(
+        4, kernel_regularizer=reg_rows)(model_inputs)
+    model = keras.Model(model_inputs, model_outputs)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.fit(np.random.random((16, 3)), np.random.random((16, 4)), epochs=1)
+
+    # Test serialization and deserialiation as part of model.
+    inputs = tf.constant([[1, 1, 1],
+                          [2, 0, 0],
+                          [0, 0, 3]], dtype='float32')
+    outputs = model(inputs)
+    config = model.get_config()
+    weights = model.get_weights()
+    model = keras.Model.from_config(config)
+    model.set_weights(weights)
+    self.assertAllClose(model(inputs), outputs, atol=1e-5)
+
 
 if __name__ == '__main__':
   tf.test.main()

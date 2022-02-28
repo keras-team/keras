@@ -30,13 +30,13 @@ def _check_penalty_number(x):
   """check penalty number availability, raise ValueError if failed."""
   if not isinstance(x, (float, int)):
     raise ValueError(
-        f'Value: {x} is not a valid regularization penalty number, '
-        'expected an int or float value')
+        f'Value {x} is not a valid regularization penalty number, '
+        'expected an int or float value.')
 
   if math.isinf(x) or math.isnan(x):
     raise ValueError(
-        f'Value: {x} is not a valid regularization penalty number, '
-        'an infinity number or NaN are not valid value')
+        f'Value {x} is not a valid regularization penalty number, '
+        'an infinite number or NaN are not valid values.')
 
 
 def _none_to_default(inputs, default):
@@ -316,6 +316,64 @@ class L2(Regularizer):
     return {'l2': float(self.l2)}
 
 
+@keras_export(
+    'keras.regularizers.OrthogonalRegularizer',
+    'keras.regularizers.orthogonal_regularizer',
+    v1=[])
+class OrthogonalRegularizer(Regularizer):
+  """A regularizer that encourages input vectors to be orthogonal to each other.
+
+  It can be applied to either the rows of a matrix (`mode="rows"`) or its
+  columns (`mode="columns"`). When applied to a `Dense` kernel of shape
+  `(input_dim, units)`, rows mode will seek to make the feature vectors
+  (i.e. the basis of the output space) orthogonal to each other.
+
+  Arguments:
+    factor: Float. The regularization factor. The regularization penalty will
+      be proportional to `factor` times the mean of the dot products between
+      the L2-normalized rows (if `mode="rows"`, or columns if `mode="columns"`)
+      of the inputs, excluding the product of each row/column with itself.
+      Defaults to 0.01.
+    mode: String, one of `{"rows", "columns"}`. Defaults to `"rows"`. In rows
+      mode, the regularization effect seeks to make the rows of the input
+      orthogonal to each other. In columns mode, it seeks to make the columns
+      of the input orthogonal to each other.
+
+  Example:
+
+  >>> regularizer = tf.keras.regularizers.OrthogonalRegularizer(factor=0.01)
+  >>> layer = tf.keras.layers.Dense(units=4, kernel_regularizer=regularizer)
+  """
+
+  def __init__(self, factor=0.01, mode='rows'):
+    _check_penalty_number(factor)
+    self.factor = backend.cast_to_floatx(factor)
+    if mode not in {'rows', 'columns'}:
+      raise ValueError('Invalid value for argument `mode`. Expected one of '
+                       f'{{"rows", "columns"}}. Received: mode={mode}')
+    self.mode = mode
+
+  def __call__(self, inputs):
+    if inputs.shape.rank != 2:
+      raise ValueError(
+          'Inputs to OrthogonalRegularizer must have rank 2. Received: '
+          f'inputs.shape == {inputs.shape}')
+    if self.mode == 'rows':
+      inputs = tf.math.l2_normalize(inputs, axis=1)
+      product = tf.matmul(inputs, tf.transpose(inputs))
+      size = inputs.shape[0]
+    else:
+      inputs = tf.math.l2_normalize(inputs, axis=0)
+      product = tf.matmul(tf.transpose(inputs), inputs)
+      size = inputs.shape[1]
+    product_no_diagonal = product * (1. - tf.eye(size, dtype=inputs.dtype))
+    num_pairs = size * (size - 1.) / 2.
+    return self.factor * 0.5 * tf.reduce_sum(product_no_diagonal) / num_pairs
+
+  def get_config(self):
+    return {'factor': float(self.factor), 'mode': self.mode}
+
+
 @keras_export('keras.regularizers.l1_l2')
 def l1_l2(l1=0.01, l2=0.01):  # pylint: disable=redefined-outer-name
   r"""Create a regularizer that applies both L1 and L2 penalties.
@@ -339,6 +397,7 @@ def l1_l2(l1=0.01, l2=0.01):  # pylint: disable=redefined-outer-name
 # Deserialization aliases.
 l1 = L1
 l2 = L2
+orthogonal_regularizer = OrthogonalRegularizer
 
 
 @keras_export('keras.regularizers.serialize')
