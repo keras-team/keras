@@ -21,7 +21,6 @@ Detailed documentation and user guides are available at
 from tensorflow.python import tf2
 from keras import distribute
 
-# See b/110718070#comment18 for more details about this import.
 from keras import models
 
 from keras.engine.input_layer import Input

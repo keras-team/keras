@@ -92,8 +92,8 @@ py_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:losses",
-        "//keras:models",
         "//keras/datasets",
+        "//keras/models",
         "//keras/utils:np_utils",
     ],
 )
