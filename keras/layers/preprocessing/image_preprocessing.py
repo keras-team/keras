@@ -277,7 +277,8 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
 
   Note that since the randomness is also a common functionnality, this layer
   also includes a tf.keras.backend.RandomGenerator, which can be used to produce
-  the random numbers.
+  the random numbers.  The random number generator is stored in the
+  `self._random_generator` attribute.
   """
 
   def __init__(self, rate=1.0, seed=None, **kwargs):
