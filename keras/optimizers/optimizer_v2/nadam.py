@@ -21,7 +21,8 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.optimizers.Nadam')
+# pylint: disable=g-classes-have-attributes
+@keras_export('keras.optimizers.Nadam', 'keras.optimizers_legacy.Nadam')
 class Nadam(optimizer_v2.OptimizerV2):
   r"""Optimizer that implements the NAdam algorithm.
   Much like Adam is essentially RMSprop with momentum, Nadam is Adam with
