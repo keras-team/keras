@@ -16,13 +16,13 @@
 
 from keras import backend
 from keras import layers
+from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layout_map as layout_map_lib
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras.dtensor.tests import test_util
-from tensorflow.dtensor import python as dtensor  # pylint: disable=g-direct-tensorflow-import
 
 
 class LayoutMapTest(test_util.DTensorBaseTest):

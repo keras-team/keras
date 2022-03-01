@@ -17,11 +17,10 @@
 import collections
 import re
 
+from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import lazy_variable
 from keras.dtensor import utils
 from keras.engine import base_layer
-
-from tensorflow.dtensor import python as dtensor  # pylint: disable=g-direct-tensorflow-import
 
 # pylint: disable=missing-class-docstring
 
