@@ -25,6 +25,9 @@ from keras.optimizers.optimizer_experimental import optimizer as optimizer_exper
 from keras.optimizers.optimizer_experimental import adadelta as adadelta_experimental
 from keras.optimizers.optimizer_experimental import adagrad as adagrad_experimental
 from keras.optimizers.optimizer_experimental import adam as adam_experimental
+from keras.optimizers.optimizer_experimental import adamax as adamax_experimental
+from keras.optimizers.optimizer_experimental import adamw as adamw_experimental
+from keras.optimizers.optimizer_experimental import rmsprop as rmsprop_experimental
 from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
 from keras.optimizers.optimizer_v1 import Optimizer
 from keras.optimizers.optimizer_v1 import TFOptimizer
