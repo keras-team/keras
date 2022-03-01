@@ -23,7 +23,6 @@ import weakref
 
 from keras import backend
 from keras import callbacks as callbacks_module
-from keras import optimizer_v1
 from keras import optimizers
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
@@ -31,8 +30,8 @@ from keras.engine import compile_utils
 from keras.engine import data_adapter
 from keras.engine import training_utils
 from keras.mixed_precision import loss_scale_optimizer as lso
-from keras.mixed_precision import policy
-from keras.optimizer_experimental import optimizer as optimizer_experimental
+from keras.optimizers import optimizer_v1
+from keras.optimizers.optimizer_experimental import optimizer as optimizer_experimental
 from keras.saving import hdf5_format
 from keras.saving import pickle_utils
 from keras.saving import save
@@ -281,6 +280,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._init_batch_counters()
     self._base_model_initialized = True
 
+    # `jit_compile` starts off with None as default and gets overwritten by the
+    # value specified in `Model.compile`, and this is effective for `fit`,
+    # `evaluate`, and `predict`.
+    self._jit_compile = None
+
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _init_batch_counters(self):
     # Untracked Variables, used to keep track of mini-batches seen in `fit`,
@@ -503,7 +507,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     Args:
         optimizer: String (name of optimizer) or optimizer instance. See
           `tf.keras.optimizers`.
-        loss: Loss function. Maybe be a string (name of loss function), or
+        loss: Loss function. May be a string (name of loss function), or
           a `tf.keras.losses.Loss` instance. See `tf.keras.losses`. A loss
           function is any callable with the signature `loss = fn(y_true,
           y_pred)`, where `y_true` are the ground truth values, and
@@ -618,25 +622,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   def _get_optimizer(self, optimizer):
     """Wraps `optimizer` in `LossScaleOptimizer` if necessary."""
-    # The deprecated PolicyV1 has a loss_scale, which we use for backwards
-    # compatibility to match TF 2.3 behavior. The new Policy does not have a
-    # loss_scale, so we use dynamic loss scaling if the mixed_float16 policy is
-    # used.
-    if isinstance(self._dtype_policy, policy.PolicyV1):
-      loss_scale = self._dtype_policy.loss_scale
-    elif self._dtype_policy.name == 'mixed_float16':
-      loss_scale = 'dynamic'
-    else:
-      loss_scale = None
-
     def _get_single_optimizer(opt):
       opt = optimizers.get(opt)
-      if (loss_scale is not None and
+      if (self.dtype_policy.name == 'mixed_float16' and
           not isinstance(opt, lso.LossScaleOptimizer)):
-        if loss_scale == 'dynamic':
-          opt = lso.LossScaleOptimizer(opt)
-        else:
-          opt = lso.LossScaleOptimizerV1(opt, loss_scale)
+        # Loss scaling is necessary with mixed_float16 for models to converge to
+        # the same accuracy as with float32.
+        opt = lso.LossScaleOptimizer(opt)
       return opt
 
     return tf.nest.map_structure(_get_single_optimizer, optimizer)
@@ -1162,7 +1154,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             The validation data is selected from the last samples
             in the `x` and `y` data provided, before shuffling. This argument is
             not supported when `x` is a dataset, generator or
-           `keras.utils.Sequence` instance.
+            `keras.utils.Sequence` instance.
+            If both `validation_data` and `validation_split` are provided,
+            `validation_data` will override `validation_split`.
             `validation_split` is not yet supported with
             `tf.distribute.experimental.ParameterServerStrategy`.
         validation_data: Data on which to evaluate
@@ -1305,7 +1299,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     verbose = _get_verbosity(verbose, self.distribute_strategy)
 
-    if validation_split:
+    if validation_split and validation_data is None:
       # Create the validation data using the training data. Only supported for
       # `Tensor` and `NumPy` input.
       (x, y, sample_weight), validation_data = (
@@ -1504,6 +1498,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         with tf.control_dependencies(_minimum_control_deps(outputs)):
           model._test_counter.assign_add(1)  # pylint: disable=protected-access
         return outputs
+
+      if self._jit_compile:
+        run_step = tf.function(
+            run_step, jit_compile=True, experimental_relax_shapes=True)
 
       data = next(iterator)
       outputs = model.distribute_strategy.run(run_step, args=(data,))
@@ -1789,6 +1787,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           model._predict_counter.assign_add(1)  # pylint: disable=protected-access
         return outputs
 
+      if self._jit_compile:
+        run_step = tf.function(
+            run_step, jit_compile=True, experimental_relax_shapes=True)
+
       data = next(iterator)
       outputs = model.distribute_strategy.run(run_step, args=(data,))
       outputs = reduce_per_replica(
@@ -2011,7 +2013,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                          'information of where went wrong, or file a '
                          'issue/bug to `tf.keras`.')
       callbacks.on_predict_end()
-    all_outputs = tf.__internal__.nest.map_structure_up_to(batch_outputs, concat, outputs)
+    all_outputs = tf.__internal__.nest.map_structure_up_to(
+        batch_outputs, potentially_ragged_concat, outputs)
 
     # If originally PSS strategy was used, then replace it back since predict
     # is running under `OneDeviceStrategy` after the swap and once its done
@@ -3256,6 +3259,44 @@ def concat(tensors, axis=0):
   if isinstance(tensors[0], tf.SparseTensor):
     return tf.sparse.concat(axis=axis, sp_inputs=tensors)
   return tf.concat(tensors, axis=axis)
+
+
+def potentially_ragged_concat(tensors):
+  """Concats `Tensor`s along their first dimension.
+
+  Args:
+    tensors: List of `Tensor`s.
+
+  Returns:
+    Concatenation of the inputs along the first dimension -- of type `Tensor`
+    if all input shapes are compatible, or `RaggedTensor` if not.
+  """
+  if len(tensors) == 1:
+    return tensors[0]
+  if isinstance(tensors[0], tf.SparseTensor):
+    return tf.sparse.concat(axis=0, sp_inputs=tensors)
+  elif isinstance(tensors[0], tf.RaggedTensor):
+    return tf.concat(tensors, axis=0)
+  elif not tf.__internal__.tf2.enabled():
+    return tf.concat(tensors, axis=0)
+
+  non_batch_shapes = tf.stack([tf.shape(tensor)[1:] for tensor in tensors])
+  constant_dims = tf.math.reduce_all(
+      non_batch_shapes == non_batch_shapes[:1], axis=0)
+  if tf.math.reduce_all(constant_dims).numpy().item():
+    # All non-batch dims are constant
+    return tf.concat(tensors, axis=0)
+
+  # First, identify constant inner dimensions by finding the
+  # rightmost dimension that is not constant
+  constant_inner_dimensions = constant_dims.numpy().tolist()[::-1].index(False)
+  # If there are constant inner dimensions, define a constant inner shape
+  if constant_inner_dimensions == 0:
+    constant_inner_shape = None
+  else:
+    constant_inner_shape = tensors[0].shape[-constant_inner_dimensions:]
+  return tf.ragged.constant([tensor.numpy() for tensor in tensors],
+                            inner_shape=constant_inner_shape).merge_dims(0, 1)
 
 
 def _get_verbosity(verbose, distribute_strategy):

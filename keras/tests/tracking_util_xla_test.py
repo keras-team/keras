@@ -18,7 +18,7 @@ from tensorflow.compiler.tests import xla_test
 import tensorflow.compat.v2 as tf
 from keras.engine import training
 from keras.layers import core
-from keras.optimizer_v2 import adam
+from keras.optimizers.optimizer_v2 import adam
 from tensorflow.python.training.tracking import util as trackable_utils
 
 

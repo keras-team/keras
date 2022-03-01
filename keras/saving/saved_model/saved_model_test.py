@@ -27,16 +27,15 @@ import sys
 
 from absl.testing import parameterized
 import keras
-from keras import combinations
-from keras import keras_parameterized
 from keras import regularizers
-from keras import testing_utils
 from keras.feature_column.dense_features import DenseFeatures
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import load as keras_load
 from keras.saving.saved_model import save_impl as keras_save
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import control_flow_util
 from keras.utils import generic_utils
 from keras.utils import tf_contextlib
@@ -74,7 +73,7 @@ class LayerWithLearningPhase(keras.engine.base_layer.Layer):
 class LayerWithLoss(keras.layers.Layer):
 
   def call(self, inputs):
-    self.add_loss(tf.reduce_sum(inputs), inputs=inputs)
+    self.add_loss(tf.reduce_sum(inputs))
     return inputs * 2
 
 
@@ -99,8 +98,8 @@ class GlobalLayerThatShouldFailIfNotAdded(keras.layers.Layer):
   _must_restore_from_config = True
 
 
-@keras_parameterized.run_all_keras_modes
-class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class TestSavedModelFormatAllModes(test_combinations.TestCase):
 
   def _save_model_dir(self, dirname='saved_model'):
     temp_dir = self.get_temp_dir()
@@ -108,7 +107,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     return os.path.join(temp_dir, dirname)
 
   def _get_model(self):
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     model.layers[-1].activity_regularizer = regularizers.get('l2')
     model.activity_regularizer = regularizers.get('l2')
     model.compile(
@@ -156,21 +155,15 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     if tf.executing_eagerly():
       self.assertAllClose(sorted(self.evaluate(model.losses)),
                           sorted(self.evaluate(loaded.losses)))
-    else:
-      self.assertAllClose(self.evaluate(model.get_losses_for(None)),
-                          self.evaluate(loaded.get_losses_for(None)))
-      self.assertAllClose(
-          sorted(self.evaluate(model.get_losses_for(input_arr))),
-          sorted(self.evaluate(loaded.get_losses_for(input_arr))))
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_model_save_and_load(self):
     model = self._get_model()
     self._train_model(model, use_dataset=False)
     loaded = self._save_and_load(model)
     self._test_evaluation(model, loaded)
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_model_save_and_load_dataset(self):
     model = self._get_model()
     self._train_model(model, use_dataset=True)
@@ -208,7 +201,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
       self.assertAllClose(self.evaluate(getattr(layer, attr)),
                           self.evaluate(getattr(loaded, attr)))
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_trainable_layers(self):
     """Tests that trainable status of individual layers is preserved."""
     model = model = self._get_model()
@@ -224,7 +217,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
   def test_trainable_custom_model_false(self):
     """Tests that overall False trainable status of Model is preserved."""
     # Set all layers to *not* be trainable.
-    model = testing_utils.SmallSubclassMLP(1, 4, trainable=False)
+    model = test_utils.SmallSubclassMLP(1, 4, trainable=False)
     model.compile(loss='mse', optimizer='rmsprop')
     self._train_model(model, use_dataset=False)
     loaded = self._save_and_load(model)
@@ -266,7 +259,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     layer = LayerWithLearningPhase()
     layer.build([None, None])
     saved_model_dir = self._save_model_dir()
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [layer], input_shape=[None], model_type='functional')
     model.save(saved_model_dir, save_format='tf')
     loaded_model = keras_load.load(saved_model_dir)
@@ -286,9 +279,9 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
         tf.zeros((4, 3)),
         loaded(input_arr, training=tf.constant(True)))
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_standard_loader(self):
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     model.activity_regularizer = regularizers.get('l2')
     def eager_loss():
       return tf.reduce_sum(model.weights[0])
@@ -314,7 +307,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     self.assertAllClose(self.evaluate(model(input_arr)),
                         self.evaluate(loaded(input_arr, training=False)))
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_compiled_model(self):
     # TODO(b/134519980): Issue with model.fit if the model call function uses
     # a tf.function (Graph mode only).
@@ -324,7 +317,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     input_arr = np.random.random((1, 3))
     target_arr = np.random.random((1, 4))
 
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     expected_predict = model.predict(input_arr)
 
     # Compile and save model.
@@ -364,7 +357,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
     layer = LayerWithNestedSpec()
     saved_model_dir = self._save_model_dir()
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [layer], model_type='subclass')
     model({'a': tf.constant([[2, 4]]),
            'b': tf.ones([1, 2, 3], dtype=tf.int32)})
@@ -383,7 +376,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
     layer = LayerThatShouldFailIfNotAdded()
     saved_model_dir = self._save_model_dir()
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [layer], input_shape=[3], model_type='functional')
     model.save(saved_model_dir, save_format='tf')
     with self.assertRaisesRegex(ValueError,
@@ -396,7 +389,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
       _must_restore_from_config = True
 
     layer = LayerThatShouldFailIfNotAdded()
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [layer], input_shape=[3], model_type='functional')
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir, save_format='tf')
@@ -407,7 +400,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
   def test_must_restore_from_config_registration(self):
     layer = GlobalLayerThatShouldFailIfNotAdded()
     saved_model_dir = self._save_model_dir()
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [layer], input_shape=[3], model_type='functional')
     model.save(saved_model_dir, save_format='tf')
     _ = keras_load.load(saved_model_dir)
@@ -745,11 +738,11 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
   def _testAddUpdate(self, scope):
     with scope:
       layer_with_update = LayerWithUpdate()
-      model = testing_utils.get_model_from_layers([layer_with_update],
-                                                  input_shape=(3,))
+      model = test_utils.get_model_from_layers([layer_with_update],
+                                               input_shape=(3,))
 
       x = np.ones((10, 3))
-      if testing_utils.get_model_type() == 'subclass':
+      if test_utils.get_model_type() == 'subclass':
         model.predict(x, batch_size=10)
       self.evaluate(tf.compat.v1.variables_initializer(model.variables))
       saved_model_dir = self._save_model_dir()
@@ -764,14 +757,14 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     loaded.fit(x, x, batch_size=10)
     self.assertEqual(self.evaluate(loaded_layer.v), 1.)
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def testSaveLayerWithUpdates(self):
     @tf_contextlib.contextmanager
     def nullcontextmanager():
       yield
     self._testAddUpdate(nullcontextmanager())
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def testSaveInStrategyScope(self):
     self._testAddUpdate(tf.distribute.MirroredStrategy().scope())
 
@@ -809,7 +802,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
     model = keras.Model(x, y)
     model.compile('rmsprop', 'mse',
-                  run_eagerly=testing_utils.should_run_eagerly())
+                  run_eagerly=test_utils.should_run_eagerly())
     model.train_on_batch(
         np.zeros((batch, timesteps, input_dim)).astype('float32'),
         np.zeros((batch, 64)).astype('float32'))
@@ -916,7 +909,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     class CustomLayer(keras.layers.Layer):
 
       def call(self, *input_list):
-        self.add_loss(input_list[-2] * 2, inputs=True)
+        self.add_loss(input_list[-2] * 2)
         return sum(input_list[:-1])  # The test's last input is a non-tensor arg
 
     class CustomModel(keras.Model):
@@ -933,16 +926,12 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     inp = [tf.constant(i, shape=[1, 1], dtype=tf.float32)
            for i in range(1, 5)]
     expected = model(*inp)
-    expected_loss = model.get_losses_for(inp)
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir, save_format='tf')
     loaded = keras_load.load(saved_model_dir)
     actual = loaded(*inp)
-    actual_loss = loaded.get_losses_for(inp)
     self.assertAllEqual(self.evaluate(expected),
                         self.evaluate(actual))
-    self.assertAllEqual(self.evaluate(expected_loss),
-                        self.evaluate(actual_loss))
 
   def test_wrapped_layer_training(self):
     class Custom(keras.models.Model):
@@ -1078,7 +1067,7 @@ class TestSavedModelFormat(tf.test.TestCase):
       loaded.attached_layer(tf.constant([1.]))
 
   def test_load_non_keras_saved_model(self):
-    model = testing_utils.get_small_functional_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_functional_mlp(1, 4, input_dim=3)
     saved_model_dir = self._save_model_dir()
     tf.saved_model.save(model, saved_model_dir)
     with self.assertRaisesRegex(ValueError, 'Unable to create a Keras model'):
@@ -1169,7 +1158,8 @@ class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
 
     assert_num_traces(LayerWithChildLayer, training_keyword=False)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_maintains_losses(self):
     layer = LayerWithLoss()
     layer(np.ones((2, 3)))
@@ -1193,7 +1183,7 @@ class CustomMeanMetric(keras.metrics.Mean):
     super(CustomMeanMetric, self).update_state(*args)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MetricTest(tf.test.TestCase, parameterized.TestCase):
 
   def _save_model_dir(self, dirname='saved_model'):
@@ -1214,7 +1204,7 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
                                  shape=(1, 5),
                                  test_sample_weight=True):
     with self.cached_session():
-      model = testing_utils.get_model_from_layers(
+      model = test_utils.get_model_from_layers(
           [keras.layers.Layer()], input_shape=[3], model_type='functional')
       model.saved_metric = metric
       model.save(save_dir, save_format='tf')
@@ -1340,7 +1330,7 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
       self._test_metric_save_and_load(
           metric, self._save_model_dir(), 1, test_sample_weight=False)
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_custom_metric_model(self):
     # TODO(b/134519980): Issue with `model.fit` if the model call function uses
     # a `tf.function` in graph mode.
@@ -1357,7 +1347,7 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
       del y_true, y_pred
       return 0
 
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     model.compile(loss='mse', optimizer='SGD',
                   metrics=[CustomMetric(), zero_metric])
     model.fit(x, y)

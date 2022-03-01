@@ -7,7 +7,7 @@ different processes.
 from absl import app
 from absl import flags
 from keras import regularizers
-from keras import testing_utils
+from keras.testing_infra import test_utils
 
 import tensorflow.compat.v2 as tf
 
@@ -17,8 +17,8 @@ FLAGS = flags.FLAGS
 
 
 def main(_) -> None:
-  with testing_utils.model_type_scope('functional'):
-    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+  with test_utils.model_type_scope('functional'):
+    model = test_utils.get_small_mlp(1, 4, input_dim=3)
     model.layers[-1].activity_regularizer = regularizers.get('l2')
     model.activity_regularizer = regularizers.get('l2')
     model.compile(

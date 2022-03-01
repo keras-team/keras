@@ -15,13 +15,13 @@
 """Tests for activity regularization layer."""
 
 import keras
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class ActivityRegularizationTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ActivityRegularizationTest(test_combinations.TestCase):
 
   def test_activity_regularization(self):
     layer = keras.layers.ActivityRegularization(l1=0.1)

@@ -17,18 +17,18 @@
 import collections
 import os
 
-from keras import keras_parameterized
 from keras import layers
 from keras import models
 from keras.engine import functional_utils
 from keras.engine import input_layer as input_layer_lib
+from keras.testing_infra import test_combinations
 
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class FunctionalModelSlideTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class FunctionalModelSlideTest(test_combinations.TestCase):
 
   def test_find_nodes_by_inputs_and_outputs(self):
     inputs = input_layer_lib.Input((10,))

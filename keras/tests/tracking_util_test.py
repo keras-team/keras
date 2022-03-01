@@ -19,16 +19,15 @@ import tensorflow.compat.v2 as tf
 import os
 import weakref
 from tensorflow.python.eager import context
-from tensorflow.python.framework import test_util
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
 from keras.layers import reshaping
-from keras.optimizer_v2 import adam
+from keras.optimizers.optimizer_v2 import adam
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.tracking import util as trackable_utils
 
@@ -80,9 +79,9 @@ class InterfaceTests(tf.test.TestCase):
       checkpoint.save(os.path.join(self.get_temp_dir(), "ckpt"))
 
 
-class CheckpointingTests(keras_parameterized.TestCase):
+class CheckpointingTests(test_combinations.TestCase):
 
-  @test_util.run_in_graph_and_eager_modes(assert_no_eager_garbage=True)
+  @tf_test_utils.run_in_graph_and_eager_modes(assert_no_eager_garbage=True)
   def testNamingWithOptimizer(self):
     input_value = tf.constant([[3.]])
     model = MyModel()
@@ -174,7 +173,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
         len([key + suffix for key in expected_slot_keys]),
         len(serialized_slot_keys))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testSaveRestore(self):
     with self.test_session():
       model = MyModel()
@@ -309,7 +309,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
             self.assertEqual(training_continuation + 1,
                              session.run(root.save_counter))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testAgnosticUsage(self):
     """Graph/eager agnostic usage."""
     # Does create garbage when executing eagerly due to ops.Graph() creation.
@@ -324,7 +325,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
         gradients = tape.gradient(loss, variables)
         return optimizer.apply_gradients(zip(gradients, variables))
       for training_continuation in range(3):
-        with testing_utils.device(should_use_gpu=True):
+        with test_utils.device(should_use_gpu=True):
           model = MyModel()
           root = tf.train.Checkpoint(
               optimizer=optimizer, model=model)
@@ -344,7 +345,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
           self.assertEqual(training_continuation + 1,
                            self.evaluate(root.save_counter))
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testPartialRestoreWarningObject(self):
     optimizer = adam.Adam(0.0)
     original_root = tf.train.Checkpoint(v1=tf.Variable(2.),
@@ -370,14 +371,15 @@ class CheckpointingTests(keras_parameterized.TestCase):
     self.assertIn("expect_partial()", messages)
 
   # pylint: disable=cell-var-from-loop
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testWithDefun(self):
     with self.test_session():
       num_training_steps = 2
       checkpoint_directory = self.get_temp_dir()
       checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
       for training_continuation in range(3):
-        with testing_utils.device(should_use_gpu=True):
+        with test_utils.device(should_use_gpu=True):
           model = MyModel()
           # Don't actually train so we can test variable values
           optimizer = adam.Adam(0.)
@@ -412,7 +414,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
                            self.evaluate(root.save_counter))
   # pylint: enable=cell-var-from-loop
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def testAnonymousVarsInInit(self):
 
     class Model(training.Model):
@@ -441,7 +443,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
       optimizer.apply_gradients(
           [(g, v) for g, v in zip(grad, model.vars)])
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testDeferredSlotRestoration(self):
     with self.test_session():
       checkpoint_directory = self.get_temp_dir()
@@ -546,7 +549,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
         graph.finalize()
         obj.restore(save_path)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def test_sequential(self):
     with self.test_session():
       model = sequential.Sequential()
@@ -579,13 +583,14 @@ class CheckpointingTests(keras_parameterized.TestCase):
       self.assertAllEqual([1., 2., 3., 4., 5.],
                           self.evaluate(deferred_second_dense.bias))
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def test_initialize_if_not_restoring(self):
     with self.test_session():
       checkpoint_directory = self.get_temp_dir()
       checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
       optimizer_only_prefix = os.path.join(checkpoint_directory, "opt")
-      with testing_utils.device(should_use_gpu=True):
+      with test_utils.device(should_use_gpu=True):
         model = MyModel()
         optimizer = adam.Adam(0.001)
         root = tf.train.Checkpoint(
@@ -621,7 +626,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
       del train_fn
 
       # Restore into a graph with the optimizer
-      with testing_utils.device(should_use_gpu=True):
+      with test_utils.device(should_use_gpu=True):
         model = MyModel()
         optimizer = adam.Adam(0.001)
         root = tf.train.Checkpoint(
@@ -645,7 +650,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
       del train_fn1
 
       # Make sure initialization doesn't clobber later restores
-      with testing_utils.device(should_use_gpu=True):
+      with test_utils.device(should_use_gpu=True):
         model = MyModel()
         optimizer = adam.Adam(0.001, beta_1=1.0)
         root = tf.train.Checkpoint(
@@ -683,8 +688,8 @@ class _ManualScope(tf.Module):
     return tf.compat.v1.get_variable(name="in_manual_scope", shape=[])
 
 
-@combinations.generate(combinations.combine(mode=["graph", "eager"]))
-class TemplateTests(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class TemplateTests(test_combinations.TestCase):
 
   def test_trackable_save_restore(self):
     with self.test_session():
@@ -737,7 +742,7 @@ class TemplateTests(keras_parameterized.TestCase):
       self.assertAllEqual([14.], self.evaluate(var2))
 
 
-class CheckpointCompatibilityTests(keras_parameterized.TestCase):
+class CheckpointCompatibilityTests(test_combinations.TestCase):
 
   def _initialized_model(self):
     input_value = tf.constant([[3.]])
@@ -792,10 +797,11 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
             save_path=checkpoint_prefix,
             global_step=root.optimizer.iterations)
 
-  @combinations.generate(combinations.combine(mode=["graph", "eager"]))
+  @test_combinations.generate(
+      test_combinations.combine(mode=["graph", "eager"]))
   def testLoadFromNameBasedSaver(self):
     """Save a name-based checkpoint, load it using the object-based API."""
-    with testing_utils.device(should_use_gpu=True):
+    with test_utils.device(should_use_gpu=True):
       with self.test_session():
         save_path = self._write_name_based_checkpoint()
         root = self._initialized_model()

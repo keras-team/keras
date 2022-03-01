@@ -14,11 +14,10 @@
 #,============================================================================
 """Tests for layer graphs construction & handling."""
 
-import tensorflow.compat.v2 as tf
-
-from keras import keras_parameterized
 from keras.engine import base_layer
 from keras.engine import node as node_module
+from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
 
 
 class DummyTensor(tf.__internal__.types.Tensor):
@@ -35,7 +34,7 @@ class DummyLayer(base_layer.Layer):
   pass
 
 
-class NetworkConstructionTest(keras_parameterized.TestCase):
+class NetworkConstructionTest(test_combinations.TestCase):
 
   def test_chained_node_construction(self):
     # test basics

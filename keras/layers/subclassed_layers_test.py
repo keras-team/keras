@@ -17,14 +17,14 @@
 import tensorflow.compat.v2 as tf
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import tf_utils
 
 
-@keras_parameterized.run_all_keras_modes
-@keras_parameterized.run_with_all_model_types
-class SubclassedLayersTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+@test_combinations.run_with_all_model_types
+class SubclassedLayersTest(test_combinations.TestCase):
 
   def test_simple_build_with_constant(self):
 
@@ -37,7 +37,7 @@ class SubclassedLayersTest(keras_parameterized.TestCase):
         return self.b * inputs
 
     layer = BuildConstantLayer()
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [layer, keras.layers.Dense(1)], input_shape=(1,))
 
     x = tf.convert_to_tensor([[3.0]])
@@ -61,7 +61,7 @@ class SubclassedLayersTest(keras_parameterized.TestCase):
         return self.variable * self.constant * inputs
 
     layer = BuildDerivedConstantLayer()
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [layer, keras.layers.Dense(1)], input_shape=(1,))
 
     x = tf.convert_to_tensor([[3.0]])

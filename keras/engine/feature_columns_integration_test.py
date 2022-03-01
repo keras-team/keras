@@ -19,9 +19,9 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 
 import keras
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import metrics as metrics_module
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.feature_column import dense_features as df
 from keras.utils import np_utils
 
@@ -39,12 +39,12 @@ class TestDNNModel(keras.models.Model):
     return net
 
 
-class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
+class FeatureColumnsIntegrationTest(test_combinations.TestCase):
   """Most Sequential model API tests are covered in `training_test.py`.
 
   """
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_sequential_model(self):
     columns = [tf.feature_column.numeric_column('a')]
     model = keras.models.Sequential([
@@ -56,7 +56,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
         optimizer='rmsprop',
         loss='categorical_crossentropy',
         metrics=['accuracy'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = {'a': np.random.random((10, 1))}
     y = np.random.randint(20, size=(10, 1))
@@ -66,7 +66,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
     model.evaluate(x, y, batch_size=5)
     model.predict(x, batch_size=5)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_sequential_model_with_ds_input(self):
     columns = [tf.feature_column.numeric_column('a')]
     model = keras.models.Sequential([
@@ -78,7 +78,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
         optimizer='rmsprop',
         loss='categorical_crossentropy',
         metrics=['accuracy'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     y = np.random.randint(20, size=(100, 1))
     y = np_utils.to_categorical(y, num_classes=20)
@@ -91,7 +91,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
     model.evaluate(ds, steps=1)
     model.predict(ds, steps=1)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_sequential_model_with_crossed_column(self):
     feature_columns = []
     age_buckets = tf.feature_column.bucketized_column(
@@ -130,7 +130,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
     model.evaluate(ds)
     model.predict(ds)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_subclassed_model_with_feature_columns(self):
     col_a = tf.feature_column.numeric_column('a')
     col_b = tf.feature_column.numeric_column('b')
@@ -141,7 +141,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
         optimizer='rmsprop',
         loss='categorical_crossentropy',
         metrics=['accuracy'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = {'a': np.random.random((10, 1)), 'b': np.random.random((10, 1))}
     y = np.random.randint(20, size=(10, 1))
@@ -151,7 +151,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
     dnn_model.evaluate(x=x, y=y, batch_size=5)
     dnn_model.predict(x=x, batch_size=5)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_subclassed_model_with_feature_columns_with_ds_input(self):
     col_a = tf.feature_column.numeric_column('a')
     col_b = tf.feature_column.numeric_column('b')
@@ -162,7 +162,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
         optimizer='rmsprop',
         loss='categorical_crossentropy',
         metrics=['accuracy'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     y = np.random.randint(20, size=(100, 1))
     y = np_utils.to_categorical(y, num_classes=20)
@@ -176,7 +176,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
     dnn_model.predict(ds, steps=1)
 
   # TODO(kaftan) seems to throw an error when enabled.
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def DISABLED_test_function_model_feature_layer_input(self):
     col_a = tf.feature_column.numeric_column('a')
     col_b = tf.feature_column.numeric_column('b')
@@ -203,7 +203,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
     model.fit(*data, epochs=1)
 
   # TODO(kaftan) seems to throw an error when enabled.
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def DISABLED_test_function_model_multiple_feature_layer_inputs(self):
     col_a = tf.feature_column.numeric_column('a')
     col_b = tf.feature_column.numeric_column('b')
@@ -274,7 +274,7 @@ class FeatureColumnsIntegrationTest(keras_parameterized.TestCase):
     }, np.arange(10, 100))
     model.fit(*data_bloated_dict, epochs=1)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_string_input(self):
     x = {'age': np.random.random((1024, 1)),
          'cabin': np.array(['a'] * 1024)}

@@ -18,14 +18,14 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.engine import training
 
 
-@testing_utils.run_v2_only
-class RaggedKerasTensorTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class RaggedKerasTensorTest(test_combinations.TestCase):
 
   @parameterized.parameters(
       {'batch_size': None, 'shape': (None, 5), 'ragged_rank': 1},
@@ -181,8 +181,8 @@ class RaggedKerasTensorTest(keras_parameterized.TestCase):
       self.assertAllEqual(a, b)
 
 
-@testing_utils.run_v2_only
-class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class RaggedTensorClassMethodAsLayerTest(test_combinations.TestCase):
 
   def test_from_value_rowids(self):
     inp = layers.Input(shape=[None])

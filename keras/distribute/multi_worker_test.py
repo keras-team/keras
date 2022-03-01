@@ -32,9 +32,9 @@ from keras import backend
 from keras import callbacks
 from keras import metrics as metrics_module
 from keras import models
-from keras import optimizer_v1
+from keras.optimizers import optimizer_v1
 from keras.distribute import multi_worker_testing_utils
-from keras.optimizer_v2 import rmsprop
+from keras.optimizers.optimizer_v2 import rmsprop
 from keras.utils import kpl_test_utils
 
 # pylint: disable=g-direct-tensorflow-import

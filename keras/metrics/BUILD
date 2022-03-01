@@ -60,7 +60,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -75,9 +75,9 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
-        "//keras:testing_utils",
         "//keras/layers",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )
 
@@ -92,9 +92,9 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
-        "//keras:testing_utils",
         "//keras/layers",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )
 
@@ -110,9 +110,9 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_scipy_installed",
         "//:expect_tensorflow_installed",
-        "//keras:combinations",
-        "//keras:models",
         "//keras/layers",
+        "//keras/models",
+        "//keras/testing_infra:test_combinations",
         "//keras/utils:metrics_utils",
     ],
 )
@@ -128,5 +128,6 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )

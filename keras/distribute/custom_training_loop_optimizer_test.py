@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 from tensorflow.python.distribute import values
 from keras.distribute import strategy_combinations as keras_strategy_combinations
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 
 
 class OptimizerTest(tf.test.TestCase, parameterized.TestCase):

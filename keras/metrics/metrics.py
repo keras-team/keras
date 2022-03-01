@@ -3240,10 +3240,8 @@ def categorical_accuracy(y_true, y_pred):
   Returns:
     Categorical accuracy values.
   """
-  return tf.cast(
-      tf.equal(
-          tf.math.argmax(y_true, axis=-1), tf.math.argmax(y_pred, axis=-1)),
-      backend.floatx())
+  y_true = tf.math.argmax(y_true, axis=-1)
+  return sparse_categorical_accuracy(y_true, y_pred)
 
 
 @keras_export('keras.metrics.sparse_categorical_accuracy')
@@ -3309,10 +3307,8 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
   Returns:
     Top K categorical accuracy value.
   """
-  return tf.cast(
-      tf.math.in_top_k(
-          predictions=y_pred, targets=tf.math.argmax(y_true, axis=-1), k=k),
-      dtype=backend.floatx())
+  y_true = tf.math.argmax(y_true, axis=-1)
+  return sparse_top_k_categorical_accuracy(y_true, y_pred, k=k)
 
 
 @keras_export('keras.metrics.sparse_top_k_categorical_accuracy')
@@ -3338,19 +3334,31 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
   Returns:
     Sparse top K categorical accuracy value.
   """
-  y_pred_rank = tf.convert_to_tensor(y_pred).shape.ndims
-  y_true_rank = tf.convert_to_tensor(y_true).shape.ndims
+  reshape_matches = False
+  y_true = tf.convert_to_tensor(y_true)
+  y_pred = tf.convert_to_tensor(y_pred)
+  y_true_rank = y_true.shape.ndims
+  y_pred_rank = y_pred.shape.ndims
+  y_true_org_shape = tf.shape(y_true)
+
   # Flatten y_pred to (batch_size, num_samples) and y_true to (num_samples,)
   if (y_true_rank is not None) and (y_pred_rank is not None):
     if y_pred_rank > 2:
       y_pred = tf.reshape(y_pred, [-1, y_pred.shape[-1]])
     if y_true_rank > 1:
+      reshape_matches = True
       y_true = tf.reshape(y_true, [-1])
 
-  return tf.cast(
+  matches = tf.cast(
       tf.math.in_top_k(
           predictions=y_pred, targets=tf.cast(y_true, 'int32'), k=k),
       dtype=backend.floatx())
+
+  # returned matches is expected to have same shape as y_true input
+  if reshape_matches:
+    return tf.reshape(matches, shape=y_true_org_shape)
+
+  return matches
 
 
 def cosine_similarity(y_true, y_pred, axis=-1):

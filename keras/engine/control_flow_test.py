@@ -20,10 +20,10 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import base_layer
-from keras.optimizer_v2 import rmsprop
+from keras.optimizers.optimizer_v2 import rmsprop
 
 
 class ControlFlowLayer1(base_layer.Layer):
@@ -96,16 +96,16 @@ class FunctionControlFlowModel(keras.Model):
       return tf.square(inputs)
 
 
-@keras_parameterized.run_all_keras_modes
-class AutographWrapperTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class AutographWrapperTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   @parameterized.named_parameters(('with_if', ControlFlowLayer1),
                                   ('with_for', ControlFlowLayer2),
                                   ('nested', NestedControlFlowLayer))
   def test_control_flow_layer(self, layer_class):
-    model = testing_utils.get_model_from_layers([layer_class()],
-                                                input_shape=(3,))
+    model = test_utils.get_model_from_layers([layer_class()],
+                                             input_shape=(3,))
     model.compile(rmsprop.RMSprop(0.001), loss='mse')
     model.train_on_batch(np.random.random((2, 3)), np.random.random((2, 3)))
 

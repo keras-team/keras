@@ -29,15 +29,15 @@ from unittest import mock
 
 from absl.testing import parameterized
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.callbacks import BackupAndRestore
 from keras.callbacks import BackupAndRestoreExperimental
 from keras.engine import sequential
 from keras.layers import Activation
 from keras.layers import Dense
-from keras.optimizer_v2 import gradient_descent
-from keras.optimizer_v2 import learning_rate_schedule
+from keras.optimizers import learning_rate_schedule
+from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import io_utils
 from keras.utils import np_utils
 import numpy as np
@@ -122,9 +122,9 @@ def _get_sequence():
   return MySequence(), None
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
-class CallbackCountsTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class CallbackCountsTest(test_combinations.TestCase):
 
   def _check_counts(self, counter, expected_counts):
     """Checks that the counts registered by `counter` are those expected."""
@@ -140,11 +140,11 @@ class CallbackCountsTest(keras_parameterized.TestCase):
         keras.layers.Dense(10, activation='relu'),
         keras.layers.Dense(1, activation='sigmoid')
     ]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(10,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(10,))
     model.compile(
         tf.compat.v1.train.AdamOptimizer(0.001),
         'binary_crossentropy',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     return model
 
   @parameterized.named_parameters(('with_numpy', _get_numpy()),
@@ -248,7 +248,7 @@ class CallbackCountsTest(keras_parameterized.TestCase):
         })
 
 
-class KerasCallbacksTest(keras_parameterized.TestCase):
+class KerasCallbacksTest(test_combinations.TestCase):
 
   def _get_model(self, input_shape=None, additional_metrics=None):
     additional_metrics = additional_metrics or []
@@ -256,17 +256,17 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
         keras.layers.Dense(3, activation='relu'),
         keras.layers.Dense(2, activation='softmax')
     ]
-    model = testing_utils.get_model_from_layers(layers, input_shape=input_shape)
+    model = test_utils.get_model_from_layers(layers, input_shape=input_shape)
     model.compile(
         loss='mse',
         optimizer='rmsprop',
         metrics=[keras.metrics.CategoricalAccuracy(name='my_acc')] +
         additional_metrics,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     return model
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_progbar_logging(self):
     model = self._get_model(input_shape=(3,))
 
@@ -280,8 +280,8 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       model.fit(dataset, epochs=2, steps_per_epoch=10)
       self.assertRegex(printed.contents(), expected_log)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_progbar_logging_with_stateful_metrics(self):
 
     class AddAllOnes(keras.metrics.Metric):
@@ -320,9 +320,9 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
         model.evaluate(x_train, y_train, verbose=1, batch_size=4)
         self.assertRegex(printed.contents(), expected_log)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_trivial_backup_restore(self):
-    if testing_utils.should_run_eagerly():
+    if test_utils.should_run_eagerly():
       model = keras.Sequential([keras.layers.Dense(1)])
       model.compile('sgd', 'mse')
       cbk = BackupAndRestore(self.get_temp_dir())
@@ -426,7 +426,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     warning_msg = ('***Handling interruption***')
     self.assertIn(warning_msg, '\n'.join(warning_messages))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_callback_warning(self):
 
     class SleepCallback(keras.callbacks.Callback):
@@ -439,7 +439,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     warning_messages = []
 
@@ -457,7 +457,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
                    'to the batch time')
     self.assertIn(warning_msg, '\n'.join(warning_messages))
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_default_callbacks_no_warning(self):
     # Test that without the callback no warning is raised
     model = sequential.Sequential()
@@ -465,7 +465,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         loss='mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     warning_messages = []
 
@@ -480,8 +480,8 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
           epochs=1)
     self.assertListEqual(warning_messages, [])
 
-  @keras_parameterized.run_with_all_model_types(exclude_models='functional')
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types(exclude_models='functional')
+  @test_combinations.run_all_keras_modes
   def test_progbar_logging_deferred_model_build(self):
     model = self._get_model()
     self.assertFalse(model.built)
@@ -496,8 +496,8 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       model.fit(dataset, epochs=2, steps_per_epoch=10)
       self.assertRegex(printed.contents(), expected_log)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_progbar_logging_validation_data(self):
     model = self._get_model(input_shape=(3,))
 
@@ -512,8 +512,8 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       model.fit(training_dataset, epochs=2, validation_data=val_dataset)
       self.assertRegex(printed.contents(), expected_log)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_progbar_logging_validation_split(self):
     model = self._get_model(input_shape=(3,))
 
@@ -528,8 +528,8 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       model.fit(x, y, batch_size=10, epochs=2, validation_split=0.2)
       self.assertRegex(printed.contents(), expected_log)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_progbar_logging_training_validation(self):
     model = self._get_model(input_shape=(2,))
 
@@ -560,8 +560,8 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
           x=training, validation_data=validation, epochs=2, steps_per_epoch=20)
       self.assertRegex(printed.contents(), expected_log)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_progbar_logging_with_dataset_and_partial_batch(self):
     model = self._get_model(input_shape=(2,))
 
@@ -593,12 +593,12 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       self.assertLen(val_loss, 1)
       self.assertGreater(float(val_loss[0]), 0.0)
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_ModelCheckpoint(self):
     if h5py is None:
       return  # Skip test if models cannot be saved.
 
-    model_type = testing_utils.get_model_type()
+    model_type = test_utils.get_model_type()
     if model_type == 'subclass':
       return  # Skip test since subclassed models cannot be saved in .h5 format.
     if not tf.__internal__.tf2.enabled():
@@ -608,7 +608,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
         keras.layers.Dense(NUM_HIDDEN, input_dim=INPUT_DIM, activation='relu'),
         keras.layers.Dense(NUM_CLASSES, activation='softmax')
     ]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(3,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(3,))
     model.compile(
         loss='categorical_crossentropy', optimizer='rmsprop', metrics=['acc'])
 
@@ -616,7 +616,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
 
     filepath = os.path.join(temp_dir, 'checkpoint.h5')
-    (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+    (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
         train_samples=TRAIN_SAMPLES,
         test_samples=TEST_SAMPLES,
         input_shape=(INPUT_DIM,),
@@ -1020,9 +1020,9 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
         verbose=0)
     assert not os.path.exists(filepath)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_ModelCheckpoint_subclass_save_weights_false(self):
-    model = testing_utils.get_small_subclass_mlp(NUM_HIDDEN, NUM_CLASSES)
+    model = test_utils.get_small_subclass_mlp(NUM_HIDDEN, NUM_CLASSES)
     model.compile(
         loss='categorical_crossentropy', optimizer='rmsprop', metrics=['acc'])
     temp_dir = self.get_temp_dir()
@@ -1031,7 +1031,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     cbks = [keras.callbacks.ModelCheckpoint(
         filepath, save_weights_only=False)]
 
-    (x_train, y_train), _ = testing_utils.get_test_data(
+    (x_train, y_train), _ = test_utils.get_test_data(
         train_samples=TRAIN_SAMPLES,
         test_samples=TEST_SAMPLES,
         input_shape=(INPUT_DIM,),
@@ -1059,7 +1059,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     # Very simple bias model to eliminate randomness.
     optimizer = gradient_descent.SGD(0.1)
     model = sequential.Sequential()
-    model.add(testing_utils.Bias(input_shape=(1,)))
+    model.add(test_utils.Bias(input_shape=(1,)))
     model.compile(loss='mae', optimizer=optimizer, metrics=['mae'])
     train_ds = get_input_datasets()
 
@@ -1339,14 +1339,14 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
   def test_EarlyStopping(self):
     with self.cached_session():
       np.random.seed(123)
-      (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+      (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
           train_samples=TRAIN_SAMPLES,
           test_samples=TEST_SAMPLES,
           input_shape=(INPUT_DIM,),
           num_classes=NUM_CLASSES)
       y_test = np_utils.to_categorical(y_test)
       y_train = np_utils.to_categorical(y_train)
-      model = testing_utils.get_small_sequential_mlp(
+      model = test_utils.get_small_sequential_mlp(
           num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES, input_dim=INPUT_DIM)
       model.compile(
           loss='categorical_crossentropy', optimizer='rmsprop', metrics=['acc'])
@@ -1397,12 +1397,12 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     with self.cached_session():
       np.random.seed(1337)
       baseline = 0.6
-      (data, labels), _ = testing_utils.get_test_data(
+      (data, labels), _ = test_utils.get_test_data(
           train_samples=100,
           test_samples=50,
           input_shape=(1,),
           num_classes=NUM_CLASSES)
-      model = testing_utils.get_small_sequential_mlp(
+      model = test_utils.get_small_sequential_mlp(
           num_hidden=1, num_classes=1, input_dim=1)
       model.compile(
           optimizer='sgd', loss='binary_crossentropy', metrics=['acc'])
@@ -1486,14 +1486,14 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
   def test_LearningRateScheduler(self):
     with self.cached_session():
       np.random.seed(1337)
-      (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+      (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
           train_samples=TRAIN_SAMPLES,
           test_samples=TEST_SAMPLES,
           input_shape=(INPUT_DIM,),
           num_classes=NUM_CLASSES)
       y_test = np_utils.to_categorical(y_test)
       y_train = np_utils.to_categorical(y_train)
-      model = testing_utils.get_small_sequential_mlp(
+      model = test_utils.get_small_sequential_mlp(
           num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES, input_dim=INPUT_DIM)
       model.compile(
           loss='categorical_crossentropy',
@@ -1563,7 +1563,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
   def test_ReduceLROnPlateau(self):
     with self.cached_session():
       np.random.seed(1337)
-      (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+      (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
           train_samples=TRAIN_SAMPLES,
           test_samples=TEST_SAMPLES,
           input_shape=(INPUT_DIM,),
@@ -1574,7 +1574,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       def make_model():
         tf.compat.v1.set_random_seed(1234)
         np.random.seed(1337)
-        model = testing_utils.get_small_sequential_mlp(
+        model = test_utils.get_small_sequential_mlp(
             num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES, input_dim=INPUT_DIM)
         model.compile(
             loss='categorical_crossentropy',
@@ -1670,7 +1670,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       filepath = os.path.join(temp_dir, 'log.tsv')
 
       sep = '\t'
-      (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+      (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
           train_samples=TRAIN_SAMPLES,
           test_samples=TEST_SAMPLES,
           input_shape=(INPUT_DIM,),
@@ -1680,7 +1680,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
       def make_model():
         np.random.seed(1337)
-        model = testing_utils.get_small_sequential_mlp(
+        model = test_utils.get_small_sequential_mlp(
             num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES, input_dim=INPUT_DIM)
         model.compile(
             loss='categorical_crossentropy',
@@ -1748,7 +1748,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
     with self.cached_session():
       fp = os.path.join(tmpdir, 'test.csv')
-      (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+      (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
           train_samples=TRAIN_SAMPLES,
           test_samples=TEST_SAMPLES,
           input_shape=(INPUT_DIM,),
@@ -1796,10 +1796,10 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
       assert 'nan' in values[-1], 'The last epoch was not logged.'
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_TerminateOnNaN(self):
     np.random.seed(1337)
-    (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+    (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
         train_samples=TRAIN_SAMPLES,
         test_samples=TEST_SAMPLES,
         input_shape=(INPUT_DIM,),
@@ -1837,7 +1837,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
   def test_LambdaCallback(self):
     with self.cached_session():
       np.random.seed(1337)
-      (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+      (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
           train_samples=TRAIN_SAMPLES,
           test_samples=TEST_SAMPLES,
           input_shape=(INPUT_DIM,),
@@ -1908,7 +1908,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
       self.skipTest('`requests` required to run this test')
       return None
     with self.cached_session():
-      (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+      (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
           train_samples=TRAIN_SAMPLES,
           test_samples=TEST_SAMPLES,
           input_shape=(INPUT_DIM,),
@@ -1947,7 +1947,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     model.fit(data, epochs=2, callbacks=[progbar])
     self.assertEqual(progbar.target, 5)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_callback_passed_floats(self):
 
     class MyCallback(keras.callbacks.Callback):
@@ -1964,14 +1964,14 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
     x, y = np.ones((10, 1)), np.ones((10, 1))
     model = keras.Sequential([keras.layers.Dense(1)])
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     callback = MyCallback()
     model.fit(x, y, epochs=2, callbacks=[callback])
     self.assertTrue(callback.on_batch_end_called)
     self.assertTrue(callback.on_batch_end_called)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_implements_batch_hooks(self):
 
     class MyCallbackWithBatchHooks(keras.callbacks.Callback):
@@ -2038,7 +2038,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     model.evaluate(x, y, batch_size=10, callbacks=[my_cb], verbose=0)
     model.predict(x, batch_size=10, callbacks=[my_cb], verbose=0)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_logs_conversion(self):
     assert_dict_equal = self.assertDictEqual
 
@@ -2093,7 +2093,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     cb_list.on_train_begin(logs={'all': 0})
     cb_list.on_train_end(logs={'all': 0})
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_implements_batch_hooks_override(self):
 
     class MyCallback(keras.callbacks.Callback):
@@ -2154,7 +2154,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     self.assertEqual(my_cb.test_batches, 0)
     self.assertEqual(my_cb.predict_batches, 0)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_default_callbacks_do_not_call_batch_hooks(self):
     model = keras.Sequential([keras.layers.Dense(1)])
     log_dir = self.get_temp_dir()
@@ -2171,7 +2171,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     self.assertFalse(cb_list._should_call_test_batch_hooks)
     self.assertFalse(cb_list._should_call_predict_batch_hooks)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_change_tf_functions_during_fit(self):
 
     class ChangeFunctions(keras.callbacks.Callback):
@@ -2196,7 +2196,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     with self.assertRaisesRegexp(ValueError, 'New function '):
       model.predict(x, batch_size=2)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_stop_training_batch_level(self):
 
     class MyCallback(keras.callbacks.Callback):
@@ -2218,7 +2218,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
     model.fit(x, y, batch_size=2, callbacks=[my_cb])
     self.assertEqual(my_cb.batch_counter, 3)
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_built_in_callback_order(self):
 
     class CustomCallback(keras.callbacks.Callback):
@@ -2324,9 +2324,9 @@ def list_summaries(logdir):
   return result
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class TestTensorBoardV2(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class TestTensorBoardV2(test_combinations.TestCase):
 
   def setUp(self):
     super(TestTensorBoardV2, self).setUp()
@@ -2340,10 +2340,10 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         keras.layers.Flatten(),
         keras.layers.Dense(1)
     ]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(10, 10, 1))
+    model = test_utils.get_model_from_layers(layers, input_shape=(10, 10, 1))
     if compile_model:
       opt = gradient_descent.SGD(learning_rate=0.001)
-      model.compile(opt, 'mse', run_eagerly=testing_utils.should_run_eagerly())
+      model.compile(opt, 'mse', run_eagerly=test_utils.should_run_eagerly())
     return model
 
   def test_TensorBoard_default_logdir(self):
@@ -2470,7 +2470,7 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
   def test_TensorBoard_learning_rate_schedules(self):
     model = self._get_model(compile_model=False)
     opt = gradient_descent.SGD(learning_rate_schedule.CosineDecay(0.01, 1))
-    model.compile(opt, 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile(opt, 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
 
@@ -2493,7 +2493,7 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
   def test_TensorBoard_global_step(self):
     model = self._get_model(compile_model=False)
     opt = gradient_descent.SGD(learning_rate_schedule.CosineDecay(0.01, 1))
-    model.compile(opt, 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile(opt, 'mse', run_eagerly=test_utils.should_run_eagerly())
 
     x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
 
@@ -2528,7 +2528,7 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
     model = self._get_model()
     x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
     tb_cbk = keras.callbacks.TensorBoard(self.logdir, histogram_freq=1)
-    model_type = testing_utils.get_model_type()
+    model_type = test_utils.get_model_type()
 
     model.fit(
         x,
@@ -2562,7 +2562,7 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
     x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
     tb_cbk = keras.callbacks.TensorBoard(
         self.logdir, histogram_freq=1, write_images=True)
-    model_type = testing_utils.get_model_type()
+    model_type = test_utils.get_model_type()
 
     model.fit(
         x,
@@ -2613,11 +2613,11 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         keras.layers.Dense(10, activation='relu'),
         keras.layers.Dense(1, activation='sigmoid')
     ]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(10,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(10,))
     model.compile(
         optimizer='adam',
         loss=keras.losses.BinaryCrossentropy(from_logits=True),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 10)), np.ones((10, 10))
     tb_cbk = keras.callbacks.TensorBoard(
         self.logdir,
@@ -2663,14 +2663,14 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         scalar_v2_mock('custom_summary', tf.reduce_sum(x))
         return x
 
-    model = testing_utils.get_model_from_layers([LayerWithSummary()],
-                                                input_shape=(5,),
-                                                name='model')
+    model = test_utils.get_model_from_layers([LayerWithSummary()],
+                                             input_shape=(5,),
+                                             name='model')
 
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     tb_cbk = keras.callbacks.TensorBoard(self.logdir, update_freq=1)
     x, y = np.ones((10, 5)), np.ones((10, 5))
     model.fit(x, y, batch_size=2, validation_data=(x, y), callbacks=[tb_cbk])
@@ -2758,8 +2758,8 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
 
 
 # Note that this test specifies model_type explicitly.
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class TestTensorBoardV2NonParameterizedTest(test_combinations.TestCase):
 
   def setUp(self):
     super(TestTensorBoardV2NonParameterizedTest, self).setUp()
@@ -2777,7 +2777,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
     model.compile(
         opt,
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     return model
 
   def _count_trace_file(self, logdir):
@@ -2827,7 +2827,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
         keras.layers.Flatten(),
         keras.layers.Dense(1),
     ])
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
     self.fitModelAndAssertKerasModelWritten(model)
 
   def test_TensorBoard_writeSequentialModel_withInputShape(self):
@@ -2836,7 +2836,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
         keras.layers.Flatten(),
         keras.layers.Dense(1),
     ])
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
     self.fitModelAndAssertKerasModelWritten(model)
 
   def test_TensorBoard_writeModel(self):
@@ -2845,7 +2845,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
     x = keras.layers.Flatten()(x)
     x = keras.layers.Dense(1)(x)
     model = keras.models.Model(inputs=inputs, outputs=[x])
-    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+    model.compile('sgd', 'mse', run_eagerly=test_utils.should_run_eagerly())
     self.fitModelAndAssertKerasModelWritten(model)
 
   def test_TensorBoard_autoTrace(self):
@@ -3179,7 +3179,7 @@ class SummaryOpsTest(tf.test.TestCase):
     # the second event.
     return events[1]
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def testKerasModel(self):
     model = keras.Sequential(
         [Dense(10, input_shape=(100,)),
@@ -3188,7 +3188,7 @@ class SummaryOpsTest(tf.test.TestCase):
     first_val = event.summary.value[0]
     self.assertEqual(model.to_json(), first_val.tensor.string_val[0].decode())
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def testKerasModel_usesDefaultStep(self):
     model = keras.Sequential(
         [Dense(10, input_shape=(100,)),
@@ -3201,7 +3201,7 @@ class SummaryOpsTest(tf.test.TestCase):
       # Reset to default state for other tests.
       tf.summary.experimental.set_step(None)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def testKerasModel_subclass(self):
 
     class SimpleSubclass(keras.Model):
@@ -3227,7 +3227,7 @@ class SummaryOpsTest(tf.test.TestCase):
       self.assertRegex(
           str(mock_log.call_args), 'Model failed to serialize as JSON.')
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def testKerasModel_otherExceptions(self):
     model = keras.Sequential()
 

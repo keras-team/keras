@@ -24,7 +24,7 @@ import numpy as np
 import keras
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from keras import backend
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.distribute import distributed_training_utils
 from keras.distribute import distributed_training_utils_v1
 from keras.distribute import multi_worker_testing_utils
@@ -36,7 +36,7 @@ from keras.distribute.strategy_combinations import strategies_minus_tpu
 from keras.distribute.strategy_combinations import tpu_strategies
 from keras.engine import base_layer_utils
 from keras.mixed_precision import policy
-from keras.optimizer_v2 import gradient_descent as gradient_descent_keras
+from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_keras
 from keras.utils import losses_utils
 from keras.utils import np_utils
 
@@ -87,19 +87,19 @@ def simple_multi_inputs_multi_outputs_model():
 
 
 def get_multi_inputs_multi_outputs_data():
-  (a_train, c_train), (a_test, c_test) = testing_utils.get_test_data(
+  (a_train, c_train), (a_test, c_test) = test_utils.get_test_data(
       train_samples=_TRAIN_SIZE,
       test_samples=50,
       input_shape=(16,),
       num_classes=3,
       random_seed=_RANDOM_SEED)
-  (b_train, d_train), (b_test, d_test) = testing_utils.get_test_data(
+  (b_train, d_train), (b_test, d_test) = test_utils.get_test_data(
       train_samples=_TRAIN_SIZE,
       test_samples=50,
       input_shape=(16,),
       num_classes=2,
       random_seed=_RANDOM_SEED)
-  (m_train, _), (m_test, _) = testing_utils.get_test_data(
+  (m_train, _), (m_test, _) = test_utils.get_test_data(
       train_samples=_TRAIN_SIZE,
       test_samples=50,
       input_shape=(8,),
@@ -1667,7 +1667,7 @@ class TestRegularizerLoss(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(-1.0, v)
 
 
-@testing_utils.run_all_without_tensor_float_32(
+@test_utils.run_all_without_tensor_float_32(
     'Uses Dense layers, which call matmul')
 class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
                                               parameterized.TestCase):

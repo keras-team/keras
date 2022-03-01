@@ -23,9 +23,8 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 import numpy as np
 from tensorflow.python.eager import backprop
-from tensorflow.python.framework import test_util
-from keras import combinations
-from keras import keras_parameterized
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from keras.testing_infra import test_combinations
 from keras.feature_column import dense_features as df
 
 
@@ -36,16 +35,17 @@ def _initialized_session(config=None):
   return sess
 
 
-class DenseFeaturesTest(keras_parameterized.TestCase):
+class DenseFeaturesTest(test_combinations.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_retrieving_input(self):
     features = {'a': [0.]}
     dense_features = df.DenseFeatures(tf.feature_column.numeric_column('a'))
     inputs = self.evaluate(dense_features(features))
     self.assertAllClose([[0.]], inputs)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_reuses_variables(self):
     sparse_input = tf.SparseTensor(
         indices=((0, 0), (1, 0), (2, 0)), values=(0, 1, 2), dense_shape=(3, 3))
@@ -88,7 +88,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     self.assertEqual(1, len(variables))
     self.assertIs(variables[0], dense_features.variables[0])
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_dense_feature_with_partitioner(self):
     sparse_input = tf.SparseTensor(
         indices=((0, 0), (1, 0), (2, 0), (3, 0)),
@@ -139,7 +139,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     self.assertIs(variables[0], dense_features.variables[0])
     self.assertIs(variables[1], dense_features.variables[1])
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_feature_column_dense_features_gradient(self):
     sparse_input = tf.SparseTensor(
         indices=((0, 0), (1, 0), (2, 0)), values=(0, 1, 2), dense_shape=(3, 3))
@@ -444,7 +444,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
               tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
       ])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_multiple_layers_with_same_shared_embedding_column(self):
     categorical_column_a = tf.feature_column.categorical_column_with_identity(
         key='aaa', num_buckets=3)
@@ -482,7 +482,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
               tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
       ])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_multiple_layers_with_same_shared_embedding_column_diff_graphs(self):
     categorical_column_a = tf.feature_column.categorical_column_with_identity(
         key='aaa', num_buckets=3)
@@ -541,7 +541,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
               tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
       ])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_with_1d_sparse_tensor(self):
     embedding_values = (
         (1., 2., 3., 4., 5.),  # id 0
@@ -598,7 +598,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
                            [1., 0., 0., 1., 2., 3., 4., 5., 12.]],
                           sess.run(net))
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_with_1d_unknown_shape_sparse_tensor(self):
     embedding_values = (
         (1., 2.),  # id 0
@@ -657,7 +657,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
                   features['country']: country_data
               }))
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_with_rank_0_feature(self):
     # price has 1 dimension in dense_features
     price = tf.feature_column.numeric_column('price')
@@ -683,7 +683,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
 
 class IndicatorColumnTest(tf.test.TestCase):
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_dense_features(self):
     animal = tf.feature_column.indicator_column(
         tf.feature_column.categorical_column_with_identity(
@@ -722,7 +722,7 @@ class EmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
           'use_safe_embedding_lookup': False,
           'partition_variables': True,
       })
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_dense_features(self, use_safe_embedding_lookup, partition_variables):
     # Inputs.
     vocabulary_size = 4
@@ -826,7 +826,7 @@ class EmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
           'SparseFillEmptyRows',
           [x.type for x in tf.compat.v1.get_default_graph().get_operations()])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_dense_features_not_trainable(self):
     # Inputs.
     vocabulary_size = 3
@@ -1014,16 +1014,16 @@ class SharedEmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
                         self.evaluate(shared_embedding_vars[0]))
     self.assertAllEqual(expected_lookups, self.evaluate(dense_features))
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_dense_features(self):
     self._test_dense_features()
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_dense_features_no_trainable(self):
     self._test_dense_features(trainable=False)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class DenseFeaturesSerializationTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(('trainable', True, 'trainable'),
@@ -1093,7 +1093,7 @@ class DenseFeaturesSerializationTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(new_layer._feature_columns[0].name, 'a_X_b_indicator')
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class SequenceFeatureColumnsTest(tf.test.TestCase):
   """Tests DenseFeatures with sequence feature columns."""
 

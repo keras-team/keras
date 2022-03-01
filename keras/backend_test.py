@@ -24,10 +24,10 @@ import numpy as np
 import scipy.sparse
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_config
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from keras import activations
 from keras import backend
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.engine import input_layer
 from keras.layers import activation
 from keras.layers.normalization import batch_normalization_v1
@@ -134,7 +134,7 @@ class BackendResetTest(tf.test.TestCase, parameterized.TestCase):
       assert g_old is not g
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BackendUtilsTest(tf.test.TestCase):
 
   def test_backend(self):
@@ -282,7 +282,7 @@ class BackendUtilsTest(tf.test.TestCase):
     self.assertEqual(x.dtype.name, 'float32')
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BackendVariableTest(tf.test.TestCase):
 
   def test_zeros(self):
@@ -345,7 +345,7 @@ class BackendVariableTest(tf.test.TestCase):
     self.assertFalse(backend.is_sparse(y))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_dot(self):
@@ -560,7 +560,7 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
     _ = activation.ReLU(max_value=100., dtype='int64')(x)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BackendShapeOpsTest(tf.test.TestCase):
 
   def test_reshape(self):
@@ -747,7 +747,7 @@ class BackendShapeOpsTest(tf.test.TestCase):
         np_kwargs={'data_format': 'channels_first'})
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_bias_add(self):
@@ -1624,7 +1624,8 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
 
 class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_binary_crossentropy_with_sigmoid(self):
     t = backend.constant([[0, 1, 0]])
     logits = backend.constant([[8., 1., 1.]])
@@ -1633,7 +1634,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     result = self.evaluate(backend.binary_crossentropy(t, p))
     self.assertArrayNear(result[0], [8., 0.313, 1.313], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_categorical_crossentropy_loss(self):
     t = backend.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 
@@ -1653,7 +1655,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     result = backend.categorical_crossentropy(t, p, from_logits=True, axis=0),
     self.assertArrayNear(self.evaluate(result)[0], [.002, 0, .17], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_categorical_crossentropy_loss_with_unknown_rank_tensor(self):
     t = backend.placeholder()
     p = backend.placeholder()
@@ -1692,7 +1695,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     result = f([t_val, p_val])
     self.assertArrayNear(result, [.002, .003, .036], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_categorical_crossentropy_with_softmax(self):
     t = backend.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     logits = backend.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
@@ -1701,7 +1705,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     result = self.evaluate(backend.categorical_crossentropy(t, p))
     self.assertArrayNear(result, [0.002, 0.0005, 0.17], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_sparse_categorical_crossentropy_loss(self):
     t = backend.constant([0, 1, 2])
 
@@ -1722,7 +1727,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
         t, p, from_logits=True, axis=0),
     self.assertArrayNear(self.evaluate(result)[0], [.002, 0, .17], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph']))
+  @test_combinations.generate(test_combinations.combine(mode=['graph']))
   def test_sparse_categorical_crossentropy_loss_with_unknown_rank_tensor(self):
     # This test only runs in graph because the TF op layer is not supported yet
     # for sparse ops.
@@ -1767,7 +1772,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
 
       _ = f([t_val, p_val])
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_sparse_categorical_crossentropy_with_softmax(self):
     t = backend.constant([0, 1, 2])
     logits = backend.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
@@ -1776,7 +1782,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     result = self.evaluate(backend.sparse_categorical_crossentropy(t, p))
     self.assertArrayNear(result, [0.002, 0.0005, 0.17], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_binary_crossentropy_from_logits_no_warnings(self):
     t = backend.constant([[0, 1, 0]])
     logits = backend.constant([[8., 1., 1.]])
@@ -1784,7 +1791,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
       self.evaluate(backend.binary_crossentropy(t, logits, from_logits=True))
       self.assertEmpty(w)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_binary_crossentropy_from_logits_with_sigmoid(self):
     t = backend.constant([[0, 1, 0]])
     logits = backend.constant([[8., 1., 1.]])
@@ -1794,7 +1802,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
       self.assertLen(w, 1)
       self.assertIn('received `from_logits=True`', str(w[0].message))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_categorical_crossentropy_from_logits_with_softmax(self):
     t = backend.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     logits = backend.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
@@ -1804,7 +1813,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
       self.assertLen(w, 1)
       self.assertIn('received `from_logits=True`', str(w[0].message))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_sparse_categorical_crossentropy_from_logits_with_softmax(self):
     t = backend.constant([0, 1, 2])
     logits = backend.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
@@ -1815,7 +1825,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
       self.assertLen(w, 1)
       self.assertIn('received `from_logits=True`', str(w[0].message))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_binary_focal_crossentropy_with_sigmoid(self):
     t = backend.constant([[0, 1, 0]])
     logits = backend.constant([[8., 1., 1.]])
@@ -1824,7 +1835,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     result = self.evaluate(backend.binary_focal_crossentropy(t, p, gamma=2.0))
     self.assertArrayNear(result[0], [7.995, 0.022, 0.701], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_binary_focal_crossentropy_from_logits(self):
     t = backend.constant([[0, 1, 0]])
     logits = backend.constant([[8., 1., 1.]])
@@ -1837,7 +1849,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
         ))
     self.assertArrayNear(result[0], [7.995, 0.022, 0.701], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_binary_focal_crossentropy_no_focal_effect_with_zero_gamma(self):
     t = backend.constant([[0, 1, 0]])
     logits = backend.constant([[8., 1., 1.]])
@@ -1853,7 +1866,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     non_focal_result = self.evaluate(backend.binary_crossentropy(t, p))
     self.assertArrayNear(focal_result[0], non_focal_result[0], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_binary_weighted_focal_crossentropy_with_sigmoid(self):
     t = backend.constant([[0, 1, 0]])
     logits = backend.constant([[8., 1., 1.]])
@@ -1862,7 +1876,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     result = self.evaluate(backend.binary_weighted_focal_crossentropy(t, p))
     self.assertArrayNear(result[0], [5.996, 0.006, 0.526], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_binary_weighted_focal_crossentropy_from_logits(self):
     t = backend.constant([[0, 1, 0]])
     logits = backend.constant([[8., 1., 1.]])
@@ -1875,8 +1890,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertArrayNear(result[0], [5.996, 0.006, 0.526], 1e-3)
 
 
-@test_util.with_control_flow_v2
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@tf_test_utils.with_control_flow_v2
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class TestCTC(tf.test.TestCase):
 
   def test_ctc_decode(self):
@@ -1987,7 +2002,7 @@ class TestCTC(tf.test.TestCase):
       self.assertAllClose(res[:, 0], ref, atol=1e-05)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class TestRandomOps(tf.test.TestCase):
 
   def test_random_normal(self):
@@ -2021,7 +2036,7 @@ class TestRandomOps(tf.test.TestCase):
     self.assertAllClose(np.min(y), -2., atol=0.01)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class FunctionTest(tf.test.TestCase):
 
   def test_function_basics(self):
@@ -2089,7 +2104,7 @@ class FunctionTest(tf.test.TestCase):
 
 class BackendGraphTests(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph']))
+  @test_combinations.generate(test_combinations.combine(mode=['graph']))
   def test_function_placeholder_with_default(self):
     with backend.get_graph().as_default():
       x1 = tf.compat.v1.placeholder_with_default(
@@ -2254,7 +2269,7 @@ class BackendGraphTests(tf.test.TestCase, parameterized.TestCase):
       self.assertIsNot(session, backend.get_session())
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class ControlOpsTests(tf.test.TestCase):
 
   def test_function_switch_basics(self):
@@ -2337,7 +2352,7 @@ class ContextValueCacheTest(tf.test.TestCase):
     self.assertEqual(self.evaluate(fn()), 5)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class RandomGeneratorTest(tf.test.TestCase):
 
   def test_generator_reproducibility(self):

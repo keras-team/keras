@@ -14,7 +14,6 @@ package(
         "//third_party/tensorflow/python/feature_column:__pkg__",
         "//third_party/tensorflow/python/training/tracking:__pkg__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
-        "//third_party/tensorflow_models/official/projects/residual_mobilenet/modeling/backbones:__pkg__",
     ],
     licenses = ["notice"],
 )
@@ -29,16 +28,10 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        ":convolutional_recurrent",
-        ":cudnn_recurrent",
         ":einsum_dense",
         ":embeddings",
         ":kernelized",
         ":noise",
-        ":recurrent",
-        ":recurrent_v2",
-        ":rnn_cell_wrapper_v2",
-        ":wrappers",
         "//keras/feature_column",
         "//keras/layers/activation",
         "//keras/layers/attention",
@@ -51,6 +44,7 @@ py_library(
         "//keras/layers/preprocessing",
         "//keras/layers/regularization",
         "//keras/layers/reshaping",
+        "//keras/layers/rnn",
         "//keras/premade_models",
         "//keras/utils:tf_utils",
     ],
@@ -79,46 +73,9 @@ cuda_py_test(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
-        "//keras:testing_utils",
         "//keras/layers",
-    ],
-)
-
-py_library(
-    name = "convolutional_recurrent",
-    srcs = ["convolutional_recurrent.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":recurrent",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras:activations",
-        "//keras:backend",
-        "//keras:base_layer",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:input_spec",
-        "//keras/initializers",
-        "//keras/utils:engine_utils",
-        "//keras/utils:generic_utils",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "cudnn_recurrent",
-    srcs = ["cudnn_recurrent.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":recurrent",
-        ":recurrent_v2",
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:input_spec",
-        "//keras/initializers",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )
 
@@ -160,65 +117,6 @@ py_library(
     ],
 )
 
-py_library(
-    name = "recurrent",
-    srcs = ["recurrent.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras:activations",
-        "//keras:backend",
-        "//keras:base_layer",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:input_spec",
-        "//keras/initializers",
-        "//keras/utils:generic_utils",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "recurrent_v2",
-    srcs = ["recurrent_v2.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":recurrent",
-        "//:expect_tensorflow_installed",
-        "//keras:activations",
-        "//keras:backend",
-        "//keras/engine:input_spec",
-    ],
-)
-
-py_library(
-    name = "rnn_cell_wrapper_v2",
-    srcs = ["rnn_cell_wrapper_v2.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":recurrent",
-        "//:expect_tensorflow_installed",
-        "//keras/layers/legacy_rnn:rnn_cell_wrapper_impl",
-    ],
-)
-
-py_library(
-    name = "wrappers",
-    srcs = ["wrappers.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":recurrent",
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:base_layer",
-        "//keras/engine:input_spec",
-        "//keras/utils:generic_utils",
-        "//keras/utils:layer_utils",
-        "//keras/utils:tf_utils",
-    ],
-)
-
 tf_py_test(
     name = "tensorflow_op_layer_test",
     size = "medium",
@@ -230,39 +128,7 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/saving",
-    ],
-)
-
-tf_py_test(
-    name = "convolutional_recurrent_test",
-    size = "medium",
-    srcs = ["convolutional_recurrent_test.py"],
-    python_version = "PY3",
-    shard_count = 8,
-    tags = ["no_rocm"],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-    ],
-)
-
-cuda_py_test(
-    name = "cudnn_recurrent_test",
-    size = "medium",
-    srcs = ["cudnn_recurrent_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "no_windows_gpu",
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -277,6 +143,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -289,124 +156,7 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-    ],
-)
-
-tf_py_test(
-    name = "simplernn_test",
-    size = "medium",
-    srcs = ["simplernn_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = ["notsan"],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
-    ],
-)
-
-tf_py_test(
-    name = "gru_test",
-    size = "medium",
-    srcs = ["gru_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "notsan",  # http://b/62136390
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
-    ],
-)
-
-tf_py_test(
-    name = "lstm_test",
-    size = "medium",
-    srcs = ["lstm_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "noasan",  # times out b/63678675
-        "notsan",  # http://b/62189182
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-    ],
-)
-
-tf_py_test(
-    name = "recurrent_test",
-    size = "medium",
-    srcs = ["recurrent_test.py"],
-    python_version = "PY3",
-    shard_count = 12,
-    tags = [
-        "no_rocm",
-        "notsan",  # TODO(b/170870794)
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-    ],
-)
-
-cuda_py_test(
-    name = "recurrent_v2_test",
-    size = "medium",
-    srcs = ["recurrent_v2_test.py"],
-    python_version = "PY3",
-    shard_count = 2,
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-    ],
-)
-
-cuda_py_test(
-    name = "lstm_v2_test",
-    size = "medium",
-    srcs = ["lstm_v2_test.py"],
-    python_version = "PY3",
-    shard_count = 12,
-    tags = [
-        "no_oss",
-        "notsan",  # TODO(b/170954246)
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-    ],
-)
-
-cuda_py_test(
-    name = "gru_v2_test",
-    size = "medium",
-    srcs = ["gru_v2_test.py"],
-    python_version = "PY3",
-    shard_count = 12,
-    tags = ["no_rocm"],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -419,7 +169,7 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -435,47 +185,8 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:backend",
-        "//keras:combinations",
         "//keras/initializers",
-    ],
-)
-
-tf_py_test(
-    name = "wrappers_test",
-    size = "medium",
-    srcs = ["wrappers_test.py"],
-    python_version = "PY3",
-    shard_count = 12,
-    tags = [
-        "noasan",  # http://b/78599823
-        "notsan",
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
-    ],
-)
-
-tf_py_test(
-    name = "rnn_cell_wrapper_v2_test",
-    size = "medium",
-    srcs = ["rnn_cell_wrapper_v2_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "notsan",
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
-        "//keras/layers/legacy_rnn:rnn_cell_impl",
-        "//keras/legacy_tf_layers:layers_base",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 

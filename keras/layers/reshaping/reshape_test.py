@@ -15,32 +15,32 @@
 """Tests for reshape layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class ReshapeTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ReshapeTest(test_combinations.TestCase):
 
   def test_reshape(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Reshape,
         kwargs={'target_shape': (8, 1)},
         input_shape=(3, 2, 4))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Reshape,
         kwargs={'target_shape': (-1, 1)},
         input_shape=(3, 2, 4))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Reshape,
         kwargs={'target_shape': (1, -1)},
         input_shape=(3, 2, 4))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Reshape,
         kwargs={'target_shape': (-1, 1)},
         input_shape=(None, None, 2))

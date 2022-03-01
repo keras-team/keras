@@ -22,6 +22,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     default_visibility = [
+        "//keras/layers/rnn:__pkg__",
         "//keras/saving:__subpackages__",
     ],
     licenses = ["notice"],
@@ -77,6 +78,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -110,7 +112,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -123,10 +125,9 @@ py_binary(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:regularizers",
-        "//keras:testing_utils",
+        "//keras/testing_infra:test_utils",
         "//third_party/py/absl:app",
         "//third_party/py/absl/flags",
-        "//third_party/py/absl/logging",
     ],
 )
 

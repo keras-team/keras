@@ -21,8 +21,6 @@ Reference:
       https://arxiv.org/abs/1905.11946) (ICML 2019)
 """
 
-import tensorflow.compat.v2 as tf
-
 import copy
 import math
 
@@ -32,7 +30,10 @@ from keras.engine import training
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
-from tensorflow.python.util.tf_export import keras_export
+
+import tensorflow.compat.v2 as tf
+
+from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
 
 
 BASE_WEIGHTS_PATH = 'https://storage.googleapis.com/keras-applications/'
@@ -204,6 +205,9 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
 """
 
 
+IMAGENET_STDDEV_RGB = [0.229, 0.224, 0.225]
+
+
 def EfficientNet(
     width_coefficient,
     depth_coefficient,
@@ -320,6 +324,14 @@ def EfficientNet(
   x = img_input
   x = layers.Rescaling(1. / 255.)(x)
   x = layers.Normalization(axis=bn_axis)(x)
+  if weights == 'imagenet':
+    # Note that the normaliztion layer uses square value of STDDEV as the
+    # variance for the layer: result = (input - mean) / sqrt(var)
+    # However, the orginal implemenetation uses (input - mean) / var to
+    # normalize the input, we need to divide another sqrt(var) to match the
+    # original implementation.
+    # See https://github.com/tensorflow/tensorflow/issues/49930 for more details
+    x = x / tf.math.sqrt(IMAGENET_STDDEV_RGB)
 
   x = layers.ZeroPadding2D(
       padding=imagenet_utils.correct_pad(x, 3),

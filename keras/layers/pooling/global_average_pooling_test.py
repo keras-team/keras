@@ -16,17 +16,17 @@
 
 from absl.testing import parameterized
 import keras
-from keras import combinations
-from keras import testing_utils
 from keras.mixed_precision import policy
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class GlobalAveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_mixed_float16_policy(self):
     with policy.policy_scope('mixed_float16'):
       inputs1 = keras.Input(shape=(36, 512), dtype='float16')
@@ -35,9 +35,9 @@ class GlobalAveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
       _ = average_layer(inputs1, inputs2)
 
   def test_global_average_pooling_1d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling1D, input_shape=(3, 4, 5))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling1D,
         kwargs={'data_format': 'channels_first'},
         input_shape=(3, 4, 5))
@@ -73,56 +73,56 @@ class GlobalAveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(output_ragged, output_dense)
 
   def test_global_average_pooling_2d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling2D,
         kwargs={'data_format': 'channels_first'},
         input_shape=(3, 4, 5, 6))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling2D,
         kwargs={'data_format': 'channels_last'},
         input_shape=(3, 5, 6, 4))
 
   def test_global_average_pooling_3d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling3D,
         kwargs={'data_format': 'channels_first'},
         input_shape=(3, 4, 3, 4, 3))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling3D,
         kwargs={'data_format': 'channels_last'},
         input_shape=(3, 4, 3, 4, 3))
 
   def test_global_average_pooling_1d_keepdims(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling1D,
         kwargs={'keepdims': True},
         input_shape=(3, 4, 5),
         expected_output_shape=(None, 1, 5))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling1D,
         kwargs={'data_format': 'channels_first', 'keepdims': True},
         input_shape=(3, 4, 5),
         expected_output_shape=(None, 4, 1))
 
   def test_global_average_pooling_2d_keepdims(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling2D,
         kwargs={'data_format': 'channels_first', 'keepdims': True},
         input_shape=(3, 4, 5, 6),
         expected_output_shape=(None, 4, 1, 1))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling2D,
         kwargs={'data_format': 'channels_last', 'keepdims': True},
         input_shape=(3, 4, 5, 6),
         expected_output_shape=(None, 1, 1, 6))
 
   def test_global_average_pooling_3d_keepdims(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling3D,
         kwargs={'data_format': 'channels_first', 'keepdims': True},
         input_shape=(3, 4, 3, 4, 3),
         expected_output_shape=(None, 4, 1, 1, 1))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.GlobalAveragePooling3D,
         kwargs={'data_format': 'channels_last', 'keepdims': True},
         input_shape=(3, 4, 3, 4, 3),

@@ -16,22 +16,22 @@
 
 from absl.testing import parameterized
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class Conv1DTransposeTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class Conv1DTransposeTest(test_combinations.TestCase):
 
   def _run_test(self, kwargs, expected_output_shape):
     num_samples = 2
     stack_size = 3
     num_col = 6
 
-    with testing_utils.use_gpu():
-      testing_utils.layer_test(
+    with test_utils.use_gpu():
+      test_utils.layer_test(
           keras.layers.Conv1DTranspose,
           kwargs=kwargs,
           input_shape=(num_samples, num_col, stack_size),
@@ -55,8 +55,8 @@ class Conv1DTransposeTest(keras_parameterized.TestCase):
       self._run_test(kwargs, expected_output_shape)
 
 
-@keras_parameterized.run_all_keras_modes
-class Conv2DTransposeTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class Conv2DTransposeTest(test_combinations.TestCase):
 
   def _run_test(self, kwargs):
     num_samples = 2
@@ -65,7 +65,7 @@ class Conv2DTransposeTest(keras_parameterized.TestCase):
     num_col = 6
 
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Conv2DTranspose,
           kwargs=kwargs,
           input_shape=(num_samples, num_row, num_col, stack_size))
@@ -121,13 +121,14 @@ class Conv2DTransposeTest(keras_parameterized.TestCase):
       self.assertEqual(layer.bias.constraint, b_constraint)
 
   def test_conv2d_transpose_dilation(self):
-    testing_utils.layer_test(keras.layers.Conv2DTranspose,
-                             kwargs={'filters': 2,
-                                     'kernel_size': 3,
-                                     'padding': 'same',
-                                     'data_format': 'channels_last',
-                                     'dilation_rate': (2, 2)},
-                             input_shape=(2, 5, 6, 3))
+    test_utils.layer_test(
+        keras.layers.Conv2DTranspose,
+        kwargs={'filters': 2,
+                'kernel_size': 3,
+                'padding': 'same',
+                'data_format': 'channels_last',
+                'dilation_rate': (2, 2)},
+        input_shape=(2, 5, 6, 3))
 
     input_data = np.arange(48).reshape((1, 4, 4, 3)).astype(np.float32)
     # pylint: disable=too-many-function-args
@@ -137,19 +138,19 @@ class Conv2DTransposeTest(keras_parameterized.TestCase):
         [192, 228, 192, 228],
         [336, 372, 336, 372]
     ]).reshape((1, 4, 4, 1))
-    testing_utils.layer_test(keras.layers.Conv2DTranspose,
-                             input_data=input_data,
-                             kwargs={'filters': 1,
-                                     'kernel_size': 3,
-                                     'padding': 'same',
-                                     'data_format': 'channels_last',
-                                     'dilation_rate': (2, 2),
-                                     'kernel_initializer': 'ones'},
-                             expected_output=expected_output)
+    test_utils.layer_test(keras.layers.Conv2DTranspose,
+                          input_data=input_data,
+                          kwargs={'filters': 1,
+                                  'kernel_size': 3,
+                                  'padding': 'same',
+                                  'data_format': 'channels_last',
+                                  'dilation_rate': (2, 2),
+                                  'kernel_initializer': 'ones'},
+                          expected_output=expected_output)
 
 
-@keras_parameterized.run_all_keras_modes
-class Conv3DTransposeTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class Conv3DTransposeTest(test_combinations.TestCase):
 
   def _run_test(self, kwargs, expected_output_shape):
     num_samples = 2
@@ -158,8 +159,8 @@ class Conv3DTransposeTest(keras_parameterized.TestCase):
     num_col = 6
     depth = 5
 
-    with testing_utils.use_gpu():
-      testing_utils.layer_test(
+    with test_utils.use_gpu():
+      test_utils.layer_test(
           keras.layers.Conv3DTranspose,
           kwargs=kwargs,
           input_shape=(num_samples, depth, num_row, num_col, stack_size),
@@ -233,7 +234,7 @@ class Conv3DTransposeTest(keras_parameterized.TestCase):
     input_data = np.random.random((1, 3, 3, 3, 3)).astype(np.float32)
     with self.cached_session():
       # Won't raise error here.
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Conv3DTranspose,
           kwargs={
               'data_format': 'channels_last',
@@ -243,7 +244,7 @@ class Conv3DTransposeTest(keras_parameterized.TestCase):
           input_shape=(None, None, None, None, 3),
           input_data=input_data)
       if tf.test.is_gpu_available(cuda_only=True):
-        testing_utils.layer_test(
+        test_utils.layer_test(
             keras.layers.Conv3DTranspose,
             kwargs={
                 'data_format': 'channels_first',

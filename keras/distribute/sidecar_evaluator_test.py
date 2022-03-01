@@ -22,9 +22,9 @@ import time
 
 from absl.testing import parameterized
 import keras
-from keras import testing_utils
 from keras.distribute import sidecar_evaluator as sidecar_evaluator_lib
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging  # pylint: disable=g-direct-tensorflow-import
@@ -72,7 +72,7 @@ def _test_model_builder(model_type: ModelType, compile_model, build_model):
   return model
 
 
-@testing_utils.run_v2_only
+@test_utils.run_v2_only
 class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
 
   def assertSummaryEventsWritten(self, log_dir):

@@ -34,7 +34,6 @@ py_library(
     srcs = ["__init__.py"],
     srcs_version = "PY3",
     deps = [
-        ":get_layer_policy",
         ":loss_scale_optimizer",
         ":policy",
     ],
@@ -65,9 +64,8 @@ tf_py_test(
         ":policy",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
-        "//keras/mixed_precision:loss_scale_optimizer",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -88,28 +86,7 @@ cuda_py_test(
     deps = [
         ":device_compatibility_check",
         "//:expect_tensorflow_installed",
-        "//keras:combinations",
-    ],
-)
-
-py_library(
-    name = "get_layer_policy",
-    srcs = ["get_layer_policy.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//keras/engine:base_layer",
-    ],
-)
-
-tf_py_test(
-    name = "get_layer_policy_test",
-    srcs = ["get_layer_policy_test.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":get_layer_policy",
-        ":policy",
-        "//:expect_tensorflow_installed",
-        "//keras/layers",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -134,7 +111,7 @@ tf_py_test(
         ":autocast_variable",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
     ],
 )
 
@@ -156,7 +133,7 @@ py_library(
         ":loss_scale",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
     ],
 )
 
@@ -171,7 +148,7 @@ cuda_py_test(
         ":test_util",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -200,9 +177,9 @@ cuda_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
-        "//keras:testing_utils",
-        "//keras/optimizer_v2",
+        "//keras/optimizers/optimizer_v2",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )
 
@@ -230,7 +207,7 @@ cuda_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -253,7 +230,7 @@ cuda_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras:combinations",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -270,5 +247,6 @@ cuda_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )

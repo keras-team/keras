@@ -25,12 +25,13 @@ from google.protobuf import text_format
 
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from keras import backend
 from keras.feature_column import dense_features
 from keras.feature_column import sequence_feature_column as ksfc
 from keras.layers import merging
-from keras.layers import recurrent
+from keras.layers.rnn import base_rnn
+from keras.layers.rnn import simple_rnn
 
 
 class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
@@ -95,7 +96,7 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
     ctx_input = backend.repeat(ctx_input, tf.shape(seq_input)[1])
     concatenated_input = merging.concatenate([seq_input, ctx_input])
 
-    rnn_layer = recurrent.RNN(recurrent.SimpleRNNCell(10))
+    rnn_layer = base_rnn.RNN(simple_rnn.SimpleRNNCell(10))
     output = rnn_layer(concatenated_input)
 
     with self.cached_session() as sess:
@@ -106,7 +107,7 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
       output_r = sess.run(output)
       self.assertAllEqual(output_r.shape, [20, 10])
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_shared_sequence_non_sequence_into_input_layer(self):
     non_seq = tf.feature_column.categorical_column_with_identity('non_seq',
                                                   num_buckets=10)

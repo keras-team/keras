@@ -19,23 +19,23 @@ import textwrap
 
 import keras
 from keras import initializers
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.layers import core
 from keras.mixed_precision import policy
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class DropoutLayersTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class DropoutLayersTest(test_combinations.TestCase):
 
   def test_dropout(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Dropout, kwargs={'rate': 0.5}, input_shape=(3, 2))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Dropout,
         kwargs={
             'rate': 0.5,
@@ -48,18 +48,18 @@ class DropoutLayersTest(keras_parameterized.TestCase):
     self.assertEqual(True, dropout.supports_masking)
 
   def test_spatial_dropout_1d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SpatialDropout1D,
         kwargs={'rate': 0.5},
         input_shape=(2, 3, 4))
 
   def test_spatial_dropout_2d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SpatialDropout2D,
         kwargs={'rate': 0.5},
         input_shape=(2, 3, 4, 5))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SpatialDropout2D,
         kwargs={
             'rate': 0.5,
@@ -68,12 +68,12 @@ class DropoutLayersTest(keras_parameterized.TestCase):
         input_shape=(2, 3, 4, 5))
 
   def test_spatial_dropout_3d(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SpatialDropout3D,
         kwargs={'rate': 0.5},
         input_shape=(2, 3, 4, 4, 5))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.SpatialDropout3D,
         kwargs={
             'rate': 0.5,
@@ -130,16 +130,16 @@ class DropoutLayersTest(keras_parameterized.TestCase):
       self.assertNotIn('dropout', name)
 
 
-@keras_parameterized.run_all_keras_modes
-class LambdaLayerTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class LambdaLayerTest(test_combinations.TestCase):
 
   def test_lambda(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Lambda,
         kwargs={'function': lambda x: x + 1},
         input_shape=(3, 2))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Lambda,
         kwargs={
             'function': lambda x, a, b: x * a + b,
@@ -313,10 +313,10 @@ class LambdaLayerTest(keras_parameterized.TestCase):
     self.assertNotIn(self.__class__.__name__, dir(core))
 
 
-class TestStatefulLambda(keras_parameterized.TestCase):
+class TestStatefulLambda(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
   def test_lambda_with_variable_in_model(self):
     v = tf.Variable(1., trainable=True)
 
@@ -331,18 +331,18 @@ class TestStatefulLambda(keras_parameterized.TestCase):
     layer.v = v
     self.assertLen(layer.trainable_weights, 1)
 
-    model = testing_utils.get_model_from_layers([layer], input_shape=(10,))
+    model = test_utils.get_model_from_layers([layer], input_shape=(10,))
     model.compile(
-        keras.optimizer_v2.gradient_descent.SGD(0.1),
+        keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
         'mae',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 10), 'float32'), 2 * np.ones((10, 10), 'float32')
     model.fit(x, y, batch_size=2, epochs=2, validation_data=(x, y))
     self.assertLen(model.trainable_weights, 1)
     self.assertAllClose(keras.backend.get_value(model.trainable_weights[0]), 2.)
 
-  @keras_parameterized.run_all_keras_modes
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
   def test_creation_inside_lambda(self):
 
     def lambda_fn(x):
@@ -359,11 +359,11 @@ class TestStatefulLambda(keras_parameterized.TestCase):
 
     with self.assertRaisesRegex(ValueError, expected_error):
       layer = keras.layers.Lambda(lambda_fn, name='shift_and_scale')
-      model = testing_utils.get_model_from_layers([layer], input_shape=(1,))
+      model = test_utils.get_model_from_layers([layer], input_shape=(1,))
       model(tf.ones((4, 1)))
 
-  @keras_parameterized.run_all_keras_modes
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
   def test_transitive_variable_creation(self):
     dense = keras.layers.Dense(1, use_bias=False, kernel_initializer='ones')
 
@@ -378,11 +378,11 @@ class TestStatefulLambda(keras_parameterized.TestCase):
 
     with self.assertRaisesRegex(ValueError, expected_error):
       layer = keras.layers.Lambda(bad_lambda_fn, name='bias_dense')
-      model = testing_utils.get_model_from_layers([layer], input_shape=(1,))
+      model = test_utils.get_model_from_layers([layer], input_shape=(1,))
       model(tf.ones((4, 1)))
 
-  @keras_parameterized.run_all_keras_modes
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
   def test_warns_on_variable_capture(self):
     v = tf.Variable(1., trainable=True)
 
@@ -403,11 +403,11 @@ class TestStatefulLambda(keras_parameterized.TestCase):
     layer._warn = patched_warn
 
     with self.assertRaisesRegex(ValueError, expected_warning):
-      model = testing_utils.get_model_from_layers([layer], input_shape=(1,))
+      model = test_utils.get_model_from_layers([layer], input_shape=(1,))
       model(tf.ones((4, 1)))
 
-  @keras_parameterized.run_all_keras_modes
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
   def test_lambda_skip_state_variable_from_initializer(self):
     # Force the initializers to use the tf.random.Generator, which will contain
     # the state variable.
@@ -425,21 +425,21 @@ class TestStatefulLambda(keras_parameterized.TestCase):
     layer = keras.layers.Lambda(lambda_fn)
     layer.dense = dense
 
-    model = testing_utils.get_model_from_layers([layer], input_shape=(10,))
+    model = test_utils.get_model_from_layers([layer], input_shape=(10,))
     model.compile(
-        keras.optimizer_v2.gradient_descent.SGD(0.1),
+        keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
         'mae',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x, y = np.ones((10, 10), 'float32'), 2 * np.ones((10, 10), 'float32')
     model.fit(x, y, batch_size=2, epochs=2, validation_data=(x, y))
     self.assertLen(model.trainable_weights, 1)
 
 
-@keras_parameterized.run_all_keras_modes
-class CoreLayersTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class CoreLayersTest(test_combinations.TestCase):
 
   def test_masking(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Masking, kwargs={}, input_shape=(3, 2, 3))
 
   def test_keras_mask(self):
@@ -470,28 +470,28 @@ class CoreLayersTest(keras_parameterized.TestCase):
 
   def test_activation(self):
     # with string argument
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Activation,
         kwargs={'activation': 'relu'},
         input_shape=(3, 2))
 
     # with function argument
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Activation,
         kwargs={'activation': keras.backend.relu},
         input_shape=(3, 2))
 
   def test_dense(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Dense, kwargs={'units': 3}, input_shape=(3, 2))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Dense, kwargs={'units': 3}, input_shape=(3, 4, 2))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Dense, kwargs={'units': 3}, input_shape=(None, None, 2))
 
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Dense, kwargs={'units': 3}, input_shape=(3, 4, 5, 2))
 
   def test_dense_output(self):
@@ -625,8 +625,8 @@ class CoreLayersTest(keras_parameterized.TestCase):
       layer.call(tf.ragged.constant([[1., 2], [3, 4, 5]]))
 
 
-@keras_parameterized.run_all_keras_modes
-class TFOpLambdaTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class TFOpLambdaTest(test_combinations.TestCase):
 
   def test_non_tf_symbol(self):
 

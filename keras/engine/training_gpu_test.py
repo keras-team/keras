@@ -19,8 +19,8 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 import numpy as np
 from keras import backend
-from keras import combinations
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.layers.convolutional import Conv2D
@@ -28,7 +28,8 @@ from keras.layers.convolutional import Conv2D
 
 class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_model_with_crossentropy_losses_channels_first(self):
     """Tests use of all crossentropy losses with `channels_first`.
 
@@ -68,7 +69,7 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
       return simple_model
 
     if tf.test.is_gpu_available(cuda_only=True):
-      with testing_utils.use_gpu():
+      with test_utils.use_gpu():
         losses_to_test = ['sparse_categorical_crossentropy',
                           'categorical_crossentropy', 'binary_crossentropy']
 

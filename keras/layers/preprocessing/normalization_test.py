@@ -23,8 +23,8 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.layers.preprocessing import normalization
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.mixed_precision import policy
@@ -111,8 +111,8 @@ def _get_layer_computation_test_cases():
   return crossed_test_cases
 
 
-@keras_parameterized.run_all_keras_modes
-class NormalizationTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes
+class NormalizationTest(test_combinations.TestCase,
                         preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_broadcasting_during_direct_setting(self):
@@ -199,13 +199,13 @@ class NormalizationTest(keras_parameterized.TestCase,
     self.assertAllEqual(output.dtype, tf.float64)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class NormalizationAdaptTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class NormalizationAdaptTest(test_combinations.TestCase,
                              preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_layer_api_compatibility(self):
     cls = normalization.Normalization
-    output_data = testing_utils.layer_test(
+    output_data = test_utils.layer_test(
         cls,
         kwargs={"axis": -1},
         input_shape=(None, 3),
@@ -232,7 +232,7 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
     input_data = keras.Input(shape=input_shape)
     output = layer(input_data)
     model = keras.Model(input_data, output)
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model._run_eagerly = test_utils.should_run_eagerly()
     output_data = model.predict(test_data)
     self.assertAllClose(expected, output_data)
 

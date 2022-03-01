@@ -18,24 +18,24 @@
 import tensorflow.compat.v2 as tf
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 def squared_l2_norm(x):
   return tf.reduce_sum(x ** 2)
 
 
-@testing_utils.run_v2_only
-class UnitNormalizationTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class UnitNormalizationTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   def test_basics(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.UnitNormalization,
         kwargs={'axis': -1},
         input_shape=(2, 3))
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.UnitNormalization,
         kwargs={'axis': (1, 2)},
         input_shape=(1, 3, 3))

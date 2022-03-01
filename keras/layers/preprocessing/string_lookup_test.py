@@ -21,8 +21,8 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import string_lookup
 
@@ -62,8 +62,8 @@ def _get_end_to_end_test_cases():
   return crossed_test_cases
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class StringLookupLayerTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class StringLookupLayerTest(test_combinations.TestCase,
                             preprocessing_test_utils.PreprocessingLayerTest):
 
   @parameterized.named_parameters(*_get_end_to_end_test_cases())
@@ -92,7 +92,7 @@ class StringLookupLayerTest(keras_parameterized.TestCase,
       vocab_data = tf.data.Dataset.from_tensor_slices(vocab_data).batch(
           input_shape[0])
 
-    output_data = testing_utils.layer_test(
+    output_data = test_utils.layer_test(
         cls,
         kwargs=kwargs,
         input_shape=input_shape,
@@ -104,8 +104,8 @@ class StringLookupLayerTest(keras_parameterized.TestCase,
     self.assertAllClose(expected_output, output_data)
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class StringLookupVocabularyTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class StringLookupVocabularyTest(test_combinations.TestCase,
                                  preprocessing_test_utils.PreprocessingLayerTest
                                 ):
 

@@ -19,10 +19,10 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 
 from keras import backend
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras import initializers
 from keras import models
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.layers import core
 
@@ -54,7 +54,7 @@ def _compute_fans(shape):
   return int(fan_in), int(fan_out)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class KerasInitializersTest(tf.test.TestCase):
 
   def _runner(self, init, shape, target_mean=None, target_std=None,
@@ -240,7 +240,7 @@ class KerasInitializersTest(tf.test.TestCase):
         model.get_config(), custom_objects={'my_initializer': my_initializer})
     self.assertEqual(model2.layers[1].kernel_initializer, my_initializer)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_load_external_variance_scaling_v2(self):
     external_serialized_json = {
         'class_name': 'VarianceScaling',

@@ -4,8 +4,4 @@ tf_module {
     name: "LossScaleOptimizer"
     mtype: "<class \'keras.mixed_precision.loss_scale_optimizer.LossScaleOptimizerMetaclass\'>"
   }
-  member {
-    name: "experimental"
-    mtype: "<type \'module\'>"
-  }
 }

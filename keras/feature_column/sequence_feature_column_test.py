@@ -25,7 +25,7 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.feature_column import sequence_feature_column as ksfc
 from keras.saving import model_config
 
@@ -37,7 +37,7 @@ def _initialized_session(config=None):
   return sess
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
@@ -560,7 +560,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose([2, 1, 1, 1], self.evaluate(seq_len))
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class SequenceFeaturesSerializationTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(('trainable', True, 'trainable'),
@@ -602,7 +602,8 @@ class SequenceFeaturesSerializationTest(tf.test.TestCase, parameterized.TestCase
 
 class SequenceFeaturesSavingTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_saving_with_sequence_features(self):
     cols = [
         tf.feature_column.sequence_numeric_column('a'),

@@ -23,10 +23,9 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from tensorflow.python.framework import test_util
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.tests import model_subclassing_test_util as model_util
 from tensorflow.python.training.tracking import data_structures
 
@@ -36,8 +35,8 @@ except ImportError:
   h5py = None
 
 
-@keras_parameterized.run_all_keras_modes
-class ModelSubclassingTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ModelSubclassingTest(test_combinations.TestCase):
 
   def test_custom_build(self):
     class DummyModel(keras.Model):
@@ -89,7 +88,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(np.ones((10, 10)), np.ones((10, 1)), batch_size=2, epochs=2)
     self.assertLen(model.layers, 2)
     self.assertLen(model.trainable_variables, 4)
@@ -111,7 +110,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     data = tf.data.Dataset.from_tensor_slices(({
         'a': np.ones((32, 10)),
@@ -123,7 +122,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
     num_classes = 2
     input_dim = 50
 
-    model = testing_utils.SmallSubclassMLP(
+    model = test_utils.SmallSubclassMLP(
         num_hidden=32, num_classes=num_classes, use_dp=True, use_bn=True)
 
     self.assertFalse(model.built, 'Model should not have been built')
@@ -143,7 +142,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
         self.embedding_dim = embedding_dim
 
       def build(self, _):
-        self.embedding = self.add_variable(
+        self.embedding = self.add_weight(
             'embedding_kernel',
             shape=[self.vocab_size, self.embedding_dim],
             dtype=np.float32,
@@ -200,7 +199,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
     input_dim = 50
     batch_size = None
 
-    model = testing_utils.SmallSubclassMLP(
+    model = test_utils.SmallSubclassMLP(
         num_hidden=32, num_classes=num_classes, use_dp=True, use_bn=True)
 
     self.assertFalse(model.built, 'Model should not have been built')
@@ -217,7 +216,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
     input_dim = tf.compat.v1.Dimension(50)
     batch_size = tf.compat.v1.Dimension(None)
 
-    model = testing_utils.SmallSubclassMLP(
+    model = test_utils.SmallSubclassMLP(
         num_hidden=32, num_classes=num_classes, use_dp=True, use_bn=True)
 
     self.assertFalse(model.built, 'Model should not have been built')
@@ -326,7 +325,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
         self.contents += msg + '\n'
 
     # Single-io
-    model = testing_utils.SmallSubclassMLP(
+    model = test_utils.SmallSubclassMLP(
         num_hidden=32, num_classes=4, use_bn=True, use_dp=True)
     model(np.ones((3, 4)))  # need to build model first
     print_fn = ToString()
@@ -342,7 +341,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
     self.assertIn('Trainable params: 587', print_fn.contents)
 
     # Single-io with unused layer
-    model = testing_utils.SmallSubclassMLP(
+    model = test_utils.SmallSubclassMLP(
         num_hidden=32, num_classes=4, use_bn=True, use_dp=True)
     model.unused_layer = keras.layers.Dense(10)
     model(np.ones((3, 4)))  # need to build model first
@@ -484,7 +483,7 @@ class GraphSpecificModelSubclassingTests(tf.test.TestCase):
     input_dim = 50
 
     with tf.Graph().as_default(), self.cached_session():
-      model = testing_utils.SmallSubclassMLP(
+      model = test_utils.SmallSubclassMLP(
           num_hidden=32, num_classes=num_classes, use_dp=True, use_bn=True)
       model.compile(loss='mse', optimizer='rmsprop')
 
@@ -603,7 +602,7 @@ class GraphSpecificModelSubclassingTests(tf.test.TestCase):
       _ = model.evaluate([x1, x2], [y1, y2], verbose=0)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class CustomCallSignatureTests(tf.test.TestCase, parameterized.TestCase):
 
   def test_no_inputs_in_signature(self):
@@ -668,8 +667,8 @@ class CustomCallSignatureTests(tf.test.TestCase, parameterized.TestCase):
     if not tf.executing_eagerly():
       self.assertLen(model.inputs, 1)
 
-  @test_util.assert_no_new_tensors
-  @test_util.assert_no_garbage_created
+  @tf_test_utils.assert_no_new_tensors
+  @tf_test_utils.assert_no_garbage_created
   def test_training_no_default(self):
     if not tf.executing_eagerly():
       return

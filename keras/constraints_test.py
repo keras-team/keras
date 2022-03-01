@@ -21,7 +21,7 @@ import math
 import numpy as np
 
 from keras import backend
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras import constraints
 
 
@@ -42,7 +42,7 @@ def get_example_kernel(width):
   return example_array
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class KerasConstraintsTest(tf.test.TestCase):
 
   def test_serialization(self):

@@ -1,10 +1,8 @@
 path: "tensorflow.keras.preprocessing.image.DirectoryIterator"
 tf_class {
   is_instance: "<class \'keras.preprocessing.image.DirectoryIterator\'>"
-  is_instance: "<class \'keras_preprocessing.image.directory_iterator.DirectoryIterator\'>"
-  is_instance: "<class \'keras_preprocessing.image.iterator.BatchFromFilesMixin\'>"
+  is_instance: "<class \'keras.preprocessing.image.BatchFromFilesMixin\'>"
   is_instance: "<class \'keras.preprocessing.image.Iterator\'>"
-  is_instance: "<class \'keras_preprocessing.image.iterator.Iterator\'>"
   is_instance: "<class \'keras.utils.data_utils.Sequence\'>"
   is_instance: "<type \'object\'>"
   member {
@@ -29,7 +27,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'directory\', \'image_data_generator\', \'target_size\', \'color_mode\', \'classes\', \'class_mode\', \'batch_size\', \'shuffle\', \'seed\', \'data_format\', \'save_to_dir\', \'save_prefix\', \'save_format\', \'follow_links\', \'subset\', \'interpolation\', \'dtype\'], varargs=None, keywords=None, defaults=[\'(256, 256)\', \'rgb\', \'None\', \'categorical\', \'32\', \'True\', \'None\', \'None\', \'None\', \'\', \'png\', \'False\', \'None\', \'nearest\', \'None\'], "
+    argspec: "args=[\'self\', \'directory\', \'image_data_generator\', \'target_size\', \'color_mode\', \'classes\', \'class_mode\', \'batch_size\', \'shuffle\', \'seed\', \'data_format\', \'save_to_dir\', \'save_prefix\', \'save_format\', \'follow_links\', \'subset\', \'interpolation\', \'keep_aspect_ratio\', \'dtype\'], varargs=None, keywords=None, defaults=[\'(256, 256)\', \'rgb\', \'None\', \'categorical\', \'32\', \'True\', \'None\', \'None\', \'None\', \'\', \'png\', \'False\', \'None\', \'nearest\', \'False\', \'None\'], "
   }
   member_method {
     name: "next"
@@ -45,6 +43,6 @@ tf_class {
   }
   member_method {
     name: "set_processing_attrs"
-    argspec: "args=[\'self\', \'image_data_generator\', \'target_size\', \'color_mode\', \'data_format\', \'save_to_dir\', \'save_prefix\', \'save_format\', \'subset\', \'interpolation\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'image_data_generator\', \'target_size\', \'color_mode\', \'data_format\', \'save_to_dir\', \'save_prefix\', \'save_format\', \'subset\', \'interpolation\', \'keep_aspect_ratio\'], varargs=None, keywords=None, defaults=None"
   }
 }

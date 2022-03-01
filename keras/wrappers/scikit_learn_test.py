@@ -21,7 +21,7 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 
 import keras
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.wrappers import scikit_learn
 
 INPUT_DIM = 5
@@ -48,7 +48,7 @@ def build_fn_clf(hidden_dim):
 
 def assert_classification_works(clf):
   np.random.seed(42)
-  (x_train, y_train), (x_test, _) = testing_utils.get_test_data(
+  (x_train, y_train), (x_test, _) = test_utils.get_test_data(
       train_samples=TRAIN_SAMPLES,
       test_samples=TEST_SAMPLES,
       input_shape=(INPUT_DIM,),
@@ -84,7 +84,7 @@ def build_fn_reg(hidden_dim):
 
 def assert_regression_works(reg):
   np.random.seed(42)
-  (x_train, y_train), (x_test, _) = testing_utils.get_test_data(
+  (x_train, y_train), (x_test, _) = test_utils.get_test_data(
       train_samples=TRAIN_SAMPLES,
       test_samples=TEST_SAMPLES,
       input_shape=(INPUT_DIM,),

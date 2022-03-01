@@ -14,12 +14,12 @@
 # ==============================================================================
 """Tests for losses_utils."""
 
-import tensorflow.compat.v2 as tf
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.utils import losses_utils
+import tensorflow.compat.v2 as tf
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class RemoveSqueezableTest(tf.test.TestCase):
   """Test remove_squeezable_dimensions"""
 

@@ -18,16 +18,16 @@ import os
 
 from absl.testing import parameterized
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.layers.preprocessing import discretization
 from keras.layers.preprocessing import preprocessing_test_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class DiscretizationTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes
+class DiscretizationTest(test_combinations.TestCase,
                          preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_bucketize_with_explicit_buckets_integer(self):
@@ -222,8 +222,8 @@ class DiscretizationTest(keras_parameterized.TestCase,
       _ = discretization.Discretization(num_bins=5, bins=[1, 2])
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class DiscretizationAdaptTest(keras_parameterized.TestCase,
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class DiscretizationAdaptTest(test_combinations.TestCase,
                               preprocessing_test_utils.PreprocessingLayerTest):
 
   @parameterized.named_parameters([
@@ -297,7 +297,7 @@ class DiscretizationAdaptTest(keras_parameterized.TestCase,
     input_data = keras.Input(shape=input_shape)
     output = layer(input_data)
     model = keras.Model(input_data, output)
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model._run_eagerly = test_utils.should_run_eagerly()
     output_data = model.predict(test_data)
     self.assertAllClose(expected, output_data)
 

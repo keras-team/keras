@@ -20,17 +20,15 @@ import os
 
 from absl.testing import parameterized
 import numpy as np
-from keras import combinations
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import layers
 from keras import models
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
-from keras.mixed_precision import get_layer_policy
 from keras.mixed_precision import policy
 from keras.mixed_precision import test_util as mp_test_util
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 
 
 class MultiplyLayerWithFunction(mp_test_util.MultiplyLayer):
@@ -71,8 +69,8 @@ TESTCASES = ({
 })
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
-class LayerTest(keras_parameterized.TestCase):
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+class LayerTest(test_combinations.TestCase):
   """Test mixed precision with Keras layers."""
 
   @parameterized.named_parameters(*TESTCASES)
@@ -84,8 +82,7 @@ class LayerTest(keras_parameterized.TestCase):
       with strategy.scope(), policy.policy_scope(policy_name):
         layer = mp_test_util.MultiplyLayer(assert_type=dtype)
         self.assertEqual(layer.dtype, tf.float32)
-        self.assertEqual(get_layer_policy.get_layer_policy(layer).name,
-                         policy_name)
+        self.assertEqual(layer.dtype_policy.name, policy_name)
         y = layer(x)
         self.assertEqual(layer.v.dtype, tf.float32)
         self.assertEqual(y.dtype, dtype)
@@ -94,8 +91,7 @@ class LayerTest(keras_parameterized.TestCase):
         self.assertEqual(layer.compute_dtype, dtype)
         self.assertEqual(layer.dtype, tf.float32)
         self.assertEqual(layer.variable_dtype, tf.float32)
-        self.assertEqual(get_layer_policy.get_layer_policy(layer).name,
-                         policy_name)
+        self.assertEqual(layer.dtype_policy.name, policy_name)
         self.evaluate(tf.compat.v1.global_variables_initializer())
         self.assertEqual(self.evaluate(y), 1.)
 
@@ -311,56 +307,52 @@ class LayerTest(keras_parameterized.TestCase):
       self.assertEqual(layer.v.dtype, 'float32')
 
   @parameterized.named_parameters(*TESTCASES)
-  def test_config_policy_v1(self, strategy_fn):
+  def test_from_config_policy_v1(self, strategy_fn):
+    # Test that layers serialized in previous Keras versions with the
+    # now-deleted PolicyV1 can be deserialized. In such cases, the PolicyV1 will
+    # be converted to a Policy, since PolicyV1 no longer exists. Unlike Policy,
+    # PolicyV1 had a "loss_scale" field, which is silently dropped when
+    # deserialized.
     x = tf.constant([1.], dtype=tf.float16)
     with strategy_fn().scope():
 
-      layer = mp_test_util.MultiplyLayer(dtype=policy.PolicyV1('mixed_float16',
-                                                               loss_scale=None))
+      layer = mp_test_util.MultiplyLayer(dtype='mixed_float16')
       config = layer.get_config()
-      self.assertEqual(config['dtype'],
-                       {'class_name': 'PolicyV1',
-                        'config': {'name': 'mixed_float16',
-                                   'loss_scale': None}})
+      # Change the serialized dtype policy to a PolicyV1
+      config['dtype'] = {'class_name': 'PolicyV1',
+                         'config': {'name': 'mixed_float16',
+                                    'loss_scale': None}}
       layer = mp_test_util.MultiplyLayer.from_config(config)
       self.assertEqual(layer.dtype, 'float32')
       self.assertEqual(layer(x).dtype, 'float16')
       self.assertEqual(layer.v.dtype, 'float32')
-      # Restoring a PolicyV1 silently converts it to a Policy and drops the loss
-      # scale.
-      self.assertEqual(type(layer.dtype_policy), policy.Policy)
       config = layer.get_config()
       # The loss_scale is silently dropped
       self.assertEqual(config['dtype'],
                        {'class_name': 'Policy',
                         'config': {'name': 'mixed_float16'}})
 
-      layer = mp_test_util.MultiplyLayer(dtype=policy.PolicyV1('float64',
-                                                               loss_scale=2.))
+      layer = mp_test_util.MultiplyLayer(dtype='float64')
       config = layer.get_config()
-      self.assertEqual(config['dtype'],
-                       {'class_name': 'PolicyV1',
-                        'config': {'name': 'float64',
-                                   'loss_scale': {
-                                       'class_name': 'FixedLossScale',
-                                       'config': {'loss_scale_value': 2.0}}}})
+      config['dtype'] = {'class_name': 'PolicyV1',
+                         'config': {'name': 'float64',
+                                    'loss_scale': {
+                                        'class_name': 'FixedLossScale',
+                                        'config': {'loss_scale_value': 2.0}}}}
       layer = mp_test_util.MultiplyLayer.from_config(config)
       self.assertEqual(layer.dtype, 'float64')
       self.assertEqual(layer(x).dtype, 'float64')
       self.assertEqual(layer.v.dtype, 'float64')
-      self.assertEqual(type(layer.dtype_policy), policy.Policy)
       config = layer.get_config()
       self.assertEqual(config['dtype'], 'float64')
 
-      layer = mp_test_util.MultiplyLayer(dtype=policy.PolicyV1('_infer',
-                                                               loss_scale=2.))
+      layer = mp_test_util.MultiplyLayer(dtype=policy.Policy('_infer'))
       config = layer.get_config()
-      self.assertEqual(config['dtype'],
-                       {'class_name': 'PolicyV1',
-                        'config': {'name': '_infer',
-                                   'loss_scale': {
-                                       'class_name': 'FixedLossScale',
-                                       'config': {'loss_scale_value': 2.0}}}})
+      config['dtype'] = {'class_name': 'PolicyV1',
+                         'config': {'name': '_infer',
+                                    'loss_scale': {
+                                        'class_name': 'FixedLossScale',
+                                        'config': {'loss_scale_value': 2.0}}}}
       layer = mp_test_util.MultiplyLayer.from_config(config)
       self.assertEqual(layer.dtype, None)
       self.assertEqual(layer(x).dtype, 'float16')

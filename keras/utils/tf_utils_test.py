@@ -16,7 +16,7 @@
 
 from absl.testing import parameterized
 import keras
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -27,7 +27,7 @@ except ImportError:
   attr = None
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
 
   def test_default_behavior(self):
@@ -226,6 +226,29 @@ class TestIsExtensionType(tf.test.TestCase):
   def test_is_extension_type_return_false_for_list(self):
     tensor = [1., 2., 3.]
     self.assertFalse(tf_utils.is_extension_type(tensor))
+
+
+class TestIsTensorOrExtensionType(tf.test.TestCase):
+
+  def test_is_tensor_or_extension_type_return_true_for_ragged_tensor(self):
+    self.assertTrue(tf_utils.is_tensor_or_extension_type(
+        tf.ragged.constant([[1, 2], [3]])))
+
+  def test_is_tensor_or_extension_type_return_true_for_sparse_tensor(self):
+    self.assertTrue(tf_utils.is_tensor_or_extension_type(
+        tf.sparse.from_dense([[1, 2], [3, 4]])))
+
+  def test_is_tensor_or_extension_type_return_true_for_dense_tensor(self):
+    self.assertTrue(tf_utils.is_tensor_or_extension_type(
+        tf.constant([[1, 2], [3, 4]])))
+
+  def test_is_tensor_or_extension_type_return_true_for_custom_ext_types(self):
+    class DummyExtensionType(tf.experimental.ExtensionType):
+      ...
+    self.assertTrue(tf_utils.is_tensor_or_extension_type(DummyExtensionType()))
+
+  def test_is_tensor_or_extension_type_return_false_for_list(self):
+    self.assertFalse(tf_utils.is_tensor_or_extension_type([1., 2., 3.]))
 
 
 class TestRandomSeedSetting(tf.test.TestCase):

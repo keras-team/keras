@@ -23,7 +23,7 @@ import numpy as np
 from keras import backend
 from keras import losses
 from keras import metrics as metrics_module
-from keras import optimizer_v1
+from keras.optimizers import optimizer_v1
 from keras import optimizers
 from keras.distribute import distributed_training_utils
 from keras.distribute import distributed_training_utils_v1
@@ -36,8 +36,7 @@ from keras.engine import training_generator_v1
 from keras.engine import training_utils
 from keras.engine import training_utils_v1
 from keras.mixed_precision import loss_scale_optimizer
-from keras.mixed_precision import policy
-from keras.optimizer_v2 import optimizer_v2
+from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.saving import saving_utils
 from keras.saving.saved_model import model_serialization
 from keras.utils import data_utils
@@ -1337,18 +1336,11 @@ class Model(training_lib.Model):
     else:
       self.optimizer = optimizers.get(optimizer)
 
-    if isinstance(self._dtype_policy, policy.PolicyV1):
-      loss_scale = self._dtype_policy.loss_scale
-    elif self._dtype_policy.name == 'mixed_float16':
-      loss_scale = 'dynamic'
-    else:
-      loss_scale = None
-
-    if (loss_scale is not None and
+    if (self._dtype_policy.name == 'mixed_float16' and
         not isinstance(self.optimizer,
                        loss_scale_optimizer.LossScaleOptimizer)):
       if isinstance(self.optimizer, list):
-        raise ValueError('When a dtype policy with a loss scale is used, you '
+        raise ValueError('When the "mixed_float16" dtype policy is used, you '
                          'can only pass a single optimizer. Using policy %s '
                          'and got optimizers: %s' %
                          self._dtype_policy, self.optimizer)
@@ -1358,11 +1350,7 @@ class Model(training_lib.Model):
                          'with a loss scale  used, but got: %s. Using policy: '
                          '%s' %
                          (self.optimizer, self._dtype_policy))
-      if loss_scale == 'dynamic':
-        self.optimizer = loss_scale_optimizer.LossScaleOptimizer(self.optimizer)
-      else:
-        self.optimizer = loss_scale_optimizer.LossScaleOptimizerV1(
-            self.optimizer, loss_scale)
+      self.optimizer = loss_scale_optimizer.LossScaleOptimizer(self.optimizer)
 
   def _prepare_validation_data(self, validation_data, batch_size,
                                validation_steps):

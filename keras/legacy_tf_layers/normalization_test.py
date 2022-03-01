@@ -25,12 +25,12 @@ import os
 import numpy as np
 
 from tensorflow.core.protobuf import saver_pb2
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from keras.legacy_tf_layers import convolutional as conv_layers
 from keras.legacy_tf_layers import normalization as normalization_layers
 
 
-@test_util.run_v1_only('b/120545219')
+@tf_test_utils.run_v1_only('b/120545219')
 class BNTest(tf.test.TestCase):
 
   def _simple_model(self, image, fused, freeze_mode):
@@ -44,7 +44,7 @@ class BNTest(tf.test.TestCase):
     bn_layer = normalization_layers.BatchNormalization(fused=fused)
     bn_layer._bessels_correction_test_only = False
     training = not freeze_mode
-    bn = bn_layer.apply(conv, training=training)
+    bn = bn_layer(conv, training=training)
     loss = tf.reduce_sum(tf.abs(bn))
     optimizer = tf.compat.v1.train.GradientDescentOptimizer(0.01)
     if not freeze_mode:
@@ -254,7 +254,7 @@ class BNTest(tf.test.TestCase):
     bn = normalization_layers.BatchNormalization(axis=1)
     inputs = tf.random.uniform((5, 4, 3), seed=1)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     # Verify shape.
     self.assertListEqual(outputs.get_shape().as_list(), [5, 4, 3])
@@ -281,7 +281,7 @@ class BNTest(tf.test.TestCase):
     inputs = tf.random.uniform(
         (5, 4, 3, 3), seed=1, dtype=tf.float16)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     # Verify shape.
     self.assertListEqual(outputs.get_shape().as_list(), [5, 4, 3, 3])
@@ -311,7 +311,7 @@ class BNTest(tf.test.TestCase):
     inputs = tf.Variable(
         np.random.random((5, 4, 3)) + 100, dtype=tf.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
@@ -354,7 +354,7 @@ class BNTest(tf.test.TestCase):
     inputs = tf.Variable(
         np.random.random((5, 4, 3)) + 100, dtype=tf.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
@@ -396,7 +396,7 @@ class BNTest(tf.test.TestCase):
       inputs = tf.Variable(
           np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
       training = tf.compat.v1.placeholder(dtype='bool')
-      outputs = bn.apply(inputs, training=training)
+      outputs = bn(inputs, training=training)
 
       with self.session() as sess:
         # Test training with placeholder learning phase.
@@ -437,7 +437,7 @@ class BNTest(tf.test.TestCase):
     inputs = tf.Variable(
         np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
@@ -478,7 +478,7 @@ class BNTest(tf.test.TestCase):
     inputs = tf.Variable(
         np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
@@ -519,7 +519,7 @@ class BNTest(tf.test.TestCase):
     inputs = tf.Variable(
         np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
@@ -561,7 +561,7 @@ class BNTest(tf.test.TestCase):
       inputs = tf.Variable(
           np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
       training = tf.compat.v1.placeholder(dtype='bool')
-      outputs = bn.apply(inputs, training=training)
+      outputs = bn(inputs, training=training)
 
       with self.cached_session() as sess:
         # Test training with placeholder learning phase.
@@ -602,7 +602,7 @@ class BNTest(tf.test.TestCase):
     inputs = tf.Variable(
         np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
@@ -643,8 +643,8 @@ class BNTest(tf.test.TestCase):
         axis=-1, epsilon=epsilon, momentum=0.9)
     inputs = tf.Variable(
         np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
-    outputs_training = bn.apply(inputs, training=True)
-    outputs_infer = bn.apply(inputs, training=False)
+    outputs_training = bn(inputs, training=True)
+    outputs_infer = bn(inputs, training=False)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
@@ -811,7 +811,7 @@ class BNTest(tf.test.TestCase):
     bn = normalization_layers.BatchNormalization(axis=1, center=False)
     inputs = tf.random.uniform((5, 4, 3), seed=1)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     # Verify shape.
     self.assertListEqual(outputs.get_shape().as_list(), [5, 4, 3])
@@ -826,7 +826,7 @@ class BNTest(tf.test.TestCase):
     bn = normalization_layers.BatchNormalization(axis=1, scale=False)
     inputs = tf.random.uniform((5, 4, 3), seed=1)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     # Verify shape.
     self.assertListEqual(outputs.get_shape().as_list(), [5, 4, 3])
@@ -842,13 +842,13 @@ class BNTest(tf.test.TestCase):
     bn = normalization_layers.BatchNormalization(axis=1, beta_regularizer=reg)
     inputs = tf.random.uniform((5, 4, 3), seed=1)
     training = tf.compat.v1.placeholder(dtype='bool')
-    _ = bn.apply(inputs, training=training)
+    _ = bn(inputs, training=training)
     self.assertEqual(len(bn.losses), 1)
 
     bn = normalization_layers.BatchNormalization(axis=1, gamma_regularizer=reg)
     inputs = tf.random.uniform((5, 4, 3), seed=1)
     training = tf.compat.v1.placeholder(dtype='bool')
-    _ = bn.apply(inputs, training=training)
+    _ = bn(inputs, training=training)
     self.assertEqual(len(bn.losses), 1)
 
   def testConstraints(self):
@@ -883,7 +883,7 @@ class BNTest(tf.test.TestCase):
         renorm_clipping={'rmax': rmax, 'rmin': rmin, 'dmax': dmax},
         renorm_momentum=renorm_momentum)
     training = tf.compat.v1.placeholder(tf.bool)
-    yt = bn.apply(xt, training=training)
+    yt = bn(xt, training=training)
 
     moving_mean = 0.
     moving_stddev = 1.
@@ -934,7 +934,7 @@ class BNTest(tf.test.TestCase):
         renorm_clipping=None,
         renorm_momentum=momentum)
     training = tf.compat.v1.placeholder(tf.bool)
-    yt = bn.apply(xt, training=training)
+    yt = bn(xt, training=training)
     moving_mean = 0.
     moving_stddev = 1.
     renorm_mean = 0.
@@ -989,7 +989,7 @@ class BNTest(tf.test.TestCase):
         momentum=momentum,
         adjustment=lambda _: (adjust_scale, adjust_bias))
     training = tf.compat.v1.placeholder(tf.bool)
-    yt = bn.apply(xt, training=training)
+    yt = bn(xt, training=training)
 
     moving_mean = 0.
     moving_variance = 1.
@@ -1040,7 +1040,7 @@ class BNTest(tf.test.TestCase):
         renorm_momentum=renorm_momentum,
         adjustment=lambda _: (adjust_scale, adjust_bias))
     training = tf.compat.v1.placeholder(tf.bool)
-    yt = bn.apply(xt, training=training)
+    yt = bn(xt, training=training)
 
     moving_mean = 0.
     moving_stddev = 1.
@@ -1140,7 +1140,7 @@ class BNTest(tf.test.TestCase):
         beta_initializer=tf.compat.v1.constant_initializer(beta),
         gamma_initializer=tf.compat.v1.constant_initializer(gamma),
         virtual_batch_size=virtual_batch_size)
-    out = bn.apply(inp, training=is_training)
+    out = bn(inp, training=is_training)
     ghost_shape = ([virtual_batch_size,
                     shape[0] // virtual_batch_size,
                     shape[1]])
@@ -1194,7 +1194,7 @@ class BNTest(tf.test.TestCase):
         beta_initializer=tf.compat.v1.constant_initializer(beta),
         gamma_initializer=tf.compat.v1.constant_initializer(gamma),
         virtual_batch_size=virtual_batch_size)
-    out = bn.apply(inp, training=is_training)
+    out = bn(inp, training=is_training)
     ghost_shape = ([virtual_batch_size, shape[0] // virtual_batch_size] +
                    shape[1:])
 
@@ -1248,7 +1248,7 @@ class BNTest(tf.test.TestCase):
         gamma_initializer=tf.compat.v1.constant_initializer(gamma),
         virtual_batch_size=virtual_batch_size,
         fused=False)      # NCHW is unsupported by CPU fused batch norm
-    out = bn.apply(inp, training=is_training)
+    out = bn(inp, training=is_training)
     ghost_shape = ([virtual_batch_size, shape[0] // virtual_batch_size] +
                    shape[1:])
 
@@ -1305,7 +1305,7 @@ class BNTest(tf.test.TestCase):
     inputs = tf.Variable(
         np.random.random((5, 4, 3)) + 100, dtype=tf.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
@@ -1346,7 +1346,7 @@ class BNTest(tf.test.TestCase):
     inputs = tf.Variable(
         np.random.random((5, 3, 4, 4, 3)) + 100, dtype=tf.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
-    outputs = bn.apply(inputs, training=training)
+    outputs = bn(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
@@ -1400,7 +1400,7 @@ class BNTest(tf.test.TestCase):
         gamma_initializer=tf.compat.v1.constant_initializer(gamma),
         virtual_batch_size=virtual_batch_size,
         fused=False)
-    out = bn.apply(inp, training=is_training)
+    out = bn(inp, training=is_training)
     ghost_shape = ([virtual_batch_size, shape[0] // virtual_batch_size] +
                    shape[1:])
 
