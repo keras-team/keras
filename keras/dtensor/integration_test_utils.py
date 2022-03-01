@@ -24,13 +24,13 @@ from absl import logging
 from keras import losses
 from keras import models
 from keras.datasets import mnist
+from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layers
 from keras.dtensor import layout_map as layout_map_lib
 from keras.utils import np_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.dtensor import python as dtensor  # pylint: disable=g-direct-tensorflow-import
 # pylint: disable=missing-function-docstring
 
 NUM_CLASS = 10  # MNIST has 10 digits

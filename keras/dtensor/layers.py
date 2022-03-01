@@ -18,6 +18,7 @@ import functools
 
 from keras import backend
 from keras import layers
+from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import initializers
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
@@ -26,8 +27,6 @@ from keras.layers.convolutional import base_conv
 from keras.utils import tf_inspect
 
 import tensorflow.compat.v2 as tf
-
-from tensorflow.dtensor import python as dtensor  # pylint: disable=g-direct-tensorflow-import
 
 
 # pylint: disable=missing-class-docstring
