@@ -123,6 +123,8 @@ def call_with_layout(fn, layout, *args, **kwargs):
   """
   if layout:
 
+    # TODO(b/222160686): Remove this tf.function after after we have SPMD
+    # support for tf.MatrixDiagV3
     @tf.function
     def wrapper_func():
       result = fn(*args, **kwargs)
