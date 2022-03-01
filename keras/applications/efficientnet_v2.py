@@ -991,6 +991,7 @@ def EfficientNetV2(
           name="block{}{}_".format(i + 1, chr(j + 97)),
           **args,
       )(x)
+      b += 1
 
   # Build top
   top_filters = round_filters(
