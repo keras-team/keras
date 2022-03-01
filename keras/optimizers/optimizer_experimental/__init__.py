@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""This is under development, and subject to interface/implementation changes."""
+"""Experimental optimizer package."""

@@ -17,11 +17,13 @@
 from keras.optimizers.optimizer_experimental import optimizer
 from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
 
 
 # pylint: disable=g-classes-have-attributes
-# TODO(b/221112624): Export Adamax.
 @generic_utils.register_keras_serializable()
+@keras_export('keras.optimizers.experimental.Adamax', v1=[])
 class Adamax(optimizer.Optimizer):
   """Optimizer that implements the Adamax algorithm.
 
