@@ -18,19 +18,19 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 from keras import backend
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import losses
 from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
 from keras.feature_column import dense_features_v2
 from keras.layers import core
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.premade_models import linear
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class LinearModelTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class LinearModelTest(test_combinations.TestCase):
 
   def test_linear_model_with_single_input(self):
     model = linear.LinearModel()

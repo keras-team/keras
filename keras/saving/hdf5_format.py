@@ -23,8 +23,8 @@ import os
 import numpy as np
 
 from keras import backend
-from keras import optimizer_v1
-from keras.optimizer_experimental import optimizer as optimizer_experimental
+from keras.optimizers import optimizer_v1
+from keras.optimizers.optimizer_experimental import optimizer as optimizer_experimental
 from keras.saving import model_config as model_config_lib
 from keras.saving import saving_utils
 from keras.saving.saved_model import json_utils

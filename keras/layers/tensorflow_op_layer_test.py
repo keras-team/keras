@@ -22,10 +22,10 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import keras_tensor
-from keras.optimizer_v2 import adam
+from keras.optimizers.optimizer_v2 import adam
 from keras.saving import model_config
 
 
@@ -276,8 +276,8 @@ def _reuse_ancillary_layer():
   return model
 
 
-@keras_parameterized.run_all_keras_modes()
-class AutoLambdaTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes()
+class AutoLambdaTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
       ('single_op_at_end', _single_op_at_end),
@@ -310,7 +310,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     model.compile(
         adam.Adam(0.001),
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     np_inputs = tf.nest.map_structure(
         lambda x: np.ones((2,) + tuple(x.shape[1:]), 'float32'), model.inputs)
@@ -328,7 +328,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     new_model.compile(
         adam.Adam(0.001),
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     new_model.fit(np_inputs, np_outputs, batch_size=2)
     new_model(np_inputs)  # Test calling the new model directly on inputs.
     # Assert that metrics are preserved and in the right order.
@@ -348,7 +348,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     model.compile(
         adam.Adam(0.001),
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = tf.ones(shape=(4, 4))
     expected = tf.stack([x])
@@ -373,7 +373,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     model.compile(
         adam.Adam(0.001),
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     x = tf.ones(shape=(4, 4))
     expected = tf.stack(x)
@@ -401,7 +401,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     model.compile(
         adam.Adam(0.001),
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     batch_size = 7
     step = 3
     x = tf.stack([
@@ -438,7 +438,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     model.compile(
         adam.Adam(0.001),
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     batch_size = 7
     stop = 6
     args = tf.constant(stop, shape=(batch_size,))
@@ -472,7 +472,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     model.compile(
         adam.Adam(0.001),
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     batch_size = 7
     index = 6
     args = tf.constant(index, shape=(batch_size,))
@@ -507,7 +507,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     model.compile(
         adam.Adam(0.001),
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     batch_size = 7
     stop = 6
     x = tf.stack([
@@ -543,7 +543,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     model.compile(
         adam.Adam(0.001),
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     batch_size = 7
     stop = 6
     x = tf.stack([
@@ -583,7 +583,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     model.compile(
         adam.Adam(0.001),
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     batch_size = 7
     start = 1
     stop = 6
@@ -720,8 +720,8 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     model.summary()
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class InputInEagerTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class InputInEagerTest(test_combinations.TestCase):
   """Tests ops on keras inputs in Eager runtime.
 
   Input returns graph/symbolic tensors in the Eager runtime (this

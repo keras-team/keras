@@ -258,7 +258,7 @@ def dense(
                 name=name,
                 _scope=name,
                 _reuse=reuse)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.Dropout'])
@@ -410,7 +410,7 @@ def dropout(inputs,
       'Please use `tf.keras.layers.Dropout` instead.',
       stacklevel=2)
   layer = Dropout(rate, noise_shape=noise_shape, seed=seed, name=name)
-  return layer.apply(inputs, training=training)
+  return layer(inputs, training=training)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.Flatten'])
@@ -538,7 +538,7 @@ def flatten(inputs, name=None, data_format='channels_last'):
       'Please use `tf.keras.layers.Flatten` instead.',
       stacklevel=2)
   layer = Flatten(name=name, data_format=data_format)
-  return layer.apply(inputs)
+  return layer(inputs)
 
 
 # Aliases

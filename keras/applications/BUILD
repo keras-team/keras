@@ -40,9 +40,9 @@ py_library(
         "//:expect_tensorflow_installed",
         "//keras:activations",
         "//keras:backend",
-        "//keras:models",
         "//keras/engine",
         "//keras/layers",
+        "//keras/models",
         "//keras/utils:data_utils",
         "//keras/utils:layer_utils",
     ],
@@ -61,6 +61,7 @@ tf_py_test(
         ":applications",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -376,5 +377,6 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )

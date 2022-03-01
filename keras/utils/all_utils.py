@@ -30,9 +30,9 @@ from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import get_custom_objects
 from keras.utils.generic_utils import Progbar
 from keras.utils.generic_utils import serialize_keras_object
-from keras.utils.keras_doctest_lib import KerasDoctestOutputChecker
 from keras.utils.layer_utils import get_source_inputs
 from keras.utils.np_utils import normalize
 from keras.utils.np_utils import to_categorical
+from keras.utils.tf_utils import set_random_seed
 from keras.utils.vis_utils import model_to_dot
 from keras.utils.vis_utils import plot_model

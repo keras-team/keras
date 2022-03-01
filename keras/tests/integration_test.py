@@ -22,14 +22,14 @@ import random
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
-from keras.layers.legacy_rnn import rnn_cell_impl as rnn_cell
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
+from keras.layers.rnn import legacy_cells
 from keras.legacy_tf_layers import base as base_layer
-from keras.utils import np_utils
+from keras.utils import all_utils as utils
 
 
-class KerasIntegrationTest(keras_parameterized.TestCase):
+class KerasIntegrationTest(test_combinations.TestCase):
 
   def _save_and_reload_model(self, model):
     self.temp_dir = self.get_temp_dir()
@@ -47,29 +47,29 @@ class KerasIntegrationTest(keras_parameterized.TestCase):
     return model
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
-class VectorClassificationIntegrationTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class VectorClassificationIntegrationTest(test_combinations.TestCase):
 
   def test_vector_classification(self):
     np.random.seed(1337)
-    (x_train, y_train), _ = testing_utils.get_test_data(
+    (x_train, y_train), _ = test_utils.get_test_data(
         train_samples=100,
         test_samples=0,
         input_shape=(10,),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [keras.layers.Dense(16, activation='relu'),
          keras.layers.Dropout(0.1),
          keras.layers.Dense(y_train.shape[-1], activation='softmax')],
         input_shape=x_train.shape[1:])
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     history = model.fit(x_train, y_train, epochs=10, batch_size=10,
                         validation_data=(x_train, y_train),
                         verbose=2)
@@ -83,14 +83,14 @@ class VectorClassificationIntegrationTest(keras_parameterized.TestCase):
     # Test that Sequential models that feature internal updates
     # and internal losses can be shared.
     np.random.seed(1337)
-    (x_train, y_train), _ = testing_utils.get_test_data(
+    (x_train, y_train), _ = test_utils.get_test_data(
         train_samples=100,
         test_samples=0,
         input_shape=(10,),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
-    base_model = testing_utils.get_model_from_layers(
+    base_model = test_utils.get_model_from_layers(
         [keras.layers.Dense(16,
                             activation='relu',
                             kernel_regularizer=keras.regularizers.l2(1e-5),
@@ -103,9 +103,9 @@ class VectorClassificationIntegrationTest(keras_parameterized.TestCase):
     model = keras.models.Model(x, y)
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     self.assertLen(model.losses, 2)
     if not tf.executing_eagerly():
       self.assertLen(model.get_updates_for(x), 2)
@@ -119,7 +119,7 @@ class VectorClassificationIntegrationTest(keras_parameterized.TestCase):
     self.assertEqual(predictions.shape, (x_train.shape[0], 2))
 
 
-@keras_parameterized.run_all_keras_modes
+@test_combinations.run_all_keras_modes
 class SequentialIntegrationTest(KerasIntegrationTest):
 
   def test_sequential_save_and_pop(self):
@@ -130,12 +130,12 @@ class SequentialIntegrationTest(KerasIntegrationTest):
     # - pop its last layer and add a new layer instead
     # - continue training
     np.random.seed(1337)
-    (x_train, y_train), _ = testing_utils.get_test_data(
+    (x_train, y_train), _ = test_utils.get_test_data(
         train_samples=100,
         test_samples=0,
         input_shape=(10,),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
     model = keras.Sequential([
         keras.layers.Dense(16, activation='relu'),
         keras.layers.Dropout(0.1),
@@ -143,9 +143,9 @@ class SequentialIntegrationTest(KerasIntegrationTest):
     ])
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(x_train, y_train, epochs=1, batch_size=10,
               validation_data=(x_train, y_train),
               verbose=2)
@@ -156,9 +156,9 @@ class SequentialIntegrationTest(KerasIntegrationTest):
 
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     history = model.fit(x_train, y_train, epochs=10, batch_size=10,
                         validation_data=(x_train, y_train),
                         verbose=2)
@@ -171,30 +171,30 @@ class SequentialIntegrationTest(KerasIntegrationTest):
 
 
 # See b/122473407
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class TimeseriesClassificationIntegrationTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class TimeseriesClassificationIntegrationTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_timeseries_classification(self):
     np.random.seed(1337)
-    (x_train, y_train), _ = testing_utils.get_test_data(
+    (x_train, y_train), _ = test_utils.get_test_data(
         train_samples=100,
         test_samples=0,
         input_shape=(4, 10),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
     layers = [
         keras.layers.LSTM(5, return_sequences=True),
         keras.layers.GRU(y_train.shape[-1], activation='softmax')
     ]
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         layers, input_shape=x_train.shape[1:])
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     history = model.fit(x_train, y_train, epochs=15, batch_size=10,
                         validation_data=(x_train, y_train),
                         verbose=2)
@@ -206,25 +206,26 @@ class TimeseriesClassificationIntegrationTest(keras_parameterized.TestCase):
 
   def test_timeseries_classification_sequential_tf_rnn(self):
     np.random.seed(1337)
-    (x_train, y_train), _ = testing_utils.get_test_data(
+    (x_train, y_train), _ = test_utils.get_test_data(
         train_samples=100,
         test_samples=0,
         input_shape=(4, 10),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
     with base_layer.keras_style_scope():
       model = keras.models.Sequential()
-      model.add(keras.layers.RNN(rnn_cell.LSTMCell(5), return_sequences=True,
+      model.add(keras.layers.RNN(legacy_cells.LSTMCell(5),
+                                 return_sequences=True,
                                  input_shape=x_train.shape[1:]))
-      model.add(keras.layers.RNN(rnn_cell.GRUCell(y_train.shape[-1],
-                                                  activation='softmax',
-                                                  dtype=tf.float32)))
+      model.add(keras.layers.RNN(legacy_cells.GRUCell(y_train.shape[-1],
+                                                      activation='softmax',
+                                                      dtype=tf.float32)))
       model.compile(
           loss='categorical_crossentropy',
-          optimizer=keras.optimizer_v2.adam.Adam(0.005),
+          optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
           metrics=['acc'],
-          run_eagerly=testing_utils.should_run_eagerly())
+          run_eagerly=test_utils.should_run_eagerly())
 
     history = model.fit(x_train, y_train, epochs=15, batch_size=10,
                         validation_data=(x_train, y_train),
@@ -236,18 +237,18 @@ class TimeseriesClassificationIntegrationTest(keras_parameterized.TestCase):
     self.assertEqual(predictions.shape, (x_train.shape[0], 2))
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
-class ImageClassificationIntegrationTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class ImageClassificationIntegrationTest(test_combinations.TestCase):
 
   def test_image_classification(self):
     np.random.seed(1337)
-    (x_train, y_train), _ = testing_utils.get_test_data(
+    (x_train, y_train), _ = test_utils.get_test_data(
         train_samples=100,
         test_samples=0,
         input_shape=(10, 10, 3),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
     layers = [
         keras.layers.Conv2D(4, 3, padding='same', activation='relu'),
@@ -257,13 +258,13 @@ class ImageClassificationIntegrationTest(keras_parameterized.TestCase):
         keras.layers.Flatten(),
         keras.layers.Dense(y_train.shape[-1], activation='softmax')
     ]
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         layers, input_shape=x_train.shape[1:])
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['acc'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     history = model.fit(x_train, y_train, epochs=10, batch_size=10,
                         validation_data=(x_train, y_train),
                         verbose=2)
@@ -274,8 +275,8 @@ class ImageClassificationIntegrationTest(keras_parameterized.TestCase):
     self.assertEqual(predictions.shape, (x_train.shape[0], 2))
 
 
-@keras_parameterized.run_all_keras_modes
-class ActivationV2IntegrationTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ActivationV2IntegrationTest(test_combinations.TestCase):
   """Tests activation function V2 in model exporting and loading.
 
   This test is to verify in TF 2.x, when 'tf.nn.softmax' is used as an
@@ -285,12 +286,12 @@ class ActivationV2IntegrationTest(keras_parameterized.TestCase):
 
   def test_serialization_v2_model(self):
     np.random.seed(1337)
-    (x_train, y_train), _ = testing_utils.get_test_data(
+    (x_train, y_train), _ = test_utils.get_test_data(
         train_samples=100,
         test_samples=0,
         input_shape=(10,),
         num_classes=2)
-    y_train = np_utils.to_categorical(y_train)
+    y_train = utils.to_categorical(y_train)
 
     model = keras.Sequential([
         keras.layers.Flatten(input_shape=x_train.shape[1:]),
@@ -305,9 +306,9 @@ class ActivationV2IntegrationTest(keras_parameterized.TestCase):
 
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=keras.optimizer_v2.adam.Adam(0.005),
+        optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
         metrics=['accuracy'],
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(x_train, y_train, epochs=2, batch_size=10,
               validation_data=(x_train, y_train),
               verbose=2)
@@ -316,6 +317,58 @@ class ActivationV2IntegrationTest(keras_parameterized.TestCase):
     model.save(output_path, save_format='tf')
     loaded_model = keras.models.load_model(output_path)
     self.assertEqual(model.summary(), loaded_model.summary())
+
+
+@test_combinations.run_with_all_model_types
+@test_utils.run_v2_only
+class TokenClassificationIntegrationTest(test_combinations.TestCase):
+  """Tests a very simple token classification model.
+
+  The main purpose of this test is to verify that everything works as expected
+  when input sequences have variable length, and batches are padded only to the
+  maximum length of each batch. This is very common in NLP, and results in the
+  sequence dimension varying with each batch step for both the features
+  and the labels.
+  """
+
+  def test_token_classification(self):
+
+    def densify(x, y):
+      return x.to_tensor(), y.to_tensor()
+
+    utils.set_random_seed(1337)
+    data = tf.ragged.stack([
+        np.random.randint(low=0, high=16, size=random.randint(4, 16))
+        for _ in range(100)
+    ])
+    labels = tf.ragged.stack(
+        [np.random.randint(low=0, high=3, size=len(arr)) for arr in data])
+    features_dataset = tf.data.Dataset.from_tensor_slices(data)
+    labels_dataset = tf.data.Dataset.from_tensor_slices(labels)
+    dataset = tf.data.Dataset.zip((features_dataset, labels_dataset))
+    dataset = dataset.batch(batch_size=10)
+    dataset = dataset.map(densify)  # Pads with 0 values by default
+
+    layers = [
+        keras.layers.Embedding(16, 4),
+        keras.layers.Conv1D(4, 5, padding='same', activation='relu'),
+        keras.layers.Conv1D(8, 5, padding='same'),
+        keras.layers.BatchNormalization(),
+        keras.layers.Conv1D(3, 5, padding='same', activation='softmax'),
+    ]
+    model = test_utils.get_model_from_layers(layers, input_shape=(None,))
+    model.compile(
+        loss='sparse_categorical_crossentropy',
+        optimizer='adam',
+        metrics=['acc'])
+    history = model.fit(dataset, epochs=10, validation_data=dataset, verbose=2)
+    self.assertGreater(history.history['val_acc'][-1], 0.5)
+    _, val_acc = model.evaluate(dataset)
+    self.assertAlmostEqual(history.history['val_acc'][-1], val_acc)
+    predictions = model.predict(dataset)
+    self.assertIsInstance(predictions, tf.RaggedTensor)
+    self.assertEqual(predictions.shape[0], len(dataset) * 10)
+    self.assertEqual(predictions.shape[-1], 3)
 
 if __name__ == '__main__':
   tf.test.main()

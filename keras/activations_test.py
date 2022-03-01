@@ -21,7 +21,7 @@ import numpy as np
 
 from keras import activations
 from keras import backend
-from keras import combinations
+from keras.testing_infra import test_combinations
 import keras.layers.activation as activation_layers
 from keras.layers import core
 from keras.layers import serialization
@@ -33,7 +33,7 @@ def _ref_softmax(values):
   return e / np.sum(e)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_serialization(self):

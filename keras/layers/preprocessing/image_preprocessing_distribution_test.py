@@ -15,23 +15,23 @@
 """Distribution tests for keras.layers.preprocessing.image_preprocessing."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import preprocessing_test_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@testing_utils.run_v2_only
+@test_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
         strategy_combinations.multi_worker_mirrored_strategies,
-        mode=["eager", "graph"]))
+        mode=["eager"]))
 class ImagePreprocessingDistributionTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_distribution(self, strategy):
@@ -48,6 +48,7 @@ class ImagePreprocessingDistributionTest(
           image_preprocessing.Resizing(height=256, width=256),
           image_preprocessing.RandomCrop(height=224, width=224),
           image_preprocessing.RandomTranslation(.1, .1),
+          image_preprocessing.RandomBrightness(.1, value_range=(0, 1)),
           image_preprocessing.RandomRotation(.2),
           image_preprocessing.RandomFlip(),
           image_preprocessing.RandomZoom(.2, .2)])

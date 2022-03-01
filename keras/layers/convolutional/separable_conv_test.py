@@ -16,14 +16,14 @@
 
 from absl.testing import parameterized
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class SeparableConv1DTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class SeparableConv1DTest(test_combinations.TestCase):
 
   def _run_test(self, kwargs):
     num_samples = 2
@@ -31,7 +31,7 @@ class SeparableConv1DTest(keras_parameterized.TestCase):
     length = 7
 
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.SeparableConv1D,
           kwargs=kwargs,
           input_shape=(num_samples, length, stack_size))
@@ -90,8 +90,8 @@ class SeparableConv1DTest(keras_parameterized.TestCase):
       self.assertEqual(layer.bias.constraint, b_constraint)
 
 
-@keras_parameterized.run_all_keras_modes
-class SeparableConv2DTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class SeparableConv2DTest(test_combinations.TestCase):
 
   def _run_test(self, kwargs):
     num_samples = 2
@@ -100,7 +100,7 @@ class SeparableConv2DTest(keras_parameterized.TestCase):
     num_col = 6
 
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.SeparableConv2D,
           kwargs=kwargs,
           input_shape=(num_samples, num_row, num_col, stack_size))

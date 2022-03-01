@@ -20,8 +20,8 @@ import os
 import shutil
 
 import numpy as np
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.preprocessing import image as image_preproc
 from keras.preprocessing import image_dataset
 
@@ -31,8 +31,8 @@ except ImportError:
   PIL = None
 
 
-@testing_utils.run_v2_only
-class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
+@test_utils.run_v2_only
+class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
 
   def _get_images(self, count=16, color_mode='rgb'):
     width = height = 24

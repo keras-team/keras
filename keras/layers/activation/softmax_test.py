@@ -15,19 +15,19 @@
 """Tests for Softmax layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class SoftmaxTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class SoftmaxTest(test_combinations.TestCase):
 
   def test_softmax(self):
-    testing_utils.layer_test(keras.layers.Softmax,
-                             kwargs={'axis': 1},
-                             input_shape=(2, 3, 4),
-                             supports_masking=True)
+    test_utils.layer_test(keras.layers.Softmax,
+                          kwargs={'axis': 1},
+                          input_shape=(2, 3, 4),
+                          supports_masking=True)
 
 
 if __name__ == '__main__':

@@ -15,29 +15,29 @@
 """Tests for Keras permute layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class PermuteTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class PermuteTest(test_combinations.TestCase):
 
   def test_permute(self):
-    testing_utils.layer_test(
+    test_utils.layer_test(
         keras.layers.Permute, kwargs={'dims': (2, 1)}, input_shape=(3, 2, 4))
 
   def test_permute_errors_on_invalid_starting_dims_index(self):
     with self.assertRaisesRegex(ValueError, r'Invalid permutation .*dims.*'):
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Permute,
           kwargs={'dims': (0, 1, 2)},
           input_shape=(3, 2, 4))
 
   def test_permute_errors_on_invalid_set_of_dims_indices(self):
     with self.assertRaisesRegex(ValueError, r'Invalid permutation .*dims.*'):
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Permute,
           kwargs={'dims': (1, 4, 2)},
           input_shape=(3, 2, 4))

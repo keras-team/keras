@@ -15,25 +15,25 @@
 """Tests for ThresholdedReLU layer."""
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class ThresholdedReLUTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ThresholdedReLUTest(test_combinations.TestCase):
 
   def test_thresholded_relu(self):
-    testing_utils.layer_test(keras.layers.ThresholdedReLU,
-                             kwargs={'theta': 0.5},
-                             input_shape=(2, 3, 4),
-                             supports_masking=True)
+    test_utils.layer_test(keras.layers.ThresholdedReLU,
+                          kwargs={'theta': 0.5},
+                          input_shape=(2, 3, 4),
+                          supports_masking=True)
 
   def test_threshold_relu_with_invalid_theta(self):
     with self.assertRaisesRegex(
         ValueError, 'Theta of a Thresholded ReLU layer cannot '
         'be None, expecting a float. Received: None'):
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ThresholdedReLU,
           kwargs={'theta': None},
           input_shape=(2, 3, 4),
@@ -42,7 +42,7 @@ class ThresholdedReLUTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'The theta value of a Thresholded ReLU '
         'layer should be >=0. Received: -10'):
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ThresholdedReLU,
           kwargs={'theta': -10},
           input_shape=(2, 3, 4),

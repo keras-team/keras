@@ -22,7 +22,7 @@ import numpy as np
 from tensorflow.python.autograph.impl import api as autograph
 from keras import activations
 from keras import backend
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras import losses
 from keras.utils import losses_utils
 
@@ -68,7 +68,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
       objective_output = losses.sparse_categorical_crossentropy(y_a, y_b)
       assert backend.eval(objective_output).shape == (6,)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_categorical_crossentropy_loss(self):
     target = backend.variable(np.random.randint(0, 1, (5, 1)))
     logits = backend.variable(np.random.random((5, 1)))
@@ -93,7 +94,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
         backend.eval(output_from_softmax_axis),
         atol=1e-5)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_categorical_crossentropy_loss_with_unknown_rank_tensor(self):
     t = backend.placeholder()
     p = backend.placeholder()
@@ -115,7 +117,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     result = f([t_val, p_val])
     self.assertArrayNear(result, [.002, 0, .17], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_sparse_categorical_crossentropy_loss(self):
     target = backend.variable(np.random.randint(0, 1, (5, 1)))
     logits = backend.variable(np.random.random((5, 1)))
@@ -129,7 +132,7 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
         backend.eval(output_from_softmax),
         atol=1e-5)
 
-  @combinations.generate(combinations.combine(mode=['graph']))
+  @test_combinations.generate(test_combinations.combine(mode=['graph']))
   def test_sparse_categorical_crossentropy_loss_with_unknown_rank_tensor(self):
     # This test only runs in graph because the TF op layer is not supported yet
     # for sparse ops.
@@ -153,7 +156,7 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     result = f([t_val, p_val])
     self.assertArrayNear(result, [.002, 0, .17], 1e-3)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_sparse_categorical_crossentropy_with_float16(self):
     # See https://github.com/keras-team/keras/issues/15012 for more details.
     # we don't cast y_true to have same dtype as y_pred, since y_pred could be
@@ -174,7 +177,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     scce = losses.SparseCategoricalCrossentropy()
     self.assertAllClose(scce(y_true, y_pred_16).numpy(), 0.0, atol=1e-3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_binary_crossentropy_loss(self):
     target = backend.variable(np.random.randint(0, 1, (5, 1)))
     logits = backend.variable(np.random.random((5, 1)))
@@ -233,7 +237,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     # reduced_weighted_mse = (6 + 26) / 2 =
     self.assertAllClose(self.evaluate(loss), 16, 1e-2)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_loss_wrapper_autograph(self):
     # Test that functions with control flow wrapped in a LossFunctionWrapper
     # get autographed when in a tf.function
@@ -295,7 +300,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'Could not interpret loss'):
       losses.get(0)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_binary_crossentropy_uses_cached_logits(self):
     logits = tf.constant([[-30., 30.]])
     y_pred = activations.sigmoid(logits)
@@ -306,7 +312,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     # collapse to 0 from underflow.
     self.assertNotEqual(self.evaluate(loss), 0.)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_categorical_crossentropy_uses_cached_logits(self):
     logits = tf.constant([[-5., 0., 5.]])
     y_pred = activations.softmax(logits)
@@ -317,7 +324,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     # collapse to 0 from underflow.
     self.assertNotEqual(self.evaluate(loss), 0.)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_sparse_categorical_crossentropy_uses_cached_logits(self):
     logits = tf.constant([[-5., 0., 5.]])
     y_pred = activations.softmax(logits)
@@ -329,7 +337,7 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     # collapse to 0 from underflow.
     self.assertNotEqual(self.evaluate(loss), 0.)
 
-  @combinations.generate(combinations.combine(mode=['eager']))
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
   def test_loss_not_autographed_in_eager(self):
 
     class MyLoss(losses.Loss):
@@ -350,7 +358,7 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
       loss(y_true, y_pred)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_config(self):
@@ -442,7 +450,7 @@ class MeanSquaredErrorTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 227.69998, 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MeanAbsoluteErrorTest(tf.test.TestCase):
 
   def test_config(self):
@@ -529,7 +537,7 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 6.8, 5)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
 
   def test_config(self):
@@ -599,7 +607,7 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
     self.assertArrayNear(loss, [621.8518, 352.6666], 1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
 
   def test_config(self):
@@ -657,7 +665,7 @@ class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 5.1121, 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class CosineSimilarityTest(tf.test.TestCase):
 
   def l2_norm(self, x, axis):
@@ -739,7 +747,7 @@ class CosineSimilarityTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BinaryCrossentropyTest(tf.test.TestCase):
 
   def test_config(self):
@@ -947,7 +955,7 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 75., 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BinaryFocalCrossentropyTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1130,7 +1138,7 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 0.18166, 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class CategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1296,7 +1304,7 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 0.3181, 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1427,7 +1435,7 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 0.1054, 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class HingeTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1523,7 +1531,7 @@ class HingeTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(loss), 0., 1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class SquaredHingeTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1628,7 +1636,7 @@ class SquaredHingeTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(loss), 0., 1e-3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class CategoricalHingeTest(tf.test.TestCase):
 
   def test_config(self):
@@ -1684,7 +1692,7 @@ class CategoricalHingeTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 0., 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class LogCoshTest(tf.test.TestCase):
 
   def setup(self):
@@ -1763,7 +1771,7 @@ class LogCoshTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 0., 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class PoissonTest(tf.test.TestCase):
 
   def setup(self):
@@ -1842,7 +1850,7 @@ class PoissonTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 0., 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class KLDivergenceTest(tf.test.TestCase):
 
   def setup(self):
@@ -1921,7 +1929,7 @@ class KLDivergenceTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 0., 3)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class HuberLossTest(tf.test.TestCase):
 
   def huber_loss(self, y_true, y_pred, delta=1.0):
@@ -2048,7 +2056,7 @@ class BinaryTruePositivesViaControlFlow(losses.Loss):
     return result
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class CustomLossTest(tf.test.TestCase):
 
   def test_autograph(self):

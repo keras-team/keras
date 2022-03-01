@@ -23,11 +23,11 @@ import shutil
 
 from absl.testing import parameterized
 import numpy as np
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from keras import backend as keras_backend
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras import initializers
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.engine import base_layer_utils
 from keras.engine import input_layer
 from keras.engine import training
@@ -46,7 +46,7 @@ def _exact_laplacian(stddev):
       kernelized_utils.exact_laplacian_kernel, stddev=stddev)
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
   def _assert_all_close(self, expected, actual, atol=0.001):
@@ -57,7 +57,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     else:
       self.assertAllClose(expected, actual, atol=atol)
 
-  @testing_utils.run_v2_only
+  @test_utils.run_v2_only
   def test_state_saving_and_loading(self):
     with self.cached_session():
       input_data = np.random.random((1, 2))
@@ -129,7 +129,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     num_trainable_vars = 1 if trainable else 0
     self.assertLen(rff_layer.non_trainable_variables, 3 - num_trainable_vars)
 
-  @test_util.assert_no_new_pyobjects_executing_eagerly
+  @tf_test_utils.assert_no_new_pyobjects_executing_eagerly
   def test_no_eager_Leak(self):
     # Tests that repeatedly constructing and building a Layer does not leak
     # Python objects.

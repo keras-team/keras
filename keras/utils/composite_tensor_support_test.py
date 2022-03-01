@@ -22,8 +22,8 @@ import numpy as np
 import scipy.sparse
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.layers import core
 from keras.layers import Dense
@@ -114,7 +114,7 @@ def get_model_from_layers_with_input(layers,
   if model_input is not None and input_shape is not None:
     raise ValueError("Cannot specify a model_input and an input shape.")
 
-  model_type = testing_utils.get_model_type()
+  model_type = test_utils.get_model_type()
   if model_type == "subclass":
     return _SubclassModel(layers, model_input)
 
@@ -145,21 +145,21 @@ def get_model_from_layers_with_input(layers,
 
 
 def get_test_mode_kwargs():
-  run_eagerly = testing_utils.should_run_eagerly()
+  run_eagerly = test_utils.should_run_eagerly()
   return {
       "run_eagerly": run_eagerly,
   }
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
-class CompositeTensorInternalTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class CompositeTensorInternalTest(test_combinations.TestCase):
 
   def test_internal_ragged_tensors(self):
     # Create a model that accepts an input, converts it to Ragged, and
     # converts the ragged tensor back to a dense tensor.
     layers = [ToRagged(padding=0), ToDense(default_value=-1)]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(None,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(None,))
 
     # Define some input data with additional padding.
     input_data = np.array([[1, 0, 0], [2, 3, 0]])
@@ -171,7 +171,7 @@ class CompositeTensorInternalTest(keras_parameterized.TestCase):
     # Create a model that accepts an input, converts it to Sparse, and
     # converts the sparse tensor back to a dense tensor.
     layers = [ToSparse(), ToDense(default_value=-1)]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(None,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(None,))
 
     # Define some input data with additional padding.
     input_data = np.array([[1, 0, 0], [2, 3, 0]])
@@ -185,7 +185,7 @@ class CompositeTensorInternalTest(keras_parameterized.TestCase):
     # for this test, as ToSparse() doesn't support gradient propagation through
     # the layer.) TODO(b/124796939): Investigate this.
     layers = [core.Dense(2), ToRagged(padding=0), ToDense(default_value=-1)]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(1,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(1,))
 
     input_data = np.random.rand(1024, 1)
     expected_data = np.concatenate((input_data * 3, input_data * .5), axis=-1)
@@ -198,16 +198,16 @@ class CompositeTensorInternalTest(keras_parameterized.TestCase):
     self.assertNotEqual(history.history["loss"][-1], history.history["loss"][0])
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
-class CompositeTensorOutputTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class CompositeTensorOutputTest(test_combinations.TestCase):
 
   def test_ragged_tensor_outputs(self):
     # Create a model that accepts an input, converts it to Ragged, and
     # converts the ragged tensor back to a dense tensor.
     layers = [ToRagged(padding=0)]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(None,))
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model = test_utils.get_model_from_layers(layers, input_shape=(None,))
+    model._run_eagerly = test_utils.should_run_eagerly()
 
     # Define some input data with additional padding.
     input_data = np.array([[1, 0, 0], [2, 3, 0]])
@@ -220,8 +220,8 @@ class CompositeTensorOutputTest(keras_parameterized.TestCase):
     # Create a model that accepts an input, converts it to Ragged, and
     # converts the ragged tensor back to a dense tensor.
     layers = [ToRagged(padding=0)]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(None,))
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model = test_utils.get_model_from_layers(layers, input_shape=(None,))
+    model._run_eagerly = test_utils.should_run_eagerly()
 
     # Define some input data with additional padding.
     input_data = np.array([[1, 0, 0], [2, 3, 0], [4, 0, 0], [5, 6, 0]])
@@ -234,8 +234,8 @@ class CompositeTensorOutputTest(keras_parameterized.TestCase):
     # Create a model that accepts an input, converts it to Ragged, and
     # converts the ragged tensor back to a dense tensor.
     layers = [ToSparse()]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(None,))
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model = test_utils.get_model_from_layers(layers, input_shape=(None,))
+    model._run_eagerly = test_utils.should_run_eagerly()
 
     # Define some input data with additional padding.
     input_data = np.array([[1, 0, 0], [2, 3, 0]])
@@ -253,8 +253,8 @@ class CompositeTensorOutputTest(keras_parameterized.TestCase):
     # Create a model that accepts an input, converts it to Ragged, and
     # converts the ragged tensor back to a dense tensor.
     layers = [ToSparse()]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(None,))
-    model._run_eagerly = testing_utils.should_run_eagerly()
+    model = test_utils.get_model_from_layers(layers, input_shape=(None,))
+    model._run_eagerly = test_utils.should_run_eagerly()
 
     # Define some input data with additional padding.
     input_data = np.array([[1, 0, 0], [2, 3, 0], [4, 0, 0], [5, 6, 0]])
@@ -274,7 +274,7 @@ def get_input_name(use_dict):
   # Define the input name.
   if not use_dict:
     return None  # This is the same as not setting 'name'.
-  elif testing_utils.get_model_type() == "subclass":
+  elif test_utils.get_model_type() == "subclass":
     return "input_1"  # Subclass models don"t support input names.
   else:
     return "test_input_name"
@@ -306,14 +306,14 @@ def prepare_inputs(data, use_dict, use_dataset, action, input_name):
   return (input_data, expected_output)
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
 @parameterized.named_parameters(
-    *testing_utils.generate_combinations_with_testcase_name(
+    *test_utils.generate_combinations_with_testcase_name(
         use_dict=[True, False],
         use_dataset=[True, False],
         action=["predict", "evaluate", "fit"]))
-class SparseTensorInputTest(keras_parameterized.TestCase):
+class SparseTensorInputTest(test_combinations.TestCase):
 
   def test_sparse_tensors(self, use_dict, use_dataset, action):
     data = [(tf.SparseTensor([[0, 0, 0], [1, 0, 0], [1, 0, 1]],
@@ -354,9 +354,9 @@ class SparseTensorInputTest(keras_parameterized.TestCase):
         _ = model.fit(input_data, expected_output, shuffle=False, **kwargs)
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
-class ScipySparseTensorInputTest(keras_parameterized.TestCase,
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class ScipySparseTensorInputTest(test_combinations.TestCase,
                                  tf.test.TestCase):
 
   def test_sparse_scipy_predict_inputs_via_input_layer_args(self):
@@ -408,7 +408,7 @@ class ScipySparseTensorInputTest(keras_parameterized.TestCase,
     # Create a model that accepts a sparse input and converts the sparse tensor
     # back to a dense tensor. Scipy sparse matrices are limited to 2D, so use
     # a one-dimensional shape; note also that scipy's default dtype is int64.
-    if testing_utils.get_model_type() == "subclass":
+    if test_utils.get_model_type() == "subclass":
       input_name = "input_1"  # Subclass models don"t support input names.
     else:
       input_name = "test_input_name"
@@ -439,7 +439,7 @@ class ScipySparseTensorInputTest(keras_parameterized.TestCase,
     # Create a model that accepts a sparse input and converts the sparse tensor
     # back to a dense tensor. Scipy sparse matrices are limited to 2D, so use
     # a one-dimensional shape; note also that scipy's default dtype is int64.
-    if testing_utils.get_model_type() == "subclass":
+    if test_utils.get_model_type() == "subclass":
       input_name = "input_1"  # Subclass models don"t support input names.
     else:
       input_name = "test_input_name"
@@ -471,14 +471,14 @@ class ScipySparseTensorInputTest(keras_parameterized.TestCase,
     self.assertAllEqual(1.0, output_2[-1])
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
 @parameterized.named_parameters(
-    *testing_utils.generate_combinations_with_testcase_name(
+    *test_utils.generate_combinations_with_testcase_name(
         use_dict=[True, False],
         use_dataset=[True, False],
         action=["predict", "evaluate", "fit"]))
-class RaggedTensorInputTest(keras_parameterized.TestCase,
+class RaggedTensorInputTest(test_combinations.TestCase,
                             tf.test.TestCase):
 
   def test_ragged_input(self, use_dict, use_dataset, action):
@@ -518,12 +518,12 @@ class RaggedTensorInputTest(keras_parameterized.TestCase,
         _ = model.fit(input_data, expected_output, shuffle=False)
 
 
-@keras_parameterized.run_with_all_model_types
-@keras_parameterized.run_all_keras_modes
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
 @parameterized.named_parameters(
-    *testing_utils.generate_combinations_with_testcase_name(
+    *test_utils.generate_combinations_with_testcase_name(
         use_dict=[True, False], use_dataset=[True, False]))
-class RaggedTensorInputValidationTest(keras_parameterized.TestCase,
+class RaggedTensorInputValidationTest(test_combinations.TestCase,
                                       tf.test.TestCase):
 
   def test_ragged_tensor_input_with_one_none_dimension(self, use_dict,
@@ -586,9 +586,9 @@ class RaggedTensorInputValidationTest(keras_parameterized.TestCase,
       self.assertAllEqual(expected_output, result)
 
 
-@keras_parameterized.run_with_all_model_types()
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class CompositeTensorModelPredictTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types()
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class CompositeTensorModelPredictTest(test_combinations.TestCase):
 
   def _normalize_shape(self, shape):
     if not isinstance(shape, tuple):

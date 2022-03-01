@@ -22,12 +22,12 @@ import numpy as np
 
 import keras
 
-from keras import keras_parameterized  # pylint: disable=g-direct-tensorflow-import
-from keras import testing_utils
+from keras.testing_infra import test_combinations  # pylint: disable=g-direct-tensorflow-import
+from keras.testing_infra import test_utils
 from keras.layers import einsum_dense
 
 
-@keras_parameterized.run_all_keras_modes
+@test_combinations.run_all_keras_modes
 @parameterized.named_parameters(
     {
         "testcase_name": "_1d_end_weight",
@@ -219,7 +219,7 @@ from keras.layers import einsum_dense
         "expected_bias_shape": [3, 4, 1],
         "expected_output_shape": (None, 3, 4, 2)
     })
-class TestEinsumDenseLayer(keras_parameterized.TestCase):
+class TestEinsumDenseLayer(test_combinations.TestCase):
 
   def test_weight_shapes(self, equation, bias_axes, input_shape, output_shape,
                          expected_weight_shape, expected_bias_shape,
@@ -251,8 +251,8 @@ class TestEinsumDenseLayer(keras_parameterized.TestCase):
     self.assertAllEqual(expected_output_shape, output_tensor.shape.as_list())
 
 
-@keras_parameterized.run_all_keras_modes
-class TestEinsumLayerAPI(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class TestEinsumLayerAPI(test_combinations.TestCase):
 
   def test_layer_api(self):
     input_data = np.array([[1.0, 2.0], [3.0, 4.0]])
@@ -267,7 +267,7 @@ class TestEinsumLayerAPI(keras_parameterized.TestCase):
     expected_output = np.array([[1.53, 1.53, 1.53, 1.53],
                                 [3.53, 3.53, 3.53, 3.53]])
 
-    output_data = testing_utils.layer_test(
+    output_data = test_utils.layer_test(
         einsum_dense.EinsumDense,
         kwargs=kwargs,
         input_shape=(None, 2),

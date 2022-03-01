@@ -20,10 +20,10 @@ import numpy as np
 
 import keras
 from keras import backend
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.distribute import keras_correctness_test_base
 from keras.distribute import strategy_combinations
-from keras.optimizer_v2 import gradient_descent as gradient_descent_keras
+from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_keras
 
 
 def all_strategy_combinations_with_eager_and_graph_modes():
@@ -45,7 +45,7 @@ def is_default_strategy(strategy):
     return not tf.distribute.has_strategy()
 
 
-@testing_utils.run_all_without_tensor_float_32(
+@test_utils.run_all_without_tensor_float_32(
     'Uses Dense layers, which call matmul')
 class TestDistributionStrategyDnnCorrectness(
     keras_correctness_test_base.TestDistributionStrategyCorrectnessBase):
@@ -246,7 +246,7 @@ class SubclassedModel(keras.Model):
     return self.dense4(x)
 
 
-@testing_utils.run_all_without_tensor_float_32(
+@test_utils.run_all_without_tensor_float_32(
     'Uses Dense layers, which call matmul')
 class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
     TestDistributionStrategyDnnCorrectness):

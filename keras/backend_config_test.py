@@ -18,10 +18,10 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras import backend_config
-from keras import combinations
+from keras.testing_infra import test_combinations
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class BackendConfigTest(tf.test.TestCase):
 
   def test_backend(self):

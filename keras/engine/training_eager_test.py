@@ -20,15 +20,15 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import metrics as metrics_module
-from keras import testing_utils
-from keras.optimizer_v2 import rmsprop
+from keras.testing_infra import test_utils
+from keras.optimizers.optimizer_v2 import rmsprop
 
 
-class TrainingTest(keras_parameterized.TestCase):
+class TrainingTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_dynamic_model_has_trainable_weights(self):
     if not tf.executing_eagerly():
       # Only test Eager modes, as Graph mode is not relevant for dynamic models.
@@ -56,8 +56,8 @@ class TrainingTest(keras_parameterized.TestCase):
     # account during tracking.
     self.assertLess(loss, 1)
 
-  @keras_parameterized.run_with_all_model_types(exclude_models='sequential')
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types(exclude_models='sequential')
+  @test_combinations.run_all_keras_modes
   def test_model_methods_with_eager_tensors_multi_io(self):
     if not tf.executing_eagerly():
       # Only test V2 Function and V2 Eager modes, as V1 Graph mode with
@@ -70,7 +70,7 @@ class TrainingTest(keras_parameterized.TestCase):
     dense = keras.layers.Dense(4, name='dense')
     dropout = keras.layers.Dropout(0.5, name='dropout')
 
-    model = testing_utils.get_multi_io_model(
+    model = test_utils.get_multi_io_model(
         [input_a, dense], [input_b, dense, dropout])
 
     optimizer = rmsprop.RMSprop(learning_rate=0.001)
@@ -82,7 +82,7 @@ class TrainingTest(keras_parameterized.TestCase):
         loss,
         metrics=metrics,
         loss_weights=loss_weights,
-        run_eagerly=testing_utils.should_run_eagerly(),
+        run_eagerly=test_utils.should_run_eagerly(),
         sample_weight_mode=None)
 
     input_a = tf.zeros(shape=(10, 3))
@@ -135,15 +135,15 @@ class TrainingTest(keras_parameterized.TestCase):
                    batch_size=2, verbose=0)
     model.test_on_batch([input_a, input_b], [target_a, target_b])
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_model_methods_with_eager_tensors_single_io(self):
     if not tf.executing_eagerly():
       # Only test V2 Function and V2 Eager modes, as V1 Graph mode with
       # symbolic tensors has different requirements.
       return
 
-    model = testing_utils.get_small_mlp(10, 4, 3)
+    model = test_utils.get_small_mlp(10, 4, 3)
 
     optimizer = rmsprop.RMSprop(learning_rate=0.001)
     loss = 'mse'
@@ -152,7 +152,7 @@ class TrainingTest(keras_parameterized.TestCase):
         optimizer,
         loss,
         metrics=metrics,
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     inputs = tf.zeros(shape=(10, 3))
     targets = tf.zeros(shape=(10, 4))
@@ -166,9 +166,9 @@ class TrainingTest(keras_parameterized.TestCase):
     model.train_on_batch(inputs, targets)
     model.test_on_batch(inputs, targets)
 
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_with_all_model_types
   def test_model_fit_and_validation_with_missing_arg_errors(self):
-    model = testing_utils.get_small_mlp(10, 4, 3)
+    model = test_utils.get_small_mlp(10, 4, 3)
     model.compile(optimizer=rmsprop.RMSprop(learning_rate=0.001),
                   loss='mse',
                   run_eagerly=True)
@@ -191,9 +191,9 @@ class TrainingTest(keras_parameterized.TestCase):
 
   # TODO(b/120931266): Enable test on subclassed models after bug causing an
   # extra dimension to be added to predict outputs is fixed.
-  @keras_parameterized.run_with_all_model_types(exclude_models='subclass')
+  @test_combinations.run_with_all_model_types(exclude_models='subclass')
   def test_generator_methods(self):
-    model = testing_utils.get_small_mlp(10, 4, 3)
+    model = test_utils.get_small_mlp(10, 4, 3)
     optimizer = rmsprop.RMSprop(learning_rate=0.001)
     model.compile(
         optimizer,
@@ -219,10 +219,10 @@ class TrainingTest(keras_parameterized.TestCase):
     self.assertEqual(out.shape, (30, 4))
 
 
-class CorrectnessTest(keras_parameterized.TestCase):
+class CorrectnessTest(test_combinations.TestCase):
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   @parameterized.named_parameters([
       ('', dict()),
       ('_clipvalue_inf', {'clipvalue': 999999}),
@@ -235,19 +235,19 @@ class CorrectnessTest(keras_parameterized.TestCase):
         keras.layers.Dense(3, activation='relu',
                            kernel_initializer='ones'),
         keras.layers.Dense(2, activation='softmax', kernel_initializer='ones')]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(4,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(4,))
     model.compile(
         loss='sparse_categorical_crossentropy',
         optimizer=rmsprop.RMSprop(learning_rate=0.001, **optimizer_kwargs),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.ones((100, 4))
     np.random.seed(123)
     y = np.random.randint(0, 1, size=(100, 1))
     history = model.fit(x, y, epochs=1, batch_size=10)
     self.assertAlmostEqual(history.history['loss'][-1], 0.5836, 4)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_loss_correctness_clipvalue_zero(self):
     # Test that training loss is the same in eager and graph
     # (by comparing it to a reference value in a deterministic case)
@@ -256,11 +256,11 @@ class CorrectnessTest(keras_parameterized.TestCase):
         keras.layers.Dense(3, activation='relu',
                            kernel_initializer='ones'),
         keras.layers.Dense(2, activation='softmax', kernel_initializer='ones')]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(4,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(4,))
     model.compile(
         loss='sparse_categorical_crossentropy',
         optimizer=rmsprop.RMSprop(learning_rate=0.001, clipvalue=0.0),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.ones((100, 4))
     np.random.seed(123)
     y = np.random.randint(0, 1, size=(100, 1))
@@ -269,8 +269,8 @@ class CorrectnessTest(keras_parameterized.TestCase):
     self.assertAlmostEqual(history.history['loss'][-2], 0.6931, 4)
     self.assertAlmostEqual(history.history['loss'][-1], 0.6931, 4)
 
-  @keras_parameterized.run_with_all_model_types
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
   def test_loss_correctness_with_iterator(self):
     # Test that training loss is the same in eager and graph
     # (by comparing it to a reference value in a deterministic case)
@@ -278,11 +278,11 @@ class CorrectnessTest(keras_parameterized.TestCase):
         keras.layers.Dense(3, activation='relu',
                            kernel_initializer='ones'),
         keras.layers.Dense(2, activation='softmax', kernel_initializer='ones')]
-    model = testing_utils.get_model_from_layers(layers, input_shape=(4,))
+    model = test_utils.get_model_from_layers(layers, input_shape=(4,))
     model.compile(
         loss='sparse_categorical_crossentropy',
         optimizer=rmsprop.RMSprop(learning_rate=0.001),
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     x = np.ones((100, 4), dtype=np.float32)
     np.random.seed(123)
     y = np.random.randint(0, 1, size=(100, 1))

@@ -20,9 +20,9 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras import regularizers
-from keras import testing_utils
+from keras.testing_infra import test_utils
 from keras.utils import np_utils
 
 
@@ -30,7 +30,7 @@ DATA_DIM = 5
 NUM_CLASSES = 2
 
 
-class KerasRegularizersTest(keras_parameterized.TestCase,
+class KerasRegularizersTest(test_combinations.TestCase,
                             parameterized.TestCase):
 
   def create_model(self, kernel_regularizer=None, activity_regularizer=None):
@@ -42,7 +42,7 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
     return model
 
   def get_data(self):
-    (x_train, y_train), (x_test, y_test) = testing_utils.get_test_data(
+    (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
         train_samples=10,
         test_samples=10,
         input_shape=(DATA_DIM,),
@@ -62,7 +62,7 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
     model.add_loss(tf.reduce_sum(input_1))
     return model
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   @parameterized.named_parameters([
       ('l1', regularizers.l1()),
       ('l2', regularizers.l2()),
@@ -74,11 +74,11 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
     model.compile(
         loss='categorical_crossentropy',
         optimizer='sgd',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     self.assertEqual(len(model.losses), 1)
     model.fit(x_train, y_train, batch_size=10, epochs=1, verbose=0)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   @parameterized.named_parameters([
       ('l1', regularizers.l1()),
       ('l2', regularizers.l2()),
@@ -91,22 +91,22 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
     model.compile(
         loss='categorical_crossentropy',
         optimizer='sgd',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     self.assertEqual(len(model.losses), 1 if tf.executing_eagerly() else 1)
     model.fit(x_train, y_train, batch_size=10, epochs=1, verbose=0)
 
-  @keras_parameterized.run_all_keras_modes
-  @keras_parameterized.run_with_all_model_types
+  @test_combinations.run_all_keras_modes
+  @test_combinations.run_with_all_model_types
   def test_zero_regularization(self):
     # Verifies that training with zero regularization works.
     x, y = np.ones((10, 10)), np.ones((10, 3))
-    model = testing_utils.get_model_from_layers(
+    model = test_utils.get_model_from_layers(
         [keras.layers.Dense(3, kernel_regularizer=keras.regularizers.l2(0))],
         input_shape=(10,))
     model.compile(
         'sgd',
         'mse',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     model.fit(x, y, batch_size=5, epochs=1)
 
   def test_custom_regularizer_saving(self):
@@ -121,7 +121,7 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
         model.get_config(), custom_objects={'my_regularizer': my_regularizer})
     self.assertEqual(model2.layers[1].kernel_regularizer, my_regularizer)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   @parameterized.named_parameters([
       ('l1', regularizers.l1()),
       ('l2', regularizers.l2()),
@@ -136,10 +136,10 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
     model.compile(
         loss='categorical_crossentropy',
         optimizer='sgd',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     self.assertLen(model.losses, 5)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   @parameterized.named_parameters([
       ('l1', regularizers.l1()),
       ('l2', regularizers.l2()),
@@ -158,10 +158,10 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
     model.compile(
         loss='categorical_crossentropy',
         optimizer='sgd',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
     self.assertLen(model.losses, 6)
 
-  @keras_parameterized.run_all_keras_modes
+  @test_combinations.run_all_keras_modes
   @parameterized.named_parameters([
       ('l1', regularizers.l1()),
       ('l2', regularizers.l2()),
@@ -185,7 +185,7 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
     model.compile(
         loss='categorical_crossentropy',
         optimizer='sgd',
-        run_eagerly=testing_utils.should_run_eagerly())
+        run_eagerly=test_utils.should_run_eagerly())
 
     # We expect to see 9 losses on the model:
     # - 2 from the 2 add_loss calls on the outer model.
@@ -209,6 +209,68 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
       self.assertAllClose(regularizer.l1, expected_value)
     if hasattr(regularizer, 'l2'):
       self.assertAllClose(regularizer.l2, expected_value)
+
+  @test_utils.run_v2_only
+  def test_orthogonal_regularizer(self):
+    # Test correctness.
+    factor = 0.1
+    reg_rows = regularizers.OrthogonalRegularizer(factor=factor, mode='rows')
+    reg_cols = regularizers.OrthogonalRegularizer(factor=factor, mode='columns')
+
+    # Test with square matrix
+    inputs = tf.constant([[1, 1, 1, 1],
+                          [2, 0, 0, 0],
+                          [0, 0, 3, 1]], dtype='float32')
+    normalized_rows = tf.math.l2_normalize(inputs, axis=1)
+    normalized_cols = tf.math.l2_normalize(inputs, axis=0)
+    rows_pairs = [
+        tf.reduce_sum(normalized_rows[0] * normalized_rows[1]),
+        tf.reduce_sum(normalized_rows[0] * normalized_rows[2]),
+        tf.reduce_sum(normalized_rows[1] * normalized_rows[2]),
+    ]
+    col_pairs = [
+        tf.reduce_sum(normalized_cols[:, 0] * normalized_cols[:, 1]),
+        tf.reduce_sum(normalized_cols[:, 0] * normalized_cols[:, 2]),
+        tf.reduce_sum(normalized_cols[:, 0] * normalized_cols[:, 3]),
+        tf.reduce_sum(normalized_cols[:, 1] * normalized_cols[:, 2]),
+        tf.reduce_sum(normalized_cols[:, 1] * normalized_cols[:, 3]),
+        tf.reduce_sum(normalized_cols[:, 2] * normalized_cols[:, 3]),
+    ]
+    num_row_pairs = 3
+    num_col_pairs = 6
+    # Expected: factor * sum(pairwise_dot_products_of_rows) / num_row_pairs
+    self.assertAllClose(reg_rows(inputs),
+                        factor * sum(rows_pairs) / num_row_pairs)
+    # Expected: factor * sum(pairwise_dot_products_of_columns) / num_col_pairs
+    self.assertAllClose(reg_cols(inputs),
+                        factor * sum(col_pairs) / num_col_pairs)
+
+    # Test incorrect usage.
+    with self.assertRaisesRegex(ValueError, 'must have rank 2'):
+      reg_rows(tf.constant([1, 1], dtype='float32'))
+
+    # Test serialization
+    self.assertDictEqual(reg_cols.get_config(),
+                         {'factor': factor, 'mode': 'columns'})
+
+    # Test usage in model.
+    model_inputs = keras.Input((3,))
+    model_outputs = keras.layers.Dense(
+        4, kernel_regularizer=reg_rows)(model_inputs)
+    model = keras.Model(model_inputs, model_outputs)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.fit(np.random.random((16, 3)), np.random.random((16, 4)), epochs=1)
+
+    # Test serialization and deserialiation as part of model.
+    inputs = tf.constant([[1, 1, 1],
+                          [2, 0, 0],
+                          [0, 0, 3]], dtype='float32')
+    outputs = model(inputs)
+    config = model.get_config()
+    weights = model.get_weights()
+    model = keras.Model.from_config(config)
+    model.set_weights(weights)
+    self.assertAllClose(model(inputs), outputs, atol=1e-5)
 
 
 if __name__ == '__main__':

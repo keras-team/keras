@@ -17,16 +17,16 @@
 
 from absl.testing import parameterized
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 
 
-@keras_parameterized.run_all_keras_modes
-class Conv1DTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class Conv1DTest(test_combinations.TestCase):
 
   def _run_test(self, kwargs, expected_output_shape):
     num_samples = 2
@@ -34,7 +34,7 @@ class Conv1DTest(keras_parameterized.TestCase):
     length = 7
 
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Conv1D,
           kwargs=kwargs,
           input_shape=(num_samples, length, stack_size),
@@ -49,7 +49,7 @@ class Conv1DTest(keras_parameterized.TestCase):
       if expected_output_shape is not None:
         expected_output_shape = (None,) + expected_output_shape
 
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Conv1D,
           kwargs=kwargs,
           input_shape=batch_shape + (length, stack_size),
@@ -166,8 +166,8 @@ class Conv1DTest(keras_parameterized.TestCase):
       layer.build((None, 5, 2))
 
 
-@keras_parameterized.run_all_keras_modes
-class Conv2DTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class Conv2DTest(test_combinations.TestCase):
 
   def _run_test(self, kwargs, expected_output_shape, spatial_shape=(7, 6)):
     num_samples = 2
@@ -180,7 +180,7 @@ class Conv2DTest(keras_parameterized.TestCase):
       input_data = 10 * np.random.random(input_data_shape).astype(np.float32)
 
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Conv2D,
           kwargs=kwargs,
           input_shape=(num_samples, num_row, num_col, stack_size),
@@ -203,7 +203,7 @@ class Conv2DTest(keras_parameterized.TestCase):
     with self.cached_session():
       if expected_output_shape is not None:
         expected_output_shape = (None,) + expected_output_shape
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Conv2D,
           kwargs=kwargs,
           input_shape=batch_shape + (num_row, num_col, stack_size),
@@ -303,8 +303,8 @@ class Conv2DTest(keras_parameterized.TestCase):
       layer.build((None, 5, 5, 2))
 
 
-@keras_parameterized.run_all_keras_modes
-class Conv3DTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class Conv3DTest(test_combinations.TestCase):
 
   def _run_test(self, kwargs, expected_output_shape, validate_training=True):
     num_samples = 2
@@ -314,7 +314,7 @@ class Conv3DTest(keras_parameterized.TestCase):
     depth = 5
 
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Conv3D,
           kwargs=kwargs,
           input_shape=(num_samples, depth, num_row, num_col, stack_size),
@@ -335,7 +335,7 @@ class Conv3DTest(keras_parameterized.TestCase):
       if expected_output_shape is not None:
         expected_output_shape = (None,) + expected_output_shape
 
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Conv3D,
           kwargs=kwargs,
           input_shape=batch_shape + (depth, num_row, num_col, stack_size),
@@ -369,7 +369,7 @@ class Conv3DTest(keras_parameterized.TestCase):
     kwargs['filters'] = kwargs.get('filters', 2)
     kwargs['kernel_size'] = (3, 3, 3)
     # train_on_batch currently fails with XLA enabled on GPUs
-    test_training = 'groups' not in kwargs or not test_util.is_xla_enabled()
+    test_training = 'groups' not in kwargs or not tf_test_utils.is_xla_enabled()
     if not requires_gpu or tf.test.is_gpu_available(cuda_only=True):
       self._run_test(kwargs, expected_output_shape, test_training)
       self._run_test_extra_batch_dim(kwargs, expected_output_shape,
@@ -415,7 +415,7 @@ class Conv3DTest(keras_parameterized.TestCase):
     input_data = np.random.random((1, 3, 3, 3, 3)).astype(np.float32)
     with self.cached_session():
       # Won't raise error here.
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.Conv3D,
           kwargs={
               'data_format': 'channels_last',
@@ -425,7 +425,7 @@ class Conv3DTest(keras_parameterized.TestCase):
           input_shape=(None, None, None, None, 3),
           input_data=input_data)
       if tf.test.is_gpu_available(cuda_only=True):
-        testing_utils.layer_test(
+        test_utils.layer_test(
             keras.layers.Conv3D,
             kwargs={
                 'data_format': 'channels_first',
@@ -443,8 +443,8 @@ class Conv3DTest(keras_parameterized.TestCase):
       layer.build((None, 5, 5, 5, 2))
 
 
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class GroupedConvTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class GroupedConvTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
       ('Conv1D', keras.layers.Conv1D),
@@ -464,7 +464,7 @@ class GroupedConvTest(keras_parameterized.TestCase):
   )
   def test_group_conv(self, layer_cls, input_shape):
     if tf.test.is_gpu_available(cuda_only=True):
-      with testing_utils.use_gpu():
+      with test_utils.use_gpu():
         inputs = tf.random.uniform(shape=input_shape)
 
         layer = layer_cls(16, 3, groups=4, use_bias=False)
@@ -482,7 +482,7 @@ class GroupedConvTest(keras_parameterized.TestCase):
 
   def test_group_conv_depthwise(self):
     if tf.test.is_gpu_available(cuda_only=True):
-      with testing_utils.use_gpu():
+      with test_utils.use_gpu():
         inputs = tf.random.uniform(shape=(3, 27, 27, 32))
 
         layer = keras.layers.Conv2D(32, 3, groups=32, use_bias=False)
@@ -495,8 +495,8 @@ class GroupedConvTest(keras_parameterized.TestCase):
         self.assertAllClose(layer(inputs), expected_outputs, rtol=1e-5)
 
 
-@keras_parameterized.run_all_keras_modes
-class ConvSequentialTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ConvSequentialTest(test_combinations.TestCase):
 
   def _run_test(self, conv_layer_cls, kwargs, input_shape1, input_shape2,
                 expected_output_shape1, expected_output_shape2):

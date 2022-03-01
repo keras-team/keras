@@ -20,8 +20,8 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class LayerWithLosses(keras.layers.Layer):
@@ -61,9 +61,9 @@ class LayerWithTrainingArg(keras.layers.Layer):
 
 
 def add_loss_step(defun):
-  optimizer = keras.optimizer_v2.adam.Adam()
-  model = testing_utils.get_model_from_layers([LayerWithLosses()],
-                                              input_shape=(10,))
+  optimizer = keras.optimizers.optimizer_v2.adam.Adam()
+  model = test_utils.get_model_from_layers([LayerWithLosses()],
+                                           input_shape=(10,))
 
   def train_step(x):
     with tf.GradientTape() as tape:
@@ -82,12 +82,11 @@ def add_loss_step(defun):
 
 
 def batch_norm_step(defun):
-  optimizer = keras.optimizer_v2.adadelta.Adadelta()
-  model = testing_utils.get_model_from_layers([
+  optimizer = keras.optimizers.optimizer_v2.adadelta.Adadelta()
+  model = test_utils.get_model_from_layers([
       keras.layers.BatchNormalization(momentum=0.9),
       keras.layers.Dense(1, kernel_initializer='zeros', activation='softmax')
-  ],
-                                              input_shape=(10,))
+  ], input_shape=(10,))
 
   def train_step(x, y):
     with tf.GradientTape() as tape:
@@ -105,12 +104,11 @@ def batch_norm_step(defun):
 
 
 def add_metric_step(defun):
-  optimizer = keras.optimizer_v2.rmsprop.RMSprop()
-  model = testing_utils.get_model_from_layers([
+  optimizer = keras.optimizers.optimizer_v2.rmsprop.RMSprop()
+  model = test_utils.get_model_from_layers([
       LayerWithMetrics(),
       keras.layers.Dense(1, kernel_initializer='zeros', activation='softmax')
-  ],
-                                              input_shape=(10,))
+  ], input_shape=(10,))
 
   def train_step(x, y):
     with tf.GradientTape() as tape:
@@ -133,8 +131,8 @@ def add_metric_step(defun):
   return metrics
 
 
-@keras_parameterized.run_with_all_model_types
-class CustomTrainingLoopTest(keras_parameterized.TestCase):
+@test_combinations.run_with_all_model_types
+class CustomTrainingLoopTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(('add_loss_step', add_loss_step),
                                   ('add_metric_step', add_metric_step),
@@ -147,8 +145,8 @@ class CustomTrainingLoopTest(keras_parameterized.TestCase):
   @parameterized.named_parameters(('eager', False), ('defun', True))
   def test_training_arg_propagation(self, defun):
 
-    model = testing_utils.get_model_from_layers([LayerWithTrainingArg()],
-                                                input_shape=(1,))
+    model = test_utils.get_model_from_layers([LayerWithTrainingArg()],
+                                             input_shape=(1,))
 
     def train_step(x):
       return model(x), model(x, training=False), model(x, training=True)

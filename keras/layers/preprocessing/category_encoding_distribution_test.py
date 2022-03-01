@@ -18,14 +18,14 @@
 
 import keras
 from keras import backend
-from keras import keras_parameterized
-from keras import testing_utils
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import preprocessing_test_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 
 
 def batch_wrapper(dataset, batch_size, strategy, repeat=None):
@@ -39,7 +39,7 @@ def batch_wrapper(dataset, batch_size, strategy, repeat=None):
     return dataset.batch(batch_size)
 
 
-@testing_utils.run_v2_only
+@test_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
@@ -48,12 +48,12 @@ def batch_wrapper(dataset, batch_size, strategy, repeat=None):
         strategy_combinations.parameter_server_strategies_multi_worker,
         mode=["eager"]))
 class CategoryEncodingDistributionTest(
-    keras_parameterized.TestCase,
+    test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_strategy(self, strategy):
     if (backend.is_tpu_strategy(strategy) and
-        not test_util.is_mlir_bridge_enabled()):
+        not tf_test_utils.is_mlir_bridge_enabled()):
       self.skipTest("TPU tests require MLIR bridge")
 
     input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])

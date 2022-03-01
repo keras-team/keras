@@ -25,18 +25,19 @@ import copy
 from absl.testing import parameterized
 import numpy as np
 from keras import backend
-from keras import combinations
+from keras.testing_infra import test_combinations
 from keras.engine import base_layer as keras_base_layer
 from keras.engine import input_spec
-from keras.legacy_tf_layers import base as base_layers
-from keras.legacy_tf_layers import core as core_layers
+from keras.legacy_tf_layers import base as base_tf_layers
+from keras.legacy_tf_layers import core as core_tf_layers
 
 
 class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testLayerProperties(self):
-    layer = base_layers.Layer(name='my_layer')
+    layer = base_tf_layers.Layer(name='my_layer')
     self.assertEqual(layer.variables, [])
     self.assertEqual(layer.trainable_variables, [])
     self.assertEqual(layer.non_trainable_variables, [])
@@ -45,7 +46,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(layer.updates, [])
       self.assertEqual(layer.losses, [])
     self.assertEqual(layer.built, False)
-    layer = base_layers.Layer(name='my_layer', trainable=False)
+    layer = base_tf_layers.Layer(name='my_layer', trainable=False)
     self.assertEqual(layer.trainable, False)
 
     # Assert that the layer was not instrumented as a Keras layer
@@ -56,43 +57,46 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
         keras_base_layer.keras_api_gauge.get_cell('legacy_layer').value())
     keras_base_layer.keras_api_gauge.get_cell('legacy_layer').set(False)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInt64Layer(self):
-    layer = base_layers.Layer(name='my_layer', dtype='int64')
-    layer.add_variable('my_var', [2, 2])
+    layer = base_tf_layers.Layer(name='my_layer', dtype='int64')
+    layer.add_weight('my_var', [2, 2])
     self.assertEqual(layer.name, 'my_layer')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testKerasStyleAddWeight(self):
     keras_layer = keras_base_layer.Layer(name='keras_layer')
     with backend.name_scope('foo'):
-      keras_variable = keras_layer.add_variable(
+      keras_variable = keras_layer.add_weight(
           'my_var', [2, 2], initializer=tf.compat.v1.zeros_initializer())
     self.assertEqual(keras_variable.name, 'foo/my_var:0')
 
     with backend.name_scope('baz'):
-      old_style_layer = base_layers.Layer(name='my_layer')
+      old_style_layer = base_tf_layers.Layer(name='my_layer')
       # Test basic variable creation.
-      variable = old_style_layer.add_variable(
+      variable = old_style_layer.add_weight(
           'my_var', [2, 2], initializer=tf.compat.v1.zeros_initializer())
     self.assertEqual(variable.name, 'my_layer/my_var:0')
 
-    with base_layers.keras_style_scope():
-      layer = base_layers.Layer(name='my_layer')
+    with base_tf_layers.keras_style_scope():
+      layer = base_tf_layers.Layer(name='my_layer')
     # Assert that the layer was not instrumented as a Keras layer
     self.assertFalse(layer._instrumented_keras_api)
     # Test basic variable creation.
     with backend.name_scope('bar'):
-      variable = layer.add_variable(
+      variable = layer.add_weight(
           'my_var', [2, 2], initializer=tf.compat.v1.zeros_initializer())
     self.assertEqual(variable.name, 'bar/my_var:0')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testAddWeight(self):
-    layer = base_layers.Layer(name='my_layer')
+    layer = base_tf_layers.Layer(name='my_layer')
 
     # Test basic variable creation.
-    variable = layer.add_variable(
+    variable = layer.add_weight(
         'my_var', [2, 2], initializer=tf.compat.v1.zeros_initializer())
     self.assertEqual(variable.name, 'my_layer/my_var:0')
     self.assertEqual(layer.variables, [variable])
@@ -105,7 +109,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     # Test non-trainable variable creation.
     # layer.add_variable should work even outside `build` and `call`.
-    variable_2 = layer.add_variable(
+    variable_2 = layer.add_weight(
         'non_trainable_var', [2, 2],
         initializer=tf.compat.v1.zeros_initializer(),
         trainable=False)
@@ -118,7 +122,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
           len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)), 1)
 
     regularizer = lambda x: tf.reduce_sum(x) * 1e-3
-    _ = layer.add_variable(
+    _ = layer.add_weight(
         'reg_var', [2, 2],
         initializer=tf.compat.v1.zeros_initializer(),
         regularizer=regularizer)
@@ -127,7 +131,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     added_variable = [False]
 
     # Test that sync `ON_READ` variables are defaulted to be non-trainable.
-    variable_3 = layer.add_variable(
+    variable_3 = layer.add_weight(
         'sync_on_read_var', [2, 2],
         initializer=tf.compat.v1.zeros_initializer(),
         synchronization=tf.VariableSynchronization.ON_READ,
@@ -137,7 +141,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     @tf.function
     def function_adds_weight():
       if not added_variable[0]:
-        layer.add_variable(
+        layer.add_weight(
             'reg_var_from_function', [2, 2],
             initializer=tf.compat.v1.zeros_initializer(),
             regularizer=regularizer)
@@ -147,14 +151,14 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(len(layer.losses), 2)
 
   def testInvalidTrainableSynchronizationCombination(self):
-    layer = base_layers.Layer(name='my_layer')
+    layer = base_tf_layers.Layer(name='my_layer')
 
     with self.assertRaisesRegex(
         ValueError, 'Synchronization value can be set to '
         'VariableSynchronization.ON_READ only for non-trainable variables. '
         'You have specified trainable=True and '
         'synchronization=VariableSynchronization.ON_READ.'):
-      _ = layer.add_variable(
+      _ = layer.add_weight(
           'v', [2, 2],
           initializer=tf.compat.v1.zeros_initializer(),
           synchronization=tf.VariableSynchronization.ON_READ,
@@ -169,34 +173,37 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
             tf.compat.v1.get_variable_scope(),
             partitioner=partitioner,
             reuse=reuse):
-          layer = base_layers.Layer(name='my_layer')
-          _ = layer.add_variable(
+          layer = base_tf_layers.Layer(name='my_layer')
+          _ = layer.add_weight(
               'reg_part_var', [4, 4],
               initializer=tf.compat.v1.zeros_initializer(),
               regularizer=regularizer)
       self.assertEqual(
-          len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)), 3)
+          len(tf.compat.v1.get_collection(
+              tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)), 3)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testCall(self):
 
-    class MyLayer(base_layers.Layer):
+    class MyLayer(base_tf_layers.Layer):
 
       def call(self, inputs):
         return tf.square(inputs)
 
     layer = MyLayer(name='my_layer')
     inputs = tf.random.uniform((5,), seed=1)
-    outputs = layer.apply(inputs)
+    outputs = layer(inputs)
     self.assertEqual(layer.built, True)
     if not tf.executing_eagerly():
       # op is only supported in GRAPH mode
       self.assertEqual(outputs.op.name, 'my_layer/Square')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testDeepCopy(self):
 
-    class MyLayer(base_layers.Layer):
+    class MyLayer(base_tf_layers.Layer):
 
       def call(self, inputs):
         return tf.square(inputs)
@@ -204,7 +211,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     layer = MyLayer(name='my_layer')
     layer._private_tensor = tf.random.uniform(())
     inputs = tf.random.uniform((5,), seed=1)
-    outputs = layer.apply(inputs)
+    outputs = layer(inputs)
     self.assertEqual(layer.built, True)
     if not tf.executing_eagerly():
       # op only supported in GRAPH mode.
@@ -215,58 +222,60 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(layer_copy._scope.name, layer._scope.name)
     self.assertEqual(layer_copy._private_tensor, layer._private_tensor)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testScopeNaming(self):
 
-    class PrivateLayer(base_layers.Layer):
+    class PrivateLayer(base_tf_layers.Layer):
 
       def call(self, inputs):
         return inputs
 
     inputs = tf.random.uniform((5,))
     default_layer = PrivateLayer()
-    _ = default_layer.apply(inputs)
+    _ = default_layer(inputs)
     self.assertEqual(default_layer._scope.name, 'private_layer')
     default_layer1 = PrivateLayer()
-    default_layer1.apply(inputs)
+    default_layer1(inputs)
     self.assertEqual(default_layer1._scope.name, 'private_layer_1')
     my_layer = PrivateLayer(name='my_layer')
-    my_layer.apply(inputs)
+    my_layer(inputs)
     self.assertEqual(my_layer._scope.name, 'my_layer')
     my_layer1 = PrivateLayer(name='my_layer')
-    my_layer1.apply(inputs)
+    my_layer1(inputs)
     self.assertEqual(my_layer1._scope.name, 'my_layer_1')
     my_layer2 = PrivateLayer(name='my_layer')
-    my_layer2.apply(inputs)
+    my_layer2(inputs)
     self.assertEqual(my_layer2._scope.name, 'my_layer_2')
     # Name scope shouldn't affect names.
     with backend.name_scope('some_name_scope'):
       default_layer2 = PrivateLayer()
-      default_layer2.apply(inputs)
+      default_layer2(inputs)
       self.assertEqual(default_layer2._scope.name, 'private_layer_2')
       my_layer3 = PrivateLayer(name='my_layer')
-      my_layer3.apply(inputs)
+      my_layer3(inputs)
       self.assertEqual(my_layer3._scope.name, 'my_layer_3')
       other_layer = PrivateLayer(name='other_layer')
-      other_layer.apply(inputs)
+      other_layer(inputs)
       self.assertEqual(other_layer._scope.name, 'other_layer')
     # Variable scope gets added to scope names.
     with tf.compat.v1.variable_scope('var_scope'):
       default_layer_scoped = PrivateLayer()
-      default_layer_scoped.apply(inputs)
+      default_layer_scoped(inputs)
       self.assertEqual(default_layer_scoped._scope.name,
                        'var_scope/private_layer')
       my_layer_scoped = PrivateLayer(name='my_layer')
-      my_layer_scoped.apply(inputs)
+      my_layer_scoped(inputs)
       self.assertEqual(my_layer_scoped._scope.name, 'var_scope/my_layer')
       my_layer_scoped1 = PrivateLayer(name='my_layer')
-      my_layer_scoped1.apply(inputs)
+      my_layer_scoped1(inputs)
       self.assertEqual(my_layer_scoped1._scope.name, 'var_scope/my_layer_1')
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecNdimCheck(self):
 
-    class CustomerLayer(base_layers.Layer):
+    class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
         super(CustomerLayer, self).__init__()
@@ -277,18 +286,19 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     layer = CustomerLayer()
     with self.assertRaisesRegex(ValueError, r'expected ndim=2'):
-      layer.apply(tf.constant([1]))
+      layer(tf.constant([1]))
 
     # Note that we re-create the layer since in Eager mode, input spec checks
     # only happen on first call.
     # Works
     layer = CustomerLayer()
-    layer.apply(tf.constant([[1], [2]]))
+    layer(tf.constant([[1], [2]]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecMinNdimCheck(self):
 
-    class CustomLayer(base_layers.Layer):
+    class CustomLayer(base_tf_layers.Layer):
 
       def __init__(self):
         super(CustomLayer, self).__init__()
@@ -299,19 +309,20 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     layer = CustomLayer()
     with self.assertRaisesRegex(ValueError, r'expected min_ndim=2'):
-      layer.apply(tf.constant([1]))
+      layer(tf.constant([1]))
 
     # Works
     layer = CustomLayer()
-    layer.apply(tf.constant([[1], [2]]))
+    layer(tf.constant([[1], [2]]))
 
     layer = CustomLayer()
-    layer.apply(tf.constant([[[1], [2]]]))
+    layer(tf.constant([[[1], [2]]]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecMaxNdimCheck(self):
 
-    class CustomerLayer(base_layers.Layer):
+    class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
         super(CustomerLayer, self).__init__()
@@ -322,19 +333,20 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     layer = CustomerLayer()
     with self.assertRaisesRegex(ValueError, r'expected max_ndim=2'):
-      layer.apply(tf.constant([[[1], [2]]]))
+      layer(tf.constant([[[1], [2]]]))
 
     # Works
     layer = CustomerLayer()
-    layer.apply(tf.constant([1]))
+    layer(tf.constant([1]))
 
     layer = CustomerLayer()
-    layer.apply(tf.constant([[1], [2]]))
+    layer(tf.constant([[1], [2]]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecDtypeCheck(self):
 
-    class CustomerLayer(base_layers.Layer):
+    class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
         super(CustomerLayer, self).__init__()
@@ -345,16 +357,17 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     layer = CustomerLayer()
     with self.assertRaisesRegex(ValueError, r'expected dtype=float32'):
-      layer.apply(tf.constant(1, dtype=tf.int32))
+      layer(tf.constant(1, dtype=tf.int32))
 
     # Works
     layer = CustomerLayer()
-    layer.apply(tf.constant(1.0, dtype=tf.float32))
+    layer(tf.constant(1.0, dtype=tf.float32))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecAxesCheck(self):
 
-    class CustomerLayer(base_layers.Layer):
+    class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
         super(CustomerLayer, self).__init__()
@@ -365,18 +378,19 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     layer = CustomerLayer()
     with self.assertRaisesRegex(ValueError, r'expected axis'):
-      layer.apply(tf.constant([1, 2, 3]))
+      layer(tf.constant([1, 2, 3]))
 
     # Works
     layer = CustomerLayer()
-    layer.apply(tf.constant([1, 2]))
+    layer(tf.constant([1, 2]))
     layer = CustomerLayer()
-    layer.apply(tf.constant([[1, 2], [3, 4], [5, 6]]))
+    layer(tf.constant([[1, 2], [3, 4], [5, 6]]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testInputSpecShapeCheck(self):
 
-    class CustomerLayer(base_layers.Layer):
+    class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
         super(CustomerLayer, self).__init__()
@@ -387,16 +401,17 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     layer = CustomerLayer()
     with self.assertRaisesRegex(ValueError, r'expected shape'):
-      layer.apply(tf.constant([[1, 2]]))
+      layer(tf.constant([[1, 2]]))
 
     # Works
     layer = CustomerLayer()
-    layer.apply(tf.constant([[1, 2, 3], [4, 5, 6]]))
+    layer(tf.constant([[1, 2, 3], [4, 5, 6]]))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testNoInputSpec(self):
 
-    class CustomerLayer(base_layers.Layer):
+    class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
         super(CustomerLayer, self).__init__()
@@ -407,27 +422,29 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     layer = CustomerLayer()
 
-    layer.apply(tf.constant(1))
+    layer(tf.constant(1))
 
     # Works
     if not tf.executing_eagerly():
-      layer.apply(tf.compat.v1.placeholder('int32'))
-      layer.apply(tf.compat.v1.placeholder('int32', shape=(2, 3)))
+      layer(tf.compat.v1.placeholder('int32'))
+      layer(tf.compat.v1.placeholder('int32', shape=(2, 3)))
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_count_params(self):
-    dense = core_layers.Dense(16)
+    dense = core_tf_layers.Dense(16)
     dense.build((None, 4))
     self.assertEqual(dense.count_params(), 16 * 4 + 16)
 
-    dense = core_layers.Dense(16)
+    dense = core_tf_layers.Dense(16)
     with self.assertRaises(ValueError):
       dense.count_params()
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def testDictInputOutput(self):
 
-    class DictLayer(base_layers.Layer):
+    class DictLayer(base_tf_layers.Layer):
 
       def call(self, inputs):
         return {'l' + key: inputs[key] for key in inputs}
@@ -436,7 +453,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     if tf.executing_eagerly():
       i1 = tf.constant(3)
       i2 = tf.constant(4.0)
-      result = layer.apply({'abel': i1, 'ogits': i2})
+      result = layer({'abel': i1, 'ogits': i2})
       self.assertTrue(isinstance(result, dict))
       self.assertEqual(set(['label', 'logits']), set(result.keys()))
       self.assertEqual(3, result['label'].numpy())
@@ -444,25 +461,25 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     else:
       i1 = tf.compat.v1.placeholder('int32')
       i2 = tf.compat.v1.placeholder('float32')
-      result = layer.apply({'abel': i1, 'ogits': i2})
+      result = layer({'abel': i1, 'ogits': i2})
       self.assertTrue(isinstance(result, dict))
       self.assertEqual(set(['label', 'logits']), set(result.keys()))
 
   def testActivityRegularizer(self):
     with tf.Graph().as_default():
       regularizer = tf.reduce_sum
-      layer = base_layers.Layer(activity_regularizer=regularizer)
+      layer = base_tf_layers.Layer(activity_regularizer=regularizer)
       x = tf.compat.v1.placeholder('int32')
-      layer.apply(x)
+      layer(x)
       self.assertEqual(len(layer.get_losses_for(x)), 1)
 
   def testNameScopeIsConsistentWithVariableScope(self):
     # Github issue 13429.
 
-    class MyLayer(base_layers.Layer):
+    class MyLayer(base_tf_layers.Layer):
 
       def build(self, input_shape):
-        self.my_var = self.add_variable('my_var', (), tf.float32)
+        self.my_var = self.add_weight('my_var', (), tf.float32)
         self.built = True
 
       def call(self, inputs):
@@ -470,7 +487,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     def _gen_layer(x, name=None):
       layer = MyLayer(name=name)
-      out = layer.apply(x)
+      out = layer(x)
       return layer, out
 
     # unnamed layer
@@ -514,10 +531,10 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(op2.name, 'name_3/my_op:0')
 
   def testVariablesAreLiftedFromFunctionBuildingGraphs(self):
-    class MyLayer(base_layers.Layer):
+    class MyLayer(base_tf_layers.Layer):
 
       def build(self, input_shape):
-        self.my_var = self.add_variable('my_var', (), tf.float32)
+        self.my_var = self.add_weight('my_var', (), tf.float32)
         self.built = True
 
       def call(self, inputs):
@@ -532,37 +549,37 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
         # Create a variable by invoking build through __call__ and assert that
         # it is both tracked and lifted into the outer graph.
         inputs = tf.compat.v1.placeholder(tf.float32, (), 'inputs')
-        layer.apply(inputs)
+        layer(inputs)
         self.assertEqual(len(layer.variables), 1)
         self.assertEqual(len(layer.trainable_variables), 1)
         self.assertEqual(layer.variables[0].graph, outer_graph)
 
   def testGetUpdateFor(self):
 
-    class MyLayer(base_layers.Layer):
+    class MyLayer(base_tf_layers.Layer):
 
       def build(self, input_shape):
-        self.a = self.add_variable('a',
-                                   (),
-                                   tf.float32,
-                                   trainable=False)
-        self.b = self.add_variable('b',
-                                   (),
-                                   tf.float32,
-                                   trainable=False)
+        self.a = self.add_weight('a',
+                                 (),
+                                 tf.float32,
+                                 trainable=False)
+        self.b = self.add_weight('b',
+                                 (),
+                                 tf.float32,
+                                 trainable=False)
         self.add_update(tf.compat.v1.assign_add(self.a, 1., name='b_update'))
         self.built = True
 
       def call(self, inputs):
-        self.add_update(tf.compat.v1.assign_add(self.a, inputs, name='a_update'),
-                        inputs=True)
+        self.add_update(
+            tf.compat.v1.assign_add(self.a, inputs, name='a_update'))
         return inputs + 1
 
     with tf.Graph().as_default():
       layer = MyLayer()
       inputs = tf.compat.v1.placeholder(tf.float32, (), 'inputs')
       intermediate_inputs = inputs + 1
-      outputs = layer.apply(intermediate_inputs)
+      outputs = layer(intermediate_inputs)
 
       self.assertEqual(len(layer.updates), 2)
       self.assertEqual(len(layer.get_updates_for(None)), 1)
@@ -573,7 +590,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
       # Call same layer on new input, creating one more conditional update
       inputs = tf.compat.v1.placeholder(tf.float32, (), 'inputs')
       intermediate_inputs = inputs + 1
-      outputs = layer.apply(intermediate_inputs)
+      outputs = layer(intermediate_inputs)
 
       self.assertEqual(len(layer.updates), 3)
       self.assertEqual(len(layer.get_updates_for(None)), 1)
@@ -584,17 +601,17 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
 
   def testGetLossesFor(self):
 
-    class MyLayer(base_layers.Layer):
+    class MyLayer(base_tf_layers.Layer):
 
       def build(self, input_shape):
-        self.a = self.add_variable('a',
-                                   (),
-                                   tf.float32,
-                                   trainable=False)
-        self.b = self.add_variable('b',
-                                   (),
-                                   tf.float32,
-                                   trainable=False)
+        self.a = self.add_weight('a',
+                                 (),
+                                 tf.float32,
+                                 trainable=False)
+        self.b = self.add_weight('b',
+                                 (),
+                                 tf.float32,
+                                 trainable=False)
         self.add_loss(self.a)
         self.built = True
 
@@ -606,7 +623,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
       layer = MyLayer()
       inputs = tf.compat.v1.placeholder(tf.float32, (), 'inputs')
       intermediate_inputs = inputs + 1
-      outputs = layer.apply(intermediate_inputs)
+      outputs = layer(intermediate_inputs)
 
       self.assertEqual(len(layer.losses), 2)
       self.assertEqual(len(layer.get_losses_for(None)), 1)
@@ -617,7 +634,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
       # Call same layer on new input, creating one more conditional loss
       inputs = tf.compat.v1.placeholder(tf.float32, (), 'inputs')
       intermediate_inputs = inputs + 1
-      outputs = layer.apply(intermediate_inputs)
+      outputs = layer(intermediate_inputs)
 
       self.assertEqual(len(layer.losses), 3)
       self.assertEqual(len(layer.get_losses_for(None)), 1)
@@ -627,14 +644,14 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(len(layer.get_losses_for([outputs])), 0)
 
 
-class IdentityLayer(base_layers.Layer):
+class IdentityLayer(base_tf_layers.Layer):
   """A layer returns the identity of it's input."""
 
   def call(self, inputs):
     return inputs
 
 
-@combinations.generate(combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class DTypeTest(tf.test.TestCase, parameterized.TestCase):
 
   def _const(self, dtype):

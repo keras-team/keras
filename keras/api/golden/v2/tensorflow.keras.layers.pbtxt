@@ -361,6 +361,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "RandomBrightness"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "RandomContrast"
     mtype: "<type \'type\'>"
   }

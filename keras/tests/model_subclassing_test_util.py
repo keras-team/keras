@@ -15,7 +15,7 @@
 """Keras models for use in Model subclassing tests."""
 
 import keras
-from keras import testing_utils
+from keras.testing_infra import test_utils
 
 
 # pylint: disable=missing-docstring,not-callable
@@ -49,7 +49,7 @@ def get_multi_io_subclass_model(use_bn=False, use_dp=False, num_classes=(2, 3)):
   branch_b.append(keras.layers.Dense(num_classes[1], activation='softmax'))
 
   model = (
-      testing_utils._MultiIOSubclassModel(   # pylint: disable=protected-access
+      test_utils._MultiIOSubclassModel(   # pylint: disable=protected-access
           branch_a, branch_b, name='test_model'))
   return model
 
@@ -64,7 +64,7 @@ class NestedTestModel1(keras.Model):
     self.dense1 = keras.layers.Dense(32, activation='relu')
     self.dense2 = keras.layers.Dense(num_classes, activation='relu')
     self.bn = keras.layers.BatchNormalization()
-    self.test_net = testing_utils.SmallSubclassMLP(
+    self.test_net = test_utils.SmallSubclassMLP(
         num_hidden=32, num_classes=4, use_bn=True, use_dp=True)
 
   def call(self, inputs):

@@ -17,15 +17,14 @@
 import tensorflow.compat.v2 as tf
 
 import os
-from keras import combinations
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.mixed_precision import loss_scale_optimizer as loss_scale_optimizer_v2
 from keras.mixed_precision import policy
-from keras.optimizer_v2 import gradient_descent as gradient_descent_v2
+from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_v2
 
 
-class MixedPrecisionTest(keras_parameterized.TestCase):
+class MixedPrecisionTest(test_combinations.TestCase):
 
   IGNORE_PERF_VAR = 'TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_IGNORE_PERFORMANCE'
 
@@ -46,18 +45,85 @@ class MixedPrecisionTest(keras_parameterized.TestCase):
     tf.compat.v1.mixed_precision.disable_mixed_precision_graph_rewrite()
     super(MixedPrecisionTest, self).tearDown()
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
-  def test_wrap_optimizer(self):
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
+  def test_wrap_optimizer_fixed_loss_scale(self):
     opt = gradient_descent_v2.SGD(1.0)
-    opt = tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(opt, 123.)
-    self.assertIsInstance(
-        opt, loss_scale_optimizer_v2.LossScaleOptimizerV1)
+    opt = tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+        opt, 123)
+    self.assertIsInstance(opt, loss_scale_optimizer_v2.LossScaleOptimizer)
+    self.evaluate(tf.compat.v1.global_variables_initializer())
     self.assertEqual(self.evaluate(opt.loss_scale), 123.)
+    self.assertFalse(opt.dynamic)
+    self.assertTrue(opt.initial_scale, 123.)
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+    opt = gradient_descent_v2.SGD(1.0)
+    opt = tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+        opt, tf.compat.v1.mixed_precision.FixedLossScale(123))
+    self.assertIsInstance(opt, loss_scale_optimizer_v2.LossScaleOptimizer)
+    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.assertEqual(self.evaluate(opt.loss_scale), 123.)
+    self.assertFalse(opt.dynamic)
+    self.assertTrue(opt.initial_scale, 123.)
+
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
+  def test_wrap_optimizer_dynamic_loss_scale(self):
+    opt = gradient_descent_v2.SGD(1.0)
+    opt = tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+        opt, 'dynamic')
+    self.assertIsInstance(opt, loss_scale_optimizer_v2.LossScaleOptimizer)
+    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.assertEqual(self.evaluate(opt.loss_scale), 2. ** 15)
+    self.assertTrue(opt.dynamic)
+    self.assertTrue(opt.initial_scale, 2. ** 15)
+    self.assertTrue(opt.dynamic_growth_steps, 2000)
+
+    opt = gradient_descent_v2.SGD(1.0)
+    opt = tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+        opt, tf.compat.v1.mixed_precision.DynamicLossScale(
+            initial_loss_scale=4, increment_period=1000))
+    self.assertIsInstance(opt, loss_scale_optimizer_v2.LossScaleOptimizer)
+    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.assertEqual(self.evaluate(opt.loss_scale), 4.)
+    self.assertTrue(opt.dynamic)
+    self.assertTrue(opt.initial_scale, 4.)
+    self.assertTrue(opt.dynamic_growth_steps, 1000)
+
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
+  def test_wrap_optimizer_dynamic_loss_scale_errors(self):
+
+    opt = gradient_descent_v2.SGD(1.0)
+    with self.assertRaisesRegex(
+        ValueError, 'When passing a DynamicLossScale to "loss_scale", '
+                    'DynamicLossScale.multiplier must be 2. Got: '
+                    'DynamicLossScale'):
+      tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+          opt, tf.compat.v1.mixed_precision.DynamicLossScale(multiplier=4.))
+
+    class MyLossScale(tf.compat.v1.mixed_precision.LossScale):
+
+      def __call__(self):
+        return 1.
+
+      def update(self, grads):
+        return None, True
+
+      def get_config(self):
+        return {}
+
+    with self.assertRaisesRegex(
+        TypeError, 'Passing a LossScale that is not a FixedLossScale or a '
+                   'DynamicLossScale is not supported. Got:'):
+      tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+          opt, MyLossScale())
+
+  @test_combinations.generate(
+      test_combinations.combine(mode=['graph', 'eager']))
   def test_optimizer_errors(self):
     opt = gradient_descent_v2.SGD(1.0)
-    opt = loss_scale_optimizer_v2.LossScaleOptimizerV1(opt, 'dynamic')
+    opt = loss_scale_optimizer_v2.LossScaleOptimizer(opt)
     with self.assertRaisesRegex(
         ValueError, '"opt" must not already be an instance of a '
         'LossScaleOptimizer.'):
@@ -65,7 +131,7 @@ class MixedPrecisionTest(keras_parameterized.TestCase):
     self.assertFalse(tf.config.optimizer.get_experimental_options()
                      .get('auto_mixed_precision', False))
 
-  @testing_utils.enable_v2_dtype_behavior
+  @test_utils.enable_v2_dtype_behavior
   def test_error_if_policy_is_set(self):
     with policy.policy_scope('mixed_float16'):
       with self.assertRaisesRegex(ValueError,

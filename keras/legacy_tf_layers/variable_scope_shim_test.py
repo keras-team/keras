@@ -22,7 +22,6 @@ import gc
 import threading
 
 from absl.testing import parameterized
-from keras import combinations
 from keras import models
 from keras import regularizers
 from keras.engine import base_layer
@@ -31,11 +30,12 @@ from keras.engine import training as training_module
 from keras.layers import core
 from keras.legacy_tf_layers import core as core_layers
 from keras.legacy_tf_layers import variable_scope_shim
+from keras.testing_infra import test_combinations
 
 import numpy
 import tensorflow as tf
 
-from tensorflow.python.framework import test_util   # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.ops import variable_scope   # pylint: disable=g-direct-tensorflow-import
 
 
@@ -68,7 +68,7 @@ class VariableScopeTest(tf.test.TestCase):
     # involving objects with __del__ defined.
     self.assertEqual(0, len(gc.garbage))
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testGetVar(self):
     vs = variable_scope._get_default_variable_store()
@@ -76,7 +76,7 @@ class VariableScopeTest(tf.test.TestCase):
     v1 = vs.get_variable("v", [1])
     self.assertIs(v, v1)
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testNameExists(self):
     vs = variable_scope._get_default_variable_store()
@@ -87,7 +87,7 @@ class VariableScopeTest(tf.test.TestCase):
 
     self.assertIsNot(v, vs.get_variable("u", [1], reuse=False))
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testNamelessStore(self):
     vs = variable_scope._get_default_variable_store()
@@ -100,7 +100,7 @@ class VariableScopeTest(tf.test.TestCase):
   # TODO(mihaimaruseac): Not converted to use wrap_function because of
   # TypeError: Expected tf.group() expected Tensor arguments not 'None' with
   # type '<type 'NoneType'>'
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   def testVarScopeInitializer(self):
     init = tf.compat.v1.constant_initializer(0.3)
     with tf.compat.v1.variable_scope("tower0") as tower:
@@ -113,7 +113,7 @@ class VariableScopeTest(tf.test.TestCase):
         self.evaluate(tf.compat.v1.variables_initializer([w]))
         self.assertAllClose(self.evaluate(w.value()), 0.3)
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarScopeConstraint(self):
     constraint = lambda x: 0. * x
@@ -125,7 +125,7 @@ class VariableScopeTest(tf.test.TestCase):
         w = tf.compat.v1.get_variable("w", [])
         self.assertIsNotNone(w.constraint)
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarScopeDType(self):
     with tf.compat.v1.variable_scope("tower2") as tower:
@@ -136,7 +136,7 @@ class VariableScopeTest(tf.test.TestCase):
         w = tf.compat.v1.get_variable("w", [])
         self.assertEqual(w.dtype.base_dtype, tf.float16)
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testInitFromNonTensorValue(self):
     v = tf.compat.v1.get_variable("v4", initializer=4, dtype=tf.int32)
@@ -153,7 +153,7 @@ class VariableScopeTest(tf.test.TestCase):
     with self.assertRaises(error):
       tf.compat.v1.get_variable("x4", initializer={})
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testInitFromNonInitializer(self):
     # Test various dtypes with zeros initializer as following:
@@ -175,7 +175,7 @@ class VariableScopeTest(tf.test.TestCase):
       self.evaluate(tf.compat.v1.global_variables_initializer())
       self.assertAllEqual(self.evaluate(x.value()), self.evaluate(y.value()))
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarScopeRegularizer(self):
     init = tf.compat.v1.constant_initializer(0.3)
@@ -204,7 +204,7 @@ class VariableScopeTest(tf.test.TestCase):
         vs.set_regularizer(tf.compat.v1.no_regularizer)
         tf.compat.v1.get_variable("z", [])
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testInitializeFromValue(self):
     init = tf.constant(0.1)
@@ -231,7 +231,7 @@ class VariableScopeTest(tf.test.TestCase):
     with self.assertRaisesRegex(ValueError, "don't match"):
       tf.compat.v1.get_variable("s", initializer=init, dtype=tf.float64)
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarScopeGetOrCreateReuse(self):
     with self.cached_session():
@@ -252,7 +252,7 @@ class VariableScopeTest(tf.test.TestCase):
       test_value(13.)  # Variable is reused hereafter.
       test_value(17.)
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarScopeGetOrCreateReuseIgnoreFalse(self):
     with self.cached_session():
@@ -275,7 +275,7 @@ class VariableScopeTest(tf.test.TestCase):
       test_value(13.)  # Variable is reused hereafter.
       test_value(17.)
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarOpScope(self):
     with self.cached_session():
@@ -292,7 +292,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(
               tf.compat.v1.get_variable("w", []).name, "default_1/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarOpScopeUniqueNamesInterleavedSubstringScopes(self):
     with self.cached_session():
@@ -317,7 +317,7 @@ class VariableScopeTest(tf.test.TestCase):
               tf.compat.v1.get_variable("w", []).name,
               "defaultScope1_2/layer/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarOpScopeUniqueNamesWithJump(self):
     with self.cached_session():
@@ -337,7 +337,7 @@ class VariableScopeTest(tf.test.TestCase):
               tf.compat.v1.get_variable("w", []).name,
               "default/layer_2/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarOpScopeReuse(self):
     with self.cached_session():
@@ -357,7 +357,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(
               tf.compat.v1.get_variable("w", []).name, "outer/default/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarScopeGetVar(self):
     with self.cached_session():
@@ -396,7 +396,7 @@ class VariableScopeTest(tf.test.TestCase):
             tf.compat.v1.get_variable("v", [1], dtype=tf.int32)
         self.assertEqual("dtype" in str(exc.exception), True)
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarScopeOuterScope(self):
     with self.cached_session():
@@ -416,7 +416,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(
               tf.compat.v1.get_variable("w", []).name, "outer/default/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarScopeNestedOuterScope(self):
     with self.cached_session():
@@ -435,7 +435,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(
               tf.compat.v1.get_variable("w", []).name, "outer/default/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarOpScopeReuseParam(self):
     with self.cached_session():
@@ -456,7 +456,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(
               tf.compat.v1.get_variable("w", []).name, "outer/default/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarOpScopeReuseError(self):
     with self.cached_session():
@@ -465,7 +465,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(
               tf.compat.v1.get_variable("w", []).name, "outer/tower/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarOpScopeOuterScope(self):
     with self.cached_session():
@@ -486,7 +486,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(
               tf.compat.v1.get_variable("w", []).name, "outer/default/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVarOpScopeNestedOuterScope(self):
     with self.cached_session():
@@ -505,7 +505,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(
               tf.compat.v1.get_variable("w", []).name, "outer/default/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testBasicWhenAuxiliaryNameScopeIsFalse(self):
     with self.cached_session():
@@ -529,7 +529,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(
               tf.compat.v1.get_variable("w1", []).name, "outer/inner/w1:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testCreatedByDefaultNameWhenAuxiliaryNameScopeIsFalse(self):
     with self.cached_session():
@@ -546,7 +546,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(
               tf.compat.v1.get_variable("w", []).name, "outer/default/w:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testReenterRootScopeWhenAuxiliaryNameScopeIsFalse(self):
     with self.cached_session():
@@ -561,7 +561,7 @@ class VariableScopeTest(tf.test.TestCase):
           self.assertEqual(inner.original_name_scope, "")
           self.assertEqual(tf.compat.v1.get_variable("w1", []).name, "w1:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testAuxiliaryNameScopeIsInvalid(self):
     with self.cached_session():
@@ -582,7 +582,7 @@ class VariableScopeTest(tf.test.TestCase):
             scope, auxiliary_name_scope="invalid"):
           pass
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testReuseScopeWithoutNameScopeCollision(self):
     # Github issue: #13429
@@ -605,7 +605,7 @@ class VariableScopeTest(tf.test.TestCase):
                 tf.compat.v1.get_variable("w1", []).name,
                 "outer/inner/w1:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testGetVarWithDevice(self):
     g = tf.Graph()
@@ -624,26 +624,26 @@ class VariableScopeTest(tf.test.TestCase):
     self.assertEqual(varname_type[0], ("x", tf.float32))
     self.assertEqual(varname_type[1], ("y", tf.int64))
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testGetVariableWithRefDtype(self):
     v = tf.compat.v1.get_variable("v", shape=[3, 4], dtype=tf.float32)
     # Ensure it is possible to do get_variable with a _ref dtype passed in.
     _ = tf.compat.v1.get_variable("w", shape=[5, 6], dtype=v.dtype)
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testGetVariableWithInitializerWhichTakesNoArgs(self):
     v = tf.compat.v1.get_variable("foo", initializer=lambda: [2])
     self.assertEqual(v.name, "foo:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testGetVariableWithInitializerWhichTakesOptionalArgs(self):
     v = tf.compat.v1.get_variable("foo", initializer=lambda x=True: [2])
     self.assertEqual(v.name, "foo:0")
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testTwoGraphs(self):
 
@@ -661,7 +661,7 @@ class VariableScopeTest(tf.test.TestCase):
 
 class VariableScopeWithCustomGetterTest(tf.test.TestCase):
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testNonCallableGetterFails(self):
     with self.assertRaisesRegex(ValueError, r"custom_getter .* not callable:"):
@@ -670,7 +670,7 @@ class VariableScopeWithCustomGetterTest(tf.test.TestCase):
     with self.assertRaisesRegex(ValueError, r"custom_getter .* not callable:"):
       tf.compat.v1.get_variable("name0", custom_getter=3)
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testNoSideEffectsWithIdentityCustomGetter(self):
     called = [0]
@@ -694,7 +694,7 @@ class VariableScopeWithCustomGetterTest(tf.test.TestCase):
     self.assertIs(v3, v4)
     self.assertEqual(3, called[0])  # skipped one in the first new_scope
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testSynchronizationAndAggregationWithCustomGetter(self):
     called = [0]
@@ -721,7 +721,7 @@ class VariableScopeWithCustomGetterTest(tf.test.TestCase):
 
     self.assertEqual(2, called[0])
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVariableCreator(self):
     variable_names = []
@@ -757,7 +757,7 @@ class VariableScopeWithCustomGetterTest(tf.test.TestCase):
           aggregation=tf.compat.v1.VariableAggregation.MEAN)
     self.assertTrue(called[0])
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testVariableCreatorNestingError(self):
 
@@ -780,7 +780,7 @@ class VariableScopeWithCustomGetterTest(tf.test.TestCase):
 
 class VariableScopeMultithreadedTest(tf.test.TestCase):
 
-  @test_util.run_in_graph_and_eager_modes
+  @tf_test_utils.run_in_graph_and_eager_modes
   @run_inside_wrap_function_in_eager_mode
   def testReenterMainScope(self):
 
@@ -839,7 +839,7 @@ class VariableScopeModule(tf.Module):
             in self._tf1_style_var_store._regularizers.items()}  # pylint: disable=protected-access
 
 
-@combinations.generate(combinations.combine(mode=["eager"]))
+@test_combinations.generate(test_combinations.combine(mode=["eager"]))
 class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_get_variable(self):
@@ -1451,7 +1451,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
 
 class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def test_get_or_create_layer_with_regularizer_eager(self):
 
     class NestedLayer(base_layer.Layer):
@@ -1497,7 +1497,7 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(out2, tf.ones(shape=(1, 5, 10)) * 5)
     self.assertAllEqual(layer.losses, [0.5])
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def test_get_or_create_layer_no_regularizer_eager(self):
 
     class NestedLayer(base_layer.Layer):
@@ -1543,7 +1543,7 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(out2, tf.ones(shape=(1, 5, 10)) * 5)
     self.assertAllEqual(layer.losses, [0.0])
 
-  @combinations.generate(combinations.combine(mode=["eager"]))
+  @test_combinations.generate(test_combinations.combine(mode=["eager"]))
   def test_get_or_create_layer_tf_function(self):
 
     class NestedLayer(base_layer.Layer):
@@ -1578,7 +1578,7 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(out1, out2)
     self.assertAllEqual(loss1, loss2)
 
-  @test_util.run_deprecated_v1
+  @tf_test_utils.run_deprecated_v1
   def test_get_or_create_layer_graph(self):
 
     class NestedLayer(object):

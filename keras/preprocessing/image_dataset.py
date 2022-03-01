@@ -108,7 +108,8 @@ def image_dataset_from_directory(directory,
     seed: Optional random seed for shuffling and transformations.
     validation_split: Optional float between 0 and 1,
         fraction of data to reserve for validation.
-    subset: One of "training" or "validation".
+    subset: Subset of the data to return.
+        One of "training" or "validation".
         Only used if `validation_split` is set.
     interpolation: String, the interpolation method used when resizing images.
       Defaults to `bilinear`. Supports `bilinear`, `nearest`, `bicubic`,
@@ -137,7 +138,7 @@ def image_dataset_from_directory(directory,
       `(batch_size,)`.
     - if `label_mode` is `binary`, the labels are a `float32` tensor of
       1s and 0s of shape `(batch_size, 1)`.
-    - if `label_mode` is `categorial`, the labels are a `float32` tensor
+    - if `label_mode` is `categorical`, the labels are a `float32` tensor
       of shape `(batch_size, num_classes)`, representing a one-hot
       encoding of the class index.
 

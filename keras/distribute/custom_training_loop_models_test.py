@@ -24,7 +24,7 @@ import numpy as np
 import keras
 from keras.distribute import strategy_combinations
 from keras.layers import core
-from keras.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_v2 import gradient_descent
 
 
 class CustomModel(tf.Module):
@@ -72,7 +72,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
       outputs = distribution.run(
           step_fn, args=(next(iterator),))
       return tf.nest.map_structure(distribution.experimental_local_results,
-                                outputs)
+                                   outputs)
 
     train_step(input_iterator)
 
@@ -82,7 +82,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
     with distribution.scope():
       model = _get_model()
-      optimizer = keras.optimizer_v2.rmsprop.RMSprop()
+      optimizer = keras.optimizers.optimizer_v2.rmsprop.RMSprop()
 
     @tf.function
     def train_step(replicated_inputs):
@@ -97,7 +97,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
       outputs = distribution.run(step_fn, args=(replicated_inputs,))
       return tf.nest.map_structure(distribution.experimental_local_results,
-                                outputs)
+                                   outputs)
 
     for x in input_iterator:
       train_step(x)
@@ -120,7 +120,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
     with distribution.scope():
       model = get_subclass_model()
-      optimizer = keras.optimizer_v2.rmsprop.RMSprop()
+      optimizer = keras.optimizers.optimizer_v2.rmsprop.RMSprop()
 
     @tf.function
     def train_step(iterator):
@@ -135,7 +135,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
       outputs = distribution.run(step_fn, args=(next(iterator),))
       return tf.nest.map_structure(distribution.experimental_local_results,
-                                outputs)
+                                   outputs)
 
     train_step(input_iterator)
 
@@ -145,7 +145,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
     with distribution.scope():
       model = _get_model()
-      optimizer = keras.optimizer_v2.rmsprop.RMSprop()
+      optimizer = keras.optimizers.optimizer_v2.rmsprop.RMSprop()
 
     @tf.function
     def train_step(iterator):
@@ -177,7 +177,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
       y = keras.layers.Flatten()(y)
       y = keras.layers.Dense(4, name="dense")(y)
       model = keras.Model(x, y)
-      optimizer = keras.optimizer_v2.rmsprop.RMSprop()
+      optimizer = keras.optimizers.optimizer_v2.rmsprop.RMSprop()
 
     @tf.function
     def train_step(iterator):
@@ -220,7 +220,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
     with distribution.scope():
       model = create_lstm_model()
-      optimizer = keras.optimizer_v2.gradient_descent.SGD()
+      optimizer = keras.optimizers.optimizer_v2.gradient_descent.SGD()
 
     @tf.function
     def train_step(input_iterator):
@@ -262,7 +262,8 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
     with distribution.scope():
       model = get_model()
-      optimizer = keras.optimizer_v2.gradient_descent.SGD(0.1, momentum=0.01)
+      optimizer = keras.optimizers.optimizer_v2.gradient_descent.SGD(
+          0.1, momentum=0.01)
       weights_file = os.path.join(self.get_temp_dir(), ".h5")
       model.save_weights(weights_file)
       model2 = get_model()
@@ -329,7 +330,8 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
     with distribution.scope():
       model = get_model()
-      optimizer = keras.optimizer_v2.gradient_descent.SGD(0.1, momentum=0.01)
+      optimizer = keras.optimizers.optimizer_v2.gradient_descent.SGD(
+          0.1, momentum=0.01)
 
     @tf.function
     def train_step(iterator):
@@ -369,7 +371,8 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
     with distribution.scope():
       model = get_model()
-      optimizer = keras.optimizer_v2.gradient_descent.SGD(0.1, momentum=0.01)
+      optimizer = keras.optimizers.optimizer_v2.gradient_descent.SGD(
+          0.1, momentum=0.01)
 
     @tf.function
     def compute_loss(images, targets):
@@ -408,7 +411,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
       outputs = distribution.run(
           step_fn, args=(next(iterator),))
       return tf.nest.map_structure(distribution.experimental_local_results,
-                                outputs)
+                                   outputs)
 
     train_step(input_iterator)
 
@@ -487,7 +490,7 @@ class KerasModelsXLATest(tf.test.TestCase, parameterized.TestCase):
         self.num_outputs = num_outputs
 
       def build(self, input_shape):
-        self.kernel = self.add_variable(
+        self.kernel = self.add_weight(
             "kernel", shape=[int(input_shape[-1]), self.num_outputs])
 
       @tf.function(jit_compile=True)
@@ -512,7 +515,7 @@ class KerasModelsXLATest(tf.test.TestCase, parameterized.TestCase):
       outputs = distribution.run(
           step_fn, args=(next(iterator),))
       return tf.nest.map_structure(distribution.experimental_local_results,
-                                outputs)
+                                   outputs)
 
     train_step(input_iterator)
 

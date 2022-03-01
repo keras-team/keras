@@ -17,8 +17,8 @@
 import warnings
 
 from keras import backend
-from keras import optimizer_v1
-from keras.optimizer_v2 import optimizer_v2
+from keras.optimizers import optimizer_v1
+from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.saving import model_config
 from keras.saving import saving_utils
 from keras.saving import utils_v1 as model_utils

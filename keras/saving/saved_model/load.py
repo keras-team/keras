@@ -20,7 +20,7 @@ import types
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
-from keras.optimizer_v2 import optimizer_v2
+from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import saving_utils
@@ -64,9 +64,9 @@ training_lib_v1 = LazyLoader(
     "keras.engine.training_v1")
 metrics = LazyLoader("metrics", globals(),
                      "keras.metrics")
-recurrent = LazyLoader(
-    "recurrent", globals(),
-    "keras.layers.recurrent")
+base_rnn = LazyLoader(
+    "base_rnn", globals(),
+    "keras.layers.rnn.base_rnn")
 # pylint:enable=g-inconsistent-quotes
 
 
@@ -608,12 +608,6 @@ class KerasObjectLoader:
 
     return False
 
-  def _load_edges(self):
-    """Add edges for all nodes that are not waiting on initialization."""
-    for node_id, proto in enumerate(self._proto.nodes):
-      if node_id not in self.model_layer_dependencies:
-        self._add_object_graph_edges(proto, node_id)
-
   def get_path(self, node_id):
     return self._node_paths[node_id]
 
@@ -929,7 +923,7 @@ def _finalize_config_layers(layers):
     _restore_layer_metrics(layer)
 
     # Restore RNN layer states.
-    if (isinstance(layer, recurrent.RNN) and
+    if (isinstance(layer, base_rnn.RNN) and
         layer.stateful and
         hasattr(_get_keras_attr(layer), 'states')):
       layer.states = getattr(_get_keras_attr(layer), 'states', None)

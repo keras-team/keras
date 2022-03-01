@@ -18,6 +18,7 @@
 import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.engine import keras_tensor
+from keras.utils import tf_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -111,9 +112,9 @@ def remove_squeezable_dimensions(
     Tuple of `labels` and `predictions`, possibly with last dim squeezed.
   """
   with backend.name_scope(name or 'remove_squeezable_dimensions'):
-    if not isinstance(predictions, tf.RaggedTensor):
+    if not tf_utils.is_tensor_or_extension_type(predictions):
       predictions = tf.convert_to_tensor(predictions)
-    if not isinstance(labels, tf.RaggedTensor):
+    if not tf_utils.is_tensor_or_extension_type(labels):
       labels = tf.convert_to_tensor(labels)
     predictions_shape = predictions.shape
     predictions_rank = predictions_shape.ndims

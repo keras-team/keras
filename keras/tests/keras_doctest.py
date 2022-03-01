@@ -23,7 +23,7 @@ import sys
 
 from absl import flags
 from absl.testing import absltest
-from keras.utils import keras_doctest_lib
+from keras.testing_infra import keras_doctest_lib
 import numpy as np
 import tensorflow as tf
 import tensorflow.compat.v2 as tf

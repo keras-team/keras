@@ -16,14 +16,14 @@
 
 from absl.testing import parameterized
 import keras
-from keras import keras_parameterized
-from keras import testing_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class ZeroPaddingTest(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class ZeroPaddingTest(test_combinations.TestCase):
 
   def test_zero_padding_1d(self):
     num_samples = 2
@@ -34,11 +34,11 @@ class ZeroPaddingTest(keras_parameterized.TestCase):
 
     with self.cached_session():
       # basic test
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ZeroPadding1D,
           kwargs={'padding': 2},
           input_shape=inputs.shape)
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ZeroPadding1D,
           kwargs={'padding': (1, 2)},
           input_shape=inputs.shape)
@@ -89,14 +89,14 @@ class ZeroPaddingTest(keras_parameterized.TestCase):
 
     # basic test
     with self.cached_session():
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ZeroPadding2D,
           kwargs={
               'padding': (2, 2),
               'data_format': data_format
           },
           input_shape=inputs.shape)
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ZeroPadding2D,
           kwargs={
               'padding': ((1, 2), (3, 4)),
@@ -178,14 +178,14 @@ class ZeroPaddingTest(keras_parameterized.TestCase):
 
     with self.cached_session():
       # basic test
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ZeroPadding3D,
           kwargs={
               'padding': (2, 2, 2),
               'data_format': data_format
           },
           input_shape=inputs.shape)
-      testing_utils.layer_test(
+      test_utils.layer_test(
           keras.layers.ZeroPadding3D,
           kwargs={
               'padding': ((1, 2), (3, 4), (0, 2)),

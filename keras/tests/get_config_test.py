@@ -14,16 +14,15 @@
 #,============================================================================
 """Tests for `get_config` backwards compatibility."""
 
-import tensorflow.compat.v2 as tf
-
-from keras import keras_parameterized
 from keras.engine import sequential
 from keras.engine import training
+from keras.testing_infra import test_combinations
 from keras.tests import get_config_samples
+import tensorflow.compat.v2 as tf
 
 
-@keras_parameterized.run_all_keras_modes
-class TestGetConfigBackwardsCompatible(keras_parameterized.TestCase):
+@test_combinations.run_all_keras_modes
+class TestGetConfigBackwardsCompatible(test_combinations.TestCase):
 
   def test_functional_dnn(self):
     model = training.Model.from_config(get_config_samples.FUNCTIONAL_DNN)

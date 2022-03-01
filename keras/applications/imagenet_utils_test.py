@@ -20,12 +20,12 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import keras_parameterized
+from keras.testing_infra import test_combinations
 from keras.applications import imagenet_utils as utils
 from keras.mixed_precision.policy import set_global_policy
 
 
-class TestImageNetUtils(keras_parameterized.TestCase):
+class TestImageNetUtils(test_combinations.TestCase):
 
   def test_preprocess_input(self):
     # Test invalid mode check

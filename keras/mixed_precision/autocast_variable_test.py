@@ -22,14 +22,14 @@ import threading
 from absl.testing import parameterized
 import numpy as np
 from keras.mixed_precision import autocast_variable
-from keras.optimizer_v2 import adadelta
-from keras.optimizer_v2 import adagrad
-from keras.optimizer_v2 import adam
-from keras.optimizer_v2 import adamax
-from keras.optimizer_v2 import ftrl
-from keras.optimizer_v2 import gradient_descent as gradient_descent_v2
-from keras.optimizer_v2 import nadam
-from keras.optimizer_v2 import rmsprop
+from keras.optimizers.optimizer_v2 import adadelta
+from keras.optimizers.optimizer_v2 import adagrad
+from keras.optimizers.optimizer_v2 import adam
+from keras.optimizers.optimizer_v2 import adamax
+from keras.optimizers.optimizer_v2 import ftrl
+from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_v2
+from keras.optimizers.optimizer_v2 import nadam
+from keras.optimizers.optimizer_v2 import rmsprop
 
 maybe_distribute = tf.__internal__.test.combinations.combine(distribution=[
     tf.__internal__.distribute.combinations.default_strategy,

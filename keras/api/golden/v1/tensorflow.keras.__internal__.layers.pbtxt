@@ -1,0 +1,7 @@
+path: "tensorflow.keras.__internal__.layers"
+tf_module {
+  member {
+    name: "BaseImageAugmentationLayer"
+    mtype: "<type \'type\'>"
+  }
+}
