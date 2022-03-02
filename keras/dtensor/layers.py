@@ -19,7 +19,6 @@ import functools
 from keras import backend
 from keras import layers
 from keras.dtensor import dtensor_api as dtensor
-from keras.dtensor import initializers
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
@@ -116,8 +115,6 @@ class Dense(Layer, layers.Dense):
                kernel_layout=None,
                bias_layout=None,
                **kwargs):
-    kernel_initializer = initializers.get(kernel_initializer)
-    bias_initializer = initializers.get(bias_initializer)
     # Note that the Layer is the first parent class here, since we would like
     # all its methods to take priority than the methods from Dense
     # (eg, `add_weight()`). We skip the Layer.__init__ here since it doesn't
@@ -207,9 +204,6 @@ class Conv(Layer, base_conv.Conv):
                name=None,
                conv_op=None,
                **kwargs):
-    kernel_initializer = initializers.get(kernel_initializer)
-    bias_initializer = initializers.get(bias_initializer)
-
     base_conv.Conv.__init__(
         self,
         rank=rank,
