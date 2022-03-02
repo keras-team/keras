@@ -46,7 +46,7 @@ def get_model_with_layout_map(layout_map):
     a CNN Keras model used for MNIST
   """
 
-  with layout_map_lib.layout_map_scope(layout_map):
+  def model_fn():
     # Define a CNN model to recognize MNIST digits.
     model = models.Sequential()
     model.add(
@@ -78,6 +78,8 @@ def get_model_with_layout_map(layout_map):
         activation='softmax',
         ))
     return model
+
+  return layout_map_lib.init_model_with_layout_map(layout_map, model_fn)
 
 
 def get_all_replicated_layout_map(mesh):

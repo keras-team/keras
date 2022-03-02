@@ -173,16 +173,16 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     layout_map['d2.kernel'] = self.layout_2d
     layout_map['d2.bias'] = self.layout_1d
 
-    with layout_map_lib.layout_map_scope(layout_map):
+    def model_init_fn():
       model = SubclassModel(name='model')
+      inputs = tf.keras.Input((10,), batch_size=10)
+      model(inputs)
+      return model
 
-    # Init the model with eager tensor, make sure the model weights have correct
-    # layout, as well as produce correct result.
-    inputs = tf.zeros((10, 10), layout=self.layout_2d)
-    result = model(inputs)
-    self.assertAllClose(result, tf.zeros((10, 1000)))
-    d1 = model.d1
-    d2 = model.d2
+    model_with_layout = layout_map_lib.init_model_with_layout_map(
+        layout_map, model_init_fn)
+    d1 = model_with_layout.d1
+    d2 = model_with_layout.d2
     self.assertEqual(d1.kernel.layout, self.layout_2d)
     self.assertEqual(d1.bias.layout, self.layout_1d)
     self.assertEqual(d2.kernel.layout, self.layout_2d)
@@ -195,7 +195,8 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     self.assertIs(d2.kernel, d2._trainable_weights[0])
     self.assertIs(d2.bias, d2._trainable_weights[1])
 
-    result = model(tf.zeros((10, 10), layout=self.layout_2d), training=True)
+    result = model_with_layout(tf.zeros((10, 10), layout=self.layout_2d),
+                               training=True)
     self.assertAllClose(result, tf.zeros((10, 1000), layout=self.layout_2d))
 
   def test_init_functional_model_variable_with_layout(self):
@@ -209,18 +210,21 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     layout_map['d2.kernel'] = self.layout_2d
     layout_map['d2.bias'] = self.layout_1d
 
-    with layout_map_lib.layout_map_scope(layout_map):
+    def model_init_fn():
       inputs = tf.keras.Input((10,), batch_size=10)
       x = layers.Dense(20, name='d1')(inputs)
       x = layers.Dropout(0.1)(x)
       output = layers.Dense(30, name='d2')(x)
 
       model = tf.keras.Model(inputs, output)
+      return model
 
+    model_with_layout = layout_map_lib.init_model_with_layout_map(
+        layout_map, model_init_fn)
     # It includes input layer as well.
-    self.assertLen(model.layers, 4)
-    d1 = model.layers[1]
-    d2 = model.layers[3]
+    self.assertLen(model_with_layout.layers, 4)
+    d1 = model_with_layout.layers[1]
+    d2 = model_with_layout.layers[3]
 
     self.assertEqual(d1.kernel.layout, self.layout_2d)
     self.assertEqual(d1.bias.layout, self.layout_1d)
@@ -234,7 +238,8 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     self.assertIs(d2.kernel, d2._trainable_weights[0])
     self.assertIs(d2.bias, d2._trainable_weights[1])
 
-    result = model(tf.zeros((10, 10), layout=self.layout_2d), training=True)
+    result = model_with_layout(tf.zeros((10, 10), layout=self.layout_2d),
+                               training=True)
     self.assertAllClose(result, tf.zeros((10, 30), layout=self.layout_2d))
 
   def test_init_sequential_model_variable_with_layout(self):
@@ -248,16 +253,19 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     layout_map['d2.kernel'] = self.layout_2d
     layout_map['d2.bias'] = self.layout_1d
 
-    with layout_map_lib.layout_map_scope(layout_map):
+    def model_init_fn():
       model = tf.keras.Sequential([
           layers.Dense(20, name='d1', input_shape=(10,)),
           layers.Dropout(0.1),
           layers.Dense(30, name='d2')
       ])
+      return model
 
-    self.assertLen(model.layers, 3)
-    d1 = model.layers[0]
-    d2 = model.layers[2]
+    model_with_layout = layout_map_lib.init_model_with_layout_map(
+        layout_map, model_init_fn)
+    self.assertLen(model_with_layout.layers, 3)
+    d1 = model_with_layout.layers[0]
+    d2 = model_with_layout.layers[2]
 
     self.assertEqual(d1.kernel.layout, self.layout_2d)
     self.assertEqual(d1.bias.layout, self.layout_1d)
@@ -271,7 +279,8 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     self.assertIs(d2.kernel, d2._trainable_weights[0])
     self.assertIs(d2.bias, d2._trainable_weights[1])
 
-    result = model(tf.zeros((10, 10), layout=self.layout_2d), training=True)
+    result = model_with_layout(tf.zeros((10, 10), layout=self.layout_2d),
+                               training=True)
     self.assertAllClose(result, tf.zeros((10, 30), layout=self.layout_2d))
 
 
