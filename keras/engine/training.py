@@ -24,10 +24,12 @@ import weakref
 from keras import backend
 from keras import callbacks as callbacks_module
 from keras import optimizers
+from keras.dtensor import layout_map as layout_map_lib
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import compile_utils
 from keras.engine import data_adapter
+from keras.engine import input_layer as input_layer_module
 from keras.engine import training_utils
 from keras.mixed_precision import loss_scale_optimizer as lso
 from keras.optimizers import optimizer_v1
@@ -46,6 +48,8 @@ from keras.utils import tf_utils
 from keras.utils import traceback_utils
 from keras.utils import version_utils
 from keras.utils.mode_keys import ModeKeys
+
+import numpy as np
 import tensorflow.compat.v2 as tf
 
 from tensorflow.python.eager import context
@@ -285,6 +289,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # `evaluate`, and `predict`.
     self._jit_compile = None
 
+    self._layout_map = layout_map_lib.get_current_layout_map()
+
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _init_batch_counters(self):
     # Untracked Variables, used to keep track of mini-batches seen in `fit`,
@@ -450,6 +456,39 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                            'the correct dtype).\n\nThe actual error from '
                            f'`call` is: {e}.')
     super(Model, self).build(input_shape)
+
+  @traceback_utils.filter_traceback
+  def __call__(self, *args, **kwargs):
+    if self._layout_map and not self.built:
+      # Note that this method is only overridden for DTensor and layout
+      # injection purpose.
+      # Capture the inputs and create graph input as replacement for model
+      # to initialize its weights first.
+      copied_args = copy.copy(args)
+      copied_kwargs = copy.copy(kwargs)
+
+      inputs, copied_args, copied_kwargs = self._split_out_first_arg(
+          copied_args, copied_kwargs)
+
+      def _convert_to_graph_inputs(x):
+        if isinstance(x, (tf.Tensor, np.ndarray, float, int)):
+          x = tf.convert_to_tensor(x)
+          return input_layer_module.Input(x.shape)
+
+      # TODO(scottzhu): maybe better handle mask and training flag.
+      inputs = tf.nest.map_structure(_convert_to_graph_inputs, inputs)
+      copied_args = tf.nest.map_structure(_convert_to_graph_inputs, copied_args)
+      copied_kwargs = tf.nest.map_structure(
+          _convert_to_graph_inputs, copied_kwargs)
+
+        # pylint: disable=g-import-not-at-top
+      with layout_map_lib.layout_map_scope(self._layout_map):
+        # We ignore the result here.
+        super().__call__(inputs, *copied_args, **copied_kwargs)
+
+      layout_map_lib._map_subclass_model_variable(self, self._layout_map)
+
+    return super().__call__(*args, **kwargs)
 
   @doc_controls.doc_in_current_and_subclasses
   def call(self, inputs, training=None, mask=None):
