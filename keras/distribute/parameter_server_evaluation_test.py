@@ -15,47 +15,34 @@
 # ==============================================================================
 """Tests for evaluation using Keras model and ParameterServerStrategy."""
 
-import tensorflow.compat.v2 as tf
-
 import time
 
 import keras
 from keras.testing_infra import test_utils
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.distribute import multi_worker_test_base
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from tensorflow.python.ops import resource_variable_ops
 
 
 # TODO(yuefengz): move the following implementation to Keras core.
-class KerasMetricTypeSpec(tf.TypeSpec):
+class MeanMetricSpec(tf.TypeSpec):
 
-  def __init__(self, cls, config, weights):
-    self._cls = cls
+  def __init__(self, config, weights):
     self._config = config
     self._weights = weights
 
   def _serialize(self):
-    return (self._cls.__name__, self._config)
+    return (self._config, self._weights)
 
   @property
   def value_type(self):
-    return self._cls
-
-  def most_specific_compatible_type(self, other):
-    if (type(self) is not type(other) or self._cls != other._cls or
-        self._config != other._config):
-      raise ValueError("No TypeSpec is compatible with both %s and %s" %
-                       (self, other))
-    return KerasMetricTypeSpec(self._cls, self._config, self._weights)
+    return MeanMetricAsCompositeTensor
 
   @property
   def _component_specs(self):
-    ret = []
-    for w in self._weights:
-      ret.append(
-          resource_variable_ops.VariableSpec(
-              w.shape, w.dtype, w.name.split(":")[0], trainable=False))
-    return ret
+    return self._weights
 
   def _to_components(self, value):
     return value.weights
@@ -72,7 +59,7 @@ class KerasMetricTypeSpec(tf.TypeSpec):
       return var
 
     with tf.variable_creator_scope(fetch_variable):
-      ret = self._cls.from_config(self._config)
+      ret = MeanMetricAsCompositeTensor.from_config(self._config)
     assert len(weights) == len(ret.weights)
     return ret
 
@@ -85,7 +72,12 @@ class MeanMetricAsCompositeTensor(keras.metrics.Mean,
 
   @property
   def _type_spec(self):
-    return KerasMetricTypeSpec(self.__class__, self.get_config(), self.weights)
+    weight_specs = []
+    for w in self.weights:
+      weight_specs.append(
+          resource_variable_ops.VariableSpec(
+              w.shape, w.dtype, w.name.split(":")[0], trainable=False))
+    return MeanMetricSpec(self.get_config(), weight_specs)
 
 
 @test_utils.run_v2_only
