@@ -58,7 +58,6 @@ py_library(
         "//keras:regularizers",
         "//keras/distribute",
         "//keras/distribute:distribute_coordinator_utils",
-        "//keras/dtensor:layout_map",
         "//keras/initializers",
         "//keras/metrics",
         "//keras/mixed_precision:autocast_variable",
