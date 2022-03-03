@@ -14,14 +14,13 @@
 # ==============================================================================
 """Tests for layers."""
 
+from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layers
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras.dtensor.tests import test_util
-
-from tensorflow.dtensor import python as dtensor  # pylint: disable=g-direct-tensorflow-import
 
 
 class LayersTest(test_util.DTensorBaseTest):

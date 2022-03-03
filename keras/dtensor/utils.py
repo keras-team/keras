@@ -16,9 +16,8 @@
 
 import inspect
 
+from keras.dtensor import dtensor_api as dtensor
 import tensorflow.compat.v2 as tf
-
-from tensorflow.dtensor import python as dtensor  # pylint: disable=g-direct-tensorflow-import
 
 
 # All the variable names in the default keras layers. We will use those to map
@@ -124,6 +123,8 @@ def call_with_layout(fn, layout, *args, **kwargs):
   """
   if layout:
 
+    # TODO(b/222160686): Remove this tf.function after after we have SPMD
+    # support for tf.MatrixDiagV3
     @tf.function
     def wrapper_func():
       result = fn(*args, **kwargs)

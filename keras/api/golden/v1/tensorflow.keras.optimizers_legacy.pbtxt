@@ -1,4 +1,4 @@
-path: "tensorflow.keras.optimizers.experimental"
+path: "tensorflow.keras.optimizers_legacy"
 tf_module {
   member {
     name: "Adadelta"
@@ -13,11 +13,15 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
-    name: "AdamW"
+    name: "Adamax"
     mtype: "<type \'type\'>"
   }
   member {
-    name: "Adamax"
+    name: "Ftrl"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "Nadam"
     mtype: "<type \'type\'>"
   }
   member {
