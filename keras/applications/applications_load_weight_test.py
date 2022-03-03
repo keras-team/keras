@@ -72,8 +72,12 @@ ARG_TO_MODEL = {
         efficientnet_v2.EfficientNetV2S, efficientnet_v2.EfficientNetV2M,
         efficientnet_v2.EfficientNetV2L
     ]),
-    'resnet_rs':(resnet_rs,[resnet_rs.ResNetRS50,resnet_rs.ResNetRS101,resnet_rs.ResNetRS152,
-    resnet_rs.ResNetRS200,resnet_rs.ResNetRS270,resnet_rs.ResNetRS350,resnet_rs.ResNetRS420]),
+    'resnet_rs': (resnet_rs, [
+        resnet_rs.ResNetRS50, resnet_rs.ResNetRS101,
+        resnet_rs.ResNetRS152, resnet_rs.ResNetRS200,
+        resnet_rs.ResNetRS270, resnet_rs.ResNetRS350,
+        resnet_rs.ResNetRS420
+    ]),
     'regnet': (regnet, [
         regnet.RegNetX002, regnet.RegNetX004, regnet.RegNetX006,
         regnet.RegNetX008, regnet.RegNetX016, regnet.RegNetX032,
