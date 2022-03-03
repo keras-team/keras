@@ -15,7 +15,9 @@
 """Library for map layout and corresponding tf.Variable."""
 
 import collections
+import contextlib
 import re
+import threading
 
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import lazy_variable
@@ -30,6 +32,13 @@ from keras.engine import base_layer
 # and the actual variable should be in somewhere else.
 _KERAS_ATTRIBUTES_TO_SKIP = ['_self_tracked_trackables', '_trainable_weights',
                              '_non_trainable_weights']
+
+
+_LAYOUT_MAP = threading.local()
+
+
+def get_current_layout_map():
+  return getattr(_LAYOUT_MAP, 'layout_map', None)
 
 
 class LayoutMap(collections.MutableMapping):
@@ -95,8 +104,9 @@ class LayoutMap(collections.MutableMapping):
     return self._default_mesh
 
 
-def init_model_with_layout_map(layout_map, model_init_fn):
-  """Apply the layout to all the tf.Variables in the model_init_fn.
+@contextlib.contextmanager
+def layout_map_scope(layout_map):
+  """Apply the layout to all the tf.Variables created under the scope.
 
   Create a scope that all the tf.Variable created under this scope
   will be lazily inited, and initialized later on with proper layout when the
@@ -124,41 +134,36 @@ def init_model_with_layout_map(layout_map, model_init_fn):
   ## Subclassed model
   class SubclassModel(tf.keras.Model):
 
-  def __init__(self, name=None):
-    super().__init__(name=name)
-    self.d1 = tf.keras.layers.Dense(1000)
-    self.d2 = tf.keras.layers.Dense(1000)
+    def __init__(self, name=None):
+      super().__init__(name=name)
+      self.d1 = tf.keras.layers.Dense(1000)
+      self.d2 = tf.keras.layers.Dense(1000)
 
-  def call(self, inputs):
-    x = self.d1(inputs)
-    return self.d2(x)
+    def call(self, inputs):
+      x = self.d1(inputs)
+      return self.d2(x)
 
-  def model_init_fn():
+  with layout_map_scope(layout_map):
     model = SubclassModel()
-    inputs = tf.keras.Input((10,), batch_size=10)
-    model(inputs)
-    return model
+  # Triggering the creation of weights within or outside of the scope works
+  inputs = tf.zeros((10, 10))
+  results = model(inputs)
 
-  model_with_layout = layout_map_lib.init_model_with_layout_map(
-        layout_map, model_init_fn)
-  model_with_layout.d1.kernel.layout == layout_1
-  model_with_layout.d1.bias.layout == layout_2
-  model_with_layout.d2.kernel.layout == layout_3
-  model_with_layout.d2.bias.layout == layout_4
+  model.d1.kernel.layout == layout_1
+  model.d1.bias.layout == layout_2
+  model.d2.kernel.layout == layout_3
+  model.d2.bias.layout == layout_4
 
   ## Functional model
-  def model_init_fn():
+  with layout_map_scope(layout_map):
     inputs = tf.keras.Input((10,), batch_size=10)
     x = tf.keras.layers.Dense(20, name='d1')(inputs)
     output = tf.keras.layers.Dense(30, name='d2')(x)
 
     model = tf.keras.Model(inputs, output)
-    return model
 
-  model_with_layout = layout_map_lib.init_model_with_layout_map(
-      layout_map, model_init_fn)
-  d1 = model_with_layout.layers[1]
-  d2 = model_with_layout.layers[2]
+  d1 = model.layers[1]
+  d2 = model.layers[2]
 
   d1.kernel.layout == layout_1
   d1.bias.layout == layout_2
@@ -166,17 +171,14 @@ def init_model_with_layout_map(layout_map, model_init_fn):
   d1.bias.layout == layout_4
 
   ## Sequential model
-  def model_init_fn():
+  with layout_map_scope(layout_map):
     model = tf.keras.Sequential([
         tf.keras.layers.Dense(20, name='d1', input_shape=(10,)),
         tf.keras.layers.Dense(30, name='d2')
     ])
-    return model
 
-  model_with_layout = layout_map_lib.init_model_with_layout_map(
-        layout_map, model_init_fn)
-  d1 = model_with_layout.layers[0]
-  d2 = model_with_layout.layers[1]
+  d1 = model.layers[0]
+  d2 = model.layers[1]
 
   d1.kernel.layout == layout_1
   d1.bias.layout == layout_2
@@ -188,28 +190,20 @@ def init_model_with_layout_map(layout_map, model_init_fn):
     layout_map: a LayoutMap which contains the variable_object_path (string) ->
       Layout. When a layout is not found for the variable, a default all
       replicated layout will be created for the variable.
-    model_init_fn: A function that will trigger the weights creation and return
-      a Keras model instance. Eg, for a Keras functional model, the
-      `tf.keras.Model(inputs, output)` will trigger the weights creation. For
-      subclass model which doesn't have the `build()` method implemented, user
-      will need to do `model(tf.keras.Input(shape=shape))` to init the weights.
-      Note that this method need to return the model instance, and the instance
-      will be used as the root object to track all the tf.Variables that
-      attached to it.
 
-  Returns:
-    The same model instance returned from model_init_fn, with all tf.Variable
-    have the proper layout populated.
+  Yields:
+    A context that will lazily initialize all `tf.Variable` objects
+    within the model, with their attributed layouts.
   """
-  with lazy_variable.lazy_init_scope():
-    model = model_init_fn()
+  previous_layout_map = get_current_layout_map()
+  global _LAYOUT_MAP
+  _LAYOUT_MAP.layout_map = layout_map
 
-  if model._is_graph_network:  # pylint: disable=protected-access
-    # Functional/Sequential model
-    return _map_functional_model_variable(model, layout_map)
-  else:
-    # Subclass Model
-    return _map_subclass_model_variable(model, layout_map)
+  with lazy_variable.lazy_init_scope():
+    try:
+      yield
+    finally:
+      _LAYOUT_MAP.layout_map = previous_layout_map
 
 
 def _map_subclass_model_variable(model, layout_map):
@@ -340,7 +334,8 @@ def _create_dvariable(layout_map, object_path, variable):
         rank=variable_rank)
   init_val = variable._initial_value  # pylint: disable=protected-access
   if callable(init_val):
-    init_val = utils.call_with_layout(init_val, layout)
+    with lazy_variable.disable_init_variable_creator():
+      init_val = utils.call_with_layout(init_val, layout)
   else:
     # The init value is probably already created as a tensor, we will just copy
     # it to mesh and give it a proper layout.

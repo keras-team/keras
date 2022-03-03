@@ -14,6 +14,8 @@
 # ==============================================================================
 """Lazily initialized variables, useful for creating a symbolic Keras model."""
 
+import threading
+
 # pylint: disable=g-direct-tensorflow-import
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.eager import context
@@ -24,6 +26,9 @@ from tensorflow.python.ops import variable_scope
 from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util import compat
 from tensorflow.python.util import tf_contextlib
+
+
+_DISABLE_LAZY_VARIABLE_INIT = threading.local()
 
 
 def _infer_shape_dtype_and_create_handle(initial_value, shape, dtype, name):
@@ -191,12 +196,25 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
 
 
 def _lazy_init_variable_creator(next_creator, **kwargs):
-  del next_creator
-  return LazyInitVariable(**kwargs)
+  if getattr(_DISABLE_LAZY_VARIABLE_INIT, "disabled", False):
+    return next_creator(**kwargs)
+  else:
+    return LazyInitVariable(**kwargs)
 
 
 @tf_contextlib.contextmanager
 def lazy_init_scope():
   with variable_scope.variable_creator_scope(_lazy_init_variable_creator):
     yield
+
+
+@tf_contextlib.contextmanager
+def disable_init_variable_creator():
+  try:
+    global _DISABLE_LAZY_VARIABLE_INIT
+    existing_value = getattr(_DISABLE_LAZY_VARIABLE_INIT, "disabled", False)
+    _DISABLE_LAZY_VARIABLE_INIT.disabled = True
+    yield
+  finally:
+    _DISABLE_LAZY_VARIABLE_INIT.disabled = existing_value
 
