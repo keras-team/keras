@@ -15,12 +15,12 @@
 """Tests for initializers."""
 
 from absl.testing import parameterized
+from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import optimizers
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras.dtensor.tests import test_util
-from tensorflow.dtensor import python as dtensor  # pylint: disable=g-direct-tensorflow-import
 
 
 class OptimizersTest(test_util.DTensorBaseTest):

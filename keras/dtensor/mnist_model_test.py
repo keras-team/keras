@@ -15,6 +15,7 @@
 """E2E Tests for mnist_model."""
 
 from keras import backend
+from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import integration_test_utils
 from keras.dtensor import optimizers as optimizer_lib
 from keras.utils import tf_utils
@@ -23,7 +24,6 @@ import tensorflow.compat.v2 as tf
 
 from keras.dtensor.tests import test_util
 # pylint: disable=g-direct-tensorflow-import
-from tensorflow.dtensor import python as dtensor
 from tensorflow.dtensor.python import mesh_util
 from tensorflow.dtensor.python import tpu_util
 # pylint: enable=g-direct-tensorflow-import

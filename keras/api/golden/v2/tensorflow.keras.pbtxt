@@ -70,6 +70,10 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
+    name: "optimizers_legacy"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "preprocessing"
     mtype: "<type \'module\'>"
   }
