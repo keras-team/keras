@@ -2064,8 +2064,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           - A dict mapping input names to the corresponding array/tensors,
               if the model has named inputs.
         y: Target data. Like the input data `x`, it could be either Numpy
-          array(s) or TensorFlow tensor(s). It should be consistent with `x`
-          (you cannot have Numpy inputs and tensor targets, or inversely).
+          array(s) or TensorFlow tensor(s).
         sample_weight: Optional array of the same length as x, containing
           weights to apply to the model's loss for each sample. In the case of
           temporal data, you can pass a 2D array with shape (samples,
