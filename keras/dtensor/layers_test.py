@@ -14,6 +14,7 @@
 # ==============================================================================
 """Tests for layers."""
 
+from keras import backend
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layers
 from keras.utils import tf_utils
@@ -27,6 +28,7 @@ class LayersTest(test_util.DTensorBaseTest):
 
   def setUp(self):
     super(LayersTest, self).setUp()
+    backend.enable_tf_random_generator()
     tf_utils.set_random_seed(1337)
     global_ids = test_util.create_device_ids_array((2, 2))
     local_device_ids = np.ravel(global_ids).tolist()
