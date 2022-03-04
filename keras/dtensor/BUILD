@@ -12,16 +12,6 @@ py_library(
     srcs = ["__init__.py"],
 )
 
-py_library(
-    name = "initializers",
-    srcs = ["initializers.py"],
-    deps = [
-        ":utils",
-        "//:expect_tensorflow_installed",
-        "//keras/initializers",
-    ],
-)
-
 py_test(
     name = "initializers_test",
     srcs = ["initializers_test.py"],
@@ -29,10 +19,10 @@ py_test(
     tags = ["no_oss"],
     deps = [
         ":dtensor",
-        ":initializers",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
+        "//keras/initializers",
         "//keras/utils:tf_utils",
         "//learning/brain/experimental/dtensor/tests:test_util",
     ],
@@ -43,7 +33,6 @@ py_library(
     srcs = ["layers.py"],
     deps = [
         ":dtensor",
-        ":initializers",
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras/engine:base_layer",
