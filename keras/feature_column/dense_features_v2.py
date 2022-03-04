@@ -44,7 +44,7 @@ class DenseFeatures(dense_features.DenseFeatures):
   ```python
   price = tf.feature_column.numeric_column('price')
   keywords_embedded = tf.feature_column.embedding_column(
-      tf.feature_column.categorical_column_with_hash_bucket("keywords", 10K),
+      tf.feature_column.categorical_column_with_hash_bucket("keywords", 10000),
       dimensions=16)
   columns = [price, keywords_embedded, ...]
   feature_layer = tf.keras.layers.DenseFeatures(columns)
