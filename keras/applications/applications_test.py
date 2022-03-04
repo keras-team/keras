@@ -78,9 +78,9 @@ MODEL_LIST_NO_NASNET = [(resnet.ResNet50, 2048), (resnet.ResNet101, 2048),
                         (regnet.RegNetY040, 1088), (regnet.RegNetY064, 1296),
                         (regnet.RegNetY080, 2016), (regnet.RegNetY120, 2240),
                         (regnet.RegNetY160, 3024), (regnet.RegNetY320, 3712),
-                        (resnet_rs.ResNetRS50,2048),(resnet_rs.ResNetRS101,2048),
-                        (resnet_rs.ResNetRS152,2048),(resnet_rs.ResNetRS200,2048),
-                        (resnet_rs.ResNetRS270,2048),(resnet_rs.ResNetRS350,2048),
+                        (resnet_rs.ResNetRS50,2048), (resnet_rs.ResNetRS101,2048),
+                        (resnet_rs.ResNetRS152,2048), (resnet_rs.ResNetRS200,2048),
+                        (resnet_rs.ResNetRS270,2048), (resnet_rs.ResNetRS350,2048),
                         (resnet_rs.ResNetRS420,2048)
                         ]
 
