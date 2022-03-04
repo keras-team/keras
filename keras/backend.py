@@ -4387,7 +4387,8 @@ def rnn(step_function,
         unroll=False,
         input_length=None,
         time_major=False,
-        zero_output_for_mask=False):
+        zero_output_for_mask=False,
+        return_all_outputs=True):
   """Iterates over the time dimension of a tensor.
 
   Args:
@@ -4430,13 +4431,19 @@ def rnn(step_function,
       zero_output_for_mask: Boolean. If True, the output for masked timestep
           will be zeros, whereas in the False case, output from previous
           timestep is returned.
+      return_all_outputs: Boolean. If True, all outputs of the process will be
+          returned, whereas in the False case, only last_output will be kept
+          during the process, saving the corresponding memory, and
+          outputs=[last_output] is returned.
 
   Returns:
       A tuple, `(last_output, outputs, new_states)`.
           last_output: the latest output of the rnn, of shape `(samples, ...)`
-          outputs: tensor with shape `(samples, time, ...)` where each
-              entry `outputs[s, t]` is the output of the step function
-              at time `t` for sample `s`.
+          outputs:
+              - If `return_all_outputs`: a tensor with shape
+              `(samples, time, ...)` where each entry `outputs[s, t]` is the
+              output of the step function at time `t` for sample `s`
+              - Else, a tensor equal to last_output
           new_states: list of tensors, latest states returned by
               the step function, of shape `(samples, ...)`.
 
@@ -4547,8 +4554,12 @@ def rnn(step_function,
             for m, s, ps in zip(tiled_mask_t, flat_new_states, flat_states))
         states = tf.nest.pack_sequence_as(states, flat_final_states)
 
-        successive_outputs.append(output)
-        successive_states.append(states)
+        if return_all_outputs:
+          successive_outputs.append(output)
+          successive_states.append(states)
+        else:
+          successive_outputs = [output]
+          successive_states = [states]
       last_output = successive_outputs[-1]
       new_states = successive_states[-1]
       outputs = tf.stack(successive_outputs)
@@ -4565,8 +4576,12 @@ def rnn(step_function,
       for i in range(time_steps):
         inp = _get_input_tensor(i)
         output, states = step_function(inp, tuple(states) + tuple(constants))
-        successive_outputs.append(output)
-        successive_states.append(states)
+        if return_all_outputs:
+          successive_outputs.append(output)
+          successive_states.append(states)
+        else:
+          successive_outputs = [output]
+          successive_states = [states]
       last_output = successive_outputs[-1]
       new_states = successive_states[-1]
       outputs = tf.stack(successive_outputs)
@@ -4597,10 +4612,12 @@ def rnn(step_function,
     # the value is discarded.
     output_time_zero, _ = step_function(
         input_time_zero, tuple(initial_states) + tuple(constants))
+
+    output_ta_size = time_steps_t if return_all_outputs else 1
     output_ta = tuple(
         tf.TensorArray(
             dtype=out.dtype,
-            size=time_steps_t,
+            size=output_ta_size,
             element_shape=out.shape,
             tensor_array_name='output_ta_%s' % i)
         for i, out in enumerate(tf.nest.flatten(output_time_zero)))
@@ -4700,9 +4717,11 @@ def rnn(step_function,
                                                  flat_state)
         new_states = tf.nest.pack_sequence_as(new_states, flat_final_state)
 
+        ta_index_to_write = time if return_all_outputs else 0
         output_ta_t = tuple(
-            ta.write(time, out)
+            ta.write(ta_index_to_write, out)
             for ta, out in zip(output_ta_t, flat_new_output))
+
         return (time + 1, output_ta_t,
                 tuple(flat_new_output)) + tuple(new_states)
 
@@ -4735,8 +4754,11 @@ def rnn(step_function,
             new_state.set_shape(state.shape)
 
         flat_output = tf.nest.flatten(output)
+        ta_index_to_write = time if return_all_outputs else 0
         output_ta_t = tuple(
-            ta.write(time, out) for ta, out in zip(output_ta_t, flat_output))
+            ta.write(ta_index_to_write, out)
+            for ta, out in zip(output_ta_t, flat_output))
+
         new_states = tf.nest.pack_sequence_as(initial_states, flat_new_state)
         return (time + 1, output_ta_t) + tuple(new_states)
 
@@ -4758,7 +4780,10 @@ def rnn(step_function,
   def set_shape(output_):
     if isinstance(output_, tf.Tensor):
       shape = output_.shape.as_list()
-      shape[0] = time_steps
+      if return_all_outputs:
+        shape[0] = time_steps
+      else:
+        shape[0] = 1
       shape[1] = batch
       output_.set_shape(shape)
     return output_
