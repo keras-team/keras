@@ -116,11 +116,7 @@ BLOCK_ARGS = {
 }
 CONV_KERNEL_INITIALIZER = {
     "class_name": "VarianceScaling",
-    "config": {
-        "scale": 2.0,
-        "mode": "fan_out",
-        "distribution": "truncated_normal"
-    }
+    "config": {"scale": 2.0, "mode": "fan_out", "distribution": "truncated_normal"},
 }
 
 BASE_DOCSTRING = """Instantiates the {name} architecture.
@@ -195,10 +191,12 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
         A `keras.Model` instance.
 """
 
-def Conv2DFixedPadding(filters, kernel_size, strides, name = None):
+
+def Conv2DFixedPadding(filters, kernel_size, strides, name=None):
     """Conv2D block with fixed padding."""
     if name is None:
-        name = backend.get_uid("conv")
+        counter = backend.get_uid("conv_")
+        name = f"conv_{counter}"
 
     def apply(inputs):
         if strides > 1:
@@ -212,19 +210,27 @@ def Conv2DFixedPadding(filters, kernel_size, strides, name = None):
             kernel_initializer=CONV_KERNEL_INITIALIZER,
             name=name,
         )(inputs)
+
     return apply
 
-def STEM(bn_momentum: float = 0.0, bn_epsilon: float =1e-5, activation: str ="relu", name = None):
+
+def STEM(
+    bn_momentum: float = 0.0,
+    bn_epsilon: float = 1e-5,
+    activation: str = "relu",
+    name=None,
+):
     """ResNet-D type STEM block."""
     if name is None:
-        name = "stem" + str(backend.get_uid("stem"))
+        counter = backend.get_uid("stem_")
+        name = f"stem_{counter}"
 
     def apply(inputs):
         bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
 
         # First stem block
         x = Conv2DFixedPadding(
-            filters=32, kernel_size=3, strides=2, name= name + "_stem_conv_1"
+            filters=32, kernel_size=3, strides=2, name=name + "_stem_conv_1"
         )(inputs)
         x = layers.BatchNormalization(
             axis=bn_axis,
@@ -232,11 +238,11 @@ def STEM(bn_momentum: float = 0.0, bn_epsilon: float =1e-5, activation: str ="re
             epsilon=bn_epsilon,
             name=name + "_stem_batch_norm_1",
         )(x)
-        x = layers.Activation(activation, name= name + "_stem_act_1")(x)
+        x = layers.Activation(activation, name=name + "_stem_act_1")(x)
 
         # Second stem block
         x = Conv2DFixedPadding(
-            filters=32, kernel_size=3, strides=1, name= name + "_stem_conv_2"
+            filters=32, kernel_size=3, strides=1, name=name + "_stem_conv_2"
         )(x)
         x = layers.BatchNormalization(
             axis=bn_axis,
@@ -244,11 +250,11 @@ def STEM(bn_momentum: float = 0.0, bn_epsilon: float =1e-5, activation: str ="re
             epsilon=bn_epsilon,
             name=name + "_stem_batch_norm_2",
         )(x)
-        x = layers.Activation(activation, name= name + "_stem_act_2")(x)
+        x = layers.Activation(activation, name=name + "_stem_act_2")(x)
 
         # Final Stem block:
         x = Conv2DFixedPadding(
-            filters=64, kernel_size=3, strides=1, name= name + "_stem_conv_3"
+            filters=64, kernel_size=3, strides=1, name=name + "_stem_conv_3"
         )(x)
         x = layers.BatchNormalization(
             axis=bn_axis,
@@ -256,11 +262,11 @@ def STEM(bn_momentum: float = 0.0, bn_epsilon: float =1e-5, activation: str ="re
             epsilon=bn_epsilon,
             name=name + "_stem_batch_norm_3",
         )(x)
-        x = layers.Activation(activation, name= name + "_stem_act_3")(x)
+        x = layers.Activation(activation, name=name + "_stem_act_3")(x)
 
         # Replace stem max pool:
         x = Conv2DFixedPadding(
-            filters=64, kernel_size=3, strides=2, name= name + "_stem_conv_4"
+            filters=64, kernel_size=3, strides=2, name=name + "_stem_conv_4"
         )(x)
         x = layers.BatchNormalization(
             axis=bn_axis,
@@ -268,17 +274,18 @@ def STEM(bn_momentum: float = 0.0, bn_epsilon: float =1e-5, activation: str ="re
             epsilon=bn_epsilon,
             name=name + "_stem_batch_norm_4",
         )(x)
-        x = layers.Activation(activation, name= name + "_stem_act_4")(x)
+        x = layers.Activation(activation, name=name + "_stem_act_4")(x)
         return x
 
     return apply
 
 
-def SE(in_filters: int, se_ratio: float =0.25,  expand_ratio: int = 1,name = None):
+def SE(in_filters: int, se_ratio: float = 0.25, expand_ratio: int = 1, name=None):
     """Squeeze and Excitation block."""
     bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
     if name is None:
-        name = "se" + str(backend.get_uid("se"))
+        counter = backend.get_uid("se_")
+        name = f"se_{counter}"
 
     def apply(inputs):
         x = layers.GlobalAveragePooling2D(name=name + "_se_squeeze")(inputs)
@@ -321,16 +328,18 @@ def BottleneckBlock(
     filters: int,
     strides: int,
     use_projection: bool,
-    bn_momentum: float =0.0,
+    bn_momentum: float = 0.0,
     bn_epsilon: float = 1e-5,
     activation: str = "relu",
     se_ratio: float = 0.25,
     survival_probability: float = 0.8,
-    name = None,
+    name=None,
 ):
     """Bottleneck block variant for residual networks with BN after convolutions."""
     if name is None:
-        name = "block_0_" + str(backend.get_uid("block_0_"))
+        counter = backend.get_uid("block_0_")
+        name = f"block_0_{counter}"
+
     def apply(inputs):
         bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
 
@@ -421,16 +430,17 @@ def BlockGroup(
     filters,
     strides,
     num_repeats,
-    se_ratio : float =0.25,
-    bn_epsilon : float = 1e-5,
-    bn_momentum : float =0.0,
-    activation : str = "relu",
-    survival_probability: float =0.8,
-    name = None,
+    se_ratio: float = 0.25,
+    bn_epsilon: float = 1e-5,
+    bn_momentum: float = 0.0,
+    activation: str = "relu",
+    survival_probability: float = 0.8,
+    name=None,
 ):
     """Create one group of blocks for the ResNet model."""
     if name is None:
-        name = "block_group" + str(backend.get_uid("block_group"))
+        counter = backend.get_uid("block_group_")
+        name = f"block_group_{counter}"
 
     def apply(inputs):
         # Only the first block per block_group uses projection shortcut and strides.
@@ -462,6 +472,7 @@ def BlockGroup(
 
     return apply
 
+
 def get_survival_probability(init_rate, block_num, total_blocks):
     """Get survival probability based on block number and initial rate."""
     return init_rate * float(block_num) / total_blocks
@@ -487,6 +498,7 @@ def fixed_padding(inputs, kernel_size):
 
     return padded_inputs
 
+
 def ResNetRS(
     depth: int,
     input_shape=None,
@@ -504,7 +516,7 @@ def ResNetRS(
     input_tensor=None,
     classes=1000,
     classifier_activation: Union[str, Callable] = "softmax",
-    include_preprocessing=True
+    include_preprocessing=True,
 ):
     """Build Resnet-RS model, given provided parameters.
 
@@ -588,12 +600,13 @@ def ResNetRS(
             f"Received classes={classes}"
         )
     input_shape = imagenet_utils.obtain_input_shape(
-      input_shape,
-      default_size=224,
-      min_size=32,
-      data_format=backend.image_data_format(),
-      require_flatten=include_top,
-      weights=weights)
+        input_shape,
+        default_size=224,
+        min_size=32,
+        data_format=backend.image_data_format(),
+        require_flatten=include_top,
+        weights=weights,
+    )
     # Define input tensor
     if input_tensor is None:
         img_input = layers.Input(shape=input_shape)
@@ -602,15 +615,25 @@ def ResNetRS(
             img_input = layers.Input(tensor=input_tensor, shape=input_shape)
         else:
             img_input = input_tensor
+
     bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+
     x = img_input
+
     if include_preprocessing:
-        x = layers.Rescaling(scale=1. / 255)(x)
+        num_channels = input_shape[bn_axis - 1]
+        if num_channels == 3:
+            x = layers.Rescaling(scale=1.0 / 255)(x)
+            x = layers.Normalization(
+                mean=[0.485, 0.456, 0.406],
+                variance=[0.229**2, 0.224**2, 0.225**2],
+                axis=bn_axis,
+            )(x)
+        else:
+            x = layers.Rescaling(scale=1.0 / 255)(x)
 
     # Build stem
-    x = STEM(bn_momentum=bn_momentum, bn_epsilon=bn_epsilon, activation=activation)(
-        x
-    )
+    x = STEM(bn_momentum=bn_momentum, bn_epsilon=bn_epsilon, activation=activation)(x)
 
     # Build blocks
     if block_args is None:
@@ -642,9 +665,9 @@ def ResNetRS(
             x = layers.Dropout(dropout_rate, name="top_dropout")(x)
 
         imagenet_utils.validate_activation(classifier_activation, weights)
-        x = layers.Dense(
-            classes, activation=classifier_activation, name="predictions"
-        )(x)
+        x = layers.Dense(classes, activation=classifier_activation, name="predictions")(
+            x
+        )
     else:
         if pooling == "avg":
             x = layers.GlobalAveragePooling2D(name="avg_pool")(x)
@@ -683,8 +706,10 @@ def ResNetRS(
 
     return model
 
-@keras_export('keras.applications.resnet_rs.ResNetRS50',
-              'keras.applications.ResNetRS50')
+
+@keras_export(
+    "keras.applications.resnet_rs.ResNetRS50", "keras.applications.ResNetRS50"
+)
 def ResNetRS50(
     include_top=True,
     weights="imagenet",
@@ -711,8 +736,10 @@ def ResNetRS50(
         include_preprocessing=include_preprocessing,
     )
 
-@keras_export('keras.applications.resnet_rs.ResNetRS101',
-              'keras.applications.ResNetRS101')
+
+@keras_export(
+    "keras.applications.resnet_rs.ResNetRS101", "keras.applications.ResNetRS101"
+)
 def ResNetRS101(
     include_top=True,
     weights="imagenet",
@@ -739,8 +766,10 @@ def ResNetRS101(
         include_preprocessing=include_preprocessing,
     )
 
-@keras_export('keras.applications.resnet_rs.ResNetRS152',
-              'keras.applications.ResNetRS152')
+
+@keras_export(
+    "keras.applications.resnet_rs.ResNetRS152", "keras.applications.ResNetRS152"
+)
 def ResNetRS152(
     include_top=True,
     weights="imagenet",
@@ -767,8 +796,10 @@ def ResNetRS152(
         include_preprocessing=include_preprocessing,
     )
 
-@keras_export('keras.applications.resnet_rs.ResNetRS200',
-              'keras.applications.ResNetRS200')
+
+@keras_export(
+    "keras.applications.resnet_rs.ResNetRS200", "keras.applications.ResNetRS200"
+)
 def ResNetRS200(
     include_top=True,
     weights="imagenet",
@@ -795,8 +826,10 @@ def ResNetRS200(
         include_preprocessing=include_preprocessing,
     )
 
-@keras_export('keras.applications.resnet_rs.ResNetRS270',
-              'keras.applications.ResNetRS270')
+
+@keras_export(
+    "keras.applications.resnet_rs.ResNetRS270", "keras.applications.ResNetRS270"
+)
 def ResNetRS270(
     include_top=True,
     weights="imagenet",
@@ -824,8 +857,10 @@ def ResNetRS270(
         include_preprocessing=include_preprocessing,
     )
 
-@keras_export('keras.applications.resnet_rs.ResNetRS350',
-              'keras.applications.ResNetRS350')
+
+@keras_export(
+    "keras.applications.resnet_rs.ResNetRS350", "keras.applications.ResNetRS350"
+)
 def ResNetRS350(
     include_top=True,
     weights="imagenet",
@@ -853,8 +888,10 @@ def ResNetRS350(
         include_preprocessing=include_preprocessing,
     )
 
-@keras_export('keras.applications.resnet_rs.ResNetRS420',
-              'keras.applications.ResNetRS420')
+
+@keras_export(
+    "keras.applications.resnet_rs.ResNetRS420", "keras.applications.ResNetRS420"
+)
 def ResNetRS420(
     include_top=True,
     weights="imagenet",
@@ -882,38 +919,39 @@ def ResNetRS420(
         include_preprocessing=include_preprocessing,
     )
 
-@keras_export('keras.applications.resnet_rs.preprocess_input')
+
+@keras_export("keras.applications.resnet_rs.preprocess_input")
 def preprocess_input(x, data_format=None):
-  """A placeholder method for backward compatibility.
+    """A placeholder method for backward compatibility.
 
-  The preprocessing logic has been included in the ResnetRS model
-  implementation. Users are no longer required to call this method to normalize
-  the input data. This method does nothing and only kept as a placeholder to
-  align the API surface between old and new version of model.
+    The preprocessing logic has been included in the ResnetRS model
+    implementation. Users are no longer required to call this method to normalize
+    the input data. This method does nothing and only kept as a placeholder to
+    align the API surface between old and new version of model.
 
-  Args:
-    x: A floating point `numpy.array` or a `tf.Tensor`.
-    data_format: Optional data format of the image tensor/array. Defaults to
-      None, in which case the global setting
-      `tf.keras.backend.image_data_format()` is used (unless you changed it, it
-      defaults to "channels_last").{mode}
+    Args:
+      x: A floating point `numpy.array` or a `tf.Tensor`.
+      data_format: Optional data format of the image tensor/array. Defaults to
+        None, in which case the global setting
+        `tf.keras.backend.image_data_format()` is used (unless you changed it, it
+        defaults to "channels_last").{mode}
 
-  Returns:
-    Unchanged `numpy.array` or `tf.Tensor`.
-  """
-  return x
+    Returns:
+      Unchanged `numpy.array` or `tf.Tensor`.
+    """
+    return x
 
 
-@keras_export('keras.applications.resnet_rs.decode_predictions')
+@keras_export("keras.applications.resnet_rs.decode_predictions")
 def decode_predictions(preds, top=5):
-  return imagenet_utils.decode_predictions(preds, top=top)
+    return imagenet_utils.decode_predictions(preds, top=top)
+
 
 decode_predictions.__doc__ = imagenet_utils.decode_predictions.__doc__
 
-ResNetRS50.__doc__= BASE_DOCSTRING.format(name="ResNetRS50")
-ResNetRS152.__doc__= BASE_DOCSTRING.format(name="ResNetRS152")
-ResNetRS200.__doc__= BASE_DOCSTRING.format(name="ResNetRS200")
-ResNetRS270.__doc__= BASE_DOCSTRING.format(name="ResNetRS270")
-ResNetRS350.__doc__= BASE_DOCSTRING.format(name="ResNetRS350")
-ResNetRS420.__doc__= BASE_DOCSTRING.format(name="ResNetRS420")
-
+ResNetRS50.__doc__ = BASE_DOCSTRING.format(name="ResNetRS50")
+ResNetRS152.__doc__ = BASE_DOCSTRING.format(name="ResNetRS152")
+ResNetRS200.__doc__ = BASE_DOCSTRING.format(name="ResNetRS200")
+ResNetRS270.__doc__ = BASE_DOCSTRING.format(name="ResNetRS270")
+ResNetRS350.__doc__ = BASE_DOCSTRING.format(name="ResNetRS350")
+ResNetRS420.__doc__ = BASE_DOCSTRING.format(name="ResNetRS420")
