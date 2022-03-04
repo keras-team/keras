@@ -3,7 +3,10 @@
 # can't be exposed to public yet.
 
 package(
-    default_visibility = ["//keras:friends"],
+    default_visibility = [
+        "//keras:friends",
+        "//learning/brain/experimental/dtensor/models:__subpackages__",
+    ],
     licenses = ["notice"],
 )
 
@@ -107,9 +110,6 @@ py_test(
 py_library(
     name = "optimizers",
     srcs = ["optimizers.py"],
-    visibility = [
-        "//learning/brain/experimental/dtensor/models:__subpackages__",
-    ],
     deps = [
         ":dtensor",
         "//:expect_tensorflow_installed",
