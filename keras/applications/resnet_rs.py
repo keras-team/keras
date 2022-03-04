@@ -629,8 +629,6 @@ def ResNetRS(
                 variance=[0.229**2, 0.224**2, 0.225**2],
                 axis=bn_axis,
             )(x)
-        else:
-            x = layers.Rescaling(scale=1.0 / 255)(x)
 
     # Build stem
     x = STEM(bn_momentum=bn_momentum, bn_epsilon=bn_epsilon, activation=activation)(x)
