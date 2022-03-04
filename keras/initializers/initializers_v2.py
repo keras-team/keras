@@ -13,16 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 """Keras initializers for TF 2."""
-# pylint: disable=g-classes-have-attributes
+# pylint: disable=g-classes-have-attributes, missing-docstring, g-direct-tensorflow-import
 
 import math
 from keras import backend
+from keras.dtensor import utils
+
 import tensorflow.compat.v2 as tf
+
 from tensorflow.python.util.tf_export import keras_export
 
 _PARTITION_SHAPE = 'partition_shape'
 _PARTITION_OFFSET = 'partition_offset'
-_ALLOWED_INITIALIZER_KWARGS = [_PARTITION_SHAPE, _PARTITION_OFFSET]
+_LAYOUT = 'layout'
+_ALLOWED_INITIALIZER_KWARGS = [_PARTITION_SHAPE, _PARTITION_OFFSET, _LAYOUT]
 
 
 @keras_export('keras.initializers.Initializer')
@@ -142,6 +146,9 @@ class Zeros(Initializer):
       raise ValueError(f'Expected numeric or boolean dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
+    layout = kwargs.pop('layout', None)
+    if layout:
+      return utils.call_with_layout(tf.zeros, layout, shape=shape, dtype=dtype)
     return tf.zeros(shape, dtype)
 
 
@@ -179,6 +186,9 @@ class Ones(Initializer):
       raise ValueError(f'Expected numeric or boolean dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
+    layout = kwargs.pop('layout', None)
+    if layout:
+      return utils.call_with_layout(tf.ones, layout, shape=shape, dtype=dtype)
     return tf.ones(shape, dtype)
 
 
@@ -222,7 +232,10 @@ class Constant(Initializer):
        (via `tf.keras.backend.set_floatx(float_dtype)`).
       **kwargs: Additional keyword arguments.
     """
-    del kwargs
+    layout = kwargs.pop('layout', None)
+    if layout:
+      return utils.call_with_layout(tf.constant, layout, self.value,
+                                    shape=shape, dtype=dtype)
     return tf.constant(
         self.value, dtype=_get_dtype(dtype), shape=shape)
 
@@ -285,6 +298,13 @@ class RandomUniform(Initializer):
       raise ValueError(f'Expected float or integer dtype, got {dtype}.')
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
+    layout = kwargs.pop('layout', None)
+    if layout:
+      self._random_generator._force_generator = True
+      _ensure_keras_seeded()
+      return utils.call_with_layout(
+          self._random_generator.random_uniform, layout, shape, self.minval,
+          self.maxval, dtype)
     return self._random_generator.random_uniform(shape, self.minval,
                                                  self.maxval, dtype)
 
@@ -348,6 +368,13 @@ class RandomNormal(Initializer):
     dtype = _assert_float_dtype(_get_dtype(dtype))
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
+    layout = kwargs.pop('layout', None)
+    if layout:
+      self._random_generator._force_generator = True
+      _ensure_keras_seeded()
+      return utils.call_with_layout(
+          self._random_generator.random_normal, layout, shape, self.mean,
+          self.stddev, dtype)
     return self._random_generator.random_normal(shape, self.mean, self.stddev,
                                                 dtype)
 
@@ -416,6 +443,13 @@ class TruncatedNormal(Initializer):
     dtype = _assert_float_dtype(_get_dtype(dtype))
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
+    layout = kwargs.pop('layout', None)
+    if layout:
+      self._random_generator._force_generator = True
+      _ensure_keras_seeded()
+      return utils.call_with_layout(
+          self._random_generator.truncated_normal, layout, shape, self.mean,
+          self.stddev, dtype)
     return self._random_generator.truncated_normal(shape, self.mean,
                                                    self.stddev, dtype)
 
@@ -513,10 +547,19 @@ class VarianceScaling(Initializer):
     """
     _validate_kwargs(self.__class__.__name__, kwargs)
     dtype = _assert_float_dtype(_get_dtype(dtype))
-    scale = self.scale
-    fan_in, fan_out = _compute_fans(shape)
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
+    layout = kwargs.pop('layout', None)
+    if layout:
+      self._random_generator._force_generator = True
+      _ensure_keras_seeded()
+      return utils.call_with_layout(self._generate_init_val, layout,
+                                    shape=shape, dtype=dtype)
+    return self._generate_init_val(shape=shape, dtype=dtype)
+
+  def _generate_init_val(self, shape, dtype):
+    scale = self.scale
+    fan_in, fan_out = _compute_fans(shape)
     if self.mode == 'fan_in':
       scale /= max(1., fan_in)
     elif self.mode == 'fan_out':
@@ -607,6 +650,15 @@ class Orthogonal(Initializer):
       raise ValueError('The tensor to initialize must be '
                        'at least two-dimensional. Received: '
                        f'shape={shape} of rank {len(shape)}.')
+    layout = kwargs.pop('layout', None)
+    if layout:
+      self._random_generator._force_generator = True
+      _ensure_keras_seeded()
+      return utils.call_with_layout(
+          self._generate_init_val, layout, shape=shape, dtype=dtype)
+    return self._generate_init_val(shape, dtype)
+
+  def _generate_init_val(self, shape, dtype):
     # Flatten the input shape with the last dimension remaining
     # its original shape so it works for conv2d
     num_rows = 1
@@ -674,6 +726,13 @@ class Identity(Initializer):
       raise ValueError(
           'Identity matrix initializer can only be used for 2D matrices. '
           f'Received: shape={shape} of rank {len(shape)}.')
+    layout = kwargs.pop('layout', None)
+    if layout:
+      return utils.call_with_layout(
+          self._generate_init_val, layout, shape=shape, dtype=dtype)
+    return self._generate_init_val(shape, dtype)
+
+  def _generate_init_val(self, shape, dtype):
     initializer = tf.eye(*shape, dtype=dtype)
     return self.gain * initializer
 
@@ -998,10 +1057,24 @@ def _compute_fans(shape):
 
 
 def _validate_kwargs(cls_name, kwargs, support_partition=True):
-  for kwarg in kwargs:
-    if kwarg not in _ALLOWED_INITIALIZER_KWARGS:
-      raise TypeError(f'Unknown keyword arguments: {kwarg}. Allowed keyword '
-                      f'arguments: {_ALLOWED_INITIALIZER_KWARGS}.')
-    elif not support_partition:
-      raise ValueError(f'{cls_name} initializer doesn\'t support '
-                       'partition-related arguments.')
+  invalid_kwargs = [k for k in kwargs if k not in _ALLOWED_INITIALIZER_KWARGS]
+  if invalid_kwargs:
+    raise TypeError(f'Unknown keyword arguments: {invalid_kwargs}. Allowed '
+                    f'keyword arguments: {_ALLOWED_INITIALIZER_KWARGS}.')
+  if not support_partition and (_PARTITION_SHAPE in kwargs or
+                                _PARTITION_OFFSET in kwargs):
+    raise ValueError(f'{cls_name} initializer doesn\'t support '
+                     'partition-related arguments.')
+
+
+def _ensure_keras_seeded():
+  """Make sure the keras.backend global seed generator is set.
+
+  This is important for DTensor use case to ensure that each client are
+  initialized with same seed for tf.random.Generator, so that the value created
+  are in sync among all the clients.
+  """
+  if not getattr(backend._SEED_GENERATOR, 'generator', None):  # pylint:disable=protected-access
+    raise ValueError('When using DTensor APIs, you need to set the global seed '
+                     'before using any Keras initializers. Please make sure '
+                     'to call `tf.keras.utils.set_random_seed()` in your code.')
