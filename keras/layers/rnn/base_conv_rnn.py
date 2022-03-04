@@ -295,7 +295,8 @@ class ConvRNN(RNN):
                                                constants=constants,
                                                go_backwards=self.go_backwards,
                                                mask=mask,
-                                               input_length=timesteps)
+                                               input_length=timesteps,
+                                               return_all_outputs=self.return_sequences)
     if self.stateful:
       updates = [
           backend.update(self_state, state)
