@@ -274,6 +274,26 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     result = model(tf.zeros((10, 10), layout=self.layout_2d), training=True)
     self.assertAllClose(result, tf.zeros((10, 30), layout=self.layout_2d))
 
+  def test_init_model_with_empty_layout_map(self):
+    # Create empty layout map, which means all the weights just default to
+    # all replicated.
+    layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
+    with layout_map_lib.layout_map_scope(layout_map):
+      model = tf.keras.Sequential([
+          layers.Dense(20, name='d1', input_shape=(10,)),
+          layers.Dropout(0.1),
+          layers.Dense(30, name='d2')
+      ])
+
+    self.assertLen(model.layers, 3)
+    d1 = model.layers[0]
+    d2 = model.layers[2]
+
+    self.assertEqual(d1.kernel.layout, self.layout_2d)
+    self.assertEqual(d1.bias.layout, self.layout_1d)
+    self.assertEqual(d2.kernel.layout, self.layout_2d)
+    self.assertEqual(d2.bias.layout, self.layout_1d)
+
 
 if __name__ == '__main__':
   tf.test.main()

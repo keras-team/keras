@@ -260,10 +260,10 @@ class Functional(training_lib.Model):
     self._set_save_spec(self._nested_inputs)
     tf_utils.assert_no_legacy_layers(self.layers)
 
-    # Note that this method is used by both functional and sequential model,
-    # so we can't just this method in functional.__init__, which will miss the
-    # coverage of sequential model.
-    if self._layout_map:
+    # Note that this method is used by both functional and sequential models,
+    # so we can't just have this method in functional.__init__, which will miss
+    #  the coverage of sequential model.
+    if self._layout_map is not None:
       layout_map_lib._map_functional_model_variable(self, self._layout_map)
 
   @property
