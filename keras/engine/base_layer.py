@@ -2215,7 +2215,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
           self._handle_activity_regularization(inputs, outputs)
       self._set_mask_metadata(inputs, outputs, input_masks,
                               build_graph=False)
-      outputs = nest.map_structure(
+      outputs = tf.nest.map_structure(
         keras_tensor.keras_tensor_from_tensor, outputs)
 
     self._set_save_spec(inputs, args, kwargs)
