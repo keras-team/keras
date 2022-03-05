@@ -622,8 +622,8 @@ def ResNetRS(
 
     if include_preprocessing:
         num_channels = input_shape[bn_axis - 1]
-        if num_channels == 3:
-            x = layers.Rescaling(scale=1.0 / 255)(x)
+        x = layers.Rescaling(scale=1.0 / 255)(x)
+        if weights == "imagenet":
             x = layers.Normalization(
                 mean=[0.485, 0.456, 0.406],
                 variance=[0.229**2, 0.224**2, 0.225**2],
