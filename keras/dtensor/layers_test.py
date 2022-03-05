@@ -15,8 +15,8 @@
 """Tests for layers."""
 
 from keras import backend
+from keras import layers
 from keras.dtensor import dtensor_api as dtensor
-from keras.dtensor import layers
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf

@@ -81,6 +81,7 @@ py_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
+        "//keras/dtensor",
         "//keras/utils:tf_inspect",
         "//keras/utils:tf_utils",
     ],

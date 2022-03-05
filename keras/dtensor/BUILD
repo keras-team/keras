@@ -28,31 +28,15 @@ py_test(
     ],
 )
 
-py_library(
-    name = "layers",
-    srcs = ["layers.py"],
-    deps = [
-        ":dtensor",
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras/engine:base_layer",
-        "//keras/engine:base_layer_utils",
-        "//keras/engine:input_spec",
-        "//keras/layers",
-        "//keras/layers/convolutional:base_conv",
-        "//keras/utils:tf_inspect",
-    ],
-)
-
 py_test(
     name = "layers_test",
     srcs = ["layers_test.py"],
     tags = ["no_oss"],
     deps = [
         ":dtensor",
-        ":layers",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras/layers",
         "//keras/utils:tf_utils",
         "//learning/brain/experimental/dtensor/tests:test_util",
     ],
@@ -90,12 +74,12 @@ py_library(
     srcs = ["integration_test_utils.py"],
     deps = [
         ":dtensor",
-        ":layers",
         ":layout_map",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:losses",
         "//keras/datasets",
+        "//keras/layers",
         "//keras/models",
         "//keras/utils:np_utils",
     ],
