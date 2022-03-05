@@ -21,9 +21,7 @@ import shutil
 
 from absl.testing import parameterized
 import keras
-from keras.layers.rnn import gru
 from keras.layers.rnn import gru_lstm_utils
-from keras.layers.rnn import gru_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
@@ -44,7 +42,14 @@ _config = tf.compat.v1.ConfigProto(graph_options=_graph_options)
 
 @test_utils.run_all_without_tensor_float_32('RNN GRU can use TF32 on GPU')
 @test_combinations.run_all_keras_modes(config=_config)
-class GRUV2Test(test_combinations.TestCase):
+class GRUGraphRewriteTest(test_combinations.TestCase):
+
+  input_shape = 10
+  output_shape = 8
+  rnn_state_size = 8
+  timestep = 4
+  batch = 100
+  epoch = 1
 
   @parameterized.named_parameters(
       ('non_tan_activation', 'relu', 'sigmoid', 0, False, True, True),
@@ -54,45 +59,42 @@ class GRUV2Test(test_combinations.TestCase):
       ('not_use_bias', 'tanh', 'sigmoid', 0, False, False, True),
       ('not_reset_after', 'tanh', 'sigmoid', 0, False, True, False)
   )
+  @test_utils.run_v2_only
   def test_could_use_defun_backend(self, activation, recurrent_activation,
                                    recurrent_dropout, unroll, use_bias,
                                    reset_after):
-    layer = gru.GRU(1,
-                    activation=activation,
-                    recurrent_activation=recurrent_activation,
-                    recurrent_dropout=recurrent_dropout,
-                    unroll=unroll,
-                    use_bias=use_bias,
-                    reset_after=reset_after)
+    layer = keras.layers.GRU(
+        1,
+        activation=activation,
+        recurrent_activation=recurrent_activation,
+        recurrent_dropout=recurrent_dropout,
+        unroll=unroll,
+        use_bias=use_bias,
+        reset_after=reset_after)
     self.assertFalse(layer._could_use_gpu_kernel)
 
   @test_utils.run_v2_only
   def test_use_on_default_activation_with_gpu_kernel(self):
-    layer = gru.GRU(1, activation=tf.tanh)
+    layer = keras.layers.GRU(1, activation=tf.tanh)
     self.assertTrue(layer._could_use_gpu_kernel)
 
-    layer = gru.GRU(1, recurrent_activation=tf.sigmoid)
+    layer = keras.layers.GRU(1, recurrent_activation=tf.sigmoid)
     self.assertTrue(layer._could_use_gpu_kernel)
 
   def test_keras_model_with_gru(self):
-    input_shape = 10
-    rnn_state_size = 8
-    output_shape = 8
-    timestep = 4
-    batch = 100
     epoch = 10
 
     (x_train, y_train), _ = test_utils.get_test_data(
-        train_samples=batch,
+        train_samples=self.batch,
         test_samples=0,
-        input_shape=(timestep, input_shape),
-        num_classes=output_shape)
-    y_train = np_utils.to_categorical(y_train, output_shape)
+        input_shape=(self.timestep, self.input_shape),
+        num_classes=self.output_shape)
+    y_train = np_utils.to_categorical(y_train, self.output_shape)
 
-    layer = gru.GRU(rnn_state_size)
+    layer = keras.layers.GRU(self.rnn_state_size)
 
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[self.timestep, self.input_shape], dtype=tf.float32)
 
     outputs = layer(inputs)
     model = keras.models.Model(inputs, outputs)
@@ -106,7 +108,7 @@ class GRUV2Test(test_combinations.TestCase):
     timesteps = 3
     embedding_dim = 4
     units = 2
-    layer = gru.GRU(units, input_shape=(None, embedding_dim))
+    layer = keras.layers.GRU(units, input_shape=(None, embedding_dim))
     model = keras.models.Sequential()
     model.add(layer)
     model.compile(tf.compat.v1.train.GradientDescentOptimizer(0.001), 'mse')
@@ -119,69 +121,19 @@ class GRUV2Test(test_combinations.TestCase):
     targets = np.abs(np.random.random((2, 3, 5)))
     targets /= targets.sum(axis=-1, keepdims=True)
     model = keras.models.Sequential()
-    model.add(gru.GRU(10, return_sequences=True, unroll=False))
-    model.add(gru.GRU(5, return_sequences=True, unroll=False))
+    model.add(keras.layers.GRU(10, return_sequences=True, unroll=False))
+    model.add(keras.layers.GRU(5, return_sequences=True, unroll=False))
     model.compile(
         loss='categorical_crossentropy',
         optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01))
     model.fit(inputs, targets, epochs=1, batch_size=2, verbose=1)
 
   def test_from_config_GRU(self):
-    layer_class = gru.GRU
+    layer_class = keras.layers.GRU
     for stateful in (False, True):
       l1 = layer_class(units=1, stateful=stateful)
       l2 = layer_class.from_config(l1.get_config())
       assert l1.get_config() == l2.get_config()
-
-  @tf.test.disable_with_predicate(
-      pred=tf.test.is_built_with_rocm,
-      skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
-  @test_utils.run_v2_only
-  def test_gru_v2_feature_parity_with_canonical_gru(self):
-    input_shape = 10
-    rnn_state_size = 8
-    timestep = 4
-    batch = 20
-
-    (x_train, y_train), _ = test_utils.get_test_data(
-        train_samples=batch,
-        test_samples=0,
-        input_shape=(timestep, input_shape),
-        num_classes=rnn_state_size,
-        random_seed=87654321)
-    y_train = np_utils.to_categorical(y_train, rnn_state_size)
-    # For the last batch item of the test data, we filter out the last
-    # timestep to simulate the variable length sequence and masking test.
-    x_train[-2:, -1, :] = 0.0
-    y_train[-2:] = 0
-
-    inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
-    masked_input = keras.layers.Masking()(inputs)
-    gru_layer = gru_v1.GRU(rnn_state_size,
-                           recurrent_activation='sigmoid',
-                           reset_after=True)
-    output = gru_layer(masked_input)
-    gru_model = keras.models.Model(inputs, output)
-    weights = gru_model.get_weights()
-    y_1 = gru_model.predict(x_train)
-    gru_model.compile('rmsprop', 'mse')
-    gru_model.fit(x_train, y_train)
-    y_2 = gru_model.predict(x_train)
-
-    with test_utils.device(should_use_gpu=True):
-      cudnn_layer = gru.GRU(rnn_state_size,
-                            recurrent_activation='sigmoid',
-                            reset_after=True)
-      cudnn_model = keras.models.Model(inputs, cudnn_layer(masked_input))
-    cudnn_model.set_weights(weights)
-    y_3 = cudnn_model.predict(x_train)
-    cudnn_model.compile('rmsprop', 'mse')
-    cudnn_model.fit(x_train, y_train)
-    y_4 = cudnn_model.predict(x_train)
-
-    self.assertAllClose(y_1, y_3, rtol=2e-5, atol=2e-5)
-    self.assertAllClose(y_2, y_4, rtol=2e-5, atol=2e-5)
 
   @parameterized.named_parameters(
       # test_name, use_bias, bias_initializer, activation
@@ -204,7 +156,7 @@ class GRUV2Test(test_combinations.TestCase):
     def build_model():
       inputs = keras.layers.Input(
           shape=[timestep, input_dim], dtype=tf.float32)
-      layer = gru.GRU(
+      layer = keras.layers.GRU(
           units,
           use_bias=use_bias,
           bias_initializer=bias_initializer)
@@ -223,93 +175,31 @@ class GRUV2Test(test_combinations.TestCase):
     self.assertAllClose(layer.get_weights(), new_layer.get_weights())
 
   def test_gru_v2_output_on_multiple_kernel(self):
-    input_shape = 10
-    rnn_state_size = 8
-    timestep = 4
-    batch = 100
-
-    x_train = np.random.random((batch, timestep, input_shape))
+    x_train = np.random.random((self.batch, self.timestep, self.input_shape))
 
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[self.timestep, self.input_shape], dtype=tf.float32)
     with test_utils.device(should_use_gpu=False):
-      layer = gru.GRU(rnn_state_size)
+      layer = keras.layers.GRU(self.rnn_state_size)
       output = layer(inputs)
       cpu_model = keras.models.Model(inputs, output)
       weights = cpu_model.get_weights()
       y_1 = cpu_model.predict(x_train)
 
     with test_utils.device(should_use_gpu=True):
-      layer = gru.GRU(rnn_state_size)
+      layer = keras.layers.GRU(self.rnn_state_size)
       output = layer(inputs)
       gpu_model = keras.models.Model(inputs, output)
       gpu_model.set_weights(weights)
       y_2 = gpu_model.predict(x_train)
 
-    # Note that cuDNN uses 'sigmoid' as activation, so the GRU V2 uses
-    # 'sigmoid' as default. Construct the canonical GRU with sigmoid to achieve
-    # the same output.
-    with test_utils.device(should_use_gpu=True):
-      layer = gru_v1.GRU(rnn_state_size,
-                         recurrent_activation='sigmoid',
-                         reset_after=True)
-      output = layer(inputs)
-      canonical_model = keras.models.Model(inputs, output)
-      canonical_model.set_weights(weights)
-      y_3 = canonical_model.predict(x_train)
-
     self.assertAllClose(y_1, y_2, rtol=1e-5, atol=1e-5)
-    self.assertAllClose(y_2, y_3, rtol=1e-5, atol=1e-5)
-
-  @parameterized.named_parameters(
-      # test_name, time_major, go_backwards
-      ('normal', False, False),
-      ('time_major', True, False),
-      ('go_backwards', False, True),
-      ('both', True, True),
-  )
-  def test_time_major_and_go_backward(self, time_major, go_backwards):
-    input_shape = 10
-    rnn_state_size = 8
-    timestep = 4
-    batch = 100
-
-    x_train = np.random.random((batch, timestep, input_shape))
-
-    def build_model(layer_cls):
-      inputs = keras.layers.Input(
-          shape=[timestep, input_shape], dtype=tf.float32)
-      layer = layer_cls(rnn_state_size,
-                        recurrent_activation='sigmoid',
-                        time_major=time_major,
-                        return_sequences=True,
-                        go_backwards=go_backwards,
-                        reset_after=True)
-      if time_major:
-        converted_input = keras.layers.Lambda(
-            lambda t: tf.transpose(t, [1, 0, 2]))(inputs)
-        outputs = layer(converted_input)
-        outputs = keras.layers.Lambda(
-            lambda t: tf.transpose(t, [1, 0, 2]))(outputs)
-      else:
-        outputs = layer(inputs)
-      return keras.models.Model(inputs, outputs)
-
-    gru_model = build_model(gru_v1.GRU)
-    y_ref = gru_model.predict(x_train)
-    weights = gru_model.get_weights()
-
-    gru_v2_model = build_model(gru.GRU)
-    gru_v2_model.set_weights(weights)
-    y = gru_v2_model.predict(x_train)
-
-    self.assertAllClose(y, y_ref)
 
   @tf.test.disable_with_predicate(
       pred=tf.test.is_built_with_rocm,
       skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   def test_with_masking_layer_GRU(self):
-    layer_class = gru.GRU
+    layer_class = keras.layers.GRU
     inputs = np.random.random((2, 3, 4))
     targets = np.abs(np.random.random((2, 3, 5)))
     targets /= targets.sum(axis=-1, keepdims=True)
@@ -329,8 +219,8 @@ class GRUV2Test(test_combinations.TestCase):
     targets /= targets.sum(axis=-1, keepdims=True)
     model = keras.models.Sequential()
     model.add(keras.layers.Masking(input_shape=(3, 4)))
-    model.add(gru.GRU(10, return_sequences=True, unroll=False))
-    model.add(gru.GRU(5, return_sequences=True, unroll=False))
+    model.add(keras.layers.GRU(10, return_sequences=True, unroll=False))
+    model.add(keras.layers.GRU(5, return_sequences=True, unroll=False))
     model.compile(
         loss='categorical_crossentropy',
         optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01))
@@ -342,7 +232,7 @@ class GRUV2Test(test_combinations.TestCase):
     embedding_dim = 4
     units = 2
     test_utils.layer_test(
-        gru.GRU,
+        keras.layers.GRU,
         kwargs={'units': units,
                 'return_sequences': True},
         input_shape=(num_samples, timesteps, embedding_dim))
@@ -357,7 +247,7 @@ class GRUV2Test(test_combinations.TestCase):
     embedding_dim = 4
     units = 2
     test_utils.layer_test(
-        gru.GRU,
+        keras.layers.GRU,
         kwargs={'units': units,
                 'return_sequences': True,
                 'dtype': 'float64'},
@@ -368,7 +258,7 @@ class GRUV2Test(test_combinations.TestCase):
       pred=tf.test.is_built_with_rocm,
       skip_message='Skipping as ROCm MIOpen does not support padded input yet.')
   def test_return_states_GRU(self):
-    layer_class = gru.GRU
+    layer_class = keras.layers.GRU
     x = np.random.random((2, 3, 4))
     y = np.abs(np.random.random((2, 5)))
     s = np.abs(np.random.random((2, 5)))
@@ -388,7 +278,7 @@ class GRUV2Test(test_combinations.TestCase):
     embedding_dim = 4
     units = 2
     test_utils.layer_test(
-        gru.GRU,
+        keras.layers.GRU,
         kwargs={'units': units,
                 'dropout': 0.1,
                 'recurrent_dropout': 0.1},
@@ -396,7 +286,7 @@ class GRUV2Test(test_combinations.TestCase):
 
   def test_constraints_GRU(self):
     embedding_dim = 4
-    layer_class = gru.GRU
+    layer_class = keras.layers.GRU
     k_constraint = keras.constraints.max_norm(0.01)
     r_constraint = keras.constraints.max_norm(0.01)
     b_constraint = keras.constraints.max_norm(0.01)
@@ -420,14 +310,14 @@ class GRUV2Test(test_combinations.TestCase):
     embedding_dim = 4
     units = 2
     test_utils.layer_test(
-        gru.GRU,
+        keras.layers.GRU,
         kwargs={'units': units,
                 'implementation': implementation_mode},
         input_shape=(num_samples, timesteps, embedding_dim))
 
   def test_regularizers_GRU(self):
     embedding_dim = 4
-    layer_class = gru.GRU
+    layer_class = keras.layers.GRU
     layer = layer_class(
         5,
         return_sequences=False,
@@ -455,7 +345,7 @@ class GRUV2Test(test_combinations.TestCase):
     timesteps = 3
     embedding_dim = 4
     units = 2
-    layer_class = gru.GRU
+    layer_class = keras.layers.GRU
     model = keras.models.Sequential()
     model.add(
         keras.layers.Embedding(
@@ -536,7 +426,7 @@ class GRUV2Test(test_combinations.TestCase):
     model = keras.Sequential([
         keras.layers.Embedding(vocab_size, embedding_dim,
                                batch_input_shape=[batch_size, timestep]),
-        gru.GRU(units, return_sequences=True, stateful=True),
+        keras.layers.GRU(units, return_sequences=True, stateful=True),
         keras.layers.Dense(vocab_size)
     ])
     model.compile(
@@ -559,18 +449,11 @@ class GRUV2Test(test_combinations.TestCase):
     mask = np.ones((batch_size, timestep)).astype(np.bool)
     mask[:, masksteps:] = 0
 
-    # Test for V1 behavior.
-    lstm_v1 = gru_v1.GRU(units, return_sequences=True, go_backwards=True)
+    gru_layer = keras.layers.GRU(
+        units, return_sequences=True, go_backwards=True)
     with test_utils.device(should_use_gpu=True):
-      outputs_masked_v1 = lstm_v1(inputs, mask=tf.constant(mask))
-      outputs_trimmed_v1 = lstm_v1(inputs[:, :masksteps])
-    self.assertAllClose(outputs_masked_v1[:, -masksteps:], outputs_trimmed_v1)
-
-    # Test for V2 behavior.
-    lstm = gru.GRU(units, return_sequences=True, go_backwards=True)
-    with test_utils.device(should_use_gpu=True):
-      outputs_masked = lstm(inputs, mask=tf.constant(mask))
-      outputs_trimmed = lstm(inputs[:, :masksteps])
+      outputs_masked = gru_layer(inputs, mask=tf.constant(mask))
+      outputs_trimmed = gru_layer(inputs[:, :masksteps])
     self.assertAllClose(outputs_masked[:, -masksteps:], outputs_trimmed)
 
   @tf_test_util.enable_output_all_intermediates
@@ -583,7 +466,7 @@ class GRUV2Test(test_combinations.TestCase):
           (x, y)).shuffle(100).batch(32)
 
       inp = keras.layers.Input(shape=(4, 8))
-      layer = gru.GRU(1)(inp)
+      layer = keras.layers.GRU(1)(inp)
       layer = keras.layers.Dense(1)(layer)
 
       model = keras.models.Model(inp, layer)
@@ -610,7 +493,7 @@ class GRUV2Test(test_combinations.TestCase):
             mask_zero=True,
             input_length=timestep,
             batch_input_shape=(num_samples, timestep)))
-    layer = gru.GRU(units)
+    layer = keras.layers.GRU(units)
     model.add(layer)
     model.compile(
         optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.01),
@@ -623,14 +506,14 @@ class GRUV2Test(test_combinations.TestCase):
   def test_deepcopy(self):
     if not tf.executing_eagerly():
       self.skipTest('v2-only test')
-    original_layer = gru.GRU(5)
+    original_layer = keras.layers.GRU(5)
     copied_layer = copy.deepcopy(original_layer)
     self.assertEqual(copied_layer.units, 5)
     self.assertEqual(original_layer.get_config(), original_layer.get_config())
 
     # Copy layer before layer call on inputs without weight initialization.
     inputs = np.random.normal(size=[32, 10, 8]).astype(np.float32)
-    original_layer = gru.GRU(4)
+    original_layer = keras.layers.GRU(4)
     copied_layer = copy.deepcopy(original_layer)
     outputs = original_layer(inputs)
     copied_outputs = copied_layer(inputs)
@@ -638,52 +521,11 @@ class GRUV2Test(test_combinations.TestCase):
         self.evaluate(outputs), self.evaluate(copied_outputs))
 
     # Copy layer after layer call on inputs with weight initialization.
-    original_layer = gru.GRU(4)
+    original_layer = keras.layers.GRU(4)
     outputs = original_layer(inputs)
     copied_layer = copy.deepcopy(original_layer)
     copied_outputs = copied_layer(inputs)
     self.assertAllClose(self.evaluate(outputs), self.evaluate(copied_outputs))
-
-
-@test_utils.run_all_without_tensor_float_32('RNN GRU can use TF32 on GPU')
-class GRULayerGradientTapeTest(test_combinations.TestCase):
-
-  @test_combinations.generate(test_combinations.combine(mode=['eager']))
-  def test_in_tape(self):
-    with self.test_session(config=_config):
-      time_steps = 10
-      embedding_size = 11
-      gru_unit_size = 12
-
-      gru_layer = gru.GRU(
-          gru_unit_size,
-          return_sequences=True,
-          return_state=True,
-          recurrent_activation='sigmoid',
-          recurrent_initializer='glorot_uniform')
-
-      x = tf.random.uniform([1, time_steps, embedding_size])
-      y = tf.random.uniform([1, gru_unit_size])
-
-      with tf.GradientTape() as tape:
-        hidden_state = tf.zeros([1, gru_unit_size], dtype=tf.float32)
-        _, state = gru_layer(x, initial_state=hidden_state)
-
-        loss = tf.reduce_mean(tf.square(state - y))
-
-      tape.gradient(loss, gru_layer.variables)
-
-
-@test_utils.run_all_without_tensor_float_32('RNN GRU can use TF32 on GPU')
-@test_combinations.run_all_keras_modes(config=_config)
-class GRUGraphRewriteTest(test_combinations.TestCase):
-
-  input_shape = 10
-  output_shape = 8
-  rnn_state_size = 8
-  timestep = 4
-  batch = 100
-  epoch = 1
 
   def _test_runtime_with_model(self, model):
     (x_train, y_train), _ = test_utils.get_test_data(
@@ -713,7 +555,7 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
 
   @test_utils.run_v2_only
   def test_GRU_runtime(self):
-    layer = gru.GRU(self.rnn_state_size, return_runtime=True)
+    layer = keras.layers.GRU(self.rnn_state_size, return_runtime=True)
 
     inputs = keras.layers.Input(
         shape=[self.timestep, self.input_shape], dtype=tf.float32)
@@ -734,7 +576,7 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
   def test_GRU_runtime_with_mask(self):
     # Masking will affect which backend is selected based on whether the mask
     # is strictly right padded.
-    layer = gru.GRU(self.rnn_state_size, return_runtime=True)
+    layer = keras.layers.GRU(self.rnn_state_size, return_runtime=True)
 
     inputs = keras.layers.Input(
         shape=[self.timestep, self.input_shape], dtype=tf.float32)
@@ -790,7 +632,7 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
     # This test is to demonstrate the graph rewrite of grappler plugin under
     # the condition that the function returns different number of internal
     # states.
-    layer = gru.GRU(self.rnn_state_size, return_runtime=True)
+    layer = keras.layers.GRU(self.rnn_state_size, return_runtime=True)
 
     inputs = keras.layers.Input(
         shape=[self.timestep, self.input_shape], dtype=tf.float32)
@@ -812,6 +654,288 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
         lambda x: tf.expand_dims(x, axis=-1))(runtime)
     model = keras.models.Model(inputs=inputs, outputs=[outputs, runtime])
     self._test_runtime_with_model(model)
+
+
+@test_utils.run_all_without_tensor_float_32('RNN GRU can use TF32 on GPU')
+class GRULayerGradientTapeTest(test_combinations.TestCase):
+
+  @test_combinations.generate(test_combinations.combine(mode=['eager']))
+  def test_in_tape(self):
+    with self.test_session(config=_config):
+      time_steps = 10
+      embedding_size = 11
+      gru_unit_size = 12
+
+      gru_layer = keras.layers.GRU(
+          gru_unit_size,
+          return_sequences=True,
+          return_state=True,
+          recurrent_activation='sigmoid',
+          recurrent_initializer='glorot_uniform')
+
+      x = tf.random.uniform([1, time_steps, embedding_size])
+      y = tf.random.uniform([1, gru_unit_size])
+
+      with tf.GradientTape() as tape:
+        hidden_state = tf.zeros([1, gru_unit_size], dtype=tf.float32)
+        _, state = gru_layer(x, initial_state=hidden_state)
+
+        loss = tf.reduce_mean(tf.square(state - y))
+
+      tape.gradient(loss, gru_layer.variables)
+
+
+@test_combinations.run_all_keras_modes
+class GRULayerTest(test_combinations.TestCase):
+
+  def test_return_sequences_gru(self):
+    num_samples = 2
+    timesteps = 3
+    embedding_dim = 4
+    units = 2
+    test_utils.layer_test(
+        keras.layers.GRU,
+        kwargs={'units': units,
+                'return_sequences': True},
+        input_shape=(num_samples, timesteps, embedding_dim))
+
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='Double type is not yet supported in ROCm')
+  @test_utils.run_v2_only
+  def test_float64_gru(self):
+    num_samples = 2
+    timesteps = 3
+    embedding_dim = 4
+    units = 2
+    test_utils.layer_test(
+        keras.layers.GRU,
+        kwargs={'units': units,
+                'return_sequences': True,
+                'dtype': 'float64'},
+        input_shape=(num_samples, timesteps, embedding_dim),
+        input_dtype='float64')
+
+  def test_dynamic_behavior_gru(self):
+    num_samples = 2
+    timesteps = 3
+    embedding_dim = 4
+    units = 2
+    layer = keras.layers.GRU(units, input_shape=(None, embedding_dim))
+    model = keras.models.Sequential()
+    model.add(layer)
+    model.compile(
+        'rmsprop',
+        'mse',
+        run_eagerly=test_utils.should_run_eagerly())
+    x = np.random.random((num_samples, timesteps, embedding_dim))
+    y = np.random.random((num_samples, units))
+    model.train_on_batch(x, y)
+
+  def test_dropout_gru(self):
+    num_samples = 2
+    timesteps = 3
+    embedding_dim = 4
+    units = 2
+    test_utils.layer_test(
+        keras.layers.GRU,
+        kwargs={'units': units,
+                'dropout': 0.1,
+                'recurrent_dropout': 0.1},
+        input_shape=(num_samples, timesteps, embedding_dim))
+
+  def test_recurrent_dropout_with_implementation_restriction(self):
+    layer = keras.layers.GRU(2, recurrent_dropout=0.1, implementation=2)
+    # The implementation is force to 1 due to the limit of recurrent_dropout.
+    self.assertEqual(layer.implementation, 1)
+
+  @parameterized.parameters([0, 1, 2])
+  def test_implementation_mode_gru(self, implementation_mode):
+    num_samples = 2
+    timesteps = 3
+    embedding_dim = 4
+    units = 2
+    test_utils.layer_test(
+        keras.layers.GRU,
+        kwargs={'units': units,
+                'implementation': implementation_mode},
+        input_shape=(num_samples, timesteps, embedding_dim))
+
+  def test_reset_after_gru(self):
+    num_samples = 2
+    timesteps = 3
+    embedding_dim = 4
+    units = 2
+
+    (x_train, y_train), _ = test_utils.get_test_data(
+        train_samples=num_samples,
+        test_samples=0,
+        input_shape=(timesteps, embedding_dim),
+        num_classes=units)
+    y_train = np_utils.to_categorical(y_train, units)
+
+    inputs = keras.layers.Input(shape=[timesteps, embedding_dim])
+    gru_layer = keras.layers.GRU(units,
+                                 reset_after=True)
+    output = gru_layer(inputs)
+    gru_model = keras.models.Model(inputs, output)
+    gru_model.compile(
+        'rmsprop',
+        'mse',
+        run_eagerly=test_utils.should_run_eagerly())
+    gru_model.fit(x_train, y_train)
+    gru_model.predict(x_train)
+
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='MIOpen only supports packed input output')
+  def test_with_masking_layer_gru(self):
+    layer_class = keras.layers.GRU
+    inputs = np.random.random((2, 3, 4))
+    targets = np.abs(np.random.random((2, 3, 5)))
+    targets /= targets.sum(axis=-1, keepdims=True)
+    model = keras.models.Sequential()
+    model.add(keras.layers.Masking(input_shape=(3, 4)))
+    model.add(layer_class(units=5, return_sequences=True, unroll=False))
+    model.compile(
+        loss='categorical_crossentropy',
+        optimizer='rmsprop',
+        run_eagerly=test_utils.should_run_eagerly())
+    model.fit(inputs, targets, epochs=1, batch_size=2, verbose=1)
+
+  @tf.test.disable_with_predicate(
+      pred=tf.test.is_built_with_rocm,
+      skip_message='MIOpen only supports packed input output')
+  def test_statefulness_gru(self):
+    num_samples = 2
+    timesteps = 3
+    embedding_dim = 4
+    units = 2
+    layer_class = keras.layers.GRU
+
+    model = keras.models.Sequential()
+    model.add(
+        keras.layers.Embedding(
+            4,
+            embedding_dim,
+            mask_zero=True,
+            input_length=timesteps,
+            batch_input_shape=(num_samples, timesteps)))
+    layer = layer_class(
+        units, return_sequences=False, stateful=True, weights=None)
+    model.add(layer)
+    model.compile(
+        optimizer='sgd',
+        loss='mse',
+        run_eagerly=test_utils.should_run_eagerly())
+    out1 = model.predict(np.ones((num_samples, timesteps)))
+    self.assertEqual(out1.shape, (num_samples, units))
+
+    # train once so that the states change
+    model.train_on_batch(
+        np.ones((num_samples, timesteps)), np.ones((num_samples, units)))
+    out2 = model.predict(np.ones((num_samples, timesteps)))
+
+    # if the state is not reset, output should be different
+    self.assertNotEqual(out1.max(), out2.max())
+
+    # check that output changes after states are reset
+    # (even though the model itself didn't change)
+    layer.reset_states()
+    out3 = model.predict(np.ones((num_samples, timesteps)))
+    self.assertNotEqual(out2.max(), out3.max())
+
+    # check that container-level reset_states() works
+    model.reset_states()
+    out4 = model.predict(np.ones((num_samples, timesteps)))
+    np.testing.assert_allclose(out3, out4, atol=1e-5)
+
+    # check that the call to `predict` updated the states
+    out5 = model.predict(np.ones((num_samples, timesteps)))
+    self.assertNotEqual(out4.max(), out5.max())
+
+    # Check masking
+    layer.reset_states()
+
+    left_padded_input = np.ones((num_samples, timesteps))
+    left_padded_input[0, :1] = 0
+    left_padded_input[1, :2] = 0
+    out6 = model.predict(left_padded_input)
+
+    layer.reset_states()
+
+    right_padded_input = np.ones((num_samples, timesteps))
+    right_padded_input[0, -1:] = 0
+    right_padded_input[1, -2:] = 0
+    out7 = model.predict(right_padded_input)
+
+    np.testing.assert_allclose(out7, out6, atol=1e-5)
+
+  def test_get_initial_states(self):
+    batch_size = 4
+    cell = keras.layers.GRUCell(20)
+    initial_state = cell.get_initial_state(
+        batch_size=batch_size, dtype=tf.float32)
+    _, state = cell(np.ones((batch_size, 20), dtype=np.float32), initial_state)
+    self.assertEqual(state.shape, initial_state.shape)
+
+
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+class GRULayerGenericTest(tf.test.TestCase):
+
+  def test_constraints_gru(self):
+    embedding_dim = 4
+    layer_class = keras.layers.GRU
+    k_constraint = keras.constraints.max_norm(0.01)
+    r_constraint = keras.constraints.max_norm(0.01)
+    b_constraint = keras.constraints.max_norm(0.01)
+    layer = layer_class(
+        5,
+        return_sequences=False,
+        weights=None,
+        input_shape=(None, embedding_dim),
+        kernel_constraint=k_constraint,
+        recurrent_constraint=r_constraint,
+        bias_constraint=b_constraint)
+    layer.build((None, None, embedding_dim))
+    self.assertEqual(layer.cell.kernel.constraint, k_constraint)
+    self.assertEqual(layer.cell.recurrent_kernel.constraint, r_constraint)
+    self.assertEqual(layer.cell.bias.constraint, b_constraint)
+
+  def test_from_config_gru(self):
+    layer_class = keras.layers.GRU
+    for stateful in (False, True):
+      l1 = layer_class(units=1, stateful=stateful)
+      l2 = layer_class.from_config(l1.get_config())
+      assert l1.get_config() == l2.get_config()
+
+  def test_deep_copy_gru(self):
+    cell = keras.layers.GRUCell(5)
+    copied_cell = copy.deepcopy(cell)
+    self.assertEqual(copied_cell.units, 5)
+    self.assertEqual(cell.get_config(), copied_cell.get_config())
+
+  def test_regularizers_gru(self):
+    embedding_dim = 4
+    layer_class = keras.layers.GRU
+    layer = layer_class(
+        5,
+        return_sequences=False,
+        weights=None,
+        input_shape=(None, embedding_dim),
+        kernel_regularizer=keras.regularizers.l1(0.01),
+        recurrent_regularizer=keras.regularizers.l1(0.01),
+        bias_regularizer='l2',
+        activity_regularizer='l1')
+    layer.build((None, None, 2))
+    self.assertLen(layer.losses, 3)
+
+    x = keras.backend.variable(np.ones((2, 3, 2)))
+    layer(x)
+    if tf.executing_eagerly():
+      self.assertLen(layer.losses, 4)
+    else:
+      self.assertLen(layer.get_losses_for(x), 1)
 
 
 if __name__ == '__main__':

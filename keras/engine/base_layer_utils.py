@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 import functools
 import threading
 from keras import backend
+from keras.dtensor import dtensor_api as dtensor
 from keras.utils import control_flow_util
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
@@ -47,7 +48,8 @@ def make_variable(name,
                   collections=None,
                   synchronization=tf.VariableSynchronization.AUTO,
                   aggregation=tf.VariableAggregation.NONE,
-                  partitioner=None):  # pylint: disable=unused-argument
+                  partitioner=None,    # pylint: disable=unused-argument
+                  layout=None):
   """Temporary util to create a variable (relies on `variable_scope.variable`).
 
   Some reuse-related technicalities prevent us from using
@@ -88,6 +90,7 @@ def make_variable(name,
       Accepted values are constants defined in the class
       `tf.VariableAggregation`.
     partitioner: Not handled at this time.
+    layout: the optional DTensor layout, used for creating DVariable.
 
   Returns:
     Variable instance.
@@ -103,30 +106,49 @@ def make_variable(name,
     # Instantiate initializer if provided initializer is a type object.
     if tf_inspect.isclass(initializer):
       initializer = initializer()
-    init_val = functools.partial(initializer, shape, dtype=dtype)
+    if layout:
+      init_val = functools.partial(initializer, shape, dtype=dtype,
+                                   layout=layout)
+    else:
+      init_val = functools.partial(initializer, shape, dtype=dtype)
     variable_dtype = dtype.base_dtype
 
   variable_shape = tf.TensorShape(shape)
 
   if use_resource is None:
     use_resource = True
-  # In theory, in `use_resource` is True and `collections` is empty
-  # (that is to say, in TF2), we can use tf.Variable.
-  # However, this breaks legacy (Estimator) checkpoints
-  # because it changes variable names. Remove this when V1 is fully deprecated.
-  return tf.compat.v1.Variable(
-      initial_value=init_val,
-      name=name,
-      trainable=trainable,
-      caching_device=caching_device,
-      dtype=variable_dtype,
-      validate_shape=validate_shape,
-      constraint=constraint,
-      use_resource=use_resource,
-      collections=collections,
-      synchronization=synchronization,
-      aggregation=aggregation,
-      shape=variable_shape if variable_shape else None)
+
+  if layout is None:
+    # In theory, in `use_resource` is True and `collections` is empty
+    # (that is to say, in TF2), we can use tf.Variable.
+    # However, this breaks legacy (Estimator) checkpoints because
+    # it changes variable names. Remove this when V1 is fully deprecated.
+    return tf.compat.v1.Variable(
+        initial_value=init_val,
+        name=name,
+        trainable=trainable,
+        caching_device=caching_device,
+        dtype=variable_dtype,
+        validate_shape=validate_shape,
+        constraint=constraint,
+        use_resource=use_resource,
+        collections=collections,
+        synchronization=synchronization,
+        aggregation=aggregation,
+        shape=variable_shape if variable_shape else None)
+  else:
+    return dtensor.DVariable(
+        initial_value=init_val,
+        name=name,
+        trainable=trainable,
+        caching_device=caching_device,
+        dtype=variable_dtype,
+        validate_shape=validate_shape,
+        constraint=constraint,
+        collections=collections,
+        synchronization=synchronization,
+        aggregation=aggregation,
+        shape=variable_shape if variable_shape else None)
 
 
 def collect_previous_mask(input_tensors):

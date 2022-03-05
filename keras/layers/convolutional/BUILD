@@ -89,6 +89,7 @@ py_library(
         "//keras:activations",
         "//keras:constraints",
         "//keras:regularizers",
+        "//keras/dtensor:utils",
         "//keras/initializers",
     ],
 )

@@ -1205,6 +1205,32 @@ class TestWholeModelSaving(test_combinations.TestCase):
     self.assertNotIn(generic_utils.CustomMaskWarning,
                      {warning.category for warning in w})
 
+  # Test only in eager mode because ragged tensor inputs
+  # cannot be used in graph mode.
+  @test_combinations.generate(
+      test_combinations.combine(mode=['eager']))
+  @test_utils.run_v2_only
+  def test_save_functional_with_ragged_constant_input(self):
+    input1 = keras.Input(shape=[])
+    input2 = tf.ragged.constant([[1., 2.], [3.]])
+    outputs = keras.layers.Add()([input1, input2])
+    model = keras.Model(input1, outputs)
+    saved_model_dir = self._save_model_dir()
+    model.save(saved_model_dir)
+    keras.models.load_model(saved_model_dir)
+
+  @test_combinations.generate(
+      test_combinations.combine(mode=['eager']))
+  @test_utils.run_v2_only
+  def test_save_functional_with_constant_input(self):
+    input1 = keras.Input(shape=[2])
+    input2 = tf.constant([[1., 2.]])
+    outputs = keras.layers.Add()([input1, input2])
+    model = keras.Model(input1, outputs)
+    saved_model_dir = self._save_model_dir()
+    model.save(saved_model_dir)
+    keras.models.load_model(saved_model_dir)
+
 
 # Factory functions to create models that will be serialized inside a Network.
 def _make_graph_network(input_size, output_size):
