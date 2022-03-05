@@ -20,6 +20,7 @@ from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
+from keras.dtensor import utils
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 import tensorflow.compat.v2 as tf
@@ -96,6 +97,7 @@ class Dense(Layer):
     the output would have shape `(batch_size, units)`.
   """
 
+  @utils.allow_initializer_layout
   def __init__(self,
                units,
                activation=None,

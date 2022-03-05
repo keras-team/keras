@@ -41,7 +41,7 @@ def get_current_layout_map():
   return getattr(_LAYOUT_MAP, 'layout_map', None)
 
 
-class LayoutMap(collections.MutableMapping):
+class LayoutMap(collections.abc.MutableMapping):
 
   def __init__(self, mesh=None):
     """A dict like object that maps between string name and dtensor.Layout.

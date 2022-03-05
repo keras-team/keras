@@ -23,7 +23,7 @@ import tensorflow.compat.v2 as tf
 # All the variable names in the default keras layers. We will use those to map
 # against the args in the __init__ method to find corresponding layout args.
 # See allow_layout() for more details.
-KERAS_INITIALIZER_NAMES = [
+KERAS_VARIABLE_NAMES = [
     "alpha",
     "beta",
     "bias",
@@ -81,12 +81,12 @@ def allow_initializer_layout(init_method):
     the annotated __init__ method.
   """
 
-  def decorated(layer_instance, *args, **kwargs):
+  def _wrap_function(layer_instance, *args, **kwargs):
     signature = inspect.signature(init_method)
     layout_args = {}
     # Check args like 'kernel_initializer' and pop the 'kernel_layout' if it
     # presents.
-    for variable_name in KERAS_INITIALIZER_NAMES:
+    for variable_name in KERAS_VARIABLE_NAMES:
       if variable_name + "_initializer" in signature.parameters:
         layout = kwargs.pop(variable_name + "_layout", None)
         if layout:
@@ -98,7 +98,9 @@ def allow_initializer_layout(init_method):
     for layout_param_name, layout in layout_args.items():
       setattr(layer_instance, layout_param_name, layout)
 
-  return decorated
+  # return decorated
+  return tf.__internal__.decorator.make_decorator(
+      target=init_method, decorator_func=_wrap_function)
 
 
 def call_with_layout(fn, layout, *args, **kwargs):

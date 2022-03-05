@@ -28,6 +28,8 @@ from keras.saving.saved_model import json_utils
 from keras.utils import tf_utils
 
 _CONSTANT_VALUE = '_CONSTANT_VALUE'
+# Using dict to avoid conflict with constant string tensor.
+_COMPOSITE_TYPE = {'_TYPE': 'COMPOSITE'}
 
 
 class Node:
@@ -193,6 +195,11 @@ class Node:
 
       if isinstance(t, tf.Tensor):
         return backend.get_value(t).tolist()
+
+      # Not using json_utils to serialize both constant Tensor and constant
+      # CompositeTensor for saving format backward compatibility.
+      if isinstance(t, tf.__internal__.CompositeTensor):
+        return (_COMPOSITE_TYPE, json_utils.Encoder().encode(t))
 
       return t
 

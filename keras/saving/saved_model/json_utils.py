@@ -36,6 +36,9 @@ from keras.utils import generic_utils
 from tensorflow.python.framework import type_spec
 
 
+_EXTENSION_TYPE_SPEC = '_EXTENSION_TYPE_SPEC'
+
+
 class Encoder(json.JSONEncoder):
   """JSON encoder and decoder that handles TensorShapes and tuples."""
 
@@ -99,6 +102,15 @@ def _decode_helper(obj, deserialize=False, module_objects=None,
     elif obj['class_name'] == 'TypeSpec':
       return type_spec.lookup(obj['type_spec'])._deserialize(  # pylint: disable=protected-access
           _decode_helper(obj['serialized']))
+    elif obj['class_name'] == 'CompositeTensor':
+      spec = obj['spec']
+      tensors = []
+      for dtype, tensor in obj['tensors']:
+        tensors.append(tf.constant(tensor, dtype=tf.dtypes.as_dtype(dtype)))
+      return tf.nest.pack_sequence_as(
+          _decode_helper(spec),
+          tensors,
+          expand_composites=True)
     elif obj['class_name'] == '__tuple__':
       return tuple(_decode_helper(i) for i in obj['items'])
     elif obj['class_name'] == '__ellipsis__':
@@ -177,6 +189,14 @@ def get_json_type(obj):
       raise ValueError(
           f'Unable to serialize {obj} to JSON, because the TypeSpec '
           f'class {type(obj)} has not been registered.')
+  if isinstance(obj, tf.__internal__.CompositeTensor):
+    spec = tf.type_spec_from_value(obj)
+    tensors = []
+    for tensor in tf.nest.flatten(obj, expand_composites=True):
+      tensors.append((tensor.dtype.name, tensor.numpy().tolist()))
+    return {'class_name': 'CompositeTensor',
+            'spec': get_json_type(spec),
+            'tensors': tensors}
 
   if isinstance(obj, enum.Enum):
     return obj.value

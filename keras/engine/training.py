@@ -459,7 +459,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   @traceback_utils.filter_traceback
   def __call__(self, *args, **kwargs):
-    if self._layout_map and not self.built:
+    if self._layout_map is not None and not self.built:
       # Note that this method is only overridden for DTensor and layout
       # injection purpose.
       # Capture the inputs and create graph input as replacement for model

@@ -30,6 +30,7 @@ from keras.engine import input_spec
 from keras.engine import node as node_module
 from keras.engine import training as training_lib
 from keras.engine import training_utils
+from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import network_serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
@@ -259,10 +260,10 @@ class Functional(training_lib.Model):
     self._set_save_spec(self._nested_inputs)
     tf_utils.assert_no_legacy_layers(self.layers)
 
-    # Note that this method is used by both functional and sequential model,
-    # so we can't just this method in functional.__init__, which will miss the
-    # coverage of sequential model.
-    if self._layout_map:
+    # Note that this method is used by both functional and sequential models,
+    # so we can't just have this method in functional.__init__, which will miss
+    #  the coverage of sequential model.
+    if self._layout_map is not None:
       layout_map_lib._map_functional_model_variable(self, self._layout_map)
 
   @property
@@ -1206,9 +1207,6 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
     input_tensors = []
     for input_data in tf.nest.flatten(node_data):
       input_data = input_data.as_list()
-      inbound_layer_name = input_data[0]
-      inbound_node_index = input_data[1]
-      inbound_tensor_index = input_data[2]
       if len(input_data) == 3:
         kwargs = {}
       elif len(input_data) == 4:
@@ -1221,7 +1219,10 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
       else:
         raise ValueError('Improperly formatted model config.')
 
-      if inbound_layer_name != node_module._CONSTANT_VALUE:
+      if input_data[0] != node_module._CONSTANT_VALUE:
+        inbound_layer_name = input_data[0]
+        inbound_node_index = input_data[1]
+        inbound_tensor_index = input_data[2]
         inbound_layer = created_layers[inbound_layer_name]
         inbound_node_index = get_node_index(inbound_layer, inbound_node_index)
 
@@ -1231,8 +1232,20 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
         input_tensors.append(
             tf.nest.flatten(inbound_node.outputs)[inbound_tensor_index])
       else:
-        # We received a constant w/ no Keras history attached
-        input_tensors.append(inbound_tensor_index)
+        # We received a constant w/ no Keras history attached,
+        # which means it is a constant tensor input.
+        # Input is a constant value.
+        # Format = [_CONSTANT_VALUE, -1, const_val, kwargs]
+        assert input_data[1] == -1
+        assert len(input_data) >= 3
+        const_val = input_data[2]
+        if (isinstance(const_val, tuple) and
+            len(const_val) == 2 and
+            const_val[0] == node_module._COMPOSITE_TYPE):
+          # It is a composite tensor.
+          input_tensors.append(json_utils.decode(const_val[1]))
+        else:
+          input_tensors.append(const_val)
     input_tensors = tf.nest.pack_sequence_as(node_data, input_tensors)
     # Call layer on its inputs, thus creating the node
     # and building the layer if needed.
