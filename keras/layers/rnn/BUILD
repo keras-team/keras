@@ -84,13 +84,19 @@ py_library(
     srcs = ["gru.py"],
     srcs_version = "PY3",
     deps = [
+        ":base_rnn",
         ":dropout_rnn_cell_mixin",
         ":gru_lstm_utils",
-        ":gru_v1",
+        ":rnn_utils",
         "//:expect_tensorflow_installed",
         "//keras:activations",
         "//keras:backend",
+        "//keras:constraints",
+        "//keras:regularizers",
         "//keras/engine:base_layer",
+        "//keras/engine:input_spec",
+        "//keras/initializers",
+        "//keras/utils:tf_utils",
     ],
 )
 
@@ -100,17 +106,13 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":base_rnn",
-        ":dropout_rnn_cell_mixin",
+        ":gru",
         ":rnn_utils",
-        "//:expect_tensorflow_installed",
         "//keras:activations",
-        "//keras:backend",
-        "//keras:base_layer",
         "//keras:constraints",
         "//keras:regularizers",
         "//keras/engine:input_spec",
         "//keras/initializers",
-        "//keras/utils:tf_utils",
     ],
 )
 
@@ -119,14 +121,19 @@ py_library(
     srcs = ["lstm.py"],
     srcs_version = "PY3",
     deps = [
+        ":base_rnn",
         ":dropout_rnn_cell_mixin",
         ":gru_lstm_utils",
-        ":lstm_v1",
+        ":rnn_utils",
         "//:expect_tensorflow_installed",
         "//keras:activations",
         "//keras:backend",
+        "//keras:constraints",
+        "//keras:regularizers",
         "//keras/engine:base_layer",
         "//keras/engine:input_spec",
+        "//keras/initializers",
+        "//keras/utils:tf_utils",
     ],
 )
 
@@ -136,17 +143,13 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":base_rnn",
-        ":dropout_rnn_cell_mixin",
+        ":lstm",
         ":rnn_utils",
-        "//:expect_tensorflow_installed",
         "//keras:activations",
-        "//keras:backend",
-        "//keras:base_layer",
         "//keras:constraints",
         "//keras:regularizers",
         "//keras/engine:input_spec",
         "//keras/initializers",
-        "//keras/utils:tf_utils",
     ],
 )
 
@@ -305,24 +308,14 @@ py_library(
 )
 
 py_library(
-    name = "base_cell_wrappers",
-    srcs = ["base_cell_wrappers.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":legacy_cells",
-        "//:expect_tensorflow_installed",
-        "//keras/utils:generic_utils",
-    ],
-)
-
-py_library(
     name = "cell_wrappers",
     srcs = ["cell_wrappers.py"],
     srcs_version = "PY3",
     deps = [
         ":abstract_rnn_cell",
-        ":base_cell_wrappers",
-        ":lstm_v1",
+        ":lstm",
+        "//:expect_tensorflow_installed",
+        "//keras/utils:generic_utils",
         "//keras/utils:tf_inspect",
     ],
 )
@@ -332,7 +325,7 @@ py_library(
     srcs = ["legacy_cell_wrappers.py"],
     srcs_version = "PY3",
     deps = [
-        ":base_cell_wrappers",
+        ":cell_wrappers",
         ":legacy_cells",
         "//:expect_tensorflow_installed",
     ],
@@ -424,9 +417,7 @@ cuda_py_test(
     shard_count = 12,
     tags = ["no_rocm"],
     deps = [
-        ":gru",
         ":gru_lstm_utils",
-        ":gru_v1",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -447,6 +438,8 @@ tf_py_test(
         "notsan",  # http://b/62136390
     ],
     deps = [
+        ":gru",
+        ":gru_v1",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -469,8 +462,6 @@ cuda_py_test(
     ],
     deps = [
         ":gru_lstm_utils",
-        ":lstm",
-        ":lstm_v1",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -492,12 +483,15 @@ tf_py_test(
         "notsan",  # http://b/62189182
     ],
     deps = [
+        ":lstm",
+        ":lstm_v1",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
+        "//keras/utils:np_utils",
     ],
 )
 
