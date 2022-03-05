@@ -659,7 +659,8 @@ class RNN(base_layer.Layer):
         unroll=self.unroll,
         input_length=row_lengths if row_lengths is not None else timesteps,
         time_major=self.time_major,
-        zero_output_for_mask=self.zero_output_for_mask)
+        zero_output_for_mask=self.zero_output_for_mask,
+        return_all_outputs=self.return_sequences)
 
     if self.stateful:
       updates = [
