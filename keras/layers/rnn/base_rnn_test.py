@@ -407,7 +407,7 @@ class RNNTest(test_combinations.TestCase):
     self.assertAllClose(y_np, y_np_3, atol=1e-4)
 
     # Test stacking.
-    cells = [gru_v1.GRUCell(8),
+    cells = [gru.GRUCell(8),
              RNNCellWithConstants(12, constant_size=3),
              RNNCellWithConstants(32, constant_size=3)]
     layer = keras.layers.RNN(cells)
@@ -425,7 +425,7 @@ class RNNTest(test_combinations.TestCase):
     # Test GRUCell reset_after property.
     x = keras.Input((None, 5))
     c = keras.Input((3,))
-    cells = [gru_v1.GRUCell(32, reset_after=True)]
+    cells = [gru.GRUCell(32, reset_after=True)]
     layer = keras.layers.RNN(cells)
     y = layer(x, constants=c)
     model = keras.models.Model([x, c], y)
@@ -468,7 +468,7 @@ class RNNTest(test_combinations.TestCase):
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
     # Test stacking.
-    cells = [gru_v1.GRUCell(8),
+    cells = [gru.GRUCell(8),
              RNNCellWithConstants(12, constant_size=3),
              RNNCellWithConstants(32, constant_size=3)]
     layer = keras.layers.RNN(cells)
@@ -545,7 +545,7 @@ class RNNTest(test_combinations.TestCase):
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
     # Test stacking.
-    cells = [gru_v1.GRUCell(8),
+    cells = [gru.GRUCell(8),
              RNNCellWithConstants(12, constant_size=3),
              RNNCellWithConstants(32, constant_size=3)]
     layer = keras.layers.RNN(cells)
