@@ -345,12 +345,12 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
 
   def call(self, inputs, training=True):
     if training:
-      inputs = self._format_inputs(inputs)
+      inputs, is_dict = self._format_inputs(inputs)
       images = inputs['images']
       if images.shape.rank == 3:
-        return self._format_output(self._augment(inputs))
+        return self._format_output(self._augment(inputs), is_dict)
       elif images.shape.rank == 4:
-        return self._format_output(self._batch_augment(inputs))
+        return self._format_output(self._batch_augment(inputs), is_dict)
       else:
         raise ValueError('Image augmentation layers are expecting inputs to be '
                          'rank 3 (HWC) or 4D (NHWC) tensors. Got shape: '
@@ -382,16 +382,16 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
   def _format_inputs(self, inputs):
     if tf.is_tensor(inputs):
       # single image input tensor
-      return {'images': inputs}
+      return {'images': inputs}, False
     elif isinstance(inputs, dict):
       # TODO(scottzhu): Check if it only contains the valid keys
-      return inputs
+      return inputs, True
     else:
       raise ValueError(
           f'Expect the inputs to be image tensor or dict. Got {inputs}')
 
-  def _format_output(self, output):
-    if isinstance(output, dict) and len(output) == 1:
+  def _format_output(self, output, is_dict):
+    if not is_dict:
       return output['images']
     else:
       return output
