@@ -573,7 +573,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Validate optional keyword arguments.
     for kwarg in kwargs:
       if kwarg not in ['collections', 'experimental_autocast',
-                       'caching_device', 'getter']:
+                       'caching_device', 'getter', 'layout']:
         raise TypeError('Unknown keyword argument:', kwarg)
     collections_arg = kwargs.pop('collections', None)
     # 'experimental_autocast' can be set to False by the caller to indicate an
@@ -581,6 +581,18 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     autocast = kwargs.pop('experimental_autocast', True)
     # See the docstring for tf.Variable about the details for caching_device.
     caching_device = kwargs.pop('caching_device', None)
+
+    layout = kwargs.pop('layout', None)
+    # Specially handling of auto layout fetch, based on the variable name and
+    # attribute name. For built-in keras layers, usually the variable name, eg
+    # 'kernel', will match with a 'kernel_layout' attribute name on the
+    # instance. We will try to do this auto fetch if layout is not explicitly
+    # specified. This is mainly a quick workaround for not applying too many
+    # interface change to built-in layers, until DTensor is a public API.
+    # Also see dtensor.utils.allow_initializer_layout for more details.
+    # TODO(scottzhu): Remove this once dtensor is public to end user.
+    if not layout and name:
+      layout = getattr(self, name + '_layout', None)
 
     if dtype is None:
       dtype = self.dtype or backend.floatx()
@@ -640,6 +652,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             '`caching_device` does not work with mixed precision API. Ignoring '
             'user specified `caching_device`.')
         caching_device = None
+    if layout:
+      getter = functools.partial(getter, layout=layout)
 
     variable = self._add_variable_with_custom_getter(
         name=name,
