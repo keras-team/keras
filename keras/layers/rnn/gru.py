@@ -376,7 +376,8 @@ class GRU(DropoutRNNCellMixin, gru_v1.GRU, base_layer.BaseRandomLayer):
           unroll=self.unroll,
           input_length=row_lengths if row_lengths is not None else timesteps,
           time_major=self.time_major,
-          zero_output_for_mask=self.zero_output_for_mask)
+          zero_output_for_mask=self.zero_output_for_mask,
+          return_all_outputs=self.return_sequences)
       # This is a dummy tensor for testing purpose.
       runtime = gru_lstm_utils.runtime(gru_lstm_utils.RUNTIME_UNKNOWN)
     else:
@@ -461,6 +462,7 @@ class GRU(DropoutRNNCellMixin, gru_v1.GRU, base_layer.BaseRandomLayer):
       normal_gru_kwargs = gpu_gru_kwargs.copy()
       normal_gru_kwargs.update({
           'zero_output_for_mask': self.zero_output_for_mask,
+          'return_sequences': self.return_sequences,
       })
 
       if tf.executing_eagerly():
@@ -488,7 +490,7 @@ class GRU(DropoutRNNCellMixin, gru_v1.GRU, base_layer.BaseRandomLayer):
 
 def standard_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask,
                  time_major, go_backwards, sequence_lengths,
-                 zero_output_for_mask):
+                 zero_output_for_mask, return_sequences):
   """GRU with standard kernel implementation.
 
   This implementation can be run on all types of hardware.
@@ -517,12 +519,18 @@ def standard_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask,
       input, such as ragged tensors. If the input has a fixed timestep size,
       this should be None.
     zero_output_for_mask: Boolean, whether to output zero for masked timestep.
+    return_sequences: Boolean. If True, all outputs of the process will be
+      returned, whereas in the False case, only last_output will be kept
+      during the process, saving the corresponding memory, and
+      outputs=[last_output] is returned.
 
   Returns:
     last_output: output tensor for the last timestep, which has shape
       [batch, units].
-    outputs: output tensor for all timesteps, which has shape
-      [batch, time, units].
+    outputs: 
+      - If `return_sequences`: output tensor for all timesteps, 
+        which has shape [batch, time, units].
+      - Else, a tensor equal to last_output
     state_0: the cell output, which has same shape as init_h.
     runtime: constant string tensor which indicate real runtime hardware. This
       value is for testing purpose and should be used by user.
@@ -565,7 +573,8 @@ def standard_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask,
       go_backwards=go_backwards,
       input_length=sequence_lengths
       if sequence_lengths is not None else timesteps,
-      zero_output_for_mask=zero_output_for_mask)
+      zero_output_for_mask=zero_output_for_mask,
+      return_all_outputs=return_sequences)
   return last_output, outputs, new_states[0], gru_lstm_utils.runtime(
       gru_lstm_utils.RUNTIME_CPU)
 
@@ -660,7 +669,7 @@ def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
 
 def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
                                mask, time_major, go_backwards, sequence_lengths,
-                               zero_output_for_mask):
+                               zero_output_for_mask, return_sequences):
   """Call the GRU with optimized backend kernel selection.
 
   Under the hood, this function will create two TF function, one with the most
@@ -691,6 +700,10 @@ def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
       input, such as ragged tensors. If the input has a fixed timestep size,
       this should be None.
     zero_output_for_mask: Boolean, whether to output zero for masked timestep.
+    return_sequences: Boolean. If True, all outputs of the process will be
+      returned, whereas in the False case, only last_output will be kept
+      during the process, saving the corresponding memory, and
+      outputs=[last_output] is returned.
 
   Returns:
     List of output tensors, same as standard_gru.
@@ -706,11 +719,12 @@ def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
       'go_backwards': go_backwards,
       'sequence_lengths': sequence_lengths,
       'zero_output_for_mask': zero_output_for_mask,
+      'return_sequences': return_sequences,
   }
 
   def gpu_gru_with_fallback(inputs, init_h, kernel, recurrent_kernel, bias,
                             mask, time_major, go_backwards, sequence_lengths,
-                            zero_output_for_mask):
+                            zero_output_for_mask, return_sequences):
     """Use cuDNN kernel when mask is none or strictly right padded."""
     if mask is None:
       return gpu_gru(
@@ -747,7 +761,8 @@ def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
           time_major=time_major,
           go_backwards=go_backwards,
           sequence_lengths=sequence_lengths,
-          zero_output_for_mask=zero_output_for_mask)
+          zero_output_for_mask=zero_output_for_mask,
+          return_sequences=return_sequences)
 
     return tf.cond(
         gru_lstm_utils.is_cudnn_supported_inputs(mask, time_major),
