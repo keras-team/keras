@@ -520,18 +520,17 @@ def standard_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias,
       input, such as ragged tensors. If the input has a fixed timestep size,
       this should be None.
     zero_output_for_mask: Boolean, whether to output zero for masked timestep.
-    return_sequences: Boolean. If True, all outputs of the process will be
-      returned, whereas in the False case, only last_output will be kept
-      during the process, saving the corresponding memory, and
-      outputs=[last_output] is returned.
+    return_sequences: Boolean. If True, return the recurrent outputs for all
+      timesteps in the sequence. If False, only return the output for the 
+      last timestep (which consumes less memory).
 
   Returns:
     last_output: output tensor for the last timestep, which has shape
       [batch, units].
     outputs: 
-      - If `return_sequences`: output tensor for all timesteps, 
+      - If `return_sequences=True`: output tensor for all timesteps, 
         which has shape [batch, time, units].
-      - Else, a tensor equal to last_output
+      - Else, a tensor equal to `last_output`
     state_0: the cell output, which has same shape as init_h.
     state_1: the cell hidden state, which has same shape as init_c.
     runtime: constant string tensor which indicate real runtime hardware. This
@@ -737,10 +736,9 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
       input, such as ragged tensors. If the input has a fixed timestep size,
       this should be None.
     zero_output_for_mask: Boolean, whether to output zero for masked timestep.
-    return_sequences: Boolean. If True, all outputs of the process will be
-      returned, whereas in the False case, only last_output will be kept
-      during the process, saving the corresponding memory, and
-      outputs=[last_output] is returned.
+    return_sequences: Boolean. If True, return the recurrent outputs for all
+      timesteps in the sequence. If False, only return the output for the 
+      last timestep (which consumes less memory).
 
   Returns:
     List of output tensors, same as standard_lstm.
