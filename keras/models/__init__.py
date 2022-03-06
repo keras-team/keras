@@ -22,6 +22,7 @@ from keras.models.cloning import clone_and_build_model
 from keras.models.cloning import clone_model
 from keras.models.cloning import share_weights
 from keras.models.sharpness_aware_minimization import SharpnessAwareMinimization
+from keras.models.gsam import GSAM
 from keras.saving.model_config import model_from_config
 from keras.saving.model_config import model_from_json
 from keras.saving.model_config import model_from_yaml
