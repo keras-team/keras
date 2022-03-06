@@ -23,9 +23,9 @@ STRATEGIES = [
 
 
 @test_utils.run_v2_only
-class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
+class GapGuidedSharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
 
-  def test_sam_model_call(self):
+  def test_gsam_model_call(self):
     model = keras.Sequential([
         keras.Input([2, 2]),
         keras.layers.Dense(4),
@@ -78,7 +78,7 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertAllClose(gsam_model(data), loaded_gsam_model(data))
 
-  def test_checkpoint_sam(self):
+  def test_checkpoint_gsam(self):
     model = keras.Sequential([
         keras.Input([2, 2]),
         keras.layers.Dense(4),
