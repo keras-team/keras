@@ -4431,19 +4431,18 @@ def rnn(step_function,
       zero_output_for_mask: Boolean. If True, the output for masked timestep
           will be zeros, whereas in the False case, output from previous
           timestep is returned.
-      return_all_outputs: Boolean. If True, all outputs of the process will be
-          returned, whereas in the False case, only last_output will be kept
-          during the process, saving the corresponding memory, and
-          outputs=[last_output] is returned.
+      return_all_outputs: Boolean. If True, return the recurrent outputs for all
+          timesteps in the sequence. If False, only return the output for the 
+          last timestep (which consumes less memory).
 
   Returns:
       A tuple, `(last_output, outputs, new_states)`.
           last_output: the latest output of the rnn, of shape `(samples, ...)`
           outputs:
-              - If `return_all_outputs`: a tensor with shape
-              `(samples, time, ...)` where each entry `outputs[s, t]` is the
-              output of the step function at time `t` for sample `s`
-              - Else, a tensor equal to last_output
+              - If `return_all_outputs=True`: a tensor with shape
+                `(samples, time, ...)` where each entry `outputs[s, t]` is the
+                output of the step function at time `t` for sample `s`
+              - Else, a tensor equal to `last_output`
           new_states: list of tensors, latest states returned by
               the step function, of shape `(samples, ...)`.
 
