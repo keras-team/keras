@@ -1,10 +1,10 @@
-"""Tests for GSAM."""
+"""Tests for GapGuidedSharpnessAwareMinimization."""
 
 import os
 
 from absl.testing import parameterized
 import keras
-from keras.models import GSAM
+from keras.models import GapGuidedSharpnessAwareMinimization
 from keras.optimizers.optimizer_experimental import adam
 from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
@@ -30,7 +30,7 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
         keras.Input([2, 2]),
         keras.layers.Dense(4),
     ])
-    gsam_model = GSAM(model)
+    gsam_model = GapGuidedSharpnessAwareMinimization(model)
     data = tf.random.uniform([2, 2])
     self.assertAllClose(model(data), gsam_model(data))
 
@@ -43,7 +43,7 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
           keras.layers.Dense(4),
           keras.layers.Dense(1),
       ])
-      gsam_model = GSAM(model)
+      gsam_model = GapGuidedSharpnessAwareMinimization(model)
       data = tf.random.uniform([2, 2])
       label = data[:, 0] > 0.5
 
@@ -60,7 +60,7 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
         keras.layers.Dense(4),
         keras.layers.Dense(1),
     ])
-    gsam_model = GSAM(model)
+    gsam_model = GapGuidedSharpnessAwareMinimization(model)
     data = tf.random.uniform([1, 2, 2])
     label = data[:, 0] > 0.5
 
@@ -84,8 +84,8 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
         keras.layers.Dense(4),
         keras.layers.Dense(1),
     ])
-    gsam_model_1 = GSAM(model)
-    gsam_model_2 = GSAM(model)
+    gsam_model_1 = GapGuidedSharpnessAwareMinimization(model)
+    gsam_model_2 = GapGuidedSharpnessAwareMinimization(model)
     data = tf.random.uniform([1, 2, 2])
     label = data[:, 0] > 0.5
 
