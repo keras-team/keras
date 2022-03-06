@@ -48,8 +48,9 @@ def _decompose_parallel_vertical(
   cosine = inner_product * scale1 * scale2
   parallel, vectical = [], []
   for vector1, vector2 in zip(vectors1, vectors2):
-    parallel.append(vector1 * scale1 * norm2 * cosine)
-    vectical.append(vector2 - parallel[-1])
+    parallel_item = vector1 * scale1 * norm2 * cosine
+    parallel.append(parallel_item)
+    vectical.append(vector2 - parallel_item)
   return parallel, vectical
 
 
