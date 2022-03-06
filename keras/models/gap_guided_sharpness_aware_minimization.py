@@ -124,7 +124,7 @@ class GapGuidedSharpnessAwareMinimization(SharpnessAwareMinimization):
     gradients_perturbed = tape.gradient(loss, trainable_variables)
     
     # decompose gradients onto parallel and vertical to gradients_perturbed.
-    parallels, verticals = _decompose_parallel_vertical(gradients_perturbed, gradients)
+    parallels, verticals = _decompose_parallel_vertical(gradients_perturbed, gradients, eps=self.eps)
     
     # get GSAM update direction
     for (gradient_perturbed, vertical) in zip(gradients_perturbed, verticals):
