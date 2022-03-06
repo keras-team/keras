@@ -118,11 +118,11 @@ class SharpnessAwareMinimization(SharpnessAwareMinimization):
     gradients_perturbed = tape.gradient(loss, trainable_variables)
     
     # decompose gradients onto parallel and vertical to gradients_perturbed.
-    parallel, vertical = _decompose_parallel_vertical(gradients_perturbed, gradients)
+    parallels, verticals = _decompose_parallel_vertical(gradients_perturbed, gradients)
     
     # get GSAM update direction
-    for (gradient_perturbed, gradient) in zip(gradients_perturbed, gradients):
-      gradient_perturbed.assign_sub( self.alpha * gradient)
+    for (gradient_perturbed, vertical) in zip(gradients_perturbed, verticals):
+      gradient_perturbed.assign_sub( self.alpha * vertical)
     
     # Restore the variable to its original value before `apply_gradients()`.
     for (variable, epsilon_w) in zip(trainable_variables, epsilon_w_cache):
