@@ -35,6 +35,10 @@ def _inner_product(vectors1: List[tf.Tensor],
     out += tf.reduce_sum(vector1 * vector2)
   return out
 
+def _vector_norm(vectors: List[tf.Tensor]) -> float:
+  """Compute the L2 norm of vector"""
+  return tf.math.sqrt( _inner_product(vectors, vectors) )
+
 def _decompose_parallel_vertical(
     vectors1: List[tf.Tensor],
     vectors2: List[tf.Tensor],
