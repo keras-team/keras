@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Implementation for GSAM"""
+"""Implementation for Surrogate Gap Guided Sharpness Aware Minimization (GSAM)"""
 
 import copy
 
@@ -60,7 +60,7 @@ def _decompose_parallel_vertical(
 
 
 @generic_utils.register_keras_serializable()
-class GSAM(SharpnessAwareMinimization):
+class GapGuidedSharpnessAwareMinimization(SharpnessAwareMinimization):
   """GSAM training flow.
   Surrogate Gap Guided Sharpness Aware Minimization (GSAM) is an improvement over Sharpness-Aware-Minimization (SAM)
   Args:
