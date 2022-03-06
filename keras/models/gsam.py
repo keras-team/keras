@@ -29,9 +29,9 @@ from keras.models.sharpness_aware_minimization import SharpnessAwareMinimization
 def _inner_product(vectors1: List[tf.Tensor],
                    vectors2: List[tf.Tensor]) -> float:
   """Compute inner product between vector1 and vector2."""
-  return tf.reduce_sum(
+  return tf.math.reduce_sum(
     tf.stack([ 
-      vector1*vector2 for (vector1, vector2) in zip(vectors1, vectors2) 
+      tf.math.reduce_sum(vector1*vector2) for (vector1, vector2) in zip(vectors1, vectors2) 
       if (vector1 is not None) and (vector2 is not None)
     ])
   )
