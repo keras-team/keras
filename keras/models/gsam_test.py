@@ -1,4 +1,4 @@
-"""Tests for sharpness_aware_minimization."""
+"""Tests for GSAM."""
 
 import os
 
@@ -30,53 +30,53 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
         keras.Input([2, 2]),
         keras.layers.Dense(4),
     ])
-    sam_model = sharpness_aware_minimization.SharpnessAwareMinimization(model)
+    gsam_model = GSAM(model)
     data = tf.random.uniform([2, 2])
-    self.assertAllClose(model(data), sam_model(data))
+    self.assertAllClose(model(data), gsam_model(data))
 
   @ds_combinations.generate(
       tf.__internal__.test.combinations.combine(strategy=STRATEGIES))
-  def test_sam_model_fit(self, strategy):
+  def test_gsam_model_fit(self, strategy):
     with strategy.scope():
       model = keras.Sequential([
           keras.Input([2, 2]),
           keras.layers.Dense(4),
           keras.layers.Dense(1),
       ])
-      sam_model = sharpness_aware_minimization.SharpnessAwareMinimization(model)
+      gsam_model = GSAM(model)
       data = tf.random.uniform([2, 2])
       label = data[:, 0] > 0.5
 
-      sam_model.compile(
+      gsam_model.compile(
           optimizer=adam.Adam(),
           loss=keras.losses.BinaryCrossentropy(from_logits=True),
       )
 
-      sam_model.fit(data, label)
+      gsam_model.fit(data, label)
 
-  def test_save_sam(self):
+  def test_save_gsam(self):
     model = keras.Sequential([
         keras.Input([2, 2]),
         keras.layers.Dense(4),
         keras.layers.Dense(1),
     ])
-    sam_model = sharpness_aware_minimization.SharpnessAwareMinimization(model)
+    gsam_model = GSAM(model)
     data = tf.random.uniform([1, 2, 2])
     label = data[:, 0] > 0.5
 
-    sam_model.compile(
+    gsam_model.compile(
         optimizer=adam.Adam(),
         loss=keras.losses.BinaryCrossentropy(from_logits=True),
     )
 
-    sam_model.fit(data, label)
+    gsam_model.fit(data, label)
 
     path = os.path.join(self.get_temp_dir(), "model")
-    sam_model.save(path)
-    loaded_sam_model = keras.models.load_model(path)
-    loaded_sam_model.load_weights(path)
+    gsam_model.save(path)
+    loaded_gsam_model = keras.models.load_model(path)
+    loaded_gsam_model.load_weights(path)
 
-    self.assertAllClose(sam_model(data), loaded_sam_model(data))
+    self.assertAllClose(gsam_model(data), loaded_gsam_model(data))
 
   def test_checkpoint_sam(self):
     model = keras.Sequential([
@@ -84,17 +84,17 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
         keras.layers.Dense(4),
         keras.layers.Dense(1),
     ])
-    sam_model_1 = sharpness_aware_minimization.SharpnessAwareMinimization(model)
-    sam_model_2 = sharpness_aware_minimization.SharpnessAwareMinimization(model)
+    gsam_model_1 = GSAM(model)
+    gsam_model_2 = GSAM(model)
     data = tf.random.uniform([1, 2, 2])
     label = data[:, 0] > 0.5
 
-    sam_model_1.compile(
+    gsam_model_1.compile(
         optimizer=adam.Adam(),
         loss=keras.losses.BinaryCrossentropy(from_logits=True),
     )
 
-    sam_model_1.fit(data, label)
+    gsam_model_1.fit(data, label)
 
     checkpoint = tf.train.Checkpoint(sam_model_1)
     checkpoint2 = tf.train.Checkpoint(sam_model_2)
@@ -102,7 +102,7 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
     save_path = checkpoint.save(temp_dir)
     checkpoint2.restore(save_path)
 
-    self.assertAllClose(sam_model_1(data), sam_model_2(data))
+    self.assertAllClose(gsam_model_1(data), gsam_model_2(data))
 
 
 if __name__ == "__main__":
