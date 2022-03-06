@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Sharpness Aware Minimization implementation."""
+"""Implementation for GSAM, Surrogate Gap Guided Sharpness Aware Minimization (ICLR 2022)"""
 
 import copy
 
