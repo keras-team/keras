@@ -25,6 +25,33 @@ from keras.models.sharpness_aware_minimization import SharpnessAwareMinimization
 
 # pylint: disable=g-classes-have-attributes
 
+# TF utils.
+def _inner_product(vectors1: List[tf.Tensor],
+                   vectors2: List[tf.Tensor]) -> float:
+  """Compute inner product between vector1 and vector2."""
+
+  out = 0.0
+  for (vector1, vector2) in zip(vectors1, vectors2):
+    out += tf.reduce_sum(vector1 * vector2)
+  return out
+
+def _decompose_parallel_vertical(
+    vectors1: List[tf.Tensor],
+    vectors2: List[tf.Tensor],
+    eps: float = 1e-12) -> Tuple[List[tf.Tensor], List[tf.Tensor]]:
+  """Decompose vector2 onto parallel and vertical to vectors1."""
+  inner_product = _inner_product(vectors1, vectors2)
+  norm1 = _vector_norm(vectors1)
+  norm2 = _vector_norm(vectors2)
+  scale1 = 1.0 / (norm1 + eps)
+  scale2 = 1.0 / (norm2 + eps)
+  cosine = inner_product * scale1 * scale2
+  parallel, vectical = [], []
+  for vector1, vector2 in zip(vectors1, vectors2):
+    parallel.append(vector1 * scale1 * norm2 * cosine)
+    vectical.append(vector2 - parallel[-1])
+  return parallel, vectical
+
 
 @generic_utils.register_keras_serializable()
 class SharpnessAwareMinimization(SharpnessAwareMinimization):
@@ -36,14 +63,15 @@ class SharpnessAwareMinimization(SharpnessAwareMinimization):
     rho_max: float, defaults to 0.05. The max gradients scaling factor.
     rho_min: float, defaults to 0.01. The min gradients scaling factor.
     lr_max: float, defaults to 0.001. The max learning rate.
-    lr_min: float, defaults to 0.0, the min learning rate.
-    eps: float, defaults to 1e-12, avoid division by 0.
-    name: string, defaults to None. The name of the SAM model.
+    lr_min: float, defaults to 0.0. The min learning rate.
+    eps: float, defaults to 1e-12.
+    alpha: float, defaults to 0.05. The $\alpha$ term in GSAM
+    name: string, defaults to None. The name of the GSAM model.
   Reference:
     [Juntang Zhuang et al., 2022](https://openreview.net/pdf?id=edONMAnhLu-)
   """
 
-  def __init__(self, model, rho_max=0.05, rho_min=0.01, lr_max=0.001, lr_min=0.0, eps=1e-12, name=None):
+  def __init__(self, model, rho_max=0.05, rho_min=0.01, lr_max=0.001, lr_min=0.0, eps=1e-12, alpha=0.05, name=None):
     super().__init__(name=name)
     self.model = model
     self.rho_max = rho_max
@@ -51,6 +79,7 @@ class SharpnessAwareMinimization(SharpnessAwareMinimization):
     self.lr_max = lr_max
     self.lr_min = lr_min
     self.eps = eps
+    self.alpha = alpha
 
   def train_step(self, data):
     """The logic of one GSAM training step.
@@ -67,16 +96,16 @@ class SharpnessAwareMinimization(SharpnessAwareMinimization):
     trainable_variables = self.model.trainable_variables
     gradients = tape.gradient(loss, trainable_variables)
 
-    # update rho according to schedule
+    # update rho according to schedule.
     lr = self.optimizer.lr
     rho = self.rho_min + (self.rho_max - self.rho_min) * (lr - self.lr_min) / (self.lr_max - self.lr_min)
     
-    # calculate perturbation amplitude
+    # calculate perturbation amplitude.
     epsilon_w_cache = []
     gradients_order2_norm = self._gradients_order2_norm(gradients)
     scale = rho / (gradients_order2_norm + self.eps)
 
-    # perturb weights, get "perturbed" gradient
+    # perturb weights, get "perturbed" gradient.
     for (gradient, variable) in zip(gradients, trainable_variables):
       epsilon_w = gradient * scale
       variable.assign_add(epsilon_w)
@@ -88,12 +117,19 @@ class SharpnessAwareMinimization(SharpnessAwareMinimization):
 
     gradients_perturbed = tape.gradient(loss, trainable_variables)
     
-    # 
+    # decompose gradients onto parallel and vertical to gradients_perturbed.
+    parallel, vertical = _decompose_parallel_vertical(gradients_perturbed, gradients)
+    
+    # get GSAM update direction
+    for (gradient_perturbed, gradient) in zip(gradients_perturbed, gradients):
+      gradient_perturbed.assign_sub( self.alpha * gradient)
+    
+    # Restore the variable to its original value before `apply_gradients()`.
     for (variable, epsilon_w) in zip(trainable_variables, epsilon_w_cache):
-      # Restore the variable to its original value before `apply_gradients()`.
       variable.assign_sub(epsilon_w)
 
-    self.optimizer.apply_gradients(zip(gradients, trainable_variables))
+    # update with `gradients_perturbed`
+    self.optimizer.apply_gradients(zip(gradients_perturbed, trainable_variables))
 
     self.compiled_metrics.update_state(y, pred, sample_weight)
     return {m.name: m.result() for m in self.metrics}
@@ -107,6 +143,7 @@ class SharpnessAwareMinimization(SharpnessAwareMinimization):
         "lr_max": self.lr_max,
         "lr_min": self.lr_min,
         "eps": self.eps,
+        "alpha": self.alpha,
     })
     return config
   
