@@ -29,11 +29,12 @@ from keras.models.sharpness_aware_minimization import SharpnessAwareMinimization
 def _inner_product(vectors1: List[tf.Tensor],
                    vectors2: List[tf.Tensor]) -> float:
   """Compute inner product between vector1 and vector2."""
-
-  out = 0.0
-  for (vector1, vector2) in zip(vectors1, vectors2):
-    out += tf.reduce_sum(vector1 * vector2)
-  return out
+  return tf.reduce_sum(
+    tf.stack([ 
+      vector1*vector2 for (vector1, vector2) in zip(vectors1, vectors2) 
+      if (vector1 is not None) and (vector2 is not None)
+    ])
+  )
 
 def _vector_norm(vectors: List[tf.Tensor]) -> float:
   """Compute the L2 norm of vector"""
