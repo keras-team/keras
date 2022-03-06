@@ -4,7 +4,7 @@ import os
 
 from absl.testing import parameterized
 import keras
-from keras.models import sharpness_aware_minimization
+from keras.models import GSAM
 from keras.optimizers.optimizer_experimental import adam
 from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
