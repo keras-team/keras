@@ -55,7 +55,7 @@ def _decompose_parallel_vertical(
 
 
 @generic_utils.register_keras_serializable()
-class SharpnessAwareMinimization(SharpnessAwareMinimization):
+class GSAM(SharpnessAwareMinimization):
   """GSAM training flow.
   Surrogate Gap Guided Sharpness Aware Minimization (GSAM) is an improvement over Sharpness-Aware-Minimization (SAM)
   Args:
