@@ -13,6 +13,10 @@ tf_class {
     mtype: "<type \'property\'>"
   }
   member {
+    name: "auto_vectorize"
+    mtype: "<type \'property\'>"
+  }
+  member {
     name: "compute_dtype"
     mtype: "<type \'property\'>"
   }
