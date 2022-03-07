@@ -18,6 +18,7 @@ py_library(
         "adam.py",
         "adamax.py",
         "adamw.py",
+        "ftrl.py",
         "optimizer.py",
         "rmsprop.py",
         "sgd.py",
