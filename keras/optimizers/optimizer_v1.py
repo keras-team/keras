@@ -186,7 +186,7 @@ class SGD(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr = lr * (  # pylint: disable=g-no-augmented-assignment
+      lr = lr * (
           1. /
           (1. +
            self.decay * tf.cast(self.iterations,
@@ -261,7 +261,7 @@ class RMSprop(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr = lr * (  # pylint: disable=g-no-augmented-assignment
+      lr = lr * (
           1. /
           (1. +
            self.decay * tf.cast(self.iterations,
@@ -337,7 +337,7 @@ class Adagrad(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr = lr * (  # pylint: disable=g-no-augmented-assignment
+      lr = lr * (
           1. /
           (1. +
            self.decay * tf.cast(self.iterations,
@@ -419,7 +419,7 @@ class Adadelta(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr = lr * (  # pylint: disable=g-no-augmented-assignment
+      lr = lr * (
           1. /
           (1. +
            self.decay * tf.cast(self.iterations,
@@ -516,7 +516,7 @@ class Adam(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr = lr * (  # pylint: disable=g-no-augmented-assignment
+      lr = lr * (
           1. /
           (1. +
            self.decay * tf.cast(self.iterations,
@@ -612,7 +612,7 @@ class Adamax(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr = lr * (  # pylint: disable=g-no-augmented-assignment
+      lr = lr * (
           1. /
           (1. +
            self.decay * tf.cast(self.iterations,
