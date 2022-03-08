@@ -53,21 +53,7 @@ class RMSprop(optimizer.Optimizer):
       variance of the gradient; if False, by the uncentered second moment.
       Setting this to `True` may help with training, but is slightly more
       expensive in terms of computation and memory. Defaults to `False`.
-    clipnorm: see the `clipnorm` argument of `optimizer_experimental.Optimizer`.
-    clipvalue: see the `clipvalue` argument of
-      `optimizer_experimental.Optimizer`.
-    global_clipnorm: see the `global_clipnorm` argument of
-      `optimizer_experimental.Optimizer`.
-    use_ema: see the `use_ema` argument of `optimizer_experimental.Optimizer`.
-    ema_momentum: see the `ema_momentum` argument of
-      `optimizer_experimental.Optimizer`.
-    ema_overwrite_frequency: see the `ema_overwrite_frequency` argument of
-      `optimizer_experimental.Optimizer`.
-    jit_compile: see the `jit_compile` argument of
-      `optimizer_experimental.Optimizer`.
-    name: Optional name prefix for the operations created when applying
-      gradients. Defaults to `"RMSprop"`.
-    **kwargs: see the `**kwargs` argument of `optimizer_experimental.Optimizer`.
+    {{base_optimizer_keyword_args}}
 
   Usage:
 
@@ -207,3 +193,7 @@ class RMSprop(optimizer.Optimizer):
         'centered': self.centered,
     })
     return config
+
+
+RMSprop.__doc__ = RMSprop.__doc__.replace(
+    '{{base_optimizer_keyword_args}}', optimizer.base_optimizer_keyword_args)

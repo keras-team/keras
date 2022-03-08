@@ -45,21 +45,7 @@ class Adagrad(optimizer.Optimizer):
       Starting value for the accumulators (per-parameter momentum values).
       Must be non-negative.
     epsilon: Small floating point value used to maintain numerical stability.
-    clipnorm: see the `clipnorm` argument of `optimizer_experimental.Optimizer`.
-    clipvalue: see the `clipvalue` argument of
-      `optimizer_experimental.Optimizer`.
-    global_clipnorm: see the `global_clipnorm` argument of
-      `optimizer_experimental.Optimizer`.
-    use_ema: see the `use_ema` argument of `optimizer_experimental.Optimizer`.
-    ema_momentum: see the `ema_momentum` argument of
-      `optimizer_experimental.Optimizer`.
-    ema_overwrite_frequency: see the `ema_overwrite_frequency` argument of
-      `optimizer_experimental.Optimizer`.
-    jit_compile: see the `jit_compile` argument of
-      `optimizer_experimental.Optimizer`.
-    name: Optional name prefix for the operations created when applying
-      gradients. Defaults to `"Adagrad"`.
-    **kwargs: see the `**kwargs` argument of `optimizer_experimental.Optimizer`.
+    {{base_optimizer_keyword_args}}
 
   Reference:
     - [Duchi et al., 2011](
@@ -136,3 +122,7 @@ class Adagrad(optimizer.Optimizer):
         'epsilon': self.epsilon,
     })
     return config
+
+
+Adagrad.__doc__ = Adagrad.__doc__.replace(
+    '{{base_optimizer_keyword_args}}', optimizer.base_optimizer_keyword_args)
