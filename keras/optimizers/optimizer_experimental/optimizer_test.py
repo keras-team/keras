@@ -15,11 +15,13 @@ from keras.optimizers.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizers.optimizer_experimental import adam as adam_new
 from keras.optimizers.optimizer_experimental import adamax as adamax_new
 from keras.optimizers.optimizer_experimental import adamw as adamw_new
+from keras.optimizers.optimizer_experimental import ftrl as ftrl_new
 from keras.optimizers.optimizer_experimental import rmsprop as rmsprop_new
 from keras.optimizers.optimizer_experimental import sgd as sgd_new
 from keras.optimizers.optimizer_v2 import adadelta as adadelta_old
 from keras.optimizers.optimizer_v2 import adagrad as adagrad_old
 from keras.optimizers.optimizer_v2 import adam as adam_old
+from keras.optimizers.optimizer_v2 import ftrl as ftrl_old
 from keras.optimizers.optimizer_v2 import gradient_descent as sgd_old
 from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_old
 from keras.utils import losses_utils
@@ -54,6 +56,8 @@ adamax_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladamax", lambda: adamax_new.Adamax(0.002))
 adamw_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladamw", lambda: adamw_new.AdamW(0.002, weight_decay=0.004))
+ftrl_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "experimentalftrl", lambda: ftrl_new.Ftrl(0.002))
 rmsprop_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalrmsprop", lambda: rmsprop_new.RMSprop(0.002))
 sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
@@ -69,6 +73,7 @@ OPTIMIZER_FN = [
     adam_new_fn,
     adamax_new_fn,
     adamw_new_fn,
+    ftrl_new_fn,
     rmsprop_new_fn,
     sgd_new_fn,
 ]
@@ -299,6 +304,22 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(loaded_optimizer.learning_rate, 0.002)
     self.assertEqual(loaded_optimizer.clipnorm, 0.1)
 
+  @parameterized.product(optimizer_fn=OPTIMIZER_FN)
+  def testSparseGradientsWorkAsExpected(self, optimizer_fn):
+    optimizer_1 = optimizer_fn()
+    optimizer_2 = optimizer_fn()
+    x1 = tf.Variable(np.ones([5]), dtype=tf.float64)
+    x2 = tf.Variable(np.ones([5]), dtype=tf.float64)
+    grads = tf.convert_to_tensor([0, 1., 1.5, 0, 0], dtype=tf.float64)
+    sparse_grads = tf.IndexedSlices(
+        tf.convert_to_tensor([1., 1.5], dtype=tf.float64),
+        [1, 2],
+        dense_shape=[len(grads)])
+    for _ in range(5):
+      optimizer_1.apply_gradients(zip([grads], [x1]))
+      optimizer_2.apply_gradients(zip([sparse_grads], [x2]))
+      self.assertAllClose(x1, x2)
+
 
 class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
   """Test optimizer outputs the same numerical results as optimizer_v2."""
@@ -331,6 +352,9 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
 
   def testAdagrad(self):
     self._compare_numerical(adagrad_old.Adagrad(), adagrad_new.Adagrad())
+
+  def testFtrl(self):
+    self._compare_numerical(ftrl_old.Ftrl(), ftrl_new.Ftrl())
 
   def testRMSprop(self):
     self._compare_numerical(rmsprop_old.RMSprop(), rmsprop_new.RMSprop())
