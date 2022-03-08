@@ -20,6 +20,7 @@ Reference:
 - [Revisiting ResNets: Improved Training and Scaling Strategies](
     https://arxiv.org/pdf/2103.07579.pdf)
 """
+from cgi import print_directory
 import sys
 from keras import backend
 from keras.utils import data_utils
@@ -186,6 +187,7 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
             `classifier_activation=None` to return the logits of the "top" layer.
         include_preprocessing: Boolean, whether to include the preprocessing layer
             (`Rescaling`) at the bottom of the network. Defaults to `True`.
+            Note: if weights are 'imagenet' then Input image is normalized by ImageNet mean and standard deviation.
 
     Returns:
         A `keras.Model` instance.
@@ -520,30 +522,30 @@ def ResNetRS(
 ):
     """Build Resnet-RS model, given provided parameters.
 
-    Parameters:
-        :param depth: Depth of ResNet network.
-        :param dropout_rate: dropout rate before final classifier layer.
-        :param bn_momentum: Momentum parameter for Batch Normalization layers.
-        :param bn_epsilon: Epsilon parameter for Batch Normalization layers.
-        :param activation: activation function.
-        :param block_args: list of dicts, parameters to construct block modules.
-        :param se_ratio: Squeeze and Excitation layer ratio.
-        :param model_name: name of the model.
-        :param drop_connect_rate: dropout rate at skip connections.
-        :param include_top: whether to include the fully-connected layer at the top of
+    Args:
+        depth: Depth of ResNet network.
+        dropout_rate: dropout rate before final classifier layer.
+        bn_momentum: Momentum parameter for Batch Normalization layers.
+        bn_epsilon: Epsilon parameter for Batch Normalization layers.
+        activation: activation function.
+        block_args: list of dicts, parameters to construct block modules.
+        se_ratio: Squeeze and Excitation layer ratio.
+        model_name: name of the model.
+        drop_connect_rate: dropout rate at skip connections.
+        include_top: whether to include the fully-connected layer at the top of
         the network.
-        :param weights: one of `None` (random initialization), `'imagenet'`
+        weights: one of `None` (random initialization), `'imagenet'`
             (pre-training on ImageNet), or the path to the weights file to be loaded.
             Note: one model can have multiple imagenet variants depending on
             input shape it was trained with. For input_shape 224x224 pass
             `imagenet-i224` as argument. By default, highest input shape weights are
             downloaded.
-        :param input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to
+        input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to
             use as image input for the model.
-        :param input_shape: optional shape tuple. It should have exactly 3 inputs
+        input_shape: optional shape tuple. It should have exactly 3 inputs
             channels, and width and height should be no smaller than 32.
             E.g. (200, 200, 3) would be one valid value.
-        :param  pooling: optional pooling mode for feature extraction when `include_top`
+        pooling: optional pooling mode for feature extraction when `include_top`
             is `False`.
             - `None` means that the output of the model will be
                 the 4D tensor output of the
@@ -554,16 +556,19 @@ def ResNetRS(
                 the output of the model will be a 2D tensor.
             - `max` means that global max pooling will
                 be applied.
-        :param classes: optional number of classes to classify images into, only to be
+        classes: optional number of classes to classify images into, only to be
             specified if `include_top` is True, and if no `weights` argument is
             specified.
-        :param classifier_activation: A `str` or callable. The activation function to
+        classifier_activation: A `str` or callable. The activation function to
             use on the "top" layer. Ignored unless `include_top=True`. Set
             `classifier_activation=None` to return the logits of the "top" layer.
-        :param include_preprocessing: Boolean, whether to include the preprocessing layer
+        include_preprocessing: Boolean, whether to include the preprocessing layer
             (`Rescaling`) at the bottom of the network. Defaults to `True`.
+            Note: if weights are 'imagenet' then Input image is normalized by ImageNet mean and standard deviation.
+
     Returns:
         A `tf.keras.Model` instance.
+
     Raises:
         ValueError: in case of invalid argument for `weights`, or invalid input
             shape.
@@ -574,15 +579,13 @@ def ResNetRS(
     available_weight_variants = DEPTH_TO_WEIGHT_VARIANTS[depth]
     if weights == "imagenet":
         max_input_shape = max(available_weight_variants)
-        """logging.warning(
-            f"Received `imagenet` argument without "
-            f"explicit weights input size. Picking weights trained with "
-            f"biggest available shape: imagenet-i{max_input_shape}"
-        )"""
+        """ `imagenet` argument without explicit weights input size. 
+            Picking weights trained with biggest available shape: imagenet-i{max_input_shape}"
+        """
         weights = f"{weights}-i{max_input_shape}"
 
     weights_allow_list = [f"imagenet-i{x}" for x in available_weight_variants]
-    if not (weights in {*weights_allow_list, None} or file_io.file_exists_v2(weights)):
+    if not (weights in {*weights_allow_list, None} or tf.io.gfile.exists(weights)):
         raise ValueError(
             "The `weights` argument should be either "
             "`None` (random initialization), `'imagenet'` "
@@ -599,6 +602,7 @@ def ResNetRS(
             f"`include_top` as true, `classes` should be 1000. "
             f"Received classes={classes}"
         )
+
     input_shape = imagenet_utils.obtain_input_shape(
         input_shape,
         default_size=224,
@@ -623,7 +627,7 @@ def ResNetRS(
     if include_preprocessing:
         num_channels = input_shape[bn_axis - 1]
         x = layers.Rescaling(scale=1.0 / 255)(x)
-        if weights == "imagenet":
+        if num_channels == 3:
             x = layers.Normalization(
                 mean=[0.485, 0.456, 0.406],
                 variance=[0.229**2, 0.224**2, 0.225**2],
