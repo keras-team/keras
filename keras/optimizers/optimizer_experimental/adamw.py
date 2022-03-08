@@ -72,7 +72,7 @@ class AdamW(optimizer.Optimizer):
     jit_compile: see the `jit_compile` argument of
       `optimizer_experimental.Optimizer`.
     name: Optional name prefix for the operations created when applying
-      gradients. Defaults to `"Adam"`.
+      gradients. Defaults to `"AdamW"`.
     **kwargs: see the `**kwargs` argument of `optimizer_experimental.Optimizer`.
 
   Reference:
