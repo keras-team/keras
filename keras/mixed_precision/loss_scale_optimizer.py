@@ -16,10 +16,10 @@
 
 from keras import backend
 from keras import optimizers
-from keras.mixed_precision import loss_scale as keras_loss_scale_module
 from keras.optimizers.optimizer_experimental import optimizer as optimizer_experimental
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.optimizers.optimizer_v2 import utils as optimizer_utils
+from keras.utils import generic_utils
 
 import tensorflow.compat.v2 as tf
 # pylint: disable=g-direct-tensorflow-import
@@ -819,12 +819,19 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
       # If loss_scale is in config, we assume we are deserializing a
       # LossScaleOptimizer from TF 2.3 or below. We convert the config so it
       # can be deserialized in the current LossScaleOptimizer.
-      loss_scale = keras_loss_scale_module.deserialize(
-          config.pop('loss_scale'))
-      if isinstance(loss_scale, tf.mixed_precision.experimental.FixedLossScale):
+      loss_scale = generic_utils.deserialize_keras_object(
+          config.pop('loss_scale'),
+          module_objects={
+              'FixedLossScale': tf.compat.v1.mixed_precision.FixedLossScale,
+              'DynamicLossScale': tf.compat.v1.mixed_precision.DynamicLossScale,
+          },
+          printable_module_name='loss scale')
+
+      if isinstance(loss_scale, tf.compat.v1.mixed_precision.FixedLossScale):
         config['dynamic'] = False
         config['initial_scale'] = loss_scale._loss_scale_value  # pylint: disable=protected-access
-      elif isinstance(loss_scale, tf.mixed_precision.experimental.DynamicLossScale):
+      elif isinstance(loss_scale,
+                      tf.compat.v1.mixed_precision.DynamicLossScale):
         config['dynamic'] = True
         config['initial_scale'] = loss_scale.initial_loss_scale
         config['dynamic_growth_steps'] = loss_scale.increment_period

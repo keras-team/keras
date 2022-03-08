@@ -116,24 +116,14 @@ tf_py_test(
 )
 
 py_library(
-    name = "loss_scale",
-    srcs = ["loss_scale.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras/utils:generic_utils",
-    ],
-)
-
-py_library(
     name = "loss_scale_optimizer",
     srcs = ["loss_scale_optimizer.py"],
     srcs_version = "PY3",
     deps = [
-        ":loss_scale",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras/optimizers/optimizer_v2",
+        "//keras/utils:generic_utils",
     ],
 )
 
@@ -149,19 +139,6 @@ cuda_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
-    ],
-)
-
-cuda_py_test(
-    name = "loss_scale_benchmark",
-    size = "medium",
-    srcs = ["loss_scale_benchmark.py"],
-    tfrt_enabled = True,
-    deps = [
-        ":loss_scale_optimizer",
-        ":test_util",
-        "//:expect_tensorflow_installed",
-        "//keras",
     ],
 )
 
