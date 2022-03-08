@@ -54,21 +54,7 @@ class Adam(optimizer.Optimizer):
       1e-7.
     amsgrad: Boolean. Whether to apply AMSGrad variant of this algorithm from
       the paper "On the Convergence of Adam and beyond". Defaults to `False`.
-    clipnorm: see the `clipnorm` argument of `optimizer_experimental.Optimizer`.
-    clipvalue: see the `clipvalue` argument of
-      `optimizer_experimental.Optimizer`.
-    global_clipnorm: see the `global_clipnorm` argument of
-      `optimizer_experimental.Optimizer`.
-    use_ema: see the `use_ema` argument of `optimizer_experimental.Optimizer`.
-    ema_momentum: see the `ema_momentum` argument of
-      `optimizer_experimental.Optimizer`.
-    ema_overwrite_frequency: see the `ema_overwrite_frequency` argument of
-      `optimizer_experimental.Optimizer`.
-    jit_compile: see the `jit_compile` argument of
-      `optimizer_experimental.Optimizer`.
-    name: Optional name prefix for the operations created when applying
-      gradients. Defaults to `"Adam"`.
-    **kwargs: see the `**kwargs` argument of `optimizer_experimental.Optimizer`.
+    {{base_optimizer_keyword_args}}
 
   Reference:
     - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980)
@@ -210,3 +196,7 @@ class Adam(optimizer.Optimizer):
         'amsgrad': self.amsgrad,
     })
     return config
+
+
+Adam.__doc__ = Adam.__doc__.replace(
+    '{{base_optimizer_keyword_args}}', optimizer.base_optimizer_keyword_args)
