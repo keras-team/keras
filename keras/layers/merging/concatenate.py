@@ -92,7 +92,7 @@ class Concatenate(_Merge):
   @tf_utils.shape_type_conversion
   def build(self, input_shape):
     # Used purely for shape validation.
-    if not isinstance(input_shape[0], tuple) or len(input_shape) < 1:
+    if len(input_shape) < 1 or not isinstance(input_shape[0], tuple):
       raise ValueError(
           'A `Concatenate` layer should be called on a list of '
           f'at least 1 input. Received: input_shape={input_shape}')
