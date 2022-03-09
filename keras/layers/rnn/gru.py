@@ -457,12 +457,13 @@ class GRU(DropoutRNNCellMixin, gru_v1.GRU, base_layer.BaseRandomLayer):
           'go_backwards':
               self.go_backwards,
           'sequence_lengths':
-              sequence_lengths
+              sequence_lengths,
+          'return_sequences':
+              self.return_sequences
       }
       normal_gru_kwargs = gpu_gru_kwargs.copy()
       normal_gru_kwargs.update({
           'zero_output_for_mask': self.zero_output_for_mask,
-          'return_sequences': self.return_sequences,
       })
 
       if tf.executing_eagerly():
@@ -579,7 +580,7 @@ def standard_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask,
 
 
 def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
-            go_backwards, sequence_lengths):
+            go_backwards, sequence_lengths, return_sequences):
   """GRU with cuDNN implementation which is only available for GPU."""
   if mask is not None:
     sequence_lengths = gru_lstm_utils.calculate_sequence_by_mask(
@@ -649,7 +650,7 @@ def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
         is_training=True, rnn_mode='gru')
 
   last_output = outputs[-1]
-  if not time_major and sequence_lengths is None:
+  if not time_major and sequence_lengths is None and return_sequences:
     outputs = tf.transpose(outputs, perm=[1, 0, 2])
   h = tf.squeeze(h, axis=seq_axis)
 
@@ -661,6 +662,10 @@ def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
   # the last_output, since it is numerically same as the output.
   if sequence_lengths is not None:
     last_output = h
+
+  # Match CPU return format
+  if not return_sequences:
+    outputs = tf.expand_dims(last_output, axis=0 if time_major else 1)
 
   return last_output, outputs, h, gru_lstm_utils.runtime(
       gru_lstm_utils.RUNTIME_GPU)
@@ -734,7 +739,8 @@ def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
           mask=mask,
           time_major=time_major,
           go_backwards=go_backwards,
-          sequence_lengths=sequence_lengths)
+          sequence_lengths=sequence_lengths,
+          return_sequences=return_sequences)
 
     def cudnn_gru_fn():
       return gpu_gru(
@@ -746,7 +752,8 @@ def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
           mask=mask,
           time_major=time_major,
           go_backwards=go_backwards,
-          sequence_lengths=sequence_lengths)
+          sequence_lengths=sequence_lengths,
+          return_sequences=return_sequences)
 
     def standard_gru_fn():
       return standard_gru(
