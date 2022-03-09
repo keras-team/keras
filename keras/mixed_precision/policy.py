@@ -465,7 +465,6 @@ def _policy_equivalent_to_dtype(policy):
   # We use type() instead of isinstance because a subclass of Policy is never
   # equivalent to a dtype.
   return (type(policy) == Policy and  # pylint: disable=unidiomatic-typecheck
-          list(policy.get_config().keys()) == ['name'] and
           (policy.name == '_infer' or _is_convertible_to_dtype(policy.name)))
 
 

@@ -513,6 +513,39 @@ class _BaseOptimizer(tf.Module):
     return cls(**config)
 
 
+base_optimizer_keyword_args = """name: String. The name to use
+      for momentum accumulator weights created by
+      the optimizer.
+    clipnorm: Float. If set, the gradient of each weight is individually
+      clipped so that its norm is no higher than this value.
+    clipvalue: Float. If set, the gradient of each weight is clipped to be no
+      higher than this value.
+    global_clipnorm: Float. If set, the gradient of all weights is clipped so
+      that their global norm is no higher than this value.
+    use_ema: Boolean, defaults to False. If True, exponential moving average
+      (EMA) is applied. EMA consists of computing an exponential moving
+      average of the weights of the model (as the weight values change after
+      each training batch), and periodically overwriting the weights with
+      their moving average.
+    ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`. This is
+      the momentum to use when computing the EMA of the model's weights:
+      `new_average = ema_momentum * old_average + (1 - ema_momentum) *
+      current_variable_value`.
+    ema_overwrite_frequency: Int or None, defaults to None. Only used if
+      `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations, we
+      overwrite the model variable by its moving average. If None, the optimizer
+       does not overwrite model variables in the middle of training, and you
+      need to explicitly overwrite the variables at the end of training
+      by calling `optimizer.finalize_variable_values()` (which updates the model
+      variables in-place). When using the built-in `fit()` training loop, this
+      happens automatically after the last epoch, and you don't need to do
+      anything.
+    jit_compile: Boolean, defaults to False. If True, the optimizer will use XLA
+      compilation. `jit_compile` cannot be True when training with
+      `tf.distribute.experimental.ParameterServerStrategy`.
+    **kwargs: keyword arguments only used for backward compatibility."""
+
+
 # pylint: disable=g-classes-have-attributes
 @keras_export("keras.optimizers.experimental.Optimizer", v1=[])
 class Optimizer(_BaseOptimizer):
@@ -522,38 +555,7 @@ class Optimizer(_BaseOptimizer):
   optimizer, please subclass this class instead of _BaseOptimizer.
 
   Args:
-    name: string. The name to use for momentum accumulator weights created by
-      the optimizer.
-    clipnorm: float. If set, the gradient of each weight is individually
-      clipped so that its norm is no higher than this value.
-    clipvalue: float. If set, the gradient of each weight is clipped to be no
-      higher than this value.
-    global_clipnorm: float. If set, the gradient of all weights is clipped so
-      that their global norm is no higher than this value.
-    use_ema: boolean, default to False. If True, exponential moving average
-      (EMA) is applied. EMA consists of computing an exponential moving
-      average of the weights of the model (as the weight values change after
-      each training batch), and periodically overwriting the weights with
-      their moving average.
-    ema_momentum: float, default to 0.99. Only used if `use_ema=True`. This is
-      the momentum to use when computing the EMA of the model's weights:
-        `new_average = ema_momentum * old_average + (1 - ema_momentum) *
-        current_variable_value`.
-    ema_overwrite_frequency: int or None, default to None. Only used if
-      `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations, we
-      overwrite the model variable by its moving average. If None, the optimizer
-       does not overwrite model variables in the middle of training, and you
-      need to explicitly overwrite the variables at the end of training
-      by calling `optimizer.finalize_variable_values()` (which updates the model
-      variables in-place). When using the built-in `fit()` training loop, this
-      happens automatically after the last epoch, and you don't need to do
-      anything.
-    jit_compile: bool, default to False. If True, the optimizer will use XLA
-      acceleration. `jit_compile` can only be False when using Parameter
-      Server Strategy.
-    **kwargs: keyword arguments only used for backward compatibility with
-      `optimizer_v2.OptimizerV2`. Any new code using
-      `optimizer_experimental.Optimizer` should leave this parameter empty.
+    {{base_optimizer_keyword_args}}
 
   ### Usage
 
@@ -881,3 +883,6 @@ tf.__internal__.saved_model.load.register_revived_type(
             min_producer_version=1,
             min_consumer_version=1)
     ])
+
+Optimizer.__doc__ = Optimizer.__doc__.replace(
+    "{{base_optimizer_keyword_args}}", base_optimizer_keyword_args)
