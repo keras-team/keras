@@ -27,6 +27,7 @@ from keras.optimizers.optimizer_experimental import adagrad as adagrad_experimen
 from keras.optimizers.optimizer_experimental import adam as adam_experimental
 from keras.optimizers.optimizer_experimental import adamax as adamax_experimental
 from keras.optimizers.optimizer_experimental import adamw as adamw_experimental
+from keras.optimizers.optimizer_experimental import ftrl as ftrl_experimental
 from keras.optimizers.optimizer_experimental import rmsprop as rmsprop_experimental
 from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
 from keras.optimizers.optimizer_v1 import Optimizer

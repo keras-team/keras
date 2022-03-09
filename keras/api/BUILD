@@ -95,6 +95,7 @@ keras_packages = [
     "keras.optimizers.optimizer_experimental.adagrad",
     "keras.optimizers.optimizer_experimental.adam",
     "keras.optimizers.optimizer_experimental.adamax",
+    "keras.optimizers.optimizer_experimental.ftrl",
     "keras.optimizers.optimizer_experimental.sgd",
     "keras.optimizers.optimizer_experimental.optimizer",
     "keras.optimizers.optimizer_experimental.rmsprop",
