@@ -4442,7 +4442,8 @@ def rnn(step_function,
               - If `return_all_outputs=True`: a tensor with shape
                 `(samples, time, ...)` where each entry `outputs[s, t]` is the
                 output of the step function at time `t` for sample `s`
-              - Else, a tensor equal to `last_output`
+              - Else, a tensor equal to `last_output` with shape 
+                `(samples, 1, ...)`
           new_states: list of tensors, latest states returned by
               the step function, of shape `(samples, ...)`.
 

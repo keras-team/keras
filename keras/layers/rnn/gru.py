@@ -530,7 +530,7 @@ def standard_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask,
     outputs: 
       - If `return_sequences=True`: output tensor for all timesteps, 
         which has shape [batch, time, units].
-      - Else, a tensor equal to `last_output`
+      - Else, a tensor equal to `last_output` with shape [batch, 1, units]
     state_0: the cell output, which has same shape as init_h.
     runtime: constant string tensor which indicate real runtime hardware. This
       value is for testing purpose and should be used by user.
