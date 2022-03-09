@@ -63,21 +63,7 @@ class Adamax(optimizer.Optimizer):
     beta_2: A float value or a constant float tensor. The exponential decay
       rate for the exponentially weighted infinity norm.
     epsilon: A small constant for numerical stability.
-    clipnorm: see the `clipnorm` argument of `optimizer_experimental.Optimizer`.
-    clipvalue: see the `clipvalue` argument of
-      `optimizer_experimental.Optimizer`.
-    global_clipnorm: see the `global_clipnorm` argument of
-      `optimizer_experimental.Optimizer`.
-    use_ema: see the `use_ema` argument of `optimizer_experimental.Optimizer`.
-    ema_momentum: see the `ema_momentum` argument of
-      `optimizer_experimental.Optimizer`.
-    ema_overwrite_frequency: see the `ema_overwrite_frequency` argument of
-      `optimizer_experimental.Optimizer`.
-    jit_compile: see the `jit_compile` argument of
-      `optimizer_experimental.Optimizer`.
-    name: Optional name prefix for the operations created when applying
-      gradients. Defaults to `"Adamax"`.
-    **kwargs: see the `**kwargs` argument of `optimizer_experimental.Optimizer`.
+    {{base_optimizer_keyword_args}}
 
   Reference:
     - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980)
@@ -179,3 +165,7 @@ class Adamax(optimizer.Optimizer):
         'epsilon': self.epsilon,
     })
     return config
+
+
+Adamax.__doc__ = Adamax.__doc__.replace(
+    '{{base_optimizer_keyword_args}}', optimizer.base_optimizer_keyword_args)
