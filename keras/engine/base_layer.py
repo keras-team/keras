@@ -3420,6 +3420,7 @@ def _apply_name_scope_on_model_declaration(enable):
   _is_name_scope_on_model_declaration_enabled = enable
 
 
+@keras_export('keras.__internal__.layers.BaseRandomLayer')
 class BaseRandomLayer(Layer):
   """A layer handle the random number creation and savemodel behavior."""
 
