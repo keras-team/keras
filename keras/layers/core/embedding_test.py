@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for embedding layers."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+"""Tests for embedding layer."""
 
 import keras
 from keras.mixed_precision import policy
@@ -114,8 +113,7 @@ class EmbeddingTest(test_combinations.TestCase):
     model = keras.Model(inputs, outputs)
     model.run_eagerly = test_utils.should_run_eagerly()
     outputs = model.predict(
-        tf.ragged.constant([[1., 2., 2.], [0.], [1., 2.]],
-                                    ragged_rank=1))
+        tf.ragged.constant([[1., 2., 2.], [0.], [1., 2.]], ragged_rank=1))
     self.assertAllClose(
         outputs,
         tf.ragged.constant(

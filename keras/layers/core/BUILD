@@ -1,5 +1,8 @@
 # Description:
 #  Contains the Keras core layers.
+load("@org_keras//keras:keras.bzl", "cuda_py_test")
+
+# buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
@@ -25,6 +28,7 @@ py_library(
     deps = [
         ":activation",
         ":dense",
+        ":embedding",
         ":lambda",
         ":masking",
         ":tf_op_layer",
@@ -37,21 +41,6 @@ py_library(
         "//keras/layers/reshaping:permute",
         "//keras/layers/reshaping:repeat_vector",
         "//keras/layers/reshaping:reshape",
-    ],
-)
-
-tf_py_test(
-    name = "core_test",
-    size = "medium",
-    srcs = ["core_test.py"],
-    python_version = "PY3",
-    shard_count = 3,
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -71,6 +60,22 @@ py_library(
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras/dtensor:utils",
+    ],
+)
+
+py_library(
+    name = "embedding",
+    srcs = ["embedding.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras:constraints",
+        "//keras:regularizers",
+        "//keras/engine:base_layer",
+        "//keras/engine:base_layer_utils",
+        "//keras/initializers",
+        "//keras/utils:tf_utils",
     ],
 )
 
@@ -104,5 +109,35 @@ py_library(
         "//keras/engine:base_layer",
         "//keras/initializers",
         "//keras/utils:tf_utils",
+    ],
+)
+
+tf_py_test(
+    name = "core_test",
+    size = "medium",
+    srcs = ["core_test.py"],
+    python_version = "PY3",
+    shard_count = 3,
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+cuda_py_test(
+    name = "embedding_test",
+    size = "medium",
+    srcs = ["embedding_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/mixed_precision:policy",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )
