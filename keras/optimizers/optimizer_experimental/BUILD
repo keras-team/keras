@@ -19,6 +19,7 @@ py_library(
         "adamax.py",
         "adamw.py",
         "ftrl.py",
+        "nadam.py",
         "optimizer.py",
         "rmsprop.py",
         "sgd.py",
@@ -34,7 +35,7 @@ distribute_py_test(
     name = "optimizer_test",
     size = "medium",
     srcs = ["optimizer_test.py"],
-    shard_count = 1,
+    shard_count = 8,
     tags = [
         "multi_gpu",
         "no_windows",
