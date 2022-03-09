@@ -619,10 +619,9 @@ class CheckpointCompatibilityTests(test_combinations.TestCase):
         self._set_sentinels(root)
         with self.assertRaises(AssertionError):
           self._check_sentinels(root)
-        object_saver = tf.__internal__.tracking.TrackableSaver(
-            tf.__internal__.tracking.ObjectGraphView(root))
+        object_saver = tf.train.Checkpoint(root=root)
         self._set_sentinels(root)
-        status = object_saver.restore(save_path)
+        status = object_saver.read(save_path)
         if tf.executing_eagerly():
           self._check_sentinels(root)
         if tf.executing_eagerly():
@@ -641,13 +640,13 @@ class CheckpointCompatibilityTests(test_combinations.TestCase):
         status.run_restore_ops()
         self._check_sentinels(root)
         self._set_sentinels(root)
-        status = object_saver.restore(save_path)
+        status = object_saver.read(save_path)
         status.initialize_or_restore()
         self._check_sentinels(root)
         # Check that there is no error when keys are missing from the name-based
         # checkpoint.
         root.not_in_name_checkpoint = tf.Variable([1.])
-        status = object_saver.restore(save_path)
+        status = object_saver.read(save_path)
         with self.assertRaises(AssertionError):
           status.assert_existing_objects_matched()
 
