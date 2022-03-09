@@ -106,14 +106,6 @@ def allow_initializer_layout(init_method):
 def call_with_layout(fn, layout, *args, **kwargs):
   """Invoke the function with inputs and relayout the result.
 
-  When the layout is not None, a temporary tf.function will be created under the
-  hood, so that the layout can be properly set for the result. The tf.function
-  need to be called under the dtensor device scope, since the dtensor related
-  kernel need to that as the indicator to work with tf.function. The tf.function
-  will ensure the it only create the needed tensor (sharded for local device)
-  by the layout propagation, and not fully materialize the output of fn, which
-  could potentially be a large tensor.
-
   Args:
     fn: the function to invoke.
     layout: if not None, the output of the fn will be relayout with this.
@@ -124,15 +116,7 @@ def call_with_layout(fn, layout, *args, **kwargs):
     The output of fn, with potential relayout with the layout specified.
   """
   if layout:
-
-    # TODO(b/222160686): Remove this tf.function after after we have SPMD
-    # support for tf.MatrixDiagV3
-    @tf.function
-    def wrapper_func():
+    with dtensor.run_on(layout):
       result = fn(*args, **kwargs)
       return dtensor.relayout(result, layout)
-
-    with dtensor.run_on(layout):
-      return wrapper_func()
-
   return fn(*args, **kwargs)
