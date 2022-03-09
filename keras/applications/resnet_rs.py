@@ -187,7 +187,7 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
             `classifier_activation=None` to return the logits of the "top" layer.
         include_preprocessing: Boolean, whether to include the preprocessing layer
             (`Rescaling`) at the bottom of the network. Defaults to `True`.
-            Note: if weights are 'imagenet' then Input image is normalized by ImageNet mean and standard deviation.
+            Note: Input image is normalized by ImageNet mean and standard deviation.
 
     Returns:
         A `keras.Model` instance.
@@ -564,7 +564,7 @@ def ResNetRS(
             `classifier_activation=None` to return the logits of the "top" layer.
         include_preprocessing: Boolean, whether to include the preprocessing layer
             (`Rescaling`) at the bottom of the network. Defaults to `True`.
-            Note: if weights are 'imagenet' then Input image is normalized by ImageNet mean and standard deviation.
+            Note: Input image is normalized by ImageNet mean and standard deviation.
 
     Returns:
         A `tf.keras.Model` instance.
