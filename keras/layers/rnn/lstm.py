@@ -531,7 +531,7 @@ def standard_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias,
     outputs: 
       - If `return_sequences=True`: output tensor for all timesteps, 
         which has shape [batch, time, units].
-      - Else, a tensor equal to `last_output`
+      - Else, a tensor equal to `last_output` with shape [batch, 1, units]
     state_0: the cell output, which has same shape as init_h.
     state_1: the cell hidden state, which has same shape as init_c.
     runtime: constant string tensor which indicate real runtime hardware. This
@@ -611,7 +611,7 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
     outputs: 
       - If `return_sequences=True`: output tensor for all timesteps, 
         which has shape [batch, time, units].
-      - Else, a tensor equal to `last_output`
+      - Else, a tensor equal to `last_output` with shape [batch, 1, units]
     state_0: The cell output, which has same shape as init_h.
     state_1: The cell hidden state, which has same shape as init_c.
     runtime: Constant string tensor which indicate real runtime hardware. This
