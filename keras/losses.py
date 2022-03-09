@@ -29,6 +29,7 @@ from tensorflow.python.ops.ragged import ragged_util
 from tensorflow.python.util import dispatch
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
+from tensorflow.python.ops import check_ops
 
 
 @keras_export('keras.losses.Loss')
@@ -1773,6 +1774,8 @@ def categorical_crossentropy(y_true,
   Returns:
     Categorical crossentropy loss value.
   """
+  #axis assert
+  check_ops.assert_integer_v2(axis, message=('`axis` must be of type `int`.'))
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(label_smoothing, dtype=y_pred.dtype)
