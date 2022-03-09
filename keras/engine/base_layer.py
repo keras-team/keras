@@ -36,6 +36,7 @@ from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
+from keras.dtensor import lazy_variable
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
 from keras.engine import keras_tensor
@@ -451,6 +452,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Save outer name scope at layer declaration so that it is preserved at
     # the actual layer construction.
     self._name_scope_on_declaration = tf.get_current_name_scope()
+
+    # Save the temp regularization losses created in the DTensor use case.
+    # When DTensor is enable, we will first create LazyInitVariable and then
+    # DVariable with proper layout afterward. For the weights regularization
+    # loss, we have to create against the DVariable as well.
+    self._captured_weight_regularizer = []
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   @generic_utils.default
@@ -2542,6 +2549,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     if base_layer_utils.is_split_variable(variable):
       for v in variable:
         self.add_loss(functools.partial(_loss_for_variable, v))
+    elif isinstance(variable, lazy_variable.LazyInitVariable):
+      self._captured_weight_regularizer.append((name, variable, regularizer))
     else:
       self.add_loss(functools.partial(_loss_for_variable, variable))
 
