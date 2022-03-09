@@ -105,6 +105,7 @@ py_library(
         # TODO(keras-team): Fix the circular deps between layer and metrics.
         # "//keras/metrics",
         "//keras:regularizers",
+        "//keras/dtensor:lazy_variable",
         "//keras/mixed_precision:autocast_variable",
         "//keras/mixed_precision:loss_scale_optimizer",
         "//keras/mixed_precision:policy",
