@@ -16,6 +16,7 @@ from keras.optimizers.optimizer_experimental import adam as adam_new
 from keras.optimizers.optimizer_experimental import adamax as adamax_new
 from keras.optimizers.optimizer_experimental import adamw as adamw_new
 from keras.optimizers.optimizer_experimental import ftrl as ftrl_new
+from keras.optimizers.optimizer_experimental import nadam as nadam_new
 from keras.optimizers.optimizer_experimental import rmsprop as rmsprop_new
 from keras.optimizers.optimizer_experimental import sgd as sgd_new
 from keras.optimizers.optimizer_v2 import adadelta as adadelta_old
@@ -58,6 +59,8 @@ adamw_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladamw", lambda: adamw_new.AdamW(0.002, weight_decay=0.004))
 ftrl_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalftrl", lambda: ftrl_new.Ftrl(0.002))
+nadam_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "experimentnadam", lambda: nadam_new.Nadam(0.002))
 rmsprop_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalrmsprop", lambda: rmsprop_new.RMSprop(0.002))
 sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
@@ -74,6 +77,7 @@ OPTIMIZER_FN = [
     adamax_new_fn,
     adamw_new_fn,
     ftrl_new_fn,
+    nadam_new_fn,
     rmsprop_new_fn,
     sgd_new_fn,
 ]
