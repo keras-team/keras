@@ -67,7 +67,6 @@ keras_packages = [
     "keras.layers.attention",
     "keras.layers.convolutional",
     "keras.layers.core",
-    "keras.layers.embeddings",
     "keras.layers.locally_connected",
     "keras.layers.merging",
     "keras.layers.normalization.batch_normalization",
