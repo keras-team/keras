@@ -1775,7 +1775,7 @@ def categorical_crossentropy(y_true,
     Categorical crossentropy loss value.
   """
   #axis assert
-  check_ops.assert_integer_v2(axis, message=('`axis` must be of type `int`.'))
+  check_ops.assert_integer_v2(int(axis), message=('`axis` must be of type `int`.'))
   y_pred = tf.convert_to_tensor(y_pred)
   y_true = tf.cast(y_true, y_pred.dtype)
   label_smoothing = tf.convert_to_tensor(label_smoothing, dtype=y_pred.dtype)
