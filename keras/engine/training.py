@@ -1334,6 +1334,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._assert_compile_was_called()
     self._check_call_args('fit')
     _disallow_inside_tf_function('fit')
+    assert tf.size(x)!=0, "Expect x to be a non-empty array or dataset."
 
     verbose = _get_verbosity(verbose, self.distribute_strategy)
 
