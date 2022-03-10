@@ -20,7 +20,7 @@ to free you to focus on the parts of the problem that really matter.
 simple workflows should be quick and easy, while arbitrarily advanced workflows
 should be *possible* via a clear path that builds upon what you've already learned.
 - **Powerful** -- Keras provides industry-strength performance and scalability:
-it is used by organizations and companies including NASA, YouTube, or Waymo.
+it is used by organizations and companies including NASA, YouTube, and Waymo.
 
 ---
 
