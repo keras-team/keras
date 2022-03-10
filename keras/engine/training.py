@@ -1334,7 +1334,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._assert_compile_was_called()
     self._check_call_args('fit')
     _disallow_inside_tf_function('fit')
-    assert tf.size(x)!=0, "Expect x to be a non-empty array or dataset."
 
     verbose = _get_verbosity(verbose, self.distribute_strategy)
 
@@ -1418,11 +1417,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         logs = tf_utils.sync_to_numpy_or_python_type(logs)
         if logs is None:
           raise ValueError('Unexpected result of `train_function` '
-                           '(Empty logs). Please use '
-                           '`Model.compile(..., run_eagerly=True)`, or '
-                           '`tf.config.run_functions_eagerly(True)` for more '
-                           'information of where went wrong, or file a '
-                           'issue/bug to `tf.keras`.')
+                           '(Empty logs). Try using '
+                           '`Model.compile(..., run_eagerly=True)` '
+                           'for easier debugging of what went wrong.')
         epoch_logs = copy.copy(logs)
 
         # Run validation.
