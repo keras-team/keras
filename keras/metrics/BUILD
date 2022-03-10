@@ -43,8 +43,6 @@ py_library(
         "//keras:backend",
         "//keras:losses",
         "//keras/distribute",
-        "//keras/dtensor",
-        "//keras/dtensor:utils",
         "//keras/engine:base_layer",
         "//keras/engine:base_layer_utils",
         "//keras/utils:generic_utils",
