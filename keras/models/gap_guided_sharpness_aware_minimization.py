@@ -87,9 +87,9 @@ class GapGuidedSharpnessAwareMinimization(SharpnessAwareMinimization):
     self.eps = eps
     self.alpha = alpha
     
-    assert (lr_max > lr_min) or ((lr_max==lr_min) and (rho_max==rho_min)), "Current scheduler for `rho` is scheduled to evolve proportionally to `lr`, \ 
-    e.g. `(lr - lr_min) / (lr_max - lr_min) = (rho - rho_min) / (rho_max - rho_min)`. Please check `lr_max >= lr_min` and `rho_max >= rho_min`; \
-    if `lr_max==lr_min` hence `lr` is constant with step, please set 'rho_max == rho_min' so 'rho' is constant with step."
+    assert (lr_max > lr_min) or ((lr_max==lr_min) and (rho_max==rho_min)), "Current scheduler for `rho` is scheduled to evolve proportionally to `lr`," \ 
+    "e.g. `(lr - lr_min) / (lr_max - lr_min) = (rho - rho_min) / (rho_max - rho_min)`. Please check `lr_max >= lr_min` and `rho_max >= rho_min`;" \
+    "if `lr_max==lr_min` hence `lr` is constant with step, please set 'rho_max == rho_min' so 'rho' is constant with step."
 
   def train_step(self, data):
     """The logic of one GSAM training step.
