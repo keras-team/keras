@@ -1962,6 +1962,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     """
     base_layer.keras_api_gauge.get_cell('predict').set(True)
     version_utils.disallow_legacy_graph('Model', 'predict')
+    if tf_utils.np.isnan(x).any() or tf_utils.np.isinf(x).any():
+      raise ValueError(
+          f'Unsupported input data format. Received: {tf_utils.np.sum(x)} in '
+          'input data. Was expecting a numeric data.')
     self._check_call_args('predict')
     _disallow_inside_tf_function('predict')
 
