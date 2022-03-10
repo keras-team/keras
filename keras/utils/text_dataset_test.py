@@ -22,7 +22,7 @@ import shutil
 import string
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.preprocessing import text_dataset
+from keras.utils import text_dataset
 
 
 @test_utils.run_v2_only

@@ -19,8 +19,8 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 from keras.layers.preprocessing import image_preprocessing
-from keras.preprocessing import dataset_utils
 from keras.preprocessing import image as keras_image_ops
+from keras.utils import dataset_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
