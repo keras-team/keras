@@ -12,7 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Utilities for text input preprocessing."""
+"""Utilities for text input preprocessing.
+
+Warning: `tf.keras.preprocessing.text` APIs are not recommended for new code.
+Prefer `tf.keras.utils.text_dataset_from_directory` and
+`tf.keras.layers.TextVectorization` which provide a more efficient approach
+for preprocessing text input. For an introduction to these APIs, see
+the [text loading tutorial]
+(https://www.tensorflow.org/tutorials/load_data/text)
+and [preprocessing layer guide]
+(https://www.tensorflow.org/guide/keras/preprocessing_layers).
+"""
 # pylint: disable=invalid-name
 # pylint: disable=g-classes-have-attributes
 # pylint: disable=g-direct-tensorflow-import
@@ -33,6 +43,13 @@ def text_to_word_sequence(input_text,
                           lower=True,
                           split=' '):
   r"""Converts a text to a sequence of words (or tokens).
+
+  Warning: `tf.keras.preprocessing.text.text_to_word_sequence` does not operate
+  on tensors and is not recommended for new code. Prefer
+  `tf.strings.regex_replace` and `tf.strings.split` which provide equivalent
+  functionality and accept `tf.Tensor` input. For an overview of text handling
+  in Tensorflow, see the [text loading tutorial]
+  (https://www.tensorflow.org/tutorials/load_data/text).
 
   This function transforms a string of text into a list of words
   while ignoring `filters` which include punctuations by default.
@@ -71,6 +88,13 @@ def one_hot(input_text,
             split=' ',
             analyzer=None):
   r"""One-hot encodes a text into a list of word indexes of size `n`.
+
+  Warning: `tf.keras.text.preprocessing.one_hot` does not operate on tensors
+  and is not recommended for new code. Prefer `tf.keras.layers.Hashing` with
+  `output_mode='one_hot'` which provides equivalent functionality through a
+  layer which accepts `tf.Tensor` input. See the [preprocessing layer guide]
+  (https://www.tensorflow.org/guide/keras/preprocessing_layers)
+  for an overview of preprocessing layers.
 
   This function receives as input a string of text and returns a
   list of encoded integers each corresponding to a word (or token)
@@ -113,6 +137,13 @@ def hashing_trick(text,
                   analyzer=None):
   r"""Converts a text to a sequence of indexes in a fixed-size hashing space.
 
+  Warning: `tf.keras.text.preprocessing.hashing_trick` does not operate on
+  tensors and is not recommended for new code. Prefer `tf.keras.layers.Hashing`
+  which provides equivalent functionality through a layer which accepts
+  `tf.Tensor` input. See the [preprocessing layer guide]
+  (https://www.tensorflow.org/guide/keras/preprocessing_layers)
+  for an overview of preprocessing layers.
+
   Args:
       text: Input text (string).
       n: Dimension of the hashing space.
@@ -154,6 +185,13 @@ def hashing_trick(text,
 @keras_export('keras.preprocessing.text.Tokenizer')
 class Tokenizer(object):
   """Text tokenization utility class.
+
+  Warning: `tf.keras.preprocessing.text.Tokenizer` does not operate on tensors
+  and is not recommended for new code. Prefer
+  `tf.keras.layers.TextVectorization` which provides equivalent functionality
+  through a layer which accepts `tf.Tensor` input. See the
+  [text loading tutorial](https://www.tensorflow.org/tutorials/load_data/text)
+  for an overview of the layer and text handling in tensorflow.
 
   This class allows to vectorize a text corpus, by turning each
   text into either a sequence of integers (each integer being the index
@@ -509,6 +547,13 @@ class Tokenizer(object):
 @keras_export('keras.preprocessing.text.tokenizer_from_json')
 def tokenizer_from_json(json_string):
   """Parses a JSON tokenizer configuration and returns a tokenizer instance.
+
+  Warning: `tf.keras.preprocessing.text.Tokenizer` does not operate on tensors
+  and is not recommended for new code. Prefer
+  `tf.keras.layers.TextVectorization` which provides equivalent functionality
+  through a layer which accepts `tf.Tensor` input. See the
+  [text loading tutorial](https://www.tensorflow.org/tutorials/load_data/text)
+  for an overview of the layer and text handling in tensorflow.
 
   Args:
       json_string: JSON string encoding a tokenizer configuration.
