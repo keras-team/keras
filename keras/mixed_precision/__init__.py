@@ -18,3 +18,8 @@ See [the mixed precision guide](
   https://www.tensorflow.org/guide/keras/mixed_precision) to learn how to
 use the API.
 """
+
+from keras.mixed_precision.loss_scale_optimizer import LossScaleOptimizer
+from keras.mixed_precision.policy import global_policy
+from keras.mixed_precision.policy import Policy
+from keras.mixed_precision.policy import set_global_policy

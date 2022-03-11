@@ -4,4 +4,8 @@ tf_module {
     name: "BaseImageAugmentationLayer"
     mtype: "<type \'type\'>"
   }
+  member {
+    name: "BaseRandomLayer"
+    mtype: "<type \'type\'>"
+  }
 }

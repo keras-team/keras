@@ -26,7 +26,6 @@ from keras.layers import activation
 from keras.layers import attention
 from keras.layers import convolutional
 from keras.layers import core
-from keras.layers import embeddings
 from keras.layers import locally_connected
 from keras.layers import merging
 from keras.layers import pooling
@@ -119,7 +118,7 @@ class LayerCorrectnessTest(test_combinations.TestCase):
       ('AdditiveAttention', attention.AdditiveAttention, [(2, 2, 3),
                                                           (2, 3, 3),
                                                           (2, 3, 3)]),
-      ('Embedding', lambda: embeddings.Embedding(4, 4),
+      ('Embedding', lambda: core.Embedding(4, 4),
        (2, 4), 2e-3, 2e-3, np.random.randint(4, size=(2, 4))),
       ('LocallyConnected1D', lambda: locally_connected.LocallyConnected1D(2, 2),
        (2, 2, 1)),

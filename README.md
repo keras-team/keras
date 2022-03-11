@@ -14,13 +14,15 @@ It was developed with a focus on enabling fast experimentation.
 
 Keras is:
 
-- **Simple** -- but not simplistic. Keras reduces developer *cognitive load*
-to free you to focus on the parts of the problem that really matter.
-- **Flexible** -- Keras adopts the principle of *progressive disclosure of complexity*:
-simple workflows should be quick and easy, while arbitrarily advanced workflows
-should be *possible* via a clear path that builds upon what you've already learned.
-- **Powerful** -- Keras provides industry-strength performance and scalability:
-it is used by organizations and companies including NASA, YouTube, or Waymo.
+-   **Simple** -- but not simplistic. Keras reduces developer *cognitive load*
+    to free you to focus on the parts of the problem that really matter.
+-   **Flexible** -- Keras adopts the principle of *progressive disclosure of
+    complexity*: simple workflows should be quick and easy, while arbitrarily
+    advanced workflows should be *possible* via a clear path that builds upon
+    what you've already learned.
+-   **Powerful** -- Keras provides industry-strength performance and
+    scalability: it is used by organizations and companies including NASA,
+    YouTube, and Waymo.
 
 ---
 
