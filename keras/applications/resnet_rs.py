@@ -147,27 +147,19 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
 
     Args:
         depth: Depth of ResNet network.
-        dropout_rate: dropout rate before final classifier layer.
-        bn_momentum: Momentum parameter for Batch Normalization layers.
-        bn_epsilon: Epsilon parameter for Batch Normalization layers.
-        activation: activation function.
-        block_args: list of dicts, parameters to construct block modules.
-        se_ratio: Squeeze and Excitation layer ratio.
-        model_name: name of the model.
-        drop_connect_rate: dropout rate at skip connections.
-        include_top: whether to include the fully-connected layer at the top of
-        the network.
-        weights: one of `None` (random initialization), `'imagenet'`
-            (pre-training on ImageNet), or the path to the weights file to be loaded.
-            Note: one model can have multiple imagenet variants depending on
-            input shape it was trained with. For input_shape 224x224 pass
-            `imagenet-i224` as argument. By default, highest input shape weights are
-            downloaded.
-        input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to
-            use as image input for the model.
         input_shape: optional shape tuple. It should have exactly 3 inputs
             channels, and width and height should be no smaller than 32.
             E.g. (200, 200, 3) would be one valid value.
+        bn_momentum: Momentum parameter for Batch Normalization layers.
+        bn_epsilon: Epsilon parameter for Batch Normalization layers.
+        activation: activation function.
+        se_ratio: Squeeze and Excitation layer ratio.
+        dropout_rate: dropout rate before final classifier layer.
+        drop_connect_rate: dropout rate at skip connections.
+        include_top: whether to include the fully-connected layer at the top of
+        the network.
+        block_args: list of dicts, parameters to construct block modules.
+        model_name: name of the model.
         pooling: optional pooling mode for feature extraction when `include_top`
             is `False`.
             - `None` means that the output of the model will be
@@ -179,6 +171,14 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
                 the output of the model will be a 2D tensor.
             - `max` means that global max pooling will
                 be applied.
+        weights: one of `None` (random initialization), `'imagenet'`
+            (pre-training on ImageNet), or the path to the weights file to be loaded.
+            Note: one model can have multiple imagenet variants depending on
+            input shape it was trained with. For input_shape 224x224 pass
+            `imagenet-i224` as argument. By default, highest input shape weights are
+            downloaded.
+        input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to
+            use as image input for the model.
         classes: optional number of classes to classify images into, only to be
             specified if `include_top` is True, and if no `weights` argument is
             specified.
@@ -524,27 +524,19 @@ def ResNetRS(
 
     Args:
         depth: Depth of ResNet network.
-        dropout_rate: dropout rate before final classifier layer.
-        bn_momentum: Momentum parameter for Batch Normalization layers.
-        bn_epsilon: Epsilon parameter for Batch Normalization layers.
-        activation: activation function.
-        block_args: list of dicts, parameters to construct block modules.
-        se_ratio: Squeeze and Excitation layer ratio.
-        model_name: name of the model.
-        drop_connect_rate: dropout rate at skip connections.
-        include_top: whether to include the fully-connected layer at the top of
-        the network.
-        weights: one of `None` (random initialization), `'imagenet'`
-            (pre-training on ImageNet), or the path to the weights file to be loaded.
-            Note: one model can have multiple imagenet variants depending on
-            input shape it was trained with. For input_shape 224x224 pass
-            `imagenet-i224` as argument. By default, highest input shape weights are
-            downloaded.
-        input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to
-            use as image input for the model.
         input_shape: optional shape tuple. It should have exactly 3 inputs
             channels, and width and height should be no smaller than 32.
             E.g. (200, 200, 3) would be one valid value.
+        bn_momentum: Momentum parameter for Batch Normalization layers.
+        bn_epsilon: Epsilon parameter for Batch Normalization layers.
+        activation: activation function.
+        se_ratio: Squeeze and Excitation layer ratio.
+        dropout_rate: dropout rate before final classifier layer.
+        drop_connect_rate: dropout rate at skip connections.
+        include_top: whether to include the fully-connected layer at the top of
+        the network.
+        block_args: list of dicts, parameters to construct block modules.
+        model_name: name of the model.
         pooling: optional pooling mode for feature extraction when `include_top`
             is `False`.
             - `None` means that the output of the model will be
@@ -556,6 +548,14 @@ def ResNetRS(
                 the output of the model will be a 2D tensor.
             - `max` means that global max pooling will
                 be applied.
+        weights: one of `None` (random initialization), `'imagenet'`
+            (pre-training on ImageNet), or the path to the weights file to be loaded.
+            Note: one model can have multiple imagenet variants depending on
+            input shape it was trained with. For input_shape 224x224 pass
+            `imagenet-i224` as argument. By default, highest input shape weights are
+            downloaded.
+        input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to
+            use as image input for the model.
         classes: optional number of classes to classify images into, only to be
             specified if `include_top` is True, and if no `weights` argument is
             specified.
