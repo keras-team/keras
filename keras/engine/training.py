@@ -2043,11 +2043,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             callbacks.on_predict_batch_end(end_step, {'outputs': batch_outputs})
       if batch_outputs is None:
         raise ValueError('Unexpected result of `predict_function` '
-                         '(Empty batch_outputs). Please use '
-                         '`Model.compile(..., run_eagerly=True)`, or '
-                         '`tf.config.run_functions_eagerly(True)` for more '
-                         'information of where went wrong, or file a '
-                         'issue/bug to `tf.keras`.')
+                           '(Empty logs). Try using '
+                           '`Model.compile(..., run_eagerly=True)` '
+                           'for easier debugging of what went wrong.')
       callbacks.on_predict_end()
     all_outputs = tf.__internal__.nest.map_structure_up_to(
         batch_outputs, potentially_ragged_concat, outputs)
