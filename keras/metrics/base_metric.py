@@ -22,8 +22,6 @@ import types
 import warnings
 
 from keras import backend
-from keras.dtensor import dtensor_api as dtensor
-from keras.dtensor import utils as dtensor_utils
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import keras_tensor
@@ -339,13 +337,6 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
     # TODO(b/120571621): Make `ON_READ` work with Keras metrics on TPU.
     if backend.is_tpu_strategy(strategy):
       synchronization = tf.VariableSynchronization.ON_WRITE
-    if getattr(self, '_mesh', None) is not None:
-      # When self._mesh is set, it means this metric is used for DTensor.
-      additional_kwargs = {
-          'layout': dtensor.Layout.replicated(self._mesh,
-                                              tf.TensorShape(shape).rank)}
-    else:
-      additional_kwargs = {}
 
     with tf.init_scope():
       return super(Metric, self).add_weight(
@@ -356,8 +347,7 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
           initializer=initializer,
           collections=[],
           synchronization=synchronization,
-          aggregation=aggregation,
-          **additional_kwargs)
+          aggregation=aggregation)
 
   ### End: For use by subclasses ###
 
@@ -530,7 +520,6 @@ class Sum(Reduce):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='sum', dtype=None):
     super(Sum, self).__init__(reduction=metrics_utils.Reduction.SUM,
                               name=name, dtype=dtype)
@@ -573,7 +562,6 @@ class Mean(Reduce):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='mean', dtype=None):
     super(Mean, self).__init__(
         reduction=metrics_utils.Reduction.WEIGHTED_MEAN, name=name, dtype=dtype)
@@ -607,7 +595,6 @@ class MeanMetricWrapper(Mean):
     **kwargs: Keyword arguments to pass on to `fn`.
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, fn, name=None, dtype=None, **kwargs):
     super(MeanMetricWrapper, self).__init__(name=name, dtype=dtype)
     self._fn = fn
@@ -708,7 +695,6 @@ class MeanTensor(Metric):
   array([[2., 3., 4., 5.]])
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='mean_tensor', dtype=None, shape=None):
     super(MeanTensor, self).__init__(name=name, dtype=dtype)
     self._shape = None

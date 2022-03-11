@@ -89,22 +89,6 @@ py_library(
 )
 
 py_test(
-    name = "metrics_test",
-    srcs = ["metrics_test.py"],
-    shard_count = 4,
-    tags = ["no_oss"],
-    deps = [
-        ":dtensor",
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/metrics",
-        "//keras/utils:tf_utils",
-        "//learning/brain/experimental/dtensor/tests:test_util",
-    ],
-)
-
-py_test(
     name = "mnist_model_test",
     srcs = ["mnist_model_test.py"],
     tags = [
