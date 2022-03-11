@@ -294,6 +294,24 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     self.assertEqual(d2.kernel.layout, self.layout_2d)
     self.assertEqual(d2.bias.layout, self.layout_1d)
 
+  def test_weight_regularization(self):
+    layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
+    with layout_map_lib.layout_map_scope(layout_map):
+      model = tf.keras.Sequential([
+          layers.Dense(20, name='d1', input_shape=(10,),
+                       kernel_initializer='ones',
+                       kernel_regularizer='l2'),
+          layers.Dropout(0.1),
+          layers.Dense(30, name='d2', kernel_initializer='ones',
+                       kernel_regularizer='l2')
+      ])
+
+    self.assertLen(model.losses, 2)
+    # kernel shape [10, 20] with all "1", timed by 0.01 from l2
+    self.assertAllClose(model.losses[0], 2.0)
+    # kernel shape [20, 30] with all "1", timed by 0.01 from l2
+    self.assertAllClose(model.losses[1], 6.0)
+
 
 if __name__ == '__main__':
   tf.test.main()

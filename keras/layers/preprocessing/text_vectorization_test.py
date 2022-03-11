@@ -28,7 +28,6 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.layers import convolutional
 from keras.layers import core
-from keras.layers import embeddings
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import text_vectorization
 from keras.utils import generic_utils
@@ -1523,7 +1522,7 @@ class TextVectorizationModelBuildingTest(
         output_sequence_length=output_sequence_length)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
-    embedded_data = embeddings.Embedding(
+    embedded_data = core.Embedding(
         input_dim=max_tokens + 1, output_dim=32)(
             int_data)
     output_data = convolutional.Conv1D(

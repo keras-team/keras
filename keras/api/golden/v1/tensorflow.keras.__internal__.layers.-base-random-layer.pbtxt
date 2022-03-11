@@ -1,6 +1,6 @@
-path: "tensorflow.keras.layers.Embedding"
+path: "tensorflow.keras.__internal__.layers.BaseRandomLayer"
 tf_class {
-  is_instance: "<class \'keras.layers.core.embedding.Embedding\'>"
+  is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"
@@ -129,7 +129,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'input_dim\', \'output_dim\', \'embeddings_initializer\', \'embeddings_regularizer\', \'activity_regularizer\', \'embeddings_constraint\', \'mask_zero\', \'input_length\'], varargs=None, keywords=kwargs, defaults=[\'uniform\', \'None\', \'None\', \'None\', \'False\', \'None\'], "
+    argspec: "args=[\'self\', \'seed\', \'force_generator\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'False\'], "
   }
   member_method {
     name: "add_loss"
@@ -153,11 +153,11 @@ tf_class {
   }
   member_method {
     name: "build"
-    argspec: "args=[\'instance\', \'input_shape\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'input_shape\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "call"
-    argspec: "args=[\'self\', \'inputs\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'inputs\'], varargs=args, keywords=kwargs, defaults=None"
   }
   member_method {
     name: "compute_mask"
@@ -165,7 +165,7 @@ tf_class {
   }
   member_method {
     name: "compute_output_shape"
-    argspec: "args=[\'instance\', \'input_shape\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'input_shape\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "compute_output_signature"

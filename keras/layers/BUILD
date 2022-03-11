@@ -1,9 +1,6 @@
 # Description:
 #   Contains the Keras layers (internal TensorFlow version).
 
-load("@org_keras//keras:keras.bzl", "cuda_py_test")
-
-# buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
@@ -29,7 +26,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":einsum_dense",
-        ":embeddings",
         ":kernelized",
         ":noise",
         "//keras/feature_column",
@@ -47,35 +43,6 @@ py_library(
         "//keras/layers/rnn",
         "//keras/premade_models",
         "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "embeddings",
-    srcs = ["embeddings.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/engine:base_layer",
-        "//keras/initializers",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-cuda_py_test(
-    name = "embeddings_test",
-    size = "medium",
-    srcs = ["embeddings_test.py"],
-    python_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras/layers",
-        "//keras/testing_infra:test_combinations",
-        "//keras/testing_infra:test_utils",
     ],
 )
 

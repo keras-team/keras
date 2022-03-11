@@ -1024,7 +1024,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(self._eval_if_tensor(opt.inner_optimizer.momentum), 0.5)
     self.assertEqual(self.evaluate(opt.loss_scale), 2.)
     self.assertEqual(opt.dynamic_growth_steps, 3.)
-    self.assertTrue(opt.dynamic, 4.)
+    self.assertTrue(opt.dynamic)
     if lso_type in ('v1', 'v2'):
       self.assertEqual(type(opt), loss_scale_optimizer.LossScaleOptimizer)
     else:
