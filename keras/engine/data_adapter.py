@@ -1172,6 +1172,10 @@ class DataHandler:
   def _configure_dataset_and_inferred_steps(self, strategy, x, steps_per_epoch,
                                             class_weight, distribute):
     """Configure the `_dataset` and `_inferred_steps` attributes."""
+    if tf.size(x)==0:
+      raise ValueError(
+        "Expect x to be a non-empty array or dataset."
+      )
     del x
     dataset = self._adapter.get_dataset()
     if class_weight:
