@@ -21,7 +21,6 @@ from typing import List, Tuple, Union
 
 from keras import activations
 from keras import backend
-from keras.dtensor import utils as dtensor_utils
 from keras.losses import binary_crossentropy
 from keras.losses import categorical_crossentropy
 from keras.losses import categorical_hinge
@@ -84,7 +83,6 @@ class MeanRelativeError(base_metric.Mean):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, normalizer, name=None, dtype=None):
     super(MeanRelativeError, self).__init__(name=name, dtype=dtype)
     normalizer = tf.cast(normalizer, self._dtype)
@@ -165,7 +163,6 @@ class Accuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='accuracy', dtype=None):
     super(Accuracy, self).__init__(accuracy, name, dtype=dtype)
 
@@ -210,7 +207,6 @@ class BinaryAccuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='binary_accuracy', dtype=None, threshold=0.5):
     super(BinaryAccuracy, self).__init__(
         binary_accuracy, name, dtype=dtype, threshold=threshold)
@@ -263,7 +259,6 @@ class CategoricalAccuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='categorical_accuracy', dtype=None):
     super(CategoricalAccuracy, self).__init__(
         categorical_accuracy, name, dtype=dtype)
@@ -315,7 +310,6 @@ class SparseCategoricalAccuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='sparse_categorical_accuracy', dtype=None):
     super(SparseCategoricalAccuracy, self).__init__(
         sparse_categorical_accuracy, name, dtype=dtype)
@@ -381,7 +375,6 @@ class TopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, k=5, name='top_k_categorical_accuracy', dtype=None):
     super(TopKCategoricalAccuracy, self).__init__(
         top_k_categorical_accuracy, name, dtype=dtype, k=k)
@@ -420,7 +413,6 @@ class SparseTopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, k=5, name='sparse_top_k_categorical_accuracy', dtype=None):
     super(SparseTopKCategoricalAccuracy, self).__init__(
         sparse_top_k_categorical_accuracy, name, dtype=dtype, k=k)
@@ -540,7 +532,6 @@ class FalsePositives(_ConfusionMatrixConditionCount):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
     super(FalsePositives, self).__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.FALSE_POSITIVES,
@@ -590,7 +581,6 @@ class FalseNegatives(_ConfusionMatrixConditionCount):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
     super(FalseNegatives, self).__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.FALSE_NEGATIVES,
@@ -640,7 +630,6 @@ class TrueNegatives(_ConfusionMatrixConditionCount):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
     super(TrueNegatives, self).__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.TRUE_NEGATIVES,
@@ -690,7 +679,6 @@ class TruePositives(_ConfusionMatrixConditionCount):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
     super(TruePositives, self).__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.TRUE_POSITIVES,
@@ -768,7 +756,6 @@ class Precision(base_metric.Metric):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self,
                thresholds=None,
                top_k=None,
@@ -899,7 +886,6 @@ class Recall(base_metric.Metric):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self,
                thresholds=None,
                top_k=None,
@@ -1143,7 +1129,6 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self,
                specificity,
                num_thresholds=200,
@@ -1240,7 +1225,6 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self,
                sensitivity,
                num_thresholds=200,
@@ -1329,7 +1313,6 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self,
                recall,
                num_thresholds=200,
@@ -1418,7 +1401,6 @@ class RecallAtPrecision(SensitivitySpecificityBase):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self,
                precision,
                num_thresholds=200,
@@ -1572,7 +1554,6 @@ class AUC(base_metric.Metric):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self,
                num_thresholds=200,
                curve='ROC',
@@ -1982,7 +1963,6 @@ class CosineSimilarity(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='cosine_similarity', dtype=None, axis=-1):
     super(CosineSimilarity, self).__init__(
         cosine_similarity, name, dtype=dtype, axis=axis)
@@ -2019,7 +1999,6 @@ class MeanAbsoluteError(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='mean_absolute_error', dtype=None):
     super(MeanAbsoluteError, self).__init__(
         mean_absolute_error, name, dtype=dtype)
@@ -2056,7 +2035,6 @@ class MeanAbsolutePercentageError(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='mean_absolute_percentage_error', dtype=None):
     super(MeanAbsolutePercentageError, self).__init__(
         mean_absolute_percentage_error, name, dtype=dtype)
@@ -2093,7 +2071,6 @@ class MeanSquaredError(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='mean_squared_error', dtype=None):
     super(MeanSquaredError, self).__init__(
         mean_squared_error, name, dtype=dtype)
@@ -2130,7 +2107,6 @@ class MeanSquaredLogarithmicError(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='mean_squared_logarithmic_error', dtype=None):
     super(MeanSquaredLogarithmicError, self).__init__(
         mean_squared_logarithmic_error, name, dtype=dtype)
@@ -2167,7 +2143,6 @@ class Hinge(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='hinge', dtype=None):
     super(Hinge, self).__init__(hinge, name, dtype=dtype)
 
@@ -2206,7 +2181,6 @@ class SquaredHinge(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='squared_hinge', dtype=None):
     super(SquaredHinge, self).__init__(squared_hinge, name, dtype=dtype)
 
@@ -2242,7 +2216,6 @@ class CategoricalHinge(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='categorical_hinge', dtype=None):
     super(CategoricalHinge, self).__init__(categorical_hinge, name, dtype=dtype)
 
@@ -2274,7 +2247,6 @@ class RootMeanSquaredError(base_metric.Mean):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='root_mean_squared_error', dtype=None):
     super(RootMeanSquaredError, self).__init__(name, dtype=dtype)
 
@@ -2335,7 +2307,6 @@ class LogCoshError(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='logcosh', dtype=None):
     super(LogCoshError, self).__init__(logcosh, name, dtype=dtype)
 
@@ -2372,7 +2343,6 @@ class Poisson(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='poisson', dtype=None):
     super(Poisson, self).__init__(poisson, name, dtype=dtype)
 
@@ -2409,7 +2379,6 @@ class KLDivergence(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, name='kullback_leibler_divergence', dtype=None):
     super(KLDivergence, self).__init__(
         kullback_leibler_divergence, name, dtype=dtype)
@@ -2565,7 +2534,6 @@ class IoU(_IoUBase):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(
       self,
       num_classes: int,
@@ -2688,7 +2656,6 @@ class BinaryIoU(IoU):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(
       self,
       target_class_ids: Union[List[int], Tuple[int, ...]] = (0, 1),
@@ -2795,7 +2762,6 @@ class MeanIoU(IoU):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self, num_classes, name=None, dtype=None):
     target_class_ids = list(range(num_classes))
     super(MeanIoU, self).__init__(
@@ -2886,7 +2852,6 @@ class OneHotIoU(IoU):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(
       self,
       num_classes: int,
@@ -2991,7 +2956,6 @@ class OneHotMeanIoU(MeanIoU):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(
       self,
       num_classes: int,
@@ -3064,7 +3028,6 @@ class BinaryCrossentropy(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self,
                name='binary_crossentropy',
                dtype=None,
@@ -3129,7 +3092,6 @@ class CategoricalCrossentropy(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self,
                name='categorical_crossentropy',
                dtype=None,
@@ -3201,7 +3163,6 @@ class SparseCategoricalCrossentropy(base_metric.MeanMetricWrapper):
   ```
   """
 
-  @dtensor_utils.inject_mesh
   def __init__(self,
                name='sparse_categorical_crossentropy',
                dtype=None,
