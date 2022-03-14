@@ -1143,7 +1143,13 @@ def infer_inputs_from_restored_call_function(fn):
       # Doesn't particularly matter what is returned in this case because the
       # result will be filtered out in _set_input_shape.
       return x
-    return x.most_specific_compatible_type(y)
+    # pylint:disable=protected-access
+    result = x._without_tensor_names().most_specific_common_supertype(
+        [y._without_tensor_names()])
+    if result is None:
+      # Please file a bug if you are being hindered by this error.
+      raise TypeError(f'No common supertype of {x} and {y}.')
+    return result
 
   spec = fn.concrete_functions[0].structured_input_signature
   for concrete in fn.concrete_functions[1:]:
