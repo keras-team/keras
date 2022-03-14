@@ -375,9 +375,14 @@ def _create_dvariable(layout_map, object_path, variable):
     # The init value is probably already created as a tensor, we will just copy
     # it to mesh and give it a proper layout.
     init_val = dtensor.copy_to_mesh(init_val, layout)
+  # Use the original variable name for new DVariable creation. TF was adding
+  # ":0" suffix to it.
+  variable_name = variable.name
+  if variable_name.endswith(':0'):
+    variable_name = variable_name[:-2]
   new_variable = dtensor.DVariable(init_val,
                                    trainable=variable.trainable,
-                                   name=variable.name)
+                                   name=variable_name)
   return new_variable
 
 
