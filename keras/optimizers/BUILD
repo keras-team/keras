@@ -26,6 +26,7 @@ py_library(
     deps = [
         ":learning_rate_schedule",
         "//keras:backend",
+        "//keras/optimizers/legacy:optimizer",
         "//keras/optimizers/optimizer_experimental:optimizer",
         "//keras/optimizers/optimizer_v2",
         "//keras/utils:engine_utils",
