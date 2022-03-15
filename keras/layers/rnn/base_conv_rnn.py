@@ -289,13 +289,15 @@ class ConvRNN(RNN):
       def step(inputs, states):
         return self.cell.call(inputs, states, **kwargs)
 
-    last_output, outputs, states = backend.rnn(step,
-                                               inputs,
-                                               initial_state,
-                                               constants=constants,
-                                               go_backwards=self.go_backwards,
-                                               mask=mask,
-                                               input_length=timesteps)
+    last_output, outputs, states = backend.rnn(
+        step,
+        inputs,
+        initial_state,
+        constants=constants,
+        go_backwards=self.go_backwards,
+        mask=mask,
+        input_length=timesteps,
+        return_all_outputs=self.return_sequences)
     if self.stateful:
       updates = [
           backend.update(self_state, state)
