@@ -31,6 +31,15 @@ from keras.optimizers.optimizer_experimental import ftrl as ftrl_experimental
 from keras.optimizers.optimizer_experimental import nadam as nadam_experimental
 from keras.optimizers.optimizer_experimental import rmsprop as rmsprop_experimental
 from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
+from keras.optimizers.legacy import optimizer as optimizer_legacy
+from keras.optimizers.legacy import adadelta as adadelta_legacy
+from keras.optimizers.legacy import adagrad as adagrad_legacy
+from keras.optimizers.legacy import adam as adam_legacy
+from keras.optimizers.legacy import adamax as adamax_legacy
+from keras.optimizers.legacy import ftrl as ftrl_legacy
+from keras.optimizers.legacy import nadam as nadam_legacy
+from keras.optimizers.legacy import rmsprop as rmsprop_legacy
+from keras.optimizers.legacy import sgd as sgd_legacy
 from keras.optimizers.optimizer_v1 import Optimizer
 from keras.optimizers.optimizer_v1 import TFOptimizer
 from keras.optimizers.optimizer_v2 import adadelta as adadelta_v2
