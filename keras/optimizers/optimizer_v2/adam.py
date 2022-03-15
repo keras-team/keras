@@ -21,7 +21,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 # pylint: disable=g-classes-have-attributes
-@keras_export('keras.optimizers.Adam', 'keras.optimizers_legacy.Adam')
+@keras_export('keras.optimizers.Adam')
 class Adam(optimizer_v2.OptimizerV2):
   r"""Optimizer that implements the Adam algorithm.
 
