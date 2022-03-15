@@ -12,7 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Utilities for preprocessing sequence data."""
+"""Utilities for preprocessing sequence data.
+
+Warning: `tf.keras.preprocessing.sequence` APIs are not recommended for new
+code. Prefer `tf.keras.utils.timeseries_dataset_from_array` and
+the `tf.data` APIs which provide a much more flexible mechanisms for dealing
+with sequences. See the [tf.data guide](https://www.tensorflow.org/guide/data)
+for more details.
+"""
 # pylint: disable=invalid-name
 # pylint: disable=g-classes-have-attributes
 # pylint: disable=g-direct-tensorflow-import
@@ -48,6 +55,12 @@ def _remove_long_seq(maxlen, seq, label):
 @keras_export('keras.preprocessing.sequence.TimeseriesGenerator')
 class TimeseriesGenerator(data_utils.Sequence):
   """Utility class for generating batches of temporal data.
+
+  Warning: `tf.keras.preprocessing.sequence.TimeseriesGenerator` does not
+  operate on tensors and is not recommended for new code. Prefer using a
+  `tf.data.Dataset` which provides a more efficient and flexible mechanism for
+  batching, shuffling, and windowing input. See the
+  [tf.data guide](https://www.tensorflow.org/guide/data) for more details.
 
   This class takes in a sequence of data-points gathered at
   equal intervals, along with time series parameters such as
