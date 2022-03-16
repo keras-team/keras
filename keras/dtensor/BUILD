@@ -119,8 +119,6 @@ py_test(
         "//:expect_tensorflow_installed",
         "//keras/utils:tf_utils",
         "//learning/brain/experimental/dtensor/tests:test_util",
-        "//third_party/tensorflow/dtensor/python:mesh_util",
-        "//third_party/tensorflow/dtensor/python:tpu_util",
     ],
 )
 
