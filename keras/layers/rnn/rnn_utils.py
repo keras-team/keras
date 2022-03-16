@@ -67,7 +67,7 @@ def standardize_args(inputs, initial_state, constants, num_constants):
     if len(inputs) > 1:
       inputs = tuple(inputs)
     else:
-      inputs = inputs[0]
+      inputs = tuple(inputs[0])
 
   def to_list_or_none(x):
     if x is None or isinstance(x, list):
