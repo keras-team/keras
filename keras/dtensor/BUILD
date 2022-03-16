@@ -34,6 +34,7 @@ py_test(
 py_test(
     name = "layers_test",
     srcs = ["layers_test.py"],
+    shard_count = 4,
     tags = ["no_oss"],
     deps = [
         ":dtensor",
