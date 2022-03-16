@@ -19,6 +19,7 @@ from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
+from keras.dtensor import utils
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import control_flow_util
@@ -1215,6 +1216,7 @@ class BatchNormalization(BatchNormalizationBase):
   """
   _USE_V2_BEHAVIOR = True
 
+  @utils.allow_initializer_layout
   def __init__(self,
                axis=-1,
                momentum=0.99,
