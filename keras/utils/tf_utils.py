@@ -488,6 +488,19 @@ def is_tensor_or_extension_type(x):
     return tf.is_tensor(x) or is_extension_type(x)
 
 
+def convert_variables_to_tensors(values):
+  """Converts `Variable`s in `values` to `Tensor`s."""
+  return tf.nest.map_structure(
+      lambda x: tf.convert_to_tensor(x) if isinstance(x, tf.Variable) else x,
+      values)
+
+
+def replace_variables_with_atoms(values):
+  """Replaces `ResourceVariable`s in `values` with tf.nest atoms."""
+  return tf.nest.map_structure(
+      lambda x: 0 if isinstance(x, tf.Variable) else x, values)
+
+
 def assert_no_legacy_layers(layers):
     """Prevent tf.layers.Layers from being used with Keras.
 

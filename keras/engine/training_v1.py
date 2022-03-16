@@ -2690,22 +2690,19 @@ class Model(training_lib.Model):
                 x, converted_x, expand_composites=False
             )
 
-            def _type_spec_from_value(value):
-                """Grab type_spec without converting array-likes to tensors."""
-                if tf_utils.is_extension_type(value):
-                    return value._type_spec  # pylint: disable=protected-access
-                # Get a TensorSpec for array-like data without
-                # converting the data to a Tensor
-                if hasattr(value, "shape") and hasattr(value, "dtype"):
-                    return tf.TensorSpec(value.shape, value.dtype)
-                else:
-                    return tf.type_spec_from_value(value)
-
-            x_shapes = tf.nest.map_structure(_type_spec_from_value, x)
+            # Replace ResourceVariables with atoms so nest.assert_same_structure
+            # below won't fail with Variable and Tensor.
+            x_structure = tf_utils.replace_variables_with_atoms(x)
+            x_shapes = tf.nest.map_structure(
+                tf_utils.type_spec_from_value, x_structure
+            )
 
         flat_inputs = tf.nest.flatten(x_shapes, expand_composites=False)
+        # Replace ResourceVariables with atoms so nest.assert_same_structure
+        # below won't fail with Variable and Tensor.
         flat_expected_inputs = tf.nest.flatten(
-            self.inputs, expand_composites=False
+            tf_utils.replace_variables_with_atoms(self.inputs),
+            expand_composites=False
         )
         for (a, b) in zip(flat_inputs, flat_expected_inputs):
             tf.nest.assert_same_structure(a, b, expand_composites=True)
@@ -2818,7 +2815,10 @@ class Model(training_lib.Model):
         # users should explicitly add composite tensor inputs to their subclassed
         # models.
         for input_tensor in processed_inputs:
-            if training_utils_v1.is_composite_or_composite_value(input_tensor):
+            if (
+                training_utils_v1.is_composite_or_composite_value(input_tensor)
+                and not isinstance(input_tensor, tf.Variable)
+            ):
                 # TODO(b/132691975): Document subclass-model CT input handling.
                 raise ValueError(
                     "All SparseTensor and RaggedTensor inputs must be explicitly "

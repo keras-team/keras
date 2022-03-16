@@ -4392,11 +4392,14 @@ class GraphExecutionFunction:
                 "should be a list or tuple."
             )
 
-        self._inputs_structure = inputs
-        self.inputs = tf.nest.flatten(inputs, expand_composites=True)
-        self._outputs_structure = outputs
-        self.outputs = cast_variables_to_tensor(
-            tf.nest.flatten(outputs, expand_composites=True)
+        from keras.utils import tf_utils  # pylint: disable=g-import-not-at-top
+        self.inputs = tf.nest.flatten(
+            tf_utils.convert_variables_to_tensors(inputs),
+            expand_composites=True
+        )
+        self._outputs_structure = tf_utils.convert_variables_to_tensors(outputs)
+        self.outputs = tf.nest.flatten(
+            self._outputs_structure, expand_composites=True
         )
         # TODO(b/127668432): Consider using autograph to generate these
         # dependencies in call.
@@ -4514,7 +4517,11 @@ class GraphExecutionFunction:
             return tensor
 
     def __call__(self, inputs):
-        inputs = tf.nest.flatten(inputs, expand_composites=True)
+        from keras.utils import tf_utils  # pylint: disable=g-import-not-at-top
+        inputs = tf.nest.flatten(
+            tf_utils.convert_variables_to_tensors(inputs),
+            expand_composites=True
+        )
 
         session = get_session(inputs)
         feed_arrays = []
@@ -7230,15 +7237,6 @@ def _is_tpu_strategy_class(clz):
 def is_tpu_strategy(strategy):
     """Returns whether input is a TPUStrategy instance or subclass instance."""
     return _is_tpu_strategy_class(strategy.__class__)
-
-
-def cast_variables_to_tensor(tensors):
-    def _cast_variables_to_tensor(tensor):
-        if isinstance(tensor, tf.Variable):
-            return tf.identity(tensor)
-        return tensor
-
-    return tf.nest.map_structure(_cast_variables_to_tensor, tensors)
 
 
 def _is_symbolic_tensor(x):
