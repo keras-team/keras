@@ -16,7 +16,18 @@
 # pylint: disable=g-import-not-at-top
 # pylint: disable=g-classes-have-attributes
 # pylint: disable=g-direct-tensorflow-import
-"""Set of tools for real-time data augmentation on image data."""
+"""Utilies for image preprocessing and augmentation.
+
+Warning: `tf.keras.preprocessing.image` APIs do not operate on tensors and are
+not recommended for new code. Prefer loading data with
+`tf.keras.utils.image_dataset_from_directory`, and then transforming the output
+`tf.data.Dataset` with preprocessing layers. For more information, see the
+tutorials for [loading images](
+https://www.tensorflow.org/tutorials/load_data/images) and [augmenting images](
+https://www.tensorflow.org/tutorials/images/data_augmentation), as well as the
+[preprocessing layer guide](
+https://www.tensorflow.org/guide/keras/preprocessing_layers).
+"""
 
 import collections
 import io
@@ -61,6 +72,13 @@ if pil_image is not None:
 @keras_export('keras.preprocessing.image.smart_resize', v1=[])
 def smart_resize(x, size, interpolation='bilinear'):
   """Resize images to a target size without aspect ratio distortion.
+
+  Warning: `tf.keras.preprocessing.image.smart_resize` is not recommended for
+  new code. Prefer `tf.keras.layers.Resizing`, which provides the same
+  functionality as a preprocessing layer and adds `tf.RaggedTensor` support. See
+  the [preprocessing layer guide](
+  https://www.tensorflow.org/guide/keras/preprocessing_layers)
+  for an overview of preprocessing layers.
 
   TensorFlow image datasets typically yield images that have each a different
   size. However, these images need to be batched before they can be
@@ -435,6 +453,17 @@ def load_img(path,
 class Iterator(data_utils.Sequence):
   """Base class for image data iterators.
 
+  Warning: `tf.keras.preprocessing.image.Iterator` is not recommended for
+  new code. Prefer loading images with
+  `tf.keras.utils.image_dataset_from_directory` and transforming the output
+  `tf.data.Dataset` with preprocessing layers. For more information, see the
+  tutorials for [loading images](
+  https://www.tensorflow.org/tutorials/load_data/images) and
+  [augmenting images](
+  https://www.tensorflow.org/tutorials/images/data_augmentation), as well as
+  the [preprocessing layer guide](
+  https://www.tensorflow.org/guide/keras/preprocessing_layers).
+
   Every `Iterator` must implement the `_get_batches_of_transformed_samples`
   method.
 
@@ -775,6 +804,17 @@ class BatchFromFilesMixin():
 class DirectoryIterator(BatchFromFilesMixin, Iterator):
   """Iterator capable of reading images from a directory on disk.
 
+  Warning: `tf.keras.preprocessing.image.DirectoryIterator` is not recommended
+  for new code. Prefer loading images with
+  `tf.keras.utils.image_dataset_from_directory` and transforming the output
+  `tf.data.Dataset` with preprocessing layers. For more information, see the
+  tutorials for [loading images](
+  https://www.tensorflow.org/tutorials/load_data/images) and
+  [augmenting images](
+  https://www.tensorflow.org/tutorials/images/data_augmentation), as well as
+  the [preprocessing layer guide](
+  https://www.tensorflow.org/guide/keras/preprocessing_layers).
+
   Args:
       directory: Path to the directory to read images from. Each subdirectory in
         this directory will be considered to contain images from one class, or
@@ -915,6 +955,17 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
 @keras_export('keras.preprocessing.image.NumpyArrayIterator')
 class NumpyArrayIterator(Iterator):
   """Iterator yielding data from a Numpy array.
+
+  Warning: `tf.keras.preprocessing.image.NumpyArrayIterator` is not recommended
+  for new code. Prefer loading images with
+  `tf.keras.utils.image_dataset_from_directory` and transforming the output
+  `tf.data.Dataset` with preprocessing layers. For more information, see the
+  tutorials for [loading images](
+  https://www.tensorflow.org/tutorials/load_data/images) and
+  [augmenting images](
+  https://www.tensorflow.org/tutorials/images/data_augmentation), as well as
+  the [preprocessing layer guide](
+  https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Args:
       x: Numpy array of input data or tuple. If tuple, the second elements is
@@ -1362,6 +1413,17 @@ def flip_axis(x, axis):
 @keras_export('keras.preprocessing.image.ImageDataGenerator')
 class ImageDataGenerator():
   """Generate batches of tensor image data with real-time data augmentation.
+
+  Warning: `tf.keras.preprocessing.image.ImageDataGenerator` is not recommended
+  for new code. Prefer loading images with
+  `tf.keras.utils.image_dataset_from_directory` and transforming the output
+  `tf.data.Dataset` with preprocessing layers. For more information, see the
+  tutorials for [loading images](
+  https://www.tensorflow.org/tutorials/load_data/images) and
+  [augmenting images](
+  https://www.tensorflow.org/tutorials/images/data_augmentation), as well as
+  the [preprocessing layer guide](
+  https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
    The data will be looped over (in batches).
 
@@ -2258,6 +2320,15 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
                     fill_mode='nearest', cval=0., interpolation_order=1):
   """Performs a random rotation of a Numpy image tensor.
 
+  Warning: `tf.keras.preprocessing.image.random_rotation` does not operate on
+  tensors and is not recommended for new code. Prefer
+  `tf.keras.layers.RandomRotation` which provides equivalent functionality as a
+  preprocessing layer. For more information, see the tutorial for
+  [augmenting images](
+  https://www.tensorflow.org/tutorials/images/data_augmentation), as well as
+  the [preprocessing layer guide](
+  https://www.tensorflow.org/guide/keras/preprocessing_layers).
+
   Args:
       x: Input tensor. Must be 3D.
       rg: Rotation range, in degrees.
@@ -2291,6 +2362,15 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
 def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
                  fill_mode='nearest', cval=0., interpolation_order=1):
   """Performs a random spatial shift of a Numpy image tensor.
+
+  Warning: `tf.keras.preprocessing.image.random_shift` does not operate on
+  tensors and is not recommended for new code. Prefer
+  `tf.keras.layers.RandomTranslation` which provides equivalent functionality as
+  a preprocessing layer. For more information, see the tutorial for
+  [augmenting images](
+  https://www.tensorflow.org/tutorials/images/data_augmentation), as well as
+  the [preprocessing layer guide](
+  https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Args:
       x: Input tensor. Must be 3D.
@@ -2364,6 +2444,15 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
 def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
                 fill_mode='nearest', cval=0., interpolation_order=1):
   """Performs a random spatial zoom of a Numpy image tensor.
+
+  Warning: `tf.keras.preprocessing.image.random_zoom` does not operate on
+  tensors and is not recommended for new code. Prefer
+  `tf.keras.layers.RandomZoom` which provides equivalent functionality as
+  a preprocessing layer. For more information, see the tutorial for
+  [augmenting images](
+  https://www.tensorflow.org/tutorials/images/data_augmentation), as well as
+  the [preprocessing layer guide](
+  https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Args:
       x: Input tensor. Must be 3D.
@@ -2476,6 +2565,15 @@ def apply_brightness_shift(x, brightness, scale=True):
 @keras_export('keras.preprocessing.image.random_brightness')
 def random_brightness(x, brightness_range, scale=True):
   """Performs a random brightness shift.
+
+  Warning: `tf.keras.preprocessing.image.random_brightness` does not operate on
+  tensors and is not recommended for new code. Prefer
+  `tf.keras.layers.RandomBrightness` which provides equivalent functionality as
+  a preprocessing layer. For more information, see the tutorial for
+  [augmenting images](
+  https://www.tensorflow.org/tutorials/images/data_augmentation), as well as
+  the [preprocessing layer guide](
+  https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
   Args:
       x: Input tensor. Must be 3D.
