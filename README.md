@@ -147,6 +147,7 @@ For more in-depth tutorials about Keras, you can check out:
 
 - [Introduction to Keras for engineers](https://keras.io/getting_started/intro_to_keras_for_engineers/)
 - [Introduction to Keras for researchers](https://keras.io/getting_started/intro_to_keras_for_researchers/)
+- [Other Learning Ressources](https://keras.io/getting_started/learning_resources/)
 - [Developer guides](https://keras.io/guides/)
 
 ---
