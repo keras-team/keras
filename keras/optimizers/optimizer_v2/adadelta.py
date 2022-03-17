@@ -24,7 +24,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 # pylint: disable=g-classes-have-attributes
-@keras_export('keras.optimizers.Adadelta', 'keras.optimizers_legacy.Adadelta')
+@keras_export('keras.optimizers.Adadelta')
 class Adadelta(optimizer_v2.OptimizerV2):
   r"""Optimizer that implements the Adadelta algorithm.
 

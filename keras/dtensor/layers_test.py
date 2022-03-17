@@ -14,6 +14,7 @@
 # ==============================================================================
 """Tests for layers."""
 
+from absl.testing import parameterized
 from keras import backend
 from keras import layers
 from keras.dtensor import dtensor_api as dtensor
@@ -39,60 +40,62 @@ class LayersTest(test_util.DTensorBaseTest):
                          test_util.create_device_list((2, 2), 'CPU'))
     }
     self.mesh = self.configTestMesh(mesh_dict)
-    self.layout_4d = dtensor.Layout.replicated(self.mesh, rank=4)
-    self.layout_3d = dtensor.Layout.replicated(self.mesh, rank=3)
-    self.layout_2d = dtensor.Layout.replicated(self.mesh, rank=2)
-    self.layout_1d = dtensor.Layout.replicated(self.mesh, rank=1)
 
-  def test_dense_layer_with_layout(self):
-    dense = layers.Dense(10,
-                         kernel_layout=self.layout_2d,
-                         bias_layout=self.layout_1d)
-    inputs = np.random.randint(size=[32, 8], low=0, high=4)
-    inputs = tf.constant(inputs, dtype=tf.float32)
+  @parameterized.named_parameters(
+      ('dense', layers.Dense, {'units': 4}, {'kernel': 2, 'bias': 1}, [10, 8]),
+      # TODO(b/224861663): Enable this test.
+      # ('embedding', layers.Embedding, {'input_dim': 100, 'output_dim': 32},
+      #  {'embeddings': 2}, [10,], np.int32),
+      ('conv1d', layers.Conv1D, {'filters': 4, 'kernel_size': 3},
+       {'kernel': 3, 'bias': 1}, [10, 28, 3]),
+      ('conv1d_transpose', layers.Conv1DTranspose,
+       {'filters': 4, 'kernel_size': 3}, {'kernel': 3, 'bias': 1}, [10, 28, 3]),
+      ('conv2d', layers.Conv2D, {'filters': 4, 'kernel_size': (3, 3)},
+       {'kernel': 4, 'bias': 1}, [10, 28, 28, 3]),
+      ('conv2d_transpose', layers.Conv2DTranspose,
+       {'filters': 4, 'kernel_size': (3, 3)},
+       {'kernel': 4, 'bias': 1}, [10, 28, 28, 3]),
+      ('conv3d', layers.Conv3D, {'filters': 4, 'kernel_size': (3, 3, 3)},
+       {'kernel': 5, 'bias': 1}, [10, 28, 28, 28, 3]),
+      # TODO(b/224862394): Add support for tf.Conv3DBackpropInputV2
+      # ('conv3dtranspose', layers.Conv3DTranspose,
+      #  {'filters': 4, 'kernel_size': (3, 3, 3)},
+      #  {'kernel': 5, 'bias': 1}, [10, 28, 28, 28, 3]),
+      ('batch_norm', layers.BatchNormalization, {'fused': False},
+       {'beta': 1, 'gamma': 1, 'moving_mean': 1, 'moving_variance': 1},
+       [10, 28, 28, 3]),
+      ('layer_norm', layers.LayerNormalization, {'dtype': tf.float64},
+       {'beta': 1, 'gamma': 1}, [10, 28, 28, 3])
+  )
+  def test_layer(self, layer_cls, init_args, variable_settings, input_shape,
+                 input_dtype=np.float32):
+    args_with_layout = init_args.copy()
+    for variable_name, variable_rank in variable_settings.items():
+      args_with_layout[variable_name + '_layout'] = dtensor.Layout.replicated(
+          self.mesh, variable_rank)
+
+    layer = layer_cls(**args_with_layout)
+    # inputs = np.random.random(input_shape)
+    inputs = np.random.randn(*input_shape).astype(input_dtype)
     d_inputs = dtensor.copy_to_mesh(
-        inputs, dtensor.Layout.replicated(self.mesh, rank=2))
+        inputs, dtensor.Layout.replicated(self.mesh, len(input_shape)))
+    d_output = layer(d_inputs)
 
-    output = dense(d_inputs)
-    self.assertIsInstance(dense.kernel, dtensor.DVariable)
-    self.assertIsInstance(dense.bias, dtensor.DVariable)
-    expected_layout = dtensor.Layout(
-        [dtensor.UNSHARDED, dtensor.UNSHARDED], self.mesh)
-    self.assertEqual(dtensor.fetch_layout(output), expected_layout)
+    for variable_name, variable_rank in variable_settings.items():
+      self.assertIsInstance(getattr(layer, variable_name), dtensor.DVariable)
 
-    # Make sure to produce same output when layout is not used
-    tf_utils.set_random_seed(1337)
-    dense_2 = layers.Dense(10)
-    output_2 = dense_2(inputs)
-    self.assertAllClose(output, output_2)
-
-  def test_dense_layer_without_layout(self):
-    # Make sure the layer works as normal with tf.Tensor
-    dense = layers.Dense(10)
-    inputs = np.random.randint(size=[32, 8], low=0, high=4)
-    inputs = tf.constant(inputs, dtype=tf.float32)
-    dense(inputs)
-
-    self.assertNotIsInstance(dense.kernel, dtensor.DVariable)
-    self.assertNotIsInstance(dense.bias, dtensor.DVariable)
-
-  def test_conv2d_layer_with_layout(self):
-    conv = layers.Conv2D(32, kernel_size=(3, 3),
-                         kernel_layout=self.layout_4d,
-                         bias_layout=self.layout_1d)
-    inputs = np.random.randint(size=[10, 28, 28, 1], low=0, high=4)
-    inputs = tf.constant(inputs, dtype=tf.float32)
-    d_inputs = dtensor.copy_to_mesh(inputs, self.layout_4d)
-    output = conv(d_inputs)
-    self.assertIsInstance(conv.kernel, dtensor.DVariable)
-    self.assertIsInstance(conv.bias, dtensor.DVariable)
-    self.assertEqual(dtensor.fetch_layout(output), self.layout_4d)
+    expected_layout = dtensor.Layout.replicated(self.mesh, d_output.shape.rank)
+    self.assertEqual(dtensor.fetch_layout(d_output), expected_layout)
 
     # Make sure to produce same output when layout is not used
     tf_utils.set_random_seed(1337)
-    conv2 = layers.Conv2D(32, kernel_size=(3, 3))
-    output_2 = conv2(inputs)
-    self.assertAllClose(output, output_2)
+    layer_2 = layer_cls(**init_args)
+    output = layer_2(inputs)
+    self.assertAllClose(d_output, output)
+
+    for variable_name, variable_rank in variable_settings.items():
+      self.assertNotIsInstance(getattr(layer_2, variable_name),
+                               dtensor.DVariable)
 
 if __name__ == '__main__':
   tf.test.main()

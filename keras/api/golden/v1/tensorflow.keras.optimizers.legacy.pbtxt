@@ -1,4 +1,4 @@
-path: "tensorflow.keras.optimizers_legacy"
+path: "tensorflow.keras.optimizers.legacy"
 tf_module {
   member {
     name: "Adadelta"
