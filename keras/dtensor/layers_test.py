@@ -61,6 +61,11 @@ class LayersTest(test_util.DTensorBaseTest):
       # ('conv3dtranspose', layers.Conv3DTranspose,
       #  {'filters': 4, 'kernel_size': (3, 3, 3)},
       #  {'kernel': 5, 'bias': 1}, [10, 28, 28, 28, 3]),
+      ('batch_norm', layers.BatchNormalization, {'fused': False},
+       {'beta': 1, 'gamma': 1, 'moving_mean': 1, 'moving_variance': 1},
+       [10, 28, 28, 3]),
+      ('layer_norm', layers.LayerNormalization, {'dtype': tf.float64},
+       {'beta': 1, 'gamma': 1}, [10, 28, 28, 3])
   )
   def test_layer(self, layer_cls, init_args, variable_settings, input_shape,
                  input_dtype=np.float32):
