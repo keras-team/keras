@@ -65,7 +65,8 @@ class UpSampling2D(Layer):
       It defaults to the `image_data_format` value found in your
       Keras config file at `~/.keras/keras.json`.
       If you never set it, then it will be "channels_last".
-    interpolation: A string any of `tf.image.ResizeMethod`.
+    interpolation: A string, one of `area`, `bicubic`, `bilinear`, `gaussian`,
+      `lanczos3`, `lanczos5`, `mitchellcubic`, `nearest`.
 
   Input shape:
     4D tensor with shape:
@@ -100,9 +101,10 @@ class UpSampling2D(Layer):
       'mitchellcubic': tf.image.ResizeMethod.MITCHELLCUBIC,
       'nearest': tf.image.ResizeMethod.NEAREST_NEIGHBOR,
     }
+    interploations_list = '`' + '`, `'.join(interpolations.keys()) + '`'
     if interpolation not in interpolations:
-      raise ValueError('`interpolation` argument should be from `tf.image.ResizeMethod`. '
-                       f'Received: "{interpolation}".')
+      raise ValueError('`interpolation` argument should be one of: '
+                       f'{interploations_list}. Received: "{interpolation}".')
     self.interpolation = interpolation
     self.input_spec = InputSpec(ndim=4)
 
