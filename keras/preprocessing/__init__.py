@@ -31,4 +31,3 @@ from keras import backend
 from keras.preprocessing import image
 from keras.preprocessing import sequence
 from keras.preprocessing import text
-from keras.utils import all_utils as utils
