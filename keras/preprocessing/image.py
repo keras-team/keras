@@ -38,7 +38,6 @@ import threading
 import warnings
 
 from keras import backend
-from keras.preprocessing.image_dataset import image_dataset_from_directory  # pylint: disable=unused-import
 from keras.utils import data_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
