@@ -918,7 +918,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       @property
       def metrics(self):
-        return [self.loss_tracker]
+        metrics = super(MyModel, self).metrics
+        metrics.append(self.loss_tracker)
+        return metrics
 
     tensors = tf.random.uniform((10, 10)), tf.random.uniform((10,))
     dataset = tf.data.Dataset.from_tensor_slices(tensors).repeat().batch(1)
