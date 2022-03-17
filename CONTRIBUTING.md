@@ -163,6 +163,21 @@ command.
 pip install --upgrade tf-nightly
 ```
 
+## Code style
+
+The Keras codebase uses the PEP 8 Python style conventions -- with the
+exception that it uses 2 spaces for indentation instead of 4.
+To check code style, please run the `pylint` command from the repo's
+root directory so that the configuration in
+`.pylintrc` is taken into account.
+
+```shell
+pylint path/to/changed_file.py
+```
+
+Please ignore the errors in the rest of the codebase and only fix the ones
+relevant to your changes.
+
 ## Run tests
 
 We use [Bazel](https://bazel.build/) to build and run the tests.
