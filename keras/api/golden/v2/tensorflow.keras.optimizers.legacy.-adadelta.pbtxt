@@ -1,6 +1,7 @@
-path: "tensorflow.keras.optimizers_legacy.Ftrl"
+path: "tensorflow.keras.optimizers.legacy.Adadelta"
 tf_class {
-  is_instance: "<class \'keras.optimizers.optimizer_v2.ftrl.Ftrl\'>"
+  is_instance: "<class \'keras.optimizers.legacy.adadelta.Adadelta\'>"
+  is_instance: "<class \'keras.optimizers.optimizer_v2.adadelta.Adadelta\'>"
   is_instance: "<class \'keras.optimizers.optimizer_v2.optimizer_v2.OptimizerV2\'>"
   is_instance: "<class \'tensorflow.python.training.tracking.base.Trackable\'>"
   is_instance: "<type \'object\'>"
@@ -26,7 +27,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'learning_rate\', \'learning_rate_power\', \'initial_accumulator_value\', \'l1_regularization_strength\', \'l2_regularization_strength\', \'name\', \'l2_shrinkage_regularization_strength\', \'beta\'], varargs=None, keywords=kwargs, defaults=[\'0.001\', \'-0.5\', \'0.1\', \'0.0\', \'0.0\', \'Ftrl\', \'0.0\', \'0.0\'], "
+    argspec: "args=[\'self\', \'learning_rate\', \'rho\', \'epsilon\', \'name\'], varargs=None, keywords=kwargs, defaults=[\'0.001\', \'0.95\', \'1e-07\', \'Adadelta\'], "
   }
   member_method {
     name: "add_slot"

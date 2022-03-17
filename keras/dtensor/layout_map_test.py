@@ -312,6 +312,19 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     # kernel shape [20, 30] with all "1", timed by 0.01 from l2
     self.assertAllClose(model.losses[1], 6.0)
 
+  def test_dvariable_name(self):
+    layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
+    with layout_map_lib.layout_map_scope(layout_map):
+      model = tf.keras.Sequential([
+          layers.Dense(20, name='d1', input_shape=(10,)),
+          layers.Dropout(0.1),
+          layers.Dense(30, name='d2')
+      ])
+
+    self.assertLen(model.layers, 3)
+    self.assertEqual(model.layers[0].kernel.name, 'd1/kernel:0')
+    self.assertEqual(model.layers[0].bias.name, 'd1/bias:0')
+
 
 if __name__ == '__main__':
   tf.test.main()

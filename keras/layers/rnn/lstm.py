@@ -581,7 +581,8 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
           unroll=self.unroll,
           input_length=row_lengths if row_lengths is not None else timesteps,
           time_major=self.time_major,
-          zero_output_for_mask=self.zero_output_for_mask)
+          zero_output_for_mask=self.zero_output_for_mask,
+          return_all_outputs=self.return_sequences)
       runtime = gru_lstm_utils.runtime(gru_lstm_utils.RUNTIME_UNKNOWN)
     else:
       # Use the new defun approach for backend implementation swap.
@@ -641,7 +642,9 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
             'go_backwards':
                 self.go_backwards,
             'sequence_lengths':
-                row_lengths
+                row_lengths,
+            'return_sequences':
+                self.return_sequences
         }
         normal_lstm_kwargs = gpu_lstm_kwargs.copy()
         normal_lstm_kwargs.update({
@@ -810,9 +813,9 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
     return cls(**config)
 
 
-def standard_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias,
-                  mask, time_major, go_backwards, sequence_lengths,
-                  zero_output_for_mask):
+def standard_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
+                  time_major, go_backwards, sequence_lengths,
+                  zero_output_for_mask, return_sequences):
   """LSTM with standard kernel implementation.
 
   This implementation can be run on all types for hardware.
@@ -847,12 +850,17 @@ def standard_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias,
       input, such as ragged tensors. If the input has a fixed timestep size,
       this should be None.
     zero_output_for_mask: Boolean, whether to output zero for masked timestep.
+    return_sequences: Boolean. If True, return the recurrent outputs for all
+      timesteps in the sequence. If False, only return the output for the
+      last timestep (which consumes less memory).
 
   Returns:
     last_output: output tensor for the last timestep, which has shape
       [batch, units].
-    outputs: output tensor for all timesteps, which has shape
-      [batch, time, units].
+    outputs:
+      - If `return_sequences=True`: output tensor for all timesteps,
+        which has shape [batch, time, units].
+      - Else, a tensor equal to `last_output` with shape [batch, 1, units]
     state_0: the cell output, which has same shape as init_h.
     state_1: the cell hidden state, which has same shape as init_c.
     runtime: constant string tensor which indicate real runtime hardware. This
@@ -890,13 +898,14 @@ def standard_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias,
       go_backwards=go_backwards,
       input_length=(sequence_lengths
                     if sequence_lengths is not None else timesteps),
-      zero_output_for_mask=zero_output_for_mask)
+      zero_output_for_mask=zero_output_for_mask,
+      return_all_outputs=return_sequences)
   return (last_output, outputs, new_states[0], new_states[1],
           gru_lstm_utils.runtime(gru_lstm_utils.RUNTIME_CPU))
 
 
 def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
-             time_major, go_backwards, sequence_lengths):
+             time_major, go_backwards, sequence_lengths, return_sequences):
   """LSTM with either cuDNN or ROCm implementation which is only available for GPU.
 
   Note that currently only right padded data is supported, or the result will be
@@ -921,12 +930,17 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
     sequence_lengths: The lengths of all sequences coming from a variable length
       input, such as ragged tensors. If the input has a fixed timestep size,
       this should be None.
+    return_sequences: Boolean. If True, return the recurrent outputs for all
+      timesteps in the sequence. If False, only return the output for the
+      last timestep, matching the CPU function output format.
 
   Returns:
     last_output: Output tensor for the last timestep, which has shape
       [batch, units].
-    outputs: Output tensor for all timesteps, which has shape
-      [batch, time, units].
+    outputs:
+      - If `return_sequences=True`: output tensor for all timesteps,
+        which has shape [batch, time, units].
+      - Else, a tensor equal to `last_output` with shape [batch, 1, units]
     state_0: The cell output, which has same shape as init_h.
     state_1: The cell hidden state, which has same shape as init_c.
     runtime: Constant string tensor which indicate real runtime hardware. This
@@ -1005,7 +1019,7 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
         is_training=True, rnn_mode='lstm')
 
   last_output = outputs[-1]
-  if not time_major and sequence_lengths is None:
+  if not time_major and sequence_lengths is None and return_sequences:
     outputs = tf.transpose(outputs, perm=[1, 0, 2])
   h = tf.squeeze(h, axis=seq_axis)
   c = tf.squeeze(c, axis=seq_axis)
@@ -1018,6 +1032,11 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
   # the last_output, since it is numerically same as the output.
   if sequence_lengths is not None:
     last_output = h
+
+  # Match CPU return format
+  if not return_sequences:
+    outputs = tf.expand_dims(last_output, axis=0 if time_major else 1)
+
   return last_output, outputs, h, c, gru_lstm_utils.runtime(
       gru_lstm_utils.RUNTIME_GPU)
 
@@ -1025,7 +1044,7 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
 def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
                                 recurrent_kernel, bias, mask, time_major,
                                 go_backwards, sequence_lengths,
-                                zero_output_for_mask):
+                                zero_output_for_mask, return_sequences):
   """Call the LSTM with optimized backend kernel selection.
 
   Under the hood, this function will create two TF function, one with the most
@@ -1057,6 +1076,9 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
       input, such as ragged tensors. If the input has a fixed timestep size,
       this should be None.
     zero_output_for_mask: Boolean, whether to output zero for masked timestep.
+    return_sequences: Boolean. If True, return the recurrent outputs for all
+      timesteps in the sequence. If False, only return the output for the
+      last timestep (which consumes less memory).
 
   Returns:
     List of output tensors, same as standard_lstm.
@@ -1073,11 +1095,13 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
       'go_backwards': go_backwards,
       'sequence_lengths': sequence_lengths,
       'zero_output_for_mask': zero_output_for_mask,
+      'return_sequences': return_sequences,
   }
 
   def gpu_lstm_with_fallback(inputs, init_h, init_c, kernel, recurrent_kernel,
                              bias, mask, time_major, go_backwards,
-                             sequence_lengths, zero_output_for_mask):
+                             sequence_lengths, zero_output_for_mask,
+                             return_sequences):
     """Use cuDNN kernel when mask is none or strictly right padded."""
     if mask is None:
       return gpu_lstm(
@@ -1090,7 +1114,8 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
           mask=mask,
           time_major=time_major,
           go_backwards=go_backwards,
-          sequence_lengths=sequence_lengths)
+          sequence_lengths=sequence_lengths,
+          return_sequences=return_sequences)
 
     def cudnn_lstm_fn():
       return gpu_lstm(
@@ -1103,7 +1128,8 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
           mask=mask,
           time_major=time_major,
           go_backwards=go_backwards,
-          sequence_lengths=sequence_lengths)
+          sequence_lengths=sequence_lengths,
+          return_sequences=return_sequences)
 
     def stardard_lstm_fn():
       return standard_lstm(
@@ -1117,7 +1143,8 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
           time_major=time_major,
           go_backwards=go_backwards,
           sequence_lengths=sequence_lengths,
-          zero_output_for_mask=zero_output_for_mask)
+          zero_output_for_mask=zero_output_for_mask,
+          return_sequences=return_sequences)
 
     return tf.cond(
         gru_lstm_utils.is_cudnn_supported_inputs(mask, time_major),

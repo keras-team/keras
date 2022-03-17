@@ -19,6 +19,7 @@ from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
+from keras.dtensor import utils
 from keras.engine import base_layer_utils
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
@@ -109,6 +110,7 @@ class Embedding(Layer):
   (e.g. `x = embedding_layer(x)`), or used in a subclassed model.
   """
 
+  @utils.allow_initializer_layout
   def __init__(self,
                input_dim,
                output_dim,
