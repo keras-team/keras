@@ -156,8 +156,7 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
         se_ratio: Squeeze and Excitation layer ratio.
         dropout_rate: dropout rate before final classifier layer.
         drop_connect_rate: dropout rate at skip connections.
-        include_top: whether to include the fully-connected layer at the top of
-        the network.
+        include_top: whether to include the fully-connected layer at the top of the network.
         block_args: list of dicts, parameters to construct block modules.
         model_name: name of the model.
         pooling: optional pooling mode for feature extraction when `include_top`
@@ -533,8 +532,7 @@ def ResNetRS(
         se_ratio: Squeeze and Excitation layer ratio.
         dropout_rate: dropout rate before final classifier layer.
         drop_connect_rate: dropout rate at skip connections.
-        include_top: whether to include the fully-connected layer at the top of
-        the network.
+        include_top: whether to include the fully-connected layer at the top of the network.
         block_args: list of dicts, parameters to construct block modules.
         model_name: name of the model.
         pooling: optional pooling mode for feature extraction when `include_top`
@@ -630,7 +628,7 @@ def ResNetRS(
         if num_channels == 3:
             x = layers.Normalization(
                 mean=[0.485, 0.456, 0.406],
-                variance=[0.229**2, 0.224**2, 0.225**2],
+                variance=[0.229 ** 2, 0.224 ** 2, 0.225 ** 2],
                 axis=bn_axis,
             )(x)
 
