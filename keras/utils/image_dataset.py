@@ -18,9 +18,8 @@ import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
 
 import numpy as np
-from keras.layers.preprocessing import image_preprocessing
-from keras.preprocessing import image as keras_image_ops
 from keras.utils import dataset_utils
+from keras.utils import image_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -184,7 +183,7 @@ def image_dataset_from_directory(directory,
     raise ValueError(
         '`color_mode` must be one of {"rgb", "rgba", "grayscale"}. '
         f'Received: color_mode={color_mode}')
-  interpolation = image_preprocessing.get_interpolation(interpolation)
+  interpolation = image_utils.get_interpolation(interpolation)
   dataset_utils.check_validation_split_arg(
       validation_split, subset, shuffle, seed)
 
@@ -263,8 +262,7 @@ def load_image(path, image_size, num_channels, interpolation,
   img = tf.image.decode_image(
       img, channels=num_channels, expand_animations=False)
   if crop_to_aspect_ratio:
-    img = keras_image_ops.smart_resize(img, image_size,
-                                       interpolation=interpolation)
+    img = image_utils.smart_resize(img, image_size, interpolation=interpolation)
   else:
     img = tf.image.resize(img, image_size, method=interpolation)
   img.set_shape((image_size[0], image_size[1], num_channels))
