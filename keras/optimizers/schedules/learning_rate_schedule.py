@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Various learning rate decay functions."""
+"""Various learning rate schedule functions."""
 
 import tensorflow.compat.v2 as tf
 

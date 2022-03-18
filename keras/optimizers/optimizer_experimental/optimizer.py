@@ -22,8 +22,8 @@ from absl import logging
 
 from keras import backend
 from keras import initializers
-from keras.optimizers import learning_rate_schedule
 from keras.optimizers.optimizer_v2 import utils as optimizer_utils
+from keras.optimizers.schedules import learning_rate_schedule
 import tensorflow.compat.v2 as tf
 # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.util.tf_export import keras_export

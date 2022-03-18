@@ -25,7 +25,7 @@ import numpy as np
 from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.optimizers import learning_rate_schedule
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.optimizers.optimizer_v2 import rmsprop
 
 _DATA_TYPES = [
