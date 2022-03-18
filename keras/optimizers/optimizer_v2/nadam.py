@@ -16,7 +16,7 @@
 
 import tensorflow.compat.v2 as tf
 from keras import backend_config
-from keras.optimizers import learning_rate_schedule
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
 

@@ -24,24 +24,12 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        ":learning_rate_schedule",
         "//keras:backend",
         "//keras/optimizers/legacy:optimizer",
         "//keras/optimizers/optimizer_experimental:optimizer",
         "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/schedules:learning_rate_schedule",
         "//keras/utils:engine_utils",
-    ],
-)
-
-py_library(
-    name = "learning_rate_schedule",
-    srcs = [
-        "learning_rate_schedule.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras/utils:generic_utils",
     ],
 )
 
@@ -51,7 +39,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
-        "//keras/optimizers:learning_rate_schedule",
+        "//keras/optimizers/schedules:learning_rate_schedule",
     ],
 )
 
@@ -67,21 +55,6 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras/testing_infra:test_combinations",
-    ],
-)
-
-cuda_py_test(
-    name = "learning_rate_schedule_test",
-    size = "medium",
-    srcs = ["learning_rate_schedule_test.py"],
-    shard_count = 4,
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras/optimizers/optimizer_v2",
         "//keras/testing_infra:test_combinations",
     ],
 )

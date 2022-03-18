@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=invalid-name
+# pylint: disable=g-bad-import-order
 """Built-in optimizer classes.
 
 For more examples see the base class `tf.keras.optimizers.Optimizer`.
@@ -20,6 +21,18 @@ For more examples see the base class `tf.keras.optimizers.Optimizer`.
 
 import tensorflow.compat.v2 as tf
 
+# Symbols to be accessed under keras.optimizers. To be replaced with
+# optimizers v2022 when they graduate out of experimental.
+from keras.optimizers.optimizer_v2.gradient_descent import SGD
+from keras.optimizers.optimizer_v2.rmsprop import RMSprop
+from keras.optimizers.optimizer_v2.adam import Adam
+from keras.optimizers.optimizer_v2.adadelta import Adadelta
+from keras.optimizers.optimizer_v2.adagrad import Adagrad
+from keras.optimizers.optimizer_v2.adamax import Adamax
+from keras.optimizers.optimizer_v2.nadam import Nadam
+from keras.optimizers.optimizer_v2.ftrl import Ftrl
+
+# Imports needed for deserialization.
 from keras import backend
 from keras.optimizers.optimizer_experimental import optimizer as optimizer_experimental
 from keras.optimizers.optimizer_experimental import adadelta as adadelta_experimental
