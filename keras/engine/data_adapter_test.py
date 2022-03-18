@@ -242,7 +242,8 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
     # Verify predicting on pandas vs numpy returns the same result
     predict_1_pandas = model_1.predict(input_a_df)
     predict_2_pandas = model_2.predict([input_a_df, input_b_df])
-    predict_3_pandas = model_3.predict(input_a_df[0])
+    predict_3_pandas = model_3.predict(input_a_df[[0]])
+    predict_3_pandas_batch = model_3.predict_on_batch(input_a_df[0])
 
     predict_1_numpy = model_1.predict(input_a_np)
     predict_2_numpy = model_2.predict([input_a_np, input_b_np])
@@ -250,6 +251,7 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
 
     self.assertAllClose(predict_1_numpy, predict_1_pandas)
     self.assertAllClose(predict_2_numpy, predict_2_pandas)
+    self.assertAllClose(predict_3_numpy, predict_3_pandas_batch)
     self.assertAllClose(predict_3_numpy, predict_3_pandas)
 
     # Extra ways to pass in dataframes
