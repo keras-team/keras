@@ -20,20 +20,10 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        ":all_utils",
-    ],
-)
-
-py_library(
-    name = "all_utils",
-    srcs = [
-        "all_utils.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
         ":data_utils",
         ":generic_utils",
         ":image_dataset",
+        ":image_utils",
         ":layer_utils",
         ":np_utils",
         ":text_dataset",
@@ -226,6 +216,17 @@ py_library(
     name = "vis_utils",
     srcs = [
         "vis_utils.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "image_utils",
+    srcs = [
+        "image_utils.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -444,6 +445,21 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+    ],
+)
+
+tf_py_test(
+    name = "image_utils_test",
+    size = "small",
+    srcs = ["image_utils_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 

@@ -20,7 +20,7 @@ py_library(
         ":image",
         ":sequence",
         ":text",
-        "//keras/utils:all_utils",
+        "//keras/utils",
     ],
 )
 

@@ -21,25 +21,12 @@ from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
-from keras.preprocessing.image import smart_resize
+from keras.utils import image_utils
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
-
-ResizeMethod = tf.image.ResizeMethod
-
-_RESIZE_METHODS = {
-    'bilinear': ResizeMethod.BILINEAR,
-    'nearest': ResizeMethod.NEAREST_NEIGHBOR,
-    'bicubic': ResizeMethod.BICUBIC,
-    'area': ResizeMethod.AREA,
-    'lanczos3': ResizeMethod.LANCZOS3,
-    'lanczos5': ResizeMethod.LANCZOS5,
-    'gaussian': ResizeMethod.GAUSSIAN,
-    'mitchellcubic': ResizeMethod.MITCHELLCUBIC
-}
 
 H_AXIS = -3
 W_AXIS = -2
@@ -95,7 +82,7 @@ class Resizing(base_layer.Layer):
     self.width = width
     self.interpolation = interpolation
     self.crop_to_aspect_ratio = crop_to_aspect_ratio
-    self._interpolation_method = get_interpolation(interpolation)
+    self._interpolation_method = image_utils.get_interpolation(interpolation)
     super(Resizing, self).__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Resizing').set(True)
 
@@ -113,7 +100,7 @@ class Resizing(base_layer.Layer):
       def resize_to_aspect(x):
         if tf_utils.is_ragged(inputs):
           x = x.to_tensor()
-        return smart_resize(
+        return image_utils.smart_resize(
             x,
             size=size,
             interpolation=self._interpolation_method)
@@ -200,7 +187,7 @@ class CenterCrop(base_layer.Layer):
                                            self.height, self.width)
 
     def upsize():
-      outputs = smart_resize(inputs, [self.height, self.width])
+      outputs = image_utils.smart_resize(inputs, [self.height, self.width])
       # smart_resize will always output float32, so we need to re-cast.
       return tf.cast(outputs, self.compute_dtype)
 
@@ -514,7 +501,7 @@ class RandomCrop(base_layer.BaseRandomLayer):
                                          self.height, self.width)
 
   def _resize(self, inputs):
-    outputs = smart_resize(inputs, [self.height, self.width])
+    outputs = image_utils.smart_resize(inputs, [self.height, self.width])
     # smart_resize will always output float32, so we need to re-cast.
     return tf.cast(outputs, self.compute_dtype)
 
@@ -1650,7 +1637,7 @@ class RandomHeight(base_layer.BaseRandomLayer):
       raise ValueError('`factor` must have values larger than -1, '
                        'got {}'.format(factor))
     self.interpolation = interpolation
-    self._interpolation_method = get_interpolation(interpolation)
+    self._interpolation_method = image_utils.get_interpolation(interpolation)
     self.seed = seed
 
   def call(self, inputs, training=True):
@@ -1757,7 +1744,7 @@ class RandomWidth(base_layer.BaseRandomLayer):
       raise ValueError('`factor` must have values larger than -1, '
                        'got {}'.format(factor))
     self.interpolation = interpolation
-    self._interpolation_method = get_interpolation(interpolation)
+    self._interpolation_method = image_utils.get_interpolation(interpolation)
     self.seed = seed
 
   def call(self, inputs, training=True):
@@ -1801,11 +1788,3 @@ class RandomWidth(base_layer.BaseRandomLayer):
     base_config = super(RandomWidth, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
-
-def get_interpolation(interpolation):
-  interpolation = interpolation.lower()
-  if interpolation not in _RESIZE_METHODS:
-    raise NotImplementedError(
-        'Value not recognized for `interpolation`: {}. Supported values '
-        'are: {}'.format(interpolation, _RESIZE_METHODS.keys()))
-  return _RESIZE_METHODS[interpolation]
