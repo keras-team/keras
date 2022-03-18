@@ -1861,7 +1861,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     if not self.run_eagerly:
       predict_function = tf.function(
-          predict_function, experimental_relax_shapes=True)
+          predict_function, experimental_relax_shapes=False)
     self.predict_function = predict_function
 
     return self.predict_function
