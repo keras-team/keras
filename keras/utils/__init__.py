@@ -31,6 +31,7 @@ from keras.utils.data_utils import Sequence
 from keras.utils.data_utils import GeneratorEnqueuer
 from keras.utils.data_utils import OrderedEnqueuer
 from keras.utils.data_utils import SequenceEnqueuer
+from keras.utils.data_utils import pad_sequences
 
 # Serialization related
 from keras.utils.generic_utils import custom_object_scope

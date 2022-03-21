@@ -26,7 +26,7 @@ from keras.distribute.strategy_combinations import all_strategies
 from keras.distribute.strategy_combinations import multi_worker_mirrored_strategies
 from keras.distribute.strategy_combinations import strategies_minus_tpu
 from keras.mixed_precision import policy
-from keras.preprocessing import sequence
+from keras.utils import data_utils
 
 _RANDOM_SEED = 1337
 _EVAL_STEPS = 20
@@ -607,7 +607,7 @@ class TestDistributionStrategyEmbeddingModelCorrectnessBase(
       labels.append(label)
       features.append(word_ids)
 
-    features = sequence.pad_sequences(
+    features = data_utils.pad_sequences(
         features, maxlen=max_words)
     x_train = np.asarray(features, dtype=np.float32)
     y_train = np.asarray(labels, dtype=np.int32).reshape((count, 1))
