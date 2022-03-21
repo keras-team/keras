@@ -55,6 +55,7 @@ tf_py_test(
     tags = [
         "no_rocm",
         "notsan",  # b/168814536
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -77,6 +78,7 @@ tf_py_test(
         "no_oss",
         "no_pip",
         "notsan",  # b/168814536
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -95,6 +97,7 @@ tf_py_test(
         "no_oss",
         "no_pip",
         "notsan",  # TODO(b/170901700)
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -112,6 +115,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -129,6 +133,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -146,6 +151,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -163,6 +169,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -180,6 +187,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -197,6 +205,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -214,6 +223,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -231,6 +241,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -248,6 +259,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -340,6 +352,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
@@ -357,6 +370,7 @@ tf_py_test(
     tags = [
         "no_oss",
         "no_pip",
+        "requires-net:external",
     ],
     deps = [
         ":applications",
