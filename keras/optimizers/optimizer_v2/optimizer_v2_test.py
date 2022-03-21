@@ -26,7 +26,6 @@ from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
 from keras.layers import regularization
-from keras.optimizers import learning_rate_schedule
 from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import adadelta
 from keras.optimizers.optimizer_v2 import adagrad
@@ -37,6 +36,7 @@ from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.optimizers.optimizer_v2 import nadam
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
