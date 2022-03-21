@@ -31,13 +31,13 @@ from keras.applications import mobilenet_v3
 from keras.applications import nasnet
 from keras.applications import regnet
 from keras.applications import resnet
+from keras.applications import resnet_rs
 from keras.applications import resnet_v2
 from keras.applications import vgg16
 from keras.applications import vgg19
 from keras.applications import xception
-from keras.applications import resnet_rs
-from keras.preprocessing import image
 from keras.utils import data_utils
+from keras.utils import image_utils
 
 
 ARG_TO_MODEL = {
@@ -110,8 +110,8 @@ def _get_elephant(target_size):
   if target_size[0] is None:
     target_size = (299, 299)
   test_image = data_utils.get_file('elephant.jpg', TEST_IMAGE_PATH)
-  img = image.load_img(test_image, target_size=tuple(target_size))
-  x = image.img_to_array(img)
+  img = image_utils.load_img(test_image, target_size=tuple(target_size))
+  x = image_utils.img_to_array(img)
   return np.expand_dims(x, axis=0)
 
 

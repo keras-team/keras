@@ -22,8 +22,8 @@ import shutil
 import numpy as np
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.preprocessing import image as image_preproc
 from keras.utils import image_dataset
+from keras.utils import image_utils
 
 try:
   import PIL  # pylint:disable=g-import-not-at-top
@@ -44,7 +44,7 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
         img = np.random.randint(0, 256, size=(height, width, 4))
       else:
         img = np.random.randint(0, 256, size=(height, width, 3))
-      img = image_preproc.array_to_img(img)
+      img = image_utils.array_to_img(img)
       imgs.append(img)
     return imgs
 
