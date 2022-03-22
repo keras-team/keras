@@ -1,0 +1,15 @@
+path: "tensorflow.keras.dtensor.experimental"
+tf_module {
+  member {
+    name: "LayoutMap"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "optimizers"
+    mtype: "<type \'module\'>"
+  }
+  member_method {
+    name: "layout_map_scope"
+    argspec: "args=[], varargs=args, keywords=kwds, defaults=None"
+  }
+}

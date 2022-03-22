@@ -24,6 +24,8 @@ from keras.dtensor import lazy_variable
 from keras.dtensor import utils
 from keras.engine import base_layer
 
+from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+
 # pylint: disable=missing-class-docstring
 
 # We will skip the path for certain attributes when mapping the layout, e.g.
@@ -42,6 +44,7 @@ def get_current_layout_map():
   return getattr(_LAYOUT_MAP, 'layout_map', None)
 
 
+@keras_export('keras.dtensor.experimental.LayoutMap', v1=[])
 class LayoutMap(collections.abc.MutableMapping):
 
   def __init__(self, mesh=None):
@@ -105,6 +108,7 @@ class LayoutMap(collections.abc.MutableMapping):
     return self._default_mesh
 
 
+@keras_export('keras.dtensor.experimental.layout_map_scope', v1=[])
 @contextlib.contextmanager
 def layout_map_scope(layout_map):
   """Apply the layout to all the tf.Variables created under the scope.

@@ -49,6 +49,8 @@ keras_packages = [
     "keras.datasets.imdb",
     "keras.datasets.mnist",
     "keras.datasets.reuters",
+    "keras.dtensor.layout_map",
+    "keras.dtensor.optimizers",
     "keras.engine.base_layer",
     "keras.engine.data_adapter",
     "keras.engine.input_layer",

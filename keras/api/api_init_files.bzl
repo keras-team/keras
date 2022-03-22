@@ -42,6 +42,9 @@ KERAS_API_INIT_FILES = [
     "keras/datasets/imdb/__init__.py",
     "keras/datasets/mnist/__init__.py",
     "keras/datasets/reuters/__init__.py",
+    "keras/dtensor/__init__.py",
+    "keras/dtensor/experimental/__init__.py",
+    "keras/dtensor/experimental/optimizers/__init__.py",
     "keras/estimator/__init__.py",
     "keras/experimental/__init__.py",
     # Placeholder for internal API
