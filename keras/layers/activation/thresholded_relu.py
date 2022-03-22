@@ -60,7 +60,7 @@ class ThresholdedReLU(Layer):
 
   def call(self, inputs):
     dtype = self.compute_dtype
-    return inputs * tf.cast(tf.greater(inputs, theta), dtype)
+    return inputs * tf.cast(tf.greater(inputs, self.theta), dtype)
 
   def get_config(self):
     config = {'theta': float(self.theta)}
