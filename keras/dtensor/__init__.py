@@ -19,13 +19,8 @@ _DTENSOR_API_ENABLED = False
 
 # Conditional import the dtensor API, since it is currently broken in OSS.
 if _DTENSOR_API_ENABLED:
-  try:
-    # pylint: disable=g-direct-tensorflow-import, g-import-not-at-top
-    from tensorflow.dtensor import python as dtensor_api
-  except ImportError:
-    # TODO(b/222341036): Remove this conditional import after dtensor have a
-    # trimmed target that can be used by Keras.
-    dtensor_api = None
+  # pylint: disable=g-direct-tensorflow-import, g-import-not-at-top
+  from tensorflow.dtensor import python as dtensor_api
 else:
   # Leave it with a placeholder, so that the import line from other python file
   # will not break.

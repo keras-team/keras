@@ -23,7 +23,7 @@ import numpy as np
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.preprocessing import image as image_preproc
-from keras.preprocessing import image_dataset
+from keras.utils import image_dataset
 
 try:
   import PIL  # pylint:disable=g-import-not-at-top

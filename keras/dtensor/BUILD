@@ -34,6 +34,7 @@ py_test(
 py_test(
     name = "layers_test",
     srcs = ["layers_test.py"],
+    shard_count = 4,
     tags = ["no_oss"],
     deps = [
         ":dtensor",
@@ -118,8 +119,6 @@ py_test(
         "//:expect_tensorflow_installed",
         "//keras/utils:tf_utils",
         "//learning/brain/experimental/dtensor/tests:test_util",
-        "//third_party/tensorflow/dtensor/python:mesh_util",
-        "//third_party/tensorflow/dtensor/python:tpu_util",
     ],
 )
 
@@ -129,8 +128,8 @@ py_library(
     deps = [
         ":dtensor",
         "//:expect_tensorflow_installed",
-        "//keras/optimizers:learning_rate_schedule",
         "//keras/optimizers/optimizer_experimental:optimizer",
+        "//keras/optimizers/schedules:learning_rate_schedule",
     ],
 )
 

@@ -23,8 +23,8 @@ import warnings
 from keras import backend
 from keras import initializers
 from keras.engine import base_layer_utils
-from keras.optimizers import learning_rate_schedule
 from keras.optimizers.optimizer_v2 import utils as optimizer_utils
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import tf_inspect

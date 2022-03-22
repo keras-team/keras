@@ -20,6 +20,7 @@ import tensorflow.compat.v2 as tf
 from keras import constraints
 from keras import initializers
 from keras import regularizers
+from keras.dtensor import utils
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
 
@@ -149,6 +150,7 @@ class LayerNormalization(Layer):
     - [Lei Ba et al., 2016](https://arxiv.org/abs/1607.06450).
   """
 
+  @utils.allow_initializer_layout
   def __init__(self,
                axis=-1,
                epsilon=1e-3,
