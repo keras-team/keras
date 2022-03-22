@@ -298,7 +298,7 @@ class MergingLayersTest(test_combinations.TestCase):
     self.assertAllClose(out, x1)
 
     # A single element must be passed as a list, not by itself.
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(ValueError, 'called on a list'):
       layer(i1)
 
 
