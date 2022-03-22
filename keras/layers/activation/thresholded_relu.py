@@ -59,8 +59,7 @@ class ThresholdedReLU(Layer):
     self.theta = backend.cast_to_floatx(theta)
 
   def call(self, inputs):
-    dtype = getattr(inputs, 'dtype', tf.keras.backend.floatx())
-    theta = tf.cast(self.theta, dtype)
+    dtype = self.compute_dtype
     return inputs * tf.cast(tf.greater(inputs, theta), dtype)
 
   def get_config(self):
