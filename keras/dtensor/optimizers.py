@@ -25,18 +25,20 @@ from keras.optimizers.schedules import learning_rate_schedule
 
 import tensorflow.compat.v2 as tf
 
+from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+
 
 # pylint: disable=protected-access,missing-class-docstring
 class Optimizer(optimizer_lib._BaseOptimizer):
   """DTensor specific optimizers.
 
-  The major changes for this class are:
+  The major changes for this class is that all the variable init logic will be
+  mesh/layout aware.
 
-  All the variable init logic will be mesh/layout aware.
-
-  Note that we didn't subclass optimizer_lib.Optimizer since it contains the
-  extra logic of handling distribution strategy, which we don't need for DTensor
   """
+  # Note that we didn't subclass optimizer_lib.Optimizer since it contains the
+  # extra logic of handling distribution strategy, which we don't need for
+  # DTensor
 
   def __init__(self, name, mesh=None):
     """Create a new Optimizer.
@@ -160,6 +162,7 @@ class Optimizer(optimizer_lib._BaseOptimizer):
     return dtensor.DVariable(init_val, name='learning_rate')
 
 
+@keras_export('keras.dtensor.experimental.optimizers.Adadelta', v1=[])
 class Adadelta(Optimizer, adadelta.Adadelta):
 
   def __init__(self,
@@ -179,6 +182,7 @@ class Adadelta(Optimizer, adadelta.Adadelta):
     self.epsilon = epsilon
 
 
+@keras_export('keras.dtensor.experimental.optimizers.Adagrad', v1=[])
 class Adagrad(Optimizer, adagrad.Adagrad):
 
   def __init__(self,
@@ -195,6 +199,7 @@ class Adagrad(Optimizer, adagrad.Adagrad):
     self.epsilon = epsilon
 
 
+@keras_export('keras.dtensor.experimental.optimizers.Adam', v1=[])
 class Adam(Optimizer, adam.Adam):
 
   def __init__(self,
@@ -215,6 +220,7 @@ class Adam(Optimizer, adam.Adam):
     self.amsgrad = amsgrad
 
 
+@keras_export('keras.dtensor.experimental.optimizers.RMSprop', v1=[])
 class RMSprop(Optimizer, rmsprop.RMSprop):
 
   def __init__(self,
@@ -236,6 +242,7 @@ class RMSprop(Optimizer, rmsprop.RMSprop):
     self.centered = centered
 
 
+@keras_export('keras.dtensor.experimental.optimizers.SGD', v1=[])
 class SGD(Optimizer, sgd.SGD):
 
   def __init__(self,
@@ -254,3 +261,10 @@ class SGD(Optimizer, sgd.SGD):
     self.nesterov = nesterov
     if isinstance(momentum, (int, float)) and (momentum < 0 or momentum > 1):
       raise ValueError('`momentum` must be between [0, 1].')
+
+
+Adadelta.__doc__ = Optimizer.__doc__ + adadelta.Adadelta.__doc__
+Adagrad.__doc__ = Optimizer.__doc__ + adagrad.Adagrad.__doc__
+Adam.__doc__ = Optimizer.__doc__ + adam.Adam.__doc__
+RMSprop.__doc__ = Optimizer.__doc__ + rmsprop.RMSprop.__doc__
+SGD.__doc__ = Optimizer.__doc__ + sgd.SGD.__doc__

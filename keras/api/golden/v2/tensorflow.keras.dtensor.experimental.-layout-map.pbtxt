@@ -1,0 +1,49 @@
+path: "tensorflow.keras.dtensor.experimental.LayoutMap"
+tf_class {
+  is_instance: "<class \'keras.dtensor.layout_map.LayoutMap\'>"
+  is_instance: "<class \'collections.abc.MutableMapping\'>"
+  member_method {
+    name: "__init__"
+    argspec: "args=[\'self\', \'mesh\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+  member_method {
+    name: "clear"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "get"
+    argspec: "args=[\'self\', \'key\', \'default\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+  member_method {
+    name: "get_default_mesh"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "items"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "keys"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "pop"
+    argspec: "args=[\'self\', \'key\', \'default\'], varargs=None, keywords=None, defaults=[\'<object object instance>\'], "
+  }
+  member_method {
+    name: "popitem"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "setdefault"
+    argspec: "args=[\'self\', \'key\', \'default\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+  member_method {
+    name: "update"
+    argspec: "args=[], varargs=args, keywords=kwds, defaults=None"
+  }
+  member_method {
+    name: "values"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+}
