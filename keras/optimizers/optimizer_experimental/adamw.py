@@ -48,11 +48,6 @@ class AdamW(optimizer.Optimizer):
       learning rate. Defaults to 0.001.
     weight_decay: A `tf.Tensor`, floating point value. The weight decay.
       Defaults to 0.004.
-    exclude_from_weight_decay: List of regex patterns of
-              variables excluded from weight decay. Variables whose name
-              contain a substring matching the pattern will be excluded.
-              Note `decay_var_list` in `minimize` or `apply_gradients` takes
-              priority over `exclude_from_weight_decay` if specified.
     beta_1: A float value or a constant float tensor, or a callable
       that takes no arguments and returns the actual value to use. The
       exponential decay rate for the 1st moment estimates. Defaults to 0.9.
@@ -95,7 +90,6 @@ class AdamW(optimizer.Optimizer):
   def __init__(self,
                learning_rate=0.001,
                weight_decay=0.004,
-               exclude_from_weight_decay=None,
                beta_1=0.9,
                beta_2=0.999,
                epsilon=1e-7,
@@ -121,7 +115,6 @@ class AdamW(optimizer.Optimizer):
         **kwargs)
     self._learning_rate = self._build_learning_rate(learning_rate)
     self.weight_decay = weight_decay
-    self.exclude_from_weight_decay = exclude_from_weight_decay
     self.beta_1 = beta_1
     self.beta_2 = beta_2
     self.epsilon = epsilon
@@ -131,7 +124,7 @@ class AdamW(optimizer.Optimizer):
       raise ValueError('Missing value of `weight_decay` which is required and'
                        ' must be a float value.')
 
-  def build(self, var_list):
+  def build(self, var_list, exclude_from_weight_decay=None):
     """Initialize optimizer variables.
 
     AdamW optimizer has 3 types of variables: momentums, velocities and
@@ -144,6 +137,7 @@ class AdamW(optimizer.Optimizer):
     if hasattr(self, '_built') and self._built:
       return
     self._built = True
+    self._exclude_from_weight_decay = exclude_from_weight_decay
     self._momentums = []
     self._velocities = []
     for var in var_list:
@@ -181,7 +175,7 @@ class AdamW(optimizer.Optimizer):
     alpha = (lr * tf.sqrt(1 - beta_2_power) / (1 - beta_1_power))
 
     # Apply step weight decay
-    if self.weight_decay and self._do_use_weight_decay(variable):
+    if self.weight_decay and variable not in self._exclude_from_weight_decay:
       wd = tf.cast(self.weight_decay, variable.dtype)
       variable.assign_sub(variable * (1 - lr * wd))
 
@@ -216,7 +210,6 @@ class AdamW(optimizer.Optimizer):
     config.update({
         'learning_rate': self._serialize_hyperparameter(self._learning_rate),
         'weight_decay': self.weight_decay,
-        "exclude_from_weight_decay": self.exclude_from_weight_decay,
         'beta_1': self.beta_1,
         'beta_2': self.beta_2,
         'epsilon': self.epsilon,
@@ -224,24 +217,8 @@ class AdamW(optimizer.Optimizer):
     })
     return config
 
-  def _do_use_weight_decay(self, variable):
-    """Whether to use L2 weight decay for `var`."""
-    if self.exclude_from_weight_decay is None:
-      return True
-
-    print(variable.ref())
-    print(self.exclude_from_weight_decay)
-
-    return not self.is_variable_matched_by_regexes(variable.ref(), self.exclude_from_weight_decay)
-
-  def is_variable_matched_by_regexes(variable, regexes):
-    """Whether variable is matched in regexes list by its name."""
-    if regexes:
-        var_name = variable.name
-        for r in regexes:
-            if re.search(r, var_name):
-                return True
-    return False
+  def exclude_from_weight_decay(self, var_list):
+    self._exclude_from_weight_decay = var_list
 
 AdamW.__doc__ = AdamW.__doc__.replace(
     '{{base_optimizer_keyword_args}}', optimizer.base_optimizer_keyword_args)
