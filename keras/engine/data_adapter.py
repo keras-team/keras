@@ -1133,6 +1133,7 @@ class DataHandler:
     """
 
     self._initial_epoch = initial_epoch
+    self._initial_step = 0
     self._epochs = epochs
     self._insufficient_data = False
     self._model = model
@@ -1237,7 +1238,7 @@ class DataHandler:
 
   def steps(self):
     """Yields steps for the current epoch."""
-    self._current_step = 0
+    self._current_step = self._initial_step
     # `self._inferred_steps` can be changed by `catch_stop_iteration`.
     while (self._inferred_steps is None or
            self._current_step < self._inferred_steps):

@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Functional test for learning rate decay."""
+"""Tests for learning rate schedule API."""
 
 import math
 
 from absl.testing import parameterized
 
-from keras.optimizers import learning_rate_schedule
 from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
 import numpy as np
 

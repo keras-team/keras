@@ -20,7 +20,7 @@ from absl.testing import parameterized
 import numpy as np
 from keras.testing_infra import test_combinations
 from keras.optimizers.optimizer_v2 import gradient_descent
-from keras.optimizers import learning_rate_schedule
+from keras.optimizers.schedules import learning_rate_schedule
 
 
 class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):

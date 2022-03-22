@@ -32,7 +32,6 @@ import hashlib
 import json
 import warnings
 
-from keras.preprocessing.text_dataset import text_dataset_from_directory  # pylint: disable=unused-import
 import numpy as np
 from tensorflow.python.util.tf_export import keras_export
 

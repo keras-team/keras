@@ -21,7 +21,7 @@ import tensorflow.compat.v2 as tf
 import os
 import sys
 import re
-from keras import activations
+
 from keras.utils import io_utils
 from tensorflow.python.util.tf_export import keras_export
 
@@ -256,7 +256,13 @@ def model_to_dot(model,
     # Rebuild the label as a table including the layer's activation.
     if (show_layer_activations and hasattr(layer, 'activation') and
         layer.activation is not None):
-      label = '{%s|%s}' % (label, activations.serialize(layer.activation))
+      if hasattr(layer.activation, 'name'):
+        activation_name = layer.activation.name
+      elif hasattr(layer.activation, '__name__'):
+        activation_name = layer.activation.__name__
+      else:
+        activation_name = str(layer.activation)
+      label = '{%s|%s}' % (label, activation_name)
 
     # Rebuild the label as a table including the layer's name.
     if show_layer_names:

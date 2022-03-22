@@ -20,21 +20,14 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        ":all_utils",
-    ],
-)
-
-py_library(
-    name = "all_utils",
-    srcs = [
-        "all_utils.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
         ":data_utils",
         ":generic_utils",
+        ":image_dataset",
+        ":image_utils",
         ":layer_utils",
         ":np_utils",
+        ":text_dataset",
+        ":timeseries_dataset",
         ":vis_utils",
     ],
 )
@@ -231,12 +224,63 @@ py_library(
 )
 
 py_library(
+    name = "image_utils",
+    srcs = [
+        "image_utils.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
     name = "dataset_creator",
     srcs = [
         "dataset_creator.py",
     ],
     srcs_version = "PY3",
     deps = [
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "image_dataset",
+    srcs = [
+        "dataset_utils.py",
+        "image_dataset.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/layers/preprocessing:image_preprocessing",
+        "//keras/preprocessing:image",
+    ],
+)
+
+py_library(
+    name = "text_dataset",
+    srcs = [
+        "dataset_utils.py",
+        "text_dataset.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "timeseries_dataset",
+    srcs = [
+        "timeseries_dataset.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -405,6 +449,21 @@ tf_py_test(
 )
 
 tf_py_test(
+    name = "image_utils_test",
+    size = "small",
+    srcs = ["image_utils_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
     name = "conv_utils_test",
     size = "small",
     srcs = ["conv_utils_test.py"],
@@ -450,5 +509,46 @@ tf_py_test(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras",
+    ],
+)
+
+tf_py_test(
+    name = "image_dataset_test",
+    size = "small",
+    srcs = ["image_dataset_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":image_dataset",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "text_dataset_test",
+    size = "small",
+    srcs = ["text_dataset_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":text_dataset",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "timeseries_dataset_test",
+    size = "small",
+    srcs = ["timeseries_dataset_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":timeseries_dataset",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )

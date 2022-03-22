@@ -72,6 +72,7 @@ py_library(
         "//keras:backend",
         "//keras:constraints",
         "//keras:regularizers",
+        "//keras/dtensor:utils",
         "//keras/engine:base_layer",
         "//keras/engine:base_layer_utils",
         "//keras/initializers",

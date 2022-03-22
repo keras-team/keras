@@ -20,6 +20,7 @@ from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
+from keras.dtensor import utils
 from keras.engine.input_spec import InputSpec
 from keras.layers.convolutional.conv2d import Conv2D
 from keras.utils import conv_utils
@@ -140,6 +141,7 @@ class Conv2DTranspose(Conv2D):
       Networks](https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
   """
 
+  @utils.allow_initializer_layout
   def __init__(self,
                filters,
                kernel_size,

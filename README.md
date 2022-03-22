@@ -145,9 +145,10 @@ for inputs, targets in dataset:
 
 For more in-depth tutorials about Keras, you can check out:
 
-- [Introduction to Keras for engineers](https://keras.io/getting_started/intro_to_keras_for_engineers/)
-- [Introduction to Keras for researchers](https://keras.io/getting_started/intro_to_keras_for_researchers/)
-- [Developer guides](https://keras.io/guides/)
+-   [Introduction to Keras for engineers](https://keras.io/getting_started/intro_to_keras_for_engineers/)
+-   [Introduction to Keras for researchers](https://keras.io/getting_started/intro_to_keras_for_researchers/)
+-   [Developer guides](https://keras.io/guides/)
+-   [Other learning resources](https://keras.io/getting_started/learning_resources/)
 
 ---
 
