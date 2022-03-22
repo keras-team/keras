@@ -17,7 +17,6 @@
 from keras.optimizers.optimizer_experimental import optimizer
 from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
-import re
 # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.util.tf_export import keras_export
 
