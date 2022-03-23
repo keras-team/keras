@@ -230,7 +230,7 @@ tf_class {
     argspec: "args=[\'self\', \'node_index\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
-    name: "get_random_tranformation"
+    name: "get_random_transformation"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {

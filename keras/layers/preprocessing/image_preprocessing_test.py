@@ -1872,7 +1872,7 @@ class RandomAddLayer(image_preprocessing.BaseImageAugmentationLayer):
     self.value_range = value_range
     self.fixed_value = fixed_value
 
-  def get_random_tranformation(self):
+  def get_random_transformation(self):
     if self.fixed_value:
       return self.fixed_value
     return self._random_generator.random_uniform(
