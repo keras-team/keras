@@ -408,6 +408,28 @@ class TestJson(test_combinations.TestCase):
     self.assertEqual(loaded_layer.sublayers[1].name, 'MySubLayer')
 
 
+class MaskedTensor(tf.experimental.ExtensionType):
+  __name__ = 'MaskedTensor_save_test'
+  values: tf.Tensor
+  mask: tf.Tensor
+  class Spec(tf.TypeSpec):
+
+    @property
+    def shape(self):
+      return self.values.shape
+
+    @property
+    def dtype(self):
+      return self.values.dtype
+
+    def with_shape(self, shape):
+      values_spec = tf.TensorSpec(
+          shape, dtype=self.values.dtype, name=self.values.name)
+      mask_spec = tf.TensorSpec(
+          shape, dtype=self.mask.dtype, name=self.mask.name)
+      return MaskedTensor.Spec(values_spec, mask_spec)
+
+
 @test_combinations.run_with_all_saved_model_formats
 class TestWholeModelSaving(test_combinations.TestCase):
 
@@ -1230,6 +1252,25 @@ class TestWholeModelSaving(test_combinations.TestCase):
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir)
     keras.models.load_model(saved_model_dir)
+
+  @test_combinations.generate(
+      test_combinations.combine(mode=['eager']))
+  @test_utils.run_v2_only
+  def test_save_inputs_spec_with_composite_tensor_names(self):
+
+    class KerasModel(keras.Model):
+
+      def call(self, inputs):
+        return inputs
+
+    spec = MaskedTensor.Spec(
+        tf.TensorSpec([None], name='x__values'),
+        tf.TensorSpec([None], dtype=tf.bool, name='x__mask')
+    )
+    km1 = KerasModel()
+    inputs = keras.Input(type_spec=spec)
+    km1(inputs)
+    self.assertEqual(km1.save_spec()[0][0].mask.name, 'x__mask')
 
 
 # Factory functions to create models that will be serialized inside a Network.
