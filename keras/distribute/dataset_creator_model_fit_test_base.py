@@ -70,7 +70,7 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
                      steps_per_execution=1,
                      run_eagerly=False,
                      with_normalization_layer=False,
-                     use_lookup_layer=False):
+                     jit_compile=None):
 
     class ResultAssertingCallback(callbacks_lib.Callback):
       """A callback that asserts the result of the tests."""
@@ -103,7 +103,8 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
         loss="binary_crossentropy",
         metrics=[self._accuracy_metric],
         steps_per_execution=steps_per_execution,
-        run_eagerly=run_eagerly)
+        run_eagerly=run_eagerly,
+        jit_compile=jit_compile)
     return model, [ResultAssertingCallback()]
 
   def _model_fit(self,
@@ -120,7 +121,8 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
                  callbacks=None,
                  use_lookup_layer=False,
                  use_dataset_creator=True,
-                 verbose="auto"):
+                 verbose="auto",
+                 jit_compile=None):
     if callbacks is None:
       callbacks = []
 
@@ -128,7 +130,7 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
                                                    steps_per_execution,
                                                    run_eagerly,
                                                    with_normalization_layer,
-                                                   use_lookup_layer)
+                                                   jit_compile)
     callbacks += default_callbacks
 
     if x is None:
