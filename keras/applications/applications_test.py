@@ -14,10 +14,7 @@
 # ==============================================================================
 """Integration tests for Keras applications."""
 
-import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
-
 from keras import backend
 from keras.applications import densenet
 from keras.applications import efficientnet
@@ -30,11 +27,12 @@ from keras.applications import mobilenet_v3
 from keras.applications import nasnet
 from keras.applications import regnet
 from keras.applications import resnet
+from keras.applications import resnet_rs
 from keras.applications import resnet_v2
 from keras.applications import vgg16
 from keras.applications import vgg19
 from keras.applications import xception
-
+import tensorflow.compat.v2 as tf
 
 MODEL_LIST_NO_NASNET = [(resnet.ResNet50, 2048), (resnet.ResNet101, 2048),
                         (resnet.ResNet152, 2048), (resnet_v2.ResNet50V2, 2048),
@@ -76,7 +74,14 @@ MODEL_LIST_NO_NASNET = [(resnet.ResNet50, 2048), (resnet.ResNet101, 2048),
                         (regnet.RegNetY016, 888), (regnet.RegNetY032, 1512),
                         (regnet.RegNetY040, 1088), (regnet.RegNetY064, 1296),
                         (regnet.RegNetY080, 2016), (regnet.RegNetY120, 2240),
-                        (regnet.RegNetY160, 3024), (regnet.RegNetY320, 3712)]
+                        (regnet.RegNetY160, 3024), (regnet.RegNetY320, 3712),
+                        (resnet_rs.ResNetRS50, 2048),
+                        (resnet_rs.ResNetRS101, 2048),
+                        (resnet_rs.ResNetRS152, 2048),
+                        (resnet_rs.ResNetRS200, 2048),
+                        (resnet_rs.ResNetRS270, 2048),
+                        (resnet_rs.ResNetRS350, 2048),
+                        (resnet_rs.ResNetRS420, 2048)]
 
 NASNET_LIST = [
     (nasnet.NASNetMobile, 1056),
