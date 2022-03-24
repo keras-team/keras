@@ -93,6 +93,12 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(variable._shared_name, "test/tmp")
     self.assertEqual(self.evaluate(variable), 0)
 
+  def testAddVarialeWithCustomShape(self):
+    optimizer = adam_new.Adam()
+    variable = optimizer.add_variable_from_reference(
+        tf.Variable([1.0, 2.0], name="tmp"), "test", shape=[])
+    self.assertEqual(variable, tf.Variable(0.))
+
   def testBuildIndexDict(self):
     optimizer = adam_new.Adam()
     var_list = [tf.Variable(0, name=f"var{i}") for i in range(10)]
