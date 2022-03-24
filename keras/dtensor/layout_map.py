@@ -24,6 +24,8 @@ from keras.dtensor import lazy_variable
 from keras.dtensor import utils
 from keras.engine import base_layer
 
+from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+
 # pylint: disable=missing-class-docstring
 
 # We will skip the path for certain attributes when mapping the layout, e.g.
@@ -31,7 +33,8 @@ from keras.engine import base_layer
 # _non_trainable_weights, etc. Those attributes are usually served as a cache,
 # and the actual variable should be in somewhere else.
 _KERAS_ATTRIBUTES_TO_SKIP = ['_self_tracked_trackables', '_trainable_weights',
-                             '_non_trainable_weights']
+                             '_non_trainable_weights',
+                             '_captured_weight_regularizer']
 
 
 _LAYOUT_MAP = threading.local()
@@ -41,6 +44,7 @@ def get_current_layout_map():
   return getattr(_LAYOUT_MAP, 'layout_map', None)
 
 
+@keras_export('keras.dtensor.experimental.LayoutMap', v1=[])
 class LayoutMap(collections.abc.MutableMapping):
 
   def __init__(self, mesh=None):
@@ -104,6 +108,7 @@ class LayoutMap(collections.abc.MutableMapping):
     return self._default_mesh
 
 
+@keras_export('keras.dtensor.experimental.layout_map_scope', v1=[])
 @contextlib.contextmanager
 def layout_map_scope(layout_map):
   """Apply the layout to all the tf.Variables created under the scope.
@@ -225,6 +230,10 @@ def _map_subclass_model_variable(model, layout_map):
     _set_object_by_path(model, path, new_variable)
     lazy_init_variable_to_tf_variable_map[id(variable)] = new_variable
 
+  for layer in model._flatten(  # pylint: disable=protected-access
+      predicate=lambda o: isinstance(o, base_layer.Layer)):
+    _config_dvariable_regularization(
+        layer, lazy_init_variable_to_tf_variable_map)
   # After we replaced all the variables, we want to make sure all the cached
   # attributes are having the new variable, rather than old LazyInitVariable.
   for path, variable in model._flatten(predicate=_is_lazy_init_variable,  # pylint: disable=protected-access
@@ -259,6 +268,9 @@ def _map_functional_model_variable(model, layout_map):
       new_variable = _create_dvariable(layout_map, object_path, variable)
       _set_object_by_path(layer, path, new_variable)
       lazy_init_variable_to_tf_variable_map[id(variable)] = new_variable
+
+    _config_dvariable_regularization(
+        layer, lazy_init_variable_to_tf_variable_map)
 
     # After we replaced all the variables, we want to make sure all the cached
     # attributes are having the new variable, rather than old LazyInitVariable.
@@ -306,6 +318,33 @@ def _init_state_variable_for_rng(model, layout_map):
         keras_generator._maybe_init()
 
 
+def _config_dvariable_regularization(
+    layer, lazy_init_variable_to_tf_variable_map):
+  """Update the weights regularizer for newly created `DVariable`.
+
+  The weight regularization usually happens when `layer.add_weight()` is called,
+  at which point the library will first create a `LazyInitVariable`, and then
+  replace it with a `DVariable`. We will defer the creation of those losses,
+  until the DVariable is created.
+
+  See `layer._captured_weight_regularizer` for more details.
+
+  Args:
+    layer: the layer instance for DVariable regularization config.
+    lazy_init_variable_to_tf_variable_map: the dict between LazyInitVariable ID
+      and newly created DVariable.
+  """
+  # pylint: disable=protected-access
+  for (name, variable, regualarizer) in layer._captured_weight_regularizer:
+    if not _is_lazy_init_variable(variable):
+      raise ValueError('Expect the regularization loss are created from '
+                       f'LazyInitVariable, got {variable}')
+    d_variable = lazy_init_variable_to_tf_variable_map[id(variable)]
+    layer._handle_weight_regularization(name, d_variable, regualarizer)
+  # After that, we should cleanup `layer._captured_weight_regularizer`
+  layer._captured_weight_regularizer = []
+
+
 def _create_dvariable(layout_map, object_path, variable):
   """Create a new variable instead of using the LazyInitVariable.
 
@@ -340,9 +379,14 @@ def _create_dvariable(layout_map, object_path, variable):
     # The init value is probably already created as a tensor, we will just copy
     # it to mesh and give it a proper layout.
     init_val = dtensor.copy_to_mesh(init_val, layout)
+  # Use the original variable name for new DVariable creation. TF was adding
+  # ":0" suffix to it.
+  variable_name = variable.name
+  if variable_name.endswith(':0'):
+    variable_name = variable_name[:-2]
   new_variable = dtensor.DVariable(init_val,
                                    trainable=variable.trainable,
-                                   name=variable.name)
+                                   name=variable_name)
   return new_variable
 
 

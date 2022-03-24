@@ -58,21 +58,7 @@ class SGD(optimizer.Optimizer):
       descent.
     nesterov: boolean. Whether to apply Nesterov momentum.
       Defaults to `False`.
-    clipnorm: see the `clipnorm` argument of `optimizer_experimental.Optimizer`.
-    clipvalue: see the `clipvalue` argument of
-      `optimizer_experimental.Optimizer`.
-    global_clipnorm: see the `global_clipnorm` argument of
-      `optimizer_experimental.Optimizer`.
-    use_ema: see the `use_ema` argument of `optimizer_experimental.Optimizer`.
-    ema_momentum: see the `ema_momentum` argument of
-      `optimizer_experimental.Optimizer`.
-    ema_overwrite_frequency: see the `ema_overwrite_frequency` argument of
-      `optimizer_experimental.Optimizer`.
-    jit_compile: see the `jit_compile` argument of
-      `optimizer_experimental.Optimizer`.
-    name: Optional name prefix for the operations created when applying
-      gradients. Defaults to `"SGD"`.
-    **kwargs: see the `**kwargs` argument of `optimizer_experimental.Optimizer`.
+    {{base_optimizer_keyword_args}}
 
   Usage:
 
@@ -203,3 +189,7 @@ class SGD(optimizer.Optimizer):
         'nesterov': self.nesterov,
     })
     return config
+
+
+SGD.__doc__ = SGD.__doc__.replace(
+    '{{base_optimizer_keyword_args}}', optimizer.base_optimizer_keyword_args)

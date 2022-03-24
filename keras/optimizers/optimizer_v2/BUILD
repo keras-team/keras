@@ -35,7 +35,7 @@ py_library(
         "//keras:backend_config",
         "//keras/engine:base_layer_utils",
         "//keras/initializers",
-        "//keras/optimizers:learning_rate_schedule",
+        "//keras/optimizers/schedules:learning_rate_schedule",
         "//keras/utils:layer_utils",
         "//keras/utils:tf_utils",
     ],

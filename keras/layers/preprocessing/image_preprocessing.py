@@ -21,25 +21,12 @@ from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
-from keras.preprocessing.image import smart_resize
+from keras.utils import image_utils
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
-
-ResizeMethod = tf.image.ResizeMethod
-
-_RESIZE_METHODS = {
-    'bilinear': ResizeMethod.BILINEAR,
-    'nearest': ResizeMethod.NEAREST_NEIGHBOR,
-    'bicubic': ResizeMethod.BICUBIC,
-    'area': ResizeMethod.AREA,
-    'lanczos3': ResizeMethod.LANCZOS3,
-    'lanczos5': ResizeMethod.LANCZOS5,
-    'gaussian': ResizeMethod.GAUSSIAN,
-    'mitchellcubic': ResizeMethod.MITCHELLCUBIC
-}
 
 H_AXIS = -3
 W_AXIS = -2
@@ -95,7 +82,7 @@ class Resizing(base_layer.Layer):
     self.width = width
     self.interpolation = interpolation
     self.crop_to_aspect_ratio = crop_to_aspect_ratio
-    self._interpolation_method = get_interpolation(interpolation)
+    self._interpolation_method = image_utils.get_interpolation(interpolation)
     super(Resizing, self).__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Resizing').set(True)
 
@@ -113,7 +100,7 @@ class Resizing(base_layer.Layer):
       def resize_to_aspect(x):
         if tf_utils.is_ragged(inputs):
           x = x.to_tensor()
-        return smart_resize(
+        return image_utils.smart_resize(
             x,
             size=size,
             interpolation=self._interpolation_method)
@@ -200,7 +187,7 @@ class CenterCrop(base_layer.Layer):
                                            self.height, self.width)
 
     def upsize():
-      outputs = smart_resize(inputs, [self.height, self.width])
+      outputs = image_utils.smart_resize(inputs, [self.height, self.width])
       # smart_resize will always output float32, so we need to re-cast.
       return tf.cast(outputs, self.compute_dtype)
 
@@ -241,7 +228,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
   `augment_bounding_box()`, which handles the bounding box augmentation, if the
   layer supports that.
 
-  `get_random_tranformation()`, which should produce a random transformation
+  `get_random_transformation()`, which should produce a random transformation
   setting. The tranformation object, which could be any type, will be passed to
   `augment_image`, `augment_label` and `augment_bounding_box`, to coodinate
   the randomness behavior, eg, in the RandomFlip layer, the image and
@@ -260,10 +247,22 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
   mode, unpack the inputs, forward to the correct function, and pack the output
   back to the same structure as the inputs.
 
+  By default the `call()` method leverages the `tf.vectorized_map()` function.
+  Auto-vectorization can be disabled by setting `self.auto_vectorize = False`
+  in your `__init__()` method.  When disabled, `call()` instead relies
+  on `tf.map_fn()`. For example:
+
+  ```python
+  class SubclassLayer(BaseImageAugmentationLayer):
+    def __init__(self):
+      super().__init__()
+      self.auto_vectorize = False
+  ```
+
   Example:
 
   ```python
-  class RandomContrast(BaseAugmentationLayer):
+  class RandomContrast(BaseImageAugmentationLayer):
 
     def __init__(self, factor=(0.5, 1.5), **kwargs):
       super().__init__(**kwargs)
@@ -272,7 +271,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     def augment_image(self, image, transformation=None):
       random_factor = tf.random.uniform([], self._factor[0], self._factor[1])
       mean = tf.math.reduced_mean(inputs, axis=-1, keep_dim=True)
-      output = (inputs - mean) * random_factor + mean
+      return (inputs - mean) * random_factor + mean
   ```
 
   Note that since the randomness is also a common functionnality, this layer
@@ -285,6 +284,35 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     super().__init__(seed=seed, **kwargs)
     self.rate = rate
 
+  @property
+  def auto_vectorize(self):
+    """Control whether automatic vectorization occurs.
+
+    By default the `call()` method leverages the `tf.vectorized_map()` function.
+    Auto-vectorization can be disabled by setting `self.auto_vectorize = False`
+    in your `__init__()` method.  When disabled, `call()` instead relies
+    on `tf.map_fn()`. For example:
+
+    ```python
+    class SubclassLayer(BaseImageAugmentationLayer):
+      def __init__(self):
+        super().__init__()
+        self.auto_vectorize = False
+    ```
+    """
+    return getattr(self, '_auto_vectorize', True)
+
+  @auto_vectorize.setter
+  def auto_vectorize(self, auto_vectorize):
+    self._auto_vectorize = auto_vectorize
+
+  @property
+  def _map_fn(self):
+    if self.auto_vectorize:
+      return tf.vectorized_map
+    else:
+      return tf.map_fn
+
   @doc_controls.for_subclass_implementers
   def augment_image(self, image, transformation=None):
     """Augment a single image during training.
@@ -292,7 +320,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     Args:
       image: 3D image input tensor to the layer. Forwarded from `layer.call()`.
       transformation: The transformation object produced by
-        `get_random_tranformation`. Used to coordinate the randomness between
+        `get_random_transformation`. Used to coordinate the randomness between
         image, label and bounding box.
 
     Returns:
@@ -307,7 +335,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     Args:
       label: 1D label to the layer. Forwarded from `layer.call()`.
       transformation: The transformation object produced by
-        `get_random_tranformation`. Used to coordinate the randomness between
+        `get_random_transformation`. Used to coordinate the randomness between
         image, label and bounding box.
 
     Returns:
@@ -322,7 +350,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     Args:
       bounding_box: 2D bounding boxex to the layer. Forwarded from `call()`.
       transformation: The transformation object produced by
-        `get_random_tranformation`. Used to coordinate the randomness between
+        `get_random_transformation`. Used to coordinate the randomness between
         image, label and bounding box.
 
     Returns:
@@ -331,7 +359,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     raise NotImplementedError()
 
   @doc_controls.for_subclass_implementers
-  def get_random_tranformation(self):
+  def get_random_transformation(self):
     """Produce random transformation config.
 
     This is used to produce same randomness between image/label/bounding_box.
@@ -344,6 +372,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     return None
 
   def call(self, inputs, training=True):
+    inputs = self._ensure_inputs_are_compute_dtype(inputs)
     if training:
       inputs, is_dict = self._format_inputs(inputs)
       images = inputs['images']
@@ -359,12 +388,10 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
       return inputs
 
   def _augment(self, inputs):
-    transformation = self.get_random_tranformation()  # pylint: disable=assignment-from-none
+    transformation = self.get_random_transformation()  # pylint: disable=assignment-from-none
     image = inputs.get('images', None)
     label = inputs.get('labels', None)
     bounding_box = inputs.get('bounding_boxes', None)
-
-    image = utils.ensure_tensor(image, self.compute_dtype)
     image = self.augment_image(image, transformation=transformation)
     result = {'images': image}
     if label is not None:
@@ -377,7 +404,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     return result
 
   def _batch_augment(self, inputs):
-    return tf.map_fn(self._augment, inputs)
+    return self._map_fn(self._augment, inputs)
 
   def _format_inputs(self, inputs):
     if tf.is_tensor(inputs):
@@ -395,6 +422,14 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
       return output['images']
     else:
       return output
+
+  def _ensure_inputs_are_compute_dtype(self, inputs):
+    if isinstance(inputs, dict):
+      inputs['images'] = utils.ensure_tensor(inputs['images'],
+                                             self.compute_dtype)
+    else:
+      inputs = utils.ensure_tensor(inputs, self.compute_dtype)
+    return inputs
 
 
 @keras_export('keras.layers.RandomCrop',
@@ -466,7 +501,7 @@ class RandomCrop(base_layer.BaseRandomLayer):
                                          self.height, self.width)
 
   def _resize(self, inputs):
-    outputs = smart_resize(inputs, [self.height, self.width])
+    outputs = image_utils.smart_resize(inputs, [self.height, self.width])
     # smart_resize will always output float32, so we need to re-cast.
     return tf.cast(outputs, self.compute_dtype)
 
@@ -601,6 +636,7 @@ class RandomFlip(BaseImageAugmentationLayer):
       raise ValueError('RandomFlip layer {name} received an unknown mode '
                        'argument {arg}'.format(name=self.name, arg=mode))
     self.seed = seed
+    self.auto_vectorize = False
 
   def augment_image(self, image, transformation=None):
     flipped_outputs = image
@@ -754,7 +790,7 @@ class RandomTranslation(BaseImageAugmentationLayer):
     img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
 
     if transformation is None:
-      transformation = self.get_random_tranformation()
+      transformation = self.get_random_transformation()
     height_translation = transformation['height_translation']
     width_translation = transformation['width_translation']
     height_translation = height_translation * img_hd
@@ -773,7 +809,7 @@ class RandomTranslation(BaseImageAugmentationLayer):
     output.set_shape(original_shape)
     return output
 
-  def get_random_tranformation(self):
+  def get_random_transformation(self):
     batch_size = 1
     height_translation = self._random_generator.random_uniform(
         shape=[batch_size, 1],
@@ -1601,7 +1637,7 @@ class RandomHeight(base_layer.BaseRandomLayer):
       raise ValueError('`factor` must have values larger than -1, '
                        'got {}'.format(factor))
     self.interpolation = interpolation
-    self._interpolation_method = get_interpolation(interpolation)
+    self._interpolation_method = image_utils.get_interpolation(interpolation)
     self.seed = seed
 
   def call(self, inputs, training=True):
@@ -1708,7 +1744,7 @@ class RandomWidth(base_layer.BaseRandomLayer):
       raise ValueError('`factor` must have values larger than -1, '
                        'got {}'.format(factor))
     self.interpolation = interpolation
-    self._interpolation_method = get_interpolation(interpolation)
+    self._interpolation_method = image_utils.get_interpolation(interpolation)
     self.seed = seed
 
   def call(self, inputs, training=True):
@@ -1752,11 +1788,3 @@ class RandomWidth(base_layer.BaseRandomLayer):
     base_config = super(RandomWidth, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
-
-def get_interpolation(interpolation):
-  interpolation = interpolation.lower()
-  if interpolation not in _RESIZE_METHODS:
-    raise NotImplementedError(
-        'Value not recognized for `interpolation`: {}. Supported values '
-        'are: {}'.format(interpolation, _RESIZE_METHODS.keys()))
-  return _RESIZE_METHODS[interpolation]

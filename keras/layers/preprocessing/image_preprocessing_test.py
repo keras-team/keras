@@ -1872,7 +1872,7 @@ class RandomAddLayer(image_preprocessing.BaseImageAugmentationLayer):
     self.value_range = value_range
     self.fixed_value = fixed_value
 
-  def get_random_tranformation(self):
+  def get_random_transformation(self):
     if self.fixed_value:
       return self.fixed_value
     return self._random_generator.random_uniform(
@@ -1883,6 +1883,13 @@ class RandomAddLayer(image_preprocessing.BaseImageAugmentationLayer):
 
   def augment_label(self, label, transformation=None):
     return label + transformation
+
+
+class VectorizeDisabledLayer(image_preprocessing.BaseImageAugmentationLayer):
+
+  def __init__(self, **kwargs):
+    self.auto_vectorize = False
+    super().__init__(**kwargs)
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
@@ -1901,6 +1908,19 @@ class BaseImageAugmentationLayerTest(test_combinations.TestCase):
     output = add_layer({'images': image})
 
     self.assertIsInstance(output, dict)
+
+  def test_auto_vectorize_disabled(self):
+    vectorize_disabled_layer = VectorizeDisabledLayer()
+    self.assertFalse(vectorize_disabled_layer.auto_vectorize)
+    self.assertEqual(vectorize_disabled_layer._map_fn, tf.map_fn)
+
+  @test_utils.run_v2_only
+  def test_augment_casts_dtypes(self):
+    add_layer = RandomAddLayer(fixed_value=2.0)
+    images = tf.ones((2, 8, 8, 3), dtype='uint8')
+    output = add_layer(images)
+
+    self.assertAllClose(tf.ones((2, 8, 8, 3), dtype='float32') * 3.0, output)
 
   def test_augment_batch_images(self):
     add_layer = RandomAddLayer()

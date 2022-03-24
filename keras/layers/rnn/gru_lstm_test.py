@@ -21,7 +21,6 @@ import os
 
 from absl.testing import parameterized
 import keras
-from keras.layers import embeddings
 from keras.layers.rnn import gru
 from keras.layers.rnn import lstm
 from keras.testing_infra import test_combinations
@@ -115,7 +114,7 @@ class RNNV2Test(test_combinations.TestCase):
     vocab_size = 100
     inputs = tf.ragged.constant(
         np.random.RandomState(0).randint(0, vocab_size, [128, 25]))
-    embedder = embeddings.Embedding(input_dim=vocab_size, output_dim=16)
+    embedder = keras.layers.Embedding(input_dim=vocab_size, output_dim=16)
     embedded_inputs = embedder(inputs)
     layer = layer(32)
     layer(embedded_inputs)
@@ -126,7 +125,7 @@ class RNNV2Test(test_combinations.TestCase):
     vocab_size = 100
     timestep = 20
     units = 32
-    embedder = embeddings.Embedding(input_dim=vocab_size, output_dim=units)
+    embedder = keras.layers.Embedding(input_dim=vocab_size, output_dim=units)
     layer = layer(units, return_sequences=True)
     data = tf.constant(
         np.random.RandomState(0).randint(0, vocab_size, [timestep, timestep]))

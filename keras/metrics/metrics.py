@@ -21,6 +21,7 @@ from typing import List, Tuple, Union
 
 from keras import activations
 from keras import backend
+from keras.dtensor import utils as dtensor_utils
 from keras.losses import binary_crossentropy
 from keras.losses import categorical_crossentropy
 from keras.losses import categorical_hinge
@@ -83,6 +84,7 @@ class MeanRelativeError(base_metric.Mean):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, normalizer, name=None, dtype=None):
     super(MeanRelativeError, self).__init__(name=name, dtype=dtype)
     normalizer = tf.cast(normalizer, self._dtype)
@@ -163,6 +165,7 @@ class Accuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='accuracy', dtype=None):
     super(Accuracy, self).__init__(accuracy, name, dtype=dtype)
 
@@ -207,9 +210,10 @@ class BinaryAccuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='binary_accuracy', dtype=None, threshold=0.5):
     super(BinaryAccuracy, self).__init__(
-        binary_accuracy, name, dtype=dtype, threshold=threshold)
+        metrics_utils.binary_matches, name, dtype=dtype, threshold=threshold)
 
 
 @keras_export('keras.metrics.CategoricalAccuracy')
@@ -259,9 +263,13 @@ class CategoricalAccuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='categorical_accuracy', dtype=None):
     super(CategoricalAccuracy, self).__init__(
-        categorical_accuracy, name, dtype=dtype)
+        lambda y_true, y_pred: metrics_utils.sparse_categorical_matches(  # pylint: disable=g-long-lambda
+            tf.math.argmax(y_true, axis=-1), y_pred),
+        name,
+        dtype=dtype)
 
 
 @keras_export('keras.metrics.SparseCategoricalAccuracy')
@@ -310,9 +318,10 @@ class SparseCategoricalAccuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='sparse_categorical_accuracy', dtype=None):
     super(SparseCategoricalAccuracy, self).__init__(
-        sparse_categorical_accuracy, name, dtype=dtype)
+        metrics_utils.sparse_categorical_matches, name, dtype=dtype)
 
 
 _SPARSE_CATEGORICAL_UPDATE_STATE_DOCSTRING = """Accumulates metric statistics.
@@ -375,9 +384,14 @@ class TopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, k=5, name='top_k_categorical_accuracy', dtype=None):
     super(TopKCategoricalAccuracy, self).__init__(
-        top_k_categorical_accuracy, name, dtype=dtype, k=k)
+        lambda yt, yp, k: metrics_utils.sparse_top_k_categorical_matches(  # pylint: disable=g-long-lambda
+            tf.math.argmax(yt, axis=-1), yp, k),
+        name,
+        dtype=dtype,
+        k=k)
 
 
 @keras_export('keras.metrics.SparseTopKCategoricalAccuracy')
@@ -413,9 +427,10 @@ class SparseTopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, k=5, name='sparse_top_k_categorical_accuracy', dtype=None):
     super(SparseTopKCategoricalAccuracy, self).__init__(
-        sparse_top_k_categorical_accuracy, name, dtype=dtype, k=k)
+        metrics_utils.sparse_top_k_categorical_matches, name, dtype=dtype, k=k)
 
 
 SparseTopKCategoricalAccuracy.update_state.__doc__ = _SPARSE_CATEGORICAL_UPDATE_STATE_DOCSTRING
@@ -532,6 +547,7 @@ class FalsePositives(_ConfusionMatrixConditionCount):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
     super(FalsePositives, self).__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.FALSE_POSITIVES,
@@ -581,6 +597,7 @@ class FalseNegatives(_ConfusionMatrixConditionCount):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
     super(FalseNegatives, self).__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.FALSE_NEGATIVES,
@@ -630,6 +647,7 @@ class TrueNegatives(_ConfusionMatrixConditionCount):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
     super(TrueNegatives, self).__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.TRUE_NEGATIVES,
@@ -679,6 +697,7 @@ class TruePositives(_ConfusionMatrixConditionCount):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
     super(TruePositives, self).__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.TRUE_POSITIVES,
@@ -756,6 +775,7 @@ class Precision(base_metric.Metric):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self,
                thresholds=None,
                top_k=None,
@@ -886,6 +906,7 @@ class Recall(base_metric.Metric):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self,
                thresholds=None,
                top_k=None,
@@ -1129,6 +1150,7 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self,
                specificity,
                num_thresholds=200,
@@ -1225,6 +1247,7 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self,
                sensitivity,
                num_thresholds=200,
@@ -1313,6 +1336,7 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self,
                recall,
                num_thresholds=200,
@@ -1401,6 +1425,7 @@ class RecallAtPrecision(SensitivitySpecificityBase):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self,
                precision,
                num_thresholds=200,
@@ -1554,6 +1579,7 @@ class AUC(base_metric.Metric):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self,
                num_thresholds=200,
                curve='ROC',
@@ -1963,6 +1989,7 @@ class CosineSimilarity(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='cosine_similarity', dtype=None, axis=-1):
     super(CosineSimilarity, self).__init__(
         cosine_similarity, name, dtype=dtype, axis=axis)
@@ -1999,6 +2026,7 @@ class MeanAbsoluteError(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='mean_absolute_error', dtype=None):
     super(MeanAbsoluteError, self).__init__(
         mean_absolute_error, name, dtype=dtype)
@@ -2035,6 +2063,7 @@ class MeanAbsolutePercentageError(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='mean_absolute_percentage_error', dtype=None):
     super(MeanAbsolutePercentageError, self).__init__(
         mean_absolute_percentage_error, name, dtype=dtype)
@@ -2071,6 +2100,7 @@ class MeanSquaredError(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='mean_squared_error', dtype=None):
     super(MeanSquaredError, self).__init__(
         mean_squared_error, name, dtype=dtype)
@@ -2107,6 +2137,7 @@ class MeanSquaredLogarithmicError(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='mean_squared_logarithmic_error', dtype=None):
     super(MeanSquaredLogarithmicError, self).__init__(
         mean_squared_logarithmic_error, name, dtype=dtype)
@@ -2143,6 +2174,7 @@ class Hinge(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='hinge', dtype=None):
     super(Hinge, self).__init__(hinge, name, dtype=dtype)
 
@@ -2181,6 +2213,7 @@ class SquaredHinge(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='squared_hinge', dtype=None):
     super(SquaredHinge, self).__init__(squared_hinge, name, dtype=dtype)
 
@@ -2216,6 +2249,7 @@ class CategoricalHinge(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='categorical_hinge', dtype=None):
     super(CategoricalHinge, self).__init__(categorical_hinge, name, dtype=dtype)
 
@@ -2247,6 +2281,7 @@ class RootMeanSquaredError(base_metric.Mean):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='root_mean_squared_error', dtype=None):
     super(RootMeanSquaredError, self).__init__(name, dtype=dtype)
 
@@ -2307,6 +2342,7 @@ class LogCoshError(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='logcosh', dtype=None):
     super(LogCoshError, self).__init__(logcosh, name, dtype=dtype)
 
@@ -2343,6 +2379,7 @@ class Poisson(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='poisson', dtype=None):
     super(Poisson, self).__init__(poisson, name, dtype=dtype)
 
@@ -2379,6 +2416,7 @@ class KLDivergence(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, name='kullback_leibler_divergence', dtype=None):
     super(KLDivergence, self).__init__(
         kullback_leibler_divergence, name, dtype=dtype)
@@ -2534,6 +2572,7 @@ class IoU(_IoUBase):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(
       self,
       num_classes: int,
@@ -2656,6 +2695,7 @@ class BinaryIoU(IoU):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(
       self,
       target_class_ids: Union[List[int], Tuple[int, ...]] = (0, 1),
@@ -2762,6 +2802,7 @@ class MeanIoU(IoU):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self, num_classes, name=None, dtype=None):
     target_class_ids = list(range(num_classes))
     super(MeanIoU, self).__init__(
@@ -2852,6 +2893,7 @@ class OneHotIoU(IoU):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(
       self,
       num_classes: int,
@@ -2956,6 +2998,7 @@ class OneHotMeanIoU(MeanIoU):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(
       self,
       num_classes: int,
@@ -3028,6 +3071,7 @@ class BinaryCrossentropy(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self,
                name='binary_crossentropy',
                dtype=None,
@@ -3092,6 +3136,7 @@ class CategoricalCrossentropy(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self,
                name='categorical_crossentropy',
                dtype=None,
@@ -3163,6 +3208,7 @@ class SparseCategoricalCrossentropy(base_metric.MeanMetricWrapper):
   ```
   """
 
+  @dtensor_utils.inject_mesh
   def __init__(self,
                name='sparse_categorical_crossentropy',
                dtype=None,
@@ -3211,10 +3257,12 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
   Returns:
     Binary accuracy values. shape = `[batch_size, d0, .. dN-1]`
   """
-  y_pred = tf.convert_to_tensor(y_pred)
-  threshold = tf.cast(threshold, y_pred.dtype)
-  y_pred = tf.cast(y_pred > threshold, y_pred.dtype)
-  return backend.mean(tf.equal(y_true, y_pred), axis=-1)
+  # Note: calls metrics_utils.binary_matches with mean reduction. This maintains
+  # public facing binary_accuracy behavior and seperates it from the vital
+  # behavior of the binary_matches method needed in backend dependencies.
+
+  return tf.reduce_mean(
+      metrics_utils.binary_matches(y_true, y_pred, threshold), axis=-1)
 
 
 @keras_export('keras.metrics.categorical_accuracy')
@@ -3240,8 +3288,12 @@ def categorical_accuracy(y_true, y_pred):
   Returns:
     Categorical accuracy values.
   """
-  y_true = tf.math.argmax(y_true, axis=-1)
-  return sparse_categorical_accuracy(y_true, y_pred)
+  # Note: wraps metrics_utils.categorical_matches. This seperates public facing
+  # categorical_accuracy behavior from the vital behavior of the
+  # categorical_matches method needed in backend dependencies.
+
+  return metrics_utils.sparse_categorical_matches(
+      tf.math.argmax(y_true, axis=-1), y_pred)
 
 
 @keras_export('keras.metrics.sparse_categorical_accuracy')
@@ -3267,22 +3319,18 @@ def sparse_categorical_accuracy(y_true, y_pred):
   Returns:
     Sparse categorical accuracy values.
   """
-  y_pred = tf.convert_to_tensor(y_pred)
-  y_true = tf.convert_to_tensor(y_true)
-  y_pred_rank = y_pred.shape.ndims
-  y_true_rank = y_true.shape.ndims
-  # If the shape of y_true is (num_samples, 1), squeeze to (num_samples,)
-  if (y_true_rank is not None) and (y_pred_rank is not None) and (len(
-      backend.int_shape(y_true)) == len(backend.int_shape(y_pred))):
-    y_true = tf.squeeze(y_true, [-1])
-  y_pred = tf.math.argmax(y_pred, axis=-1)
+  # Note: wraps metrics_utils.sparse_categorical_matches method and checks for
+  # squeezing to align with expected public facing behavior. This seperates
+  # public facing sparse_categorical_accuracy behavior from the vital behavior
+  # of the sparse_categorical_matches method needed in backend dependencies.
 
-  # If the predicted output and actual output types don't match, force cast them
-  # to match.
-  if backend.dtype(y_pred) != backend.dtype(y_true):
-    y_pred = tf.cast(y_pred, backend.dtype(y_true))
+  matches = metrics_utils.sparse_categorical_matches(y_true, y_pred)
 
-  return tf.cast(tf.equal(y_true, y_pred), backend.floatx())
+  # if shape is (num_samples, 1) squeeze
+  if matches.shape.ndims > 1 and matches.shape[-1] == 1:
+    matches = tf.squeeze(matches, [-1])
+
+  return matches
 
 
 @keras_export('keras.metrics.top_k_categorical_accuracy')
@@ -3307,8 +3355,12 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
   Returns:
     Top K categorical accuracy value.
   """
-  y_true = tf.math.argmax(y_true, axis=-1)
-  return sparse_top_k_categorical_accuracy(y_true, y_pred, k=k)
+  # Note: wraps metrics_utils.top_k_categorical_matches. This seperates
+  # public facing top_k_categorical_accuracy behavior from the vital behavior
+  # of the top_k_categorical_matches method needed in backend dependencies.
+
+  return metrics_utils.sparse_top_k_categorical_matches(
+      tf.math.argmax(y_true, axis=-1), y_pred, k)
 
 
 @keras_export('keras.metrics.sparse_top_k_categorical_accuracy')
@@ -3334,31 +3386,12 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
   Returns:
     Sparse top K categorical accuracy value.
   """
-  reshape_matches = False
-  y_true = tf.convert_to_tensor(y_true)
-  y_pred = tf.convert_to_tensor(y_pred)
-  y_true_rank = y_true.shape.ndims
-  y_pred_rank = y_pred.shape.ndims
-  y_true_org_shape = tf.shape(y_true)
+  # Note: wraps metrics_utils.sparse_top_k_categorical_matches. This seperates
+  # public facing sparse_top_k_categorical_accuracy behavior from the vital
+  # behavior of the sparse_top_k_categorical_matches method needed in backend
+  # dependencies.
 
-  # Flatten y_pred to (batch_size, num_samples) and y_true to (num_samples,)
-  if (y_true_rank is not None) and (y_pred_rank is not None):
-    if y_pred_rank > 2:
-      y_pred = tf.reshape(y_pred, [-1, y_pred.shape[-1]])
-    if y_true_rank > 1:
-      reshape_matches = True
-      y_true = tf.reshape(y_true, [-1])
-
-  matches = tf.cast(
-      tf.math.in_top_k(
-          predictions=y_pred, targets=tf.cast(y_true, 'int32'), k=k),
-      dtype=backend.floatx())
-
-  # returned matches is expected to have same shape as y_true input
-  if reshape_matches:
-    return tf.reshape(matches, shape=y_true_org_shape)
-
-  return matches
+  return metrics_utils.sparse_top_k_categorical_matches(y_true, y_pred, k)
 
 
 def cosine_similarity(y_true, y_pred, axis=-1):

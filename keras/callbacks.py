@@ -29,7 +29,7 @@ import time
 from keras import backend
 from keras.distribute import distributed_file_utils
 from keras.distribute import worker_training_state
-from keras.optimizers import learning_rate_schedule
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.utils import generic_utils
 from keras.utils import io_utils
 from keras.utils import tf_utils
@@ -2329,12 +2329,12 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     """Configure the Projector for embeddings."""
     # TODO(omalleyt): Add integration tests.
     from google.protobuf import text_format
-    from keras.layers import embeddings
+    from keras.layers import core
     from keras.protobuf import projector_config_pb2
 
     config = projector_config_pb2.ProjectorConfig()
     for layer in self.model.layers:
-      if isinstance(layer, embeddings.Embedding):
+      if isinstance(layer, core.Embedding):
         embedding = config.embeddings.add()
         # Embeddings are always the first layer, so this naming should be
         # consistent in any keras models checkpoints.

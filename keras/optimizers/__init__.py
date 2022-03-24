@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=invalid-name
+# pylint: disable=g-bad-import-order
 """Built-in optimizer classes.
 
 For more examples see the base class `tf.keras.optimizers.Optimizer`.
@@ -20,6 +21,18 @@ For more examples see the base class `tf.keras.optimizers.Optimizer`.
 
 import tensorflow.compat.v2 as tf
 
+# Symbols to be accessed under keras.optimizers. To be replaced with
+# optimizers v2022 when they graduate out of experimental.
+from keras.optimizers.optimizer_v2.gradient_descent import SGD
+from keras.optimizers.optimizer_v2.rmsprop import RMSprop
+from keras.optimizers.optimizer_v2.adam import Adam
+from keras.optimizers.optimizer_v2.adadelta import Adadelta
+from keras.optimizers.optimizer_v2.adagrad import Adagrad
+from keras.optimizers.optimizer_v2.adamax import Adamax
+from keras.optimizers.optimizer_v2.nadam import Nadam
+from keras.optimizers.optimizer_v2.ftrl import Ftrl
+
+# Imports needed for deserialization.
 from keras import backend
 from keras.optimizers.optimizer_experimental import optimizer as optimizer_experimental
 from keras.optimizers.optimizer_experimental import adadelta as adadelta_experimental
@@ -27,8 +40,19 @@ from keras.optimizers.optimizer_experimental import adagrad as adagrad_experimen
 from keras.optimizers.optimizer_experimental import adam as adam_experimental
 from keras.optimizers.optimizer_experimental import adamax as adamax_experimental
 from keras.optimizers.optimizer_experimental import adamw as adamw_experimental
+from keras.optimizers.optimizer_experimental import ftrl as ftrl_experimental
+from keras.optimizers.optimizer_experimental import nadam as nadam_experimental
 from keras.optimizers.optimizer_experimental import rmsprop as rmsprop_experimental
 from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
+from keras.optimizers.legacy import optimizer as optimizer_legacy
+from keras.optimizers.legacy import adadelta as adadelta_legacy
+from keras.optimizers.legacy import adagrad as adagrad_legacy
+from keras.optimizers.legacy import adam as adam_legacy
+from keras.optimizers.legacy import adamax as adamax_legacy
+from keras.optimizers.legacy import ftrl as ftrl_legacy
+from keras.optimizers.legacy import nadam as nadam_legacy
+from keras.optimizers.legacy import rmsprop as rmsprop_legacy
+from keras.optimizers.legacy import sgd as sgd_legacy
 from keras.optimizers.optimizer_v1 import Optimizer
 from keras.optimizers.optimizer_v1 import TFOptimizer
 from keras.optimizers.optimizer_v2 import adadelta as adadelta_v2

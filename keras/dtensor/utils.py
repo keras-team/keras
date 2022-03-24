@@ -103,16 +103,49 @@ def allow_initializer_layout(init_method):
       target=init_method, decorator_func=_wrap_function)
 
 
+def inject_mesh(init_method):
+  """Inject DTensor mesh information to an object.
+
+  This is useful for keras object like `Metric` and `Optimizer` which need
+  DTensor mesh to create the weights, but doesn't want to change the current
+  public API interface.
+
+  This is for temporary usage and eventually the mesh/layout information will be
+  public arguments in the `__init__` method
+
+  Sample usage:
+  ```python
+  class Accuracy(tf.keras.metrics.Metric):
+
+    @inject_mesh
+    def __init__(self, name='accuracy', dtype=None):
+       super().__init__(**kwargs)
+
+    acc = Accuracy(mesh=mesh)
+    assert acc._mesh == mesh
+  ```
+
+  Args:
+    init_method: the `__init__` method of the Keras class to annotate.
+
+  Returns:
+    the annotated __init__ method.
+  """
+  def _wrap_function(instance, *args, **kwargs):
+    mesh = kwargs.pop("mesh", None)
+    # Note that the injection of _mesh need to happen before the invocation of
+    # __init__, since the class might need the mesh to create weights in the
+    # __init__.
+    if mesh is not None:
+      instance._mesh = mesh  # pylint: disable=protected-access
+    init_method(instance, *args, **kwargs)
+
+  return tf.__internal__.decorator.make_decorator(
+      target=init_method, decorator_func=_wrap_function)
+
+
 def call_with_layout(fn, layout, *args, **kwargs):
   """Invoke the function with inputs and relayout the result.
-
-  When the layout is not None, a temporary tf.function will be created under the
-  hood, so that the layout can be properly set for the result. The tf.function
-  need to be called under the dtensor device scope, since the dtensor related
-  kernel need to that as the indicator to work with tf.function. The tf.function
-  will ensure the it only create the needed tensor (sharded for local device)
-  by the layout propagation, and not fully materialize the output of fn, which
-  could potentially be a large tensor.
 
   Args:
     fn: the function to invoke.
@@ -124,15 +157,7 @@ def call_with_layout(fn, layout, *args, **kwargs):
     The output of fn, with potential relayout with the layout specified.
   """
   if layout:
-
-    # TODO(b/222160686): Remove this tf.function after after we have SPMD
-    # support for tf.MatrixDiagV3
-    @tf.function
-    def wrapper_func():
+    with dtensor.run_on(layout):
       result = fn(*args, **kwargs)
       return dtensor.relayout(result, layout)
-
-    with dtensor.run_on(layout):
-      return wrapper_func()
-
   return fn(*args, **kwargs)

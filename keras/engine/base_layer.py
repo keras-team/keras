@@ -36,6 +36,7 @@ from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
+from keras.dtensor import lazy_variable
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
 from keras.engine import keras_tensor
@@ -451,6 +452,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # Save outer name scope at layer declaration so that it is preserved at
     # the actual layer construction.
     self._name_scope_on_declaration = tf.get_current_name_scope()
+
+    # Save the temp regularization losses created in the DTensor use case.
+    # When DTensor is enable, we will first create LazyInitVariable and then
+    # DVariable with proper layout afterward. For the weights regularization
+    # loss, we have to create against the DVariable as well.
+    self._captured_weight_regularizer = []
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   @generic_utils.default
@@ -2181,6 +2188,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   def _infer_output_signature(self, inputs, args, kwargs, input_masks):
     """Call the layer on input KerasTensors and returns output KerasTensors."""
 
+    keras_tensor_inputs = inputs
     call_fn = self.call
     # Wrapping `call` function in autograph to allow for dynamic control
     # flow and control dependencies in call. We are limiting this to
@@ -2229,7 +2237,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       outputs = tf.nest.map_structure(
           keras_tensor.keras_tensor_from_tensor, outputs)
 
-    self._set_save_spec(inputs, args, kwargs)
+    self._set_save_spec(keras_tensor_inputs, args, kwargs)
     if hasattr(self, '_set_inputs') and not self.inputs:
       # TODO(kaftan): figure out if we need to do this at all
       # Subclassed network: explicitly set metadata normally set by
@@ -2542,6 +2550,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     if base_layer_utils.is_split_variable(variable):
       for v in variable:
         self.add_loss(functools.partial(_loss_for_variable, v))
+    elif isinstance(variable, lazy_variable.LazyInitVariable):
+      self._captured_weight_regularizer.append((name, variable, regularizer))
     else:
       self.add_loss(functools.partial(_loss_for_variable, variable))
 
@@ -3411,6 +3421,7 @@ def _apply_name_scope_on_model_declaration(enable):
   _is_name_scope_on_model_declaration_enabled = enable
 
 
+@keras_export('keras.__internal__.layers.BaseRandomLayer')
 class BaseRandomLayer(Layer):
   """A layer handle the random number creation and savemodel behavior."""
 

@@ -3,7 +3,10 @@
 # can't be exposed to public yet.
 
 package(
-    default_visibility = ["//keras:friends"],
+    default_visibility = [
+        "//keras:friends",
+        "//learning/brain/experimental/dtensor/models:__subpackages__",
+    ],
     licenses = ["notice"],
 )
 
@@ -31,6 +34,7 @@ py_test(
 py_test(
     name = "layers_test",
     srcs = ["layers_test.py"],
+    shard_count = 4,
     tags = ["no_oss"],
     deps = [
         ":dtensor",
@@ -86,6 +90,22 @@ py_library(
 )
 
 py_test(
+    name = "metrics_test",
+    srcs = ["metrics_test.py"],
+    shard_count = 4,
+    tags = ["no_oss"],
+    deps = [
+        ":dtensor",
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/metrics",
+        "//keras/utils:tf_utils",
+        "//learning/brain/experimental/dtensor/tests:test_util",
+    ],
+)
+
+py_test(
     name = "mnist_model_test",
     srcs = ["mnist_model_test.py"],
     tags = [
@@ -99,22 +119,17 @@ py_test(
         "//:expect_tensorflow_installed",
         "//keras/utils:tf_utils",
         "//learning/brain/experimental/dtensor/tests:test_util",
-        "//third_party/tensorflow/dtensor/python:mesh_util",
-        "//third_party/tensorflow/dtensor/python:tpu_util",
     ],
 )
 
 py_library(
     name = "optimizers",
     srcs = ["optimizers.py"],
-    visibility = [
-        "//learning/brain/experimental/dtensor/models:__subpackages__",
-    ],
     deps = [
         ":dtensor",
         "//:expect_tensorflow_installed",
-        "//keras/optimizers:learning_rate_schedule",
         "//keras/optimizers/optimizer_experimental:optimizer",
+        "//keras/optimizers/schedules:learning_rate_schedule",
     ],
 )
 

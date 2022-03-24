@@ -42,7 +42,9 @@ class InitializersTest(test_util.DTensorBaseTest):
       ('Zeros', initializers.Zeros, {}),
       ('Ones', initializers.Ones, {}),
       ('Constant', initializers.Constant, {'value': 3.}),
-      ('Identity', initializers.Identity, {}),
+      # TODO(b/222160686): Add Identity after after we have SPMD support for
+      # tf.MatrixDiagV3
+      # ('Identity', initializers.Identity, {}),
   )
   def test_static_value_initializer(self, initializer_cls, init_args):
     layout = dtensor.Layout([dtensor.UNSHARDED, dtensor.UNSHARDED], self.mesh)

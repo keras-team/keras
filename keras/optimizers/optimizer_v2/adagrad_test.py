@@ -22,7 +22,7 @@ from absl.testing import parameterized
 import numpy as np
 from keras.testing_infra import test_combinations
 from keras.optimizers.optimizer_v2 import adagrad
-from keras.optimizers import learning_rate_schedule
+from keras.optimizers.schedules import learning_rate_schedule
 
 _DATA_TYPES = [
     tf.half, tf.float32, tf.float64, tf.complex64,

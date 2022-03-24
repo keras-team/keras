@@ -18,6 +18,8 @@ py_library(
         "adam.py",
         "adamax.py",
         "adamw.py",
+        "ftrl.py",
+        "nadam.py",
         "optimizer.py",
         "rmsprop.py",
         "sgd.py",
@@ -25,7 +27,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
-        "//keras/optimizers:learning_rate_schedule",
+        "//keras/optimizers/schedules:learning_rate_schedule",
     ],
 )
 
@@ -33,7 +35,7 @@ distribute_py_test(
     name = "optimizer_test",
     size = "medium",
     srcs = ["optimizer_test.py"],
-    shard_count = 1,
+    shard_count = 8,
     tags = [
         "multi_gpu",
         "no_windows",

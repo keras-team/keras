@@ -33,6 +33,10 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
+    name: "dtensor"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "estimator"
     mtype: "<type \'module\'>"
   }
@@ -67,10 +71,6 @@ tf_module {
   }
   member {
     name: "optimizers"
-    mtype: "<type \'module\'>"
-  }
-  member {
-    name: "optimizers_legacy"
     mtype: "<type \'module\'>"
   }
   member {
