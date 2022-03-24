@@ -41,6 +41,21 @@ class LeakyReLUTest(test_combinations.TestCase):
           input_shape=(2, 3, 4),
           supports_masking=True)
 
+  def test_leaky_relu_with_zero_alpha(self):
+    # Test case for GitHub issue 16289.
+    alpha = 0.
+    import numpy as np
+    input_data = np.random.rand(2,3,4)
+    input_data *= -np.Inf
+    expected_output = input_data*np.NaN
+    test_utils.layer_test(keras.layers.LeakyReLU,
+                          kwargs={'alpha': alpha},
+                          input_shape=(2, 3, 4),
+                          input_dtype="float32",
+                          input_data=input_data,
+                          expected_output=expected_output,
+                          supports_masking=True)
+
 
 if __name__ == '__main__':
   tf.test.main()
