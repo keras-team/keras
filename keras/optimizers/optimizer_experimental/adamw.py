@@ -217,10 +217,11 @@ class AdamW(optimizer.Optimizer):
     return config
 
   def exclude_from_weight_decay(self, var_list):
-    if not self._built:
-      self._exclude_from_weight_decay = var_list or []
-    else:
+    if hasattr(self, '_built') and self._built:
       raise ValueError('`exclude_from_weight_decay()` must be used only before the optimizer is build.')
+    
+    self._exclude_from_weight_decay = var_list or []
+      
 
 AdamW.__doc__ = AdamW.__doc__.replace(
     '{{base_optimizer_keyword_args}}', optimizer.base_optimizer_keyword_args)
