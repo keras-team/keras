@@ -348,7 +348,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     """Augment bounding boxes for one image during training.
 
     Args:
-      bounding_box: 2D bounding boxex to the layer. Forwarded from `call()`.
+      bounding_box: 2D bounding boxes to the layer. Forwarded from `call()`.
       transformation: The transformation object produced by
         `get_random_transformation`. Used to coordinate the randomness between
         image, label and bounding box.
@@ -359,10 +359,16 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     raise NotImplementedError()
 
   @doc_controls.for_subclass_implementers
-  def get_random_transformation(self):
-    """Produce random transformation config.
+  def get_random_transformation(
+      self, image=None, label=None, bounding_box=None):
+    """Produce random transformation config for one single input.
 
     This is used to produce same randomness between image/label/bounding_box.
+
+    Args:
+      image: 3D image tensor from inputs.
+      label: optional 1D label tensor from inputs.
+      bounding_box: optional 2D bounding boxes tensor from inputs.
 
     Returns:
       Any type of object, which will be forwarded to `augment_image`,
@@ -388,10 +394,11 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
       return inputs
 
   def _augment(self, inputs):
-    transformation = self.get_random_transformation()  # pylint: disable=assignment-from-none
     image = inputs.get('images', None)
     label = inputs.get('labels', None)
     bounding_box = inputs.get('bounding_boxes', None)
+    transformation = self.get_random_transformation(
+        image=image, label=label, bounding_box=bounding_box)  # pylint: disable=assignment-from-none
     image = self.augment_image(image, transformation=transformation)
     result = {'images': image}
     if label is not None:
@@ -790,7 +797,7 @@ class RandomTranslation(BaseImageAugmentationLayer):
     img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
 
     if transformation is None:
-      transformation = self.get_random_transformation()
+      transformation = self.get_random_transformation(image=image)
     height_translation = transformation['height_translation']
     width_translation = transformation['width_translation']
     height_translation = height_translation * img_hd
@@ -809,7 +816,9 @@ class RandomTranslation(BaseImageAugmentationLayer):
     output.set_shape(original_shape)
     return output
 
-  def get_random_transformation(self):
+  def get_random_transformation(
+      self, image=None, label=None, bounding_box=None):
+    del image, label, bounding_box
     batch_size = 1
     height_translation = self._random_generator.random_uniform(
         shape=[batch_size, 1],
