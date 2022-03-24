@@ -78,7 +78,7 @@ def image_dataset_from_directory(directory,
         image files found in the directory. Labels should be sorted according
         to the alphanumeric order of the image file paths
         (obtained via `os.walk(directory)` in Python).
-    label_mode:
+    label_mode: String describing the encoding of `labels`. Options are:
         - 'int': means that the labels are encoded as integers
             (e.g. for `sparse_categorical_crossentropy` loss).
         - 'categorical' means that the labels are
