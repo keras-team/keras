@@ -34,6 +34,7 @@ keras_packages = [
     "keras.applications.regnet",
     "keras.applications.resnet",
     "keras.applications.resnet_v2",
+    "keras.applications.resnet_rs",
     "keras.applications.vgg16",
     "keras.applications.vgg19",
     "keras.applications.xception",

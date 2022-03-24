@@ -53,6 +53,10 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
+    name: "resnet_rs"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "resnet_v2"
     mtype: "<type \'module\'>"
   }
@@ -291,6 +295,34 @@ tf_module {
   member_method {
     name: "ResNet50V2"
     argspec: "args=[\'include_top\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
+  }
+  member_method {
+    name: "ResNetRS101"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS152"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS200"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS270"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS350"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS420"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS50"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
   }
   member_method {
     name: "VGG16"
