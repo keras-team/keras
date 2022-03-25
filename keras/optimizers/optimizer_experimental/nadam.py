@@ -63,7 +63,7 @@ class Nadam(optimizer.Optimizer):
                use_ema=False,
                ema_momentum=0.99,
                ema_overwrite_frequency=None,
-               jit_compile=False,
+               jit_compile=True,
                name='Nadam',
                **kwargs):
     super().__init__(
@@ -110,11 +110,6 @@ class Nadam(optimizer.Optimizer):
 
   def update_step(self, gradient, variable):
     """Update step given gradient and the associated model variable."""
-    if self._var_key(variable) not in self._index_dict:
-      raise KeyError(f'Optimizer cannot recognize variable {variable.name}, '
-                     f'this usually means you are calling an optimizer '
-                     f'previously used on a different model. Please try '
-                     f'creating a new optimizer instance.')
     var_dtype = variable.dtype
     lr = tf.cast(self.learning_rate, var_dtype)
     local_step = tf.cast(self.iterations + 1, var_dtype)
