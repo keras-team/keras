@@ -126,6 +126,39 @@ class TestGetFile(tf.test.TestCase):
     self.assertEndsWith(path, '.txt')
     self.assertTrue(os.path.exists(path))
 
+  def test_get_file_with_integrity_check(self):
+    """Tests get_file with validation before download."""
+    orig_dir = self.get_temp_dir()
+    file_path = os.path.join(orig_dir, 'test.txt')
+
+    with open(file_path, 'w') as text_file:
+      text_file.write('Float like a butterfly, sting like a bee.')
+
+    hashval = keras.utils.data_utils._hash_file(file_path)
+
+    origin = urllib.parse.urljoin(
+        'file://', urllib.request.pathname2url(os.path.abspath(file_path)))
+
+    path = keras.utils.data_utils.get_file(
+        'test.txt', origin, file_hash=hashval)
+    self.assertTrue(os.path.exists(path))
+
+  def test_get_file_with_failed_integrity_check(self):
+    """Tests get_file with validation before download."""
+    orig_dir = self.get_temp_dir()
+    file_path = os.path.join(orig_dir, 'test.txt')
+
+    with open(file_path, 'w') as text_file:
+      text_file.write('Float like a butterfly, sting like a bee.')
+
+    hashval = '0' * 64
+
+    origin = urllib.parse.urljoin(
+        'file://', urllib.request.pathname2url(os.path.abspath(file_path)))
+
+    with self.assertRaisesRegex(ValueError, 'Incomplete or corrupted file.*'):
+      _ = keras.utils.data_utils.get_file('test.txt', origin, file_hash=hashval)
+
 
 class TestSequence(keras.utils.data_utils.Sequence):
 
