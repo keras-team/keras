@@ -62,7 +62,7 @@ def add(inputs, **kwargs):
   """Functional interface to the `tf.keras.layers.Add` layer.
 
   Args:
-      inputs: A list of input tensors (at least 2) with the same shape.
+      inputs: A list of input tensors with the same shape.
       **kwargs: Standard layer keyword arguments.
 
   Returns:

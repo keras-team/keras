@@ -70,7 +70,7 @@ def maximum(inputs, **kwargs):
   ```
 
   Args:
-      inputs: A list of input tensors (at least 2) of same shape.
+      inputs: A list of input tensors of same shape.
       **kwargs: Standard layer keyword arguments.
 
   Returns:
