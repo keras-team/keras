@@ -261,9 +261,10 @@ def load_image(path, image_size, num_channels, interpolation,
   img = tf.io.read_file(path)
   img = tf.image.decode_image(
       img, channels=num_channels, expand_animations=False)
-  if crop_to_aspect_ratio:
-    img = image_utils.smart_resize(img, image_size, interpolation=interpolation)
-  else:
-    img = tf.image.resize(img, image_size, method=interpolation)
-  img.set_shape((image_size[0], image_size[1], num_channels))
+  if img.shape[0] != image_size[0] or img.shape[1] != image_size[1]:
+    if crop_to_aspect_ratio:
+      img = image_utils.smart_resize(img, image_size, interpolation=interpolation)
+    else:
+      img = tf.image.resize(img, image_size, method=interpolation)
+   img.set_shape((image_size[0], image_size[1], num_channels))
   return img
