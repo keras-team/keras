@@ -52,7 +52,7 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
           loss=keras.losses.BinaryCrossentropy(from_logits=True),
       )
 
-      sam_model.fit(data, label)
+      sam_model.fit(data, label, steps_per_epoch=1)
 
   def test_save_sam(self):
     model = keras.Sequential([
