@@ -231,7 +231,7 @@ tf_class {
   }
   member_method {
     name: "get_random_transformation"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'image\', \'label\', \'bounding_box\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\'], "
   }
   member_method {
     name: "get_weights"
