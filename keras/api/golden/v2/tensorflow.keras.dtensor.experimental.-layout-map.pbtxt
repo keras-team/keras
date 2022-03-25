@@ -40,7 +40,7 @@ tf_class {
   }
   member_method {
     name: "update"
-    argspec: "args=[], varargs=args, keywords=kwds, defaults=None"
+    argspec: "args=[\'self\', \'other\'], varargs=None, keywords=kwds, defaults=[\'()\'], "
   }
   member_method {
     name: "values"
