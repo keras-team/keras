@@ -19,6 +19,7 @@ import keras
 from keras import backend
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+from keras.utils import tf_inspect
 import numpy as np
 import tensorflow.compat.v2 as tf
 
@@ -271,6 +272,34 @@ class MergingLayersTest(test_combinations.TestCase):
     out = layer()([x1, x2])
     self.assertEqual(out.shape, ())
 
+  @parameterized.named_parameters(
+      *test_utils.generate_combinations_with_testcase_name(layer=[
+          keras.layers.Add, keras.layers.add, keras.layers.Average, keras.layers
+          .average, keras.layers.Concatenate, keras.layers.concatenate,
+          keras.layers.Maximum, keras.layers.maximum, keras.layers.Minimum,
+          keras.layers.minimum, keras.layers.Multiply, keras.layers.multiply
+      ]))
+  def test_single_element(self, layer):
+    # Instantiate the Layer subclasses
+    if tf_inspect.isclass(layer) and issubclass(layer, keras.layers.Layer):
+      layer = layer()
+
+    # Processing a single element list should behave as identity.
+    i1 = keras.layers.Input(shape=(4, 5))
+    o = layer([i1])
+    self.assertListEqual(o.shape.as_list(), [None, 4, 5])
+    model = keras.models.Model(i1, o)
+    model.run_eagerly = test_utils.should_run_eagerly()
+
+    x1 = np.random.random((2, 4, 5))
+    out = model.predict(x1)
+    self.assertEqual(out.shape, (2, 4, 5))
+    self.assertAllClose(out, x1)
+
+    # A single element must be passed as a list, not by itself.
+    with self.assertRaisesRegex(ValueError, 'called on a list'):
+      layer(i1)
+
 
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MergingLayersTestNoExecution(tf.test.TestCase):
@@ -281,11 +310,7 @@ class MergingLayersTestNoExecution(tf.test.TestCase):
     with self.assertRaises(ValueError):
       keras.layers.add([i1, i2])
     with self.assertRaises(ValueError):
-      keras.layers.add([i1])
-    with self.assertRaises(ValueError):
       keras.layers.add(i1)
-    with self.assertRaises(ValueError):
-      keras.layers.add([i1])
 
   def test_concatenate_errors(self):
     i1 = keras.layers.Input(shape=(4, 5))
