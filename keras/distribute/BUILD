@@ -277,6 +277,7 @@ distribute_py_test(
     shard_count = 8,
     tags = [
         "multi_and_single_gpu",
+        "no_oss",  # TODO(b/226938240): Reenable
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
@@ -413,6 +414,7 @@ distribute_py_test(
     shard_count = 16,
     tags = [
         "multi_and_single_gpu",
+        "no_oss",  # TODO(b/226938240): Reenable
         "no_rocm",  # times out on ROCm
         "no_windows_gpu",
         "noasan",  # TODO(b/337374867) fails with -fsanitize=null
