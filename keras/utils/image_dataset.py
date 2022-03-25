@@ -98,8 +98,8 @@ def image_dataset_from_directory(directory,
     batch_size: Size of the batches of data. Default: 32.
       If `None`, the data will not be batched
       (the dataset will yield individual samples).
-    image_size: Size to resize images to after they are read from disk.
-        Defaults to `(256, 256)`.
+    image_size: Size to resize images to after they are read from disk,
+        specified as `(height, width)`. Defaults to `(256, 256)`.
         Since the pipeline processes batches of images that must all have
         the same size, this must be provided.
     shuffle: Whether to shuffle the data. Default: True.
