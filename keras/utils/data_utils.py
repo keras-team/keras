@@ -290,6 +290,15 @@ def get_file(fname=None,
         os.remove(fpath)
       raise
 
+    # Validate download if succeeded and user provided an expected hash
+    # Security conscious users would get the hash of the file from a separate
+    # channel and pass it to this API to prevent MITM / corruption:
+    if os.path.exists(fpath) and file_hash is not None:
+      if not validate_file(fpath, file_hash, algorithm=hash_algorithm):
+        raise ValueError(
+            f'Incomplete or corrupted file detected. The {hash_algorithm} '
+            f'file hash does not match the provided value of {file_hash}.')
+
   if untar:
     if not os.path.exists(untar_fpath):
       _extract_archive(fpath, datadir, archive_format='tar')
