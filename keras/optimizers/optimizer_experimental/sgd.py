@@ -101,7 +101,7 @@ class SGD(optimizer.Optimizer):
                use_ema=False,
                ema_momentum=0.99,
                ema_overwrite_frequency=None,
-               jit_compile=False,
+               jit_compile=True,
                name='SGD',
                **kwargs):
     super(SGD, self).__init__(
@@ -142,12 +142,6 @@ class SGD(optimizer.Optimizer):
 
   def update_step(self, gradient, variable):
     """Update step given gradient and the associated model variable."""
-    if self._var_key(variable) not in self._index_dict:
-      raise KeyError(f'Optimizer cannot recognize variable {variable.name}, '
-                     f'this usually means you are calling an optimizer '
-                     f'previously used on a different model. Please try '
-                     f'creating a new optimizer instance.')
-
     lr = tf.cast(self.learning_rate, variable.dtype)
     m = None
     var_key = self._var_key(variable)
