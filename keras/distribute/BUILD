@@ -179,6 +179,7 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # times out
+        "no_oss",  # TODO(b/226938240): Timeout
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
