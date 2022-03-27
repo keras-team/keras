@@ -63,7 +63,7 @@ class CustomMnistBenchmark(tf.test.Benchmark):
     return tf.nn.compute_average_loss(
         per_example_loss, global_batch_size=batch_size)
 
-  @tf.function(experimental_relax_shapes=True)
+  @tf.function(reduce_retracing=True)
   def train_step(self, inputs, model, loss_fn, optimizer, batch_size):
     """Compute loss and optimize model by optimizer.
 
@@ -85,7 +85,7 @@ class CustomMnistBenchmark(tf.test.Benchmark):
     optimizer.apply_gradients(zip(grads, model.trainable_weights))
     return loss
 
-  @tf.function(experimental_relax_shapes=True)
+  @tf.function(reduce_retracing=True)
   def distributed_train_step(self, batch_dataset, model, loss_fn, optimizer,
                              batch_size, distribution_strategy):
     """Train step in distribution strategy setting.

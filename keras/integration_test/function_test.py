@@ -63,7 +63,7 @@ class FunctionTest(tf.test.TestCase):
 
   def testFunctionRelaxationLosesInnerDimWithKerasLayer(self):
     layer = tf.keras.layers.Dense(1)
-    fn = tf.function(experimental_relax_shapes=True)(layer)
+    fn = tf.function(reduce_retracing=True)(layer)
 
     with self.captureWritesToStream(sys.stderr) as printed:
       fn(tf.ones((3, 2)))

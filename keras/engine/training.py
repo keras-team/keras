@@ -1035,7 +1035,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       if self._jit_compile:
         run_step = tf.function(
-            run_step, jit_compile=True, experimental_relax_shapes=True)
+            run_step, jit_compile=True, reduce_retracing=True)
       data = next(iterator)
       outputs = model.distribute_strategy.run(run_step, args=(data,))
       outputs = reduce_per_replica(
@@ -1052,7 +1052,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       if not self.run_eagerly:
         train_function = tf.function(
-            train_function, experimental_relax_shapes=True)
+            train_function, reduce_retracing=True)
         self.train_tf_function = train_function
 
       if self._cluster_coordinator:
@@ -1074,7 +1074,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       if not self.run_eagerly:
         train_function = tf.function(
-            train_function, experimental_relax_shapes=True)
+            train_function, reduce_retracing=True)
         self.train_tf_function = train_function
 
       self.train_function = lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
@@ -1090,7 +1090,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       if not self.run_eagerly:
         train_function = tf.function(
-            train_function, experimental_relax_shapes=True)
+            train_function, reduce_retracing=True)
         self.train_tf_function = train_function
       self.train_function = train_function
 
@@ -1540,7 +1540,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       if self._jit_compile:
         run_step = tf.function(
-            run_step, jit_compile=True, experimental_relax_shapes=True)
+            run_step, jit_compile=True, reduce_retracing=True)
 
       data = next(iterator)
       outputs = model.distribute_strategy.run(run_step, args=(data,))
@@ -1558,7 +1558,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       if not self.run_eagerly:
         test_function = tf.function(
-            test_function, experimental_relax_shapes=True)
+            test_function, reduce_retracing=True)
 
       if self._cluster_coordinator:
         self.test_function = lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
@@ -1579,7 +1579,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       if not self.run_eagerly:
         test_function = tf.function(
-            test_function, experimental_relax_shapes=True)
+            test_function, reduce_retracing=True)
 
       self.test_function = lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
           test_function,
@@ -1594,7 +1594,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       if not self.run_eagerly:
         test_function = tf.function(
-            test_function, experimental_relax_shapes=True)
+            test_function, reduce_retracing=True)
       self.test_function = test_function
 
     return self.test_function
@@ -1828,7 +1828,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       if self._jit_compile:
         run_step = tf.function(
-            run_step, jit_compile=True, experimental_relax_shapes=True)
+            run_step, jit_compile=True, reduce_retracing=True)
 
       data = next(iterator)
       outputs = model.distribute_strategy.run(run_step, args=(data,))
@@ -1861,7 +1861,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     if not self.run_eagerly:
       predict_function = tf.function(
-          predict_function, experimental_relax_shapes=True)
+          predict_function, reduce_retracing=True)
     self.predict_function = predict_function
 
     return self.predict_function
