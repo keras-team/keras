@@ -3389,8 +3389,9 @@ def resize_images(x, height_factor, width_factor, data_format,
       height_factor: Positive integer.
       width_factor: Positive integer.
       data_format: One of `"channels_first"`, `"channels_last"`.
-      interpolation: A string, one of `area`, `bicubic`, `bilinear`,
-        `gaussian`, `lanczos3`, `lanczos5`, `mitchellcubic`, `nearest`.
+      interpolation: A string, one of `"area"`, `"bicubic"`, `"bilinear"`,
+        `"gaussian"`, `"lanczos3"`, `"lanczos5"`, `"mitchellcubic"`,
+        `"nearest"`.
 
   Returns:
       A tensor.
@@ -3426,7 +3427,7 @@ def resize_images(x, height_factor, width_factor, data_format,
     'mitchellcubic': tf.image.ResizeMethod.MITCHELLCUBIC,
     'nearest': tf.image.ResizeMethod.NEAREST_NEIGHBOR,
   }
-  interploations_list = '`' + '`, `'.join(interpolations.keys()) + '`'
+  interploations_list = '"' + '", "'.join(interpolations.keys()) + '"'
   if interpolation in interpolations:
     x = tf.image.resize(x, new_shape, method=interpolations[interpolation])
   else:
