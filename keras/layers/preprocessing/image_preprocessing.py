@@ -1445,7 +1445,7 @@ class RandomContrast(base_layer.BaseRandomLayer):
 
 
 @keras_export('keras.layers.RandomBrightness', v1=[])
-class RandomBrightness(base_layer.BaseRandomLayer):
+class RandomBrightness(BaseImageAugmentationLayer):
   """A preprocessing layer which randomly adjusts brightness during training.
 
   This layer will randomly increase/reduce the brightness for the input RGB
@@ -1515,6 +1515,23 @@ class RandomBrightness(base_layer.BaseRandomLayer):
     self._set_value_range(value_range)
     self._seed = seed
 
+  def augment_image(self, image, transformation=None):
+    return self._brightness_adjust(image, transformation['rgb_delta'])
+
+  def get_random_transformation(self,
+                                image=None,
+                                label=None,
+                                bounding_box=None):
+    rgb_delta_shape = (1, 1, 1)
+    random_rgb_delta = self._random_generator.random_uniform(
+        shape=rgb_delta_shape,
+        minval=self._factor[0],
+        maxval=self._factor[1],
+    )
+    random_rgb_delta = random_rgb_delta * (
+        self._value_range[1] - self._value_range[0])
+    return {'rgb_delta': random_rgb_delta}
+
   def _set_value_range(self, value_range):
     if not isinstance(value_range, (tuple, list)):
       raise ValueError(
@@ -1542,35 +1559,17 @@ class RandomBrightness(base_layer.BaseRandomLayer):
     if input_number > 1.0 or input_number < -1.0:
       raise ValueError(self._FACTOR_VALIDATION_ERROR + f'Got {input_number}')
 
-  def call(self, inputs, training=True):
-    if training:
-      return self._brightness_adjust(inputs)
-    else:
-      return inputs
-
-  def _brightness_adjust(self, images):
-    images = utils.ensure_tensor(images, self.compute_dtype)
-    rank = images.shape.rank
-    if rank == 3:
-      rgb_delta_shape = (1, 1, 1)
-    elif rank == 4:
-      # Keep only the batch dim. This will ensure to have same adjustment
-      # with in one image, but different across the images.
-      rgb_delta_shape = [tf.shape(images)[0], 1, 1, 1]
-    else:
+  def _brightness_adjust(self, image, rgb_delta):
+    image = utils.ensure_tensor(image, self.compute_dtype)
+    rank = image.shape.rank
+    if rank != 3:
       raise ValueError(
-          'Expected the input image to be rank 3 or 4. Got '
-          f'inputs.shape = {images.shape}')
-    rgb_delta = self._random_generator.random_uniform(
-        shape=rgb_delta_shape,
-        minval=self._factor[0],
-        maxval=self._factor[1],
-    )
-    rgb_delta = rgb_delta * (self._value_range[1] - self._value_range[0])
-    rgb_delta = tf.cast(rgb_delta, images.dtype)
-    images += rgb_delta
+          'Expected the input image to be rank 3. Got '
+          f'inputs.shape = {image.shape}')
+    rgb_delta = tf.cast(rgb_delta, image.dtype)
+    image += rgb_delta
     return tf.clip_by_value(
-        images, self._value_range[0], self._value_range[1])
+        image, self._value_range[0], self._value_range[1])
 
   def get_config(self):
     config = {
