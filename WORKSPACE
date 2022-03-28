@@ -35,5 +35,20 @@ http_archive(
     strip_prefix = "protobuf-3.9.2",
     urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.9.2.tar.gz"],
 )
+
+# ZLIB
+# Need by com_google_protobuf. Note that the original URL from zlib side is not
+# available for now. We need to use bazel mirror as a backup.
+http_archive(
+    name = "zlib",
+    build_file = "@com_google_protobuf//:third_party/zlib.BUILD",
+    sha256 = "c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1",
+    strip_prefix = "zlib-1.2.11",
+    urls = [
+        "https://mirror.bazel.build/zlib.net/zlib-1.2.11.tar.gz",
+        "https://zlib.net/zlib-1.2.11.tar.gz",
+    ],
+)
+
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 protobuf_deps()
