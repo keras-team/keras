@@ -18,8 +18,8 @@
 # pylint: disable=g-direct-tensorflow-import
 """Utilies for image preprocessing and augmentation.
 
-Warning: `tf.keras.preprocessing.image` APIs do not operate on tensors and are
-not recommended for new code. Prefer loading data with
+Deprecated: `tf.keras.preprocessing.image` APIs do not operate on tensors and
+are not recommended for new code. Prefer loading data with
 `tf.keras.utils.image_dataset_from_directory`, and then transforming the output
 `tf.data.Dataset` with preprocessing layers. For more information, see the
 tutorials for [loading images](
@@ -335,7 +335,7 @@ def load_img(path,
 class Iterator(data_utils.Sequence):
   """Base class for image data iterators.
 
-  Warning: `tf.keras.preprocessing.image.Iterator` is not recommended for
+  Deprecated: `tf.keras.preprocessing.image.Iterator` is not recommended for
   new code. Prefer loading images with
   `tf.keras.utils.image_dataset_from_directory` and transforming the output
   `tf.data.Dataset` with preprocessing layers. For more information, see the
@@ -686,8 +686,8 @@ class BatchFromFilesMixin():
 class DirectoryIterator(BatchFromFilesMixin, Iterator):
   """Iterator capable of reading images from a directory on disk.
 
-  Warning: `tf.keras.preprocessing.image.DirectoryIterator` is not recommended
-  for new code. Prefer loading images with
+  Deprecated: `tf.keras.preprocessing.image.DirectoryIterator` is not
+  recommended for new code. Prefer loading images with
   `tf.keras.utils.image_dataset_from_directory` and transforming the output
   `tf.data.Dataset` with preprocessing layers. For more information, see the
   tutorials for [loading images](
@@ -838,8 +838,8 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
 class NumpyArrayIterator(Iterator):
   """Iterator yielding data from a Numpy array.
 
-  Warning: `tf.keras.preprocessing.image.NumpyArrayIterator` is not recommended
-  for new code. Prefer loading images with
+  Deprecated: `tf.keras.preprocessing.image.NumpyArrayIterator` is not
+  recommended for new code. Prefer loading images with
   `tf.keras.utils.image_dataset_from_directory` and transforming the output
   `tf.data.Dataset` with preprocessing layers. For more information, see the
   tutorials for [loading images](
@@ -1296,8 +1296,8 @@ def flip_axis(x, axis):
 class ImageDataGenerator():
   """Generate batches of tensor image data with real-time data augmentation.
 
-  Warning: `tf.keras.preprocessing.image.ImageDataGenerator` is not recommended
-  for new code. Prefer loading images with
+  Deprecated: `tf.keras.preprocessing.image.ImageDataGenerator` is not
+  recommended for new code. Prefer loading images with
   `tf.keras.utils.image_dataset_from_directory` and transforming the output
   `tf.data.Dataset` with preprocessing layers. For more information, see the
   tutorials for [loading images](
@@ -2202,7 +2202,7 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
                     fill_mode='nearest', cval=0., interpolation_order=1):
   """Performs a random rotation of a Numpy image tensor.
 
-  Warning: `tf.keras.preprocessing.image.random_rotation` does not operate on
+  Deprecated: `tf.keras.preprocessing.image.random_rotation` does not operate on
   tensors and is not recommended for new code. Prefer
   `tf.keras.layers.RandomRotation` which provides equivalent functionality as a
   preprocessing layer. For more information, see the tutorial for
@@ -2245,7 +2245,7 @@ def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
                  fill_mode='nearest', cval=0., interpolation_order=1):
   """Performs a random spatial shift of a Numpy image tensor.
 
-  Warning: `tf.keras.preprocessing.image.random_shift` does not operate on
+  Deprecated: `tf.keras.preprocessing.image.random_shift` does not operate on
   tensors and is not recommended for new code. Prefer
   `tf.keras.layers.RandomTranslation` which provides equivalent functionality as
   a preprocessing layer. For more information, see the tutorial for
@@ -2327,7 +2327,7 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
                 fill_mode='nearest', cval=0., interpolation_order=1):
   """Performs a random spatial zoom of a Numpy image tensor.
 
-  Warning: `tf.keras.preprocessing.image.random_zoom` does not operate on
+  Deprecated: `tf.keras.preprocessing.image.random_zoom` does not operate on
   tensors and is not recommended for new code. Prefer
   `tf.keras.layers.RandomZoom` which provides equivalent functionality as
   a preprocessing layer. For more information, see the tutorial for
@@ -2448,8 +2448,8 @@ def apply_brightness_shift(x, brightness, scale=True):
 def random_brightness(x, brightness_range, scale=True):
   """Performs a random brightness shift.
 
-  Warning: `tf.keras.preprocessing.image.random_brightness` does not operate on
-  tensors and is not recommended for new code. Prefer
+  Deprecated: `tf.keras.preprocessing.image.random_brightness` does not operate
+  on tensors and is not recommended for new code. Prefer
   `tf.keras.layers.RandomBrightness` which provides equivalent functionality as
   a preprocessing layer. For more information, see the tutorial for
   [augmenting images](
