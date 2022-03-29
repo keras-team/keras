@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utilities for preprocessing sequence data.
 
-Warning: `tf.keras.preprocessing.sequence` APIs are not recommended for new
+Deprecated: `tf.keras.preprocessing.sequence` APIs are not recommended for new
 code. Prefer `tf.keras.utils.timeseries_dataset_from_array` and
 the `tf.data` APIs which provide a much more flexible mechanisms for dealing
 with sequences. See the [tf.data guide](https://www.tensorflow.org/guide/data)
@@ -56,7 +56,7 @@ def _remove_long_seq(maxlen, seq, label):
 class TimeseriesGenerator(data_utils.Sequence):
   """Utility class for generating batches of temporal data.
 
-  Warning: `tf.keras.preprocessing.sequence.TimeseriesGenerator` does not
+  Deprecated: `tf.keras.preprocessing.sequence.TimeseriesGenerator` does not
   operate on tensors and is not recommended for new code. Prefer using a
   `tf.data.Dataset` which provides a more efficient and flexible mechanism for
   batching, shuffling, and windowing input. See the
