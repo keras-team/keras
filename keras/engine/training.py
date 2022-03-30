@@ -612,7 +612,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           machine learning.
           `jit_compile` is not enabled for by default.
           This option cannot be enabled with `run_eagerly=True`.
-          Note that `jit_compile=True` is
+          Note that `jit_compile=True`
           may not necessarily work for all models.
           For more information on supported operations please refer to the
           [XLA documentation](https://www.tensorflow.org/xla).
