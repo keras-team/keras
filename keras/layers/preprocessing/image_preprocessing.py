@@ -645,6 +645,9 @@ class RandomFlip(BaseImageAugmentationLayer):
     self.seed = seed
     self.auto_vectorize = False
 
+  def augment_label(self, label, transformation=None):
+    return label
+
   def augment_image(self, image, transformation=None):
     flipped_outputs = image
     if self.horizontal:
@@ -837,6 +840,9 @@ class RandomTranslation(BaseImageAugmentationLayer):
     # Change to vectorized_map for better performance, as well as work around
     # issue for different tensorspec between inputs and outputs.
     return tf.vectorized_map(self._augment, inputs)
+
+  def augment_label(self, label, transformation=None):
+    return label
 
   def compute_output_shape(self, input_shape):
     return input_shape
