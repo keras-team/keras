@@ -1158,7 +1158,7 @@ class RandomRotation(base_layer.BaseRandomLayer):
 @keras_export('keras.layers.RandomZoom',
               'keras.layers.experimental.preprocessing.RandomZoom',
               v1=[])
-class RandomZoom(base_layer.BaseRandomLayer):
+class RandomZoom(BaseImageAugmentationLayer):
   """A preprocessing layer which randomly zooms images during training.
 
   This layer will randomly zoom in or out on each axis of an image
@@ -1261,50 +1261,45 @@ class RandomZoom(base_layer.BaseRandomLayer):
     self.interpolation = interpolation
     self.seed = seed
 
-  def call(self, inputs, training=True):
-    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
-
-    def random_zoomed_inputs(inputs):
-      """Zoomed inputs with random ops."""
-      original_shape = inputs.shape
-      unbatched = inputs.shape.rank == 3
-      # The transform op only accepts rank 4 inputs, so if we have an unbatched
-      # image, we need to temporarily expand dims to a batch.
-      if unbatched:
-        inputs = tf.expand_dims(inputs, 0)
-      inputs_shape = tf.shape(inputs)
-      batch_size = inputs_shape[0]
-      img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-      img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-      height_zoom = self._random_generator.random_uniform(
-          shape=[batch_size, 1],
-          minval=1. + self.height_lower,
-          maxval=1. + self.height_upper)
-      if self.width_factor is not None:
-        width_zoom = self._random_generator.random_uniform(
-            shape=[batch_size, 1],
-            minval=1. + self.width_lower,
-            maxval=1. + self.width_upper)
-      else:
-        width_zoom = height_zoom
-      zooms = tf.cast(
-          tf.concat([width_zoom, height_zoom], axis=1),
-          dtype=tf.float32)
-      output = transform(
-          inputs,
-          get_zoom_matrix(zooms, img_hd, img_wd),
-          fill_mode=self.fill_mode,
-          fill_value=self.fill_value,
-          interpolation=self.interpolation)
-      if unbatched:
-        output = tf.squeeze(output, 0)
-      output.set_shape(original_shape)
-      return output
-
-    if training:
-      return random_zoomed_inputs(inputs)
+  def get_random_transformation(self,
+                                image=None,
+                                label=None,
+                                bounding_box=None):
+    height_zoom = self._random_generator.random_uniform(
+        shape=[1, 1],
+        minval=1. + self.height_lower,
+        maxval=1. + self.height_upper)
+    if self.width_factor is not None:
+      width_zoom = self._random_generator.random_uniform(
+          shape=[1, 1],
+          minval=1. + self.width_lower,
+          maxval=1. + self.width_upper)
     else:
-      return inputs
+      width_zoom = height_zoom
+
+    return {'height_zoom': height_zoom, 'width_zoom': width_zoom}
+
+  def augment_image(self, image, transformation=None):
+    image = utils.ensure_tensor(image, self.compute_dtype)
+    original_shape = image.shape
+    image = tf.expand_dims(image, 0)
+    image_shape = tf.shape(image)
+    img_hd = tf.cast(image_shape[H_AXIS], tf.float32)
+    img_wd = tf.cast(image_shape[W_AXIS], tf.float32)
+    width_zoom = transformation['width_zoom']
+    height_zoom = transformation['height_zoom']
+    zooms = tf.cast(
+        tf.concat([width_zoom, height_zoom], axis=1),
+        dtype=tf.float32)
+    output = transform(
+        image,
+        get_zoom_matrix(zooms, img_hd, img_wd),
+        fill_mode=self.fill_mode,
+        fill_value=self.fill_value,
+        interpolation=self.interpolation)
+    output = tf.squeeze(output, 0)
+    output.set_shape(original_shape)
+    return output
 
   def compute_output_shape(self, input_shape):
     return input_shape
