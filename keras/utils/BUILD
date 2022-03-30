@@ -230,6 +230,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        "//:expect_pillow_installed",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -253,10 +254,10 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":image_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/layers/preprocessing:image_preprocessing",
-        "//keras/preprocessing:image",
     ],
 )
 
@@ -454,7 +455,11 @@ tf_py_test(
     srcs = ["image_utils_test.py"],
     python_version = "PY3",
     shard_count = 4,
+    tags = [
+        "no_pip",
+    ],
     deps = [
+        ":image_utils",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
