@@ -111,6 +111,23 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     clipped_grad = optimizer._clip_gradients(grad)
     self.assertAllEqual(clipped_grad[0], [1.0, 1.0])
 
+  def testWeightDecay(self):
+    grads, var1, var2, var3 = tf.zeros(()), tf.Variable(2.0), tf.Variable(2.0), tf.Variable(2.0)
+    optimizer_1 = adamw_new.AdamW(learning_rate=0.001, weight_decay=0.004)
+    optimizer_1.apply_gradients(zip([grads], [var1]))
+
+    optimizer_2 = adamw_new.AdamW(learning_rate=0.001, weight_decay=0.004)
+    optimizer_2.exclude_from_weight_decay([var2])
+    optimizer_2.apply_gradients(zip([grads], [var2]))
+
+    optimizer_3 = adamw_new.AdamW(learning_rate=0.001, weight_decay=0.004)
+    optimizer_3.build([var3], exclude_from_weight_decay=[var3])
+    optimizer_3.apply_gradients(zip([grads], [var3]))
+
+    self.assertAllClose(var1, 8e-6)
+    self.assertEqual(var2, 2.0)
+    self.assertEqual(var3, 2.0)
+
   def testClipGlobalNorm(self):
     optimizer = adam_new.Adam(global_clipnorm=1)
     grad = [
@@ -280,8 +297,6 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         [keras.layers.Input(shape=(1,)),
          keras.layers.Dense(1)])
     optimizer = optimizer_fn()
-    if type(optimizer) is adamw_new.AdamW:
-      optimizer.exclude_from_weight_decay(model.layers[-1].weights[-1])
     optimizer.clipnorm = 0.1
     x = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
     y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
@@ -381,8 +396,6 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
           [keras.layers.Input(shape=(1,)),
            keras.layers.Dense(1)])
       optimizer = optimizer_fn()
-      if type(optimizer) is adamw_new.AdamW:
-        optimizer.exclude_from_weight_decay(model.layers[-1].weights[-1])
       x = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
       y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
       model.compile(loss="mse", optimizer=optimizer)
@@ -407,8 +420,6 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
           [keras.layers.Input(shape=(1,)),
            keras.layers.Dense(1)])
       optimizer = optimizer_fn()
-      if type(optimizer) is adamw_new.AdamW:
-        optimizer.exclude_from_weight_decay(model.layers[-1].weights[-1])
 
       def per_worker_dataset_fn():
 
