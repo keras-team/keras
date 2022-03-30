@@ -83,9 +83,9 @@ class _Merge(Layer):
       raise ValueError(
           'A merge layer should be called on a list of inputs. '
           f'Received: input_shape={input_shape} (not a list of shapes)')
-    if len(input_shape) < 2:
+    if len(input_shape) < 1:
       raise ValueError('A merge layer should be called '
-                       'on a list of at least 2 inputs. '
+                       'on a list of at least 1 input. '
                        f'Got {len(input_shape)} inputs. '
                        f'Full input_shape received: {input_shape}')
     batch_sizes = {s[0] for s in input_shape if s} - {None}

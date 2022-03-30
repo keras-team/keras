@@ -1,0 +1,39 @@
+path: "tensorflow.keras.applications.resnet_rs"
+tf_module {
+  member_method {
+    name: "ResNetRS101"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS152"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS200"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS270"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS350"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS420"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "ResNetRS50"
+    argspec: "args=[\'include_top\', \'weights\', \'classes\', \'input_shape\', \'input_tensor\', \'pooling\', \'classifier_activation\', \'include_preprocessing\'], varargs=None, keywords=None, defaults=[\'True\', \'imagenet\', \'1000\', \'None\', \'None\', \'None\', \'softmax\', \'True\'], "
+  }
+  member_method {
+    name: "decode_predictions"
+    argspec: "args=[\'preds\', \'top\'], varargs=None, keywords=None, defaults=[\'5\'], "
+  }
+  member_method {
+    name: "preprocess_input"
+    argspec: "args=[\'x\', \'data_format\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+}

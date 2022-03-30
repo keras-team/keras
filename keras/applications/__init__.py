@@ -54,6 +54,14 @@ from keras.applications.resnet_v2 import ResNet50V2
 from keras.applications.resnet_v2 import ResNet101V2
 from keras.applications.resnet_v2 import ResNet152V2
 
+from keras.applications.resnet_rs import ResNetRS50
+from keras.applications.resnet_rs import ResNetRS101
+from keras.applications.resnet_rs import ResNetRS152
+from keras.applications.resnet_rs import ResNetRS200
+from keras.applications.resnet_rs import ResNetRS270
+from keras.applications.resnet_rs import ResNetRS350
+from keras.applications.resnet_rs import ResNetRS420
+
 from keras.applications.vgg16 import VGG16
 from keras.applications.vgg19 import VGG19
 

@@ -207,7 +207,7 @@ def concatenate(inputs, axis=-1, **kwargs):
         [25, 26, 27, 28, 29]]])>
 
   Args:
-      inputs: A list of input tensors (at least 2).
+      inputs: A list of input tensors.
       axis: Concatenation axis.
       **kwargs: Standard layer keyword arguments.
 

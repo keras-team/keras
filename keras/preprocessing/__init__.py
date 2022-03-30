@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utilities to preprocess data before training.
 
-Warning: `tf.keras.preprocessing` APIs do not operate on tensors and are
+Deprecated: `tf.keras.preprocessing` APIs do not operate on tensors and are
 not recommended for new code. Prefer loading data with either
 `tf.keras.utils.text_dataset_from_directory` or
 `tf.keras.utils.image_dataset_from_directory`, and then transforming the output

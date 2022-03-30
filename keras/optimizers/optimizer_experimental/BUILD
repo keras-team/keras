@@ -38,6 +38,7 @@ distribute_py_test(
     shard_count = 8,
     tags = [
         "multi_gpu",
+        "no_oss",  # TODO(b/226938240): Reenable
         "no_windows",
         "nomultivm",  # TODO(b/203558991): Re-enable.
     ],

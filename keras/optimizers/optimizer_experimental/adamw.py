@@ -99,7 +99,7 @@ class AdamW(optimizer.Optimizer):
                use_ema=False,
                ema_momentum=0.99,
                ema_overwrite_frequency=None,
-               jit_compile=False,
+               jit_compile=True,
                name='AdamW',
                **kwargs):
     super(AdamW, self).__init__(
@@ -155,11 +155,6 @@ class AdamW(optimizer.Optimizer):
 
   def update_step(self, gradient, variable):
     """Update step given gradient and the associated model variable."""
-    if self._var_key(variable) not in self._index_dict:
-      raise KeyError(f'Optimizer cannot recognize variable {variable.name}, '
-                     f'this usually means you are calling an optimizer '
-                     f'previously used on a different model. Please try '
-                     f'creating a new optimizer instance.')
     beta_1_power = None
     beta_2_power = None
     lr = tf.cast(self.learning_rate, variable.dtype)

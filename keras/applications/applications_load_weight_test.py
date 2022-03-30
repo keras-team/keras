@@ -35,6 +35,7 @@ from keras.applications import resnet_v2
 from keras.applications import vgg16
 from keras.applications import vgg19
 from keras.applications import xception
+from keras.applications import resnet_rs
 from keras.preprocessing import image
 from keras.utils import data_utils
 
@@ -70,6 +71,11 @@ ARG_TO_MODEL = {
         efficientnet_v2.EfficientNetV2B2, efficientnet_v2.EfficientNetV2B3,
         efficientnet_v2.EfficientNetV2S, efficientnet_v2.EfficientNetV2M,
         efficientnet_v2.EfficientNetV2L
+    ]),
+    'resnet_rs': (resnet_rs, [
+        resnet_rs.ResNetRS50, resnet_rs.ResNetRS101, resnet_rs.ResNetRS152,
+        resnet_rs.ResNetRS200, resnet_rs.ResNetRS270, resnet_rs.ResNetRS350,
+        resnet_rs.ResNetRS420
     ]),
     'regnet': (regnet, [
         regnet.RegNetX002, regnet.RegNetX004, regnet.RegNetX006,

@@ -230,8 +230,8 @@ tf_class {
     argspec: "args=[\'self\', \'node_index\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
-    name: "get_random_tranformation"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+    name: "get_random_transformation"
+    argspec: "args=[\'self\', \'image\', \'label\', \'bounding_box\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\'], "
   }
   member_method {
     name: "get_weights"

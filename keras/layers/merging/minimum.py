@@ -56,7 +56,7 @@ def minimum(inputs, **kwargs):
   """Functional interface to the `Minimum` layer.
 
   Args:
-      inputs: A list of input tensors (at least 2).
+      inputs: A list of input tensors.
       **kwargs: Standard layer keyword arguments.
 
   Returns:

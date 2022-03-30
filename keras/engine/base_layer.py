@@ -2188,6 +2188,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   def _infer_output_signature(self, inputs, args, kwargs, input_masks):
     """Call the layer on input KerasTensors and returns output KerasTensors."""
 
+    keras_tensor_inputs = inputs
     call_fn = self.call
     # Wrapping `call` function in autograph to allow for dynamic control
     # flow and control dependencies in call. We are limiting this to
@@ -2236,7 +2237,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       outputs = tf.nest.map_structure(
           keras_tensor.keras_tensor_from_tensor, outputs)
 
-    self._set_save_spec(inputs, args, kwargs)
+    self._set_save_spec(keras_tensor_inputs, args, kwargs)
     if hasattr(self, '_set_inputs') and not self.inputs:
       # TODO(kaftan): figure out if we need to do this at all
       # Subclassed network: explicitly set metadata normally set by

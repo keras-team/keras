@@ -72,11 +72,8 @@ class MeanMetricAsCompositeTensor(keras.metrics.Mean,
 
   @property
   def _type_spec(self):
-    weight_specs = []
-    for w in self.weights:
-      weight_specs.append(
-          resource_variable_ops.VariableSpec(
-              w.shape, w.dtype, w.name.split(":")[0], trainable=False))
+    weight_specs = [
+        resource_variable_ops.VariableSpec.from_value(w) for w in self.weights]
     return MeanMetricSpec(self.get_config(), weight_specs)
 
 

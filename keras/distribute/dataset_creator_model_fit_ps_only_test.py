@@ -132,6 +132,16 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
           callbacks=callbacks,
           use_dataset_creator=use_dataset_creator)
 
+  def testClusterCoordinatorSingleInstanceWithJitCompileTrue(
+      self, strategy, use_dataset_creator):
+    model = self._model_fit(strategy,
+                            use_dataset_creator=use_dataset_creator,
+                            jit_compile=True)
+    strategy = model.distribute_strategy
+    self.assertIs(
+        strategy._cluster_coordinator,
+        tf.distribute.experimental.coordinator.ClusterCoordinator(strategy))
+
 
 if __name__ == "__main__":
   tf.__internal__.distribute.multi_process_runner.test_main()
