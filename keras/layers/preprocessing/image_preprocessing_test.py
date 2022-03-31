@@ -690,6 +690,23 @@ class RandomContrastTest(test_combinations.TestCase):
         actual_output = layer(inp, training=True)
         self.assertAllClose(expected_output, actual_output)
 
+  def test_augment_image(self):
+    np.random.seed(1337)
+    mock_random = 0.2
+    inp = np.random.random((4, 4, 1))
+    inp_mean = np.mean(inp, axis=0, keepdims=True)
+    inp_mean = np.mean(inp_mean, axis=1, keepdims=True)
+    expected_output = (inp - inp_mean) * mock_random + inp_mean
+    with tf.compat.v1.test.mock.patch.object(
+        stateless_random_ops,
+        'stateless_random_uniform',
+        return_value=mock_random,
+    ):
+      with test_utils.use_gpu():
+        layer = image_preprocessing.RandomContrast((0.2, 0.5))
+        actual_output = layer.augment_image(inp)
+        self.assertAllClose(expected_output, actual_output)
+
   @test_utils.run_v2_only
   def test_output_dtypes(self):
     inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
@@ -756,6 +773,23 @@ class RandomBrightnessTest(test_combinations.TestCase):
     inputs = np.random.randint(0, 255, size=(224, 224, 3))
     output = layer(inputs)
     diff = output - inputs
+    self.assertLessEqual(tf.math.reduce_max(diff), 0)
+    self.assertLess(tf.math.reduce_mean(diff), 0)
+
+  def test_augment_image(self):
+    # Always scale up, but randomly between 0 ~ 255
+    layer = image_preprocessing.RandomBrightness([0, 1.0])
+    image = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer.augment_image(image, transformation=None)
+    diff = output - image
+    self.assertGreaterEqual(tf.math.reduce_min(diff), 0)
+    self.assertGreater(tf.math.reduce_mean(diff), 0)
+
+    # Always scale down, but randomly between 0 ~ 255
+    layer = image_preprocessing.RandomBrightness([-1.0, 0.0])
+    image = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer.augment_image(image)
+    diff = output - image
     self.assertLessEqual(tf.math.reduce_max(diff), 0)
     self.assertLess(tf.math.reduce_mean(diff), 0)
 
@@ -1454,6 +1488,22 @@ class RandomRotationTest(test_combinations.TestCase):
       expected_output = np.reshape(expected_output, (5, 5, 1))
       self.assertAllClose(expected_output, output_image)
 
+  def test_augment_image(self):
+    with test_utils.use_gpu():
+      input_image = np.reshape(np.arange(0, 25), (5, 5, 1)).astype(np.float32)
+      # 180 rotation.
+      layer = image_preprocessing.RandomRotation(factor=(0.5, 0.5))
+      output_image = layer.augment_image(input_image, transformation=None)
+      expected_output = np.asarray([
+          [24, 23, 22, 21, 20],
+          [19, 18, 17, 16, 15],
+          [14, 13, 12, 11, 10],
+          [9, 8, 7, 6, 5],
+          [4, 3, 2, 1, 0],
+      ]).astype(np.float32)
+      expected_output = np.reshape(expected_output, (5, 5, 1))
+      self.assertAllClose(expected_output, output_image)
+
   @test_utils.run_v2_only
   def test_output_dtypes(self):
     inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
@@ -1566,6 +1616,22 @@ class RandomZoomTest(test_combinations.TestCase):
       layer = image_preprocessing.RandomZoom((-.5, -.5), (-.5, -.5),
                                              interpolation='nearest')
       output_image = layer(input_image)
+      expected_output = np.asarray([
+          [6, 7, 7, 8, 8],
+          [11, 12, 12, 13, 13],
+          [11, 12, 12, 13, 13],
+          [16, 17, 17, 18, 18],
+          [16, 17, 17, 18, 18],
+      ]).astype(np.int64)
+      expected_output = np.reshape(expected_output, (5, 5, 1))
+      self.assertAllEqual(expected_output, output_image)
+
+  def test_augment_image(self):
+    with test_utils.use_gpu():
+      input_image = np.reshape(np.arange(0, 25), (5, 5, 1)).astype(np.int64)
+      layer = image_preprocessing.RandomZoom((-.5, -.5), (-.5, -.5),
+                                             interpolation='nearest')
+      output_image = layer.augment_image(input_image)
       expected_output = np.asarray([
           [6, 7, 7, 8, 8],
           [11, 12, 12, 13, 13],
