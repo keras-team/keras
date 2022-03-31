@@ -800,7 +800,8 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
     # self._optimizer.apply_gradients does not take
     # experimental_aggregate_gradients.
     return self._optimizer.apply_gradients(
-        list(zip(grads, wrapped_vars.value)), name,
+        list(zip(grads, wrapped_vars.value)),
+        name=name,
         experimental_aggregate_gradients=False)
 
   def get_config(self):
