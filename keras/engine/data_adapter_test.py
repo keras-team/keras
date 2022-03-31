@@ -17,6 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 import math
+from typing import List, Union, Text, Optional, Any, Tuple, Dict, ItemsView, overload, DefaultDict
 
 from absl.testing import parameterized
 import numpy as np
@@ -26,6 +27,92 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.engine import data_adapter
 from keras.utils import data_utils
+from tensorflow.python.eager import context
+
+
+class TestBatchSequence(data_utils.Sequence):
+
+  def __init__(
+    self,
+    batch_size: Union[int, List[int]],
+    feature_shape,
+    epochs: int = 2,
+  ):
+    print("TestBatchSequence.__init__")
+    self.batch_size = batch_size
+    self.feature_shape = feature_shape
+
+    # if isinstance(batch_size, list):
+    #     logger.debug(
+    #         "The provided batch size is a list, this data generator will use a "
+    #         "linear increasing batch size."
+    #     )
+
+    self._epochs = epochs
+    # we use `on_epoch_end` method to prepare data for the next epoch
+    # set current epoch to `-1`, so that `on_epoch_end` will increase it to `0`
+    self._current_epoch = -1
+    # actual batch size will be set inside `on_epoch_end`
+    self._current_batch_size = 0
+    # create separate data variable that will store modified data for each batch
+    # self._data: Data = {}
+
+    self.on_epoch_end()
+
+  def __len__(self) -> int:
+      """Number of batches in the Sequence.
+
+      Returns:
+          The number of batches in the Sequence.
+      """
+      # data was rebalanced, so need to recalculate number of examples
+      num_examples = 20
+      batch_size = self._current_batch_size
+      return num_examples // batch_size + int(num_examples % batch_size > 0)  # = math.ceil(num_examples / batch_size )
+
+  def __getitem__(self, index: int) -> Tuple[Any, Any]:
+      """Gets batch at position `index`.
+
+      Arguments:
+          index: position of the batch in the Sequence.
+
+      Returns:
+          A batch (tuple of input data and target data).
+      """
+      print(f"__getitem__ : self._current_epoch: {self._current_epoch}, self._current_batch_size: {self._current_batch_size}")
+      # return input and target data, as our target data is inside the input
+      # data return None for the target data
+      return (np.zeros((self._current_batch_size, self.feature_shape)),
+              np.ones((self._current_batch_size,)))
+
+  def on_epoch_end(self) -> None:
+    """Update the data after every epoch."""
+    self._current_epoch += 1
+    if self._current_epoch < self._epochs:
+      self._current_batch_size = self._linearly_increasing_batch_size()
+    print(f"on_epoch_end: self._current_epoch: {self._current_epoch}, self._current_batch_size: {self._current_batch_size}")
+    # self._data = self._shuffle_and_balance(self._current_batch_size)
+
+  def _linearly_increasing_batch_size(self) -> int:
+      """Linearly increase batch size with every epoch.
+
+      The idea comes from https://arxiv.org/abs/1711.00489.
+
+      Returns:
+          The batch size to use in this epoch.
+      """
+      if not isinstance(self.batch_size, list):
+          return int(self.batch_size)
+
+      if self._epochs > 1:
+          return int(
+              self.batch_size[0]
+              + self._current_epoch
+              * (self.batch_size[1] - self.batch_size[0])
+              / (self._epochs - 1)
+          )
+      else:
+          return int(self.batch_size[0])
 
 
 class DummyArrayLike:
@@ -78,6 +165,14 @@ class DataAdapterTestBase(test_combinations.TestCase):
     self.iterator_input = data_utils.threadsafe_generator(generator)()
     self.sequence_input = TestSequence(batch_size=self.batch_size,
                                        feature_shape=10)
+
+    self.increasing_batch_size = [5, 10]
+    self.sequence_input_increasing_batch_size = TestBatchSequence(
+      batch_size=self.increasing_batch_size,
+      feature_shape=10,
+      epochs=2,
+      )
+
     self.text_input = [['abc']]
     self.bytes_input = [[b'abc']]
     self.model = keras.models.Sequential(
@@ -501,6 +596,77 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
                    batch_size=5)
     self.model.evaluate(self.arraylike_input,
                         self.numpy_target, batch_size=5)
+
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  def test_training_increasing_batch_size_fit_call(self):
+    epochs = self.sequence_input_increasing_batch_size._epochs  # 2
+
+    self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
+                       run_eagerly=test_utils.should_run_eagerly())
+
+    # Check state before fit()
+    self.assertEqual(self.sequence_input_increasing_batch_size._current_epoch, 0)
+    self.assertEqual(self.sequence_input_increasing_batch_size._current_batch_size, 5)
+    my_data_handler = data_adapter.get_data_handler(
+      self.sequence_input_increasing_batch_size,
+      epochs=epochs,
+      model=self.model,
+    )
+    self.assertEqual(my_data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
+
+    self.model.fit(self.sequence_input_increasing_batch_size, epochs=epochs)
+    # TODO call things inside fit step by step and see how data_handler behaves while doing this
+
+    # Check state after fit()
+    self.assertEqual(self.sequence_input_increasing_batch_size._current_epoch, 2)
+    self.assertEqual(self.sequence_input_increasing_batch_size._current_batch_size, 10)
+    my_new_data_handler = data_adapter.get_data_handler(
+      self.sequence_input_increasing_batch_size,
+      epochs=epochs,
+      model=self.model,
+    )
+    self.assertEqual(my_data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
+    self.assertEqual(my_new_data_handler.inferred_steps, 2)  # 20 samples / 10 bs = 2
+
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  def test_training_increasing_batch_size_fit_internals(self):
+    epochs = self.sequence_input_increasing_batch_size._epochs  # 2
+
+    self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
+                       run_eagerly=test_utils.should_run_eagerly())
+    self.model.stop_training = False
+    self.model.train_function = self.model.make_train_function()
+
+    # Check state before fit()
+    self.assertEqual(self.sequence_input_increasing_batch_size._current_epoch, 0)
+    self.assertEqual(self.sequence_input_increasing_batch_size._current_batch_size, 5)
+    data_handler = data_adapter.get_data_handler(
+      self.sequence_input_increasing_batch_size,
+      epochs=epochs,
+      model=self.model,
+    )
+    self.assertEqual(data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
+
+    # Execute fit()-loop and see how data_handler behaves while doing this
+    for epoch, iterator in data_handler.enumerate_epochs():
+      self.model.reset_metrics()
+      with data_handler.catch_stop_iteration():
+          for step in data_handler.steps():
+              with tf.profiler.experimental.Trace(
+                  "train",
+                  epoch_num=epoch,
+                  step_num=step,
+                  batch_size=self.sequence_input_increasing_batch_size._current_batch_size,
+                  _r=1,
+              ):
+                  tmp_logs = self.model.train_function(iterator)
+                  if data_handler.should_sync:
+                      context.async_wait()
+                  logs = tmp_logs  # No error, now safe to assign to logs.
+                  end_step = step + data_handler.step_increment
+                  if self.model.stop_training:
+                      break
+    self.assertEqual(data_handler.inferred_steps, 2)  # 20 samples / 10 bs = 2
 
   @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training_tensor_target(self):
