@@ -1032,7 +1032,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             [tf.get_current_name_scope(), relative_name_scope_on_declaration])
         current_name_scope = '/'.join(relative_name_scope) + '/'
         if current_name_scope == '/':
-          current_name_scope = self._name_scope_on_declaration
+          current_name_scope = self._name_scope_on_declaration[1:]
         with tf.name_scope(current_name_scope):
           name_scope = self._name_scope()  # Avoid autoincrementing.  # pylint: disable=not-callable
     else:
