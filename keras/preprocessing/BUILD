@@ -38,6 +38,7 @@ py_library(
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras/utils:data_utils",
+        "//keras/utils:image_utils",
     ],
 )
 

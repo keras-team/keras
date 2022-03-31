@@ -9,3 +9,4 @@ pyyaml
 Pillow
 numpy ~= 1.21.4  # Sync with the numpy version used in TF
 pylint
+black==22.3.0

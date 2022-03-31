@@ -126,6 +126,39 @@ class TestGetFile(tf.test.TestCase):
     self.assertEndsWith(path, '.txt')
     self.assertTrue(os.path.exists(path))
 
+  def test_get_file_with_integrity_check(self):
+    """Tests get_file with validation before download."""
+    orig_dir = self.get_temp_dir()
+    file_path = os.path.join(orig_dir, 'test.txt')
+
+    with open(file_path, 'w') as text_file:
+      text_file.write('Float like a butterfly, sting like a bee.')
+
+    hashval = keras.utils.data_utils._hash_file(file_path)
+
+    origin = urllib.parse.urljoin(
+        'file://', urllib.request.pathname2url(os.path.abspath(file_path)))
+
+    path = keras.utils.data_utils.get_file(
+        'test.txt', origin, file_hash=hashval)
+    self.assertTrue(os.path.exists(path))
+
+  def test_get_file_with_failed_integrity_check(self):
+    """Tests get_file with validation before download."""
+    orig_dir = self.get_temp_dir()
+    file_path = os.path.join(orig_dir, 'test.txt')
+
+    with open(file_path, 'w') as text_file:
+      text_file.write('Float like a butterfly, sting like a bee.')
+
+    hashval = '0' * 64
+
+    origin = urllib.parse.urljoin(
+        'file://', urllib.request.pathname2url(os.path.abspath(file_path)))
+
+    with self.assertRaisesRegex(ValueError, 'Incomplete or corrupted file.*'):
+      _ = keras.utils.data_utils.get_file('test.txt', origin, file_hash=hashval)
+
 
 class TestSequence(keras.utils.data_utils.Sequence):
 
@@ -310,6 +343,78 @@ class TestEnqueuers(tf.test.TestCase):
     # Check that order was keep in GeneratorEnqueuer with processes
     self.assertEqual(acc, list([k * 5 for k in range(100)]))
     enqueuer.stop()
+
+
+class PadSequencesTest(tf.test.TestCase):
+
+  def test_pad_sequences(self):
+    a = [[1], [1, 2], [1, 2, 3]]
+
+    # test padding
+    b = data_utils.pad_sequences(a, maxlen=3, padding='pre')
+    self.assertAllClose(b, [[0, 0, 1], [0, 1, 2], [1, 2, 3]])
+    b = data_utils.pad_sequences(a, maxlen=3, padding='post')
+    self.assertAllClose(b, [[1, 0, 0], [1, 2, 0], [1, 2, 3]])
+
+    # test truncating
+    b = data_utils.pad_sequences(a, maxlen=2, truncating='pre')
+    self.assertAllClose(b, [[0, 1], [1, 2], [2, 3]])
+    b = data_utils.pad_sequences(a, maxlen=2, truncating='post')
+    self.assertAllClose(b, [[0, 1], [1, 2], [1, 2]])
+
+    # test value
+    b = data_utils.pad_sequences(a, maxlen=3, value=1)
+    self.assertAllClose(b, [[1, 1, 1], [1, 1, 2], [1, 2, 3]])
+
+  def test_pad_sequences_str(self):
+    a = [['1'], ['1', '2'], ['1', '2', '3']]
+
+    # test padding
+    b = data_utils.pad_sequences(
+        a, maxlen=3, padding='pre', value='pad', dtype=object)
+    self.assertAllEqual(
+        b, [['pad', 'pad', '1'], ['pad', '1', '2'], ['1', '2', '3']])
+    b = data_utils.pad_sequences(
+        a, maxlen=3, padding='post', value='pad', dtype='<U3')
+    self.assertAllEqual(
+        b, [['1', 'pad', 'pad'], ['1', '2', 'pad'], ['1', '2', '3']])
+
+    # test truncating
+    b = data_utils.pad_sequences(
+        a, maxlen=2, truncating='pre', value='pad', dtype=object)
+    self.assertAllEqual(b, [['pad', '1'], ['1', '2'], ['2', '3']])
+    b = data_utils.pad_sequences(
+        a, maxlen=2, truncating='post', value='pad', dtype='<U3')
+    self.assertAllEqual(b, [['pad', '1'], ['1', '2'], ['1', '2']])
+
+    with self.assertRaisesRegex(ValueError,
+                                '`dtype` int32 is not compatible with '):
+      data_utils.pad_sequences(a, maxlen=2, truncating='post', value='pad')
+
+  def test_pad_sequences_vector(self):
+    a = [[[1, 1]], [[2, 1], [2, 2]], [[3, 1], [3, 2], [3, 3]]]
+
+    # test padding
+    b = data_utils.pad_sequences(a, maxlen=3, padding='pre')
+    self.assertAllClose(b, [[[0, 0], [0, 0], [1, 1]], [[0, 0], [2, 1], [2, 2]],
+                            [[3, 1], [3, 2], [3, 3]]])
+    b = data_utils.pad_sequences(a, maxlen=3, padding='post')
+    self.assertAllClose(b, [[[1, 1], [0, 0], [0, 0]], [[2, 1], [2, 2], [0, 0]],
+                            [[3, 1], [3, 2], [3, 3]]])
+
+    # test truncating
+    b = data_utils.pad_sequences(a, maxlen=2, truncating='pre')
+    self.assertAllClose(b,
+                        [[[0, 0], [1, 1]], [[2, 1], [2, 2]], [[3, 2], [3, 3]]])
+
+    b = data_utils.pad_sequences(a, maxlen=2, truncating='post')
+    self.assertAllClose(b,
+                        [[[0, 0], [1, 1]], [[2, 1], [2, 2]], [[3, 1], [3, 2]]])
+
+    # test value
+    b = data_utils.pad_sequences(a, maxlen=3, value=1)
+    self.assertAllClose(b, [[[1, 1], [1, 1], [1, 1]], [[1, 1], [2, 1], [2, 2]],
+                            [[3, 1], [3, 2], [3, 3]]])
 
 
 if __name__ == '__main__':

@@ -134,12 +134,13 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
 
   def testClusterCoordinatorSingleInstanceWithJitCompileTrue(
       self, strategy, use_dataset_creator):
-    with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
-                                "Graph execution error"):
-      model = self._model_fit(strategy,
-                              use_dataset_creator=use_dataset_creator,
-                              jit_compile=True)
-      strategy = model.distribute_strategy
+    model = self._model_fit(strategy,
+                            use_dataset_creator=use_dataset_creator,
+                            jit_compile=True)
+    strategy = model.distribute_strategy
+    self.assertIs(
+        strategy._cluster_coordinator,
+        tf.distribute.experimental.coordinator.ClusterCoordinator(strategy))
 
 
 if __name__ == "__main__":

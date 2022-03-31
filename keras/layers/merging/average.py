@@ -80,7 +80,7 @@ def average(inputs, **kwargs):
   >>> model = tf.keras.models.Model(inputs=[input1, input2], outputs=out)
 
   Args:
-      inputs: A list of input tensors (at least 2).
+      inputs: A list of input tensors.
       **kwargs: Standard layer keyword arguments.
 
   Returns:

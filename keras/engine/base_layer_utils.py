@@ -809,8 +809,8 @@ class TrackableWeightHandler:
     self._trackable = trackable
     self._distribute_strategy = tf.distribute.get_strategy()
 
-    # TODO(b/141682913): Figure out why this is private and fix it.
-    saveables = trackable._gather_saveables_for_checkpoint().values()  # pylint: disable=protected-access
+    saveables = tf.__internal__.tracking.saveable_objects_from_trackable(
+        trackable).values()
     # 'Saveables' won't exist when we're passed a legacy TF1 table like
     # a StaticHashTable.
     if not saveables:

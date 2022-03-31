@@ -27,6 +27,7 @@ py_library(
         "nasnet.py",
         "regnet.py",
         "resnet.py",
+        "resnet_rs.py",
         "resnet_v2.py",
         "vgg16.py",
         "vgg19.py",

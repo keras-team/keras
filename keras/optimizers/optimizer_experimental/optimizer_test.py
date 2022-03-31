@@ -93,6 +93,12 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(variable._shared_name, "test/tmp")
     self.assertEqual(self.evaluate(variable), 0)
 
+  def testAddVarialeWithCustomShape(self):
+    optimizer = adam_new.Adam()
+    variable = optimizer.add_variable_from_reference(
+        tf.Variable([1.0, 2.0], name="tmp"), "test", shape=[])
+    self.assertEqual(variable, tf.Variable(0.))
+
   def testBuildIndexDict(self):
     optimizer = adam_new.Adam()
     var_list = [tf.Variable(0, name=f"var{i}") for i in range(10)]
@@ -174,7 +180,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
       optimizer.learning_rate = 2.0
 
   def testSetIterations(self):
-    optimizer = adam_new.Adam()
+    optimizer = adam_new.Adam(jit_compile=False)
     optimizer.iterations = tf.Variable(2, dtype=tf.int32)
     self.assertEqual(optimizer.iterations, 2)
     var_list = [tf.Variable(2.0), tf.Variable(2.0)]
@@ -227,21 +233,20 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         ema_momentum=0.5,
         ema_overwrite_frequency=50)
     config = optimizer.get_config()
-    self.assertDictEqual(
-        config, {
-            "learning_rate": np.float32(0.05),
-            "beta_1": 0.7,
-            "beta_2": 0.77,
-            "epsilon": 0.001,
-            "amsgrad": True,
-            "clipnorm": 0.5,
-            "global_clipnorm": None,
-            "clipvalue": None,
-            "use_ema": True,
-            "ema_momentum": 0.5,
-            "ema_overwrite_frequency": 50,
-            "jit_compile": False,
-        })
+    expected_config = {
+        "learning_rate": np.float32(0.05),
+        "beta_1": 0.7,
+        "beta_2": 0.77,
+        "epsilon": 0.001,
+        "amsgrad": True,
+        "clipnorm": 0.5,
+        "global_clipnorm": None,
+        "clipvalue": None,
+        "use_ema": True,
+        "ema_momentum": 0.5,
+        "ema_overwrite_frequency": 50,
+    }
+    self.assertDictContainsSubset(expected_config, config)
     restored_optimizer = adam_new.Adam.from_config(config)
     self.assertDictEqual(restored_optimizer.get_config(),
                          optimizer.get_config())
@@ -317,8 +322,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     grads = tf.convert_to_tensor([0, 1., 1.5, 0, 0], dtype=tf.float64)
     sparse_grads = tf.IndexedSlices(
         tf.convert_to_tensor([1., 1.5], dtype=tf.float64),
-        [1, 2],
-        dense_shape=[len(grads)])
+        tf.convert_to_tensor([1, 2]),
+        dense_shape=tf.convert_to_tensor([len(grads)]))
     for _ in range(5):
       optimizer_1.apply_gradients(zip([grads], [x1]))
       optimizer_2.apply_gradients(zip([sparse_grads], [x2]))
@@ -334,8 +339,8 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
     grads = tf.convert_to_tensor(np.arange(0.1, 1.1, 0.1))
     sparse_grads = tf.IndexedSlices(
         tf.convert_to_tensor([0, 0.2, 0.4, 0.8], dtype=tf.float64),
-        [0, 2, 4, 6],
-        dense_shape=[len(grads)])
+        tf.convert_to_tensor([0, 2, 4, 6]),
+        dense_shape=tf.convert_to_tensor([len(grads)]))
 
     for _ in range(5):
       self.assertAllClose(x1, x2)
@@ -446,7 +451,8 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
     # Test the optimizer yields same numerical results when jit_compile is
     # on and off.
     with strategy.scope():
-      optimizer_1 = adam_new.Adam(use_ema=True, ema_overwrite_frequency=1)
+      optimizer_1 = adam_new.Adam(
+          jit_compile=False, use_ema=True, ema_overwrite_frequency=1)
       optimizer_2 = adam_new.Adam(
           jit_compile=True, use_ema=True, ema_overwrite_frequency=1)
       model_1 = keras.Sequential([

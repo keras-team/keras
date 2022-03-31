@@ -78,7 +78,7 @@ def image_dataset_from_directory(directory,
         image files found in the directory. Labels should be sorted according
         to the alphanumeric order of the image file paths
         (obtained via `os.walk(directory)` in Python).
-    label_mode:
+    label_mode: String describing the encoding of `labels`. Options are:
         - 'int': means that the labels are encoded as integers
             (e.g. for `sparse_categorical_crossentropy` loss).
         - 'categorical' means that the labels are
@@ -98,8 +98,8 @@ def image_dataset_from_directory(directory,
     batch_size: Size of the batches of data. Default: 32.
       If `None`, the data will not be batched
       (the dataset will yield individual samples).
-    image_size: Size to resize images to after they are read from disk.
-        Defaults to `(256, 256)`.
+    image_size: Size to resize images to after they are read from disk,
+        specified as `(height, width)`. Defaults to `(256, 256)`.
         Since the pipeline processes batches of images that must all have
         the same size, this must be provided.
     shuffle: Whether to shuffle the data. Default: True.

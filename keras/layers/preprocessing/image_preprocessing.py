@@ -25,6 +25,8 @@ from keras.utils import image_utils
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+from tensorflow.python.ops import stateless_random_ops
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -348,7 +350,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     """Augment bounding boxes for one image during training.
 
     Args:
-      bounding_box: 2D bounding boxex to the layer. Forwarded from `call()`.
+      bounding_box: 2D bounding boxes to the layer. Forwarded from `call()`.
       transformation: The transformation object produced by
         `get_random_transformation`. Used to coordinate the randomness between
         image, label and bounding box.
@@ -359,10 +361,16 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     raise NotImplementedError()
 
   @doc_controls.for_subclass_implementers
-  def get_random_transformation(self):
-    """Produce random transformation config.
+  def get_random_transformation(
+      self, image=None, label=None, bounding_box=None):
+    """Produce random transformation config for one single input.
 
     This is used to produce same randomness between image/label/bounding_box.
+
+    Args:
+      image: 3D image tensor from inputs.
+      label: optional 1D label tensor from inputs.
+      bounding_box: optional 2D bounding boxes tensor from inputs.
 
     Returns:
       Any type of object, which will be forwarded to `augment_image`,
@@ -388,10 +396,11 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
       return inputs
 
   def _augment(self, inputs):
-    transformation = self.get_random_transformation()  # pylint: disable=assignment-from-none
     image = inputs.get('images', None)
     label = inputs.get('labels', None)
     bounding_box = inputs.get('bounding_boxes', None)
+    transformation = self.get_random_transformation(
+        image=image, label=label, bounding_box=bounding_box)  # pylint: disable=assignment-from-none
     image = self.augment_image(image, transformation=transformation)
     result = {'images': image}
     if label is not None:
@@ -638,6 +647,9 @@ class RandomFlip(BaseImageAugmentationLayer):
     self.seed = seed
     self.auto_vectorize = False
 
+  def augment_label(self, label, transformation=None):
+    return label
+
   def augment_image(self, image, transformation=None):
     flipped_outputs = image
     if self.horizontal:
@@ -790,7 +802,7 @@ class RandomTranslation(BaseImageAugmentationLayer):
     img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
 
     if transformation is None:
-      transformation = self.get_random_transformation()
+      transformation = self.get_random_transformation(image=image)
     height_translation = transformation['height_translation']
     width_translation = transformation['width_translation']
     height_translation = height_translation * img_hd
@@ -809,7 +821,9 @@ class RandomTranslation(BaseImageAugmentationLayer):
     output.set_shape(original_shape)
     return output
 
-  def get_random_transformation(self):
+  def get_random_transformation(
+      self, image=None, label=None, bounding_box=None):
+    del image, label, bounding_box
     batch_size = 1
     height_translation = self._random_generator.random_uniform(
         shape=[batch_size, 1],
@@ -828,6 +842,9 @@ class RandomTranslation(BaseImageAugmentationLayer):
     # Change to vectorized_map for better performance, as well as work around
     # issue for different tensorspec between inputs and outputs.
     return tf.vectorized_map(self._augment, inputs)
+
+  def augment_label(self, label, transformation=None):
+    return label
 
   def compute_output_shape(self, input_shape):
     return input_shape
@@ -1350,7 +1367,7 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
 @keras_export('keras.layers.RandomContrast',
               'keras.layers.experimental.preprocessing.RandomContrast',
               v1=[])
-class RandomContrast(base_layer.BaseRandomLayer):
+class RandomContrast(BaseImageAugmentationLayer):
   """A preprocessing layer which randomly adjusts contrast during training.
 
   This layer will randomly adjust the contrast of an image or images by a random
@@ -1403,25 +1420,23 @@ class RandomContrast(base_layer.BaseRandomLayer):
                        ' got {}'.format(factor))
     self.seed = seed
 
-  def call(self, inputs, training=True):
-    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
-    def random_contrasted_inputs(inputs):
-      seed = self._random_generator.make_seed_for_stateless_op()
-      if seed is not None:
-        output = tf.image.stateless_random_contrast(
-            inputs, 1. - self.lower, 1. + self.upper, seed=seed)
-      else:
-        output = tf.image.random_contrast(
-            inputs, 1. - self.lower, 1. + self.upper,
-            seed=self._random_generator.make_legacy_seed())
-      output = tf.clip_by_value(output, 0, 255)
-      output.set_shape(inputs.shape)
-      return output
+  def get_random_transformation(self,
+                                image=None,
+                                label=None,
+                                bounding_box=None):
+    lower = 1. - self.lower
+    upper = 1. + self.upper
+    random_seed = self._random_generator.make_seed_for_stateless_op()
+    contrast_factor = stateless_random_ops.stateless_random_uniform(
+        shape=[], minval=lower, maxval=upper, seed=random_seed)
+    return {'contrast_factor': contrast_factor}
 
-    if training:
-      return random_contrasted_inputs(inputs)
-    else:
-      return inputs
+  def augment_image(self, image, transformation=None):
+    contrast_factor = transformation['contrast_factor']
+    output = tf.image.adjust_contrast(image, contrast_factor=contrast_factor)
+    output = tf.clip_by_value(output, 0, 255)
+    output.set_shape(image.shape)
+    return output
 
   def compute_output_shape(self, input_shape):
     return input_shape
@@ -1436,7 +1451,7 @@ class RandomContrast(base_layer.BaseRandomLayer):
 
 
 @keras_export('keras.layers.RandomBrightness', v1=[])
-class RandomBrightness(base_layer.BaseRandomLayer):
+class RandomBrightness(BaseImageAugmentationLayer):
   """A preprocessing layer which randomly adjusts brightness during training.
 
   This layer will randomly increase/reduce the brightness for the input RGB
@@ -1506,6 +1521,23 @@ class RandomBrightness(base_layer.BaseRandomLayer):
     self._set_value_range(value_range)
     self._seed = seed
 
+  def augment_image(self, image, transformation=None):
+    return self._brightness_adjust(image, transformation['rgb_delta'])
+
+  def get_random_transformation(self,
+                                image=None,
+                                label=None,
+                                bounding_box=None):
+    rgb_delta_shape = (1, 1, 1)
+    random_rgb_delta = self._random_generator.random_uniform(
+        shape=rgb_delta_shape,
+        minval=self._factor[0],
+        maxval=self._factor[1],
+    )
+    random_rgb_delta = random_rgb_delta * (
+        self._value_range[1] - self._value_range[0])
+    return {'rgb_delta': random_rgb_delta}
+
   def _set_value_range(self, value_range):
     if not isinstance(value_range, (tuple, list)):
       raise ValueError(
@@ -1533,35 +1565,17 @@ class RandomBrightness(base_layer.BaseRandomLayer):
     if input_number > 1.0 or input_number < -1.0:
       raise ValueError(self._FACTOR_VALIDATION_ERROR + f'Got {input_number}')
 
-  def call(self, inputs, training=True):
-    if training:
-      return self._brightness_adjust(inputs)
-    else:
-      return inputs
-
-  def _brightness_adjust(self, images):
-    images = utils.ensure_tensor(images, self.compute_dtype)
-    rank = images.shape.rank
-    if rank == 3:
-      rgb_delta_shape = (1, 1, 1)
-    elif rank == 4:
-      # Keep only the batch dim. This will ensure to have same adjustment
-      # with in one image, but different across the images.
-      rgb_delta_shape = [tf.shape(images)[0], 1, 1, 1]
-    else:
+  def _brightness_adjust(self, image, rgb_delta):
+    image = utils.ensure_tensor(image, self.compute_dtype)
+    rank = image.shape.rank
+    if rank != 3:
       raise ValueError(
-          'Expected the input image to be rank 3 or 4. Got '
-          f'inputs.shape = {images.shape}')
-    rgb_delta = self._random_generator.random_uniform(
-        shape=rgb_delta_shape,
-        minval=self._factor[0],
-        maxval=self._factor[1],
-    )
-    rgb_delta = rgb_delta * (self._value_range[1] - self._value_range[0])
-    rgb_delta = tf.cast(rgb_delta, images.dtype)
-    images += rgb_delta
+          'Expected the input image to be rank 3. Got '
+          f'inputs.shape = {image.shape}')
+    rgb_delta = tf.cast(rgb_delta, image.dtype)
+    image += rgb_delta
     return tf.clip_by_value(
-        images, self._value_range[0], self._value_range[1])
+        image, self._value_range[0], self._value_range[1])
 
   def get_config(self):
     config = {
