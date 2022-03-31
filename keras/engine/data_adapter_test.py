@@ -53,29 +53,29 @@ class TestBatchSequence(data_utils.Sequence):
     self.on_epoch_end()
 
   def __len__(self):
-      """Number of batches in the Sequence.
+    """Number of batches in the Sequence.
 
-      Returns: int
-          The number of batches in the Sequence.
-      """
-      # data was rebalanced, so need to recalculate number of examples
-      num_examples = 20
-      batch_size = self._current_batch_size
-      return num_examples // batch_size + int(num_examples % batch_size > 0)  # = math.ceil(num_examples / batch_size )
+    Returns: int
+        The number of batches in the Sequence.
+    """
+    # data was rebalanced, so need to recalculate number of examples
+    num_examples = 20
+    batch_size = self._current_batch_size
+    return num_examples // batch_size + int(num_examples % batch_size > 0)  # = math.ceil(num_examples / batch_size )
 
   def __getitem__(self, index):
-      """Gets batch at position `index`.
+    """Gets batch at position `index`.
 
-      Arguments:
-          index (int): position of the batch in the Sequence.
+    Arguments:
+        index (int): position of the batch in the Sequence.
 
-      Returns: Tuple[Any, Any]
-          A batch (tuple of input data and target data).
-      """
-      # return input and target data, as our target data is inside the input
-      # data return None for the target data
-      return (np.zeros((self._current_batch_size, self.feature_shape)),
-              np.ones((self._current_batch_size,)))
+    Returns: Tuple[Any, Any]
+        A batch (tuple of input data and target data).
+    """
+    # return input and target data, as our target data is inside the input
+    # data return None for the target data
+    return (np.zeros((self._current_batch_size, self.feature_shape)),
+            np.ones((self._current_batch_size,)))
 
   def on_epoch_end(self):
     """Update the data after every epoch."""
@@ -84,25 +84,25 @@ class TestBatchSequence(data_utils.Sequence):
       self._current_batch_size = self._linearly_increasing_batch_size()
 
   def _linearly_increasing_batch_size(self):
-      """Linearly increase batch size with every epoch.
+    """Linearly increase batch size with every epoch.
 
-      The idea comes from https://arxiv.org/abs/1711.00489.
+    The idea comes from https://arxiv.org/abs/1711.00489.
 
-      Returns: int
-          The batch size to use in this epoch.
-      """
-      if not isinstance(self.batch_size, list):
-          return int(self.batch_size)
+    Returns: int
+        The batch size to use in this epoch.
+    """
+    if not isinstance(self.batch_size, list):
+      return int(self.batch_size)
 
-      if self._epochs > 1:
-          return int(
-              self.batch_size[0]
-              + self._current_epoch
-              * (self.batch_size[1] - self.batch_size[0])
-              / (self._epochs - 1)
-          )
-      else:
-          return int(self.batch_size[0])
+    if self._epochs > 1:
+      return int(
+        self.batch_size[0]
+        + self._current_epoch
+        * (self.batch_size[1] - self.batch_size[0])
+        / (self._epochs - 1)
+      )
+    else:
+      return int(self.batch_size[0])
 
 
 class DummyArrayLike:
@@ -640,19 +640,19 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
     for epoch, iterator in data_handler.enumerate_epochs():
       self.model.reset_metrics()
       with data_handler.catch_stop_iteration():
-          for step in data_handler.steps():
-              cur_bs = self.sequence_input_increasing_batch_size._current_batch_size
-              with tf.profiler.experimental.Trace(
-                  "train",
-                  epoch_num=epoch,
-                  step_num=step,
-                  batch_size=cur_bs,
-                  _r=1,
-              ):
-                  if data_handler.should_sync:
-                      context.async_wait()
-                  if self.model.stop_training:
-                      break
+        for step in data_handler.steps():
+          cur_bs = self.sequence_input_increasing_batch_size._current_batch_size
+          with tf.profiler.experimental.Trace(
+            "train",
+            epoch_num=epoch,
+            step_num=step,
+            batch_size=cur_bs,
+            _r=1,
+          ):
+            if data_handler.should_sync:
+              context.async_wait()
+            if self.model.stop_training:
+              break
     self.assertEqual(data_handler.inferred_steps, 2)  # 20 samples / 10 bs = 2
 
   @test_combinations.run_all_keras_modes(always_skip_v1=True)
