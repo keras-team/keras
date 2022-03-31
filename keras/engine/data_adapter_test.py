@@ -79,7 +79,6 @@ class DataAdapterTestBase(test_combinations.TestCase):
     self.iterator_input = data_utils.threadsafe_generator(generator)()
     self.sequence_input = TestSequence(batch_size=self.batch_size,
                                        feature_shape=10)
-
     self.text_input = [['abc']]
     self.bytes_input = [[b'abc']]
     self.model = keras.models.Sequential(
