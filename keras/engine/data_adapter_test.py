@@ -156,13 +156,6 @@ class DataAdapterTestBase(test_combinations.TestCase):
     self.sequence_input = TestSequence(batch_size=self.batch_size,
                                        feature_shape=10)
 
-    self.increasing_batch_size = [5, 10]
-    self.sequence_input_increasing_batch_size = TestBatchSequence(
-      batch_size=self.increasing_batch_size,
-      feature_shape=10,
-      epochs=2,
-      )
-
     self.text_input = [['abc']]
     self.bytes_input = [[b'abc']]
     self.model = keras.models.Sequential(
@@ -487,6 +480,88 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
     self.assertEqual(adapter.partial_batch_size(), partial_batch_size or None)
 
 
+class IncreasingBatchSizeAdapterTest(test_combinations.TestCase):
+  def setUp(self):
+    super(IncreasingBatchSizeAdapterTest, self).setUp()
+    self.adapter_cls = data_adapter.KerasSequenceAdapter
+
+    self.increasing_batch_size = [5, 10]
+    self.sequence_input = TestBatchSequence(
+      batch_size=self.increasing_batch_size,
+      feature_shape=10,
+      epochs=2,
+      )
+    self.model = keras.models.Sequential(
+        [keras.layers.Dense(8, input_shape=(10,), activation='softmax')])
+
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  def test_training_increasing_batch_size_fit_call(self):
+    epochs = self.sequence_input._epochs  # 2
+
+    self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
+                       run_eagerly=test_utils.should_run_eagerly())
+
+    # Check state before fit()
+    self.assertEqual(self.sequence_input._current_epoch, 0)
+    self.assertEqual(self.sequence_input._current_batch_size, 5)
+    my_data_handler = data_adapter.get_data_handler(
+      self.sequence_input,
+      epochs=epochs,
+      model=self.model,
+    )
+    self.assertEqual(my_data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
+
+    self.model.fit(self.sequence_input, epochs=epochs)
+
+    # Check state after fit()
+    self.assertEqual(self.sequence_input._current_epoch, 2)
+    self.assertEqual(self.sequence_input._current_batch_size, 10)
+    my_new_data_handler = data_adapter.get_data_handler(
+      self.sequence_input,
+      epochs=epochs,
+      model=self.model,
+    )
+    self.assertEqual(my_data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
+    self.assertEqual(my_new_data_handler.inferred_steps, 2)  # 20 samples / 10 bs = 2
+
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  def test_training_increasing_batch_size_fit_internals(self):
+    epochs = self.sequence_input._epochs  # 2
+
+    self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
+                       run_eagerly=test_utils.should_run_eagerly())
+    self.model.stop_training = False
+    self.model.train_function = self.model.make_train_function()
+
+    # Check state before fit()
+    self.assertEqual(self.sequence_input._current_epoch, 0)
+    self.assertEqual(self.sequence_input._current_batch_size, 5)
+    data_handler = data_adapter.get_data_handler(
+      self.sequence_input,
+      epochs=epochs,
+      model=self.model,
+    )
+    self.assertEqual(data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
+
+    # Execute fit()-loop and see how data_handler behaves while doing this
+    for epoch, iterator in data_handler.enumerate_epochs():
+      self.model.reset_metrics()
+      with data_handler.catch_stop_iteration():
+        for step in data_handler.steps():
+          with tf.profiler.experimental.Trace(
+            "train",
+            epoch_num=epoch,
+            step_num=step,
+            batch_size=self.sequence_input._current_batch_size,
+            _r=1,
+          ):
+            if data_handler.should_sync:
+              context.async_wait()
+            if self.model.stop_training:
+              break
+    self.assertEqual(data_handler.inferred_steps, 2)  # 20 samples / 10 bs = 2
+
+
 class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
 
   def setUp(self):
@@ -586,74 +661,6 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
                    batch_size=5)
     self.model.evaluate(self.arraylike_input,
                         self.numpy_target, batch_size=5)
-
-  @test_combinations.run_all_keras_modes(always_skip_v1=True)
-  def test_training_increasing_batch_size_fit_call(self):
-    epochs = self.sequence_input_increasing_batch_size._epochs  # 2
-
-    self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=test_utils.should_run_eagerly())
-
-    # Check state before fit()
-    self.assertEqual(self.sequence_input_increasing_batch_size._current_epoch, 0)
-    self.assertEqual(self.sequence_input_increasing_batch_size._current_batch_size, 5)
-    my_data_handler = data_adapter.get_data_handler(
-      self.sequence_input_increasing_batch_size,
-      epochs=epochs,
-      model=self.model,
-    )
-    self.assertEqual(my_data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
-
-    self.model.fit(self.sequence_input_increasing_batch_size, epochs=epochs)
-
-    # Check state after fit()
-    self.assertEqual(self.sequence_input_increasing_batch_size._current_epoch, 2)
-    self.assertEqual(self.sequence_input_increasing_batch_size._current_batch_size, 10)
-    my_new_data_handler = data_adapter.get_data_handler(
-      self.sequence_input_increasing_batch_size,
-      epochs=epochs,
-      model=self.model,
-    )
-    self.assertEqual(my_data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
-    self.assertEqual(my_new_data_handler.inferred_steps, 2)  # 20 samples / 10 bs = 2
-
-  @test_combinations.run_all_keras_modes(always_skip_v1=True)
-  def test_training_increasing_batch_size_fit_internals(self):
-    epochs = self.sequence_input_increasing_batch_size._epochs  # 2
-
-    self.model.compile(loss='sparse_categorical_crossentropy', optimizer='sgd',
-                       run_eagerly=test_utils.should_run_eagerly())
-    self.model.stop_training = False
-    self.model.train_function = self.model.make_train_function()
-
-    # Check state before fit()
-    self.assertEqual(self.sequence_input_increasing_batch_size._current_epoch, 0)
-    self.assertEqual(self.sequence_input_increasing_batch_size._current_batch_size, 5)
-    data_handler = data_adapter.get_data_handler(
-      self.sequence_input_increasing_batch_size,
-      epochs=epochs,
-      model=self.model,
-    )
-    self.assertEqual(data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
-
-    # Execute fit()-loop and see how data_handler behaves while doing this
-    for epoch, iterator in data_handler.enumerate_epochs():
-      self.model.reset_metrics()
-      with data_handler.catch_stop_iteration():
-        for step in data_handler.steps():
-          cur_bs = self.sequence_input_increasing_batch_size._current_batch_size
-          with tf.profiler.experimental.Trace(
-            "train",
-            epoch_num=epoch,
-            step_num=step,
-            batch_size=cur_bs,
-            _r=1,
-          ):
-            if data_handler.should_sync:
-              context.async_wait()
-            if self.model.stop_training:
-              break
-    self.assertEqual(data_handler.inferred_steps, 2)  # 20 samples / 10 bs = 2
 
   @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_training_tensor_target(self):
