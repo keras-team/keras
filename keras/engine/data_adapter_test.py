@@ -17,7 +17,6 @@
 import tensorflow.compat.v2 as tf
 
 import math
-from typing import List, Union, Text, Optional, Any, Tuple, Dict, ItemsView, overload, DefaultDict
 
 from absl.testing import parameterized
 import numpy as np
@@ -32,21 +31,17 @@ from tensorflow.python.eager import context
 
 class TestBatchSequence(data_utils.Sequence):
 
-  def __init__(
-    self,
-    batch_size: Union[int, List[int]],
-    feature_shape,
-    epochs: int = 2,
-  ):
-    print("TestBatchSequence.__init__")
+  def __init__(self, batch_size, feature_shape, epochs=2):
+    """Create a sequence with
+
+    Args:
+        batch_size (Union[int, List[int]]): Can be a list containing two values:
+                                            start and end batch_size
+        feature_shape (int): Number of features in a sample
+        epochs (int, optional): Number of epochs
+    """
     self.batch_size = batch_size
     self.feature_shape = feature_shape
-
-    # if isinstance(batch_size, list):
-    #     logger.debug(
-    #         "The provided batch size is a list, this data generator will use a "
-    #         "linear increasing batch size."
-    #     )
 
     self._epochs = epochs
     # we use `on_epoch_end` method to prepare data for the next epoch
@@ -54,15 +49,13 @@ class TestBatchSequence(data_utils.Sequence):
     self._current_epoch = -1
     # actual batch size will be set inside `on_epoch_end`
     self._current_batch_size = 0
-    # create separate data variable that will store modified data for each batch
-    # self._data: Data = {}
 
     self.on_epoch_end()
 
-  def __len__(self) -> int:
+  def __len__(self):
       """Number of batches in the Sequence.
 
-      Returns:
+      Returns: int
           The number of batches in the Sequence.
       """
       # data was rebalanced, so need to recalculate number of examples
@@ -70,35 +63,32 @@ class TestBatchSequence(data_utils.Sequence):
       batch_size = self._current_batch_size
       return num_examples // batch_size + int(num_examples % batch_size > 0)  # = math.ceil(num_examples / batch_size )
 
-  def __getitem__(self, index: int) -> Tuple[Any, Any]:
+  def __getitem__(self, index):
       """Gets batch at position `index`.
 
       Arguments:
-          index: position of the batch in the Sequence.
+          index (int): position of the batch in the Sequence.
 
-      Returns:
+      Returns: Tuple[Any, Any]
           A batch (tuple of input data and target data).
       """
-      print(f"__getitem__ : self._current_epoch: {self._current_epoch}, self._current_batch_size: {self._current_batch_size}")
       # return input and target data, as our target data is inside the input
       # data return None for the target data
       return (np.zeros((self._current_batch_size, self.feature_shape)),
               np.ones((self._current_batch_size,)))
 
-  def on_epoch_end(self) -> None:
+  def on_epoch_end(self):
     """Update the data after every epoch."""
     self._current_epoch += 1
     if self._current_epoch < self._epochs:
       self._current_batch_size = self._linearly_increasing_batch_size()
-    print(f"on_epoch_end: self._current_epoch: {self._current_epoch}, self._current_batch_size: {self._current_batch_size}")
-    # self._data = self._shuffle_and_balance(self._current_batch_size)
 
-  def _linearly_increasing_batch_size(self) -> int:
+  def _linearly_increasing_batch_size(self):
       """Linearly increase batch size with every epoch.
 
       The idea comes from https://arxiv.org/abs/1711.00489.
 
-      Returns:
+      Returns: int
           The batch size to use in this epoch.
       """
       if not isinstance(self.batch_size, list):
@@ -615,7 +605,6 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
     self.assertEqual(my_data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
 
     self.model.fit(self.sequence_input_increasing_batch_size, epochs=epochs)
-    # TODO call things inside fit step by step and see how data_handler behaves while doing this
 
     # Check state after fit()
     self.assertEqual(self.sequence_input_increasing_batch_size._current_epoch, 2)
@@ -652,18 +641,16 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
       self.model.reset_metrics()
       with data_handler.catch_stop_iteration():
           for step in data_handler.steps():
+              cur_bs = self.sequence_input_increasing_batch_size._current_batch_size
               with tf.profiler.experimental.Trace(
                   "train",
                   epoch_num=epoch,
                   step_num=step,
-                  batch_size=self.sequence_input_increasing_batch_size._current_batch_size,
+                  batch_size=cur_bs,
                   _r=1,
               ):
-                  tmp_logs = self.model.train_function(iterator)
                   if data_handler.should_sync:
                       context.async_wait()
-                  logs = tmp_logs  # No error, now safe to assign to logs.
-                  end_step = step + data_handler.step_increment
                   if self.model.stop_training:
                       break
     self.assertEqual(data_handler.inferred_steps, 2)  # 20 samples / 10 bs = 2
