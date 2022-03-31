@@ -122,7 +122,7 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
     epoch. This behavior might change in the future.
 
     Returns:
-      An tf.dataset.Dataset. Caller might use the dataset in different
+      A tf.dataset.Dataset. Caller might use the dataset in different
       context, e.g. iter(dataset) in eager to get the value directly, or in graph
       mode, provide the iterator tensor to Keras model function.
     """
