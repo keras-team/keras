@@ -321,7 +321,7 @@ def validate_per_replica_inputs(distribution_strategy, x):
 
   """
   # Convert the inputs and targets into a list of PerReplica objects.
-  per_replica_list = tf.nest.flatten(x, expand_composites=True)
+  per_replica_list = tf.nest.flatten(x)
   x_values_list = []
   for x in per_replica_list:
     # At this point x should contain only tensors.
