@@ -173,50 +173,65 @@ class TestDistributionStrategyErrorCases(tf.test.TestCase, parameterized.TestCas
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.combine(
           distribution=[
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+              tf.__internal__.distribute.combinations.
+              mirrored_strategy_with_gpu_and_cpu,
           ],
           mode=['graph']))
   def test_validating_dataset_input_tensors_with_shape_mismatch(
       self, distribution):
     with self.cached_session():
-      a = tf.constant([1, 2], shape=(1, 2))
-      b = tf.constant([[1, 2], [1, 2]], shape=(2, 2))
-      x = tf.distribute.DistributedValues((a, b))
-      y = tf.distribute.DistributedValues((a, a))
+      @tf.function
+      def run():
+        ctx = tf.distribute.get_replica_context()
+        if ctx.replica_id_in_sync_group.device.endswith('GPU:0'):
+          return tf.constant([[1, 2]])
+        else:
+          return tf.constant([[1, 2], [1, 2]])
+
+      x = distribution.run(run)
+
       # Removed device and input tensor shape details from the error message
       # since the order of the device and the corresponding input tensor shape
       # is not deterministic over different runs.
       with self.assertRaisesRegex(
           ValueError, 'Input tensor shapes do not match for '
           'distributed tensor inputs '
-          'DistributedValues:.+'):
+          'PerReplica:.+'):
         with distribution.scope():
           distributed_training_utils_v1.validate_distributed_dataset_inputs(
-              distribution, x, y)
+              distribution, x, None)
 
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.combine(
           distribution=[
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+              tf.__internal__.distribute.combinations
+              .mirrored_strategy_with_gpu_and_cpu,
           ],
           mode=['graph', 'eager']))
   def test_validating_dataset_input_tensors_with_dtype_mismatch(
       self, distribution):
     with self.cached_session():
-      a = tf.constant([1, 2], shape=(1, 2), dtype=tf.int32)
-      b = tf.constant([1, 2], shape=(1, 2), dtype=tf.float64)
-      x = tf.distribute.DistributedValues((a, b))
-      y = tf.distribute.DistributedValues((a, a))
+
+      @tf.function
+      def run():
+        ctx = tf.distribute.get_replica_context()
+        if ctx.replica_id_in_sync_group.device.endswith('GPU:0'):
+          return tf.constant([[1, 2]], dtype=tf.int32)
+        else:
+          return tf.constant([[1, 2]], dtype=tf.float64)
+
+      x = distribution.run(run)
+
       # Removed device and input tensor dtype details from the error message
       # since the order of the device and the corresponding input tensor dtype
       # is not deterministic over different runs.
       with self.assertRaisesRegex(
           ValueError, 'Input tensor dtypes do not match for '
           'distributed tensor inputs '
-          'DistributedValues:.+'):
+          'PerReplica:.+'):
         with distribution.scope():
           distributed_training_utils_v1.validate_distributed_dataset_inputs(
-              distribution, x, y)
+              distribution, x, None)
 
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.combine(
