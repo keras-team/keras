@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras' DTensor library."""
 
-_DTENSOR_API_ENABLED = False
+_DTENSOR_API_ENABLED = True
 
 
 # Conditional import the dtensor API, since it is currently broken in OSS.
