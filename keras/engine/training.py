@@ -480,7 +480,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       copied_kwargs = tf.nest.map_structure(
           _convert_to_graph_inputs, copied_kwargs)
 
-        # pylint: disable=g-import-not-at-top
+      # pylint: disable=g-import-not-at-top
       with layout_map_lib.layout_map_scope(self._layout_map):
         # We ignore the result here.
         super().__call__(inputs, *copied_args, **copied_kwargs)
@@ -612,7 +612,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           machine learning.
           `jit_compile` is not enabled for by default.
           This option cannot be enabled with `run_eagerly=True`.
-          Note that `jit_compile=True` is
+          Note that `jit_compile=True`
           may not necessarily work for all models.
           For more information on supported operations please refer to the
           [XLA documentation](https://www.tensorflow.org/xla).
