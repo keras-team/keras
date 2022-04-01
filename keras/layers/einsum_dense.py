@@ -13,16 +13,17 @@
 # limitations under the License.
 # ==============================================================================
 """Keras-based einsum dense layer."""
-
-import tensorflow.compat.v2 as tf
-# pylint: disable=g-classes-have-attributes
+# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 import re
+
 from keras import activations
 from keras import constraints
 from keras import initializers
 from keras import regularizers
 from keras.engine.base_layer import Layer
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -263,8 +264,8 @@ def _analyze_split_string(split_string,
     input_dim_map = {dim: i for i, dim in enumerate(input_spec)}
     output_dim_map = {dim: i for i, dim in enumerate(output_spec)}
 
-  for i, dim in enumerate(input_spec):
-    input_shape_at_dim = input_shape[i]
+  for dim in input_spec:
+    input_shape_at_dim = input_shape[input_dim_map[dim]]
     if dim in output_dim_map:
       output_shape_at_dim = output_shape[output_dim_map[dim]]
       if (output_shape_at_dim is not None and
