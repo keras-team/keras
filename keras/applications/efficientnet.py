@@ -199,6 +199,8 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
         Defaults to 'softmax'.
         When loading pretrained weights, `classifier_activation` can only
         be `None` or `"softmax"`.
+    include_preprocessing: Boolean, whether to include the preprocessing layer
+      (`Rescaling`) at the bottom of the network. Defaults to `True`.
 
   Returns:
     A `keras.Model` instance.
@@ -224,7 +226,8 @@ def EfficientNet(
     input_shape=None,
     pooling=None,
     classes=1000,
-    classifier_activation='softmax'):
+    classifier_activation='softmax',
+    include_preprocessing=True):
   """Instantiates the EfficientNet architecture using given scaling coefficients.
 
   Args:
@@ -265,6 +268,8 @@ def EfficientNet(
     classifier_activation: A `str` or callable. The activation function to use
         on the "top" layer. Ignored unless `include_top=True`. Set
         `classifier_activation=None` to return the logits of the "top" layer.
+    include_preprocessing: Boolean, whether to include the preprocessing layer
+      (`Rescaling`) at the bottom of the network. Defaults to `True`.
 
   Returns:
     A `keras.Model` instance.
@@ -322,8 +327,9 @@ def EfficientNet(
 
   # Build stem
   x = img_input
-  x = layers.Rescaling(1. / 255.)(x)
-  x = layers.Normalization(axis=bn_axis)(x)
+  if include_preprocessing:
+    x = layers.Rescaling(1. / 255.)(x)
+    x = layers.Normalization(axis=bn_axis)(x)
   if weights == 'imagenet':
     # Note that the normaliztion layer uses square value of STDDEV as the
     # variance for the layer: result = (input - mean) / sqrt(var)
