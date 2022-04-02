@@ -50,4 +50,3 @@ class GlobalPooling1D(Layer):
     config = {'data_format': self.data_format, 'keepdims': self.keepdims}
     base_config = super(GlobalPooling1D, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
-

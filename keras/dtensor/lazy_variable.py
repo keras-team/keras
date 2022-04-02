@@ -217,4 +217,3 @@ def disable_init_variable_creator():
     yield
   finally:
     _DISABLE_LAZY_VARIABLE_INIT.disabled = existing_value
-

@@ -59,5 +59,3 @@ Are there currently visuals? If not, will it clarify the content?
 **Submit a pull request?**.
 
 Are you planning to also submit a pull request to fix the issue? See the [docs contributor guide](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md):
-
-

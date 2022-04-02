@@ -255,8 +255,8 @@ def conv_kernel_mask(input_shape, kernel_shape, strides, padding):
       receptive field.
     strides: tuple of size N, strides along each spatial dimension.
     padding: type of padding, string `"same"` or `"valid"`.
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
 
   Returns:
@@ -331,8 +331,8 @@ def conv_kernel_idxs(input_shape, kernel_shape, strides, padding, filters_in,
       receptive field.
     strides: tuple of size N, strides along each spatial dimension.
     padding: type of padding, string `"same"` or `"valid"`.
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     filters_in: `int`, number if filters in the input to the layer.
     filters_out: `int', number if filters in the output of the layer.
@@ -425,8 +425,8 @@ def conv_connected_inputs(input_shape, kernel_shape, output_position, strides,
       in the output of the convolution.
     strides: tuple of size N, strides along each spatial dimension.
     padding: type of padding, string `"same"` or `"valid"`.
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
 
   Returns:
@@ -466,8 +466,8 @@ def conv_output_shape(input_shape, kernel_shape, strides, padding):
       receptive field.
     strides: tuple of size N, strides along each spatial dimension.
     padding: type of padding, string `"same"` or `"valid"`.
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
 
   Returns:

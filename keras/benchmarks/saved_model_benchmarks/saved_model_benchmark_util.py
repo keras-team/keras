@@ -64,4 +64,3 @@ def save_and_load_benchmark(app):
   }
   tf.compat.v1.gfile.DeleteRecursively(save_dir)
   return save_result, load_result
-

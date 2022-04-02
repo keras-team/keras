@@ -23,4 +23,3 @@ from keras.layers.regularization.gaussian_dropout import GaussianDropout
 from keras.layers.regularization.gaussian_noise import GaussianNoise
 from keras.layers.regularization.activity_regularization import ActivityRegularization
 from keras.layers.regularization.alpha_dropout import AlphaDropout
-

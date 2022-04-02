@@ -155,5 +155,3 @@ def train_step(model, feature, label, loss_obj, optimizer):
   gradients = tape.gradient(loss, model.trainable_variables)
   optimizer.apply_gradients(zip(gradients, model.trainable_variables))
   return loss
-
-

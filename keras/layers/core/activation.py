@@ -63,4 +63,3 @@ class Activation(Layer):
     config = {'activation': activations.serialize(self.activation)}
     base_config = super(Activation, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
-

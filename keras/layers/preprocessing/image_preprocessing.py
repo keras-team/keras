@@ -1796,4 +1796,3 @@ class RandomWidth(base_layer.BaseRandomLayer):
     }
     base_config = super(RandomWidth, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
-

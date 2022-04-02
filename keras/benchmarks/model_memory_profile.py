@@ -74,4 +74,3 @@ if __name__ == '__main__':
   flags.mark_flags_as_required(['model'])
   if memory_profiler:
     app.run(main)
-

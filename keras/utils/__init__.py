@@ -48,4 +48,3 @@ from keras.utils.generic_utils import serialize_keras_object
 
 # Internal
 from keras.utils.layer_utils import get_source_inputs
-
