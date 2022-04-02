@@ -129,6 +129,21 @@ py_library(
 )
 
 py_library(
+    name = "denormalization",
+    srcs = [
+        "denormalization.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":preprocessing_utils",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras/engine",
+    ],
+)
+
+py_library(
     name = "integer_lookup",
     srcs = [
         "integer_lookup.py",
@@ -463,6 +478,24 @@ tf_py_test(
     ],
     deps = [
         ":normalization",
+        ":preprocessing_test_utils",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "denormalization_test",
+    srcs = ["denormalization_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    tags = [
+        "noasan",  # TODO(b/337374867) fails with -fsanitize=null
+    ],
+    deps = [
+        ":denormalization",
         ":preprocessing_test_utils",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
