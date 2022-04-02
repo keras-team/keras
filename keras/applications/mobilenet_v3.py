@@ -350,7 +350,7 @@ def MobileNetV3(stack_fn,
       file_name = 'weights_mobilenet_v3_' + model_name + '.h5'
       file_hash = WEIGHTS_HASHES[model_name][0]
     else:
-      file_name = 'weights_mobilenet_v3_' + model_name + '_no_top_v2.h5'
+      file_name = 'weights_mobilenet_v3_' + model_name + '_no_top.h5'
       file_hash = WEIGHTS_HASHES[model_name][1]
     weights_path = data_utils.get_file(
         file_name,
