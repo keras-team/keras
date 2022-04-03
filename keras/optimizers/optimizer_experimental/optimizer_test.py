@@ -124,7 +124,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     optimizer_3.build([var3], exclude_from_weight_decay=[var3])
     optimizer_3.apply_gradients(zip([grads], [var3]))
 
-    self.assertAllClose(var1, 8e-6)
+    self.assertEqual(var1, 1.992)
     self.assertEqual(var2, 2.0)
     self.assertEqual(var3, 2.0)
 

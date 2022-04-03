@@ -173,7 +173,7 @@ class AdamW(optimizer.Optimizer):
     # Apply step weight decay
     if self.weight_decay != 0 and variable not in self._exclude_from_weight_decay:
       wd = tf.cast(self.weight_decay, variable.dtype)
-      variable.assign_sub(variable * (1 - lr * wd))
+      variable.assign_sub(variable * wd)
 
     if isinstance(gradient, tf.IndexedSlices):
       # Sparse gradients.
