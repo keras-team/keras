@@ -918,7 +918,6 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
       raise ValueError("`sample_weight` argument is not supported when using "
                        "`keras.utils.Sequence` as input.")
 
-    self._size = len(x)
     self._shuffle_sequence = shuffle
     self._keras_sequence = x
     self._enqueuer = None
