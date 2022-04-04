@@ -107,7 +107,7 @@ class LossesContainer(Container):
     self._user_losses = losses
     self._user_loss_weights = loss_weights
 
-    self._losses = losses
+    self._losses = copy.copy(losses)
     self._loss_weights = loss_weights
     self._per_output_metrics = None  # Per-output losses become metrics.
     self._loss_metric = metrics_mod.Mean(name='loss')  # Total loss.
@@ -309,7 +309,7 @@ class MetricsContainer(Container):
     self._user_metrics = metrics
     self._user_weighted_metrics = weighted_metrics
 
-    self._metrics = metrics
+    self._metrics = copy.copy(metrics)
     self._weighted_metrics = weighted_metrics
     self._built = False
 

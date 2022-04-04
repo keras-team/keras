@@ -195,6 +195,19 @@ class LossesContainerTest(test_combinations.TestCase):
     self.assertEqual(b_1_metric.name, 'b_1_loss')
     self.assertEqual(b_1_metric.result().numpy(), 0.5)
 
+  def test_no_input_mutation(self):
+    loss = {'a': 'mae'}
+    loss_container = compile_utils.LossesContainer(loss)
+    
+    y_t = {'a': tf.zeros((10, 1))}
+    y_p = {'a': tf.ones((10, 1)), 'b': tf.zeros((10, 1))}
+    sw = tf.convert_to_tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+
+    total_loss = loss_container(y_t, y_p, sample_weight=sw)
+    self.assertIsInstance(total_loss, tf.Tensor)
+    self.assertEqual(total_loss.numpy(), 0.5)
+    self.assertLen(loss, 1)
+    
   def test_broadcast_single_loss(self):
     loss_container = compile_utils.LossesContainer('mse')
 
@@ -584,6 +597,18 @@ class MetricsContainerTest(test_combinations.TestCase):
     b_1_mse_metric = metric_container.metrics[2]
     self.assertEqual(b_1_mse_metric.name, 'b_1_mse')
     self.assertEqual(b_1_mse_metric.result().numpy(), 4.)
+
+  def test_no_input_mutation(self):
+    metric = {'a': 'mae'}
+    metric_container = compile_utils.MetricsContainer(metric)
+    
+    y_t = {'a': tf.zeros((10, 1))}
+    y_p = {'a': tf.ones((10, 1)), 'b': tf.zeros((10, 1))}
+
+    metric_container.update_state(y_t, y_p)
+    self.assertLen(metric, 1)
+    mae_metric = metric_container.metrics[0]
+    self.assertEqual(mae_metric.result().numpy(), 1.)
 
   def test_crossentropy(self):
     metric_container = compile_utils.MetricsContainer('crossentropy')
