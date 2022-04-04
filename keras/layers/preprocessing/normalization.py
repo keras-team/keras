@@ -61,6 +61,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         value(s) will be broadcast to the shape of the kept axes above; if the
         value(s) cannot be broadcast, an error will be raised when this layer's
         `build()` method is called.
+      invert: If True, this layer will return the denormalized values of inputs. Default to False.
 
   Examples:
 
@@ -98,7 +99,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
          [ 0.        ]], dtype=float32)>
   """
 
-  def __init__(self, axis=-1, mean=None, variance=None, **kwargs):
+  def __init__(self, axis=-1, mean=None, variance=None, invert=False, **kwargs):
     super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Normalization').set(True)
 
@@ -124,6 +125,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
           'must be set. Got mean: {} and variance: {}'.format(mean, variance))
     self.input_mean = mean
     self.input_variance = variance
+    self.invert = invert
 
   def build(self, input_shape):
     super().build(input_shape)
@@ -302,7 +304,11 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     # The base layer automatically casts floating-point inputs, but we
     # explicitly cast here to also allow integer inputs to be passed
     inputs = tf.cast(inputs, self.compute_dtype)
-    return ((inputs - self.mean) /
+    if self.invert:
+      return ((inputs + self.mean) *
+            tf.maximum(tf.sqrt(self.variance), backend.epsilon()))
+    else:
+      return ((inputs - self.mean) /
             tf.maximum(tf.sqrt(self.variance), backend.epsilon()))
 
   def compute_output_shape(self, input_shape):

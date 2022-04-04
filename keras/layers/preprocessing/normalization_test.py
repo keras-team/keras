@@ -198,6 +198,13 @@ class NormalizationTest(test_combinations.TestCase,
     output = layer(input_data)
     self.assertAllEqual(output.dtype, tf.float64)
 
+  def test_invert(self):
+    data = np.array([0., 2., 0., 2.])
+    layer = normalization.Normalization(mean=2.0, variance=3.0, invert=True)
+    output = layer(data)
+    self.assertListEqual(output.shape.as_list(), [4])
+    self.assertAllClose(output, [6, 12, 6, 12])
+
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class NormalizationAdaptTest(test_combinations.TestCase,
