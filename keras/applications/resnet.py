@@ -683,6 +683,8 @@ DOC = """
     A Keras model instance.
 """
 
+setattr(ResNet18, '__doc__', ResNet50.__doc__ + DOC)
+setattr(ResNet34, '__doc__', ResNet50.__doc__ + DOC)
 setattr(ResNet50, '__doc__', ResNet50.__doc__ + DOC)
 setattr(ResNet101, '__doc__', ResNet101.__doc__ + DOC)
 setattr(ResNet152, '__doc__', ResNet152.__doc__ + DOC)
