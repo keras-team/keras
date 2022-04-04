@@ -200,10 +200,12 @@ class NormalizationTest(test_combinations.TestCase,
 
   def test_invert(self):
     data = np.array([0., 2., 0., 2.])
-    layer = normalization.Normalization(mean=2.0, variance=3.0, invert=True)
+    layer = normalization.Normalization(mean=1.0, variance=1.0)
+    layer2 = normalization.Normalization(mean=1.0, variance=1.0, invert=True)
     output = layer(data)
-    self.assertListEqual(output.shape.as_list(), [4])
-    self.assertAllClose(output, [6, 12, 6, 12])
+    output2 = layer2(output)
+    self.assertListEqual(output2.shape.as_list(), [4])
+    self.assertAllClose(output2, [0., 2., 0., 2.])
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
