@@ -269,7 +269,8 @@ def basicstack(x, filters, blocks, stride1=2, name=None):
   """
   x = basicblock(x, filters, stride=stride1, name=name + '_block1')
   for i in range(2, blocks + 1):
-    x = basicblock(x, filters, conv_shortcut=False, name=name + '_block' + str(i))
+    x = basicblock(
+      x, filters, conv_shortcut=False, name=name + '_block' + str(i))
   return x
 
 
