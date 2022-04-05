@@ -210,10 +210,8 @@ def ResNet(stack_fn,
   return model
 
 
-def basicblock(x, filters, stride=1, conv_shortcut=True, name=None):
+def basic_block(x, filters, stride=1, conv_shortcut=True, name=None):
   """A basic residual block for ResNet18 and 34.
-
-
 
   Args:
     x: input tensor.
@@ -255,28 +253,9 @@ def basicblock(x, filters, stride=1, conv_shortcut=True, name=None):
   return x
 
 
-def basicstack(x, filters, blocks, stride1=2, name=None):
-  """A set of stacked basic residual blocks.
-
-  Args:
-    x: input tensor.
-    filters: integer, filters of the bottleneck layer in a block.
-    blocks: integer, blocks in the stacked blocks.
-    stride1: default 2, stride of the first layer in the first block.
-    name: string, stack label.
-
-  Returns:
-    Output tensor for the stacked basic blocks.
-  """
-  x = basicblock(x, filters, stride=stride1, name=name + '_block1')
-  for i in range(2, blocks + 1):
-    x = basicblock(
-      x, filters, conv_shortcut=False, name=name + '_block' + str(i))
-  return x
-
-
-def block1(x, filters, kernel_size=3, stride=1, conv_shortcut=True, name=None):
-  """A residual block.
+def bottleneck_block(x, filters, kernel_size=3, stride=1, conv_shortcut=True,
+                     name=None):
+  """A residual block with a bottle neck used in ResNet 50, 101, 152.
 
   Args:
     x: input tensor.
@@ -320,22 +299,24 @@ def block1(x, filters, kernel_size=3, stride=1, conv_shortcut=True, name=None):
   return x
 
 
-def stack1(x, filters, blocks, stride1=2, name=None):
+def stack_block(x, filters, n_blocks, block_fn, stride1=2, name=None):
   """A set of stacked residual blocks.
 
   Args:
     x: input tensor.
     filters: integer, filters of the bottleneck layer in a block.
-    blocks: integer, blocks in the stacked blocks.
+    n_blocks: integer, blocks in the stacked blocks.
+    block_fn: callable, function defining one block.
     stride1: default 2, stride of the first layer in the first block.
     name: string, stack label.
 
   Returns:
-    Output tensor for the stacked blocks.
+    Output tensor for the stacked basic blocks.
   """
-  x = block1(x, filters, stride=stride1, name=name + '_block1')
-  for i in range(2, blocks + 1):
-    x = block1(x, filters, conv_shortcut=False, name=name + '_block' + str(i))
+  x = block_fn(x, filters, stride=stride1, name=name + '_block1')
+  for i in range(2, n_blocks + 1):
+    x = block_fn(
+      x, filters, conv_shortcut=False, name=name + '_block' + str(i))
   return x
 
 
@@ -514,13 +495,14 @@ def ResNet18(include_top=True,
   """Instantiates the ResNet18 architecture."""
 
   def stack_fn(x):
-    x = basicstack(x, 64, 2, stride1=1, name='conv2')
-    x = basicstack(x, 128, 2, name='conv3')
-    x = basicstack(x, 256, 2, name='conv4')
-    return basicstack(x, 512, 2, name='conv5')
+    x = stack_block(x, 64, 2, basic_block, stride1=1, name='conv2')
+    x = stack_block(x, 128, 2, basic_block, name='conv3')
+    x = stack_block(x, 256, 2, basic_block, name='conv4')
+    return stack_block(x, 512, 2, basic_block, name='conv5')
 
   return ResNet(stack_fn, False, True, 'resnet18', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
+
 
 @keras_export('keras.applications.resnet.ResNet34',
               'keras.applications.ResNet34')
@@ -534,13 +516,14 @@ def ResNet34(include_top=True,
   """Instantiates the ResNet34 architecture."""
 
   def stack_fn(x):
-    x = basicstack(x, 64, 3, stride1=1, name='conv2')
-    x = basicstack(x, 128, 4, name='conv3')
-    x = basicstack(x, 256, 6, name='conv4')
-    return basicstack(x, 512, 3, name='conv5')
+    x = stack_block(x, 64, 3, basic_block, stride1=1, name='conv2')
+    x = stack_block(x, 128, 4, basic_block, name='conv3')
+    x = stack_block(x, 256, 6, basic_block, name='conv4')
+    return stack_block(x, 512, 3, basic_block, name='conv5')
 
   return ResNet(stack_fn, False, True, 'resnet34', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
+
 
 @keras_export('keras.applications.resnet50.ResNet50',
               'keras.applications.resnet.ResNet50',
@@ -555,10 +538,10 @@ def ResNet50(include_top=True,
   """Instantiates the ResNet50 architecture."""
 
   def stack_fn(x):
-    x = stack1(x, 64, 3, stride1=1, name='conv2')
-    x = stack1(x, 128, 4, name='conv3')
-    x = stack1(x, 256, 6, name='conv4')
-    return stack1(x, 512, 3, name='conv5')
+    x = stack_block(x, 64, 3, bottleneck_block, stride1=1, name='conv2')
+    x = stack_block(x, 128, 4, bottleneck_block, name='conv3')
+    x = stack_block(x, 256, 6, bottleneck_block, name='conv4')
+    return stack_block(x, 512, 3, bottleneck_block, name='conv5')
 
   return ResNet(stack_fn, False, True, 'resnet50', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
@@ -576,10 +559,10 @@ def ResNet101(include_top=True,
   """Instantiates the ResNet101 architecture."""
 
   def stack_fn(x):
-    x = stack1(x, 64, 3, stride1=1, name='conv2')
-    x = stack1(x, 128, 4, name='conv3')
-    x = stack1(x, 256, 23, name='conv4')
-    return stack1(x, 512, 3, name='conv5')
+    x = stack_block(x, 64, 3, bottleneck_block, stride1=1, name='conv2')
+    x = stack_block(x, 128, 4, bottleneck_block, name='conv3')
+    x = stack_block(x, 256, 23, bottleneck_block, name='conv4')
+    return stack_block(x, 512, 3, bottleneck_block, name='conv5')
 
   return ResNet(stack_fn, False, True, 'resnet101', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
@@ -597,10 +580,10 @@ def ResNet152(include_top=True,
   """Instantiates the ResNet152 architecture."""
 
   def stack_fn(x):
-    x = stack1(x, 64, 3, stride1=1, name='conv2')
-    x = stack1(x, 128, 8, name='conv3')
-    x = stack1(x, 256, 36, name='conv4')
-    return stack1(x, 512, 3, name='conv5')
+    x = stack_block(x, 64, 3, bottleneck_block, stride1=1, name='conv2')
+    x = stack_block(x, 128, 8, bottleneck_block, name='conv3')
+    x = stack_block(x, 256, 36, bottleneck_block, name='conv4')
+    return stack_block(x, 512, 3, bottleneck_block, name='conv5')
 
   return ResNet(stack_fn, False, True, 'resnet152', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
