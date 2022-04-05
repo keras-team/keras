@@ -209,8 +209,11 @@ def ResNet(stack_fn,
 
   return model
 
+
 def basicblock(x, filters, stride=1, conv_shortcut=True, name=None):
-  """A basic residual block
+  """A basic residual block for ResNet18 and 34.
+
+
 
   Args:
     x: input tensor.
@@ -225,6 +228,7 @@ def basicblock(x, filters, stride=1, conv_shortcut=True, name=None):
     Output tensor for the basic residual block.
   """
   bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
+  kernel_size = 3
 
   if conv_shortcut:
     shortcut = layers.Conv2D(
@@ -234,20 +238,17 @@ def basicblock(x, filters, stride=1, conv_shortcut=True, name=None):
   else:
     shortcut = x
 
-  x = layers.Conv2D(filters, 3, strides=stride, name=name + '_1_conv')(x)
+  x = layers.Conv2D(
+    filters, kernel_size, padding='SAME', strides=stride,
+    name=name + '_1_conv')(x)
   x = layers.BatchNormalization(
       axis=bn_axis, epsilon=1.001e-5, name=name + '_1_bn')(x)
   x = layers.Activation('relu', name=name + '_1_relu')(x)
 
   x = layers.Conv2D(
-      filters, 3, padding='SAME', name=name + '_2_conv')(x)
+      filters, kernel_size, padding='SAME', name=name + '_2_conv')(x)
   x = layers.BatchNormalization(
       axis=bn_axis, epsilon=1.001e-5, name=name + '_2_bn')(x)
-  x = layers.Activation('relu', name=name + '_2_relu')(x)
-
-  x = layers.Conv2D(filters, 3, name=name + '_3_conv')(x)
-  x = layers.BatchNormalization(
-      axis=bn_axis, epsilon=1.001e-5, name=name + '_3_bn')(x)
 
   x = layers.Add(name=name + '_add')([shortcut, x])
   x = layers.Activation('relu', name=name + '_out')(x)
