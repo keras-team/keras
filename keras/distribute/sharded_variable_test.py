@@ -154,9 +154,8 @@ class ShardedVariableTest(tf.test.TestCase):
     self.assertAllClose(got, expect)
     self.assertGreater(len(model.variables), len(loaded_model.variables))
 
-    with self.assertRaises(ValueError):
-      with self.strategy.scope():
-        keras.models.load_model(saved_dir)
+    with self.strategy.scope():
+      keras.models.load_model(saved_dir)
 
   def test_slot_variable_checkpointing(self):
 
