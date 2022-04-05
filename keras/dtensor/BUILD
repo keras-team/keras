@@ -2,6 +2,8 @@
 # Since DTensor is not a public API yet, all the DTensor related change
 # can't be exposed to public yet.
 
+load("@org_keras//keras:keras.bzl", "tf_py_test")
+
 package(
     default_visibility = [
         "//keras:friends",
@@ -15,34 +17,33 @@ py_library(
     srcs = ["__init__.py"],
 )
 
-py_test(
+tf_py_test(
     name = "initializers_test",
     srcs = ["initializers_test.py"],
     shard_count = 4,
-    tags = ["no_oss"],
     deps = [
         ":dtensor",
+        ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras/initializers",
         "//keras/utils:tf_utils",
-        "//learning/brain/experimental/dtensor/tests:test_util",
     ],
 )
 
-py_test(
+tf_py_test(
     name = "layers_test",
     srcs = ["layers_test.py"],
     shard_count = 4,
     tags = ["no_oss"],
     deps = [
         ":dtensor",
+        ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/layers",
         "//keras/utils:tf_utils",
-        "//learning/brain/experimental/dtensor/tests:test_util",
     ],
 )
 
@@ -57,7 +58,7 @@ py_library(
     ],
 )
 
-py_test(
+tf_py_test(
     name = "layout_map_test",
     srcs = ["layout_map_test.py"],
     tags = ["no_oss"],
@@ -89,36 +90,34 @@ py_library(
     ],
 )
 
-py_test(
+tf_py_test(
     name = "metrics_test",
     srcs = ["metrics_test.py"],
     shard_count = 4,
-    tags = ["no_oss"],
     deps = [
         ":dtensor",
+        ":test_util",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/metrics",
         "//keras/utils:tf_utils",
-        "//learning/brain/experimental/dtensor/tests:test_util",
     ],
 )
 
-py_test(
+tf_py_test(
     name = "mnist_model_test",
     srcs = ["mnist_model_test.py"],
     tags = [
-        "no_oss",
         "requires-net:external",
     ],
     deps = [
         ":integration_test_utils",
         ":optimizers",
+        ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/utils:tf_utils",
-        "//learning/brain/experimental/dtensor/tests:test_util",
     ],
 )
 
@@ -133,16 +132,15 @@ py_library(
     ],
 )
 
-py_test(
+tf_py_test(
     name = "optimizers_test",
     srcs = ["optimizers_test.py"],
-    tags = ["no_oss"],
     deps = [
         ":dtensor",
         ":optimizers",
+        ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
-        "//learning/brain/experimental/dtensor/tests:test_util",
     ],
 )
 
@@ -163,17 +161,26 @@ py_library(
     ],
 )
 
-py_test(
+tf_py_test(
     name = "utils_test",
     srcs = ["utils_test.py"],
-    tags = ["no_oss"],
     deps = [
         ":dtensor",
+        ":test_util",
         ":utils",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/layers",
-        "//learning/brain/experimental/dtensor/tests:test_util",
+    ],
+)
+
+py_library(
+    name = "test_util",
+    srcs = ["test_util.py"],
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
     ],
 )

@@ -18,11 +18,10 @@ from absl.testing import parameterized
 from keras import backend
 from keras import initializers
 from keras.dtensor import dtensor_api as dtensor
+from keras.dtensor import test_util
 from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-
-from keras.dtensor.tests import test_util
 
 
 class InitializersTest(test_util.DTensorBaseTest):
