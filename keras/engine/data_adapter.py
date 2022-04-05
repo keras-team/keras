@@ -51,7 +51,7 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
   converted to `tf.data.Dataset` if possible.
 
   Note that since this class is mainly targeted for TF 2.0, it might have a lot
-  of assumptions under the hood, eg eager context by default, distribution
+  of assumptions under the hood, e.g. eager context by default, distribution
   strategy, etc. In the meantime, some legacy feature support might be dropped,
   eg, Iterator from dataset API in v1, etc.
 
@@ -107,7 +107,7 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
           `distribution_strategy` is passed, the created dataset need to respect
           the strategy.
         DataAdapter might choose to ignore any keyword argument if it doesn't
-        use it, or raise exception if any required argument is not provide.
+        use it, or raise exception if any required argument is not provided.
     """
     if not self.can_handle(x, y):
       raise ValueError("{} Cannot handle input {}, {}".format(
@@ -119,12 +119,12 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
 
     Note that the dataset returned does not repeat for epoch, so caller might
     need to create new iterator for the same dataset at the beginning of the
-    epoch. This behavior might change in future.
+    epoch. This behavior might change in the future.
 
     Returns:
-      An tf.dataset.Dataset. Caller might use the dataset in different
-      context, eg iter(dataset) in eager to get the value directly, or in graph
-      mode, provide the iterator tensor to Keras model function.
+      A `tf.data.Dataset`. Caller might use the dataset in different
+      context, e.g. iter(dataset) in eager to get the value directly, or in
+      graph mode, provide the iterator tensor to Keras model function.
     """
     raise NotImplementedError
 
@@ -135,7 +135,7 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
     For certain type of the data input, the number of batches is known, eg for
     Numpy data, the size is same as (number_of_element / batch_size). Whereas
     for dataset or python generator, the size is unknown since it may or may not
-    have a end state.
+    have an end state.
 
     Returns:
       int, the number of batches for the dataset, or None if it is unknown. The
@@ -149,7 +149,7 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
     """Return the batch size of the dataset created.
 
     For certain type of the data input, the batch size is known, and even
-    required, like numpy array. Where as for dataset, the batch is unknown
+    required, like numpy array. Whereas for dataset, the batch is unknown
     unless we take a peek.
 
     Returns:
@@ -590,7 +590,7 @@ class CompositeTensorDataAdapter(DataAdapter):
       dataset = dataset.shuffle(num_samples)
 
     # If batch_size is not passed but steps is, calculate from the input data.
-    # Default to 32 for backwards compat.
+    # Default to 32 for backwards compatibility.
     if not batch_size:
       batch_size = int(math.ceil(num_samples / steps)) if steps else 32
 
@@ -978,7 +978,7 @@ ALL_ADAPTER_CLS = [
 
 
 def select_data_adapter(x, y):
-  """Selects a data adapter than can handle a given x and y."""
+  """Selects a data adapter that can handle a given x and y."""
   adapter_cls = [cls for cls in ALL_ADAPTER_CLS if cls.can_handle(x, y)]
   if not adapter_cls:
     # TODO(scottzhu): This should be a less implementation-specific error.
