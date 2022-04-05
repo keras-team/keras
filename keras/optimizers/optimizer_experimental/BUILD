@@ -27,6 +27,9 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras/initializers",
+        "//keras/optimizers/optimizer_v2",
         "//keras/optimizers/schedules:learning_rate_schedule",
     ],
 )

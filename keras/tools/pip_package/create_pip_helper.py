@@ -33,7 +33,6 @@ PIP_EXCLUDED_FILES = frozenset([
 
 PIP_EXCLUDED_DIRS = frozenset([
     'keras/benchmarks',
-    'keras/dtensor',  # TODO(scottzhu): remove this once dtensor is ready.
     'keras/integration_tests',
     'keras/tests',
 ])
