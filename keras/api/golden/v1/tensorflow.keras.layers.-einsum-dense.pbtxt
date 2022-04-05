@@ -1,4 +1,4 @@
-path: "tensorflow.keras.layers.experimental.EinsumDense"
+path: "tensorflow.keras.layers.EinsumDense"
 tf_class {
   is_instance: "<class \'keras.layers.core.einsum_dense.EinsumDense\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"

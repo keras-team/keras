@@ -25,7 +25,7 @@ from keras import initializers
 from keras import regularizers
 from keras.engine.base_layer import Layer
 from keras.layers import activation
-from keras.layers import einsum_dense
+from keras.layers import core
 from keras.layers import regularization
 from keras.utils import tf_utils
 import numpy as np
@@ -344,7 +344,7 @@ class MultiHeadAttention(Layer):
       free_dims = self._query_shape.rank - 1
       einsum_equation, bias_axes, output_rank = _build_proj_equation(
           free_dims, bound_dims=1, output_dims=2)
-      self._query_dense = einsum_dense.EinsumDense(
+      self._query_dense = core.EinsumDense(
           einsum_equation,
           output_shape=_get_output_shape(output_rank - 1,
                                          [self._num_heads, self._key_dim]),
@@ -353,7 +353,7 @@ class MultiHeadAttention(Layer):
           **common_kwargs)
       einsum_equation, bias_axes, output_rank = _build_proj_equation(
           self._key_shape.rank - 1, bound_dims=1, output_dims=2)
-      self._key_dense = einsum_dense.EinsumDense(
+      self._key_dense = core.EinsumDense(
           einsum_equation,
           output_shape=_get_output_shape(output_rank - 1,
                                          [self._num_heads, self._key_dim]),
@@ -362,7 +362,7 @@ class MultiHeadAttention(Layer):
           **common_kwargs)
       einsum_equation, bias_axes, output_rank = _build_proj_equation(
           self._value_shape.rank - 1, bound_dims=1, output_dims=2)
-      self._value_dense = einsum_dense.EinsumDense(
+      self._value_dense = core.EinsumDense(
           einsum_equation,
           output_shape=_get_output_shape(output_rank - 1,
                                          [self._num_heads, self._value_dim]),
@@ -397,7 +397,7 @@ class MultiHeadAttention(Layer):
       output_shape = [self._query_shape[-1]]
     einsum_equation, bias_axes, output_rank = _build_proj_equation(
         free_dims, bound_dims=2, output_dims=len(output_shape))
-    return einsum_dense.EinsumDense(
+    return core.EinsumDense(
         einsum_equation,
         output_shape=_get_output_shape(output_rank - 1, output_shape),
         bias_axes=bias_axes if self._use_bias else None,
