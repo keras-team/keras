@@ -563,9 +563,7 @@ base_optimizer_keyword_args = """name: String. The name to use
       happens automatically after the last epoch, and you don't need to do
       anything.
     jit_compile: Boolean, defaults to True. If True, the optimizer will use XLA
-      compilation. `jit_compile` cannot be True when training with
-      `tf.distribute.experimental.ParameterServerStrategy`. Additionally,
-      if no GPU device is found, this flag will be ignored.
+      compilation. If no GPU device is found, this flag will be ignored.
     **kwargs: keyword arguments only used for backward compatibility."""
 
 
