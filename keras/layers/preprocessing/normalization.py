@@ -97,6 +97,29 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   array([[-1.4142135 ],
          [-0.70710677],
          [ 0.        ]], dtype=float32)>
+
+  Using it in the invert manner for denormalizing the inputs with calculating a mean and variance for each index on the last axis.
+
+  >>> adapt_data = np.array([[0., 7., 4.],
+  ...                        [2., 9., 6.],
+  ...                        [0., 7., 4.],
+  ...                        [2., 9., 6.]], dtype='float32')
+  >>> input_data = np.array([[1., 2., 3.]], dtype='float32')
+  >>> layer = tf.keras.layers.Normalization(axis=-1, invert=True)
+  >>> layer.adapt(adapt_data)
+  >>> layer(input_data)
+  <tf.Tensor: shape=(1, 3), dtype=float32, numpy=
+  array([2., 10., 8.], dtype=float32)>
+
+  Using it in the invert manner for denormalizing the inputs with passing the mean and variance directly.
+  
+  >>> input_data = np.array([[-1.4142135], [-0.70710677], [0.]], dtype='float32')
+  >>> layer = tf.keras.layers.Normalization(mean=3., variance=2., invert=True)
+  >>> layer(input_data)
+  <tf.Tensor: shape=(3, 1), dtype=float32, numpy=
+  array([[1. ],
+         [2. ],
+         [3. ]], dtype=float32)>  
   """
 
   def __init__(self, axis=-1, mean=None, variance=None, invert=False, **kwargs):
