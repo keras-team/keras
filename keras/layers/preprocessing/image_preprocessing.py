@@ -1028,7 +1028,7 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
 @keras_export('keras.layers.RandomRotation',
               'keras.layers.experimental.preprocessing.RandomRotation',
               v1=[])
-class RandomRotation(base_layer.BaseRandomLayer):
+class RandomRotation(BaseImageAugmentationLayer):
   """A preprocessing layer which randomly rotates images during training.
 
   This layer will apply random rotations to each image, filling empty space
@@ -1105,40 +1105,35 @@ class RandomRotation(base_layer.BaseRandomLayer):
     self.interpolation = interpolation
     self.seed = seed
 
-  def call(self, inputs, training=True):
-    inputs = utils.ensure_tensor(inputs, self.compute_dtype)
+  def get_random_transformation(self,
+                                image=None,
+                                label=None,
+                                bounding_box=None):
+    min_angle = self.lower * 2. * np.pi
+    max_angle = self.upper * 2. * np.pi
+    angle = self._random_generator.random_uniform(
+        shape=[1], minval=min_angle, maxval=max_angle)
+    return {'angle': angle}
 
-    def random_rotated_inputs(inputs):
-      """Rotated inputs with random ops."""
-      original_shape = inputs.shape
-      unbatched = inputs.shape.rank == 3
-      # The transform op only accepts rank 4 inputs, so if we have an unbatched
-      # image, we need to temporarily expand dims to a batch.
-      if unbatched:
-        inputs = tf.expand_dims(inputs, 0)
-      inputs_shape = tf.shape(inputs)
-      batch_size = inputs_shape[0]
-      img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-      img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-      min_angle = self.lower * 2. * np.pi
-      max_angle = self.upper * 2. * np.pi
-      angles = self._random_generator.random_uniform(
-          shape=[batch_size], minval=min_angle, maxval=max_angle)
-      output = transform(
-          inputs,
-          get_rotation_matrix(angles, img_hd, img_wd),
-          fill_mode=self.fill_mode,
-          fill_value=self.fill_value,
-          interpolation=self.interpolation)
-      if unbatched:
-        output = tf.squeeze(output, 0)
-      output.set_shape(original_shape)
-      return output
-
-    if training:
-      return random_rotated_inputs(inputs)
-    else:
-      return inputs
+  def augment_image(self, image, transformation=None):
+    if transformation is None:
+      transformation = self.get_random_transformation()
+    image = utils.ensure_tensor(image, self.compute_dtype)
+    original_shape = image.shape
+    image = tf.expand_dims(image, 0)
+    image_shape = tf.shape(image)
+    img_hd = tf.cast(image_shape[H_AXIS], tf.float32)
+    img_wd = tf.cast(image_shape[W_AXIS], tf.float32)
+    angle = transformation['angle']
+    output = transform(
+        image,
+        get_rotation_matrix(angle, img_hd, img_wd),
+        fill_mode=self.fill_mode,
+        fill_value=self.fill_value,
+        interpolation=self.interpolation)
+    output = tf.squeeze(output, 0)
+    output.set_shape(original_shape)
+    return output
 
   def compute_output_shape(self, input_shape):
     return input_shape
@@ -1281,6 +1276,8 @@ class RandomZoom(BaseImageAugmentationLayer):
 
   def augment_image(self, image, transformation=None):
     image = utils.ensure_tensor(image, self.compute_dtype)
+    if transformation is None:
+      transformation = self.get_random_transformation()
     original_shape = image.shape
     image = tf.expand_dims(image, 0)
     image_shape = tf.shape(image)
@@ -1427,6 +1424,8 @@ class RandomContrast(BaseImageAugmentationLayer):
     return {'contrast_factor': contrast_factor}
 
   def augment_image(self, image, transformation=None):
+    if transformation is None:
+      transformation = self.get_random_transformation()
     contrast_factor = transformation['contrast_factor']
     output = tf.image.adjust_contrast(image, contrast_factor=contrast_factor)
     output = tf.clip_by_value(output, 0, 255)
@@ -1520,6 +1519,8 @@ class RandomBrightness(BaseImageAugmentationLayer):
     self._seed = seed
 
   def augment_image(self, image, transformation=None):
+    if transformation is None:
+      transformation = self.get_random_transformation()
     return self._brightness_adjust(image, transformation['rgb_delta'])
 
   def get_random_transformation(self,
