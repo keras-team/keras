@@ -363,7 +363,7 @@ def _create_dvariable(layout_map, object_path, variable):
   Returns:
     A new tf.Variable with correct layout information.
   """
-  # TODO(scottzhu): Revisit this in future and see if we can just reuse the
+  # TODO(b/228209108): Revisit this in future and see if we can just reuse the
   # LazyInitVariable rather than creating a new tf.Variable instance.
   layout = layout_map[object_path]
   if layout is None:
