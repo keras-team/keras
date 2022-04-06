@@ -34,7 +34,8 @@ from keras.applications import vgg19
 from keras.applications import xception
 import tensorflow.compat.v2 as tf
 
-MODEL_LIST_NO_NASNET = [(resnet.ResNet50, 2048), (resnet.ResNet101, 2048),
+MODEL_LIST_NO_NASNET = [(resnet.ResNet18, 512), (resnet.ResNet34, 512),
+                        (resnet.ResNet50, 2048), (resnet.ResNet101, 2048),
                         (resnet.ResNet152, 2048), (resnet_v2.ResNet50V2, 2048),
                         (resnet_v2.ResNet101V2, 2048),
                         (resnet_v2.ResNet152V2, 2048), (vgg16.VGG16, 512),
