@@ -1433,6 +1433,9 @@ class RandomContrast(BaseImageAugmentationLayer):
     output.set_shape(image.shape)
     return output
 
+  def augment_label(self, label, transformation=None):
+    return label
+
   def compute_output_shape(self, input_shape):
     return input_shape
 
