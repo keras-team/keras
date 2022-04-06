@@ -8,6 +8,10 @@ tf_module {
     name: "Sequential"
     mtype: "<type \'type\'>"
   }
+  member {
+    name: "experimental"
+    mtype: "<type \'module\'>"
+  }
   member_method {
     name: "clone_model"
     argspec: "args=[\'model\', \'input_tensors\', \'clone_function\'], varargs=None, keywords=None, defaults=[\'None\', \'None\'], "

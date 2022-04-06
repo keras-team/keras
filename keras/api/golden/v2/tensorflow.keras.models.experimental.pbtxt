@@ -1,0 +1,7 @@
+path: "tensorflow.keras.models.experimental"
+tf_module {
+  member {
+    name: "SharpnessAwareMinimization"
+    mtype: "<type \'type\'>"
+  }
+}
