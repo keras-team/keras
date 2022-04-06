@@ -739,6 +739,8 @@ distribute_py_test(
     ],
     deps = [
         ":multi_worker_testing_utils",
+        ":strategy_combinations",
+        "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/engine:base_layer",
     ],
