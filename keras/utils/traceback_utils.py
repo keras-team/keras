@@ -64,6 +64,8 @@ def filter_traceback(fn):
       return fn(*args, **kwargs)
     except Exception as e:  # pylint: disable=broad-except
       filtered_tb = _process_traceback_frames(e.__traceback__)
+      # To get the full stack trace, call:
+      # `tf.debugging.disable_traceback_filtering()`
       raise e.with_traceback(filtered_tb) from None
     finally:
       del filtered_tb
