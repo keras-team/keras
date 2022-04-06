@@ -210,7 +210,8 @@ def ResNet(stack_fn,
   return model
 
 
-def basic_block(x, filters, stride=1, conv_shortcut=True, name=None):
+def basic_block(x, filters, stride=1, use_bias=True, conv_shortcut=True,
+                name=None):
   """A basic residual block for ResNet18 and 34.
 
   Args:
@@ -230,7 +231,7 @@ def basic_block(x, filters, stride=1, conv_shortcut=True, name=None):
 
   if conv_shortcut:
     shortcut = layers.Conv2D(
-        filters, 1, strides=stride, name=name + '_0_conv')(x)
+        filters, 1, strides=stride, use_bias=use_bias, name=name + '_0_conv')(x)
     shortcut = layers.BatchNormalization(
         axis=bn_axis, epsilon=1.001e-5, name=name + '_0_bn')(shortcut)
   else:
@@ -238,13 +239,19 @@ def basic_block(x, filters, stride=1, conv_shortcut=True, name=None):
 
   x = layers.Conv2D(
     filters, kernel_size, padding='SAME', strides=stride,
+    use_bias=use_bias,
     name=name + '_1_conv')(x)
   x = layers.BatchNormalization(
       axis=bn_axis, epsilon=1.001e-5, name=name + '_1_bn')(x)
   x = layers.Activation('relu', name=name + '_1_relu')(x)
 
   x = layers.Conv2D(
-      filters, kernel_size, padding='SAME', name=name + '_2_conv')(x)
+      filters,
+      kernel_size,
+      padding='SAME',
+      use_bias=use_bias,
+      name=name + '_2_conv',
+    )(x)
   x = layers.BatchNormalization(
       axis=bn_axis, epsilon=1.001e-5, name=name + '_2_bn')(x)
 
@@ -254,7 +261,7 @@ def basic_block(x, filters, stride=1, conv_shortcut=True, name=None):
 
 
 def bottleneck_block(x, filters, kernel_size=3, stride=1, conv_shortcut=True,
-                     name=None):
+                     use_bias=True, name=None):
   """A residual block with a bottle neck used in ResNet 50, 101, 152.
 
   Args:
@@ -273,24 +280,35 @@ def bottleneck_block(x, filters, kernel_size=3, stride=1, conv_shortcut=True,
 
   if conv_shortcut:
     shortcut = layers.Conv2D(
-        4 * filters, 1, strides=stride, name=name + '_0_conv')(x)
+        4 * filters,
+        1,
+        strides=stride,
+        use_bias=use_bias,
+        name=name + '_0_conv',
+      )(x)
     shortcut = layers.BatchNormalization(
         axis=bn_axis, epsilon=1.001e-5, name=name + '_0_bn')(shortcut)
   else:
     shortcut = x
 
-  x = layers.Conv2D(filters, 1, strides=stride, name=name + '_1_conv')(x)
+  x = layers.Conv2D(
+    filters, 1, strides=stride, use_bias=use_bias, name=name + '_1_conv')(x)
   x = layers.BatchNormalization(
       axis=bn_axis, epsilon=1.001e-5, name=name + '_1_bn')(x)
   x = layers.Activation('relu', name=name + '_1_relu')(x)
 
   x = layers.Conv2D(
-      filters, kernel_size, padding='SAME', name=name + '_2_conv')(x)
+      filters,
+      kernel_size,
+      padding='SAME',
+      use_bias=use_bias,
+      name=name + '_2_conv',
+    )(x)
   x = layers.BatchNormalization(
       axis=bn_axis, epsilon=1.001e-5, name=name + '_2_bn')(x)
   x = layers.Activation('relu', name=name + '_2_relu')(x)
 
-  x = layers.Conv2D(4 * filters, 1, name=name + '_3_conv')(x)
+  x = layers.Conv2D(4 * filters, 1, use_bias=use_bias, name=name + '_3_conv')(x)
   x = layers.BatchNormalization(
       axis=bn_axis, epsilon=1.001e-5, name=name + '_3_bn')(x)
 
@@ -299,7 +317,8 @@ def bottleneck_block(x, filters, kernel_size=3, stride=1, conv_shortcut=True,
   return x
 
 
-def stack_block(x, filters, n_blocks, block_fn, stride1=2, name=None):
+def stack_block(x, filters, n_blocks, block_fn, stride1=2, use_bias=True,
+                name=None):
   """A set of stacked residual blocks.
 
   Args:
@@ -313,10 +332,16 @@ def stack_block(x, filters, n_blocks, block_fn, stride1=2, name=None):
   Returns:
     Output tensor for the stacked basic blocks.
   """
-  x = block_fn(x, filters, stride=stride1, name=name + '_block1')
+  x = block_fn(
+    x, filters, stride=stride1, use_bias=use_bias, name=name + '_block1')
   for i in range(2, n_blocks + 1):
     x = block_fn(
-      x, filters, conv_shortcut=False, name=name + '_block' + str(i))
+      x,
+      filters,
+      conv_shortcut=False,
+      use_bias=use_bias,
+      name=name + '_block' + str(i),
+    )
   return x
 
 
@@ -491,16 +516,18 @@ def ResNet18(include_top=True,
              input_shape=None,
              pooling=None,
              classes=1000,
+             use_bias=True,
              **kwargs):
   """Instantiates the ResNet18 architecture."""
 
   def stack_fn(x):
-    x = stack_block(x, 64, 2, basic_block, stride1=1, name='conv2')
-    x = stack_block(x, 128, 2, basic_block, name='conv3')
-    x = stack_block(x, 256, 2, basic_block, name='conv4')
-    return stack_block(x, 512, 2, basic_block, name='conv5')
+    x = stack_block(
+      x, 64, 2, basic_block, use_bias=use_bias, stride1=1, name='conv2')
+    x = stack_block(x, 128, 2, basic_block, use_bias=use_bias, name='conv3')
+    x = stack_block(x, 256, 2, basic_block, use_bias=use_bias, name='conv4')
+    return stack_block(x, 512, 2, basic_block, use_bias=use_bias, name='conv5')
 
-  return ResNet(stack_fn, False, True, 'resnet18', include_top, weights,
+  return ResNet(stack_fn, False, use_bias, 'resnet18', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
 
 
@@ -512,16 +539,17 @@ def ResNet34(include_top=True,
              input_shape=None,
              pooling=None,
              classes=1000,
+             use_bias=True,
              **kwargs):
   """Instantiates the ResNet34 architecture."""
 
   def stack_fn(x):
-    x = stack_block(x, 64, 3, basic_block, stride1=1, name='conv2')
-    x = stack_block(x, 128, 4, basic_block, name='conv3')
-    x = stack_block(x, 256, 6, basic_block, name='conv4')
-    return stack_block(x, 512, 3, basic_block, name='conv5')
+    x = stack_block(x, 64, 3, basic_block, use_bias=use_bias, stride1=1, name='conv2')
+    x = stack_block(x, 128, 4, basic_block, use_bias=use_bias, name='conv3')
+    x = stack_block(x, 256, 6, basic_block, use_bias=use_bias, name='conv4')
+    return stack_block(x, 512, 3, basic_block, use_bias=use_bias, name='conv5')
 
-  return ResNet(stack_fn, False, True, 'resnet34', include_top, weights,
+  return ResNet(stack_fn, False, use_bias, 'resnet34', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
 
 
@@ -534,16 +562,20 @@ def ResNet50(include_top=True,
              input_shape=None,
              pooling=None,
              classes=1000,
+             use_bias=True,
              **kwargs):
   """Instantiates the ResNet50 architecture."""
 
   def stack_fn(x):
-    x = stack_block(x, 64, 3, bottleneck_block, stride1=1, name='conv2')
-    x = stack_block(x, 128, 4, bottleneck_block, name='conv3')
-    x = stack_block(x, 256, 6, bottleneck_block, name='conv4')
-    return stack_block(x, 512, 3, bottleneck_block, name='conv5')
+    x = stack_block(
+      x, 64, 3, bottleneck_block, use_bias=use_bias, stride1=1, name='conv2')
+    x = stack_block(
+      x, 128, 4, bottleneck_block, use_bias=use_bias, name='conv3')
+    x = stack_block(
+      x, 256, 6, bottleneck_block, use_bias=use_bias, name='conv4')
+    return stack_block(x, 512, 3, bottleneck_block, use_bias=use_bias, name='conv5')
 
-  return ResNet(stack_fn, False, True, 'resnet50', include_top, weights,
+  return ResNet(stack_fn, False, use_bias, 'resnet50', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
 
 
@@ -555,16 +587,20 @@ def ResNet101(include_top=True,
               input_shape=None,
               pooling=None,
               classes=1000,
+              use_bias=True,
               **kwargs):
   """Instantiates the ResNet101 architecture."""
 
   def stack_fn(x):
-    x = stack_block(x, 64, 3, bottleneck_block, stride1=1, name='conv2')
-    x = stack_block(x, 128, 4, bottleneck_block, name='conv3')
-    x = stack_block(x, 256, 23, bottleneck_block, name='conv4')
-    return stack_block(x, 512, 3, bottleneck_block, name='conv5')
+    x = stack_block(
+      x, 64, 3, bottleneck_block, use_bias=use_bias, stride1=1, name='conv2')
+    x = stack_block(
+      x, 128, 4, bottleneck_block, use_bias=use_bias, name='conv3')
+    x = stack_block(
+      x, 256, 23, bottleneck_block, use_bias=use_bias, name='conv4')
+    return stack_block(x, 512, 3, bottleneck_block, use_bias=use_bias, name='conv5')
 
-  return ResNet(stack_fn, False, True, 'resnet101', include_top, weights,
+  return ResNet(stack_fn, False, use_bias, 'resnet101', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
 
 
@@ -576,16 +612,21 @@ def ResNet152(include_top=True,
               input_shape=None,
               pooling=None,
               classes=1000,
+              use_bias=True,
               **kwargs):
   """Instantiates the ResNet152 architecture."""
 
   def stack_fn(x):
-    x = stack_block(x, 64, 3, bottleneck_block, stride1=1, name='conv2')
-    x = stack_block(x, 128, 8, bottleneck_block, name='conv3')
-    x = stack_block(x, 256, 36, bottleneck_block, name='conv4')
-    return stack_block(x, 512, 3, bottleneck_block, name='conv5')
+    x = stack_block(
+      x, 64, 3, bottleneck_block, use_bias=use_bias, stride1=1, name='conv2')
+    x = stack_block(
+      x, 128, 8, bottleneck_block, use_bias=use_bias, name='conv3')
+    x = stack_block(
+      x, 256, 36, bottleneck_block, use_bias=use_bias, name='conv4')
+    return stack_block(
+      x, 512, 3, bottleneck_block, use_bias=use_bias, name='conv5')
 
-  return ResNet(stack_fn, False, True, 'resnet152', include_top, weights,
+  return ResNet(stack_fn, False, use_bias, 'resnet152', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
 
 
@@ -658,6 +699,9 @@ DOC = """
     classes: optional number of classes to classify images
       into, only to be specified if `include_top` is True, and
       if no `weights` argument is specified.
+    use_bias: optional boolean, to specify whether to have a bias in
+    the convolutions. Note that biases are not needed since the batch
+    normalization layers are affine.
     classifier_activation: A `str` or callable. The activation function to use
       on the "top" layer. Ignored unless `include_top=True`. Set
       `classifier_activation=None` to return the logits of the "top" layer.
