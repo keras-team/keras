@@ -1598,7 +1598,7 @@ class RandomBrightness(BaseImageAugmentationLayer):
 @keras_export('keras.layers.RandomHeight',
               'keras.layers.experimental.preprocessing.RandomHeight',
               v1=[])
-class RandomHeight(base_layer.BaseRandomLayer):
+class RandomHeight(BaseImageAugmentationLayer):
   """A preprocessing layer which randomly varies image height during training.
 
   This layer adjusts the height of a batch of images by a random factor.
@@ -1662,33 +1662,42 @@ class RandomHeight(base_layer.BaseRandomLayer):
     self._interpolation_method = image_utils.get_interpolation(interpolation)
     self.seed = seed
 
-  def call(self, inputs, training=True):
-    inputs = utils.ensure_tensor(inputs)
+  def get_random_transformation(self,
+                                image=None,
+                                label=None,
+                                bounding_box=None):
+    height_factor = self._random_generator.random_uniform(
+        shape=[],
+        minval=(1.0 + self.height_lower),
+        maxval=(1.0 + self.height_upper))
+    inputs_shape = tf.shape(image)
+    img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+    adjusted_height = tf.cast(height_factor * img_hd, tf.int32)
+    return {'height': adjusted_height}
 
-    def random_height_inputs(inputs):
-      """Inputs height-adjusted with random ops."""
-      inputs_shape = tf.shape(inputs)
-      img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-      img_wd = inputs_shape[W_AXIS]
-      height_factor = self._random_generator.random_uniform(
-          shape=[],
-          minval=(1.0 + self.height_lower),
-          maxval=(1.0 + self.height_upper))
-      adjusted_height = tf.cast(height_factor * img_hd, tf.int32)
-      adjusted_size = tf.stack([adjusted_height, img_wd])
-      output = tf.image.resize(
-          images=inputs, size=adjusted_size, method=self._interpolation_method)
-      # tf.resize will output float32 in many cases regardless of input type.
-      output = tf.cast(output, self.compute_dtype)
-      output_shape = inputs.shape.as_list()
-      output_shape[H_AXIS] = None
-      output.set_shape(output_shape)
-      return output
+  def _batch_augment(self, inputs):
+    images = self.augment_image(inputs['images'], transformation=None)
+    result = {'images': images}
+    # to-do augment bbox to clip bbox to resized height value
+    return result
 
-    if training:
-      return random_height_inputs(inputs)
-    else:
-      return inputs
+  def augment_image(self, image, transformation=None):
+    if transformation is None:
+      transformation = self.get_random_transformation(image)
+    # The batch dimension of the input=image is not modified. The output would
+    # be accurate for both unbatched and batched input
+    inputs_shape = tf.shape(image)
+    img_wd = inputs_shape[W_AXIS]
+    adjusted_height = transformation['height']
+    adjusted_size = tf.stack([adjusted_height, img_wd])
+    output = tf.image.resize(
+        images=image, size=adjusted_size, method=self._interpolation_method)
+    # tf.resize will output float32 in many cases regardless of input type.
+    output = tf.cast(output, self.compute_dtype)
+    output_shape = list(image.shape)
+    output_shape[H_AXIS] = None
+    output.set_shape(output_shape)
+    return output
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
