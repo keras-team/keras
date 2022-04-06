@@ -549,6 +549,8 @@ def get_tensor_spec(t, dynamic_batch=False, name=None):
   elif (hasattr(t, '_keras_history') and
         hasattr(t._keras_history[0], '_type_spec')):
     return t._keras_history[0]._type_spec
+  elif isinstance(t, keras_tensor.KerasTensor):
+    spec = t.type_spec
   elif hasattr(t, 'shape') and hasattr(t, 'dtype'):
     spec = tf.TensorSpec(shape=t.shape, dtype=t.dtype, name=name)
   else:
