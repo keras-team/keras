@@ -534,7 +534,9 @@ class Sum(Reduce):
   def __init__(self, name='sum', dtype=None):
     super(Sum, self).__init__(reduction=metrics_utils.Reduction.SUM,
                               name=name, dtype=dtype)
-
+  
+  def update_state(self, y_true, y_pred, sample_weight=None):
+        super().update_state(y_pred, sample_weight=sample_weight)
 
 @keras_export('keras.metrics.Mean')
 class Mean(Reduce):
@@ -577,7 +579,9 @@ class Mean(Reduce):
   def __init__(self, name='mean', dtype=None):
     super(Mean, self).__init__(
         reduction=metrics_utils.Reduction.WEIGHTED_MEAN, name=name, dtype=dtype)
-
+  
+  def update_state(self, y_true, y_pred, sample_weight=None):
+        super().update_state(y_pred, sample_weight=sample_weight)
 
 @keras_export('keras.metrics.MeanMetricWrapper')
 class MeanMetricWrapper(Mean):
