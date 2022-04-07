@@ -733,7 +733,6 @@ distribute_py_test(
     shard_count = 2,
     tags = [
         "multi_and_single_gpu",
-        "no_oss",  # TODO(jmullenbach): Broken by cl/439357690
         "no_rocm",
         "nomultivm",  # TODO(b/170502145)
     ],
