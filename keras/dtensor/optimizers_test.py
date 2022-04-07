@@ -17,10 +17,9 @@
 from absl.testing import parameterized
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import optimizers
+from keras.dtensor import test_util
 import numpy as np
 import tensorflow.compat.v2 as tf
-
-from keras.dtensor.tests import test_util
 
 
 class OptimizersTest(test_util.DTensorBaseTest):
@@ -39,8 +38,9 @@ class OptimizersTest(test_util.DTensorBaseTest):
 
   def test_add_variable_from_reference(self):
     optimizer = optimizers.Adam(mesh=self.mesh)
-    variable_init_value = tf.ones(
-        [4, 4], dtype=tf.float32,
+    variable_init_value = tf.ones([4, 4], dtype=tf.float32)
+    variable_init_value = dtensor.copy_to_mesh(
+        variable_init_value,
         layout=dtensor.Layout.replicated(self.mesh, rank=2))
     model_variable = dtensor.DVariable(variable_init_value,
                                        trainable=True,
@@ -54,8 +54,9 @@ class OptimizersTest(test_util.DTensorBaseTest):
 
   def test_build_index_dict(self):
     optimizer = optimizers.Adam(mesh=self.mesh)
-    variable_init_value = tf.ones(
-        shape=(), dtype=tf.float32,
+    variable_init_value = tf.ones(shape=(), dtype=tf.float32)
+    variable_init_value = dtensor.copy_to_mesh(
+        variable_init_value,
         layout=dtensor.Layout.replicated(self.mesh, rank=0))
     var_list = [dtensor.DVariable(variable_init_value, name=f'var{i}')
                 for i in range(10)]
@@ -82,8 +83,9 @@ class OptimizersTest(test_util.DTensorBaseTest):
     self.assertEqual(optimizer.iterations.layout,
                      dtensor.Layout.replicated(self.mesh, rank=0))
 
-    variable_init_value = tf.ones(
-        [4, 4], dtype=tf.float32,
+    variable_init_value = tf.ones([4, 4], dtype=tf.float32)
+    variable_init_value = dtensor.copy_to_mesh(
+        variable_init_value,
         layout=dtensor.Layout.replicated(self.mesh, rank=2))
     model_variable = dtensor.DVariable(variable_init_value,
                                        trainable=True)
