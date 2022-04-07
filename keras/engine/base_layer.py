@@ -3000,7 +3000,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   # SavedModel properties. Please see keras/saving/saved_model for details.
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
-  def _set_save_spec(self, inputs, args=None, kwargs=None):
+  def _set_save_spec(self, inputs, args=None, kwargs=None, override=False):
     """Defines the save spec so that serialization is able to trace layer call.
 
     The TensorSpecs of the call function `inputs`, `args`, and `kwargs` are
@@ -3010,8 +3010,10 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       inputs: possibly nested inputs passed into the call function.
       args: a list of positional arguments passed into call.
       kwargs: a dictionary of keyword arguments passed into call.
+      override: bool, if `True`, overrides the current save spec even if it is
+        already set. Defaults to `False`.
     """
-    if self._saved_model_inputs_spec is not None:
+    if self._saved_model_arg_spec is not None and not override:
       return  # Already set.
     args = args or []
     kwargs = kwargs or {}
