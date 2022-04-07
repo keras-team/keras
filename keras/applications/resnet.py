@@ -528,7 +528,15 @@ def ResNet18(include_top=True,
 
   def stack_fn(x):
     x = stack_block(
-      x, 64, 2, basic_block, use_bias=use_bias, first_shortcut=False, stride1=1, name='conv2')
+      x,
+      64,
+      2,
+      basic_block,
+      use_bias=use_bias,
+      first_shortcut=False,
+      stride1=1,
+      name='conv2',
+    )
     x = stack_block(x, 128, 2, basic_block, use_bias=use_bias, name='conv3')
     x = stack_block(x, 256, 2, basic_block, use_bias=use_bias, name='conv4')
     return stack_block(x, 512, 2, basic_block, use_bias=use_bias, name='conv5')
@@ -550,7 +558,16 @@ def ResNet34(include_top=True,
   """Instantiates the ResNet34 architecture."""
 
   def stack_fn(x):
-    x = stack_block(x, 64, 3, basic_block, use_bias=use_bias, first_shortcut=False, stride1=1, name='conv2')
+    x = stack_block(
+      x,
+      64,
+      3,
+      basic_block,
+      use_bias=use_bias,
+      first_shortcut=False,
+      stride1=1,
+      name='conv2',
+    )
     x = stack_block(x, 128, 4, basic_block, use_bias=use_bias, name='conv3')
     x = stack_block(x, 256, 6, basic_block, use_bias=use_bias, name='conv4')
     return stack_block(x, 512, 3, basic_block, use_bias=use_bias, name='conv5')
