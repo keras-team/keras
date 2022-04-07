@@ -706,6 +706,7 @@ def map_missing_dict_keys(y_pred, struct):
   """Replaces missing dict keys in `struct` with `None` placeholders."""
   if not isinstance(y_pred, dict) or not isinstance(struct, dict):
     return struct
+  struct = copy.copy(struct)
   for k in y_pred.keys():
     if k not in struct:
       struct[k] = None
