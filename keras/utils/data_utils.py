@@ -448,7 +448,7 @@ class Sequence:
   # Here, `x_set` is list of path to the images
   # and `y_set` are the associated classes.
 
-  class CIFAR10Sequence(Sequence):
+  class CIFAR10Sequence(tf.keras.utils.Sequence):
 
       def __init__(self, x_set, y_set, batch_size):
           self.x, self.y = x_set, y_set
