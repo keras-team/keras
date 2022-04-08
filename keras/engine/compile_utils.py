@@ -437,7 +437,7 @@ class MetricsContainer(Container):
           m._name = output_name + '_' + m._name
         if m._name in metric_names:
           raise ValueError(
-              f'Found two metrics with the same name: {m._name}.'
+              f'Found two metrics with the same name: {m._name}. '
               'All the metrics added to the model need to have unique names.')
         metric_names.add(m._name)
 
