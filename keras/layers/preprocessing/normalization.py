@@ -61,6 +61,9 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         value(s) will be broadcast to the shape of the kept axes above; if the
         value(s) cannot be broadcast, an error will be raised when this layer's
         `build()` method is called.
+      invert: If True, this layer will apply the inverse transformation
+        to its inputs: it would turn a normalized input back into its
+        original form.
 
   Examples:
 
@@ -96,9 +99,22 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   array([[-1.4142135 ],
          [-0.70710677],
          [ 0.        ]], dtype=float32)>
+
+  Use the layer to de-normalize inputs (after adapting the layer).
+
+  >>> adapt_data = np.array([[0., 7., 4.],
+  ...                        [2., 9., 6.],
+  ...                        [0., 7., 4.],
+  ...                        [2., 9., 6.]], dtype='float32')
+  >>> input_data = np.array([[1., 2., 3.]], dtype='float32')
+  >>> layer = tf.keras.layers.Normalization(axis=-1, invert=True)
+  >>> layer.adapt(adapt_data)
+  >>> layer(input_data)
+  <tf.Tensor: shape=(1, 3), dtype=float32, numpy=
+  array([2., 10., 8.], dtype=float32)>
   """
 
-  def __init__(self, axis=-1, mean=None, variance=None, **kwargs):
+  def __init__(self, axis=-1, mean=None, variance=None, invert=False, **kwargs):
     super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Normalization').set(True)
 
@@ -124,6 +140,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
           'must be set. Got mean: {} and variance: {}'.format(mean, variance))
     self.input_mean = mean
     self.input_variance = variance
+    self.invert = invert
 
   def build(self, input_shape):
     super().build(input_shape)
@@ -302,8 +319,12 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     # The base layer automatically casts floating-point inputs, but we
     # explicitly cast here to also allow integer inputs to be passed
     inputs = tf.cast(inputs, self.compute_dtype)
-    return ((inputs - self.mean) /
-            tf.maximum(tf.sqrt(self.variance), backend.epsilon()))
+    if self.invert:
+      return ((inputs + self.mean) *
+              tf.maximum(tf.sqrt(self.variance), backend.epsilon()))
+    else:
+      return ((inputs - self.mean) /
+              tf.maximum(tf.sqrt(self.variance), backend.epsilon()))
 
   def compute_output_shape(self, input_shape):
     return input_shape
