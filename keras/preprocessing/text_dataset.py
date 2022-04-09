@@ -12,192 +12,262 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Keras text dataset generation utilities."""
+"""Tests for text_dataset."""
 
 import tensorflow.compat.v2 as tf
 
-import numpy as np
-from keras.preprocessing import dataset_utils
-from tensorflow.python.util.tf_export import keras_export
+import os
+import random
+import shutil
+import string
+from keras import keras_parameterized
+from keras.preprocessing import text_dataset
 
 
-@keras_export('keras.utils.text_dataset_from_directory',
-              'keras.preprocessing.text_dataset_from_directory',
-              v1=[])
-def text_dataset_from_directory(directory,
-                                labels='inferred',
-                                label_mode='int',
-                                class_names=None,
-                                batch_size=32,
-                                max_length=None,
-                                shuffle=True,
-                                seed=None,
-                                validation_split=None,
-                                subset=None,
-                                follow_links=False):
-  """Generates a `tf.data.Dataset` from text files in a directory.
+class TextDatasetFromDirectoryTest(keras_parameterized.TestCase):
 
-  If your directory structure is:
+  def _prepare_directory(self,
+                         num_classes=2,
+                         nested_dirs=False,
+                         count=16,
+                         length=20):
+    # Get a unique temp directory
+    temp_dir = os.path.join(self.get_temp_dir(), str(random.randint(0, 1e6)))
+    os.mkdir(temp_dir)
+    self.addCleanup(shutil.rmtree, temp_dir)
 
-  ```
-  main_directory/
-  ...class_a/
-  ......a_text_1.txt
-  ......a_text_2.txt
-  ...class_b/
-  ......b_text_1.txt
-  ......b_text_2.txt
-  ```
+    # Generate paths to class subdirectories
+    paths = []
+    for class_index in range(num_classes):
+      class_directory = 'class_%s' % (class_index,)
+      if nested_dirs:
+        class_paths = [
+            class_directory, os.path.join(class_directory, 'subfolder_1'),
+            os.path.join(class_directory, 'subfolder_2'), os.path.join(
+                class_directory, 'subfolder_1', 'sub-subfolder')
+        ]
+      else:
+        class_paths = [class_directory]
+      for path in class_paths:
+        os.mkdir(os.path.join(temp_dir, path))
+      paths += class_paths
 
-  Then calling `text_dataset_from_directory(main_directory, labels='inferred')`
-  will return a `tf.data.Dataset` that yields batches of texts from
-  the subdirectories `class_a` and `class_b`, together with labels
-  0 and 1 (0 corresponding to `class_a` and 1 corresponding to `class_b`).
+    for i in range(count):
+      path = paths[i % len(paths)]
+      filename = os.path.join(path, 'text_%s.txt' % (i,))
+      f = open(os.path.join(temp_dir, filename), 'w')
+      text = ''.join([random.choice(string.printable) for _ in range(length)])
+      f.write(text)
+      f.close()
+    return temp_dir
 
-  Only `.txt` files are supported at this time.
+  def test_text_dataset_from_directory_standalone(self):
+    # Test retrieving txt files without labels from a directory and its subdirs.
+    # Save a few extra files in the parent directory.
+    directory = self._prepare_directory(count=7, num_classes=2)
+    for i in range(3):
+      filename = 'text_%s.txt' % (i,)
+      f = open(os.path.join(directory, filename), 'w')
+      text = ''.join([random.choice(string.printable) for _ in range(20)])
+      f.write(text)
+      f.close()
 
-  Args:
-    directory: Directory where the data is located.
-        If `labels` is "inferred", it should contain
-        subdirectories, each containing text files for a class.
-        Otherwise, the directory structure is ignored.
-    labels: Either "inferred"
-        (labels are generated from the directory structure),
-        None (no labels),
-        or a list/tuple of integer labels of the same size as the number of
-        text files found in the directory. Labels should be sorted according
-        to the alphanumeric order of the text file paths
-        (obtained via `os.walk(directory)` in Python).
-    label_mode:
-        - 'int': means that the labels are encoded as integers
-            (e.g. for `sparse_categorical_crossentropy` loss).
-        - 'categorical' means that the labels are
-            encoded as a categorical vector
-            (e.g. for `categorical_crossentropy` loss).
-        - 'binary' means that the labels (there can be only 2)
-            are encoded as `float32` scalars with values 0 or 1
-            (e.g. for `binary_crossentropy`).
-        - None (no labels).
-    class_names: Only valid if "labels" is "inferred". This is the explicit
-        list of class names (must match names of subdirectories). Used
-        to control the order of the classes
-        (otherwise alphanumerical order is used).
-    batch_size: Size of the batches of data. Default: 32.
-      If `None`, the data will not be batched
-      (the dataset will yield individual samples).
-    max_length: Maximum size of a text string. Texts longer than this will
-      be truncated to `max_length`.
-    shuffle: Whether to shuffle the data. Default: True.
-        If set to False, sorts the data in alphanumeric order.
-    seed: Optional random seed for shuffling and transformations.
-    validation_split: Optional float between 0 and 1,
-        fraction of data to reserve for validation.
-    subset: One of "training" or "validation".
-        Only used if `validation_split` is set.
-    follow_links: Whether to visits subdirectories pointed to by symlinks.
-        Defaults to False.
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=5, label_mode=None, max_length=10)
+    batch = next(iter(dataset))
+    # We just return the texts, no labels
+    self.assertEqual(batch.shape, (5,))
+    self.assertEqual(batch.dtype.name, 'string')
+    # Count samples
+    batch_count = 0
+    sample_count = 0
+    for batch in dataset:
+      batch_count += 1
+      sample_count += batch.shape[0]
+    self.assertEqual(batch_count, 2)
+    self.assertEqual(sample_count, 10)
 
-  Returns:
-    A `tf.data.Dataset` object.
-      - If `label_mode` is None, it yields `string` tensors of shape
-        `(batch_size,)`, containing the contents of a batch of text files.
-      - Otherwise, it yields a tuple `(texts, labels)`, where `texts`
-        has shape `(batch_size,)` and `labels` follows the format described
-        below.
+  def test_text_dataset_from_directory_binary(self):
+    directory = self._prepare_directory(num_classes=2)
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=8, label_mode='int', max_length=10)
+    batch = next(iter(dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8,))
+    self.assertEqual(batch[0].dtype.name, 'string')
+    self.assertEqual(len(batch[0].numpy()[0]), 10)  # Test max_length
+    self.assertEqual(batch[1].shape, (8,))
+    self.assertEqual(batch[1].dtype.name, 'int32')
 
-  Rules regarding labels format:
-    - if `label_mode` is `int`, the labels are an `int32` tensor of shape
-      `(batch_size,)`.
-    - if `label_mode` is `binary`, the labels are a `float32` tensor of
-      1s and 0s of shape `(batch_size, 1)`.
-    - if `label_mode` is `categorial`, the labels are a `float32` tensor
-      of shape `(batch_size, num_classes)`, representing a one-hot
-      encoding of the class index.
-  """
-  if labels not in ('inferred', None):
-    if not isinstance(labels, (list, tuple)):
-      raise ValueError(
-          '`labels` argument should be a list/tuple of integer labels, of '
-          'the same size as the number of text files in the target '
-          'directory. If you wish to infer the labels from the subdirectory '
-          'names in the target directory, pass `labels="inferred"`. '
-          'If you wish to get a dataset that only contains text samples '
-          f'(no labels), pass `labels=None`. Received: labels={labels}')
-    if class_names:
-      raise ValueError('You can only pass `class_names` if '
-                       f'`labels="inferred"`. Received: labels={labels}, and '
-                       f'class_names={class_names}')
-  if label_mode not in {'int', 'categorical', 'binary', None}:
-    raise ValueError(
-        '`label_mode` argument must be one of "int", "categorical", "binary", '
-        f'or None. Received: label_mode={label_mode}')
-  if labels is None or label_mode is None:
-    labels = None
-    label_mode = None
-  dataset_utils.check_validation_split_arg(
-      validation_split, subset, shuffle, seed)
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=8, label_mode='binary')
+    batch = next(iter(dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8,))
+    self.assertEqual(batch[0].dtype.name, 'string')
+    self.assertEqual(batch[1].shape, (8, 1))
+    self.assertEqual(batch[1].dtype.name, 'float32')
 
-  if seed is None:
-    seed = np.random.randint(1e6)
-  file_paths, labels, class_names = dataset_utils.index_directory(
-      directory,
-      labels,
-      formats=('.txt',),
-      class_names=class_names,
-      shuffle=shuffle,
-      seed=seed,
-      follow_links=follow_links)
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=8, label_mode='categorical')
+    batch = next(iter(dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8,))
+    self.assertEqual(batch[0].dtype.name, 'string')
+    self.assertEqual(batch[1].shape, (8, 2))
+    self.assertEqual(batch[1].dtype.name, 'float32')
 
-  if label_mode == 'binary' and len(class_names) != 2:
-    raise ValueError(
-        f'When passing `label_mode="binary"`, there must be exactly 2 '
-        f'class_names. Received: class_names={class_names}')
+  def test_sample_count(self):
+    directory = self._prepare_directory(num_classes=4, count=15)
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=8, label_mode=None)
+    sample_count = 0
+    for batch in dataset:
+      sample_count += batch.shape[0]
+    self.assertEqual(sample_count, 15)
 
-  file_paths, labels = dataset_utils.get_training_or_validation_split(
-      file_paths, labels, validation_split, subset)
-  if not file_paths:
-    raise ValueError(f'No text files found in directory {directory}. '
-                     f'Allowed format: .txt')
+  def test_text_dataset_from_directory_multiclass(self):
+    directory = self._prepare_directory(num_classes=4, count=15)
 
-  dataset = paths_and_labels_to_dataset(
-      file_paths=file_paths,
-      labels=labels,
-      label_mode=label_mode,
-      num_classes=len(class_names),
-      max_length=max_length)
-  dataset = dataset.prefetch(tf.data.AUTOTUNE)
-  if batch_size is not None:
-    if shuffle:
-      # Shuffle locally at each iteration
-      dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-    dataset = dataset.batch(batch_size)
-  else:
-    if shuffle:
-      dataset = dataset.shuffle(buffer_size=1024, seed=seed)
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=8, label_mode=None)
+    batch = next(iter(dataset))
+    self.assertEqual(batch.shape, (8,))
 
-  # Users may need to reference `class_names`.
-  dataset.class_names = class_names
-  return dataset
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=8, label_mode=None)
+    sample_count = 0
+    iterator = iter(dataset)
+    for batch in dataset:
+      sample_count += next(iterator).shape[0]
+    self.assertEqual(sample_count, 15)
 
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=8, label_mode='int')
+    batch = next(iter(dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8,))
+    self.assertEqual(batch[0].dtype.name, 'string')
+    self.assertEqual(batch[1].shape, (8,))
+    self.assertEqual(batch[1].dtype.name, 'int32')
 
-def paths_and_labels_to_dataset(file_paths,
-                                labels,
-                                label_mode,
-                                num_classes,
-                                max_length):
-  """Constructs a dataset of text strings and labels."""
-  path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
-  string_ds = path_ds.map(
-      lambda x: path_to_string_content(x, max_length),
-      num_parallel_calls=tf.data.AUTOTUNE)
-  if label_mode:
-    label_ds = dataset_utils.labels_to_dataset(labels, label_mode, num_classes)
-    string_ds = tf.data.Dataset.zip((string_ds, label_ds))
-  return string_ds
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=8, label_mode='categorical')
+    batch = next(iter(dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8,))
+    self.assertEqual(batch[0].dtype.name, 'string')
+    self.assertEqual(batch[1].shape, (8, 4))
+    self.assertEqual(batch[1].dtype.name, 'float32')
+
+  def test_text_dataset_from_directory_validation_split(self):
+    directory = self._prepare_directory(num_classes=2, count=10)
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=10, validation_split=0.2, subset='training',
+        seed=1337)
+    batch = next(iter(dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8,))
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=10, validation_split=0.2, subset='validation',
+        seed=1337)
+    batch = next(iter(dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (2,))
+    
+    # dataset_train, dataset_val = text_dataset.text_dataset_from_directory(
+    #     directory, batch_size=10, validation_split=0.2, subset='both',
+    #     seed=1337)
+    # batch = next(iter(dataset_train))
+    # self.assertLen(batch, 2)
+    # self.assertEqual(batch[0].shape, (2,))
+    # batch = next(iter(dataset_val))
+    # self.assertLen(batch, 2)
+    # self.assertEqual(batch[0].shape, (2,))
 
 
-def path_to_string_content(path, max_length):
-  txt = tf.io.read_file(path)
-  if max_length is not None:
-    txt = tf.compat.v1.strings.substr(txt, 0, max_length)
-  return txt
+  def test_text_dataset_from_directory_manual_labels(self):
+    directory = self._prepare_directory(num_classes=2, count=2)
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=8, labels=[0, 1], shuffle=False)
+    batch = next(iter(dataset))
+    self.assertLen(batch, 2)
+    self.assertAllClose(batch[1], [0, 1])
+
+  def test_text_dataset_from_directory_follow_links(self):
+    directory = self._prepare_directory(num_classes=2, count=25,
+                                        nested_dirs=True)
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=8, label_mode=None, follow_links=True)
+    sample_count = 0
+    for batch in dataset:
+      sample_count += batch.shape[0]
+    self.assertEqual(sample_count, 25)
+
+  def test_text_dataset_from_directory_no_files(self):
+    directory = self._prepare_directory(num_classes=2, count=0)
+    with self.assertRaisesRegex(ValueError, 'No text files found'):
+      _ = text_dataset.text_dataset_from_directory(directory)
+
+  def test_text_dataset_from_directory_errors(self):
+    directory = self._prepare_directory(num_classes=3, count=5)
+
+    with self.assertRaisesRegex(ValueError, '`labels` argument should be'):
+      _ = text_dataset.text_dataset_from_directory(
+          directory, labels='other')
+
+    with self.assertRaisesRegex(ValueError, '`label_mode` argument must be'):
+      _ = text_dataset.text_dataset_from_directory(
+          directory, label_mode='other')
+
+    with self.assertRaisesRegex(
+        ValueError, 'only pass `class_names` if `labels="inferred"`'):
+      _ = text_dataset.text_dataset_from_directory(
+          directory, labels=[0, 0, 1, 1, 1],
+          class_names=['class_0', 'class_1', 'class_2'])
+
+    with self.assertRaisesRegex(
+        ValueError,
+        'Expected the lengths of `labels` to match the number of files'):
+      _ = text_dataset.text_dataset_from_directory(
+          directory, labels=[0, 0, 1, 1])
+
+    with self.assertRaisesRegex(
+        ValueError, '`class_names` passed did not match'):
+      _ = text_dataset.text_dataset_from_directory(
+          directory, class_names=['class_0', 'class_2'])
+
+    with self.assertRaisesRegex(ValueError, 'there must be exactly 2'):
+      _ = text_dataset.text_dataset_from_directory(
+          directory, label_mode='binary')
+
+    with self.assertRaisesRegex(ValueError,
+                                '`validation_split` must be between 0 and 1'):
+      _ = text_dataset.text_dataset_from_directory(
+          directory, validation_split=2)
+
+    with self.assertRaisesRegex(ValueError,
+                                '`subset` must be either "training" or'):
+      _ = text_dataset.text_dataset_from_directory(
+          directory, validation_split=0.2, subset='other')
+
+    with self.assertRaisesRegex(ValueError, '`validation_split` must be set'):
+      _ = text_dataset.text_dataset_from_directory(
+          directory, validation_split=0, subset='training')
+
+    with self.assertRaisesRegex(ValueError, 'must provide a `seed`'):
+      _ = text_dataset.text_dataset_from_directory(
+          directory, validation_split=0.2, subset='training')
+
+  def test_text_dataset_from_directory_not_batched(self):
+    directory = self._prepare_directory()
+    dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=None, label_mode=None, follow_links=True)
+
+    sample = next(iter(dataset))
+    self.assertEqual(len(sample.shape), 0)
+
+
+if __name__ == '__main__':
+  tf.compat.v1.enable_v2_behavior()
+  tf.test.main()
