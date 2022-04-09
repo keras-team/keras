@@ -237,9 +237,9 @@ def check_validation_split_arg(validation_split, subset, shuffle, seed):
   if (validation_split or subset) and not (validation_split and subset):
     raise ValueError(
         'If `subset` is set, `validation_split` must be set, and inversely.')
-  if subset not in ('training', 'validation', None):
-    raise ValueError('`subset` must be either "training" '
-                     'or "validation", received: %s' % (subset,))
+  if subset not in ('training', 'validation', 'both', None):
+    raise ValueError('`subset` must be either "training", '
+                     '"validation" or "both", received: %s' % (subset,))
   if validation_split and shuffle and seed is None:
     raise ValueError(
         'If using `validation_split` and shuffling the data, you must provide '
