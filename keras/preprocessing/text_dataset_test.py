@@ -174,6 +174,16 @@ class TextDatasetFromDirectoryTest(keras_parameterized.TestCase):
     batch = next(iter(dataset))
     self.assertLen(batch, 2)
     self.assertEqual(batch[0].shape, (2,))
+    
+    dataset_train, dataset_val = text_dataset.text_dataset_from_directory(
+        directory, batch_size=10, validation_split=0.2, subset='both',
+        seed=1337)
+    batch = next(iter(dataset_train))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (2,))
+    batch = next(iter(dataset_val))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (2,))
 
   def test_text_dataset_from_directory_manual_labels(self):
     directory = self._prepare_directory(num_classes=2, count=2)
