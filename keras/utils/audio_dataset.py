@@ -130,6 +130,15 @@ def audio_dataset_from_directory(directory,
     if label_mode not in {'int', 'categorical', 'binary', None}:
         raise ValueError('`label_mode` argument must be one of "int", "categorical", "binary", 'f'or None. Received: label_mode={label_mode}')
     
+
+
+    if not ragged and output_sequence_length is None:
+        raise Exception(f'The dataset should be ragged dataset or fixed sequence length dataset, found ragged={ragged} and output_sequence_length={output_sequence_length}')
+    elif ragged and output_sequence_length is not None:
+        raise Exception('Cannot set both `ragged` and `output_sequence_length`')
+    
+
+
     if labels is None or label_mode is None:
         labels = None
         label_mode = None
@@ -139,7 +148,10 @@ def audio_dataset_from_directory(directory,
     if seed is None:
         seed = np.random.randint(1e6)
         
-    file_paths, labels, class_names = dataset_utils.index_directory(directory, labels, formats=ALLOWED_FORMATS, class_names=class_names, shuffle=shuffle, seed=seed, follow_links=follow_links)
+    file_paths, labels, class_names = dataset_utils.index_directory(directory, labels, formats=ALLOWED_FORMATS, class_names=class_names, 
+        shuffle=shuffle, 
+        seed=seed, 
+        follow_links=follow_links)
 
     if label_mode == 'binary' and len(class_names) != 2:
         raise ValueError(f'When passing `label_mode="binary"`, there must be exactly 2 'f'class_names. Received: class_names={class_names}')
@@ -149,8 +161,16 @@ def audio_dataset_from_directory(directory,
         raise ValueError(f'No audio files found in directory {directory}. 'f'Allowed format(s): {ALLOWED_FORMATS}')
 
 
-    dataset = paths_and_labels_to_dataset(file_paths=file_paths, labels=labels, 
-    label_mode=label_mode, num_classes=len(class_names), sampling_rate=sampling_rate, output_sequence_length=output_sequence_length)
+    if ragged:
+        dataset = paths_and_labels_to_ragged_dataset(file_paths=file_paths, labels=labels, 
+            label_mode=label_mode, 
+            num_classes=len(class_names), 
+            sampling_rate=sampling_rate)
+    else:
+        dataset = paths_and_labels_to_dataset(file_paths=file_paths, labels=labels, label_mode=label_mode, 
+            num_classes=len(class_names), 
+            sampling_rate=sampling_rate, 
+            output_sequence_length=output_sequence_length)
 
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
     if batch_size is not None:
@@ -166,11 +186,20 @@ def audio_dataset_from_directory(directory,
     return dataset
 
 
+def prepare_audio(path, sampling_rate, output_sequence_length=-1):
+    """Reads and prepare the audio file."""
+    audio = tf.io.read_file(path)
+    audio, _ = tf.audio.decode_wav(contents=audio, desired_samples=output_sequence_length )
+    if sampling_rate is not None:
+        audio = tf.audio.encode_wav(audio, sampling_rate)
+        audio, _ = tf.audio.decode_wav(audio)
+    return audio
+
 def paths_and_labels_to_dataset(file_paths,
                                 labels,
                                 label_mode,
                                 num_classes, sampling_rate, output_sequence_length):
-  """Constructs a dataset of audio and labels."""
+  """Constructs a fixed size dataset of audio and labels."""
   path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
   audio_ds = path_ds.map(lambda x: prepare_audio(x, sampling_rate, output_sequence_length), num_parallel_calls=tf.data.AUTOTUNE)
   if label_mode:
@@ -178,11 +207,12 @@ def paths_and_labels_to_dataset(file_paths,
     audio_ds = tf.data.Dataset.zip((audio_ds, label_ds))
   return audio_ds
 
-
-def prepare_audio(path, sampling_rate, output_sequence_length):
-    audio = tf.io.read_file(path)
-    audio, _ = tf.audio.decode_wav(contents=audio, desired_samples=output_sequence_length)
-    if sampling_rate is not None:
-        audio = tf.audio.encode_wav(audio, sampling_rate)
-        audio, _ = tf.audio.decode_wav(audio)
-    return audio
+def paths_and_labels_to_ragged_dataset(file_paths, labels, label_mode, num_classes, sampling_rate):
+    """Constructs a ragged dataset of audio and labels."""
+    audio_ds = tf.data.Dataset.from_tensor_slices(file_paths)
+    audio_ds = audio_ds.map(lambda x: prepare_audio(x, sampling_rate), num_parallel_calls=tf.data.AUTOTUNE)
+    audio_ds = audio_ds.map(lambda x: tf.RaggedTensor.from_tensor(x), num_parallel_calls=tf.data.AUTOTUNE)
+    if label_mode:
+        label_ds = dataset_utils.labels_to_dataset(labels, label_mode, num_classes)
+        audio_ds = tf.data.Dataset.zip((audio_ds, label_ds))
+    return audio_ds
