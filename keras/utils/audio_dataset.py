@@ -31,7 +31,7 @@ def audio_dataset_from_directory(directory,
     subset=None, 
     follow_links=False):
 
-    """Generates a `tf.data.Dataset` from text files in a directory.
+    """Generates a `tf.data.Dataset` from audio files in a directory.
 
     If your directory structure is:
 
@@ -45,7 +45,7 @@ def audio_dataset_from_directory(directory,
     ......b_audio_2.wav
     ```
 
-    Then calling `text_dataset_from_directory(main_directory, labels='inferred')`
+    Then calling `audio_dataset_from_directory(main_directory, labels='inferred')`
     will return a `tf.data.Dataset` that yields batches of audio files from
     the subdirectories `class_a` and `class_b`, together with labels
     0 and 1 (0 corresponding to `class_a` and 1 corresponding to `class_b`).
@@ -98,7 +98,7 @@ def audio_dataset_from_directory(directory,
     Returns:
       A `tf.data.Dataset` object.
         - If `label_mode` is None, it yields `string` tensors of shape
-          `(batch_size,)`, containing the contents of a batch of text files.
+          `(batch_size,)`, containing the contents of a batch of audio files.
         - Otherwise, it yields a tuple `(audio, labels)`, where `audio`
           has shape `(batch_size, sequence_length, num_channels)` and `labels` follows the format described
           below.
