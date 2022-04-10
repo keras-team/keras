@@ -738,6 +738,43 @@ class CustomMetricsTest(tf.test.TestCase):
                     metrics=[dict_metric])
       model.fit(np.ones((10, 2)), np.ones((10, 3)))
 
+  def test_training_with_mean_and_sum(self):
+    mean_metric = metrics.Mean()
+    sum_metric = metrics.Sum()
+    metrics.Mean().test()
+    try:
+      print("TESTING FOR MEAN CLASS...")
+      model = tf.keras.models.Sequential()
+
+      model.add(tf.keras.layers.Dense(4, input_shape=(1,)))
+      model.add(tf.keras.layers.Dense(1, ))
+
+      model.compile(optimizer='Adam', loss='binary_crossentropy', metrics=[tf.keras.metrics.Sum()]) or model.compile(optimizer='Adam', loss='binary_crossentropy', metrics=[metrics.Mean()])
+
+      model.fit([1], [0])
+      print("TEST FINISHED SUCCESSFULLY")
+    except:
+      print("TEST FAILED")
+      raise
+
+    print()
+    print("---------------------------------")
+    print()    
+    try:
+      print("TESTINT FOR SUM CLASS...")
+      model = tf.keras.models.Sequential()
+
+      model.add(tf.keras.layers.Dense(4, input_shape=(1,)))
+      model.add(tf.keras.layers.Dense(1, ))
+
+      model.compile(optimizer='Adam', loss='binary_crossentropy', metrics=[tf.keras.metrics.Sum()]) or model.compile(optimizer='Adam', loss='binary_crossentropy', metrics=[metrics.Sum()])
+
+      model.fit([1], [0])
+      print("TEST FINISHED SUCCESSFULLY")
+    except:
+      print("TEST FAILED")
+      raise
+
 
 if __name__ == '__main__':
   tf.test.main()

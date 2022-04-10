@@ -582,6 +582,9 @@ class Mean(Reduce):
   
   def update_state(self, y_true, y_pred, sample_weight=None):
         super().update_state(y_pred, sample_weight=sample_weight)
+  
+  def test(self):
+    print("No")
 
 @keras_export('keras.metrics.MeanMetricWrapper')
 class MeanMetricWrapper(Mean):
