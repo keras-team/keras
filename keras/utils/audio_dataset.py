@@ -19,12 +19,14 @@ import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
 
 import numpy as np
+
 from keras.utils import dataset_utils
 from tensorflow.python.util.tf_export import keras_export
 
 ALLOWED_FORMATS = (".wav",)
 
 
+@keras_export("keras.utils.image_dataset_from_directory", v1=[])
 def audio_dataset_from_directory(
     directory,
     labels="inferred",
