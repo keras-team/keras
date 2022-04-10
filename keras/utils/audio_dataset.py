@@ -26,7 +26,7 @@ from tensorflow.python.util.tf_export import keras_export
 ALLOWED_FORMATS = (".wav",)
 
 
-@keras_export("keras.utils.image_dataset_from_directory", v1=[])
+@keras_export("keras.utils.audio_dataset_from_directory", v1=[])
 def audio_dataset_from_directory(
     directory,
     labels="inferred",
