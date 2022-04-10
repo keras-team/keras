@@ -442,6 +442,8 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
       batch_size: Integer, size of a batch.
       shuffle: Boolean, whether to shuffle the data between epochs.
       seed: Random seed for data shuffling.
+      verbose: Verbosity mode, 0 or 1. Mode 0 is silent, and mode 1
+        displays message.
       data_format: String, one of `channels_first`, `channels_last`.
       save_to_dir: Optional directory where to save the pictures being yielded,
         in a viewable format. This is useful for visualizing the random
@@ -475,6 +477,7 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
                batch_size=32,
                shuffle=True,
                seed=None,
+               verbose=1,
                data_format=None,
                save_to_dir=None,
                save_prefix='',
@@ -501,7 +504,8 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
     self.dtype = dtype
     # First, count the number of samples and classes.
     self.samples = 0
-
+    self.verbose = verbose
+    
     if not classes:
       classes = []
       for subdir in sorted(os.listdir(directory)):
@@ -532,9 +536,10 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
     for classes in classes_list:
       self.classes[i:i + len(classes)] = classes
       i += len(classes)
-
-    print('Found %d images belonging to %d classes.' %
-          (self.samples, self.num_classes))
+    
+    if self.verbose > 0:
+      print('Found %d images belonging to %d classes.' %
+           (self.samples, self.num_classes))
     pool.close()
     pool.join()
     self._filepaths = [
@@ -1392,6 +1397,7 @@ class ImageDataGenerator():
                           batch_size=32,
                           shuffle=True,
                           seed=None,
+                          verbose=1,
                           save_to_dir=None,
                           save_prefix='',
                           save_format='png',
@@ -1438,6 +1444,8 @@ class ImageDataGenerator():
         shuffle: Whether to shuffle the data (default: True) If set to False,
           sorts the data in alphanumeric order.
         seed: Optional random seed for shuffling and transformations.
+        verbose: Verbosity mode, 0 or 1. Mode 0 is silent, and mode 1
+          displays message.
         save_to_dir: None or str (default: None). This allows you to optionally
           specify a directory to which to save the augmented pictures being
           generated (useful for visualizing what you are doing).
@@ -1478,6 +1486,7 @@ class ImageDataGenerator():
         batch_size=batch_size,
         shuffle=shuffle,
         seed=seed,
+        verbose=verbose,
         save_to_dir=save_to_dir,
         save_prefix=save_prefix,
         save_format=save_format,
