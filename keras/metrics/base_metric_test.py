@@ -739,9 +739,16 @@ class CustomMetricsTest(tf.test.TestCase):
       model.fit(np.ones((10, 2)), np.ones((10, 3)))
 
   def test_training_with_mean_and_sum(self):
-    mean_metric = metrics.Mean()
-    sum_metric = metrics.Sum()
-    metrics.Mean().test()
+
+    '''
+    This fix is made with regards to the github issue https://github.com/keras-team/keras/issues/16291 on the update_state function
+    receiving multiple values argument for "sample_weight" when using Mean() or Sum() metric for fitting a model.
+
+    This fix was inspired by the stack overflow post https://stackoverflow.com/questions/68354367/getting-an-error-when-using-tf-keras-metrics-mean-in-functional-keras-api.
+
+    While fixing this error however, new assert errors are shown due to the current fix now taking an extra argument. May need to update some of the test cases with this fix.
+    '''
+
     try:
       print("TESTING FOR MEAN CLASS...")
       model = tf.keras.models.Sequential()
@@ -761,7 +768,7 @@ class CustomMetricsTest(tf.test.TestCase):
     print("---------------------------------")
     print()    
     try:
-      print("TESTINT FOR SUM CLASS...")
+      print("TESTING FOR SUM CLASS...")
       model = tf.keras.models.Sequential()
 
       model.add(tf.keras.layers.Dense(4, input_shape=(1,)))
