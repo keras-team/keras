@@ -23,6 +23,12 @@ import numpy as np
 from keras.utils import dataset_utils
 from tensorflow.python.util.tf_export import keras_export
 
+try:
+    import tensorflow_io as tfio
+except ImportError:
+    tfio = None
+
+
 ALLOWED_FORMATS = (".wav",)
 
 
@@ -95,6 +101,8 @@ def audio_dataset_from_directory(
       sampling_rate: Number of samples taken each second.
       output_sequence_length: Maximum length of a audio sequence. audio files longer than this will 
       be truncated to `output_sequence_length`
+      ragged: Whether to return a ragged dataset if the sequence length is not the same. Default: False.
+          If set to False, `output_sequence_length` should have a value.
       shuffle: Whether to shuffle the data. Default: True.
           If set to False, sorts the data in alphanumeric order.
       seed: Optional random seed for shuffling and transformations.
@@ -145,11 +153,23 @@ def audio_dataset_from_directory(
         )
 
     if not ragged and output_sequence_length is None:
-        raise Exception(
+        raise ValueError(
             f"The dataset should be ragged dataset or fixed sequence length dataset, found ragged={ragged} and output_sequence_length={output_sequence_length}"
         )
     elif ragged and output_sequence_length is not None:
-        raise Exception("Cannot set both `ragged` and `output_sequence_length`")
+        raise ValueError("Cannot set both `ragged` and `output_sequence_length`")
+
+    if sampling_rate is not None:
+        if not isinstance(sampling_rate, int):
+            raise ValueError("`sampling_rate` should have an integer value")
+
+        if sampling_rate <= 0:
+            raise ValueError(
+                f"`sampling_rate` should have value bigger than zero found sampling_rate={sampling_rate}"
+            )
+
+        if tfio is None:
+            raise ImportError("Cannot import tensorflow_io, install `tensorflow-io`")
 
     if labels is None or label_mode is None:
         labels = None
@@ -209,17 +229,22 @@ def audio_dataset_from_directory(
     return dataset
 
 
-def prepare_audio(path, sampling_rate, output_sequence_length=None):
-    """Reads and prepare the audio file."""
+def read_and_decode_audio(path, sampling_rate=None, output_sequence_length=None):
+    """Reads and decodes audio file."""
     audio = tf.io.read_file(path)
+
     if output_sequence_length is None:
         output_sequence_length = -1
-    audio, _ = tf.audio.decode_wav(
+
+    audio, default_audio_rate = tf.audio.decode_wav(
         contents=audio, desired_samples=output_sequence_length
     )
     if sampling_rate is not None:
-        audio = tf.audio.encode_wav(audio, sampling_rate)
-        audio, _ = tf.audio.decode_wav(audio)
+        # default_audio_rate should have dtype=int64
+        default_audio_rate = tf.cast(default_audio_rate, tf.int64)
+        audio = tfio.audio.resample(
+            input=audio, rate_in=default_audio_rate, rate_out=sampling_rate
+        )
     return audio
 
 
@@ -235,7 +260,7 @@ def paths_and_labels_to_dataset(
     """Constructs a fixed size dataset of audio and labels."""
     path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
     audio_ds = path_ds.map(
-        lambda x: prepare_audio(x, sampling_rate, output_sequence_length),
+        lambda x: read_and_decode_audio(x, sampling_rate, output_sequence_length),
         num_parallel_calls=tf.data.AUTOTUNE,
     )
 
