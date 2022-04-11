@@ -221,7 +221,11 @@ def audio_dataset_from_directory(
             class_names=class_names,
         )
         val_dataset = prepare_dataset(
-            dataset=val_dataset, batch_size=batch_size, shuffle=False, seed=seed, class_names=class_names
+            dataset=val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            seed=seed,
+            class_names=class_names,
         )
         return train_dataset, val_dataset
 
