@@ -73,10 +73,11 @@ def split_dataset(dataset,
   if shuffle: 
     if seed:
       np.random.seed(seed)
-    np.random.shuffle(dataset)
+    np.random.shuffle(dataset_as_list)
     
   total_size = len(dataset_as_list)
    
+  # if both left_size and right_size are None, raise error
   if right_size is None and left_size is None:
     raise ValueError('Both `left_size` and `right_size`cannot be `None`'
                      ' either one of them must specified')
