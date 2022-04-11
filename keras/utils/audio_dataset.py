@@ -20,7 +20,8 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 
-from keras.utils import dataset_utils
+# from keras.utils import dataset_utils
+import dataset_utils
 from tensorflow.python.util.tf_export import keras_export
 
 try:
@@ -100,7 +101,8 @@ def audio_dataset_from_directory(
         (the dataset will yield individual samples).
       sampling_rate: Number of samples taken each second.
       output_sequence_length: Maximum length of a audio sequence. audio files longer than this will 
-      be truncated to `output_sequence_length`
+        be truncated to `output_sequence_length`
+        If set to `None` then shorter sequences will be padded by the longest sequence in the current batch
       ragged: Whether to return a ragged dataset if the sequence length is not the same. Default: False.
           If set to False, `output_sequence_length` should have a value.
       shuffle: Whether to shuffle the data. Default: True.
@@ -152,11 +154,7 @@ def audio_dataset_from_directory(
             f'`label_mode` argument must be one of "int", "categorical", "binary", or None. Received: label_mode={label_mode}'
         )
 
-    if not ragged and output_sequence_length is None:
-        raise ValueError(
-            f"The dataset should be ragged dataset or fixed sequence length dataset. Received: ragged={ragged} and output_sequence_length={output_sequence_length}"
-        )
-    elif ragged and output_sequence_length is not None:
+    if ragged and output_sequence_length is not None:
         raise ValueError("Cannot set both `ragged` and `output_sequence_length`")
 
     if sampling_rate is not None:
@@ -172,7 +170,7 @@ def audio_dataset_from_directory(
 
         if tfio is None:
             raise ImportError(
-                "To use the argument `sampling_rate`, you should install tensorflow_io. You can install it via pip install tensorflow-io."
+                "To use the argument `sampling_rate`, you should install tensorflow_io. You can install it via `pip install tensorflow-io`."
             )
 
     if labels is None or label_mode is None:
@@ -219,6 +217,8 @@ def audio_dataset_from_directory(
             shuffle=shuffle,
             seed=seed,
             class_names=class_names,
+            output_sequence_length=output_sequence_length,
+            ragged=ragged,
         )
         val_dataset = prepare_dataset(
             dataset=val_dataset,
@@ -226,6 +226,8 @@ def audio_dataset_from_directory(
             shuffle=False,
             seed=seed,
             class_names=class_names,
+            output_sequence_length=output_sequence_length,
+            ragged=ragged,
         )
         return train_dataset, val_dataset
 
@@ -249,16 +251,24 @@ def audio_dataset_from_directory(
             shuffle=shuffle,
             seed=seed,
             class_names=class_names,
+            output_sequence_length=output_sequence_length,
+            ragged=ragged,
         )
         return dataset
 
 
-def prepare_dataset(dataset, batch_size, shuffle, seed, class_names):
+def prepare_dataset(
+    dataset, batch_size, shuffle, seed, class_names, output_sequence_length, ragged
+):
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
     if batch_size is not None:
         if shuffle:
             dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-        dataset = dataset.batch(batch_size)
+
+        if output_sequence_length is None and not ragged:
+            dataset = dataset.padded_batch(batch_size, padded_shapes=([None, None], []))
+        else:
+            dataset = dataset.batch(batch_size)
     else:
         if shuffle:
             dataset = dataset.shuffle(buffer_size=1024, seed=seed)
@@ -399,3 +409,9 @@ def paths_and_labels_to_dataset(
         label_ds = dataset_utils.labels_to_dataset(labels, label_mode, num_classes)
         audio_ds = tf.data.Dataset.zip((audio_ds, label_ds))
     return audio_ds
+
+
+ds = audio_dataset_from_directory("./mini_speech_commands", ragged=True)
+
+for s, l in ds.take(1000):
+    print(s.shape, l.shape)
