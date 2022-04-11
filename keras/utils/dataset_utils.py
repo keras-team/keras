@@ -14,14 +14,136 @@
 # ==============================================================================
 """Keras image dataset loading utilities."""
 
+
 import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
 
 import multiprocessing
 import os
+import time
 
 import numpy as np
+from tensorflow.python.util.tf_export import keras_export
 
+@keras_export('keras.utils.split_dataset')
+def split_dataset(dataset, 
+                  left_size=None, 
+                  right_size=None, 
+                  shuffle=False, 
+                  seed=None):
+  """Split a dataset into a left half and a right half (e.g. training / validation).
+  
+  Args:
+      dataset: A `tf.data.Dataset` object or 
+               a list/tuple of arrays with the same length.   
+      left_size: If float, it should be in range `[0, 1]` range 
+                 and signifies the fraction of the data to pack in 
+                 the left dataset. If integer, it signifies the number 
+                 of samples to pack in the left dataset. 
+                 If `None`, it defaults to the complement to `right_size`.       
+      right_size: If float, it should be in range `[0, 1]` range 
+                  and signifies the fraction of the data to pack 
+                  in the right dataset. If integer, it signifies 
+                  the number of samples to pack in the right dataset.
+                  If `None`, it defaults to the complement to `left_size`.     
+      shuffle: Boolean, whether to shuffle the data before splitting it.
+      seed: A random seed for shuffling.
+
+  Returns:
+      A tuple of two `tf.data.Dataset` objects: the left and right splits.
+  """
+  
+  if dataset and not isinstance(dataset,(tf.data.Dataset,list)):
+    raise TypeError('`dataset` must be either a tf.data.Dataset object'
+                     'or a list/tuple of arrays',f'Got {type(dataset)}')
+    
+  dataset_as_list = []
+  data_size_warning_flag = False
+  start_time = time.time()
+  
+  for datum in list(dataset):
+    cur_time = time.time()
+    # warns user if the dataset is too large to iterate within 10s
+    if int(cur_time - start_time) > 10 and not data_size_warning_flag:
+      Warning('Takes too long to process the dataset,'
+              'the utility is only meant for small datasets that fit in memory')
+      data_size_warning_flag = True
+    dataset_as_list.append(datum)
+  
+  if shuffle: 
+    if seed:
+      np.random.seed(seed)
+    np.random.shuffle(dataset)
+    
+  total_size = len(dataset_as_list)
+   
+  if right_size is None and left_size is None:
+    raise ValueError('Both `left_size` and `right_size`cannot be `None`'
+                     ' either one of them must specified')
+    
+  # if left_size is None, it defaults to the complement to right_size
+  # raises error if right_size not in range [0, 1] or [0, total_size]
+  elif left_size is None and right_size:
+    if type(right_size) == float:
+      if right_size < 0 or right_size > 1:
+        raise ValueError('`right_size` must be in range `[0, 1]`')
+      right_size = int(right_size*total_size)
+      left_size = total_size - right_size
+    elif type(right_size) == int:
+      if right_size < 0 or right_size > total_size:
+        raise ValueError('`right_size` must be in range `[0, 'f'{total_size}]`')
+      left_size = total_size - right_size
+      
+  # if right_size is None, it defaults to the complement to left_size
+  # raise error if left_size  not in range [0, 1] or [0, total_size]
+  elif left_size and right_size is None:
+    if type(left_size) == float:
+      if left_size < 0 or left_size > 1:
+        raise ValueError('`left_size` must be in range `[0, 1]`')
+      left_size = int(left_size*total_size)
+      right_size = total_size - left_size
+    elif type(left_size) == int:
+      if left_size < 0 or left_size > total_size:
+        raise ValueError('`left_size` must be in range `[0, 'f'{total_size}]`')
+      right_size = total_size - left_size
+    
+  # if both left and right sizes are specified, 
+  # raise error if they are not in range [0, 1] or [0, total_size]
+  elif left_size and right_size:
+    if type(left_size) == int and type(right_size) == int:
+      if left_size < 0 or left_size > total_size:
+        raise ValueError('`left_size` must be in range `[0, 'f'{total_size}]`')
+      elif right_size < 0 or right_size > total_size:
+        raise ValueError('`right_size` must be in range `[0, 'f'{total_size}]`')
+      elif left_size + right_size != total_size:
+        raise ValueError('The sum of `left_size` and `right_size`'
+                         'must be equal to the total size of the dataset.')
+    elif type(left_size) == float and type(right_size) == float:
+      if left_size < 0 or left_size > 1:
+        raise ValueError('`left_size` must be in range `[0, 1]`')
+      elif right_size < 0 or right_size > 1:
+        raise ValueError('`right_size` must be in range `[0, 1]`')
+      elif left_size + right_size != 1:
+        raise ValueError('The sum of `left_size` and `right_size`'
+                         'must be equal to 1.')
+      left_size = int(left_size*total_size)
+      right_size = int(right_size*total_size)
+    else:
+      raise ValueError('`left_size` and `right_size` must be either '
+                       'both floats or both integers.')
+  
+  left_dataset = dataset_as_list[:int(left_size)]
+  right_dataset = dataset_as_list[int(-1*right_size):]
+  
+  left_dataset = tf.data.Dataset.from_tensor_slices(left_dataset)
+  right_dataset = tf.data.Dataset.from_tensor_slices(right_dataset)
+  
+  left_dataset = left_dataset.prefetch(tf.data.AUTOTUNE)
+  right_dataset = right_dataset.prefetch(tf.data.AUTOTUNE)
+  
+  return left_dataset, right_dataset
+
+  
 
 def index_directory(directory,
                     labels,
