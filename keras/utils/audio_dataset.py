@@ -103,7 +103,6 @@ def audio_dataset_from_directory(
         be truncated to `output_sequence_length`
         If set to `None` then shorter sequences will be padded by the longest sequence in the current batch
       ragged: Whether to return a ragged dataset if the sequence length is not the same. Default: False.
-          If set to False, `output_sequence_length` should have a value.
       shuffle: Whether to shuffle the data. Default: True.
           If set to False, sorts the data in alphanumeric order.
       seed: Optional random seed for shuffling and transformations.
