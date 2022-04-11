@@ -409,9 +409,3 @@ def paths_and_labels_to_dataset(
         label_ds = dataset_utils.labels_to_dataset(labels, label_mode, num_classes)
         audio_ds = tf.data.Dataset.zip((audio_ds, label_ds))
     return audio_ds
-
-
-ds = audio_dataset_from_directory("./mini_speech_commands", ragged=True)
-
-for s, l in ds.take(1000):
-    print(s.shape, l.shape)
