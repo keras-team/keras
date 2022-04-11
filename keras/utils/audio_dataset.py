@@ -20,8 +20,7 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 
-# from keras.utils import dataset_utils
-import dataset_utils
+from keras.utils import dataset_utils
 from tensorflow.python.util.tf_export import keras_export
 
 try:
