@@ -2028,6 +2028,19 @@ class ResetStatesTest(test_combinations.TestCase):
     finally:
       backend.set_floatx('float32')
 
+  def test_function_wrapped_reset_state(self):
+    m = metrics.Mean(name='my_mean')
+
+    # check reset_state in function.
+    @tf.function
+    def reset_in_fn():
+      m.reset_state()
+      return m.update_state(100)
+
+    for _ in range(5):
+      self.evaluate(reset_in_fn())
+    self.assertEqual(self.evaluate(m.count), 1)
+
 
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
 class MergeStateTest(test_combinations.TestCase):
