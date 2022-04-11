@@ -249,14 +249,14 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         directory = self._prepare_directory(num_classes=3, count=5)
 
         with self.assertRaisesRegex(
-            ValueError, "`sampling_rate` should have value bigger than zero"
+            ValueError, "`sampling_rate` should be higher than 0. Received:"
         ):
             _ = audio_dataset.audio_dataset_from_directory(
                 directory, ragged=False, output_sequence_length=10, sampling_rate=-1
             )
 
         with self.assertRaisesRegex(
-            ValueError, "`sampling_rate` should have an integer value"
+            ValueError, "`sampling_rate` should have an integer value. Received:"
         ):
             _ = audio_dataset.audio_dataset_from_directory(
                 directory, ragged=False, output_sequence_length=10, sampling_rate=1.2

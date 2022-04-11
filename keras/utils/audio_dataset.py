@@ -109,7 +109,7 @@ def audio_dataset_from_directory(
       validation_split: Optional float between 0 and 1,
           fraction of data to reserve for validation.
       subset: Subset of the data to return.
-          One of "training" or "validation".
+          One of "training", "validation" or "both".
           Only used if `validation_split` is set.
       follow_links: Whether to visits subdirectories pointed to by symlinks.
           Defaults to False.
@@ -161,15 +161,19 @@ def audio_dataset_from_directory(
 
     if sampling_rate is not None:
         if not isinstance(sampling_rate, int):
-            raise ValueError("`sampling_rate` should have an integer value")
+            raise ValueError(
+                f"`sampling_rate` should have an integer value. Received: sampling_rate={sampling_rate}"
+            )
 
         if sampling_rate <= 0:
             raise ValueError(
-                f"`sampling_rate` should have value bigger than zero found sampling_rate={sampling_rate}"
+                f"`sampling_rate` should be higher than 0. Received: sampling_rate={sampling_rate}"
             )
 
         if tfio is None:
-            raise ImportError("Cannot import tensorflow_io, install `tensorflow-io`")
+            raise ImportError(
+                "To use the argument `sampling_rate`, you should install tensorflow_io. You can install it via pip install tensorflow-io."
+            )
 
     if labels is None or label_mode is None:
         labels = None
@@ -196,6 +200,134 @@ def audio_dataset_from_directory(
             f"class_names. Received: class_names={class_names}"
         )
 
+    if subset == "both":
+        train_dataset, val_dataset = get_training_and_validation_dataset(
+            file_paths=file_paths,
+            labels=labels,
+            validation_split=validation_split,
+            directory=directory,
+            label_mode=label_mode,
+            class_names=class_names,
+            sampling_rate=sampling_rate,
+            output_sequence_length=output_sequence_length,
+            ragged=ragged,
+        )
+
+        train_dataset = prepare_dataset(
+            dataset=train_dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            seed=seed,
+            class_names=class_names,
+        )
+        val_dataset = prepare_dataset(
+            val_dataset, batch_size=batch_size, shuffle=False, class_names=class_names
+        )
+        return train_dataset, val_dataset
+
+    else:
+        dataset = get_dataset(
+            file_paths=file_paths,
+            labels=labels,
+            directory=directory,
+            validation_split=validation_split,
+            subset=subset,
+            label_mode=label_mode,
+            class_names=class_names,
+            sampling_rate=sampling_rate,
+            output_sequence_length=output_sequence_length,
+            ragged=ragged,
+        )
+
+        dataset = prepare_dataset(
+            dataset=dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            seed=seed,
+            class_names=class_names,
+        )
+        return dataset
+
+
+def prepare_dataset(dataset, batch_size, shuffle, seed, class_names):
+    dataset = dataset.prefetch(tf.data.AUTOTUNE)
+    if batch_size is not None:
+        if shuffle:
+            dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
+        dataset = dataset.batch(batch_size)
+    else:
+        if shuffle:
+            dataset = dataset.shuffle(buffer_size=1024, seed=seed)
+
+    # Users may need to reference `class_names`.
+    dataset.class_names = class_names
+    return dataset
+
+
+def get_training_and_validation_dataset(
+    file_paths,
+    labels,
+    validation_split,
+    directory,
+    label_mode,
+    class_names,
+    sampling_rate,
+    output_sequence_length,
+    ragged,
+):
+    file_paths_train, labels_train = dataset_utils.get_training_or_validation_split(
+        file_paths, labels, validation_split, "training"
+    )
+    if not file_paths:
+        raise ValueError(
+            f"No training audio files found in directory {directory}. "
+            f"Allowed format(s): {ALLOWED_FORMATS}"
+        )
+
+    file_paths_val, labels_val = dataset_utils.get_training_or_validation_split(
+        file_paths, labels, validation_split, "validation"
+    )
+    if not file_paths:
+        raise ValueError(
+            f"No validation audio files found in directory {directory}. "
+            f"Allowed format(s): {ALLOWED_FORMATS}"
+        )
+
+    train_dataset = paths_and_labels_to_dataset(
+        file_paths=file_paths_train,
+        labels=labels_train,
+        label_mode=label_mode,
+        num_classes=len(class_names),
+        sampling_rate=sampling_rate,
+        output_sequence_length=output_sequence_length,
+        ragged=ragged,
+    )
+
+    val_dataset = paths_and_labels_to_dataset(
+        file_paths=file_paths_val,
+        labels=labels_val,
+        label_mode=label_mode,
+        num_classes=len(class_names),
+        sampling_rate=sampling_rate,
+        output_sequence_length=output_sequence_length,
+        ragged=ragged,
+    )
+
+    return train_dataset, val_dataset
+
+
+def get_dataset(
+    file_paths,
+    labels,
+    directory,
+    validation_split,
+    subset,
+    label_mode,
+    class_names,
+    sampling_rate,
+    output_sequence_length,
+    ragged,
+):
     file_paths, labels = dataset_utils.get_training_or_validation_split(
         file_paths, labels, validation_split, subset
     )
@@ -215,17 +347,6 @@ def audio_dataset_from_directory(
         ragged=ragged,
     )
 
-    dataset = dataset.prefetch(tf.data.AUTOTUNE)
-    if batch_size is not None:
-        if shuffle:
-            dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-        dataset = dataset.batch(batch_size)
-    else:
-        if shuffle:
-            dataset = dataset.shuffle(buffer_size=1024, seed=seed)
-
-    # Users may need to reference `class_names`.
-    dataset.class_names = class_names
     return dataset
 
 
