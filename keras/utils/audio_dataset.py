@@ -154,7 +154,7 @@ def audio_dataset_from_directory(
 
     if not ragged and output_sequence_length is None:
         raise ValueError(
-            f"The dataset should be ragged dataset or fixed sequence length dataset, found ragged={ragged} and output_sequence_length={output_sequence_length}"
+            f"The dataset should be ragged dataset or fixed sequence length dataset. Received: ragged={ragged} and output_sequence_length={output_sequence_length}"
         )
     elif ragged and output_sequence_length is not None:
         raise ValueError("Cannot set both `ragged` and `output_sequence_length`")
