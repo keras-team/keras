@@ -20,7 +20,7 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 
-from keras.utils import dataset_utils
+from keras.preprocessing import dataset_utils
 from tensorflow.python.util.tf_export import keras_export
 
 try:
@@ -179,7 +179,7 @@ def audio_dataset_from_directory(
         labels = None
         label_mode = None
 
-    dataset_utils.check_validation_split_arg(validation_split, subset, shuffle, seed)
+    # dataset_utils.check_validation_split_arg(validation_split, subset, shuffle, seed)
 
     if seed is None:
         seed = np.random.randint(1e6)
@@ -282,7 +282,7 @@ def get_training_and_validation_dataset(
     file_paths_train, labels_train = dataset_utils.get_training_or_validation_split(
         file_paths, labels, validation_split, "training"
     )
-    if not file_paths:
+    if not file_paths_train:
         raise ValueError(
             f"No training audio files found in directory {directory}. "
             f"Allowed format(s): {ALLOWED_FORMATS}"
@@ -291,7 +291,7 @@ def get_training_and_validation_dataset(
     file_paths_val, labels_val = dataset_utils.get_training_or_validation_split(
         file_paths, labels, validation_split, "validation"
     )
-    if not file_paths:
+    if not file_paths_val:
         raise ValueError(
             f"No validation audio files found in directory {directory}. "
             f"Allowed format(s): {ALLOWED_FORMATS}"
