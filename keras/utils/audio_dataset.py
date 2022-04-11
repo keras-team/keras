@@ -20,7 +20,7 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 
-from keras.preprocessing import dataset_utils
+from keras.utils import dataset_utils
 from tensorflow.python.util.tf_export import keras_export
 
 try:
@@ -179,7 +179,7 @@ def audio_dataset_from_directory(
         labels = None
         label_mode = None
 
-    # dataset_utils.check_validation_split_arg(validation_split, subset, shuffle, seed)
+    dataset_utils.check_validation_split_arg(validation_split, subset, shuffle, seed)
 
     if seed is None:
         seed = np.random.randint(1e6)
