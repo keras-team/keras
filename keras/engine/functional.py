@@ -192,8 +192,8 @@ class Functional(training_lib.Model):
     self._compute_output_and_mask_jointly = True
     # `_expects_training_arg` is True since the `training` argument is always
     # present in the signature of the `call` method of a graph network.
-    self._expects_training_arg = True
-    self._expects_mask_arg = True
+    self._call_spec.expects_training_arg = True
+    self._call_spec.expects_mask_arg = True
     # A graph network does not autocast inputs, as its layers will cast them
     # instead.
     self._autocast = False
@@ -1463,10 +1463,11 @@ class ModuleWrapper(base_layer.Layer):
     # Check if module.__call__ has a `training` arg or accepts `**kwargs`.
     method = getattr(module, method_name)
     method_arg_spec = tf_inspect.getfullargspec(method)
-    self._expects_training_arg = ('training' in method_arg_spec.args or
-                                  method_arg_spec.varkw is not None)
-    self._expects_mask_arg = ('mask' in method_arg_spec.args or
-                              method_arg_spec.varkw is not None)
+    self._call_spec.expects_training_arg = ('training' in method_arg_spec.args
+                                            or
+                                            method_arg_spec.varkw is not None)
+    self._call_spec.expects_mask_arg = ('mask' in method_arg_spec.args or
+                                        method_arg_spec.varkw is not None)
 
   def call(self, *args, **kwargs):
     if 'training' in kwargs and not self._expects_training_arg:

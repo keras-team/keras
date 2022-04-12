@@ -228,7 +228,7 @@ class Layer(base_layer.Layer):
     else:
       self._keras_style = False
 
-    self._call_has_scope_arg = 'scope' in self._call_fn_args
+    self._call_has_scope_arg = 'scope' in self._call_spec.arg_names
     if scope:
       with tf.compat.v1.variable_scope(scope) as captured_scope:
         self._scope = captured_scope
@@ -559,8 +559,8 @@ class Layer(base_layer.Layer):
       try:
         call_has_scope_arg = self._call_has_scope_arg
       except AttributeError:
-        self._call_fn_args = variable_scope_shim.fn_args(self.call)
-        self._call_has_scope_arg = 'scope' in self._call_fn_args
+        self._call_spec.arg_names = variable_scope_shim.fn_args(self.call)
+        self._call_has_scope_arg = 'scope' in self._call_spec.arg_names
         call_has_scope_arg = self._call_has_scope_arg
       if call_has_scope_arg:
         kwargs['scope'] = scope

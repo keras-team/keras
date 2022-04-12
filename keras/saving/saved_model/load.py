@@ -1018,7 +1018,8 @@ class RevivedLayer:
 
     with utils.no_automatic_dependency_tracking_scope(revived_obj):
       # pylint:disable=protected-access
-      revived_obj._expects_training_arg = metadata['expects_training_arg']
+      revived_obj._call_spec.expects_training_arg = metadata[
+          'expects_training_arg']
       config = metadata.get('config')
       if generic_utils.validate_config(config):
         revived_obj._config = config
@@ -1165,7 +1166,8 @@ class RevivedNetwork(RevivedLayer):
     # "keras_api" for keras-specific attributes.
     with utils.no_automatic_dependency_tracking_scope(revived_obj):
       # pylint:disable=protected-access
-      revived_obj._expects_training_arg = metadata['expects_training_arg']
+      revived_obj._call_spec.expects_training_arg = metadata[
+          'expects_training_arg']
       config = metadata.get('config')
       if generic_utils.validate_config(config):
         revived_obj._config = config

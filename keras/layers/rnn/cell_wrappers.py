@@ -48,9 +48,9 @@ class _RNNCellWrapper(AbstractRNNCell):
     super(_RNNCellWrapper, self).__init__(*args, **kwargs)
     self.cell = cell
     cell_call_spec = tf_inspect.getfullargspec(cell.call)
-    self._expects_training_arg = ("training" in cell_call_spec.args) or (
-        cell_call_spec.varkw is not None
-    )
+    self._call_spec.expects_training_arg = (("training"
+                                             in cell_call_spec.args) or
+                                            (cell_call_spec.varkw is not None))
 
   def _call_wrapped_cell(self, inputs, state, cell_call_fn, **kwargs):
     """Calls the wrapped cell and performs the wrapping logic.
