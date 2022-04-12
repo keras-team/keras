@@ -100,8 +100,8 @@ def audio_dataset_from_directory(
         (the dataset will yield individual samples).
       sampling_rate: Number of samples taken each second.
       output_sequence_length: Maximum length of a audio sequence. audio files longer than this will 
-        be truncated to `output_sequence_length`
-        If set to `None` then shorter sequences will be padded by the longest sequence in the current batch
+        be truncated to `output_sequence_length`.
+        If set to `None` then shorter sequences will be padded by the longest sequence in the current batch.
       ragged: Whether to return a ragged dataset if the sequence length is not the same. Default: False.
       shuffle: Whether to shuffle the data. Default: True.
           If set to False, sorts the data in alphanumeric order.
