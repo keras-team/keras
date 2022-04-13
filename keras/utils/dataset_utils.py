@@ -17,6 +17,7 @@
 
 
 
+
 import tensorflow.compat.v2 as tf
 # pylint: disable=g-classes-have-attributes
 
@@ -24,7 +25,7 @@ import multiprocessing
 import os
 import time
 import warnings
-import math
+from random import Random
 
 import numpy as np
 from tensorflow.python.util.tf_export import keras_export
@@ -56,49 +57,31 @@ def split_dataset(dataset,
   Returns:
       A tuple of two `tf.data.Dataset` objects: the left and right splits.
   """
-  # TODO (prakashsellathurai) : integrate unit test.
   
   if not isinstance(dataset,(tf.data.Dataset,list,tuple)):
     raise TypeError('`dataset` must be either a tf.data.Dataset object'
-                   'or a list/tuple of arrays',f'Got {type(dataset)}')
+                   f' or a list/tuple of arrays. Received : {type(dataset)}')
     
   if right_size is None and left_size is None:
-    raise ValueError('Both `left_size` and `right_size`cannot be `None`'
-                     'atleast specify one with valid value')
+    raise ValueError('you must specify either `left_size` or `right_size`'
+                    ' Received: `left_size`= None, and `right_size`=None')
       
-  dataset_as_list = []
-
-  if isinstance(dataset,tf.data.Dataset):
-    data_size_warning_flag = False
-    start_time = time.time()
-    i = 0
-    for datum in list(dataset):
-      cur_time = time.time()
-      # warns user if the dataset is too large to iterate within 10s
-      if int(cur_time - start_time) > 10 and not data_size_warning_flag:
-        warnings.warn('Takes too long time to process the `dataset`,'
-                      'this function is only  for small datasets'
-                      'that fits within the memory')
-        data_size_warning_flag = True
-      dataset_as_list.append(datum)
-  elif isinstance(dataset,list):
-    dataset_as_list = dataset.copy()
-  elif isinstance(dataset,tuple):
-    dataset_as_list = list(zip(*dataset))
+  dataset_as_list = _convert_dataset_to_list(dataset)
+  
+  if seed is None:
+    seed = np.random.randint(1e6)  
     
   if shuffle: 
-    if seed:
-      np.random.seed(seed)
-    np.random.shuffle(dataset_as_list)
+    Random(seed).shuffle(dataset_as_list)
     
-  total_size = len(dataset_as_list)
+  total_length = len(dataset_as_list)
    
-  left_size,right_size = convert_dataset_split_sizes(
-    left_size,right_size,total_size
+  left_size,right_size = _rescale_dataset_split_sizes(
+    left_size,right_size,total_length
     )
 
   left_dataset = dataset_as_list[:left_size]
-  right_dataset = dataset_as_list[left_size:]
+  right_dataset = dataset_as_list[-right_size:]
 
   left_dataset = tf.data.Dataset.from_tensor_slices(left_dataset)
   right_dataset = tf.data.Dataset.from_tensor_slices(right_dataset)
@@ -108,71 +91,123 @@ def split_dataset(dataset,
   
   return left_dataset, right_dataset
 
-def convert_dataset_split_sizes(left_size,right_size,total_size):
-  """Helper function to convert  left_size/right_size relative to dataset's size
+def _convert_dataset_to_list(dataset,data_size_warning_flag = True):
+  """Helper function to convert a tf.data.Dataset  object or a list/tuple of numpy.ndarrays to a list
+  """
+  
+  if isinstance(dataset,tuple):
+    dataset_iterator = list(zip(*dataset))
+  elif isinstance(dataset,list):
+    dataset_iterator = dataset.copy()
+  elif isinstance(dataset,tf.data.Dataset):
+    dataset_iterator = list(dataset)
+  else:
+    raise TypeError('`dataset` must be either a tf.data.Dataset object'
+                   f' or a list/tuple of arrays. Received : {type(dataset)}'
+          )
+  
+  
+  dataset_as_list = []
+  start_time = time.time()
+  i = 0
+  for i,datum in enumerate(dataset_iterator):
+    if data_size_warning_flag:
+      if i % 10 == 0:
+        cur_time = time.time()
+        # warns user if the dataset is too large to iterate within 10s
+        if int(cur_time - start_time) > 10 and data_size_warning_flag:
+          warnings.warn('Takes too long time to process the `dataset`,'
+                        'this function is only  for small datasets '
+                        '(e.g. < 10,000 samples).'
+          )
+          data_size_warning_flag = False
+    
+    dataset_as_list.append(datum)
+      
+  return dataset_as_list
+
+def _rescale_dataset_split_sizes(left_size,right_size,total_length):
+  """Helper function to rescale  left_size/right_size args relative 
+  to dataset's size
   """
 
   left_size_type = type(left_size) 
   right_size_type = type(right_size)
 
+  if ((left_size is not None and left_size_type not in [int,float]) and 
+      (right_size is not None and right_size_type not in [int,float])):
+    raise TypeError('Invalid `left_size` and `right_size` Types. '
+                     'Expected: integer or float or None. '
+                     f' Received: {left_size_type} and {right_size_type}')
 
   if left_size is not None and left_size_type not in [int,float]:
-    raise ValueError(f'Invalid `left_size` type Got {left_size_type}'
-                     'It should be one of  float,int or None') 
-  if right_size is not None and right_size_type not in [int,float]: 
-    raise ValueError(f'Invalid `right_size` type Got {right_size_type}'
-                     'It should be one of  float,int or None') 
+    raise TypeError(f'Invalid `left_size` Type. Received: {left_size_type}.  '
+                     ' Expected: int or float or None')
     
+  if right_size is not None and right_size_type not in [int,float]: 
+    raise TypeError(f'Invalid `right_size` Type. Received: {right_size_type}.'
+                    ' Expected: int or float or None')
+    
+  if left_size == 0 and right_size == 0:
+    raise ValueError('Invalid `left_size` and `right_size` values. '
+                     'You must specify either `left_size` or `right_size` with '
+                     f'value greater than 0 and less than {total_length} '
+                      'or a float within range [0,1] to split the dataset'
+                      f'Received: `left_size`={left_size}, '
+                      f'`right_size`={right_size}')
   
   if (left_size_type == int 
-      and (left_size <= 0 or left_size>= total_size)
+      and (left_size <= 0 or left_size>= total_length)
       or left_size_type == float 
       and (left_size <= 0 or left_size>= 1) ):
-    raise ValueError('`left_size` should be either a positive integer'
-                     f'and smaller than {total_size} or a float '
-                     'within the range `[0, 1]`') 
+    raise ValueError('`left_size` should be either a positive integer '
+                     f'and smaller than {total_length} or a float '
+                     'within the range `[0, 1]`. Received: left_size='
+                     f'{left_size}') 
     
   if (right_size_type == int 
-      and (right_size <= 0 or right_size>= total_size) 
+      and (right_size <= 0 or right_size>= total_length) 
       or right_size_type == float 
       and (right_size <= 0 or right_size>= 1)):
     raise ValueError('`right_size` should be either a positive integer '
-                     f'and smaller than {total_size} or'
-                     'a float within the range `[0, 1]`') 
+                     f'and smaller than {total_length} or '
+                     'a float within the range `[0, 1]`. Received: right_size='
+                     f'{right_size}') 
     
   if right_size_type == left_size_type == float and right_size + left_size > 1:
     raise ValueError('sum of `left_size` and `right_size`'
-                     ' should be within `[0,1]`'
-                    f'Got {right_size + left_size} ,'
+                     ' should be within `[0,1]`.'
+                    f'Received: {right_size + left_size} ,'
                     'reduce the `left_size` or `right_size`')
 
   if left_size_type == float:
-    left_size = math.ceil(left_size*total_size)
+    left_size = round(left_size*total_length)
   else:
     left_size = float(left_size)
 
   if right_size_type == float:
-    right_size = math.ceil(right_size*total_size)
+    right_size = round(right_size*total_length)
   else:
     right_size = float(right_size)
 
 
   if left_size is None:
-    left_size = total_size - right_size
+    left_size = total_length - right_size
   elif right_size is None:
-    right_size = total_size - left_size
+    right_size = total_length - left_size
 
-  if left_size + right_size > total_size:
+  if left_size + right_size > total_length:
     raise ValueError('The sum of `left_size` and `right_size`'
-                     f' should be smaller than the samples {total_size} '
+                     f' should be smaller than the samples {total_length} '
                      ' reduce `left_size` or `right_size` ' )
 
   
-  if left_size == 0:
-    raise ValueError(f'with dataset of length={total_size}'
-                     '`left_size`={left_size} and `right_size`={right_size} '
-                    'resulting left dataset split will be empty, '
-                    'adjust any of the aforementioned parameters')
+  for split,side in [(left_size,'left'),(right_size,'right')]:
+    if split == 0:
+      raise ValueError(f'with dataset of length={total_length} '
+                      '`left_size`={left_size} and `right_size`={right_size}, '
+                      f'resulting {side} dataset split will be empty. '
+                      'Adjust any of the aforementioned parameters')
     
   left_size,right_size = int(left_size) ,int(right_size)
   return left_size,right_size
