@@ -58,7 +58,7 @@ def split_dataset(dataset,
       A tuple of two `tf.data.Dataset` objects: the left and right splits.
   """
   
-  if not isinstance(dataset,(tf.data.Dataset,list,tuple)):
+  if not isinstance(dataset,(tf.data.Dataset,list,tuple,np.ndarray)):
     raise TypeError('`dataset` must be either a tf.data.Dataset object'
                    f' or a list/tuple of arrays. Received : {type(dataset)}')
     
@@ -94,22 +94,44 @@ def split_dataset(dataset,
 def _convert_dataset_to_list(dataset,data_size_warning_flag = True):
   """Helper function to convert a tf.data.Dataset  object or a list/tuple of numpy.ndarrays to a list
   """
-  
+  # TODO prakashsellathurai: add support for list of tuples,tuples of nd array
+  # TODO prakashsellathurai: add support for Batched  and unbatched tf datasets
   if isinstance(dataset,tuple):
+    if len(dataset) == 0:
+      raise ValueError('`dataset` must be a non-empty list/tuple of'
+                       ' numpy.ndarrays or tf.data.Dataset objects.')
     dataset_iterator = list(zip(*dataset))
   elif isinstance(dataset,list):
-    dataset_iterator = dataset.copy()
+    if len(dataset) == 0:
+      raise ValueError('`dataset` must be a non-empty list/tuple of'
+                       ' numpy.ndarrays or tf.data.Dataset objects.')
+    if isinstance(dataset[0],np.ndarray):
+      dataset_iterator = list(zip(*dataset))
+    else:
+      dataset_iterator = list(dataset)
+
+  elif isinstance(dataset,np.ndarray):
+    dataset_iterator = list(dataset)
   elif isinstance(dataset,tf.data.Dataset):
     dataset_iterator = list(dataset)
   else:
     raise TypeError('`dataset` must be either a tf.data.Dataset object'
                    f' or a list/tuple of arrays. Received : {type(dataset)}'
-          )
-  
+                   )
   
   dataset_as_list = []
+  try:
+    dataset_iterator = iter(dataset_iterator)
+    first_datum = next(dataset_iterator)
+    dataset_as_list.append(first_datum)
+  except ValueError:
+    raise ValueError('Received  an empty Dataset i.e dataset with no elements. '
+                     '`dataset` must be a non-empty list/tuple of'
+                     ' numpy.ndarrays or tf.data.Dataset objects.')
+    
+    
+  
   start_time = time.time()
-  i = 0
   for i,datum in enumerate(dataset_iterator):
     if data_size_warning_flag:
       if i % 10 == 0:
@@ -182,12 +204,12 @@ def _rescale_dataset_split_sizes(left_size,right_size,total_length):
 
   if left_size_type == float:
     left_size = round(left_size*total_length)
-  else:
+  elif left_size_type == int:
     left_size = float(left_size)
 
   if right_size_type == float:
     right_size = round(right_size*total_length)
-  else:
+  elif right_size_type == int:
     right_size = float(right_size)
 
 
