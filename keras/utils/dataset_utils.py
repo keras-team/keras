@@ -94,7 +94,7 @@ def split_dataset(dataset,
 def _convert_dataset_to_list(dataset,data_size_warning_flag = True):
   """Helper function to convert a tf.data.Dataset  object or a list/tuple of numpy.ndarrays to a list
   """
-  # TODO prakashsellathurai: add support for list of tuples,tuples of nd array
+  # TODO prakashsellathurai: add  failing test cases for list of tuples,tuples of nd array
   # TODO prakashsellathurai: add support for Batched  and unbatched tf datasets
   if isinstance(dataset,tuple):
     if len(dataset) == 0:
