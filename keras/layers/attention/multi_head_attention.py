@@ -494,6 +494,24 @@ class MultiHeadAttention(Layer):
     if key is None:
       key = value
 
+    query_is_ragged = isinstance(query, tf.RaggedTensor)
+    if query_is_ragged:
+      query_lengths = query.nested_row_lengths()
+      query = query.to_tensor()
+
+    key_is_ragged = isinstance(key, tf.RaggedTensor)
+    value_is_ragged = isinstance(value, tf.RaggedTensor)
+    if key_is_ragged and value_is_ragged:
+      # Ensure they have the same shape.
+      bounding_shape = tf.math.maximum(
+          key.bounding_shape(), value.bounding_shape())
+      key = key.to_tensor(shape=bounding_shape)
+      value = value.to_tensor(shape=bounding_shape)
+    elif key_is_ragged:
+      key = key.to_tensor(shape=tf.shape(value))
+    elif value_is_ragged:
+      value = value.to_tensor(shape=tf.shape(key))
+
     #   N = `num_attention_heads`
     #   H = `size_per_head`
     # `query` = [B, T, N ,H]
@@ -508,6 +526,10 @@ class MultiHeadAttention(Layer):
     attention_output, attention_scores = self._compute_attention(
         query, key, value, attention_mask, training)
     attention_output = self._output_dense(attention_output)
+
+    if query_is_ragged:
+      attention_output = tf.RaggedTensor.from_tensor(
+          attention_output, lengths=query_lengths)
 
     if return_attention_scores:
       return attention_output, attention_scores
