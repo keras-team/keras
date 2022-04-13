@@ -105,3 +105,28 @@ tf_py_test(
         "//keras/testing_infra:test_combinations",
     ],
 )
+
+tf_py_test(
+    name = "image_dataset_test",
+    size = "small",
+    srcs = ["image_dataset_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":image",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "text_dataset_test",
+    size = "small",
+    srcs = ["text_dataset_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":text",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
