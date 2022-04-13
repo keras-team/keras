@@ -36,7 +36,7 @@ py_library(
 py_library(
     name = "load_context",
     srcs = ["load_context.py"],
-    visibility = ["//third_party/tensorflow/python/distribute:__pkg__"],
+    visibility = ["//visibility:private"],
 )
 
 py_library(
