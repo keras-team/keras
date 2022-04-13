@@ -263,14 +263,6 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
             )
 
         with self.assertRaisesRegex(
-            ValueError,
-            "The dataset should be ragged dataset or fixed sequence length dataset",
-        ):
-            _ = audio_dataset.audio_dataset_from_directory(
-                directory, ragged=False, output_sequence_length=None
-            )
-
-        with self.assertRaisesRegex(
             ValueError, "Cannot set both `ragged` and `output_sequence_length`"
         ):
             _ = audio_dataset.audio_dataset_from_directory(
