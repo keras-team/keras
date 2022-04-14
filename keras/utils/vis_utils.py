@@ -148,20 +148,6 @@ def model_to_dot(model,
   from keras.engine import sequential
   from keras.engine import functional
 
-  if not check_pydot():
-    message = (
-        'You must install pydot (`pip install pydot`) '
-        'and install graphviz '
-        '(see instructions at https://graphviz.gitlab.io/download/) '
-        'for plot_model/model_to_dot to work.')
-    if 'IPython.core.magics.namespace' in sys.modules:
-      # We don't raise an exception here in order to avoid crashing notebook
-      # tests where graphviz is not available.
-      io_utils.print_msg(message)
-      return
-    else:
-      raise ImportError(message)
-
   if subgraph:
     dot = pydot.Cluster(style='dashed', graph_name=model.name)
     dot.set('label', model.name)
@@ -417,6 +403,20 @@ def plot_model(model,
     raise ValueError('This model has not yet been built. '
                      'Build the model first by calling `build()` or by calling '
                      'the model on a batch of data.')
+
+  if not check_pydot():
+    message = (
+        'You must install pydot (`pip install pydot`) '
+        'and install graphviz '
+        '(see instructions at https://graphviz.gitlab.io/download/) '
+        'for plot_model/model_to_dot to work.')
+    if 'IPython.core.magics.namespace' in sys.modules:
+      # We don't raise an exception here in order to avoid crashing notebook
+      # tests where graphviz is not available.
+      io_utils.print_msg(message)
+      return
+    else:
+      raise ImportError(message)
 
   dot = model_to_dot(
       model,
