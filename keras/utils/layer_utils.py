@@ -15,14 +15,16 @@
 # pylint: disable=protected-access
 """Utilities related to layer/model functionality."""
 
-import tensorflow.compat.v2 as tf
-
+import copy
 import functools
 import weakref
 
 from keras.utils import io_utils
+from keras.utils import tf_inspect
 import numpy as np
-from tensorflow.python.util.tf_export import keras_export
+
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
 
 
 @keras_export('keras.utils.get_source_inputs')
@@ -511,3 +513,184 @@ def filter_empty_layer_containers(layer_list):
       # Trackable data structures will not show up in ".layers" lists, but
       # the layers they contain will.
       to_visit.extend(sub_layers[::-1])
+
+
+class CallFunctionSpec:
+  """Caches the spec and provides utilities for handling call function args."""
+
+  def __init__(self, fn):
+    """Initialies a `CallFunctionSpec`.
+
+    Args:
+      fn: the call function of a layer.
+    """
+    self._full_argspec = tf_inspect.getfullargspec(fn)
+
+    self._arg_names = self._full_argspec.args
+    # Scrub `self` that appears if a decorator was applied.
+    if self._arg_names and self._arg_names[0] == 'self':
+      self._arg_names = self._arg_names[1:]
+    self._arg_names += self._full_argspec.kwonlyargs or []
+
+    call_accepts_kwargs = self._full_argspec.varkw is not None
+    self._expects_training_arg = ('training' in self._arg_names or
+                                  call_accepts_kwargs)
+    self._expects_mask_arg = 'mask' in self._arg_names or call_accepts_kwargs
+
+    call_fn_defaults = self._full_argspec.defaults or []
+    defaults = dict()
+    # The call arg defaults are an n-tuple of the last n elements of the args
+    # list. (n = # of elements that have a default argument)
+    for i in range(-1 * len(call_fn_defaults), 0):
+      defaults[self._arg_names[i]] = call_fn_defaults[i]
+    # The default training arg will be any (non-None) default specified in the
+    # method signature, or None if no value is specified.
+    defaults.update(self._full_argspec.kwonlydefaults or {})
+    self._default_training_arg = defaults.get('training')
+
+  @property
+  def full_argspec(self):
+    """Returns the FullArgSpec of the call function."""
+    return self._full_argspec
+
+  @property
+  def arg_names(self):
+    """List of names of args and kwonlyargs."""
+    return self._arg_names
+
+  @arg_names.setter
+  def arg_names(self, value):
+    self._arg_names = value
+
+  @property
+  @cached_per_instance
+  def arg_positions(self):
+    """Returns a dict mapping arg names to their index positions."""
+    call_fn_arg_positions = dict()
+    for pos, arg in enumerate(self._arg_names):
+      call_fn_arg_positions[arg] = pos
+    return call_fn_arg_positions
+
+  @property
+  def expects_training_arg(self):
+    """Whether the call function uses 'training' as a parameter."""
+    return self._expects_training_arg
+
+  @expects_training_arg.setter
+  def expects_training_arg(self, value):
+    self._expects_training_arg = value
+
+  @property
+  def expects_mask_arg(self):
+    """Whether the call function uses `mask` as a parameter."""
+    return self._expects_mask_arg
+
+  @expects_mask_arg.setter
+  def expects_mask_arg(self, value):
+    self._expects_mask_arg = value
+
+  @property
+  def default_training_arg(self):
+    """The default value given to the "training" argument."""
+    return self._default_training_arg
+
+  def arg_was_passed(self, arg_name, args, kwargs, inputs_in_args=False):
+    """Returns true if argument is present in `args` or `kwargs`.
+
+    Args:
+      arg_name: String name of the argument to find.
+      args: Tuple of args passed to the call function.
+      kwargs: Dictionary of kwargs  passed to the call function.
+      inputs_in_args: Whether the input argument (the first argument in the call
+        function) is included in `args`. Defaults to `False`.
+
+    Returns:
+      True if argument with `arg_name` is present in `args` or `kwargs`.
+    """
+    # Performance optimization: do no work in most common case.
+    if not args and not kwargs:
+      return False
+
+    if arg_name in kwargs:
+      return True
+    call_fn_args = self._arg_names
+    if not inputs_in_args:
+      # Ignore `inputs` arg.
+      call_fn_args = call_fn_args[1:]
+    return arg_name in dict(zip(call_fn_args, args))
+
+  def get_arg_value(self, arg_name, args, kwargs, inputs_in_args=False):
+    """Retrieves the value for the argument with name `arg_name`.
+
+    Args:
+      arg_name: String name of the argument to find.
+      args: Tuple of args passed to the call function.
+      kwargs: Dictionary of kwargs  passed to the call function.
+      inputs_in_args: Whether the input argument (the first argument in the call
+        function) is included in `args`. Defaults to `False`.
+
+    Returns:
+      The value of the argument with name `arg_name`, extracted from `args` or
+      `kwargs`.
+    """
+    if arg_name in kwargs:
+      return kwargs[arg_name]
+    call_fn_args = self._arg_names
+    if not inputs_in_args:
+      # Ignore `inputs` arg.
+      call_fn_args = call_fn_args[1:]
+    args_dict = dict(zip(call_fn_args, args))
+    return args_dict[arg_name]
+
+  def set_arg_value(self,
+                    arg_name,
+                    new_value,
+                    args,
+                    kwargs,
+                    inputs_in_args=False,
+                    pop_kwarg_if_none=False):
+    """Sets the value of an argument into the given args/kwargs.
+
+    Args:
+      arg_name: String name of the argument to find.
+      new_value: New value to give to the argument.
+      args: Tuple of args passed to the call function.
+      kwargs: Dictionary of kwargs  passed to the call function.
+      inputs_in_args: Whether the input argument (the first argument in the call
+        function) is included in `args`. Defaults to `False`.
+      pop_kwarg_if_none: If the new value is `None`, and this is `True`, then
+        the argument is deleted from `kwargs`.
+
+    Returns:
+      The updated `(args, kwargs)`.
+    """
+    arg_pos = self.arg_positions.get(arg_name, None)
+    if arg_pos is not None:
+      if not inputs_in_args:
+        # Ignore `inputs` arg.
+        arg_pos = arg_pos - 1
+      if len(args) > arg_pos:
+        args = list(args)
+        args[arg_pos] = new_value
+        return tuple(args), kwargs
+    if new_value is None and pop_kwarg_if_none:
+      kwargs.pop(arg_name, None)
+    else:
+      kwargs[arg_name] = new_value
+    return args, kwargs
+
+  def split_out_first_arg(self, args, kwargs):
+    """Splits (args, kwargs) into (inputs, args, kwargs)."""
+    # Grab the argument corresponding to the first argument in the
+    # layer's `call` method spec. This will either be the first positional
+    # argument, or it will be provided as a keyword argument.
+    if args:
+      inputs = args[0]
+      args = args[1:]
+    elif self._arg_names[0] in kwargs:
+      kwargs = copy.copy(kwargs)
+      inputs = kwargs.pop(self._arg_names[0])
+    else:
+      raise ValueError(
+          'The first argument to `Layer.call` must always be passed.')
+    return inputs, args, kwargs

@@ -1285,10 +1285,10 @@ class NestedTrackingTest(tf.test.TestCase):
         return x
 
     nondefun_layer = NonDefunLayer()
-    self.assertEqual(nondefun_layer._call_fn_args,
+    self.assertEqual(nondefun_layer._call_spec.arg_names,
                      ['inputs', 'a', 'mask', 'b', 'training'])
     defun_layer = DefunLayer()
-    self.assertEqual(defun_layer._call_fn_args,
+    self.assertEqual(defun_layer._call_spec.arg_names,
                      ['x', 'mask', 'a', 'training', 'b'])
 
   def test_sequential_model(self):

@@ -1306,7 +1306,7 @@ class Model(training_lib.Model):
   def _check_call_args(self, method_name):
     """Check that `call` has only one positional arg."""
     # Always allow first arg, regardless of arg name.
-    fullargspec = self._call_full_argspec
+    fullargspec = self._call_spec.full_argspec
     if fullargspec.defaults:
       positional_args = fullargspec.args[:-len(fullargspec.defaults)]
     else:

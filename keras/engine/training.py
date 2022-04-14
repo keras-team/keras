@@ -417,7 +417,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           x = base_layer_utils.generate_placeholders_from_shape(input_shape)
 
         kwargs = {}
-        call_signature = self._call_full_argspec
+        call_signature = self._call_spec.full_argspec
         call_args = call_signature.args
         # Exclude `self`, `inputs`, and any argument with a default value.
         if len(call_args) > 2:
@@ -466,7 +466,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       copied_args = copy.copy(args)
       copied_kwargs = copy.copy(kwargs)
 
-      inputs, copied_args, copied_kwargs = self._split_out_first_arg(
+      inputs, copied_args, copied_kwargs = self._call_spec.split_out_first_arg(
           copied_args, copied_kwargs)
 
       def _convert_to_graph_inputs(x):
@@ -3032,7 +3032,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def _check_call_args(self, method_name):
     """Check that `call()` has only one positional arg."""
     # Always allow first arg, regardless of arg name.
-    fullargspec = self._call_full_argspec
+    fullargspec = self._call_spec.full_argspec
     if fullargspec.defaults:
       positional_args = fullargspec.args[:-len(fullargspec.defaults)]
     else:

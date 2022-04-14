@@ -480,7 +480,7 @@ class LayerCallCollection:
       return (utils.get_training_arg(self._training_arg_index, args, kwargs)
               is not None)
     else:
-      return self.layer._call_arg_was_passed(  # pylint: disable=protected-access
+      return self.layer._call_spec.arg_was_passed(  # pylint: disable=protected-access
           'training',
           args,
           kwargs,
@@ -490,14 +490,14 @@ class LayerCallCollection:
     if not self.layer._expects_training_arg and self._expects_training_arg:  # pylint: disable=protected-access
       return utils.get_training_arg(self._training_arg_index, args, kwargs)
     else:
-      return self.layer._get_call_arg_value(  # pylint: disable=protected-access
+      return self.layer._call_spec.get_arg_value(  # pylint: disable=protected-access
           'training',
           args,
           kwargs,
           inputs_in_args=True)
 
   def get_input_arg_value(self, args, kwargs):
-    return self.layer._get_call_arg_value(  # pylint: disable=protected-access
+    return self.layer._call_spec.get_arg_value(  # pylint: disable=protected-access
         self._input_arg_name,
         args,
         kwargs,
