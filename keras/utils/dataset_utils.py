@@ -76,50 +76,51 @@ def split_dataset(dataset,
     
   total_length = len(dataset_as_list)
    
-  left_size,right_size = _rescale_dataset_split_sizes(
-    left_size,right_size,total_length
-    )
+  left_size,right_size = _rescale_dataset_split_sizes(left_size,
+                                                      right_size,
+                                                      total_length)
 
-  left_dataset = dataset_as_list[:left_size]
-  right_dataset = dataset_as_list[-right_size:]
+  left_split = dataset_as_list[:left_size]
+  right_split = dataset_as_list[-right_size:]
 
-  left_dataset = tf.data.Dataset.from_tensor_slices(left_dataset)
-  right_dataset = tf.data.Dataset.from_tensor_slices(right_dataset)
+  left_split = tf.data.Dataset.from_tensor_slices(left_split)
+  right_split = tf.data.Dataset.from_tensor_slices(right_split)
   
-  left_dataset = left_dataset.prefetch(tf.data.AUTOTUNE)
-  right_dataset = right_dataset.prefetch(tf.data.AUTOTUNE)
+  left_split = left_split.prefetch(tf.data.AUTOTUNE)
+  right_split = right_split.prefetch(tf.data.AUTOTUNE)
   
-  return left_dataset, right_dataset
+  return left_split, right_split
 
 def _convert_dataset_to_list(dataset,data_size_warning_flag = True):
   """Helper function to convert a tf.data.Dataset  object or a list/tuple of numpy.ndarrays to a list
   """
-  # TODO prakashsellathurai: add  failing test cases for list of tuples,tuples of nd array
-  # TODO prakashsellathurai: add support for Batched  and unbatched tf datasets
-  if isinstance(dataset,tuple):
+  # TODO (prakashsellathurai): add support for Batched  and unbatched dict tf datasets
+  if isinstance(dataset,(tuple,list)):
     if len(dataset) == 0:
       raise ValueError('`dataset` must be a non-empty list/tuple of'
                        ' numpy.ndarrays or tf.data.Dataset objects.')
-    dataset_iterator = list(zip(*dataset))
-  elif isinstance(dataset,list):
-    if len(dataset) == 0:
-      raise ValueError('`dataset` must be a non-empty list/tuple of'
-                       ' numpy.ndarrays or tf.data.Dataset objects.')
+      
+  
     if isinstance(dataset[0],np.ndarray):
-      dataset_iterator = list(zip(*dataset))
+      if not all(element.shape == dataset[0].shape  for element in dataset):
+        raise ValueError('all elements of `dataset` must have the same shape.')
+        
+      dataset_iterator = iter(zip(*dataset))
     else:
-      dataset_iterator = list(dataset)
+      dataset_iterator = iter(dataset)
 
   elif isinstance(dataset,np.ndarray):
-    dataset_iterator = list(dataset)
+    dataset_iterator = iter(dataset)
   elif isinstance(dataset,tf.data.Dataset):
-    dataset_iterator = list(dataset)
+    if is_batched(dataset):
+      dataset = dataset.unbatch()
+    dataset_iterator = iter(dataset)
   else:
     raise TypeError('`dataset` must be either a tf.data.Dataset object'
-                   f' or a list/tuple of arrays. Received : {type(dataset)}'
-                   )
+                   f' or a list/tuple of arrays. Received : {type(dataset)}')
   
   dataset_as_list = []
+  
   try:
     dataset_iterator = iter(dataset_iterator)
     first_datum = next(dataset_iterator)
@@ -128,23 +129,25 @@ def _convert_dataset_to_list(dataset,data_size_warning_flag = True):
     raise ValueError('Received  an empty Dataset i.e dataset with no elements. '
                      '`dataset` must be a non-empty list/tuple of'
                      ' numpy.ndarrays or tf.data.Dataset objects.')
-    
-    
   
-  start_time = time.time()
-  for i,datum in enumerate(dataset_iterator):
-    if data_size_warning_flag:
-      if i % 10 == 0:
-        cur_time = time.time()
-        # warns user if the dataset is too large to iterate within 10s
-        if int(cur_time - start_time) > 10 and data_size_warning_flag:
-          warnings.warn('Takes too long time to process the `dataset`,'
-                        'this function is only  for small datasets '
-                        '(e.g. < 10,000 samples).'
-          )
-          data_size_warning_flag = False
-    
-    dataset_as_list.append(datum)
+  if isinstance(first_datum,dict):
+    raise TypeError('`dataset` must be either a tf.data.Dataset object'
+                    ' or a list/tuple of arrays. '
+                    'Received : tf.data.Dataset with dict elements')
+  else:
+    start_time = time.time()
+    for i,datum in enumerate(dataset_iterator):
+      if data_size_warning_flag:
+        if i % 10 == 0:
+          cur_time = time.time()
+          # warns user if the dataset is too large to iterate within 10s
+          if int(cur_time - start_time) > 10 and data_size_warning_flag:
+            warnings.warn('Takes too long time to process the `dataset`,'
+                          'this function is only  for small datasets '
+                          '(e.g. < 10,000 samples).')
+            data_size_warning_flag = False
+      
+      dataset_as_list.append(datum)
       
   return dataset_as_list
 
@@ -235,6 +238,15 @@ def _rescale_dataset_split_sizes(left_size,right_size,total_length):
   return left_size,right_size
 
   
+def is_batched(tf_dataset):
+  """returns true if given tf dataset  is batched or false if not
+  
+  refer: https://stackoverflow.com/a/66101853/8336491
+  """
+  try:
+    return tf_dataset.__class__.__name__ == 'BatchDataset'
+  except : 
+    return False
 
 def index_directory(directory,
                     labels,
