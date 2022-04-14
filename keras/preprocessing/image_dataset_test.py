@@ -208,6 +208,16 @@ class ImageDatasetFromDirectoryTest(keras_parameterized.TestCase):
     self.assertEqual(batch[0].dtype.name, 'float32')
     self.assertEqual(batch[1].shape, (8, 4))
     self.assertEqual(batch[1].dtype.name, 'float32')
+    
+    train_dataset, val_dataset = image_dataset.image_dataset_from_directory(
+        directory, batch_size=10, image_size=(18, 18),
+        validation_split=0.2, subset='both', seed=1337)
+    batch = next(iter(train_dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8, 18, 18, 3))
+    batch = next(iter(val_dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (2, 18, 18, 3))
 
   def test_image_dataset_from_directory_color_modes(self):
     if PIL is None:
