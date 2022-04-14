@@ -248,6 +248,16 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
     batch = next(iter(dataset))
     self.assertLen(batch, 2)
     self.assertEqual(batch[0].shape, (2, 18, 18, 3))
+    
+    train_dataset, val_dataset = image_dataset.image_dataset_from_directory(
+        directory, batch_size=10, image_size=(18, 18),
+        validation_split=0.2, subset='both', seed=1337)
+    batch = next(iter(train_dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8, 18, 18, 3))
+    batch = next(iter(val_dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (2, 18, 18, 3))
 
   def test_image_dataset_from_directory_manual_labels(self):
     if PIL is None:

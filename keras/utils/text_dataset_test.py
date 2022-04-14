@@ -176,6 +176,16 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
     batch = next(iter(dataset))
     self.assertLen(batch, 2)
     self.assertEqual(batch[0].shape, (2,))
+    
+    train_dataset, val_dataset = text_dataset.text_dataset_from_directory(
+        directory, batch_size=10, validation_split=0.2, subset='both',
+        seed=1337)
+    batch = next(iter(train_dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8,))
+    batch = next(iter(val_dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (2,))
 
   def test_text_dataset_from_directory_manual_labels(self):
     directory = self._prepare_directory(num_classes=2, count=2)
