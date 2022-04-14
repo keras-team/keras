@@ -174,7 +174,7 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
     labels: List of corresponding labels.
     validation_split: Float, fraction of data to reserve for validation.
     subset: Subset of the data to return.
-      Either "training", "validation", or None. If None, we return all of the
+      Either "training", "validation", "both" or None. If None, we return all of the
       data.
 
   Returns:
@@ -192,9 +192,15 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
     print('Using %d files for validation.' % (num_val_samples,))
     samples = samples[-num_val_samples:]
     labels = labels[-num_val_samples:]
+  elif subset == 'both':
+    samples_train = samples[:-num_val_samples]
+    labels_train = labels[:-num_val_samples]
+    samples_validation = samples[-num_val_samples:]
+    labels_validation = labels[-num_val_samples:]
+    return (samples_train, labels_train), (samples_validation, labels_validation)    
   else:
     raise ValueError('`subset` must be either "training" '
-                     'or "validation", received: %s' % (subset,))
+                     'or "validation" or "both", received: %s' % (subset,))
   return samples, labels
 
 
