@@ -20,6 +20,7 @@ import abc
 import contextlib
 import functools
 import warnings
+import keras.optimizers.schedules
 from keras import backend
 from keras import initializers
 from keras.engine import base_layer_utils
@@ -792,8 +793,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       if (callable(prev_value)
           or isinstance(prev_value,
                         (tf.Tensor, int, float,
-                         learning_rate_schedule.LearningRateSchedule))
-          or isinstance(value, learning_rate_schedule.LearningRateSchedule)):
+                         keras.optimizers.schedules.LearningRateSchedule))
+          or isinstance(value, keras.optimizers.schedules.LearningRateSchedule)):
         self._hyper[name] = value
       else:
         backend.set_value(self._hyper[name], value)
@@ -802,7 +803,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     if not self._hypers_created:
       self._create_hypers()
     value = self._hyper[name]
-    if isinstance(value, learning_rate_schedule.LearningRateSchedule):
+    if isinstance(value, keras.optimizers.schedules.LearningRateSchedule):
       return value
     if callable(value):
       value = value()
@@ -1051,7 +1052,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
   def _decayed_lr(self, var_dtype):
     """Get decayed learning rate as a Tensor with dtype=var_dtype."""
     lr_t = self._get_hyper("learning_rate", var_dtype)
-    if isinstance(lr_t, learning_rate_schedule.LearningRateSchedule):
+    if isinstance(lr_t, keras.optimizers.schedules.LearningRateSchedule):
       local_step = tf.cast(self.iterations, var_dtype)
       lr_t = tf.cast(lr_t(local_step), var_dtype)
     if self._initial_decay > 0.:
