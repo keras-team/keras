@@ -1873,6 +1873,11 @@ class ResetStatesTest(test_combinations.TestCase):
     self.assertEqual(self.evaluate(p_obj.true_positives), 50.)
     self.assertEqual(self.evaluate(p_obj.false_positives), 50.)
 
+  def test_precision_update_state_with_logits(self):
+    p_obj = metrics.Precision()
+    # Update state with logits (not in range (0, 1)) should not an raise error.
+    p_obj.update_state([-0.5, 0.5], [-2., 2.])
+
   def test_reset_state_recall(self):
     r_obj = metrics.Recall()
     model = _get_model([r_obj])
