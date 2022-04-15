@@ -43,7 +43,7 @@ class SplitDatasetTest(tf.test.TestCase):
     self.assertAllEqual(list(zip(*dataset)),
                         list(left_split)+list(right_split))
     
-  def test_illegal_shaped_numpy_array(self):
+  def test_dataset_with_irregular_shape(self):
     with self.assertRaises(ValueError):
       dataset=[np.ones(shape=(200, 32)), np.zeros(shape=(100, 32))]
       dataset_utils.split_dataset(dataset, left_size=4)
@@ -51,7 +51,17 @@ class SplitDatasetTest(tf.test.TestCase):
     with self.assertRaises(ValueError):
       dataset=(np.ones(shape=(200, 32)), np.zeros(shape=(201, 32)))
       dataset_utils.split_dataset(dataset, left_size=4)
-    
+      
+    with self.assertRaises(ValueError):
+      dataset=tf.data.Dataset.from_tensor_slices(
+        np.ones(shape=(200, 32,32,1)), np.zeros(shape=(32)))
+      dataset_utils.split_dataset(dataset, left_size=4)
+      
+    with self.assertRaises(ValueError):
+      dataset=tf.data.Dataset.from_tensor_slices(
+        (np.ones(shape=(200, 32,32,1)), np.zeros(shape=(32))))
+      dataset_utils.split_dataset(dataset, left_size=4)
+            
   def test_tuple_of_numpy_arrays(self):
     dataset=(np.ones(shape=(200, 32)), np.zeros(shape=(200, 32)))
     left_split,right_split = dataset_utils.split_dataset(dataset, 

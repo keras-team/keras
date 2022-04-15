@@ -80,18 +80,40 @@ def split_dataset(dataset,
                                                       right_size,
                                                       total_length)
 
+  
+  
+  
   left_split = dataset_as_list[:left_size]
   right_split = dataset_as_list[-right_size:]
 
-  left_split = tf.data.Dataset.from_tensor_slices(left_split)
-  right_split = tf.data.Dataset.from_tensor_slices(right_split)
   
+  
+  try:
+    left_split = tf.data.Dataset.from_tensor_slices(left_split)
+  except Exception as e:
+    raise ValueError(f' with `left_size`={left_size} and '
+                     f' `right_size`={right_size}'
+                     f' unable to create the dataset from '
+                     f' left_split of shape {np.array(left_split).shape}. '
+                     f' Received error: {e}')
+  
+  try:
+    right_split = tf.data.Dataset.from_tensor_slices(right_split)
+  except Exception as e:
+    raise ValueError(f' with `left_size`={left_size} and '
+                     f' `right_size`={right_size}'
+                     f' unable to create the dataset from '
+                     f' right_split of shape {np.array(right_split).shape}. '
+                     f' Received error: {e}')
+    
   left_split = left_split.prefetch(tf.data.AUTOTUNE)
   right_split = right_split.prefetch(tf.data.AUTOTUNE)
   
   return left_split, right_split
 
-def _convert_dataset_to_list(dataset,data_size_warning_flag = True):
+def _convert_dataset_to_list(dataset,
+                             data_size_warning_flag= True,
+                             ensure_shape_similarity = True):
   """Helper function to convert a tf.data.Dataset  object or a list/tuple of numpy.ndarrays to a list
   """
   # TODO (prakashsellathurai): add support for Batched  and unbatched dict tf datasets
@@ -99,54 +121,71 @@ def _convert_dataset_to_list(dataset,data_size_warning_flag = True):
     if len(dataset) == 0:
       raise ValueError('`dataset` must be a non-empty list/tuple of'
                        ' numpy.ndarrays or tf.data.Dataset objects.')
-      
-  
+
     if isinstance(dataset[0],np.ndarray):
-      if not all(element.shape == dataset[0].shape  for element in dataset):
-        raise ValueError('all elements of `dataset` must have the same shape.')
-        
-      dataset_iterator = iter(zip(*dataset))
+      expected_shape = dataset[0].shape
+      for i,element in enumerate(dataset):
+        if not np.array(element).shape[0] == expected_shape[0]:
+          raise ValueError(f' Expected all numpy arrays of {type(dataset)} '
+                           f'in `dataset` to have the same length. '
+                           f'\n Received: dataset[{i}] with length = '
+                           f'{np.array(element).shape},'
+                           f' while dataset[0] has length {dataset[0].shape}') 
     else:
-      dataset_iterator = iter(dataset)
+      raise ValueError('Expected a list/tuple of numpy.ndarrays,'
+                       'Received: {}'.format(type(dataset[0])))
+      
+    dataset_iterator = iter(zip(*dataset))
+      
   elif isinstance(dataset,tf.data.Dataset):
     if is_batched(dataset):
       dataset = dataset.unbatch()
     dataset_iterator = iter(dataset)
   elif isinstance(dataset,np.ndarray):
     dataset_iterator = iter(dataset)
-  else:
-    raise TypeError('`dataset` must be either a tf.data.Dataset object'
-                   f' or a list/tuple of arrays. Received : {type(dataset)}')
-  
+
   dataset_as_list = []
   
   try:
     dataset_iterator = iter(dataset_iterator)
     first_datum = next(dataset_iterator)
+    if isinstance(first_datum,(tf.Tensor,np.ndarray,tuple)):
+      first_datum_shape = np.array(first_datum).shape
+    else:
+      ensure_shape_similarity  = False
     dataset_as_list.append(first_datum)
-  except ValueError:
-    raise ValueError('Received  an empty Dataset i.e dataset with no elements. '
-                     '`dataset` must be a non-empty list/tuple of'
+  except StopIteration:
+    raise ValueError(' Received  an empty Dataset i.e dataset with no elements.'
+                     ' `dataset` must be a non-empty list/tuple of'
                      ' numpy.ndarrays or tf.data.Dataset objects.')
   
   if isinstance(first_datum,dict):
     raise TypeError('`dataset` must be either a tf.data.Dataset object'
                     ' or a list/tuple of arrays. '
-                    'Received : tf.data.Dataset with dict elements')
-  else:
-    start_time = time.time()
-    for i,datum in enumerate(dataset_iterator):
-      if data_size_warning_flag:
-        if i % 10 == 0:
-          cur_time = time.time()
-          # warns user if the dataset is too large to iterate within 10s
-          if int(cur_time - start_time) > 10 and data_size_warning_flag:
-            warnings.warn('Takes too long time to process the `dataset`,'
-                          'this function is only  for small datasets '
-                          '(e.g. < 10,000 samples).')
-            data_size_warning_flag = False
-      
-      dataset_as_list.append(datum)
+                    ' Received : tf.data.Dataset with dict elements')
+  
+  start_time = time.time()
+  for i,datum in enumerate(dataset_iterator):
+    
+    if ensure_shape_similarity:
+      if first_datum_shape != np.array(datum).shape:
+        raise ValueError(' All elements of `dataset` must have the same shape,'
+                        f' Expected shape: {np.array(first_datum).shape}'
+                        f' Received shape: {np.array(datum).shape} at'
+                        f' index {i}')
+
+    if data_size_warning_flag:
+      if i % 10 == 0:
+        cur_time = time.time()
+        # warns user if the dataset is too large to iterate within 10s
+        if int(cur_time - start_time) > 10 and data_size_warning_flag:
+          warnings.warn(' Takes too long time to process the `dataset`,'
+                        ' this function is only  for small datasets '
+                        ' (e.g. < 10,000 samples).',category=ResourceWarning,
+                        source='split_dataset',stacklevel=2)
+          data_size_warning_flag = False
+    
+    dataset_as_list.append(datum)
       
   return dataset_as_list
 

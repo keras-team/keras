@@ -303,7 +303,8 @@ tf_py_test(
 
 tf_py_test(
     name = "dataset_utils_test",
-    size = "small",
+    size = "medium",
+    timeout = "moderate",
     srcs = ["dataset_utils_test.py"],
     python_version = "PY3",
     deps = [
