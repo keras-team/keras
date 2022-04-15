@@ -27,16 +27,20 @@ from keras.utils import audio_dataset
 
 @test_utils.run_v2_only
 class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
-    def _get_audio_samples(self, count=16):
+    def _get_audio_samples(self, count=16, ragged=False):
         sequence_length = 30
         num_channels = 1
         audio_samples = []
         for _ in range(count):
-            audio = np.random.random((sequence_length, num_channels))
+            if ragged:
+                random_sequence_length = np.random.randint(10, sequence_length+1)
+                audio = np.random.random((random_sequence_length, num_channels))
+            else:
+                audio = np.random.random((sequence_length, num_channels))
             audio_samples.append(audio)
         return audio_samples
 
-    def _prepare_directory(self, num_classes=2, nested_dirs=False, count=16):
+    def _prepare_directory(self, num_classes=2, nested_dirs=False, count=16, ragged=False):
         # Get a unique temp directory
         temp_dir = os.path.join(self.get_temp_dir(), str(np.random.randint(1e6)))
         os.mkdir(temp_dir)
@@ -61,7 +65,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
 
         # Save audio samples to the paths
         i = 0
-        for audio in self._get_audio_samples(count=count):
+        for audio in self._get_audio_samples(count=count, ragged=ragged):
             path = paths[i % len(paths)]
             ext = ".wav"
             filename = os.path.join(path, "audio_%s.%s" % (i, ext))
@@ -245,6 +249,24 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         with self.assertRaisesRegex(ValueError, "No audio found."):
             _ = audio_dataset.audio_dataset_from_directory(directory)
 
+
+    def test_audio_dataset_from_directory_ragged(self):
+        directory = self._prepare_directory(num_classes=2, count=16, ragged=True)
+        dataset = audio_dataset.audio_dataset_from_directory(directory, ragged=True, batch_size=8)
+        batch = next(iter(dataset))
+        self.assertEqual(batch[0].shape, (32, None, None))
+    
+
+    def test_audio_dataset_from_directory_no_output_sequence_length(self):
+        directory = self._prepare_directory(num_classes=2, count=16, ragged=True)
+        # The tensor shapes are different and output_sequence_length is None
+        # should work fine and pad each sequence to the length of the longest sequence
+        # in it's batch
+        dataset = audio_dataset.audio_dataset_from_directory(directory, batch_size=2)
+        sequence_lengths = set([batch[0].shape[1] for batch in dataset])
+        assert len(sequence_lengths) > 1
+
+
     def test_audio_dataset_from_directory_errors(self):
         directory = self._prepare_directory(num_classes=3, count=5)
 
@@ -342,3 +364,4 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
 
 if __name__ == "__main__":
     tf.test.main()
+
