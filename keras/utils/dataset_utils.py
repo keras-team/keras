@@ -108,12 +108,11 @@ def _convert_dataset_to_list(dataset,data_size_warning_flag = True):
       dataset_iterator = iter(zip(*dataset))
     else:
       dataset_iterator = iter(dataset)
-
-  elif isinstance(dataset,np.ndarray):
-    dataset_iterator = iter(dataset)
   elif isinstance(dataset,tf.data.Dataset):
     if is_batched(dataset):
       dataset = dataset.unbatch()
+    dataset_iterator = iter(dataset)
+  elif isinstance(dataset,np.ndarray):
     dataset_iterator = iter(dataset)
   else:
     raise TypeError('`dataset` must be either a tf.data.Dataset object'

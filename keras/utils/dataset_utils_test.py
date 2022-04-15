@@ -9,8 +9,7 @@ from keras.utils import dataset_utils
 
 class SplitDatasetTest(tf.test.TestCase):
   
-  def test_with_basic_dataset_values(self):
-    # numpy array
+  def test_numpy_array(self):
     dataset=np.ones(shape=(200, 32))
     res = dataset_utils.split_dataset(dataset, left_size=0.8,right_size=0.2)
     self.assertLen(res, 2)
@@ -24,7 +23,7 @@ class SplitDatasetTest(tf.test.TestCase):
     self.assertAllEqual(dataset[-40:] ,list(right_split))
     
     
-    # list of numpy array
+  def test_list_of_numpy_arrays(self):
     dataset=[np.ones(shape=(200, 32)), np.zeros(shape=(200, 32))]
     res = dataset_utils.split_dataset(dataset, left_size=4)
     self.assertLen(res, 2)
@@ -38,8 +37,13 @@ class SplitDatasetTest(tf.test.TestCase):
     self.assertAllEqual(list(left_split)+list(right_split), 
                         list(zip(*dataset)))
     
+    dataset=[np.ones(shape=(200, 32))]
+    left_split,right_split = dataset_utils.split_dataset(dataset, 
+                                                             left_size=4)
+    self.assertAllEqual(list(zip(*dataset)),
+                        list(left_split)+list(right_split))
     
-    # fail with invalid shape
+  def test_illegal_shaped_numpy_array(self):
     with self.assertRaises(ValueError):
       dataset=[np.ones(shape=(200, 32)), np.zeros(shape=(100, 32))]
       dataset_utils.split_dataset(dataset, left_size=4)
@@ -48,42 +52,87 @@ class SplitDatasetTest(tf.test.TestCase):
       dataset=(np.ones(shape=(200, 32)), np.zeros(shape=(201, 32)))
       dataset_utils.split_dataset(dataset, left_size=4)
     
-    # list with single np array
-    dataset=[np.ones(shape=(200, 32))]
-    left_split,right_split = dataset_utils.split_dataset(dataset, 
-                                                             left_size=4)
-    self.assertAllEqual(list(zip(*dataset)),
-                        list(left_split)+list(right_split))
-    
-    # Tule of np arrays
+  def test_tuple_of_numpy_arrays(self):
     dataset=(np.ones(shape=(200, 32)), np.zeros(shape=(200, 32)))
     left_split,right_split = dataset_utils.split_dataset(dataset, 
                                                              left_size=80)
     self.assertAllEqual(list(zip(*dataset))[:80] ,list(left_split))
     self.assertAllEqual(list(zip(*dataset))[80:] ,list(right_split))
     
-    
-    # Batched tf.data.Dataset that yields batches of vectors
-    dataset = tf.data.Dataset.from_tensor_slices(np.ones(shape=(16, 16,3)))
+  def test_batched_tf_dataset_of_vectors(self):
+    dataset = tf.data.Dataset.from_tensor_slices(np.ones(shape=(100,32, 32,1)))
     dataset = dataset.batch(10)
     left_split,right_split=dataset_utils.split_dataset(dataset,left_size=2)
+
+    self.assertAllEqual(np.array(list(left_split)).shape,(2,32,32,1))
+    self.assertAllEqual(np.array(list(right_split)).shape,(98,32,32,1))
     self.assertAllEqual(list(dataset.unbatch()),
                         list(left_split)+list(right_split)) 
     
-    # Batched tf.data.Dataset that yields batches of tuples of vectors
-    dataset = tf.data.Dataset.from_tensor_slices((np.random.rand(32,32), np.random.rand(32,32)))
+  def test_batched_tf_dataset_of_tuple_of_vectors(self):
+    dataset = tf.data.Dataset.from_tensor_slices((np.random.rand(10,32,32), 
+                                                  np.random.rand(10,32,32)))
     dataset = dataset.batch(2)
-    left_split,right_split=dataset_utils.split_dataset(dataset,left_size=5)
+    left_split,right_split=dataset_utils.split_dataset(dataset,left_size=4)
+  
+    self.assertAllEqual(np.array(list(left_split)).shape,(4,2,32,32))
+    self.assertAllEqual(np.array(list(right_split)).shape,(6,2,32,32))
+
     self.assertAllEqual(list(dataset.unbatch()),
-                        list(left_split)+list(right_split))  
+                        list(left_split)+list(right_split))
+    
+    
+
+  def test_unbatched_tf_dataset_of_vectors(self):
+    dataset = tf.data.Dataset.from_tensor_slices(np.ones(shape=(100,16, 16,3)))
+    
+    left_split,right_split=dataset_utils.split_dataset(dataset,left_size=0.25)
+    
+    self.assertAllEqual(np.array(list(left_split)).shape,(25,16, 16,3))
+    self.assertAllEqual(np.array(list(right_split)).shape,(75,16, 16,3))
+    
+    self.assertAllEqual(list(dataset),
+                        list(left_split)+list(right_split)) 
     
 
 
+  def test_unbatched_tf_dataset_of_tuple_of_vectors(self):
+    dataset = tf.data.Dataset.from_tensor_slices((np.random.rand(10,32,32,1), 
+                                                  np.random.rand(10,32,32,1)))
+
+    left_split,right_split=dataset_utils.split_dataset(dataset,left_size=5)
+    
+    self.assertAllEqual(np.array(list(left_split)).shape,(5,2,32,32,1))
+    self.assertAllEqual(np.array(list(right_split)).shape,(5,2,32,32,1))
+     
+  
+    self.assertAllEqual(list(dataset),list(left_split)+list(right_split)) 
+    
+  def test_with_mnist_dataset(self):
+    pass
+    # (x_train,y_train),(_,_) = tf.keras.datasets.mnist.load_data()
+
+    # self.assertEqual(x_train.shape,(60000,28,28,1))
+    # self.assertEqual(y_train.shape,(60000,))
     
     
     
     
-  def test_with_list_dataset(self):
+    
+  # def test_unbatched_tf_dataset_of_dicts_of_vectors(self):
+  #   dataset = tf.data.Dataset.from_tensor_slices(
+  #     {'images': np.random.rand(32,32,3), 
+  #     'labels': np.random.rand(32,1)
+  #     })
+  #   dataset = dataset.batch(2)
+  #   left_split,right_split=dataset_utils.split_dataset(dataset,left_size=5)
+    # self.assertAllEqual(len(list(dataset.unbatch())),len(list(left_split))) 
+
+    
+    
+    
+    
+  def test_list_dataset(self):
     dataset = [np.ones(shape=(10,10,10)) for _ in range(10)]
     left_split,right_split = dataset_utils.split_dataset(dataset,
                                                              left_size=5,
@@ -100,7 +149,7 @@ class SplitDatasetTest(tf.test.TestCase):
     self.assertEqual(len(right_split), 4)
 
     
-  def test_with_tuple_dataset(self):
+  def test_tuple_dataset(self):
     dataset = (np.ones(shape=(10,10,10)),np.zeros(shape=(10,10,10)))
     left_split,right_split = dataset_utils.split_dataset(dataset,
                                                              left_size=0.75,
@@ -116,7 +165,7 @@ class SplitDatasetTest(tf.test.TestCase):
     self.assertIsInstance(left_split, tf.data.Dataset)
     self.assertIsInstance(right_split, tf.data.Dataset)
     
-  def test_with_invalid_dataset(self):
+  def test_invalid_dataset(self):
     with self.assertRaises(TypeError):
       dataset_utils.split_dataset(dataset=None, left_size=5)  
     with self.assertRaises(TypeError):
@@ -128,7 +177,7 @@ class SplitDatasetTest(tf.test.TestCase):
     with self.assertRaises(TypeError):
       dataset_utils.split_dataset(dataset=float('INF'), left_size=5)
 
-  def test_with_valid_left_and_right_sizes(self):
+  def test_valid_left_and_right_sizes(self):
     
     dataset = np.array([1,2,3])
     splitted_dataset = dataset_utils.split_dataset(dataset, 
@@ -193,7 +242,7 @@ class SplitDatasetTest(tf.test.TestCase):
     self.assertEqual(list(left_split), [1,2])
     self.assertEqual(list(right_split), [6,7,8,9,10])
     
-  def test_with_float_left_and_right_sizes(self):
+  def test_float_left_and_right_sizes(self):
     dataset = tf.data.Dataset.from_tensor_slices(np.array([[0.1,0.2,0.3],
                                                            [0.4,0.5,0.6],
                                                            [0.7,0.8,0.9]]))
@@ -203,7 +252,7 @@ class SplitDatasetTest(tf.test.TestCase):
     self.assertEqual(len(left_split), 2)
     self.assertEqual(len(right_split), 1)
     
-  def test_with_invalid_float_left_and_right_sizes(self):
+  def test_invalid_float_left_and_right_sizes(self):
     with self.assertRaises(ValueError):
       dataset = [np.ones(shape=(200, 32,32)), np.zeros(shape=(200, 32,32))]
       dataset_utils.split_dataset(dataset, left_size=1.5,right_size=0.2)
@@ -213,7 +262,7 @@ class SplitDatasetTest(tf.test.TestCase):
 
     
       
-  def test_with_None_and_zero_left_and_right_size(self):    
+  def test_None_and_zero_left_and_right_size(self):    
     with self.assertRaises(ValueError):
       dataset_utils.split_dataset(dataset=np.array([1,2,3]), left_size=None)  
     with self.assertRaises(ValueError):
@@ -231,7 +280,7 @@ class SplitDatasetTest(tf.test.TestCase):
     with self.assertRaises(ValueError):
       dataset_utils.split_dataset(np.array([1,2,3]), left_size=0,right_size=0)
       
-  def test_with_invalid_left_and_right_size_types(self):      
+  def test_invalid_left_and_right_size_types(self):      
     with self.assertRaises(TypeError):
       dataset_utils.split_dataset(np.array([1,2,3]), 
                                   left_size='1',
