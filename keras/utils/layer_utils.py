@@ -21,6 +21,7 @@ import weakref
 
 from keras.utils import io_utils
 from keras.utils import tf_inspect
+from keras.utils.vis_utils import get_layer_index_bound_by_layer_name
 import numpy as np
 
 import tensorflow.compat.v2 as tf
@@ -121,7 +122,8 @@ def print_summary(model,
                   positions=None,
                   print_fn=None,
                   expand_nested=False,
-                  show_trainable=False):
+                  show_trainable=False,
+                  layer_range=None):
   """Prints a summary of a model.
 
   Args:
@@ -140,6 +142,14 @@ def print_summary(model,
           If not provided, defaults to `False`.
       show_trainable: Whether to show if a layer is trainable.
           If not provided, defaults to `False`.
+      layer_range: input of type`list` containing two `str` items, which is the
+        starting layer name and ending layer name (both inclusive) indicating
+        the range of layers to be printed in summary. It
+        also accepts regex patterns instead of exact name. In such case, start
+        predicate will be the first element it matches to `layer_range[0]`
+        and the end predicate will be the last element it matches to
+        `layer_range[1]`. By default `None` which considers all layers of
+        model.
   """
   if print_fn is None:
     print_fn = io_utils.print_msg
@@ -199,6 +209,21 @@ def print_summary(model,
     line_length += 11
     positions.append(line_length)
     to_display.append('Trainable')
+
+  if layer_range is not None:
+    if len(layer_range) != 2:
+      raise ValueError(
+          'layer_range must be of shape (2,). Received: '
+          f'layer_range = {layer_range} of length {len(layer_range)}')
+    if (not isinstance(layer_range[0], str) or
+        not isinstance(layer_range[1], str)):
+      raise ValueError(
+          'layer_range should contain string type only. '
+          f'Received: {layer_range}')
+    layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
+    if layer_range[0] < 0 or layer_range[1] > len(model.layers):
+      raise ValueError('Both values in layer_range should be in range (0, '
+                       f'{len(model.layers)}. Received: {layer_range}')
 
   def print_row(fields, positions, nested_level=0):
     left_to_print = [str(x) for x in fields]
@@ -334,7 +359,9 @@ def print_summary(model,
                '|' * nested_level)
 
   layers = model.layers
-  for layer in layers:
+  for i, layer in enumerate(layers):
+    if (layer_range) and (i < layer_range[0] or i > layer_range[1]):
+      continue
     print_layer(layer)
   print_fn('=' * line_length)
 
