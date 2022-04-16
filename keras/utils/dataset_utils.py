@@ -79,14 +79,13 @@ def split_dataset(dataset,
   left_size,right_size = _rescale_dataset_split_sizes(left_size,
                                                       right_size,
                                                       total_length)
+  
+  left_split = list(dataset_as_list[:left_size])
+  right_split = list(dataset_as_list[-right_size:])
 
-  
-  
-  
-  left_split = dataset_as_list[:left_size]
-  right_split = dataset_as_list[-right_size:]
-
-  
+  if _get_type_spec(dataset) is tuple:
+    left_split = tuple(np.array(sample) for sample in zip(*left_split))
+    right_split = tuple(np.array(sample) for sample in zip(*right_split))
   
   try:
     left_split = tf.data.Dataset.from_tensor_slices(left_split)
@@ -116,62 +115,115 @@ def _convert_dataset_to_list(dataset,
                              ensure_shape_similarity = True):
   """Helper function to convert a tf.data.Dataset  object or a list/tuple of numpy.ndarrays to a list
   """
+  # TODO (prakashsellathurai): fix issue with tuple of numpy arrays dataset=(np.ones(shape=(3, 2)), np.zeros(shape=(3,)))
   # TODO (prakashsellathurai): add support for Batched  and unbatched dict tf datasets
-  if isinstance(dataset,(tuple,list)):
+  dataset_type_spec = _get_type_spec(dataset)
+  dataset_iterator = _get_data_iterator_from_dataset(dataset)
+  dataset_as_list = []
+  
+  start_time = time.time()
+  for sample in _get_next_sample(dataset_iterator,
+                                 ensure_shape_similarity,
+                                 data_size_warning_flag,
+                                 start_time):
+    
+    if dataset_type_spec is None:
+      dataset_as_list.append(sample)
+    elif dataset_type_spec is tuple:
+      dataset_as_list.append(map(tuple,map(np.array,sample)))
+
+      
+  return dataset_as_list
+
+def _get_data_iterator_from_dataset(dataset) :
+  """Helper function to get the data iterator from a tf.data.Dataset object
+  """
+  if isinstance(dataset,(list)):
     if len(dataset) == 0:
-      raise ValueError('`dataset` must be a non-empty list/tuple of'
+      raise ValueError('`dataset` must be a non-empty list of'
                        ' numpy.ndarrays or tf.data.Dataset objects.')
 
     if isinstance(dataset[0],np.ndarray):
       expected_shape = dataset[0].shape
       for i,element in enumerate(dataset):
         if not np.array(element).shape[0] == expected_shape[0]:
-          raise ValueError(f' Expected all numpy arrays of {type(dataset)} '
+          raise ValueError(f' Expected  numpy array of {type(dataset)} '
                            f'in `dataset` to have the same length. '
                            f'\n Received: dataset[{i}] with length = '
                            f'{np.array(element).shape},'
                            f' while dataset[0] has length {dataset[0].shape}') 
     else:
-      raise ValueError('Expected a list/tuple of numpy.ndarrays,'
+      raise ValueError('Expected a list of numpy.ndarrays,'
                        'Received: {}'.format(type(dataset[0])))
       
-    dataset_iterator = iter(zip(*dataset))
+    return iter(zip(*dataset))
+  elif  isinstance(dataset,tuple):
+    if len(dataset) == 0:
+      raise ValueError('`dataset` must be a non-empty list of'
+                       ' numpy.ndarrays or tf.data.Dataset objects.')
+
+    if isinstance(dataset[0],np.ndarray):
+      expected_shape = dataset[0].shape
+      for i,element in enumerate(dataset):
+        if not np.array(element).shape[0] == expected_shape[0]:
+          raise ValueError(f' Expected  numpy array of {type(dataset)} '
+                           f'in `dataset` to have the same length. '
+                           f'\n Received: dataset[{i}] with length = '
+                           f'{np.array(element).shape},'
+                           f' while dataset[0] has length {dataset[0].shape}') 
+    else:
+      raise ValueError('Expected a tuple of numpy.ndarrays,'
+                       'Received: {}'.format(type(dataset[0])))
       
+    return  iter(zip(*dataset))
   elif isinstance(dataset,tf.data.Dataset):
     if is_batched(dataset):
       dataset = dataset.unbatch()
-    dataset_iterator = iter(dataset)
+    return iter(dataset)
   elif isinstance(dataset,np.ndarray):
-    dataset_iterator = iter(dataset)
+    return iter(dataset)
 
-  dataset_as_list = []
+def _get_type_spec(dataset):
+  if isinstance(dataset,(tuple)):
+    return tuple
+  return None
+
+def _get_next_sample(dataset_iterator,
+                    ensure_shape_similarity,
+                    data_size_warning_flag,
+                    start_time):
+  """Helper function to yield samples from a `dataset_iterator`
+     if `ensure_shape_similarity` is set to True raises error if the 
+     shapes of the samples are not the same .
+     if `data_size_warning_flag` is set to True, raises warning if the
+     dataset iteration takes more than 10 seconds.
+  """
   
   try:
     dataset_iterator = iter(dataset_iterator)
-    first_datum = next(dataset_iterator)
-    if isinstance(first_datum,(tf.Tensor,np.ndarray,tuple)):
-      first_datum_shape = np.array(first_datum).shape
+    first_sample = next(dataset_iterator)
+    if isinstance(first_sample,(tf.Tensor,np.ndarray)):
+      first_sample_shape = np.array(first_sample).shape
     else:
+      first_sample_shape = None
       ensure_shape_similarity  = False
-    dataset_as_list.append(first_datum)
+    yield first_sample
   except StopIteration:
     raise ValueError(' Received  an empty Dataset i.e dataset with no elements.'
                      ' `dataset` must be a non-empty list/tuple of'
                      ' numpy.ndarrays or tf.data.Dataset objects.')
   
-  if isinstance(first_datum,dict):
+  if isinstance(first_sample,dict):
     raise TypeError('`dataset` must be either a tf.data.Dataset object'
                     ' or a list/tuple of arrays. '
                     ' Received : tf.data.Dataset with dict elements')
   
-  start_time = time.time()
-  for i,datum in enumerate(dataset_iterator):
-    
+  for i,sample in enumerate(dataset_iterator):
     if ensure_shape_similarity:
-      if first_datum_shape != np.array(datum).shape:
+      if first_sample_shape != np.array(sample).shape:
         raise ValueError(' All elements of `dataset` must have the same shape,'
-                        f' Expected shape: {np.array(first_datum).shape}'
-                        f' Received shape: {np.array(datum).shape} at'
+                        f' Expected shape: {np.array(first_sample).shape}'
+                        f' Received shape: {np.array(sample).shape} at'
                         f' index {i}')
 
     if data_size_warning_flag:
@@ -184,10 +236,9 @@ def _convert_dataset_to_list(dataset,
                         ' (e.g. < 10,000 samples).',category=ResourceWarning,
                         source='split_dataset',stacklevel=2)
           data_size_warning_flag = False
+          
+    yield sample
     
-    dataset_as_list.append(datum)
-      
-  return dataset_as_list
 
 def _rescale_dataset_split_sizes(left_size,right_size,total_length):
   """Helper function to rescale  left_size/right_size args relative 

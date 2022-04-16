@@ -5,6 +5,7 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 
 from keras.utils import dataset_utils
+from keras.datasets import mnist
 
 
 class SplitDatasetTest(tf.test.TestCase):
@@ -62,12 +63,43 @@ class SplitDatasetTest(tf.test.TestCase):
         (np.ones(shape=(200, 32,32,1)), np.zeros(shape=(32))))
       dataset_utils.split_dataset(dataset, left_size=4)
             
+      
+    
   def test_tuple_of_numpy_arrays(self):
     dataset=(np.ones(shape=(200, 32)), np.zeros(shape=(200, 32)))
+
     left_split,right_split = dataset_utils.split_dataset(dataset, 
                                                              left_size=80)
+    
+    self.assertEqual(len(left_split), 80)
     self.assertAllEqual(list(zip(*dataset))[:80] ,list(left_split))
     self.assertAllEqual(list(zip(*dataset))[80:] ,list(right_split))
+
+    
+    
+    dataset=(np.random.rand(4, 3), np.random.rand(4, 1))
+    
+    left_split,right_split = dataset_utils.split_dataset(dataset, 
+                                                             left_size=2)
+    self.assertEqual(len(left_split), 2)
+    self.assertEqual(len(right_split), 2)
+    
+    self.assertEqual(np.array(list(left_split)[0])[0].shape,(3,) )
+    self.assertEqual(np.array(list(left_split)[0])[1].shape,(1,) )
+    self.assertEqual(np.array(list(right_split)[0])[0].shape,(3,) )
+    self.assertEqual(np.array(list(right_split)[0])[1].shape,(1,) )
+    
+    dataset=(np.random.rand(200,32,32), np.random.rand(200,10))
+    left_split,right_split = dataset_utils.split_dataset(dataset, 
+                                                          right_size=180)
+    self.assertEqual(len(right_split), 180)
+    self.assertEqual(len(left_split), 20)
+    
+    self.assertEqual(np.array(list(left_split)[0])[0].shape,(32,32) )
+    self.assertEqual(np.array(list(left_split)[0])[1].shape,(10,) )
+    self.assertEqual(np.array(list(right_split)[0])[0].shape,(32,32) )
+    self.assertEqual(np.array(list(right_split)[0])[1].shape,(10,) )
+    
     
   def test_batched_tf_dataset_of_vectors(self):
     dataset = tf.data.Dataset.from_tensor_slices(np.ones(shape=(100,32, 32,1)))
@@ -118,12 +150,18 @@ class SplitDatasetTest(tf.test.TestCase):
   
     self.assertAllEqual(list(dataset),list(left_split)+list(right_split)) 
     
-  def test_with_mnist_dataset(self):
-    pass
-    # (x_train,y_train),(_,_) = tf.keras.datasets.mnist.load_data()
+  # def test_mnist_dataset(self):
+  #   (x_train,y_train),(_,_) = mnist.load_data()
 
-    # self.assertEqual(x_train.shape,(60000,28,28,1))
-    # self.assertEqual(y_train.shape,(60000,))
+  #   self.assertEqual(x_train.shape,(60000,28,28))
+  #   self.assertEqual(y_train.shape,(60000,))
+    
+  #   dataset = tf.data.Dataset.from_tensor_slices((x_train,y_train))
+    
+  #   with self.assertWarns(ResourceWarning):
+  #     left_split,right_split = dataset_utils.split_dataset(dataset,
+  #                                                          left_size=0.80)
+    
     
     
     
