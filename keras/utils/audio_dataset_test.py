@@ -37,7 +37,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
                 audio = np.random.random((random_sequence_length, num_channels))
             else:
                 audio = np.random.random((sequence_length, num_channels))
-            audio_samples.append(audio)
+            audio_samples.append(tf.audio.encode_wav(audio, 1000))
         return audio_samples
 
     def _prepare_directory(
@@ -77,7 +77,8 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
             path = paths[i % len(paths)]
             ext = ".wav"
             filename = os.path.join(path, "audio_%s.%s" % (i, ext))
-            audio.save(os.path.join(temp_dir, filename))
+            with open(os.path.join(temp_dir, filename), 'wb') as f:
+                f.write(audio.numpy())
             i += 1
         return temp_dir
 
@@ -86,9 +87,10 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
 
         # Save a few extra audio in the parent directory.
         directory = self._prepare_directory(count=7, num_classes=2)
-        for i, img in enumerate(self._get_audio_samples(3)):
+        for i, audio in enumerate(self._get_audio_samples(3)):
             filename = "audio_%s.wav" % (i,)
-            img.save(os.path.join(directory, filename))
+            with open(os.path.join(directory, filename), 'wb') as f:
+                f.write(audio.numpy())
 
         dataset = audio_dataset.audio_dataset_from_directory(
             directory, batch_size=5, output_sequence_length=30, labels=None
@@ -267,7 +269,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         batch = next(iter(dataset))
         self.assertEqual(batch[0].shape, (32, None, None))
 
-    def test_audio_dataset_from_directory_no_output_length_and_different_lengths(self,):
+    def test_audio_dataset_from_directory_no_output_length_and_different_lengths(self):
         directory = self._prepare_directory(
             num_classes=2, count=16, different_sequence_lengths=True
         )
