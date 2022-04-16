@@ -161,6 +161,10 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
   ConvNeXt models expect their inputs to be float or uint8 tensors of pixels with
   values in the [0-255] range.
 
+  When calling the `summary()` method after instantiating a ConvNeXt model, prefer
+  setting the `expand_nested` argument `summary()` to `True` to better investigate
+  the instantiated model.
+
   Args:
     include_top: Whether to include the fully-connected
         layer at the top of the network. Defaults to True.
@@ -280,18 +284,18 @@ class Block(tf.keras.Model):
       )
 
     def call(self, inputs):
-        x = inputs
+      x = inputs
 
-        x = self.dw_conv_1(x)
-        x = self.layer_norm(x)
-        x = self.pw_conv_1(x)
-        x = self.act_fn(x)
-        x = self.pw_conv_2(x)
+      x = self.dw_conv_1(x)
+      x = self.layer_norm(x)
+      x = self.pw_conv_1(x)
+      x = self.act_fn(x)
+      x = self.pw_conv_2(x)
 
-        if self.gamma is not None:
-            x = self.gamma * x
+      if self.gamma is not None:
+          x = self.gamma * x
 
-        return inputs + self.drop_path(x)
+      return inputs + self.drop_path(x)
 
 
 def PreStem(name=None):
@@ -311,7 +315,7 @@ def PreStem(name=None):
       mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
       variance=[(0.229 * 255) ** 2, (0.224 * 255) ** 2, (0.225 * 255) ** 2],
       name=name + "_prestem_normalization"
-    )
+    )(x)
     return x
 
   return apply
@@ -347,7 +351,7 @@ def ConvNeXt(depths,
            model_name="convnext",
            include_preprocessing=True,
            include_top=True,
-           weights="imagenet",
+           weights=None,
            input_tensor=None,
            input_shape=None,
            pooling=None,
@@ -467,7 +471,7 @@ def ConvNeXt(depths,
       [
         *[
             Block(
-              dim=projection_dims[i],
+              projection_dim=projection_dims[i],
               drop_path=dp_rates[cur + j],
               layer_scale_init_value=layer_scale_init_value,
               name=model_name + f"stage_{i}_block_{j}",
@@ -479,6 +483,11 @@ def ConvNeXt(depths,
     )
     stages.append(stage)
     cur += depths[i]
+
+  # Apply the stages.
+  for i in range(len(stages)):
+    x = downsample_layers[i](x)
+    x = stages[i](x)
 
   if include_top:
     x = Head(num_classes=classes)(x)
