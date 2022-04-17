@@ -34,77 +34,21 @@ from tensorflow.python.util.tf_export import keras_export
 BASE_WEIGHTS_PATH = "https://storage.googleapis.com/convnext-tf/keras-applications/convnext/"
 
 WEIGHTS_HASHES = {
-    "x002":
-        ("49fb46e56cde07fdaf57bffd851461a86548f6a3a4baef234dd37290b826c0b8",
-         "5445b66cd50445eb7ecab094c1e78d4d3d29375439d1a7798861c4af15ffff21"),
-    "x004":
-        ("3523c7f5ac0dbbcc2fd6d83b3570e7540f7449d3301cc22c29547302114e4088",
-         "de139bf07a66c9256f2277bf5c1b6dd2d5a3a891a5f8a925a10c8a0a113fd6f3"),
-    "x006":
-        ("340216ef334a7bae30daac9f414e693c136fac9ab868704bbfcc9ce6a5ec74bb",
-         "a43ec97ad62f86b2a96a783bfdc63a5a54de02eef54f26379ea05e1bf90a9505"),
-    "x008":
-        ("8f145d6a5fae6da62677bb8d26eb92d0b9dfe143ec1ebf68b24a57ae50a2763d",
-         "3c7e4b0917359304dc18e644475c5c1f5e88d795542b676439c4a3acd63b7207"),
-    "x016":
-        ("31c386f4c7bfef4c021a583099aa79c1b3928057ba1b7d182f174674c5ef3510",
-         "1b8e3d545d190271204a7b2165936a227d26b79bb7922bac5ee4d303091bf17a"),
-    "x032":
-        ("6c025df1409e5ea846375bc9dfa240956cca87ef57384d93fef7d6fa90ca8c7f",
-         "9cd4522806c0fcca01b37874188b2bd394d7c419956d77472a4e072b01d99041"),
-    "x040":
-        ("ba128046c588a26dbd3b3a011b26cb7fa3cf8f269c184c132372cb20b6eb54c1",
-         "b4ed0ca0b9a98e789e05000e830403a7ade4d8afa01c73491c44610195198afe"),
-    "x064":
-        ("0f4489c3cd3ad979bd6b0324213998bcb36dc861d178f977997ebfe53c3ba564",
-         "3e706fa416a18dfda14c713423eba8041ae2509db3e0a611d5f599b5268a46c4"),
-    "x080":
-        ("76320e43272719df648db37271a247c22eb6e810fe469c37a5db7e2cb696d162",
-         "7b1ce8e29ceefec10a6569640ee329dba7fbc98b5d0f6346aabade058b66cf29"),
-    "x120":
-        ("5cafc461b78897d5e4f24e68cb406d18e75f31105ef620e7682b611bb355eb3a",
-         "36174ddd0299db04a42631d028abcb1cc7afec2b705e42bd28fcd325e5d596bf"),
-    "x160":
-        ("8093f57a5824b181fb734ea21ae34b1f7ee42c5298e63cf6d587c290973195d2",
-         "9d1485050bdf19531ffa1ed7827c75850e0f2972118a996b91aa9264b088fd43"),
-    "x320":
-        ("91fb3e6f4e9e44b3687e80977f7f4412ee9937c0c704232664fc83e4322ea01e",
-         "9db7eacc37b85c98184070e1a172e6104c00846f44bcd4e727da9e50d9692398"),
-    "y002":
-        ("1e8091c674532b1a61c04f6393a9c570113e0197f22bd1b98cc4c4fe800c6465",
-         "f63221f63d625b8e201221499682587bfe29d33f50a4c4f4d53be00f66c0f12c"),
-    "y004":
-        ("752fdbad21c78911bf1dcb8c513e5a0e14697b068e5d9e73525dbaa416d18d8e",
-         "45e6ba8309a17a77e67afc05228454b2e0ee6be0dae65edc0f31f1da10cc066b"),
-    "y006":
-        ("98942e07b273da500ff9699a1f88aca78dfad4375faabb0bab784bb0dace80a9",
-         "b70261cba4e60013c99d130cc098d2fce629ff978a445663b6fa4f8fc099a2be"),
-    "y008":
-        ("1b099377cc9a4fb183159a6f9b24bc998e5659d25a449f40c90cbffcbcfdcae4",
-         "b11f5432a216ee640fe9be6e32939defa8d08b8d136349bf3690715a98752ca1"),
-    "y016":
-        ("b7ce1f5e223f0941c960602de922bcf846288ce7a4c33b2a4f2e4ac4b480045b",
-         "d7404f50205e82d793e219afb9eb2bfeb781b6b2d316a6128c6d7d7dacab7f57"),
-    "y032":
-        ("6a6a545cf3549973554c9b94f0cd40e25f229fffb1e7f7ac779a59dcbee612bd",
-         "eb3ac1c45ec60f4f031c3f5180573422b1cf7bebc26c004637517372f68f8937"),
-    "y040":
-        ("98d00118b335162bbffe8f1329e54e5c8e75ee09b2a5414f97b0ddfc56e796f6",
-         "b5be2a5e5f072ecdd9c0b8a437cd896df0efa1f6a1f77e41caa8719b7dfcb05d"),
-    "y064":
-        ("65c948c7a18aaecaad2d1bd4fd978987425604ba6669ef55a1faa0069a2804b7",
-         "885c4b7ed7ea339daca7dafa1a62cb7d41b1068897ef90a5a3d71b4a2e2db31a"),
-    "y080":
-        ("7a2c62da2982e369a4984d3c7c3b32d6f8d3748a71cb37a31156c436c37f3e95",
-         "3d119577e1e3bf8d153b895e8ea9e4ec150ff2d92abdca711b6e949c3fd7115d"),
-    "y120":
-        ("a96ab0d27d3ae35a422ee7df0d789069b3e3217a99334e0ce861a96595bc5986",
-         "4a6fa387108380b730b71feea2ad80b5224b5ea9dc21dc156c93fe3c6186485c"),
-    "y160":
-        ("45067240ffbc7ca2591313fee2f80dbdda6d66ec1a7451446f9a6d00d8f7ac6e",
-         "ead1e6b568be8f34447ec8941299a9df4368736ba9a8205de5427fa20a1fb316"),
-    "y320": ("b05e173e4ae635cfa22d06392ee3741284d17dadfee68f2aa6fd8cb2b7561112",
-             "cad78f74a586e24c61d38be17f3ae53bb9674380174d2585da1a526b8c20e1fd")
+  "tiny":
+    ("dec324e40ebe943afc7b75b72484646eeb092c04bb079df35911d7080364f9a8",
+      "4d4f0e079db2cc0e627b55f7d0d76c367145d14f2c90674415373457cd822346"),
+  "small":
+    ("f964ea5cd5618a1e64902a74ca5ccff3797a4fa5dba11a14f2c4d1a562b72f08",
+      "fd8f0ac74faa4e364d7cb5b2d32af9ae35b54ce5e80525b5beb7b7571320065a"),
+  "base":
+    ("d30e0c509f4e1abe2784d33765d4391ce8fbff259b0bd79f4a63684b20db87d2",
+      "736f7a96cd933ee568611e29f334737fb9aebaaea021ea7adfe4d2f5cbb4a9aa"),
+  "large":
+    ("8a304c66deb782b0d59837bc13127068901adaaa280cfac604d3341aaf44b2cf",
+      "b02b623b3c28586423e6be4aa214e2f5619280b97b4ef6b35ffb686e83235f01"),
+  "xlarge":
+    ("da65d1294d386c71aebd81bc2520b8d42f7f60eee4414806c60730cd63eb15cb",
+      "2bfbf5f0c2b3f004f1c32e9a76661e11a9ac49014ed2a68a49ecd0cd6c88d377"),
 }
 
 
@@ -150,10 +94,11 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
   [guide to transfer learning & fine-tuning](
     https://keras.io/guides/transfer_learning/).
 
-  `base`, `large`, and `xlarge` models were first pre-trained on the ImageNet-21k
-  dataset and were then fine-tuned on the ImageNet-1k dataset. The pre-trained 
-  parameters of the models were assembled from the [official repository](https://github.com/facebookresearch/ConvNeXt).
-  To get a sense of how these parameters were converted to Keras compatible parameters,
+  The `base`, `large`, and `xlarge` models were first pre-trained on the
+  ImageNet-21k dataset and then fine-tuned on the ImageNet-1k dataset. The
+  pre-trained parameters of the models were assembled from the
+  [official repository](https://github.com/facebookresearch/ConvNeXt). To get a
+  sense of how these parameters were converted to Keras compatible parameters,
   please refer to [this repository](https://github.com/sayakpaul/ConvNeXt-TF).
 
   Note: Each Keras Application expects a specific kind of input preprocessing.
@@ -167,37 +112,36 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
 
   Args:
     include_top: Whether to include the fully-connected
-        layer at the top of the network. Defaults to True.
+      layer at the top of the network. Defaults to True.
     weights: One of `None` (random initialization),
-          `"imagenet"` (pre-training on ImageNet), or the path to the weights
-          file to be loaded. Defaults to `"imagenet"`.
+      `"imagenet"` (pre-training on ImageNet-1k), or the path to the weights file
+      to be loaded. Defaults to `"imagenet"`.
     input_tensor: Optional Keras tensor
-        (i.e. output of `layers.Input()`)
-        to use as image input for the model.
+      (i.e. output of `layers.Input()`)
+      to use as image input for the model.
     input_shape: Optional shape tuple, only to be specified
-        if `include_top` is False.
-        It should have exactly 3 inputs channels.
+      if `include_top` is False.
+      It should have exactly 3 inputs channels.
     pooling: Optional pooling mode for feature extraction
-        when `include_top` is `False`. Defaults to None.
-        - `None` means that the output of the model will be
-            the 4D tensor output of the
-            last convolutional layer.
-        - `avg` means that global average pooling
-            will be applied to the output of the
-            last convolutional layer, and thus
-            the output of the model will be a 2D tensor.
-        - `max` means that global max pooling will
-            be applied.
+      when `include_top` is `False`. Defaults to None.
+      - `None` means that the output of the model will be
+        the 4D tensor output of the last convolutional layer.
+      - `avg` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a 2D tensor.
+      - `max` means that global max pooling will
+        be applied.
     classes: Optional number of classes to classify images
-        into, only to be specified if `include_top` is True, and
-        if no `weights` argument is specified. Defaults to 1000 (number of
-        ImageNet classes).
+      into, only to be specified if `include_top` is True, and
+      if no `weights` argument is specified. Defaults to 1000 (number of
+      ImageNet classes).
     classifier_activation: A `str` or callable. The activation function to use
-        on the "top" layer. Ignored unless `include_top=True`. Set
-        `classifier_activation=None` to return the logits of the "top" layer.
-        Defaults to `"softmax"`.
-        When loading pretrained weights, `classifier_activation` can only
-        be `None` or `"softmax"`.
+      on the "top" layer. Ignored unless `include_top=True`. Set
+      `classifier_activation=None` to return the logits of the "top" layer.
+      Defaults to `"softmax"`.
+      When loading pretrained weights, `classifier_activation` can only
+      be `None` or `"softmax"`.
 
   Returns:
     A `keras.Model` instance.
@@ -262,25 +206,25 @@ class Block(tf.keras.Model):
     def __init__(self, projection_dim, drop_path=0.0, layer_scale_init_value=1e-6, **kwargs):
       super().__init__(**kwargs)
       self.projection_dim = projection_dim
-      self.name = kwargs["name"]
+      name = kwargs["name"]
       
       if layer_scale_init_value > 0.0:
-        self.gamma = tf.Variable(layer_scale_init_value * tf.ones((projection_dim,)), name=self.name + "_layer_scale_gamma")
+        self.gamma = tf.Variable(layer_scale_init_value * tf.ones((projection_dim,)), name=name + "_layer_scale_gamma")
       else:
         self.gamma = None
       
       self.dw_conv_1 = layers.Conv2D(
         filters=projection_dim, kernel_size=7, padding="same", groups=projection_dim,
-        name=self.name + "_depthwise_conv"
+        name=name + "_depthwise_conv"
       )
-      self.layer_norm = layers.LayerNormalization(epsilon=1e-6, name=self.name + "_layernorm")
-      self.pw_conv_1 = layers.Dense(4 * projection_dim, name=self.name + "_pointwise_conv_1")
-      self.act_fn = layers.Activation("gelu", name=self.name + "_gelu")
-      self.pw_conv_2 = layers.Dense(projection_dim, name=self.name + "_pointwise_conv_2")
+      self.layer_norm = layers.LayerNormalization(epsilon=1e-6, name=name + "_layernorm")
+      self.pw_conv_1 = layers.Dense(4 * projection_dim, name=name + "_pointwise_conv_1")
+      self.act_fn = layers.Activation("gelu", name=name + "_gelu")
+      self.pw_conv_2 = layers.Dense(projection_dim, name=name + "_pointwise_conv_2")
       self.drop_path = (
-        StochasticDepth(drop_path, name=self.name + "_stochastic_depth")
+        StochasticDepth(drop_path, name=name + "_stochastic_depth")
         if drop_path > 0.0
-        else layers.Activation("linear", name=self.name + "_identity")
+        else layers.Activation("linear", name=name + "_identity")
       )
 
     def call(self, inputs):
@@ -344,19 +288,19 @@ def Head(num_classes=1000, name=None):
 
 
 def ConvNeXt(depths,
-           projection_dims,
-           drop_path_rate,
-           layer_scale_init_value,
-           default_size,
-           model_name="convnext",
-           include_preprocessing=True,
-           include_top=True,
-           weights=None,
-           input_tensor=None,
-           input_shape=None,
-           pooling=None,
-           classes=1000,
-           classifier_activation="softmax"):
+  projection_dims,
+  drop_path_rate=0.0,
+  layer_scale_init_value=1e-6,
+  default_size=224,
+  model_name="convnext",
+  include_preprocessing=True,
+  include_top=True,
+  weights=None,
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation="softmax"):
   """Instantiates ConvNeXt architecture given specific configuration.
 
   Args:
@@ -373,8 +317,8 @@ def ConvNeXt(depths,
       the model.
     include_top: Boolean denoting whether to include classification head to the
       model.
-    weights: one of `None` (random initialization), "imagenet" (pre-training on
-      ImageNet), or the path to the weights file to be loaded.
+    weights: one of `None` (random initialization), `"imagenet"` (pre-training on
+      ImageNet-1k), or the path to the weights file to be loaded.
     input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use
       as image input for the model.
     input_shape: optional shape tuple, only to be specified if `include_top` is
@@ -398,9 +342,10 @@ def ConvNeXt(depths,
   Raises:
       ValueError: in case of invalid argument for `weights`,
         or invalid input shape.
-      ValueError: if `classifier_activation` is not `softmax` or `None` when
-        using a pretrained top layer.
-      ValueError: if `include_top` is True but `num_classes` is not 1000.
+      ValueError: if `classifier_activation` is not `softmax`, or `None` 
+        when using a pretrained top layer.
+      ValueError: if `include_top` is True but `num_classes` is not 1000 
+        when using ImageNet.
   """
   if not (weights in {"imagenet", None} or tf.io.gfile.exists(weights)):
     raise ValueError("The `weights` argument should be either "
@@ -414,12 +359,12 @@ def ConvNeXt(depths,
 
   # Determine proper input shape.
   input_shape = imagenet_utils.obtain_input_shape(
-      input_shape,
-      default_size=default_size,
-      min_size=32,
-      data_format=backend.image_data_format(),
-      require_flatten=include_top,
-      weights=weights)
+    input_shape,
+    default_size=default_size,
+    min_size=32,
+    data_format=backend.image_data_format(),
+    require_flatten=include_top,
+    weights=weights)
 
   if input_tensor is None:
     img_input = layers.Input(shape=input_shape)
@@ -452,11 +397,11 @@ def ConvNeXt(depths,
   downsample_layers.append(stem)
   for i in range(3):
     downsample_layer = tf.keras.Sequential(
-        [
-          layers.LayerNormalization(epsilon=1e-6, name=model_name + "_downsampling_layernorm_" + str(i+1)),
-          layers.Conv2D(projection_dims[i + 1], kernel_size=2, strides=2, name=model_name + "_downsampling_conv_" + str(i+1)),
-        ],
-        name=model_name + "_downsampling_block_" + str(i+1),
+      [
+        layers.LayerNormalization(epsilon=1e-6, name=model_name + "_downsampling_layernorm_" + str(i)),
+        layers.Conv2D(projection_dims[i + 1], kernel_size=2, strides=2, name=model_name + "_downsampling_conv_" + str(i)),
+      ],
+      name=model_name + "_downsampling_block_" + str(i),
     )
     downsample_layers.append(downsample_layer)
   
@@ -474,7 +419,7 @@ def ConvNeXt(depths,
               projection_dim=projection_dims[i],
               drop_path=dp_rates[cur + j],
               layer_scale_init_value=layer_scale_init_value,
-              name=model_name + f"stage_{i}_block_{j}",
+              name=model_name + f"_stage_{i}_block_{j}",
             )
             for j in range(depths[i])
         ]
@@ -498,7 +443,7 @@ def ConvNeXt(depths,
       x = layers.GlobalAveragePooling2D()(x)
     elif pooling == "max":
       x = layers.GlobalMaxPooling2D()(x)
-      x = layers.LayerNormalization(epsilon=1e-6)(x)
+    x = layers.LayerNormalization(epsilon=1e-6)(x)
 
   model = training.Model(inputs=inputs, outputs=x, name=model_name)
 
@@ -506,16 +451,16 @@ def ConvNeXt(depths,
   if weights == "imagenet":
     if include_top:
       file_suffix = ".h5"
-      file_hash = WEIGHTS_HASHES[model_name[-4:]][0]
+      file_hash = WEIGHTS_HASHES[model_name][0]
     else:
       file_suffix = "_notop.h5"
-      file_hash = WEIGHTS_HASHES[model_name[-4:]][1]
+      file_hash = WEIGHTS_HASHES[model_name][1]
     file_name = model_name + file_suffix
     weights_path = data_utils.get_file(
-        file_name,
-        BASE_WEIGHTS_PATH + file_name,
-        cache_subdir="models",
-        file_hash=file_hash)
+      file_name,
+      BASE_WEIGHTS_PATH + file_name,
+      cache_subdir="models",
+      file_hash=file_hash)
     model.load_weights(weights_path)
   elif weights is not None:
     model.load_weights(weights)
@@ -525,8 +470,152 @@ def ConvNeXt(depths,
 
 ## Instantiating variants ##
 
+@keras_export("keras.applications.convnext.ConvNeXtTiny",
+              "keras.applications.ConvNeXtTiny")
+def ConvNeXtTiny(model_name="convnext_tiny",
+  include_top=True,
+  include_preprocessing=True,
+  weights="imagenet",
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation="softmax"):
+  return ConvNeXt(
+    depths=MODEL_CONFIGS["tiny"]["depths"],
+    projection_dims=["tiny"]["projection_dims"],
+    drop_path_rate=0.0,
+    layer_scale_init_value=1e-6,
+    default_size=["tiny"]["default_size"],
+    model_name=model_name,
+    include_top=include_top,
+    include_preprocessing=include_preprocessing,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation)
 
-## TODO
+
+@keras_export("keras.applications.convnext.ConvNeXtSmall",
+              "keras.applications.ConvNeXtSmall")
+def ConvNeXtSmall(model_name="convnext_small",
+  include_top=True,
+  include_preprocessing=True,
+  weights="imagenet",
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation="softmax"):
+  return ConvNeXt(
+    depths=MODEL_CONFIGS["small"]["depths"],
+    projection_dims=["small"]["projection_dims"],
+    drop_path_rate=0.0,
+    layer_scale_init_value=1e-6,
+    default_size=["small"]["default_size"],
+    model_name=model_name,
+    include_top=include_top,
+    include_preprocessing=include_preprocessing,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation)
+
+
+@keras_export("keras.applications.convnext.ConvNeXtBase",
+              "keras.applications.ConvNeXtBase")
+def ConvNeXtBase(model_name="convnext_base",
+  include_top=True,
+  include_preprocessing=True,
+  weights="imagenet",
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation="softmax"):
+  return ConvNeXt(
+    depths=MODEL_CONFIGS["base"]["depths"],
+    projection_dims=["base"]["projection_dims"],
+    drop_path_rate=0.0,
+    layer_scale_init_value=1e-6,
+    default_size=["base"]["default_size"],
+    model_name=model_name,
+    include_top=include_top,
+    include_preprocessing=include_preprocessing,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation)
+
+
+@keras_export("keras.applications.convnext.ConvNeXtLarge",
+              "keras.applications.ConvNeXtLarge")
+def ConvNeXtLarge(model_name="convnext_large",
+  include_top=True,
+  include_preprocessing=True,
+  weights="imagenet",
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation="softmax"):
+  return ConvNeXt(
+    depths=MODEL_CONFIGS["large"]["depths"],
+    projection_dims=["large"]["projection_dims"],
+    drop_path_rate=0.0,
+    layer_scale_init_value=1e-6,
+    default_size=["large"]["default_size"],
+    model_name=model_name,
+    include_top=include_top,
+    include_preprocessing=include_preprocessing,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation)
+
+
+@keras_export("keras.applications.convnext.ConvNeXtXLarge",
+              "keras.applications.ConvNeXtXLarge")
+def ConvNeXtXLarge(model_name="convnext_xlarge",
+  include_top=True,
+  include_preprocessing=True,
+  weights="imagenet",
+  input_tensor=None,
+  input_shape=None,
+  pooling=None,
+  classes=1000,
+  classifier_activation="softmax"):
+  return ConvNeXt(
+    depths=MODEL_CONFIGS["xlarge"]["depths"],
+    projection_dims=["xlarge"]["projection_dims"],
+    drop_path_rate=0.0,
+    layer_scale_init_value=1e-6,
+    default_size=["xlarge"]["default_size"],
+    model_name=model_name,
+    include_top=include_top,
+    include_preprocessing=include_preprocessing,
+    weights=weights,
+    input_tensor=input_tensor,
+    input_shape=input_shape,
+    pooling=pooling,
+    classes=classes,
+    classifier_activation=classifier_activation)
+
+
+ConvNeXtTiny.__doc__ = BASE_DOCSTRING.format(name="ConvNeXtTiny")
+ConvNeXtSmall.__doc__ = BASE_DOCSTRING.format(name="ConvNeXtSmall")
+ConvNeXtBase.__doc__ = BASE_DOCSTRING.format(name="ConvNeXtBase")
+ConvNeXtLarge.__doc__ = BASE_DOCSTRING.format(name="ConvNeXtLarge")
+ConvNeXtXLarge.__doc__ = BASE_DOCSTRING.format(name="ConvNeXtXLarge")
+
 
 @keras_export("keras.applications.convnext.preprocess_input")
 def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
