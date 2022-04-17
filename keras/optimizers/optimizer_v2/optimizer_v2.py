@@ -20,7 +20,6 @@ import abc
 import contextlib
 import functools
 import warnings
-import keras.optimizers.schedules
 from keras import backend
 from keras import initializers
 from keras.engine import base_layer_utils
