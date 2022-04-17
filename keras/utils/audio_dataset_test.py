@@ -280,7 +280,9 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         # should work fine and pad each sequence to the length of the longest sequence
         # in it's batch
         min_sequence_length, max_sequence_length = 10, 30
-        possible_sequence_lengths = [i for i in range(min_sequence_length, max_sequence_length+1)]
+        possible_sequence_lengths = [
+            i for i in range(min_sequence_length, max_sequence_length + 1)
+        ]
         dataset = audio_dataset.audio_dataset_from_directory(directory, batch_size=2)
         sequence_lengths = list(set([b.shape[1] for b, _ in dataset]))
         for seq_len in sequence_lengths:
