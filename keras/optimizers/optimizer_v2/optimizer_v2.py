@@ -792,7 +792,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       if (callable(prev_value)
           or isinstance(prev_value,
                         (tf.Tensor, int, float,
-                         keras.optimizers.schedules.LearningRateSchedule))
+                        keras.optimizers.schedules.LearningRateSchedule))
           or isinstance(value, keras.optimizers.schedules.LearningRateSchedule)):
         self._hyper[name] = value
       else:
