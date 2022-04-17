@@ -75,7 +75,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
             count=count, different_sequence_lengths=different_sequence_lengths
         ):
             path = paths[i % len(paths)]
-            ext = ".wav"
+            ext = "wav"
             filename = os.path.join(path, "audio_%s.%s" % (i, ext))
             with open(os.path.join(temp_dir, filename), "wb") as f:
                 f.write(audio.numpy())
@@ -150,7 +150,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         @tf.function
         def symbolic_fn(ds):
             for x, _ in ds.take(1):
-                test_case.assertListEqual(x.shape.as_list(), [None, 30, 1])
+                test_case.assertListEqual(x.shape.as_list(), [None, 30, None])
 
         symbolic_fn(dataset)
 
@@ -256,7 +256,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
 
     def test_audio_dataset_from_directory_no_audio(self):
         directory = self._prepare_directory(num_classes=2, count=0)
-        with self.assertRaisesRegex(ValueError, "No audio found."):
+        with self.assertRaisesRegex(ValueError, "No audio files found in directory"):
             _ = audio_dataset.audio_dataset_from_directory(directory)
 
     def test_audio_dataset_from_directory_ragged(self):
@@ -267,9 +267,10 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
             directory, ragged=True, batch_size=8
         )
         batch = next(iter(dataset))
-        self.assertEqual(batch[0].shape, (32, None, None))
 
-    def test_audio_dataset_from_directory_no_output_length_no_ragged(self):
+        self.assertEqual(batch[0].shape.as_list(), [8, None, None])
+
+    def test_audio_dataset_from_directory_no_output_sequence_length_no_ragged(self):
         # This test case tests `audio_dataset_from_directory` when `ragged` and `output_sequence_length`
         # are not passed while the input sequence lengths are different.
         directory = self._prepare_directory(
@@ -278,14 +279,14 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         # The tensor shapes are different and output_sequence_length is None
         # should work fine and pad each sequence to the length of the longest sequence
         # in it's batch
-        max_sequence_length = 30
+        min_sequence_length, max_sequence_length = 10, 30
+        possible_sequence_lengths = [i for i in range(min_sequence_length, max_sequence_length+1)]
         dataset = audio_dataset.audio_dataset_from_directory(directory, batch_size=2)
-        sequence_lengths = list(set([batch[0].shape[1] for batch in dataset]))
-        self.assertAllClose(
-            sequence_lengths, [i for i in range(10, max_sequence_length + 1)]
-        )
+        sequence_lengths = list(set([b.shape[1] for b, _ in dataset]))
+        for seq_len in sequence_lengths:
+            self.assertIn(seq_len, possible_sequence_lengths)
 
-    def test_audio_dataset_from_directory_no_output_length_and_same_lengths(self):
+    def test_audio_dataset_from_directory_no_output_sequence_length_same_lengths(self):
         # This test case tests `audio_dataset_from_directory` when `ragged` and `output_sequence_length`
         # are not passed while the input sequence lengths are the same
         directory = self._prepare_directory(
@@ -390,7 +391,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
             shuffle=False,
         )
         sample = next(iter(dataset))
-        self.assertEqual(len(sample.shape), 3)
+        self.assertEqual(len(sample.shape), 2)
 
 
 if __name__ == "__main__":
