@@ -276,9 +276,10 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         # The tensor shapes are different and output_sequence_length is None
         # should work fine and pad each sequence to the length of the longest sequence
         # in it's batch
+        max_sequence_length = 30
         dataset = audio_dataset.audio_dataset_from_directory(directory, batch_size=2)
-        sequence_lengths = set([batch[0].shape[1] for batch in dataset])
-        assert len(sequence_lengths) > 1
+        sequence_lengths = list(set([batch[0].shape[1] for batch in dataset]))
+        self.assertAllClose(sequence_lengths, [i for i in range(10, max_sequence_length+1)])
 
     def test_audio_dataset_from_directory_no_output_length_and_same_lengths(self):
         directory = self._prepare_directory(
@@ -288,8 +289,8 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         # should work fine and pad each sequence to the length of the longest sequence
         # in it's batch
         dataset = audio_dataset.audio_dataset_from_directory(directory, batch_size=2)
-        sequence_lengths = set([batch[0].shape[1] for batch in dataset])
-        assert len(sequence_lengths) == 1
+        sequence_lengths = list(set([batch[0].shape[1] for batch in dataset]))
+        self.assertEqual(len(sequence_lengths), 1)
 
     def test_audio_dataset_from_directory_errors(self):
         directory = self._prepare_directory(num_classes=3, count=5)
