@@ -24,11 +24,14 @@ References:
   (CVPR 2022)
 """
 
-import tensorflow.compat.v2 as tf
-from keras import backend, layers
+from keras import backend
+from keras import layers
+from keras import utils
+from keras import Model
 from keras.applications import imagenet_utils
 from keras.engine import training
-from keras.utils import data_utils, layer_utils
+
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHTS_PATH = "https://storage.googleapis.com/convnext-tf/keras-applications/convnext/"
@@ -148,98 +151,103 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
 """
 
 class StochasticDepth(layers.Layer):
-    """Stochastic Depth module. It performs batch-wise dropping rather than
-      sample-wise. In libraries like `timm`, it's similar to `DropPath` layers
-      that drops residual paths sample-wise.
+  """Stochastic Depth module. It performs batch-wise dropping rather than
+    sample-wise. In libraries like `timm`, it's similar to `DropPath` layers
+    that drops residual paths sample-wise.
 
-    Reference:
-      - https://github.com.rwightman/pytorch-image-models
+  Reference:
+    - https://github.com.rwightman/pytorch-image-models
 
-    Args:
-      drop_path (float): Probability of dropping paths. Should be within [0, 1].
+  Args:
+    drop_path (float): Probability of dropping paths. Should be within [0, 1].
+  
+  Returns:
+    Tensor either with the residual path dropped or kept.
+
+  """
+  def __init__(self, drop_path, **kwargs):
+    super().__init__(**kwargs)
+    self.drop_path = drop_path
+
+  def call(self, x, training=False):
+    if training:
+      keep_prob = 1 - self.drop_path
+      shape = (tf.shape(x)[0],) + (1,) * (len(tf.shape(x)) - 1)
+      random_tensor = keep_prob + tf.random.uniform(shape, 0, 1)
+      random_tensor = tf.floor(random_tensor)
+      return (x / keep_prob) * random_tensor
+    return x
+
+  def get_config(self):
+    config = super().get_config()
+    config.update({"drop_path": self.drop_path})
+    return config
+
+
+class Block(Model):
+  """ConvNeXt block.
+  
+  References:
+    - https://arxiv.org/abs/2201.03545
+    - https://github.com/facebookresearch/ConvNeXt/blob/main/models/convnext.py
+
+  Notes:
+    In the original ConvNeXt implementation (linked above), the authors use
+    `Dense` layers for pointwise convolutions for increased efficiency. 
+    Following that, this implementation also uses the same.
+
+  Args:
+    projection_dim (int): Number of filters for convolution layers. In the
+    ConvNeXt paper, this is referred to as projection dimension.
+    drop_path (float): Probability of dropping paths. Should be within [0, 1].
+    layer_scale_init_value (float): Layer scale value. Should be a small float
+      number.
+
+  Returns:
+    A keras.Model instance.
+  """
+  def __init__(self, projection_dim, drop_path=0.0, 
+    layer_scale_init_value=1e-6, **kwargs):
+    super().__init__(**kwargs)
+    self.projection_dim = projection_dim
+    name = kwargs["name"]
     
-    Returns:
-      Tensor either with the residual path dropped or kept.
-
-    """
-
-    def __init__(self, drop_path, **kwargs):
-      super().__init__(**kwargs)
-      self.drop_path = drop_path
-
-    def call(self, x, training=False):
-      if training:
-        keep_prob = 1 - self.drop_path
-        shape = (tf.shape(x)[0],) + (1,) * (len(tf.shape(x)) - 1)
-        random_tensor = keep_prob + tf.random.uniform(shape, 0, 1)
-        random_tensor = tf.floor(random_tensor)
-        return (x / keep_prob) * random_tensor
-      return x
-
-    def get_config(self):
-      config = super().get_config()
-      config.update({"drop_path": self.drop_path})
-      return config
-
-
-class Block(tf.keras.Model):
-    """ConvNeXt block.
+    if layer_scale_init_value > 0.0:
+      self.gamma = tf.Variable(
+        layer_scale_init_value * tf.ones((projection_dim,)),
+        name=name + "_layer_scale_gamma")
+    else:
+      self.gamma = None
     
-    References:
-      - https://arxiv.org/abs/2201.03545
-      - https://github.com/facebookresearch/ConvNeXt/blob/main/models/convnext.py
+    self.dw_conv_1 = layers.Conv2D(
+      filters=projection_dim, kernel_size=7, padding="same",
+      groups=projection_dim, name=name + "_depthwise_conv")
+    self.layer_norm = layers.LayerNormalization(epsilon=1e-6, 
+      name=name + "_layernorm")
+    self.pw_conv_1 = layers.Dense(4 * projection_dim,
+      name=name + "_pointwise_conv_1")
+    self.act_fn = layers.Activation("gelu", name=name + "_gelu")
+    self.pw_conv_2 = layers.Dense(projection_dim, 
+      name=name + "_pointwise_conv_2")
+    self.drop_path = (
+      StochasticDepth(drop_path, name=name + "_stochastic_depth")
+      if drop_path > 0.0
+      else layers.Activation("linear", name=name + "_identity")
+    )
 
-    Notes:
-      In the original ConvNeXt implementation (linked above), the authors use
-      `Dense` layers for pointwise convolutions for increased efficiency. Following
-      that, this implementation also uses the same.
+  def call(self, inputs):
+    x = inputs
 
-    Args:
-      projection_dim (int): Number of filters for convolution layers. In the ConvNeXt paper, this is
-        referred to as projection dimension.
-      drop_path (float): Probability of dropping paths. Should be within [0, 1].
-      layer_scale_init_value (float): Layer scale value. Should be a small float number.
+    x = self.dw_conv_1(x)
+    x = self.layer_norm(x)
+    x = self.pw_conv_1(x)
+    x = self.act_fn(x)
+    x = self.pw_conv_2(x)
 
-    Returns:
-      A keras.Model instance.
-    """
-    def __init__(self, projection_dim, drop_path=0.0, layer_scale_init_value=1e-6, **kwargs):
-      super().__init__(**kwargs)
-      self.projection_dim = projection_dim
-      name = kwargs["name"]
-      
-      if layer_scale_init_value > 0.0:
-        self.gamma = tf.Variable(layer_scale_init_value * tf.ones((projection_dim,)), name=name + "_layer_scale_gamma")
-      else:
-        self.gamma = None
-      
-      self.dw_conv_1 = layers.Conv2D(
-        filters=projection_dim, kernel_size=7, padding="same", groups=projection_dim,
-        name=name + "_depthwise_conv"
-      )
-      self.layer_norm = layers.LayerNormalization(epsilon=1e-6, name=name + "_layernorm")
-      self.pw_conv_1 = layers.Dense(4 * projection_dim, name=name + "_pointwise_conv_1")
-      self.act_fn = layers.Activation("gelu", name=name + "_gelu")
-      self.pw_conv_2 = layers.Dense(projection_dim, name=name + "_pointwise_conv_2")
-      self.drop_path = (
-        StochasticDepth(drop_path, name=name + "_stochastic_depth")
-        if drop_path > 0.0
-        else layers.Activation("linear", name=name + "_identity")
-      )
+    if self.gamma is not None:
+      x = self.gamma * x
 
-    def call(self, inputs):
-      x = inputs
-
-      x = self.dw_conv_1(x)
-      x = self.layer_norm(x)
-      x = self.pw_conv_1(x)
-      x = self.act_fn(x)
-      x = self.pw_conv_2(x)
-
-      if self.gamma is not None:
-          x = self.gamma * x
-
-      return inputs + self.drop_path(x)
+    return inputs + self.drop_path(x)
 
 
 def PreStem(name=None):
@@ -280,7 +288,8 @@ def Head(num_classes=1000, name=None):
 
   def apply(x):
     x = layers.GlobalAveragePooling2D(name=name + "_head_gap")(x)
-    x = layers.LayerNormalization(epsilon=1e-6, name=name + "_head_layernorm")(x)
+    x = layers.LayerNormalization(
+      epsilon=1e-6, name=name + "_head_layernorm")(x)
     x = layers.Dense(num_classes, name=name + "head_dense")(x)
     return x
 
@@ -305,8 +314,8 @@ def ConvNeXt(depths,
 
   Args:
     depths: An iterable containing depths for each individual stages.
-    projection_dims: An iterable containing output number of channels of each individual
-      stages.
+    projection_dims: An iterable containing output number of channels of
+    each individual stages.
     drop_path_rate: Stochastic depth probability. If 0.0, then stochastic depth
       won't be used.
     layer_scale_init_value: Layer scale coefficient. If 0.0, layer scaling won't
@@ -317,8 +326,8 @@ def ConvNeXt(depths,
       the model.
     include_top: Boolean denoting whether to include classification head to the
       model.
-    weights: one of `None` (random initialization), `"imagenet"` (pre-training on
-      ImageNet-1k), or the path to the weights file to be loaded.
+    weights: one of `None` (random initialization), `"imagenet"` (pre-training 
+      on ImageNet-1k), or the path to the weights file to be loaded.
     input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use
       as image input for the model.
     input_shape: optional shape tuple, only to be specified if `include_top` is
@@ -375,7 +384,7 @@ def ConvNeXt(depths,
       img_input = input_tensor
 
   if input_tensor is not None:
-    inputs = layer_utils.get_source_inputs(input_tensor)
+    inputs = utils.layer_utils.get_source_inputs(input_tensor)
   else:
     inputs = img_input
 
@@ -386,8 +395,10 @@ def ConvNeXt(depths,
   # Stem block.
   stem = tf.keras.Sequential(
     [
-      layers.Conv2D(projection_dims[0], kernel_size=4, strides=4, name=model_name + "_stem_conv"),
-      layers.LayerNormalization(epsilon=1e-6, name=model_name + "_stem_layernorm"),
+      layers.Conv2D(projection_dims[0], kernel_size=4, strides=4,
+        name=model_name + "_stem_conv"),
+      layers.LayerNormalization(epsilon=1e-6, 
+        name=model_name + "_stem_layernorm"),
     ],
     name=model_name + "_stem",
   )
@@ -398,8 +409,10 @@ def ConvNeXt(depths,
   for i in range(3):
     downsample_layer = tf.keras.Sequential(
       [
-        layers.LayerNormalization(epsilon=1e-6, name=model_name + "_downsampling_layernorm_" + str(i)),
-        layers.Conv2D(projection_dims[i + 1], kernel_size=2, strides=2, name=model_name + "_downsampling_conv_" + str(i)),
+        layers.LayerNormalization(epsilon=1e-6, 
+          name=model_name + "_downsampling_layernorm_" + str(i)),
+        layers.Conv2D(projection_dims[i + 1], kernel_size=2, strides=2,
+          name=model_name + "_downsampling_conv_" + str(i)),
       ],
       name=model_name + "_downsampling_block_" + str(i),
     )
@@ -456,7 +469,7 @@ def ConvNeXt(depths,
       file_suffix = "_notop.h5"
       file_hash = WEIGHTS_HASHES[model_name][1]
     file_name = model_name + file_suffix
-    weights_path = data_utils.get_file(
+    weights_path = utils.data_utils.get_file(
       file_name,
       BASE_WEIGHTS_PATH + file_name,
       cache_subdir="models",
