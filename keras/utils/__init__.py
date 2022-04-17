@@ -46,6 +46,9 @@ from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import get_custom_objects
 from keras.utils.generic_utils import serialize_keras_object
 
+# Audio related
+from keras.utils.audio_dataset import audio_dataset_from_directory
+
 # Internal
 from keras.utils.layer_utils import get_source_inputs
 
