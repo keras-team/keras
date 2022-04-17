@@ -248,7 +248,8 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
           directory, validation_split=2)
 
     with self.assertRaisesRegex(ValueError,
-                                '`subset` must be either "training" or'):
+                                '`subset` must be either "training", '
+                     '"validation" or "both"'):
       _ = text_dataset.text_dataset_from_directory(
           directory, validation_split=0.2, subset='other')
 

@@ -203,12 +203,6 @@ def image_dataset_from_directory(directory,
         f'When passing `label_mode="binary"`, there must be exactly 2 '
         f'class_names. Received: class_names={class_names}')
 
-  image_paths, labels = dataset_utils.get_training_or_validation_split(
-      image_paths, labels, validation_split, subset)
-  if not image_paths:
-    raise ValueError(f'No images found in directory {directory}. '
-                     f'Allowed formats: {ALLOWLIST_FORMATS}')
-
   if subset == "both":
     image_paths_train, labels_train = dataset_utils.get_training_or_validation_split(
         image_paths, labels, validation_split, "training")
@@ -249,7 +243,6 @@ def image_dataset_from_directory(directory,
     else:
       if shuffle:
         train_dataset = train_dataset.shuffle(buffer_size=1024, seed=seed)
-        val_dataset = val_dataset.shuffle(buffer_size=1024, seed=seed)
 
     # Users may need to reference `class_names`.
     train_dataset.class_names = class_names

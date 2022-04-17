@@ -154,12 +154,6 @@ def text_dataset_from_directory(directory,
         f'When passing `label_mode="binary"`, there must be exactly 2 '
         f'class_names. Received: class_names={class_names}')
 
-  file_paths, labels = dataset_utils.get_training_or_validation_split(
-      file_paths, labels, validation_split, subset)
-  if not file_paths:
-    raise ValueError(f'No text files found in directory {directory}. '
-                     f'Allowed format: .txt')
-
   if subset == "both":
     file_paths_train, labels_train = dataset_utils.get_training_or_validation_split(
         file_paths, labels, validation_split, "training")
