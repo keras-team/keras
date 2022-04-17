@@ -77,7 +77,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
             path = paths[i % len(paths)]
             ext = ".wav"
             filename = os.path.join(path, "audio_%s.%s" % (i, ext))
-            with open(os.path.join(temp_dir, filename), 'wb') as f:
+            with open(os.path.join(temp_dir, filename), "wb") as f:
                 f.write(audio.numpy())
             i += 1
         return temp_dir
@@ -89,7 +89,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         directory = self._prepare_directory(count=7, num_classes=2)
         for i, audio in enumerate(self._get_audio_samples(3)):
             filename = "audio_%s.wav" % (i,)
-            with open(os.path.join(directory, filename), 'wb') as f:
+            with open(os.path.join(directory, filename), "wb") as f:
                 f.write(audio.numpy())
 
         dataset = audio_dataset.audio_dataset_from_directory(
@@ -269,7 +269,9 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         batch = next(iter(dataset))
         self.assertEqual(batch[0].shape, (32, None, None))
 
-    def test_audio_dataset_from_directory_no_output_length_and_different_lengths(self):
+    def test_audio_dataset_from_directory_no_output_length_no_ragged(self):
+        # This test case tests `audio_dataset_from_directory` when `ragged` and `output_sequence_length`
+        # are not passed while the input sequence lengths are different.
         directory = self._prepare_directory(
             num_classes=2, count=16, different_sequence_lengths=True
         )
@@ -279,9 +281,13 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         max_sequence_length = 30
         dataset = audio_dataset.audio_dataset_from_directory(directory, batch_size=2)
         sequence_lengths = list(set([batch[0].shape[1] for batch in dataset]))
-        self.assertAllClose(sequence_lengths, [i for i in range(10, max_sequence_length+1)])
+        self.assertAllClose(
+            sequence_lengths, [i for i in range(10, max_sequence_length + 1)]
+        )
 
     def test_audio_dataset_from_directory_no_output_length_and_same_lengths(self):
+        # This test case tests `audio_dataset_from_directory` when `ragged` and `output_sequence_length`
+        # are not passed while the input sequence lengths are the same
         directory = self._prepare_directory(
             num_classes=2, count=16, different_sequence_lengths=False
         )
