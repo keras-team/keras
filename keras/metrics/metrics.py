@@ -668,11 +668,13 @@ class TruePositives(_ConfusionMatrixConditionCount):
   Use `sample_weight` of 0 to mask values.
 
   Args:
-    thresholds: (Optional) Defaults to 0.5. A float value or a python
+    thresholds: (Optional) Defaults to 0.5. A float value, or a Python
       list/tuple of float threshold values in [0, 1]. A threshold is compared
       with prediction values to determine the truth value of predictions
-      (i.e., above the threshold is `true`, below is `false`). One metric
-      value is generated for each threshold value.
+      (i.e., above the threshold is `true`, below is `false`). If used with a
+      loss function that sets `from_logits=True` (i.e. no sigmoid applied to
+      predictions), `thresholds` should be set to 0. One metric value is
+      generated for each threshold value.
     name: (Optional) string name of the metric instance.
     dtype: (Optional) data type of the metric result.
 
@@ -694,6 +696,14 @@ class TruePositives(_ConfusionMatrixConditionCount):
   model.compile(optimizer='sgd',
                 loss='mse',
                 metrics=[tf.keras.metrics.TruePositives()])
+  ```
+
+  Usage with a loss with `from_logits=True`:
+
+  ```python
+  model.compile(optimizer='adam',
+                loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                metrics=[tf.keras.metrics.TruePositives(thresholds=0)])
   ```
   """
 
