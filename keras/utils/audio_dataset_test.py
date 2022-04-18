@@ -367,7 +367,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
             )
 
         with self.assertRaisesRegex(
-            ValueError, '`subset` must be either "training" or'
+            ValueError, '`subset` must be either "training",'
         ):
             _ = audio_dataset.audio_dataset_from_directory(
                 directory, validation_split=0.2, subset="other"
