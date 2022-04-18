@@ -184,7 +184,7 @@ class StochasticDepth(layers.Layer):
     return config
 
 
-class Block(Model):
+class ConvNeXtBlock(Model):
   """ConvNeXt block.
   
   References:
@@ -428,7 +428,7 @@ def ConvNeXt(depths,
     stage = tf.keras.Sequential(
       [
         *[
-            Block(
+            ConvNeXtBlock(
               projection_dim=projection_dims[i],
               drop_path=dp_rates[cur + j],
               layer_scale_init_value=layer_scale_init_value,
