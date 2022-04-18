@@ -211,16 +211,19 @@ def ResNet(stack_fn,
 
 
 def basic_block(x, filters, stride=1, use_bias=True, conv_shortcut=True,
-                name=None):
+                manual_padding=True, name=None):
   """A basic residual block for ResNet18 and 34.
 
   Args:
     x: input tensor.
     filters: integer, filters of the bottleneck layer.
-    kernel_size: default 3, kernel size of the bottleneck layer.
+    use_bias: default True, whether to use biases in convolution
+        layers.
     stride: default 1, stride of the first layer.
     conv_shortcut: default True, use convolution shortcut if True,
         otherwise identity shortcut.
+    manual_padding: default True, whether to use manual padding for
+        strided convolutions in order to use ported PyTorch weights.
     name: string, block label.
 
   Returns:
@@ -237,7 +240,7 @@ def basic_block(x, filters, stride=1, use_bias=True, conv_shortcut=True,
   else:
     shortcut = x
 
-  if stride > 1:
+  if stride > 1 and manual_padding:
     x = layers.ZeroPadding2D(padding=((1,0),(1,0)), name=name + '_1_pad')(x)
     padding_mode = 'valid'
   else:
@@ -266,7 +269,7 @@ def basic_block(x, filters, stride=1, use_bias=True, conv_shortcut=True,
 
 
 def bottleneck_block(x, filters, kernel_size=3, stride=1, conv_shortcut=True,
-                     use_bias=True, name=None):
+                     use_bias=True, manual_padding=False, name=None):
   """A residual block with a bottle neck used in ResNet 50, 101, 152.
 
   Args:
@@ -276,6 +279,9 @@ def bottleneck_block(x, filters, kernel_size=3, stride=1, conv_shortcut=True,
     stride: default 1, stride of the first layer.
     conv_shortcut: default True, use convolution shortcut if True,
         otherwise identity shortcut.
+    use_bias: default True, whether to use biases in convolution
+        layers.
+    manual_padding: default False, mock arg.
     name: string, block label.
 
   Returns:
@@ -323,7 +329,7 @@ def bottleneck_block(x, filters, kernel_size=3, stride=1, conv_shortcut=True,
 
 
 def stack_block(x, filters, n_blocks, block_fn, stride1=2, use_bias=True, first_shortcut=True,
-                name=None):
+                manual_padding=True, name=None):
   """A set of stacked residual blocks.
 
   Args:
@@ -332,6 +338,13 @@ def stack_block(x, filters, n_blocks, block_fn, stride1=2, use_bias=True, first_
     n_blocks: integer, blocks in the stacked blocks.
     block_fn: callable, function defining one block.
     stride1: default 2, stride of the first layer in the first block.
+    use_bias: default True, whether to use biases in convolution
+        layers.
+    first_shortcut: default True, whether to use the convolution shortcut
+        of the first layer in the first block.
+    manual_padding: default True, whether to use manual padding for
+        strided convolutions in order to use ported PyTorch weights.
+        Used only for basic blocks.
     name: string, stack label.
 
   Returns:
@@ -343,6 +356,7 @@ def stack_block(x, filters, n_blocks, block_fn, stride1=2, use_bias=True, first_
     stride=stride1,
     conv_shortcut=first_shortcut,
     use_bias=use_bias,
+    manual_padding=manual_padding,
     name=name + '_block1',
   )
   for i in range(2, n_blocks + 1):
@@ -351,6 +365,7 @@ def stack_block(x, filters, n_blocks, block_fn, stride1=2, use_bias=True, first_
       filters,
       conv_shortcut=False,
       use_bias=use_bias,
+      manual_padding=manual_padding,
       name=name + '_block' + str(i),
     )
   return x
@@ -528,6 +543,7 @@ def ResNet18(include_top=True,
              pooling=None,
              classes=1000,
              use_bias=True,
+             manual_padding=True,
              **kwargs):
   """Instantiates the ResNet18 architecture."""
 
@@ -540,11 +556,12 @@ def ResNet18(include_top=True,
       use_bias=use_bias,
       first_shortcut=False,
       stride1=1,
+      manual_padding=manual_padding,
       name='conv2',
     )
-    x = stack_block(x, 128, 2, basic_block, use_bias=use_bias, name='conv3')
-    x = stack_block(x, 256, 2, basic_block, use_bias=use_bias, name='conv4')
-    return stack_block(x, 512, 2, basic_block, use_bias=use_bias, name='conv5')
+    x = stack_block(x, 128, 2, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv3')
+    x = stack_block(x, 256, 2, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv4')
+    return stack_block(x, 512, 2, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv5')
 
   return ResNet(stack_fn, False, use_bias, 'resnet18', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
@@ -559,6 +576,7 @@ def ResNet34(include_top=True,
              pooling=None,
              classes=1000,
              use_bias=True,
+             manual_padding=True,
              **kwargs):
   """Instantiates the ResNet34 architecture."""
 
@@ -571,11 +589,12 @@ def ResNet34(include_top=True,
       use_bias=use_bias,
       first_shortcut=False,
       stride1=1,
+      manual_padding=manual_padding,
       name='conv2',
     )
-    x = stack_block(x, 128, 4, basic_block, use_bias=use_bias, name='conv3')
-    x = stack_block(x, 256, 6, basic_block, use_bias=use_bias, name='conv4')
-    return stack_block(x, 512, 3, basic_block, use_bias=use_bias, name='conv5')
+    x = stack_block(x, 128, 4, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv3')
+    x = stack_block(x, 256, 6, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv4')
+    return stack_block(x, 512, 3, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv5')
 
   return ResNet(stack_fn, False, use_bias, 'resnet34', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
