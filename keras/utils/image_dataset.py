@@ -110,6 +110,8 @@ def image_dataset_from_directory(directory,
     subset: Subset of the data to return.
         One of "training", "validation" or "both".
         Only used if `validation_split` is set.
+        When `subset="both"`, the utility returns a tuple of two datasets
+        (the training and validation datasets respectively).
     interpolation: String, the interpolation method used when resizing images.
       Defaults to `bilinear`. Supports `bilinear`, `nearest`, `bicubic`,
       `area`, `lanczos3`, `lanczos5`, `gaussian`, `mitchellcubic`.
