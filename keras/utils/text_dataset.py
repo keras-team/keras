@@ -93,7 +93,7 @@ def text_dataset_from_directory(directory,
     validation_split: Optional float between 0 and 1,
         fraction of data to reserve for validation.
     subset: Subset of the data to return.
-        One of "training" or "validation".
+        One of "training", "validation" or "both".
         Only used if `validation_split` is set.
     follow_links: Whether to visits subdirectories pointed to by symlinks.
         Defaults to False.
@@ -154,30 +154,71 @@ def text_dataset_from_directory(directory,
         f'When passing `label_mode="binary"`, there must be exactly 2 '
         f'class_names. Received: class_names={class_names}')
 
-  file_paths, labels = dataset_utils.get_training_or_validation_split(
-      file_paths, labels, validation_split, subset)
-  if not file_paths:
-    raise ValueError(f'No text files found in directory {directory}. '
-                     f'Allowed format: .txt')
+  if subset == 'both':
+    file_paths_train, labels_train = dataset_utils.get_training_or_validation_split(
+        file_paths, labels, validation_split, 'training')
+    file_paths_val, labels_val = dataset_utils.get_training_or_validation_split(
+        file_paths, labels, validation_split, 'validation')
+    if not file_paths_train:
+      raise ValueError(
+          f'No training text files found in directory {directory}. '
+          f'Allowed format: .txt')
+    if not file_paths_val:
+      raise ValueError(
+          f'No validation text files found in directory {directory}. '
+          f'Allowed format: .txt')
+    train_dataset = paths_and_labels_to_dataset(
+        file_paths=file_paths_train,
+        labels=labels_train,
+        label_mode=label_mode,
+        num_classes=len(class_names),
+        max_length=max_length)
+    val_dataset = paths_and_labels_to_dataset(
+        file_paths=file_paths_val,
+        labels=labels_val,
+        label_mode=label_mode,
+        num_classes=len(class_names),
+        max_length=max_length)
 
-  dataset = paths_and_labels_to_dataset(
-      file_paths=file_paths,
-      labels=labels,
-      label_mode=label_mode,
-      num_classes=len(class_names),
-      max_length=max_length)
-  dataset = dataset.prefetch(tf.data.AUTOTUNE)
-  if batch_size is not None:
-    if shuffle:
-      # Shuffle locally at each iteration
-      dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-    dataset = dataset.batch(batch_size)
+    train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
+    val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
+    if batch_size is not None:
+      if shuffle:
+        # Shuffle locally at each iteration
+        train_dataset = train_dataset.shuffle(
+            buffer_size=batch_size * 8, seed=seed)
+      train_dataset = train_dataset.batch(batch_size)
+      val_dataset = val_dataset.batch(batch_size)
+    else:
+      if shuffle:
+        train_dataset = train_dataset.shuffle(buffer_size=1024, seed=seed)
+    # Users may need to reference `class_names`.
+    train_dataset.class_names = class_names
+    val_dataset.class_names = class_names
+    dataset = [train_dataset, val_dataset]
   else:
-    if shuffle:
-      dataset = dataset.shuffle(buffer_size=1024, seed=seed)
-
-  # Users may need to reference `class_names`.
-  dataset.class_names = class_names
+    file_paths, labels = dataset_utils.get_training_or_validation_split(
+        file_paths, labels, validation_split, subset)
+    if not file_paths:
+      raise ValueError(f'No text files found in directory {directory}. '
+                       f'Allowed format: .txt')
+    dataset = paths_and_labels_to_dataset(
+        file_paths=file_paths,
+        labels=labels,
+        label_mode=label_mode,
+        num_classes=len(class_names),
+        max_length=max_length)
+    dataset = dataset.prefetch(tf.data.AUTOTUNE)
+    if batch_size is not None:
+      if shuffle:
+        # Shuffle locally at each iteration
+        dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
+      dataset = dataset.batch(batch_size)
+    else:
+      if shuffle:
+        dataset = dataset.shuffle(buffer_size=1024, seed=seed)
+    # Users may need to reference `class_names`.
+    dataset.class_names = class_names
   return dataset
 
 
