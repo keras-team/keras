@@ -328,8 +328,8 @@ def bottleneck_block(x, filters, kernel_size=3, stride=1, conv_shortcut=True,
   return x
 
 
-def stack_block(x, filters, n_blocks, block_fn, stride1=2, use_bias=True, first_shortcut=True,
-                manual_padding=True, name=None):
+def stack_block(x, filters, n_blocks, block_fn, stride1=2, use_bias=True,
+                first_shortcut=True, manual_padding=True, name=None):
   """A set of stacked residual blocks.
 
   Args:
@@ -668,7 +668,14 @@ def ResNet50(include_top=True,
       x, 128, 4, bottleneck_block, use_bias=use_bias, name='conv3')
     x = stack_block(
       x, 256, 6, bottleneck_block, use_bias=use_bias, name='conv4')
-    return stack_block(x, 512, 3, bottleneck_block, use_bias=use_bias, name='conv5')
+    return stack_block(
+      x,
+      512,
+      3,
+      bottleneck_block,
+      use_bias=use_bias,
+      name='conv5',
+    )
 
   return ResNet(stack_fn, False, use_bias, 'resnet50', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
@@ -693,7 +700,14 @@ def ResNet101(include_top=True,
       x, 128, 4, bottleneck_block, use_bias=use_bias, name='conv3')
     x = stack_block(
       x, 256, 23, bottleneck_block, use_bias=use_bias, name='conv4')
-    return stack_block(x, 512, 3, bottleneck_block, use_bias=use_bias, name='conv5')
+    return stack_block(
+      x,
+      512,
+      3,
+      bottleneck_block,
+      use_bias=use_bias,
+      name='conv5',
+    )
 
   return ResNet(stack_fn, False, use_bias, 'resnet101', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
