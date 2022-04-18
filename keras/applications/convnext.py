@@ -56,31 +56,31 @@ WEIGHTS_HASHES = {
 
 
 MODEL_CONFIGS = {
-    "tiny": {
-        "depths": [3, 3, 9, 3],
-        "projection_dims": [96, 192, 384, 768],
-        "default_size": 224,
-    },
-    "small": {
-        "depths": [3, 3, 27, 3],
-        "projection_dims": [96, 192, 384, 768],
-        "default_size": 224,
-    },
-    "base": {
-        "depths": [3, 3, 27, 3],
-        "projection_dims": [128, 256, 512, 1024],
-        "default_size": 224,
-    },
-    "large": {
-        "depths": [3, 3, 27, 3],
-        "projection_dims": [192, 384, 768, 1536],
-        "default_size": 224,
-    },
-    "xlarge": {
-        "depths": [3, 3, 27, 3],
-        "projection_dims": [256, 512, 1024, 2048],
-        "default_size": 224,
-    },
+  "tiny": {
+    "depths": [3, 3, 9, 3],
+    "projection_dims": [96, 192, 384, 768],
+    "default_size": 224,
+  },
+  "small": {
+    "depths": [3, 3, 27, 3],
+    "projection_dims": [96, 192, 384, 768],
+    "default_size": 224,
+  },
+  "base": {
+    "depths": [3, 3, 27, 3],
+    "projection_dims": [128, 256, 512, 1024],
+    "default_size": 224,
+  },
+  "large": {
+    "depths": [3, 3, 27, 3],
+    "projection_dims": [192, 384, 768, 1536],
+    "default_size": 224,
+  },
+  "xlarge": {
+    "depths": [3, 3, 27, 3],
+    "projection_dims": [256, 512, 1024, 2048],
+    "default_size": 224,
+  },
 }
 
 BASE_DOCSTRING = """Instantiates the {name} architecture.
@@ -102,7 +102,7 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
   pre-trained parameters of the models were assembled from the
   [official repository](https://github.com/facebookresearch/ConvNeXt). To get a
   sense of how these parameters were converted to Keras compatible parameters,
-  please refer to [this repository](https://github.com/sayakpaul/ConvNeXt-TF).
+  please refer to [this repository](https://github.com/sayakpaul/keras-convnext-conversion).
 
   Note: Each Keras Application expects a specific kind of input preprocessing.
   For ConvNeXt, preprocessing is included in the model using a `Normalization` layer.
