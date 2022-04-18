@@ -31,71 +31,69 @@ import numpy as np
 from tensorflow.python.util.tf_export import keras_export
 
 @keras_export('keras.utils.split_dataset')
-def split_dataset(dataset, 
-                  left_size=None, 
-                  right_size=None, 
-                  shuffle=False, 
+def split_dataset(dataset,
+                  left_size=None,
+                  right_size=None,
+                  shuffle=False,
                   seed=None):
   """Split a dataset into a left half and a right half (e.g. training / validation).
-  
+
   Args:
-      dataset: A `tf.data.Dataset` object or 
-               a list/tuple of arrays with the same length.   
-      left_size: If float, it should be in range `[0, 1]` range 
-                 and signifies the fraction of the data to pack in 
-                 the left dataset. If integer, it signifies the number 
-                 of samples to pack in the left dataset. 
-                 If `None`, it defaults to the complement to `right_size`.       
-      right_size: If float, it should be in range `[0, 1]` range 
-                  and signifies the fraction of the data to pack 
-                  in the right dataset. If integer, it signifies 
+      dataset: A `tf.data.Dataset` object or
+               a list/tuple of arrays with the same length.
+      left_size: If float, it should be in range `[0, 1]` range
+                 and signifies the fraction of the data to pack in
+                 the left dataset. If integer, it signifies the number
+                 of samples to pack in the left dataset.
+                 If `None`, it defaults to the complement to `right_size`.
+      right_size: If float, it should be in range `[0, 1]` range
+                  and signifies the fraction of the data to pack
+                  in the right dataset. If integer, it signifies
                   the number of samples to pack in the right dataset.
-                  If `None`, it defaults to the complement to `left_size`.     
+                  If `None`, it defaults to the complement to `left_size`.
       shuffle: Boolean, whether to shuffle the data before splitting it.
       seed: A random seed for shuffling.
 
   Returns:
       A tuple of two `tf.data.Dataset` objects: the left and right splits.
   """
-  
+
   if not isinstance(dataset,(tf.data.Dataset,list,tuple,np.ndarray)):
     raise TypeError('`dataset` must be either a tf.data.Dataset object'
                    f' or a list/tuple of arrays. Received : {type(dataset)}')
-    
+
   if right_size is None and left_size is None:
     raise ValueError('you must specify either `left_size` or `right_size`'
                     ' Received: `left_size`= None, and `right_size`=None')
-      
+
   dataset_as_list = _convert_dataset_to_list(dataset)
-  
+
   if seed is None:
-    seed = np.random.randint(1e6)  
-    
-  if shuffle: 
+    seed = np.random.randint(1e6)
+
+  if shuffle:
     Random(seed).shuffle(dataset_as_list)
-    
+
   total_length = len(dataset_as_list)
-   
+
   left_size,right_size = _rescale_dataset_split_sizes(left_size,
                                                       right_size,
                                                       total_length)
-  
+
   left_split = list(dataset_as_list[:left_size])
   right_split = list(dataset_as_list[-right_size:])
 
   if _get_type_spec(dataset) is tuple:
     left_split = tuple(np.array(sample) for sample in zip(*left_split))
     right_split = tuple(np.array(sample) for sample in zip(*right_split))
-  
+
   try:
     left_split = tf.data.Dataset.from_tensor_slices(left_split)
-  except Exception as e:
-    raise ValueError(f' with `left_size`={left_size} and '
-                     f' `right_size`={right_size}'
-                     f' unable to create the dataset from '
-                     f' left_split of shape {np.array(left_split).shape}. '
-                     f' Received error: {e}')
-  
+  except ValueError as e:
+    raise ValueError(f'With left_size={left_size} and right_size={right_size}.'
+                     f' unable to create the dataset from left_split of shape '
+                     f'{np.array(left_split).shape}. \nReceived error: {e}')
+
   try:
     right_split = tf.data.Dataset.from_tensor_slices(right_split)
   except Exception as e:
@@ -104,10 +102,10 @@ def split_dataset(dataset,
                      f' unable to create the dataset from '
                      f' right_split of shape {np.array(right_split).shape}. '
                      f' Received error: {e}')
-    
+
   left_split = left_split.prefetch(tf.data.AUTOTUNE)
   right_split = right_split.prefetch(tf.data.AUTOTUNE)
-  
+
   return left_split, right_split
 
 def _convert_dataset_to_list(dataset,
@@ -115,24 +113,23 @@ def _convert_dataset_to_list(dataset,
                              ensure_shape_similarity = True):
   """Helper function to convert a tf.data.Dataset  object or a list/tuple of numpy.ndarrays to a list
   """
-  # TODO (prakashsellathurai): fix issue with tuple of numpy arrays dataset=(np.ones(shape=(3, 2)), np.zeros(shape=(3,)))
   # TODO (prakashsellathurai): add support for Batched  and unbatched dict tf datasets
   dataset_type_spec = _get_type_spec(dataset)
   dataset_iterator = _get_data_iterator_from_dataset(dataset)
   dataset_as_list = []
-  
+
   start_time = time.time()
   for sample in _get_next_sample(dataset_iterator,
                                  ensure_shape_similarity,
                                  data_size_warning_flag,
                                  start_time):
-    
-    if dataset_type_spec is None:
-      dataset_as_list.append(sample)
-    elif dataset_type_spec is tuple:
-      dataset_as_list.append(map(tuple,map(np.array,sample)))
 
-      
+    if dataset_type_spec is tuple:
+      dataset_as_list.append(np.array(sample) )
+    else:
+      dataset_as_list.append(sample)
+
+
   return dataset_as_list
 
 def _get_data_iterator_from_dataset(dataset) :
@@ -151,11 +148,11 @@ def _get_data_iterator_from_dataset(dataset) :
                            f'in `dataset` to have the same length. '
                            f'\n Received: dataset[{i}] with length = '
                            f'{np.array(element).shape},'
-                           f' while dataset[0] has length {dataset[0].shape}') 
+                           f' while dataset[0] has length {dataset[0].shape}')
     else:
       raise ValueError('Expected a list of numpy.ndarrays,'
                        'Received: {}'.format(type(dataset[0])))
-      
+
     return iter(zip(*dataset))
   elif  isinstance(dataset,tuple):
     if len(dataset) == 0:
@@ -170,11 +167,11 @@ def _get_data_iterator_from_dataset(dataset) :
                            f'in `dataset` to have the same length. '
                            f'\n Received: dataset[{i}] with length = '
                            f'{np.array(element).shape},'
-                           f' while dataset[0] has length {dataset[0].shape}') 
+                           f' while dataset[0] has length {dataset[0].shape}')
     else:
       raise ValueError('Expected a tuple of numpy.ndarrays,'
                        'Received: {}'.format(type(dataset[0])))
-      
+
     return  iter(zip(*dataset))
   elif isinstance(dataset,tf.data.Dataset):
     if is_batched(dataset):
@@ -193,12 +190,12 @@ def _get_next_sample(dataset_iterator,
                     data_size_warning_flag,
                     start_time):
   """Helper function to yield samples from a `dataset_iterator`
-     if `ensure_shape_similarity` is set to True raises error if the 
+     if `ensure_shape_similarity` is set to True raises error if the
      shapes of the samples are not the same .
      if `data_size_warning_flag` is set to True, raises warning if the
      dataset iteration takes more than 10 seconds.
   """
-  
+
   try:
     dataset_iterator = iter(dataset_iterator)
     first_sample = next(dataset_iterator)
@@ -212,12 +209,12 @@ def _get_next_sample(dataset_iterator,
     raise ValueError(' Received  an empty Dataset i.e dataset with no elements.'
                      ' `dataset` must be a non-empty list/tuple of'
                      ' numpy.ndarrays or tf.data.Dataset objects.')
-  
+
   if isinstance(first_sample,dict):
     raise TypeError('`dataset` must be either a tf.data.Dataset object'
                     ' or a list/tuple of arrays. '
                     ' Received : tf.data.Dataset with dict elements')
-  
+
   for i,sample in enumerate(dataset_iterator):
     if ensure_shape_similarity:
       if first_sample_shape != np.array(sample).shape:
@@ -236,19 +233,19 @@ def _get_next_sample(dataset_iterator,
                         ' (e.g. < 10,000 samples).',category=ResourceWarning,
                         source='split_dataset',stacklevel=2)
           data_size_warning_flag = False
-          
+
     yield sample
-    
+
 
 def _rescale_dataset_split_sizes(left_size,right_size,total_length):
-  """Helper function to rescale  left_size/right_size args relative 
+  """Helper function to rescale  left_size/right_size args relative
   to dataset's size
   """
 
-  left_size_type = type(left_size) 
+  left_size_type = type(left_size)
   right_size_type = type(right_size)
 
-  if ((left_size is not None and left_size_type not in [int,float]) and 
+  if ((left_size is not None and left_size_type not in [int,float]) and
       (right_size is not None and right_size_type not in [int,float])):
     raise TypeError('Invalid `left_size` and `right_size` Types. '
                      'Expected: integer or float or None. '
@@ -257,11 +254,11 @@ def _rescale_dataset_split_sizes(left_size,right_size,total_length):
   if left_size is not None and left_size_type not in [int,float]:
     raise TypeError(f'Invalid `left_size` Type. Received: {left_size_type}.  '
                      ' Expected: int or float or None')
-    
-  if right_size is not None and right_size_type not in [int,float]: 
+
+  if right_size is not None and right_size_type not in [int,float]:
     raise TypeError(f'Invalid `right_size` Type. Received: {right_size_type}.'
                     ' Expected: int or float or None')
-    
+
   if left_size == 0 and right_size == 0:
     raise ValueError('Invalid `left_size` and `right_size` values. '
                      'You must specify either `left_size` or `right_size` with '
@@ -269,25 +266,25 @@ def _rescale_dataset_split_sizes(left_size,right_size,total_length):
                       'or a float within range [0,1] to split the dataset'
                       f'Received: `left_size`={left_size}, '
                       f'`right_size`={right_size}')
-  
-  if (left_size_type == int 
+
+  if (left_size_type == int
       and (left_size <= 0 or left_size>= total_length)
-      or left_size_type == float 
+      or left_size_type == float
       and (left_size <= 0 or left_size>= 1) ):
     raise ValueError('`left_size` should be either a positive integer '
                      f'and smaller than {total_length} or a float '
                      'within the range `[0, 1]`. Received: left_size='
-                     f'{left_size}') 
-    
-  if (right_size_type == int 
-      and (right_size <= 0 or right_size>= total_length) 
-      or right_size_type == float 
+                     f'{left_size}')
+
+  if (right_size_type == int
+      and (right_size <= 0 or right_size>= total_length)
+      or right_size_type == float
       and (right_size <= 0 or right_size>= 1)):
     raise ValueError('`right_size` should be either a positive integer '
                      f'and smaller than {total_length} or '
                      'a float within the range `[0, 1]`. Received: right_size='
-                     f'{right_size}') 
-    
+                     f'{right_size}')
+
   if right_size_type == left_size_type == float and right_size + left_size > 1:
     raise ValueError('sum of `left_size` and `right_size`'
                      ' should be within `[0,1]`.'
@@ -315,26 +312,26 @@ def _rescale_dataset_split_sizes(left_size,right_size,total_length):
                      f' should be smaller than the samples {total_length} '
                      ' reduce `left_size` or `right_size` ' )
 
-  
+
   for split,side in [(left_size,'left'),(right_size,'right')]:
     if split == 0:
       raise ValueError(f'with dataset of length={total_length} '
                       '`left_size`={left_size} and `right_size`={right_size}, '
                       f'resulting {side} dataset split will be empty. '
                       'Adjust any of the aforementioned parameters')
-    
+
   left_size,right_size = int(left_size) ,int(right_size)
   return left_size,right_size
 
-  
+
 def is_batched(tf_dataset):
   """returns true if given tf dataset  is batched or false if not
-  
+
   refer: https://stackoverflow.com/a/66101853/8336491
   """
   try:
     return tf_dataset.__class__.__name__ == 'BatchDataset'
-  except : 
+  except :
     return False
 
 def index_directory(directory,
