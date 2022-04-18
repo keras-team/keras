@@ -559,9 +559,33 @@ def ResNet18(include_top=True,
       manual_padding=manual_padding,
       name='conv2',
     )
-    x = stack_block(x, 128, 2, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv3')
-    x = stack_block(x, 256, 2, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv4')
-    return stack_block(x, 512, 2, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv5')
+    x = stack_block(
+      x,
+      128,
+      2,
+      basic_block,
+      use_bias=use_bias,
+      manual_padding=manual_padding,
+      name='conv3',
+    )
+    x = stack_block(
+      x,
+      256,
+      2,
+      basic_block,
+      use_bias=use_bias,
+      manual_padding=manual_padding,
+      name='conv4',
+    )
+    return stack_block(
+      x,
+      512,
+      2,
+      basic_block,
+      use_bias=use_bias,
+      manual_padding=manual_padding,
+      name='conv5',
+    )
 
   return ResNet(stack_fn, False, use_bias, 'resnet18', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
@@ -592,9 +616,33 @@ def ResNet34(include_top=True,
       manual_padding=manual_padding,
       name='conv2',
     )
-    x = stack_block(x, 128, 4, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv3')
-    x = stack_block(x, 256, 6, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv4')
-    return stack_block(x, 512, 3, basic_block, use_bias=use_bias, manual_padding=manual_padding, name='conv5')
+    x = stack_block(
+      x,
+      128,
+      4,
+      basic_block,
+      use_bias=use_bias,
+      manual_padding=manual_padding,
+      name='conv3',
+    )
+    x = stack_block(
+      x,
+      256,
+      6,
+      basic_block,
+      use_bias=use_bias,
+      manual_padding=manual_padding,
+      name='conv4',
+    )
+    return stack_block(
+      x,
+      512,
+      3,
+      basic_block,
+      use_bias=use_bias,
+      manual_padding=manual_padding,
+      name='conv5',
+    )
 
   return ResNet(stack_fn, False, use_bias, 'resnet34', include_top, weights,
                 input_tensor, input_shape, pooling, classes, **kwargs)
