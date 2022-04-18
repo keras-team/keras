@@ -29,6 +29,7 @@ py_library(
         ":text_dataset",
         ":timeseries_dataset",
         ":vis_utils",
+        ":audio_dataset",
     ],
 )
 
