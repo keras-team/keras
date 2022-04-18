@@ -95,6 +95,8 @@ def text_dataset_from_directory(directory,
     subset: Subset of the data to return.
         One of "training", "validation" or "both".
         Only used if `validation_split` is set.
+        When `subset="both"`, the utility returns a tuple of two datasets
+        (the training and validation datasets respectively).
     follow_links: Whether to visits subdirectories pointed to by symlinks.
         Defaults to False.
 
