@@ -1523,6 +1523,9 @@ class RandomBrightness(BaseImageAugmentationLayer):
       transformation = self.get_random_transformation()
     return self._brightness_adjust(image, transformation['rgb_delta'])
 
+  def augment_label(self, label, transformation=None):
+    return label
+
   def get_random_transformation(self,
                                 image=None,
                                 label=None,
