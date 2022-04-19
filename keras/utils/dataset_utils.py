@@ -280,6 +280,8 @@ def _restore_dataset_from_list(dataset_as_list,dataset_type_spec,
           else:
             restored_dataset[k].append(np.array(v))
       return restored_dataset
+    else:
+      return tuple(np.array(sample) for sample in zip(*dataset_as_list))
   return dataset_as_list
 
 def _rescale_dataset_split_sizes(left_size,right_size,total_length):
