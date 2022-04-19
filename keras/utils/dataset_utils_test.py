@@ -5,6 +5,7 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 from keras.utils import dataset_utils
+from keras.datasets import mnist
 
 class SplitDatasetTest(tf.test.TestCase):
   def test_numpy_array(self):
@@ -40,7 +41,7 @@ class SplitDatasetTest(tf.test.TestCase):
     # test with different shapes
     dataset = [np.ones(shape=(5, 3)), np.ones(shape=(5, ))]
     left_split,right_split = dataset_utils.split_dataset(dataset,left_size=0.3)
-    
+
     self.assertEqual(np.array(list(left_split)).shape,(2,2))
     self.assertEqual(np.array(list(right_split)).shape,(3,2))
 
@@ -51,7 +52,7 @@ class SplitDatasetTest(tf.test.TestCase):
     self.assertEqual(np.array(list(right_split)[0]).shape,(2,))
     self.assertEqual(np.array(list(right_split)[0][0]).shape,(3,))
     self.assertEqual(np.array(list(right_split)[0][1]).shape,())
-    
+
   def test_dataset_with_invalid_shape(self):
     with self.assertRaisesRegex(ValueError,
                                 'Received a list of numpy arrays '
@@ -120,7 +121,7 @@ class SplitDatasetTest(tf.test.TestCase):
 
     # Ensure that the splits are batched
     self.assertAllEqual(np.array(list(right_split)).shape,(10,))
-    
+
     left_split,right_split = left_split.unbatch(),right_split.unbatch()
     self.assertAllEqual(np.array(list(left_split)).shape,(2,32,32,1))
     self.assertAllEqual(np.array(list(right_split)).shape,(98,32,32,1))
@@ -136,7 +137,7 @@ class SplitDatasetTest(tf.test.TestCase):
     # Ensure that the splits are batched
     self.assertEqual(np.array(list(right_split)).shape,(3, 2, 2, 32, 32))
     self.assertEqual(np.array(list(left_split)).shape,(2, 2, 2, 32, 32))
-    
+
     left_split,right_split = left_split.unbatch(),right_split.unbatch()
     self.assertAllEqual(np.array(list(left_split)).shape,(4,2,32,32))
     self.assertAllEqual(np.array(list(right_split)).shape,(6,2,32,32))
@@ -164,7 +165,7 @@ class SplitDatasetTest(tf.test.TestCase):
     self.assertAllEqual(np.array(list(right_split)).shape,(5,2,32,32,1))
 
     self.assertAllEqual(list(dataset),list(left_split)+list(right_split))
-    
+
   def test_unbatched_tf_dataset_of_dict_of_vectors(self):
     # test with dict of np arrays of same shape
     dict_samples = {'X':np.random.rand(10,2),
@@ -178,12 +179,12 @@ class SplitDatasetTest(tf.test.TestCase):
         self.assertEqual(list(left_split)[i],list(dataset)[i])
       else:
         self.assertEqual(list(right_split)[i-2],list(dataset)[i])
-    
+
     # test with dict of np arrays with different shapes
     dict_samples = {'images':np.random.rand(10,16,16,3),
                     'labels':np.random.rand(10,)}
     dataset = tf.data.Dataset.from_tensor_slices(dict_samples)
-    left_split,right_split=dataset_utils.split_dataset(dataset,left_size=0.3) 
+    left_split,right_split=dataset_utils.split_dataset(dataset,left_size=0.3)
     self.assertEqual(len(list(left_split)),3)
     self.assertEqual(len(list(right_split)),7)
     for i in range(10):
@@ -191,17 +192,17 @@ class SplitDatasetTest(tf.test.TestCase):
         self.assertEqual(list(left_split)[i],list(dataset)[i])
       else:
         self.assertEqual(list(right_split)[i-3],list(dataset)[i])
-        
+
   def test_batched_tf_dataset_of_dict_of_vectors(self):
     dict_samples = {'X':np.random.rand(10,3),
                     'Y':np.random.rand(10,3)}
     dataset = tf.data.Dataset.from_tensor_slices(dict_samples)
     dataset = dataset.batch(2)
     left_split,right_split=dataset_utils.split_dataset(dataset,left_size=2)
-    
+
     self.assertAllEqual(np.array(list(left_split)).shape,(1,))
-    self.assertAllEqual(np.array(list(right_split)).shape,(4,))  
-    
+    self.assertAllEqual(np.array(list(right_split)).shape,(4,))
+
     left_split,right_split = left_split.unbatch(),right_split.unbatch()
     self.assertEqual(len(list(left_split)),2)
     self.assertEqual(len(list(right_split)),8)
@@ -210,17 +211,17 @@ class SplitDatasetTest(tf.test.TestCase):
         self.assertEqual(list(left_split)[i],list(dataset.unbatch())[i])
       else:
         self.assertEqual(list(right_split)[i-2],list(dataset.unbatch())[i])
-    
+
     # test with dict of np arrays with different shapes
     dict_samples = {'images':np.random.rand(10,16,16,3),
                     'labels':np.random.rand(10,)}
     dataset = tf.data.Dataset.from_tensor_slices(dict_samples)
     dataset = dataset.batch(1)
-    left_split,right_split=dataset_utils.split_dataset(dataset,right_size=0.3) 
-    
+    left_split,right_split=dataset_utils.split_dataset(dataset,right_size=0.3)
+
     self.assertAllEqual(np.array(list(left_split)).shape,(7,))
     self.assertAllEqual(np.array(list(right_split)).shape,(3,))
-    
+
     dataset = dataset.unbatch()
     left_split,right_split = left_split.unbatch(),right_split.unbatch()
     self.assertEqual(len(list(left_split)),7)
@@ -230,7 +231,7 @@ class SplitDatasetTest(tf.test.TestCase):
         self.assertEqual(list(left_split)[i],list(dataset)[i])
       else:
         self.assertEqual(list(right_split)[i-7],list(dataset)[i])
-   
+
   def test_list_dataset(self):
     dataset = [np.ones(shape=(10,10,10)) for _ in range(10)]
     left_split,right_split = dataset_utils.split_dataset(dataset,
@@ -384,24 +385,40 @@ class SplitDatasetTest(tf.test.TestCase):
       dataset_utils.split_dataset(np.array([1,2,3]), left_size='1',
                                   right_size='1')
 
-    expected_regex = (r'^.*?(\bInvalid `right_size` Type\b)')   
+    expected_regex = (r'^.*?(\bInvalid `right_size` Type\b)')
     with self.assertRaisesRegex(TypeError,expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]),left_size=0,
                                   right_size='1')
- 
-    expected_regex = (r'^.*?(\bInvalid `left_size` Type\b)')   
-    with self.assertRaisesRegex(TypeError,expected_regex):     
+
+    expected_regex = (r'^.*?(\bInvalid `left_size` Type\b)')
+    with self.assertRaisesRegex(TypeError,expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]),left_size='100',
                                   right_size=None)
 
-    expected_regex = (r'^.*?(\bInvalid `right_size` Type\b)')   
-    with self.assertRaisesRegex(TypeError,expected_regex): 
+    expected_regex = (r'^.*?(\bInvalid `right_size` Type\b)')
+    with self.assertRaisesRegex(TypeError,expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]),right_size='1')
-      
-    expected_regex = (r'^.*?(\bInvalid `right_size` Type\b)')   
-    with self.assertRaisesRegex(TypeError,expected_regex): 
+
+    expected_regex = (r'^.*?(\bInvalid `right_size` Type\b)')
+    with self.assertRaisesRegex(TypeError,expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]),left_size=0.5,
                                   right_size='1')
+
+  def test_mnist_dataset(self):
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    assert x_train.shape == (60000, 28, 28)
+    assert x_test.shape == (10000, 28, 28)
+    assert y_train.shape == (60000,)
+    assert y_test.shape == (10000,)
+
+    dataset = (x_train[:100], y_train[:100])
+    left_split,right_split = dataset_utils.split_dataset(dataset,left_size=0.8)
+
+    self.assertIsInstance(left_split, tf.data.Dataset)
+    self.assertIsInstance(right_split, tf.data.Dataset)
+
+    self.assertEqual(len(left_split), 80)
+    self.assertEqual(len(right_split), 20)
 
 if __name__ == "__main__":
   tf.test.main()

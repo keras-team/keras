@@ -54,7 +54,7 @@ def split_dataset(dataset,
       A tuple of two `tf.data.Dataset` objects: the left and right splits.
   """
   dataset_type_spec = _get_type_spec(dataset)
-  
+
   if dataset_type_spec not in [tf.data.Dataset,list,tuple,np.ndarray]:
     raise TypeError('`dataset` must be either a tf.data.Dataset object '
                    f'or a list/tuple of arrays. Received : {type(dataset)}')
@@ -78,7 +78,7 @@ def split_dataset(dataset,
                                                       total_length)
   left_split = list(dataset_as_list[:left_size])
   right_split = list(dataset_as_list[-right_size:])
-  
+
   left_split = _restore_dataset_from_list(left_split,dataset_type_spec,dataset)
   right_split = _restore_dataset_from_list(right_split,dataset_type_spec,
                                            dataset)
@@ -86,13 +86,13 @@ def split_dataset(dataset,
   left_split = tf.data.Dataset.from_tensor_slices(left_split)
   right_split = tf.data.Dataset.from_tensor_slices(right_split)
 
-  # Batch the splits if the `dataset` is batched
-  if dataset_type_spec is tf.data.Dataset and is_batched(dataset):   
+  # apply batching to the splits if the dataset is batched
+  if dataset_type_spec is tf.data.Dataset and is_batched(dataset):
     batch_size = get_batch_size(dataset)
     if batch_size is not None:
       left_split = left_split.batch(batch_size)
       right_split = right_split.batch(batch_size)
-  
+
   left_split = left_split.prefetch(tf.data.AUTOTUNE)
   right_split = right_split.prefetch(tf.data.AUTOTUNE)
 
@@ -107,13 +107,13 @@ def _convert_dataset_to_list(dataset,
   Args:
       dataset : A `tf.data.Dataset` object or a list/tuple of arrays.
       dataset_type_spec : the type of the dataset
-      data_size_warning_flag (bool, optional): If set to True ,a warning will 
-                                               be issued if the dataset takes 
-                                               longer than 10 seconds to 
+      data_size_warning_flag (bool, optional): If set to True ,a warning will
+                                               be issued if the dataset takes
+                                               longer than 10 seconds to
                                                iterate. Defaults to True.
-      ensure_shape_similarity (bool, optional): If set to True , the shape of 
-                                                the first sample will be used 
-                                                to validate the shape of rest 
+      ensure_shape_similarity (bool, optional): If set to True , the shape of
+                                                the first sample will be used
+                                                to validate the shape of rest
                                                 of the samples.
                                                 Defaults to True.
 
@@ -143,9 +143,9 @@ def _get_data_iterator_from_dataset(dataset,dataset_type_spec) :
       dataset_type_spec : the type of the dataset
 
   Raises:
-      ValueError: 
+      ValueError:
                 - If the dataset is empty.
-                - If the dataset is not a `tf.data.Dataset` object 
+                - If the dataset is not a `tf.data.Dataset` object
                   or a list/tuple of arrays.
                 - If the dataset is a list/tuple of arrays and the
                   length of the list/tuple is not equal to the number
@@ -205,16 +205,16 @@ def _get_next_sample(dataset_iterator,
                     data_size_warning_flag,
                     start_time):
   """"Yield data samples from the `dataset_iterator`
-  
+
   Args:
       dataset_iterator : An `iterator` object.
-      data_size_warning_flag (bool, optional): If set to True ,a warning will 
-                                               be issued if the dataset takes 
-                                               longer than 10 seconds to 
+      data_size_warning_flag (bool, optional): If set to True ,a warning will
+                                               be issued if the dataset takes
+                                               longer than 10 seconds to
                                                iterate. Defaults to True.
-      ensure_shape_similarity (bool, optional): If set to True , the shape of 
-                                                the first sample will be used 
-                                                to validate the shape of rest 
+      ensure_shape_similarity (bool, optional): If set to True , the shape of
+                                                the first sample will be used
+                                                to validate the shape of rest
                                                 of the samples.
                                                 Defaults to True.
       start_time (float): the start time of the dataset iteration. this is
@@ -267,7 +267,7 @@ def _get_next_sample(dataset_iterator,
 
 def _restore_dataset_from_list(dataset_as_list,dataset_type_spec,
                                original_dataset):
-  """Restore the dataset from the list of arrays."""  
+  """Restore the dataset from the list of arrays."""
   if dataset_type_spec  in [tuple,list]:
     return tuple(np.array(sample) for sample in zip(*dataset_as_list))
   elif dataset_type_spec == tf.data.Dataset:
@@ -283,9 +283,9 @@ def _restore_dataset_from_list(dataset_as_list,dataset_type_spec,
   return dataset_as_list
 
 def _rescale_dataset_split_sizes(left_size,right_size,total_length):
-  """Rescale the dataset split sizes to ensure that the sum of 
+  """Rescale the dataset split sizes to ensure that the sum of
   the split sizes is equal to the total length of the dataset.
-  
+
   Args:
       left_size : The size of the left dataset split.
       right_size : The size of the right dataset split.
@@ -297,7 +297,7 @@ def _rescale_dataset_split_sizes(left_size,right_size,total_length):
                     than 1 or greater than `total_length`.
 
   Returns:
-      tuple: A tuple of rescaled left_size and right_size 
+      tuple: A tuple of rescaled left_size and right_size
   """
   left_size_type = type(left_size)
   right_size_type = type(right_size)
@@ -308,7 +308,7 @@ def _rescale_dataset_split_sizes(left_size,right_size,total_length):
     raise TypeError('Invalid `left_size` and `right_size` Types. Expected: '
                     'integer or float or None, Received: type(left_size)='
                    f'{left_size_type} and type(right_size)={right_size_type}')
-  
+
   # check left_size is a integer or float
   if left_size is not None and left_size_type not in [int,float]:
     raise TypeError('Invalid `left_size` Type.Expected: int or float or None, '
@@ -399,7 +399,7 @@ def is_batched(tf_dataset):
     return tf_dataset.__class__.__name__ == 'BatchDataset'
   except :
     return False
-  
+
 def get_batch_size(tf_dataset):
   """Get the batch size of the dataset."""
   if is_batched(tf_dataset):
