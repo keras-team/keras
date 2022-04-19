@@ -61,7 +61,7 @@ def split_dataset(dataset,
 
   if right_size is None and left_size is None:
     raise ValueError('At least one of the `left_size` or `right_size` '
-                     'must be specified .Received: left_size=None and'
+                     'must be specified .Received: left_size=None and '
                      'right_size=None')
 
   dataset_as_list = _convert_dataset_to_list(dataset,dataset_type_spec)
