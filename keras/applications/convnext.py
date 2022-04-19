@@ -28,6 +28,7 @@ from keras import backend
 from keras import layers
 from keras import utils
 from keras import Model
+from keras import Sequential
 from keras.applications import imagenet_utils
 from keras.engine import training
 
@@ -159,19 +160,20 @@ class StochasticDepth(layers.Layer):
     - https://github.com.rwightman/pytorch-image-models
 
   Args:
-    drop_path (float): Probability of dropping paths. Should be within [0, 1].
+    drop_path_rate (float): Probability of dropping paths. Should be within
+      [0, 1].
   
   Returns:
     Tensor either with the residual path dropped or kept.
 
   """
-  def __init__(self, drop_path, **kwargs):
+  def __init__(self, drop_path_rate, **kwargs):
     super().__init__(**kwargs)
-    self.drop_path = drop_path
+    self.drop_path_rate = drop_path_rate
 
   def call(self, x, training=False):
     if training:
-      keep_prob = 1 - self.drop_path
+      keep_prob = 1 - self.drop_path_rate
       shape = (tf.shape(x)[0],) + (1,) * (len(tf.shape(x)) - 1)
       random_tensor = keep_prob + tf.random.uniform(shape, 0, 1)
       random_tensor = tf.floor(random_tensor)
@@ -180,7 +182,7 @@ class StochasticDepth(layers.Layer):
 
   def get_config(self):
     config = super().get_config()
-    config.update({"drop_path": self.drop_path})
+    config.update({"drop_path_rate": self.drop_path_rate})
     return config
 
 
@@ -206,10 +208,12 @@ class ConvNeXtBlock(Model):
   Returns:
     A keras.Model instance.
   """
-  def __init__(self, projection_dim, drop_path=0.0, 
+  def __init__(self, projection_dim, drop_path_rate=0.0, 
     layer_scale_init_value=1e-6, **kwargs):
     super().__init__(**kwargs)
     self.projection_dim = projection_dim
+    self.drop_path_rate = drop_path_rate
+    self.layer_scale_init_value = layer_scale_init_value
     name = kwargs["name"]
     
     if layer_scale_init_value > 0.0:
@@ -230,8 +234,8 @@ class ConvNeXtBlock(Model):
     self.pw_conv_2 = layers.Dense(projection_dim, 
       name=name + "_pointwise_conv_2")
     self.drop_path = (
-      StochasticDepth(drop_path, name=name + "_stochastic_depth")
-      if drop_path > 0.0
+      StochasticDepth(drop_path_rate, name=name + "_stochastic_depth")
+      if drop_path_rate > 0.0
       else layers.Activation("linear", name=name + "_identity")
     )
 
@@ -248,6 +252,14 @@ class ConvNeXtBlock(Model):
       x = self.gamma * x
 
     return inputs + self.drop_path(x)
+
+  def get_config(self):
+    config = {
+      "projection_dim": self.projection_dim,
+      "drop_path_rate": self.drop_path_rate,
+      "layer_scale_init_value": self.layer_scale_init_value,
+    }
+    return config
 
 
 def PreStem(name=None):
@@ -290,7 +302,7 @@ def Head(num_classes=1000, name=None):
     x = layers.GlobalAveragePooling2D(name=name + "_head_gap")(x)
     x = layers.LayerNormalization(
       epsilon=1e-6, name=name + "_head_layernorm")(x)
-    x = layers.Dense(num_classes, name=name + "head_dense")(x)
+    x = layers.Dense(num_classes, name=name + "_head_dense")(x)
     return x
 
   return apply
@@ -393,7 +405,7 @@ def ConvNeXt(depths,
     x = PreStem(name=model_name)(x)
   
   # Stem block.
-  stem = tf.keras.Sequential(
+  stem = Sequential(
     [
       layers.Conv2D(projection_dims[0], kernel_size=4, strides=4,
         name=model_name + "_stem_conv"),
@@ -407,7 +419,7 @@ def ConvNeXt(depths,
   downsample_layers = []
   downsample_layers.append(stem)
   for i in range(3):
-    downsample_layer = tf.keras.Sequential(
+    downsample_layer = Sequential(
       [
         layers.LayerNormalization(epsilon=1e-6, 
           name=model_name + "_downsampling_layernorm_" + str(i)),
@@ -419,36 +431,25 @@ def ConvNeXt(depths,
     downsample_layers.append(downsample_layer)
   
   # Stochastic depth schedule.
+  # This is referred from the original ConvNeXt codebase:
+  # https://github.com/facebookresearch/ConvNeXt/blob/main/models/convnext.py#L86
   dp_rates = [x for x in tf.linspace(0.0, drop_path_rate, sum(depths))]
 
-  # ConvNeXt stages.
-  stages = []
+  # First apply downsampling blocks and then apply ConvNeXt stages.
   cur = 0
   for i in range(4):
-    stage = tf.keras.Sequential(
-      [
-        *[
-            ConvNeXtBlock(
-              projection_dim=projection_dims[i],
-              drop_path=dp_rates[cur + j],
-              layer_scale_init_value=layer_scale_init_value,
-              name=model_name + f"_stage_{i}_block_{j}",
-            )
-            for j in range(depths[i])
-        ]
-      ],
-      name=model_name + f"_stage_{i}",
-    )
-    stages.append(stage)
+    x = downsample_layers[i](x)
+    for j in range(depths[i]):
+      x = ConvNeXtBlock(
+        projection_dim=projection_dims[i],
+        drop_path_rate=dp_rates[cur + j],
+        layer_scale_init_value=layer_scale_init_value,
+        name=model_name + f"_stage_{i}_block_{j}",
+      )(x)
     cur += depths[i]
 
-  # Apply the stages.
-  for i in range(len(stages)):
-    x = downsample_layers[i](x)
-    x = stages[i](x)
-
   if include_top:
-    x = Head(num_classes=classes)(x)
+    x = Head(num_classes=classes, name=model_name)(x)
     imagenet_utils.validate_activation(classifier_activation, weights)
 
   else:
