@@ -78,13 +78,21 @@ def split_dataset(dataset,
                                                       total_length)
   left_split = list(dataset_as_list[:left_size])
   right_split = list(dataset_as_list[-right_size:])
-
-  left_split = _restore_dataset_from_list(left_split,dataset_type_spec)
-  right_split = _restore_dataset_from_list(right_split,dataset_type_spec)
+  
+  left_split = _restore_dataset_from_list(left_split,dataset_type_spec,dataset)
+  right_split = _restore_dataset_from_list(right_split,dataset_type_spec,
+                                           dataset)
 
   left_split = tf.data.Dataset.from_tensor_slices(left_split)
   right_split = tf.data.Dataset.from_tensor_slices(right_split)
 
+  # Batch the splits if the `dataset` is batched
+  if dataset_type_spec is tf.data.Dataset and is_batched(dataset):   
+    batch_size = get_batch_size(dataset)
+    if batch_size is not None:
+      left_split = left_split.batch(batch_size)
+      right_split = right_split.batch(batch_size)
+  
   left_split = left_split.prefetch(tf.data.AUTOTUNE)
   right_split = right_split.prefetch(tf.data.AUTOTUNE)
 
@@ -112,8 +120,6 @@ def _convert_dataset_to_list(dataset,
   Returns:
       List: A list of tuples/numpy arrays.
   """
-  # TODO (prakashsellathurai): add support for Batched  and unbatched dict tf datasets
-  
   dataset_iterator = _get_data_iterator_from_dataset(dataset,dataset_type_spec)
   dataset_as_list = []
 
@@ -259,12 +265,22 @@ def _get_next_sample(dataset_iterator,
           data_size_warning_flag = False
     yield sample
 
-def _restore_dataset_from_list(dataset,dataset_type_spec):
-  """Restore the dataset from the list of arrays.
-  """
+def _restore_dataset_from_list(dataset_as_list,dataset_type_spec,
+                               original_dataset):
+  """Restore the dataset from the list of arrays."""  
   if dataset_type_spec  in [tuple,list]:
-    dataset = tuple(np.array(sample) for sample in zip(*dataset))
-  return dataset
+    return tuple(np.array(sample) for sample in zip(*dataset_as_list))
+  elif dataset_type_spec == tf.data.Dataset:
+    if type(original_dataset.element_spec) is dict:
+      restored_dataset = dict()
+      for d in dataset_as_list:
+        for k, v in d.items():
+          if k not in restored_dataset:
+            restored_dataset[k] = [np.array(v)]
+          else:
+            restored_dataset[k].append(np.array(v))
+      return restored_dataset
+  return dataset_as_list
 
 def _rescale_dataset_split_sizes(left_size,right_size,total_length):
   """Rescale the dataset split sizes to ensure that the sum of 
@@ -383,6 +399,13 @@ def is_batched(tf_dataset):
     return tf_dataset.__class__.__name__ == 'BatchDataset'
   except :
     return False
+  
+def get_batch_size(tf_dataset):
+  """Get the batch size of the dataset."""
+  if is_batched(tf_dataset):
+    return tf_dataset._batch_size
+  else:
+    return None
 
 def index_directory(directory,
                     labels,

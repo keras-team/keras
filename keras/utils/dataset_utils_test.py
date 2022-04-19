@@ -118,9 +118,12 @@ class SplitDatasetTest(tf.test.TestCase):
     dataset = dataset.batch(10)
     left_split,right_split=dataset_utils.split_dataset(dataset,left_size=2)
 
+    # Ensure that the splits are batched
+    self.assertAllEqual(np.array(list(right_split)).shape,(10,))
+    
+    left_split,right_split = left_split.unbatch(),right_split.unbatch()
     self.assertAllEqual(np.array(list(left_split)).shape,(2,32,32,1))
     self.assertAllEqual(np.array(list(right_split)).shape,(98,32,32,1))
-
     dataset = dataset.unbatch()
     self.assertAllEqual(list(dataset),list(left_split)+list(right_split))
 
@@ -130,6 +133,11 @@ class SplitDatasetTest(tf.test.TestCase):
     dataset = dataset.batch(2)
     left_split,right_split=dataset_utils.split_dataset(dataset,left_size=4)
 
+    # Ensure that the splits are batched
+    self.assertEqual(np.array(list(right_split)).shape,(3, 2, 2, 32, 32))
+    self.assertEqual(np.array(list(left_split)).shape,(2, 2, 2, 32, 32))
+    
+    left_split,right_split = left_split.unbatch(),right_split.unbatch()
     self.assertAllEqual(np.array(list(left_split)).shape,(4,2,32,32))
     self.assertAllEqual(np.array(list(right_split)).shape,(6,2,32,32))
 
@@ -156,7 +164,73 @@ class SplitDatasetTest(tf.test.TestCase):
     self.assertAllEqual(np.array(list(right_split)).shape,(5,2,32,32,1))
 
     self.assertAllEqual(list(dataset),list(left_split)+list(right_split))
-
+    
+  def test_unbatched_tf_dataset_of_dict_of_vectors(self):
+    # test with dict of np arrays of same shape
+    dict_samples = {'X':np.random.rand(10,2),
+                    'Y':np.random.rand(10,2)}
+    dataset = tf.data.Dataset.from_tensor_slices(dict_samples)
+    left_split,right_split=dataset_utils.split_dataset(dataset,left_size=2)
+    self.assertEqual(len(list(left_split)),2)
+    self.assertEqual(len(list(right_split)),8)
+    for i in range(10):
+      if i < 2:
+        self.assertEqual(list(left_split)[i],list(dataset)[i])
+      else:
+        self.assertEqual(list(right_split)[i-2],list(dataset)[i])
+    
+    # test with dict of np arrays with different shapes
+    dict_samples = {'images':np.random.rand(10,16,16,3),
+                    'labels':np.random.rand(10,)}
+    dataset = tf.data.Dataset.from_tensor_slices(dict_samples)
+    left_split,right_split=dataset_utils.split_dataset(dataset,left_size=0.3) 
+    self.assertEqual(len(list(left_split)),3)
+    self.assertEqual(len(list(right_split)),7)
+    for i in range(10):
+      if i < 3:
+        self.assertEqual(list(left_split)[i],list(dataset)[i])
+      else:
+        self.assertEqual(list(right_split)[i-3],list(dataset)[i])
+        
+  def test_batched_tf_dataset_of_dict_of_vectors(self):
+    dict_samples = {'X':np.random.rand(10,3),
+                    'Y':np.random.rand(10,3)}
+    dataset = tf.data.Dataset.from_tensor_slices(dict_samples)
+    dataset = dataset.batch(2)
+    left_split,right_split=dataset_utils.split_dataset(dataset,left_size=2)
+    
+    self.assertAllEqual(np.array(list(left_split)).shape,(1,))
+    self.assertAllEqual(np.array(list(right_split)).shape,(4,))  
+    
+    left_split,right_split = left_split.unbatch(),right_split.unbatch()
+    self.assertEqual(len(list(left_split)),2)
+    self.assertEqual(len(list(right_split)),8)
+    for i in range(10):
+      if i < 2:
+        self.assertEqual(list(left_split)[i],list(dataset.unbatch())[i])
+      else:
+        self.assertEqual(list(right_split)[i-2],list(dataset.unbatch())[i])
+    
+    # test with dict of np arrays with different shapes
+    dict_samples = {'images':np.random.rand(10,16,16,3),
+                    'labels':np.random.rand(10,)}
+    dataset = tf.data.Dataset.from_tensor_slices(dict_samples)
+    dataset = dataset.batch(1)
+    left_split,right_split=dataset_utils.split_dataset(dataset,right_size=0.3) 
+    
+    self.assertAllEqual(np.array(list(left_split)).shape,(7,))
+    self.assertAllEqual(np.array(list(right_split)).shape,(3,))
+    
+    dataset = dataset.unbatch()
+    left_split,right_split = left_split.unbatch(),right_split.unbatch()
+    self.assertEqual(len(list(left_split)),7)
+    self.assertEqual(len(list(right_split)),3)
+    for i in range(10):
+      if i < 7:
+        self.assertEqual(list(left_split)[i],list(dataset)[i])
+      else:
+        self.assertEqual(list(right_split)[i-7],list(dataset)[i])
+   
   def test_list_dataset(self):
     dataset = [np.ones(shape=(10,10,10)) for _ in range(10)]
     left_split,right_split = dataset_utils.split_dataset(dataset,
