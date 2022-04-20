@@ -157,7 +157,7 @@ def call_with_layout(fn, layout, *args, **kwargs):
     The output of fn, with potential relayout with the layout specified.
   """
   if layout:
-    with dtensor.run_on(layout):
+    with dtensor.run_on(layout.mesh):
       result = fn(*args, **kwargs)
       return dtensor.relayout(result, layout)
   return fn(*args, **kwargs)
