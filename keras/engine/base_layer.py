@@ -553,7 +553,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Note that `trainable` cannot be `True` if `synchronization`
         is set to `ON_READ`.
       constraint: Constraint instance (callable).
-      use_resource: Whether to use `ResourceVariable`.
+      use_resource: Whether to use a `ResourceVariable` or not.
+         See [this guide](https://www.tensorflow.org/guide/migrate/tf1_vs_tf2#resourcevariables_instead_of_referencevariables)  # pylint: disable=line-too-long
+         for more information.
       synchronization: Indicates when a distributed a variable will be
         aggregated. Accepted values are constants defined in the class
         `tf.VariableSynchronization`. By default the synchronization is set to
