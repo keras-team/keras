@@ -200,7 +200,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     result = model(inputs, training=True)
     self.assertAllClose(result, tf.zeros((10, 1000), layout=self.layout_2d))
 
-  def _test_init_functional_model_variable_with_layout(self):
+  def test_init_functional_model_variable_with_layout(self):
     # Note that the functional model is using layers name + attribute name
     # the layer name are unique among the functional model, and when the layer
     # doesn't have a name, keras will give it a unique name based on the layer
@@ -244,7 +244,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         expected_result, layout=self.layout_2d)
     self.assertAllClose(result, expected_result)
 
-  def _test_init_sequential_model_variable_with_layout(self):
+  def test_init_sequential_model_variable_with_layout(self):
     # Note that the sequential model is using layers name + attribute name
     # the layer name are unique among the functional model, and when the layer
     # doesn't have a name, keras will give it a unique name based on the layer
