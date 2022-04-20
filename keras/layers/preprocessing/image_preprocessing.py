@@ -444,7 +444,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
 @keras_export('keras.layers.RandomCrop',
               'keras.layers.experimental.preprocessing.RandomCrop',
               v1=[])
-class RandomCrop(base_layer.BaseRandomLayer):
+class RandomCrop(BaseImageAugmentationLayer):
   """A preprocessing layer which randomly crops images during training.
 
   During training, this layer will randomly choose a location to crop images
@@ -486,31 +486,56 @@ class RandomCrop(base_layer.BaseRandomLayer):
     self.seed = seed
 
   def call(self, inputs, training=True):
-    inputs = utils.ensure_tensor(inputs, dtype=self.compute_dtype)
+    inputs = self._ensure_inputs_are_compute_dtype(inputs)
+    inputs, is_dict = self._format_inputs(inputs)
     if training:
-      input_shape = tf.shape(inputs)
-      h_diff = input_shape[H_AXIS] - self.height
-      w_diff = input_shape[W_AXIS] - self.width
-      return tf.cond(
-          tf.reduce_all((h_diff >= 0, w_diff >= 0)),
-          lambda: self._random_crop(inputs),
-          lambda: self._resize(inputs))
+      images = inputs['images']
+      if images.shape.rank == 3:
+        return self._format_output(self._augment(inputs), is_dict)
+      elif images.shape.rank == 4:
+        return self._format_output(self._batch_augment(inputs), is_dict)
+      else:
+        raise ValueError('Image augmentation layers are expecting inputs to be '
+                         'rank 3 (HWC) or 4D (NHWC) tensors. Got shape: '
+                         f'{images.shape}')
     else:
-      return self._resize(inputs)
+      output = inputs
+      output['images'] = self._resize(inputs['images'])
+      # self._resize() returns valid results for both batched and unbatched
+      # input
+      return self._format_output(output, is_dict)
 
-  def _random_crop(self, inputs):
-    input_shape = tf.shape(inputs)
+  def get_random_transformation(self,
+                                image=None,
+                                label=None,
+                                bounding_box=None):
+    input_shape = tf.shape(image)
     h_diff = input_shape[H_AXIS] - self.height
     w_diff = input_shape[W_AXIS] - self.width
     dtype = input_shape.dtype
     rands = self._random_generator.random_uniform([2], 0, dtype.max, dtype)
     h_start = rands[0] % (h_diff + 1)
     w_start = rands[1] % (w_diff + 1)
-    return tf.image.crop_to_bounding_box(inputs, h_start, w_start,
-                                         self.height, self.width)
+    return {'top': h_start, 'left': w_start}
 
-  def _resize(self, inputs):
-    outputs = image_utils.smart_resize(inputs, [self.height, self.width])
+  def augment_image(self, image, transformation=None):
+    if transformation is None:
+      transformation = self.get_random_transformation(image)
+    input_shape = tf.shape(image)
+    h_diff = input_shape[H_AXIS] - self.height
+    w_diff = input_shape[W_AXIS] - self.width
+    return tf.cond(
+        tf.reduce_all((h_diff >= 0, w_diff >= 0)),
+        lambda: self._crop(image, transformation), lambda: self._resize(image))
+
+  def _crop(self, image, transformation):
+    top = transformation['top']
+    left = transformation['left']
+    return tf.image.crop_to_bounding_box(image, top, left, self.height,
+                                         self.width)
+
+  def _resize(self, image):
+    outputs = image_utils.smart_resize(image, [self.height, self.width])
     # smart_resize will always output float32, so we need to re-cast.
     return tf.cast(outputs, self.compute_dtype)
 

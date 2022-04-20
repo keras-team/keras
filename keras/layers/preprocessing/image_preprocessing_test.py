@@ -423,6 +423,46 @@ class RandomCropTest(test_combinations.TestCase):
         actual_output = layer(inp, training=True)
         self.assertAllClose(inp[2:10, 2:10, :], actual_output)
 
+  def test_batched_input(self):
+    np.random.seed(1337)
+    inp = np.random.random((20, 16, 16, 3))
+    mock_offset = [2, 2]
+    with test_utils.use_gpu():
+      layer = image_preprocessing.RandomCrop(8, 8)
+      with tf.compat.v1.test.mock.patch.object(
+          layer._random_generator, 'random_uniform', return_value=mock_offset):
+        actual_output = layer(inp, training=True)
+        self.assertAllClose(inp[:, 2:10, 2:10, :], actual_output)
+
+  def test_augment_image(self):
+    np.random.seed(1337)
+    inp = np.random.random((16, 16, 3))
+    mock_offset = [2, 2]
+    with test_utils.use_gpu():
+      layer = image_preprocessing.RandomCrop(8, 8)
+      with tf.compat.v1.test.mock.patch.object(
+          layer._random_generator, 'random_uniform', return_value=mock_offset):
+        actual_output = layer.augment_image(inp)
+        self.assertAllClose(inp[2:10, 2:10, :], actual_output)
+
+  def test_training_false(self):
+    np.random.seed(1337)
+    height, width = 4, 6
+    inp = np.random.random((12, 8, 16, 3))
+    inp_dict = {'images': inp}
+    with test_utils.use_gpu():
+      layer = image_preprocessing.RandomCrop(height, width)
+      # test wih tensor input
+      actual_output = layer(inp, training=False)
+      resized_inp = tf.image.resize(inp, size=[4, 8])
+      expected_output = resized_inp[:, :, 1:7, :]
+      self.assertAllClose(expected_output, actual_output)
+      # test with dictionary input
+      actual_output = layer(inp_dict, training=False)
+      resized_inp = tf.image.resize(inp, size=[4, 8])
+      expected_output = resized_inp[:, :, 1:7, :]
+      self.assertAllClose(expected_output, actual_output['images'])
+
   @test_utils.run_v2_only
   def test_uint8_input(self):
     inputs = keras.Input((128, 128, 3), batch_size=2, dtype=tf.uint8)
