@@ -140,6 +140,16 @@ class LayerNormalizationTest(test_combinations.TestCase):
     np.testing.assert_allclose(np.std(out, axis=(0, 1, 2)), 1.0, atol=1e-1)
 
   @test_combinations.run_all_keras_modes
+  def test_layernorm_ragged_tensor(self):
+    x = tf.ragged.constant(
+        [[[3., 1., 1.], [4., 1., 1.]],
+         [[5., 9., 1.]],
+         [[1., 2., 1.]]],
+        inner_shape=(3,))
+    layer = keras.layers.LayerNormalization()
+    self.assertEqual(layer(x).shape, (3, None, 3))
+
+  @test_combinations.run_all_keras_modes
   def test_layernorm_correctness(self):
     _run_layernorm_correctness_test(
         layer_normalization.LayerNormalization, dtype='float32')

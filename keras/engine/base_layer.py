@@ -553,7 +553,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Note that `trainable` cannot be `True` if `synchronization`
         is set to `ON_READ`.
       constraint: Constraint instance (callable).
-      use_resource: Whether to use `ResourceVariable`.
+      use_resource: Whether to use a `ResourceVariable` or not.
+         See [this guide](https://www.tensorflow.org/guide/migrate/tf1_vs_tf2#resourcevariables_instead_of_referencevariables)  # pylint: disable=line-too-long
+         for more information.
       synchronization: Indicates when a distributed a variable will be
         aggregated. Accepted values are constants defined in the class
         `tf.VariableSynchronization`. By default the synchronization is set to
@@ -2562,7 +2564,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       output_list = tf.nest.flatten(outputs)
       with backend.name_scope('ActivityRegularizer'):
         for output in output_list:
-          activity_loss = self._activity_regularizer(output)
+          activity_loss = tf.convert_to_tensor(
+              self._activity_regularizer(output))
           batch_size = tf.cast(
               tf.shape(output)[0], activity_loss.dtype)
           # Make activity regularization strength batch-agnostic.

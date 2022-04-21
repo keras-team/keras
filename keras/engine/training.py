@@ -582,6 +582,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           `tf.keras.metrics.SparseCategoricalAccuracy` based on the loss
           function used and the model output shape. We do a similar
           conversion for the strings 'crossentropy' and 'ce' as well.
+          The metrics passed here are evaluated without sample weighting; if you
+          would like sample weighting to apply, you can specify your
+          metrics via the `weighted_metrics` argument instead.
         loss_weights: Optional list or dictionary specifying scalar coefficients
           (Python floats) to weight the loss contributions of different model
           outputs. The loss value that will be minimized by the model will then
@@ -1140,7 +1143,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             See `tf.keras.utils.experimental.DatasetCreator` doc for more
             information.
           A more detailed description of unpacking behavior for iterator types
-          (Dataset, generator, Sequence) is given below. If using
+          (Dataset, generator, Sequence) is given below. If these include
+          `sample_weights` as a third component, note that sample weighting
+          applies to the `weighted_metrics` argument but not the `metrics`
+          argument in `compile()`. If using
           `tf.distribute.experimental.ParameterServerStrategy`, only
           `DatasetCreator` type is supported for `x`.
         y: Target data. Like the input data `x`,
@@ -1236,6 +1242,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             argument is not supported when `x` is a dataset, generator, or
            `keras.utils.Sequence` instance, instead provide the sample_weights
             as the third element of `x`.
+            Note that sample weighting does not apply to metrics specified
+            via the `metrics` argument in `compile()`. To apply sample weighting
+            to your metrics, you can specify them via the `weighted_metrics` in
+            `compile()` instead.
         initial_epoch: Integer.
             Epoch at which to start training
             (useful for resuming a previous training run).
@@ -1850,10 +1860,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         """Runs an evaluation execution with multiple steps."""
         outputs = step_function(self, iterator)
         for _ in tf.range(self._steps_per_execution - 1):
-          tf.autograph.experimental.set_loop_options(
-              shape_invariants=[(
-                  t, tf_utils.get_tensor_spec(t, dynamic_batch=True).shape)
-                                for t in tf.nest.flatten(outputs)])
+          tf.autograph.experimental.set_loop_options(shape_invariants=[(
+              outputs,
+              tf.nest.map_structure(
+                  lambda t: tf_utils.get_tensor_spec(t, dynamic_batch=True).
+                  shape, outputs))])
           step_outputs = step_function(self, iterator)
           outputs = tf.nest.map_structure(lambda t1, t2: concat([t1, t2]),
                                           outputs, step_outputs)

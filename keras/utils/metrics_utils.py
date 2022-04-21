@@ -598,24 +598,14 @@ def update_confusion_matrix_variables(variables_to_update,
         f'Invalid keys: "{invalid_keys}". '
         f'Valid variable key options are: "{list(ConfusionMatrix)}"')
 
-  with tf.control_dependencies([
-      tf.debugging.assert_greater_equal(
-          y_pred,
-          tf.cast(0.0, dtype=y_pred.dtype),
-          message='predictions must be >= 0'),
-      tf.debugging.assert_less_equal(
-          y_pred,
-          tf.cast(1.0, dtype=y_pred.dtype),
-          message='predictions must be <= 1')
-  ]):
-    if sample_weight is None:
-      y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
-          y_pred, y_true)
-    else:
-      sample_weight = tf.cast(sample_weight, dtype=variable_dtype)
-      y_pred, y_true, sample_weight = (
-          losses_utils.squeeze_or_expand_dimensions(
-              y_pred, y_true, sample_weight=sample_weight))
+  if sample_weight is None:
+    y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
+        y_pred, y_true)
+  else:
+    sample_weight = tf.cast(sample_weight, dtype=variable_dtype)
+    y_pred, y_true, sample_weight = (
+        losses_utils.squeeze_or_expand_dimensions(
+            y_pred, y_true, sample_weight=sample_weight))
   y_pred.shape.assert_is_compatible_with(y_true.shape)
 
   if top_k is not None:

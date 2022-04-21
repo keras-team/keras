@@ -243,6 +243,11 @@ class LayerNormalization(Layer):
     self.built = True
 
   def call(self, inputs):
+    # TODO(b/229545225): Remove the RaggedTensor check.
+    is_ragged = isinstance(inputs, tf.RaggedTensor)
+    if is_ragged:
+      inputs_lengths = inputs.nested_row_lengths()
+      inputs = inputs.to_tensor()
     inputs = tf.cast(inputs, self.compute_dtype)
     # Compute the axes along which to reduce the mean / variance
     input_shape = inputs.shape
@@ -326,6 +331,8 @@ class LayerNormalization(Layer):
     # If some components of the shape got lost due to adjustments, fix that.
     outputs.set_shape(input_shape)
 
+    if is_ragged:
+      outputs = tf.RaggedTensor.from_tensor(outputs, inputs_lengths)
     return outputs
 
   def compute_output_shape(self, input_shape):
