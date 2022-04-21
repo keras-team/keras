@@ -1869,6 +1869,35 @@ class RandomWidthTest(test_combinations.TestCase):
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
+class WithLabelsTest(test_combinations.TestCase):
+
+  @parameterized.named_parameters(
+      ('RandomZoom', image_preprocessing.RandomZoom, {
+          'height_factor': 0.1
+      }),
+      ('RandomBrightness', image_preprocessing.RandomBrightness, {
+          'factor': 0.5
+      }),
+      ('RandomContrast', image_preprocessing.RandomContrast, {
+          'factor': 0.5
+      }),
+      ('RandomRotation', image_preprocessing.RandomRotation, {
+          'factor': 0.2
+      }),
+  )
+  def test_layer_with_labels(self, layer_cls, init_args):
+    layer = layer_cls(**init_args)
+
+    img = tf.random.uniform(
+        shape=(3, 512, 512, 3), minval=0, maxval=1, dtype=tf.float32)
+    labels = tf.constant(([[1, 0, 0], [0, 0, 1], [0, 1, 0]]), dtype=tf.float32)
+
+    inputs = {'images': img, 'labels': labels}
+    outputs = layer(inputs)
+    self.assertAllClose(labels, outputs["labels"])
+
+
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
 class LearningPhaseTest(test_combinations.TestCase):
 
   def test_plain_call(self):

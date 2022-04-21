@@ -1135,6 +1135,9 @@ class RandomRotation(BaseImageAugmentationLayer):
     output.set_shape(original_shape)
     return output
 
+  def augment_label(self, label, transformation=None):
+    return label
+
   def compute_output_shape(self, input_shape):
     return input_shape
 
@@ -1297,6 +1300,9 @@ class RandomZoom(BaseImageAugmentationLayer):
     output = tf.squeeze(output, 0)
     output.set_shape(original_shape)
     return output
+
+  def augment_label(self, label, transformation=None):
+    return label
 
   def compute_output_shape(self, input_shape):
     return input_shape
