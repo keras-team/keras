@@ -42,7 +42,7 @@ class WideDeepModel(keras_training.Model):
   dnn_model = keras.Sequential([keras.layers.Dense(units=64),
                                keras.layers.Dense(units=1)])
   combined_model = WideDeepModel(linear_model, dnn_model)
-  combined_model.compile(optimizer=['sgd', 'adam'], 'mse', ['mse'])
+  combined_model.compile(optimizer=['sgd', 'adam'], loss='mse', metrics=['mse'])
   # define dnn_inputs and linear_inputs as separate numpy arrays or
   # a single numpy array if dnn_inputs is same as linear_inputs.
   combined_model.fit([linear_inputs, dnn_inputs], y, epochs)
@@ -64,7 +64,7 @@ class WideDeepModel(keras_training.Model):
   dnn_model.compile('rmsprop', 'mse')
   dnn_model.fit(dnn_inputs, y, epochs)
   combined_model = WideDeepModel(linear_model, dnn_model)
-  combined_model.compile(optimizer=['sgd', 'adam'], 'mse', ['mse'])
+  combined_model.compile(optimizer=['sgd', 'adam'], loss='mse', metrics=['mse'])
   combined_model.fit([linear_inputs, dnn_inputs], y, epochs)
   ```
 
