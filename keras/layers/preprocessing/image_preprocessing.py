@@ -1140,9 +1140,6 @@ class RandomRotation(base_layer.BaseRandomLayer):
     else:
       return inputs
 
-  def augment_label(self, label, transformation=None):
-    return label
-
   def compute_output_shape(self, input_shape):
     return input_shape
 
@@ -1308,9 +1305,6 @@ class RandomZoom(base_layer.BaseRandomLayer):
       return random_zoomed_inputs(inputs)
     else:
       return inputs
-
-  def augment_label(self, label, transformation=None):
-    return label
 
   def compute_output_shape(self, input_shape):
     return input_shape
