@@ -247,6 +247,20 @@ class SplitDatasetTest(tf.test.TestCase):
         self.assertEqual(list(left_split)[i],list(dataset)[i])
       else:
         self.assertEqual(list(right_split)[i-3],list(dataset)[i])
+        
+    # test with dict of text arrays
+    dict_samples = {'txt_feature':['abb','bb','cc','d','e','f','g','h','i','j'],
+                    'label':[1,2,3,4,5,6,7,8,9,10]}
+    dataset = tf.data.Dataset.from_tensor_slices(dict_samples)
+    left_split,right_split=dataset_utils.split_dataset(dataset,left_size=0.45,
+                                                       right_size=0.55)
+    self.assertEqual(len(list(left_split)),4)
+    self.assertEqual(len(list(right_split)),6)
+    for i in range(10):
+      if i < 4:
+        self.assertEqual(list(left_split)[i],list(dataset)[i])
+      else:
+        self.assertEqual(list(right_split)[i-4],list(dataset)[i])
 
   def test_list_dataset(self):
     dataset = [np.ones(shape=(10,10,10)) for _ in range(10)]
@@ -362,13 +376,13 @@ class SplitDatasetTest(tf.test.TestCase):
   def test_invalid_float_left_and_right_sizes(self):
     expected_regex = (r'^(.*?(\bleft_size\b).*?(\bshould be\b)'
                       r'.*?(\bwithin the range\b).*?(\b0\b).*?(\b1\b))')
-    with self.assertRaisesRegexp(ValueError,expected_regex):
+    with self.assertRaisesRegexp(ValueError, expected_regex):
       dataset = [np.ones(shape=(200, 32,32)), np.zeros(shape=(200, 32,32))]
       dataset_utils.split_dataset(dataset, left_size=1.5,right_size=0.2)
 
     expected_regex = (r'^(.*?(\bright_size\b).*?(\bshould be\b)'
                       r'.*?(\bwithin the range\b).*?(\b0\b).*?(\b1\b))')
-    with self.assertRaisesRegex(ValueError,expected_regex):
+    with self.assertRaisesRegex(ValueError, expected_regex):
       dataset = [np.ones(shape=(200, 32)), np.zeros(shape=(200, 32))]
       dataset_utils.split_dataset(dataset, left_size=0.8,right_size=-0.8)
 
@@ -377,7 +391,7 @@ class SplitDatasetTest(tf.test.TestCase):
                       r'be specified\b).*?(\bReceived: left_size=None and'
                       r' right_size=None\b)')
 
-    with self.assertRaisesRegex(ValueError,expected_regex):
+    with self.assertRaisesRegex(ValueError, expected_regex):
       dataset_utils.split_dataset(dataset=np.array([1,2,3]), left_size=None)
     with self.assertRaisesRegex(ValueError, expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]),left_size=None,
@@ -385,38 +399,38 @@ class SplitDatasetTest(tf.test.TestCase):
 
     expected_regex = (r'^.*?(\bleft_size\b).*?(\bshould be\b)'
                       r'.*?(\bpositive\b).*?(\bsmaller than 3\b)')
-    with self.assertRaisesRegex(ValueError,expected_regex):
+    with self.assertRaisesRegex(ValueError, expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]),left_size=3)
 
     expected_regex = ('Both `left_size` and `right_size` are zero. '
                      'Atleast one of the split sizes must be non-zero.')
-    with self.assertRaisesRegex(ValueError,expected_regex):
+    with self.assertRaisesRegex(ValueError, expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]), left_size=0,
                                   right_size=0)
 
   def test_invalid_left_and_right_size_types(self):
     expected_regex = (r'^.*?(\bInvalid `left_size` and `right_size` Types'
                       r'\b).*?(\bExpected: integer or float or None\b)')
-    with self.assertRaisesRegex(TypeError,expected_regex):
+    with self.assertRaisesRegex(TypeError, expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]), left_size='1',
                                   right_size='1')
 
     expected_regex = (r'^.*?(\bInvalid `right_size` Type\b)')
-    with self.assertRaisesRegex(TypeError,expected_regex):
+    with self.assertRaisesRegex(TypeError, expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]),left_size=0,
                                   right_size='1')
 
     expected_regex = (r'^.*?(\bInvalid `left_size` Type\b)')
-    with self.assertRaisesRegex(TypeError,expected_regex):
+    with self.assertRaisesRegex(TypeError, expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]),left_size='100',
                                   right_size=None)
 
     expected_regex = (r'^.*?(\bInvalid `right_size` Type\b)')
-    with self.assertRaisesRegex(TypeError,expected_regex):
+    with self.assertRaisesRegex(TypeError, expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]),right_size='1')
 
     expected_regex = (r'^.*?(\bInvalid `right_size` Type\b)')
-    with self.assertRaisesRegex(TypeError,expected_regex):
+    with self.assertRaisesRegex(TypeError, expected_regex):
       dataset_utils.split_dataset(np.array([1,2,3]),left_size=0.5,
                                   right_size='1')
 

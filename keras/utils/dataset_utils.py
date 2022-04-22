@@ -21,12 +21,10 @@ import multiprocessing
 import os
 import time
 import warnings
-from random import Random
+import random
 
 import numpy as np
-from tensorflow.python.util.tf_export import keras_export
 
-@keras_export('keras.utils.split_dataset')
 def split_dataset(dataset,
                   left_size=None,
                   right_size=None,
@@ -61,16 +59,16 @@ def split_dataset(dataset,
 
   if right_size is None and left_size is None:
     raise ValueError('At least one of the `left_size` or `right_size` '
-                     'must be specified .Received: left_size=None and '
+                     'must be specified. Received: left_size=None and '
                      'right_size=None')
 
   dataset_as_list = _convert_dataset_to_list(dataset,dataset_type_spec)
 
-  if seed is None:
-    seed = np.random.randint(1e6)
-
   if shuffle:
-    Random(seed).shuffle(dataset_as_list)
+    if seed is None:
+      seed = random.randint(0,1e6)
+    random.seed(seed)
+    random.shuffle(dataset_as_list)
 
   total_length = len(dataset_as_list)
 
@@ -189,7 +187,7 @@ def _get_data_iterator_from_dataset(dataset,dataset_type_spec) :
                           f'Please provide a tuple of numpy arrays with '
                            'same length.')
     else:
-      raise ValueError('Expected a tuple of numpy.ndarrays,'
+      raise ValueError('Expected a tuple of numpy.ndarrays, '
                        'Received: {}'.format(type(dataset[0])))
 
     return  iter(zip(*dataset))
@@ -271,14 +269,14 @@ def _restore_dataset_from_list(dataset_as_list,dataset_type_spec,
   if dataset_type_spec  in [tuple,list]:
     return tuple(np.array(sample) for sample in zip(*dataset_as_list))
   elif dataset_type_spec == tf.data.Dataset:
-    if type(original_dataset.element_spec) is dict:
-      restored_dataset = dict()
+    if isinstance(original_dataset.element_spec,dict):
+      restored_dataset = {}
       for d in dataset_as_list:
         for k, v in d.items():
           if k not in restored_dataset:
-            restored_dataset[k] = [np.array(v)]
+            restored_dataset[k] = [v]
           else:
-            restored_dataset[k].append(np.array(v))
+            restored_dataset[k].append(v)
       return restored_dataset
     else:
       return tuple(np.array(sample) for sample in zip(*dataset_as_list))
@@ -616,8 +614,8 @@ def check_validation_split_arg(validation_split, subset, shuffle, seed):
   Args:
     validation_split: float between 0 and 1, fraction of data to reserve for
       validation.
-    subset: One of "training", "validation" or "both". Only used if `validation_split`
-      is set.
+    subset: One of "training", "validation" or "both". Only used if 
+      `validation_split` is set.
     shuffle: Whether to shuffle the data. Either True or False.
     seed: random seed for shuffling and transformations.
   """
