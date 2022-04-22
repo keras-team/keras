@@ -35,8 +35,8 @@ from keras.testing_infra import test_combinations
 import numpy
 import tensorflow as tf
 
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.ops import variable_scope   # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
+from tensorflow.python.ops import variable_scope 
 
 
 def run_inside_wrap_function_in_eager_mode(graph_function):

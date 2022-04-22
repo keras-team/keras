@@ -14,7 +14,7 @@
 # ==============================================================================
 """Unit Normalization layer."""
 # pylint: disable=g-bad-import-order
-# pylint: disable=g-direct-tensorflow-import
+
 # pylint: disable=g-classes-have-attributes
 
 import tensorflow.compat.v2 as tf

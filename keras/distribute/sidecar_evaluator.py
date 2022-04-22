@@ -16,8 +16,8 @@
 
 import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util import deprecation  # pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util import deprecation
+from tensorflow.python.util.tf_export import keras_export
 
 _PRINT_EVAL_STEP_EVERY_SEC = 60.0
 _ITERATIONS_UNINITIALIZED = -1

@@ -26,9 +26,9 @@ from keras.utils import layer_utils
 from keras.utils import tf_inspect
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.ops import variable_scope as vs  # pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.platform import tf_logging as logging  # pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.ops import variable_scope as vs
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 def as_shape(shape):

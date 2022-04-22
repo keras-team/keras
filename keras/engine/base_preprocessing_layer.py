@@ -20,7 +20,7 @@ from keras.engine import data_adapter
 from keras.engine.base_layer import Layer
 from keras.utils import version_utils
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.eager import context
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls

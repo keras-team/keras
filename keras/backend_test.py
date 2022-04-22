@@ -24,7 +24,7 @@ import numpy as np
 import scipy.sparse
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_config
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from keras import activations
 from keras import backend
 from keras.testing_infra import test_combinations

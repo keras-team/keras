@@ -25,7 +25,7 @@ from keras.optimizers.schedules import learning_rate_schedule
 
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
 

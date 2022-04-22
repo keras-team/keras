@@ -14,7 +14,7 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.discretization."""
 
-# pylint: disable=g-direct-tensorflow-import
+
 
 import keras
 from keras.distribute import strategy_combinations

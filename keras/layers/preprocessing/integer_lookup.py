@@ -15,7 +15,7 @@
 """Keras string lookup preprocessing layer."""
 
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
 
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup

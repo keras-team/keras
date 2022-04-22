@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for Keras-based einsum dense layer."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 from absl.testing import parameterized
 import keras

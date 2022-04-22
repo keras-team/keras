@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Mixin holding dropout fields for RNN cells."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 from keras import backend
 import tensorflow.compat.v2 as tf

@@ -23,7 +23,7 @@ import shutil
 
 from absl.testing import parameterized
 import numpy as np
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from keras import backend as keras_backend
 from keras.testing_infra import test_combinations
 from keras import initializers

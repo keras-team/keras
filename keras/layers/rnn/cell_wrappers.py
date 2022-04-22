@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Module implementing RNN wrappers."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 # Note that all the APIs under this module are exported as tf.nn.*. This is due
 # to the fact that those APIs were from tf.nn.rnn_cell_impl. They are ported

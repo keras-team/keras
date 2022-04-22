@@ -26,10 +26,10 @@ from keras.utils import tf_contextlib
 import numpy as np
 
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.framework import ops
 from tensorflow.python.util.tf_export import keras_export
-# pylint: enable=g-direct-tensorflow-import
+
 
 
 @keras_export('keras.utils.set_random_seed', v1=[])

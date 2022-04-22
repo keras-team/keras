@@ -25,7 +25,7 @@ from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.ops.losses import losses_impl  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.ops.losses import losses_impl
 
 _NUM_SAMPLES = 66
 _BATCH_SIZE = 32

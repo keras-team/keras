@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for Bidirectional wrapper."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 import copy
 

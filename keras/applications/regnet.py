@@ -15,7 +15,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=missing-docstring
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
 """RegNet models for Keras.
 
 References:

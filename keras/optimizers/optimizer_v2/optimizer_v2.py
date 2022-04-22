@@ -30,7 +30,7 @@ from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
 
 
 keras_optimizers_gauge = tf.__internal__.monitoring.BoolGauge(

@@ -20,7 +20,7 @@ import tempfile
 from absl import flags
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("tpu", "", "Name of TPU to connect to.")

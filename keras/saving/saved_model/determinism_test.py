@@ -5,9 +5,9 @@ import subprocess
 from absl import flags
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.core.protobuf import saved_model_pb2
-# pylint: enable=g-direct-tensorflow-import
+
 
 FLAGS = flags.FLAGS
 

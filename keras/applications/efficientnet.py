@@ -33,7 +33,7 @@ from keras.utils import layer_utils
 
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
 
 
 BASE_WEIGHTS_PATH = 'https://storage.googleapis.com/keras-applications/'

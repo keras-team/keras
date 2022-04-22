@@ -17,7 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 import os
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from keras.layers import core
 from keras.optimizers.optimizer_v2 import adam
 

@@ -17,7 +17,7 @@
 from keras.utils import object_identity
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.data.util import structure  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.data.util import structure
 
 # pylint: disable=g-classes-have-attributes
 

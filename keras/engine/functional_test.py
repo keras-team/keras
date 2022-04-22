@@ -33,10 +33,10 @@ from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.framework import extension_type
 from tensorflow.python.training.tracking.util import Checkpoint
-# pylint: enable=g-direct-tensorflow-import
+
 
 
 class NetworkConstructionTest(test_combinations.TestCase):

@@ -22,7 +22,7 @@ from keras.engine import base_layer
 from keras.engine import data_adapter
 from keras.engine import training as keras_training
 from keras.utils import generic_utils
-from tensorflow.python.util import deprecation  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util import deprecation
 from tensorflow.python.util.tf_export import keras_export
 
 

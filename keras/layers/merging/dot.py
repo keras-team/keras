@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Layer that computes the dot product between two inputs."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 from keras import backend
 from keras.engine import base_layer_utils

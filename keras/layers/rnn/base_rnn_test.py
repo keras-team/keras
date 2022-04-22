@@ -16,7 +16,7 @@
 
 See also: lstm_test.py, gru_test.py, simplernn_test.py.
 """
-# pylint: disable=g-direct-tensorflow-import
+
 
 import collections
 

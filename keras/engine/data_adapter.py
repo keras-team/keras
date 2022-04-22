@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Adapter module that convert different input data objects into tf.dataset."""
-# pylint: disable=g-direct-tensorflow-import
+
 import tensorflow.compat.v2 as tf
 
 import abc

@@ -24,7 +24,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.ops import stateless_random_ops
 
 

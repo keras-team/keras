@@ -17,7 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 import numpy as np
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from keras.testing_infra import test_utils
 from keras.distribute import dataset_creator_model_fit_test_base as test_base
 from keras.distribute import strategy_combinations

@@ -15,7 +15,7 @@
 """Legacy Adam optimizer implementation."""
 
 from keras.optimizers.optimizer_v2 import optimizer_v2
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.util.tf_export import keras_export
 
 

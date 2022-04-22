@@ -32,7 +32,7 @@ import wrapt
 
 from keras.utils import generic_utils
 
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.framework import type_spec
 
 

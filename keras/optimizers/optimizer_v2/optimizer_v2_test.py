@@ -43,7 +43,7 @@ from keras.utils import np_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 _DATA_TYPES = [tf.half, tf.float32, tf.float64]
