@@ -1708,7 +1708,7 @@ class RandomHeight(base_layer.BaseRandomLayer):
 @keras_export('keras.layers.RandomWidth',
               'keras.layers.experimental.preprocessing.RandomWidth',
               v1=[])
-class RandomWidth(base_layer.BaseRandomLayer):
+class RandomWidth(BaseImageAugmentationLayer):
   """A preprocessing layer which randomly varies image width during training.
 
   This layer will randomly adjusts the width of a batch of images of a
@@ -1768,33 +1768,45 @@ class RandomWidth(base_layer.BaseRandomLayer):
     self.interpolation = interpolation
     self._interpolation_method = image_utils.get_interpolation(interpolation)
     self.seed = seed
+    self.auto_vectorize = False
 
-  def call(self, inputs, training=True):
-    inputs = utils.ensure_tensor(inputs)
-    def random_width_inputs(inputs):
-      """Inputs width-adjusted with random ops."""
-      inputs_shape = tf.shape(inputs)
-      img_hd = inputs_shape[H_AXIS]
-      img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-      width_factor = self._random_generator.random_uniform(
-          shape=[],
-          minval=(1.0 + self.width_lower),
-          maxval=(1.0 + self.width_upper))
-      adjusted_width = tf.cast(width_factor * img_wd, tf.int32)
-      adjusted_size = tf.stack([img_hd, adjusted_width])
-      output = tf.image.resize(
-          images=inputs, size=adjusted_size, method=self._interpolation_method)
-      # tf.resize will output float32 in many cases regardless of input type.
-      output = tf.cast(output, self.compute_dtype)
-      output_shape = inputs.shape.as_list()
-      output_shape[W_AXIS] = None
-      output.set_shape(output_shape)
-      return output
+  def _batch_augment(self, inputs):
+    images = self.augment_image(inputs['images'])
+    result = {'images': images}
+    # to-do augment bbox to clip bbox to resized width value
+    return result
 
-    if training:
-      return random_width_inputs(inputs)
-    else:
-      return inputs
+  def augment_image(self, image, transformation=None):
+    if transformation is None:
+      transformation = self.get_random_transformation(image)
+    # The batch dimension of the input=image is not modified. The output would
+    # be accurate for both unbatched and batched input
+    inputs = utils.ensure_tensor(image)
+    inputs_shape = tf.shape(inputs)
+    img_hd = inputs_shape[H_AXIS]
+    adjusted_width = transformation['width']
+    adjusted_size = tf.stack([img_hd, adjusted_width])
+    output = tf.image.resize(
+        images=inputs, size=adjusted_size, method=self._interpolation_method)
+    # tf.resize will output float32 in many cases regardless of input type.
+    output = tf.cast(output, self.compute_dtype)
+    output_shape = inputs.shape.as_list()
+    output_shape[W_AXIS] = None
+    output.set_shape(output_shape)
+    return output
+
+  def get_random_transformation(self,
+                                image=None,
+                                label=None,
+                                bounding_box=None):
+    inputs_shape = tf.shape(image)
+    img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+    width_factor = self._random_generator.random_uniform(
+        shape=[],
+        minval=(1.0 + self.width_lower),
+        maxval=(1.0 + self.width_upper))
+    adjusted_width = tf.cast(width_factor * img_wd, tf.int32)
+    return {'width': adjusted_width}
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
@@ -1809,4 +1821,3 @@ class RandomWidth(base_layer.BaseRandomLayer):
     }
     base_config = super(RandomWidth, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
-
