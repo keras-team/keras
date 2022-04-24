@@ -370,6 +370,104 @@ class LayerUtilsTest(tf.test.TestCase):
     except ImportError:
       pass
 
+  def test_print_summary_layer_range(self):
+    model = keras.Sequential()
+    model.add(
+        keras.layers.Conv2D(
+            filters=2, kernel_size=(2, 3), input_shape=(3, 5, 5), name='conv'))
+    model.add(keras.layers.Flatten(name='flat'))
+    model.add(keras.layers.Dense(5, name='dense'))
+
+    file_name = 'model_1.txt'
+    temp_dir = self.get_temp_dir()
+    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+    fpath = os.path.join(temp_dir, file_name)
+    writer = open(fpath, 'w')
+
+    def print_to_file(text):
+      print(text, file=writer)
+
+    try:
+      layer_utils.print_summary(model, print_fn=print_to_file, layer_range=["conv", "flat"])
+      self.assertTrue(tf.io.gfile.exists(fpath))
+      writer.close()
+      reader = open(fpath, 'r')
+      lines = reader.readlines()
+      reader.close()
+      self.assertEqual(len(lines), 13)
+    except ImportError:
+      pass
+
+  def test_print_summary_layer_range_with_expand_nested(self):
+    shape = (None, None, 3)
+
+    def make_model():
+      x = inputs = keras.Input(shape)
+      x = keras.layers.Conv2D(3, 1)(x)
+      x = keras.layers.BatchNormalization()(x)
+      return keras.Model(inputs, x, name="2nd_inner")
+
+    x = inner_inputs = keras.Input(shape)
+    x = make_model()(x)
+    inner_model = keras.Model(inner_inputs, x, name="1st_inner")
+
+    inputs = keras.Input(shape)
+    model = keras.Model(inputs, inner_model(inputs))
+
+    file_name = 'model_2.txt'
+    temp_dir = self.get_temp_dir()
+    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+    fpath = os.path.join(temp_dir, file_name)
+    writer = open(fpath, 'w')
+
+    def print_to_file(text):
+      print(text, file=writer)
+
+    try:
+      layer_utils.print_summary(
+          model, print_fn=print_to_file, expand_nested=True,
+          layer_range=["1st_inner", "1st_inner"])
+      layer_utils.print_summary(
+          model, expand_nested=True, layer_range=["1st_inner", "1st_inner"])
+      self.assertTrue(tf.io.gfile.exists(fpath))
+      writer.close()
+      reader = open(fpath, 'r')
+      lines = reader.readlines()
+      reader.close()
+      check_str = (
+          'Model: "model"\n'
+          '_________________________________________________________________\n'
+          ' Layer (type)                Output Shape              Param #   \n'
+          '=================================================================\n'
+          ' 1st_inner (Functional)      (None, None, None, 3)     24        \n'
+          '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n'
+          '| input_4 (InputLayer)      [(None, None, None, 3)]   0         |\n'
+          '|                                                               |\n'
+          '| 2nd_inner (Functional)    (None, None, None, 3)     24        |\n'
+          '||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n'
+          '|| input_5 (InputLayer)    [(None, None, None, 3)]   0         ||\n'
+          '||                                                             ||\n'
+          '|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n'
+          '||                                                             ||\n'
+          '|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n'
+          '|| ormalization)                                               ||\n'
+          '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n'
+          '¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n'
+          '=================================================================\n'
+          'Total params: 24\n'
+          'Trainable params: 18\n'
+          'Non-trainable params: 6\n'
+          '_________________________________________________________________\n')
+
+      fin_str = ''
+      for line in lines:
+        fin_str += line
+      print(fin_str)
+      self.assertIn(fin_str, check_str)
+      self.assertEqual(len(lines), 23)
+    except ImportError:
+      pass
+
   def test_property_cache(self):
     test_counter = collections.Counter()
 
