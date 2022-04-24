@@ -2677,7 +2677,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     if not self._inbound_nodes:
       raise RuntimeError(f'The layer {self.name} has never been called '
-                         'and thus has no defined {attr_name}.')
+                         f'and thus has no defined {attr_name}.')
     if not len(self._inbound_nodes) > node_index:
       raise ValueError(f'Asked to get {attr_name} at node '
                        f'{node_index}, but the layer has only '

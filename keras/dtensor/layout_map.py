@@ -113,7 +113,7 @@ class LayoutMap(collections.abc.MutableMapping):
                        'not use duplicated keys.')
     if not isinstance(layout, dtensor.Layout):
       raise ValueError(f'{layout} should be a dtensor.Layout type, '
-                       'got {type(layout)}')
+                       f'got {type(layout)}')
 
     self._layout_map[key] = layout
 

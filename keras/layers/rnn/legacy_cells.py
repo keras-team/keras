@@ -940,7 +940,7 @@ class LSTMCell(LayerRNNCell):
     if inputs_shape[-1] is None:
       raise ValueError(
           "Expected inputs.shape[-1] to be known, "
-          "received shape: {inputs_shape}")
+          f"received shape: {inputs_shape}")
     _check_supported_dtypes(self.dtype)
     input_depth = inputs_shape[-1]
     h_depth = self._num_units if self._num_proj is None else self._num_proj

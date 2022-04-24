@@ -147,8 +147,8 @@ class MultiHeadSelfAttention(tf.keras.layers.Layer):
     self.embed_dim = embed_dim
     self.num_heads = num_heads
     if embed_dim % num_heads != 0:
-      raise ValueError('embedding dimension = {embed_dim} should be divisible'
-                       'by number of heads = {num_heads}')
+      raise ValueError(f'embedding dimension = {embed_dim} should be divisible'
+                       f'by number of heads = {num_heads}')
     self.projection_dim = embed_dim // num_heads
     self.query_dense = tf.keras.layers.Dense(embed_dim)
     self.key_dense = tf.keras.layers.Dense(embed_dim)

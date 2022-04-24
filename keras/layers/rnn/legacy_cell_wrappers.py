@@ -268,7 +268,7 @@ class DropoutWrapper(_RNNCellWrapperV1):
           if const_prob < 0 or const_prob > 1:
             raise ValueError(
                 f"Parameter {attr} must be between 0 and 1. "
-                "Received {const_prob}")
+                f"Received {const_prob}")
           setattr(self, "_%s" % attr, float(const_prob))
         else:
           setattr(self, "_%s" % attr, tensor_prob)
