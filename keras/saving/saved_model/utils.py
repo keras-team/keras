@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utility functions shared between SavedModel saving/loading implementations."""
 
-
+import copy
 import inspect as _inspect
 import itertools
 import threading
@@ -23,8 +23,8 @@ import types
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.utils import control_flow_util
+from keras.utils import layer_utils
 from keras.utils import tf_contextlib
-from keras.utils import tf_inspect
 from keras.utils.generic_utils import LazyLoader
 
 import tensorflow.compat.v2 as tf
@@ -37,7 +37,8 @@ training_lib = LazyLoader(
 # pylint:enable=g-inconsistent-quotes
 
 
-def use_wrapped_call(layer, call_fn, default_training_value=None,
+def use_wrapped_call(layer, call_fn, call_spec,
+                     default_training_value=None,
                      return_method=False):
   """Creates fn that adds the losses returned by call_fn & returns the outputs.
 
@@ -45,6 +46,7 @@ def use_wrapped_call(layer, call_fn, default_training_value=None,
     layer: A Keras layer object
     call_fn: tf.function that takes layer inputs (and possibly a training arg),
       and returns a tuple of (outputs, list of losses).
+    call_spec: The `CallFunctionSpec` for the layer's call function.
     default_training_value: Default value of the training kwarg. If `None`, the
       default is `tf.keras.backend.learning_phase()`.
     return_method: Whether to return a method bound to the layer.
@@ -54,14 +56,10 @@ def use_wrapped_call(layer, call_fn, default_training_value=None,
     call_fn are added to the layer losses.
   """
   expects_training_arg = layer_uses_training_bool(layer)
-  if hasattr(call_fn, 'original_layer_call'):  # call_fn is a LayerCall object
-    original_call = call_fn.original_layer_call
-    # In Python 3, callable objects are not compatible with inspect.getargspec
-    call_fn = call_fn.__call__
-  else:
-    original_call = call_fn
+
   fn, arg_spec = maybe_add_training_arg(
-      original_call, call_fn, expects_training_arg, default_training_value)
+      call_spec,
+      call_fn, expects_training_arg, default_training_value)
 
   def return_outputs_and_add_losses(*args, **kwargs):
     """Returns the outputs from the layer call function, and adds the losses."""
@@ -130,14 +128,15 @@ def list_all_layers_and_sublayers(obj):
 
 
 def maybe_add_training_arg(
-    original_call, wrapped_call, expects_training_arg, default_training_value):
+    call_spec, wrapped_call, expects_training_arg,
+    default_training_value):
   """Decorate call and optionally adds training argument.
 
   If a layer expects a training argument, this function ensures that 'training'
   is present in the layer args or kwonly args, with the default training value.
 
   Args:
-    original_call: Original call function.
+    call_spec: CallFunctionSpec of the layer.
     wrapped_call: Wrapped call function.
     expects_training_arg: Whether to include 'training' argument.
     default_training_value: Default value of the training kwarg to include in
@@ -151,139 +150,58 @@ def maybe_add_training_arg(
   """
   if not expects_training_arg:
     return wrapped_call, None
+
+  arg_spec = set_training_arg_spec(call_spec.full_argspec,
+                                   default_training_value)
+  call_spec = layer_utils.CallFunctionSpec(arg_spec)
+
   def wrap_with_training_arg(*args, **kwargs):
     """Wrap the `wrapped_call` function, and set training argument."""
-    training_arg_index = get_training_arg_index(original_call)
-    training = get_training_arg(training_arg_index, args, kwargs)
+    try:
+      training = call_spec.get_arg_value('training', args, kwargs,
+                                         inputs_in_args=True)
+    except KeyError:
+      training = None
+
     if training is None:
-      training = default_training_value or backend.learning_phase()
+      training = (default_training_value or
+                  base_layer_utils.call_context().training or
+                  backend.learning_phase())
 
     args = list(args)
     kwargs = kwargs.copy()
 
     def replace_training_and_call(training):
-      set_training_arg(training, training_arg_index, args, kwargs)
-      return wrapped_call(*args, **kwargs)
+      new_args, new_kwargs = call_spec.set_arg_value('training', training, args, kwargs, inputs_in_args=True)
+      return wrapped_call(*new_args, **new_kwargs)
 
     return control_flow_util.smart_cond(
         training, lambda: replace_training_and_call(True),
         lambda: replace_training_and_call(False))
 
-  # Create arg spec for decorated function. If 'training' is not defined in the
-  # args of the original arg spec, then add it to kwonlyargs.
-  arg_spec = tf_inspect.getfullargspec(original_call)
-  defaults = list(arg_spec.defaults) if arg_spec.defaults is not None else []
+  return wrap_with_training_arg, arg_spec
 
-  kwonlyargs = arg_spec.kwonlyargs
-  kwonlydefaults = arg_spec.kwonlydefaults or {}
-  # Add training arg if it does not exist, or set the default training value.
-  if 'training' not in arg_spec.args:
-    kwonlyargs.append('training')
-    kwonlydefaults['training'] = default_training_value
-  else:
+
+def set_training_arg_spec(arg_spec, default_training_value):
+  """Set `training=DEFAULT` argument in an ArgSpec."""
+  if 'training' in arg_spec.args:
+    # If `training` is already in the args list, try to set the default value.
     index = arg_spec.args.index('training')
     training_default_index = len(arg_spec.args) - index
+    defaults = list(arg_spec.defaults) if arg_spec.defaults is not None else []
     if (arg_spec.defaults and
         len(arg_spec.defaults) >= training_default_index and
         defaults[-training_default_index] is None):
       defaults[-training_default_index] = default_training_value
+      return arg_spec._replace(defaults=defaults)
+  elif 'training' not in arg_spec.kwonlyargs:
+    kwonlyargs = arg_spec.kwonlyargs + ['training']
+    kwonlydefaults = copy.copy(arg_spec.kwonlydefaults) or {}
+    kwonlydefaults['training'] = default_training_value
+    return arg_spec._replace(kwonlyargs=kwonlyargs,
+                             kwonlydefaults=kwonlydefaults)
 
-  decorator_argspec = tf_inspect.FullArgSpec(
-      args=arg_spec.args,
-      varargs=arg_spec.varargs,
-      varkw=arg_spec.varkw,
-      defaults=defaults,
-      kwonlyargs=kwonlyargs,
-      kwonlydefaults=kwonlydefaults,
-      annotations=arg_spec.annotations)
-  return wrap_with_training_arg, decorator_argspec
-
-
-def get_training_arg_index(call_fn):
-  """Returns the index of 'training' in the layer call function arguments.
-
-  Args:
-    call_fn: Call function.
-
-  Returns:
-    - n: index of 'training' in the call function arguments.
-    - -1: if 'training' is not found in the arguments, but layer.call accepts
-          variable keyword arguments
-    - None: if layer doesn't expect a training argument.
-  """
-  argspec = tf_inspect.getfullargspec(call_fn)
-  if argspec.varargs:
-    # When there are variable args, training must be a keyword arg.
-    if 'training' in argspec.kwonlyargs or argspec.varkw:
-      return -1
-    return None
-  else:
-    # Try to find 'training' in the list of args or kwargs.
-    arg_list = argspec.args
-    if call_is_method(call_fn):
-      arg_list = arg_list[1:]
-
-    if 'training' in arg_list:
-      return arg_list.index('training')
-    elif 'training' in argspec.kwonlyargs or argspec.varkw:
-      return -1
-    return None
-
-
-def call_is_method(call_fn):
-  """Check if call_fn is a method regardless of pre/post-binding decoration.
-
-  E.g. decoration after instance creation/method binding
-  self.call = @tf.function(self.call).
-
-  Or decoration in the class definition before binding:
-  class Foo(Layer):
-    @decorator
-    def call(self, ...):
-      pass
-
-  Args:
-    call_fn: The fn to check
-
-  Returns:
-    True if the fn is a bound method, or a bound method that was decorated
-    after binding. Else False.
-  """
-  # tf_inspect checks if a call_fn is either an undecorated bound method,
-  # or a bound method that was decorated after the method was bound
-  # to an instance. E.g. in the case of
-  # self.call = @tf.function(self.call).
-  #
-  # _inspect checks if the method is bound, and returns true even if the method
-  # was decorated before binding occurred.
-  # e.g. this would happen in the case of
-  # class Foo(Layer):
-  #   @decorator
-  #   def call(self, ...):
-  #     pass
-  return tf_inspect.ismethod(call_fn) or _inspect.ismethod(call_fn)
-
-
-def set_training_arg(training, index, args, kwargs):
-  if index is None or index < 0 or len(args) <= index:  # index is invalid
-    kwargs['training'] = training
-  else:
-    args[index] = training
-  return args, kwargs
-
-
-def get_training_arg(index, args, kwargs):
-  if index is None or index < 0 or len(args) <= index:  # index is invalid
-    return kwargs.get('training', None)
-  else:
-    return args[index]
-
-
-def remove_training_arg(index, args, kwargs):
-  if index is None or index < 0 or len(args) <= index:  # index is invalid
-    kwargs.pop('training', None)
-  else:
-    args.pop(index)
+  return arg_spec
 
 
 class SaveOptionsContext(threading.local):

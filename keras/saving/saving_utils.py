@@ -124,7 +124,6 @@ def trace_model_call(model, input_signature=None):
     model_kwargs = {}
   else:
     model_args, model_kwargs = model_call_inputs(model)
-    input_signature = model_args  # store
 
     if model_args is None:
       raise_model_input_error(model)
@@ -132,7 +131,9 @@ def trace_model_call(model, input_signature=None):
   @tf.function
   def _wrapped_model(*args, **kwargs):
     """A concrete tf.function that wraps the model's call function."""
-    kwargs['training'] = False
+    args, kwargs = model._call_spec.set_arg_value(  # pylint: disable=protected-access
+        'training', False, args, kwargs, inputs_in_args=True)
+
     with base_layer_utils.call_context().enter(
         model, inputs=None, build_graph=False, training=False, saving=True):
       outputs = model(*args, **kwargs)

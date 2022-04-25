@@ -29,8 +29,10 @@ from keras.saving.saved_model import constants
 from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import utils
 from keras.saving.saved_model.serialized_attributes import CommonEndpoints
+from keras.utils import layer_utils
 from keras.utils import generic_utils
 from keras.utils import metrics_utils
+from keras.utils import tf_inspect
 from keras.utils.generic_utils import LazyLoader
 import tensorflow.compat.v1.logging as logging
 import tensorflow.compat.v2 as tf
@@ -810,7 +812,10 @@ def _finalize_saved_model_layers(layers):
     layer_call = getattr(
         _get_keras_attr(layer), 'call_and_return_conditional_losses', None)
     if layer_call and layer_call.concrete_functions:
-      layer.call = utils.use_wrapped_call(layer, layer_call, return_method=True)
+      call_spec = layer_utils.CallFunctionSpec(
+          tf_inspect.getfullargspec(layer_call))
+      layer.call = utils.use_wrapped_call(layer, layer_call, call_spec,
+                                          return_method=True)
       expects_training_arg = layer._serialized_attributes['metadata'][
           'expects_training_arg']
       if 'training' in layer_call.function_spec.arg_names:

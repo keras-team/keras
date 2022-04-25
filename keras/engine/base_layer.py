@@ -2956,7 +2956,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     return True
 
   def _init_call_fn_args(self, expects_training_arg=None):
-    self._call_spec = layer_utils.CallFunctionSpec(self.call)
+    self._call_spec = layer_utils.CallFunctionSpec(
+        tf_inspect.getfullargspec(self.call))
     if expects_training_arg is not None:
       self._call_spec.expects_training_arg = expects_training_arg
 

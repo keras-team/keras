@@ -31,8 +31,8 @@ from keras.saving.saved_model import constants
 from keras.saving.saved_model import load as keras_load
 from keras.saving.saved_model import serialized_attributes
 from keras.saving.saved_model import utils
+from keras.utils import layer_utils
 from keras.utils import tf_contextlib
-from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils import version_utils
 from keras.utils.generic_utils import LazyLoader
@@ -261,6 +261,7 @@ def _replace_child_layer_functions(layer, serialization_cache):
       child_layer.call = utils.use_wrapped_call(
           child_layer,
           serialized_fns['call_and_return_conditional_losses'],
+          child_layer._call_spec,
           default_training_value=False)
 
   def replace_metric_functions(child_layer, serialized_fns):
@@ -402,18 +403,26 @@ class LayerCallCollection:
 
     self.layer_call_method = _get_layer_call_method(layer)
     self._expects_training_arg = utils.layer_uses_training_bool(layer)
-    self._training_arg_index = utils.get_training_arg_index(
-        self.layer_call_method)
+    self._call_spec = layer._call_spec  # pylint: disable=protected-access
+
+    # Create new call spec if the layer itself does not accept a training arg,
+    # but one of its child layers does. When this layer's call functions are
+    # traced, they will be traced with an added `training` keyword argument.
+    if not self.layer._expects_training_arg and self._expects_training_arg:  # pylint: disable=protected-access
+      arg_spec = utils.set_training_arg_spec(self._call_spec.full_argspec,
+                                             False)
+      self._call_spec = layer_utils.CallFunctionSpec(arg_spec)
 
     self._layer_inputs = self._get_layer_inputs(layer)
     self._functions = weakref.WeakValueDictionary()
 
     # Get the input argument name from the args.
-    arg_spec = tf_inspect.getfullargspec(self.layer_call_method)
-    args = arg_spec.args
-    if utils.call_is_method(self.layer_call_method):
-      args = args[1:]
-    self._input_arg_name = args[0] if args else 'inputs'
+    if self._call_spec.arg_names:
+      self._input_arg_name = self._call_spec.arg_names[0]
+    else:
+      # Layer could be defined with only varargs, in which case use a default
+      # name.
+      self._input_arg_name = 'inputs'
 
   def _get_layer_inputs(self, layer):
     """Inspects layer object and returns the inferred input signature.
@@ -467,7 +476,9 @@ class LayerCallCollection:
       if self._expects_training_arg:
 
         def trace_with_training(value, fn=fn):
-          utils.set_training_arg(value, self._training_arg_index, args, kwargs)
+          nonlocal args, kwargs
+          args, kwargs = self._call_spec.set_arg_value(  # pylint: disable=protected-access
+              'training', value, args, kwargs, inputs_in_args=True)
           add_trace_to_queue(fn, args, kwargs, value)
 
         trace_with_training(True)
@@ -476,28 +487,24 @@ class LayerCallCollection:
         add_trace_to_queue(fn, args, kwargs)
 
   def training_arg_was_passed(self, args, kwargs):
-    if not self.layer._expects_training_arg and self._expects_training_arg:  # pylint: disable=protected-access
-      return (utils.get_training_arg(self._training_arg_index, args, kwargs)
-              is not None)
-    else:
-      return self.layer._call_spec.arg_was_passed(  # pylint: disable=protected-access
-          'training',
-          args,
-          kwargs,
-          inputs_in_args=True)
+    return self._call_spec.arg_was_passed(  # pylint: disable=protected-access
+        'training',
+        args,
+        kwargs,
+        inputs_in_args=True)
 
   def get_training_arg_value(self, args, kwargs):
-    if not self.layer._expects_training_arg and self._expects_training_arg:  # pylint: disable=protected-access
-      return utils.get_training_arg(self._training_arg_index, args, kwargs)
-    else:
-      return self.layer._call_spec.get_arg_value(  # pylint: disable=protected-access
+    try:
+      return self._call_spec.get_arg_value(  # pylint: disable=protected-access
           'training',
           args,
           kwargs,
           inputs_in_args=True)
+    except KeyError:  # Training is not in args or kwargs.
+      return None
 
   def get_input_arg_value(self, args, kwargs):
-    return self.layer._call_spec.get_arg_value(  # pylint: disable=protected-access
+    return self._call_spec.get_arg_value(  # pylint: disable=protected-access
         self._input_arg_name,
         args,
         kwargs,
@@ -506,25 +513,7 @@ class LayerCallCollection:
   def _maybe_wrap_with_training_arg(self, call_fn, match_layer_training_arg):
     """Wraps call function with added training argument if necessary."""
     if not self.layer._expects_training_arg and self._expects_training_arg:  # pylint: disable=protected-access
-      # Add training arg to wrapper function.
-      arg_spec = tf_inspect.getfullargspec(call_fn)
-      args = arg_spec.args + ['training']
-      defaults = list(arg_spec.defaults or [])
-      defaults.append(False)
-      new_arg_spec = tf_inspect.FullArgSpec(
-          args=args,
-          varargs=arg_spec.varargs,
-          varkw=arg_spec.varkw,
-          defaults=defaults,
-          kwonlyargs=arg_spec.kwonlyargs,
-          kwonlydefaults=arg_spec.kwonlydefaults,
-          annotations=arg_spec.annotations)
-
-      # Set new training arg index
-      self._training_arg_index = len(args) - 1
-      if utils.call_is_method(call_fn):
-        self._training_arg_index -= 1
-
+      # Add training arg to wrapper function.  # pylint: disable=protected-access
       def wrap_with_training_arg(*args, **kwargs):
         if match_layer_training_arg:
           # Remove the training value, since the original call_fn does not
@@ -532,13 +521,15 @@ class LayerCallCollection:
           # propagated using the call context created in LayerCall.
           args = list(args)
           kwargs = kwargs.copy()
-          utils.remove_training_arg(self._training_arg_index, args, kwargs)
+          args, kwargs = self._call_spec.set_arg_value(  # pylint: disable=protected-access
+              'training', None, args, kwargs, inputs_in_args=True,
+              pop_kwarg_if_none=True)
         return call_fn(*args, **kwargs)
 
       return tf.__internal__.decorator.make_decorator(
           target=call_fn,
           decorator_func=wrap_with_training_arg,
-          decorator_argspec=new_arg_spec)
+          decorator_argspec=self._call_spec.full_argspec)
 
     return call_fn
 
@@ -623,7 +614,6 @@ class LayerCall:
     self.call_collection = call_collection
     self.wrapped_call = tf.function(
         layer_call_wrapper(call_collection, call_fn, name))
-    self.original_layer_call = call_collection.layer_call_method
 
   def _maybe_trace(self, args, kwargs):
     # Trigger traces of other call functions + extra training-arg traces.
@@ -696,7 +686,7 @@ def _append_activity_regularizer_loss(layer, call_fn_with_losses,
 def _create_call_fn_decorator(layer, wrapped_call):
   call_fn = _get_layer_call_method(layer)
   fn, arg_spec = utils.maybe_add_training_arg(
-      call_fn,
+      layer._call_spec,  # pylint: disable=protected-access
       wrapped_call,
       layer._expects_training_arg,  # pylint: disable=protected-access
       default_training_value=False)
