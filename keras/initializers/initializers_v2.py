@@ -16,6 +16,7 @@
 # pylint: disable=g-classes-have-attributes, missing-docstring, g-direct-tensorflow-import
 
 import math
+
 from keras import backend
 from keras.dtensor import utils
 
@@ -300,7 +301,7 @@ class RandomUniform(Initializer):
       shape = kwargs[_PARTITION_SHAPE]
     layout = kwargs.pop('layout', None)
     if layout:
-      self._random_generator._force_generator = True
+      self._random_generator._rng_type = self._random_generator.RNG_STATEFUL
       _ensure_keras_seeded()
       return utils.call_with_layout(
           self._random_generator.random_uniform, layout, shape, self.minval,
@@ -370,7 +371,7 @@ class RandomNormal(Initializer):
       shape = kwargs[_PARTITION_SHAPE]
     layout = kwargs.pop('layout', None)
     if layout:
-      self._random_generator._force_generator = True
+      self._random_generator._rng_type = self._random_generator.RNG_STATEFUL
       _ensure_keras_seeded()
       return utils.call_with_layout(
           self._random_generator.random_normal, layout, shape, self.mean,
@@ -445,7 +446,7 @@ class TruncatedNormal(Initializer):
       shape = kwargs[_PARTITION_SHAPE]
     layout = kwargs.pop('layout', None)
     if layout:
-      self._random_generator._force_generator = True
+      self._random_generator._rng_type = self._random_generator.RNG_STATEFUL
       _ensure_keras_seeded()
       return utils.call_with_layout(
           self._random_generator.truncated_normal, layout, shape, self.mean,
@@ -551,7 +552,7 @@ class VarianceScaling(Initializer):
       shape = kwargs[_PARTITION_SHAPE]
     layout = kwargs.pop('layout', None)
     if layout:
-      self._random_generator._force_generator = True
+      self._random_generator._rng_type = self._random_generator.RNG_STATEFUL
       _ensure_keras_seeded()
       return utils.call_with_layout(self._generate_init_val, layout,
                                     shape=shape, dtype=dtype)
@@ -652,7 +653,7 @@ class Orthogonal(Initializer):
                        f'shape={shape} of rank {len(shape)}.')
     layout = kwargs.pop('layout', None)
     if layout:
-      self._random_generator._force_generator = True
+      self._random_generator._rng_type = self._random_generator.RNG_STATEFUL
       _ensure_keras_seeded()
       return utils.call_with_layout(
           self._generate_init_val, layout, shape=shape, dtype=dtype)

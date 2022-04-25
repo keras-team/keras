@@ -54,8 +54,7 @@ class DropoutTest(test_combinations.TestCase):
 
   def test_dropout_with_savemodel(self):
     inputs = keras.Input(shape=(5, 10))
-    layer = keras.layers.Dropout(0.5)
-    layer._random_generator._force_generator = True
+    layer = keras.layers.Dropout(0.5, force_generator=True)
     outputs = layer(inputs)
     model = keras.Model(inputs, outputs)
     train = model(np.ones((20, 5, 10)), training=True)
