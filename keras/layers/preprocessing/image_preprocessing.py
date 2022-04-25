@@ -672,7 +672,6 @@ class RandomFlip(BaseImageAugmentationLayer):
     else:
       raise ValueError('RandomFlip layer {name} received an unknown mode '
                        'argument {arg}'.format(name=self.name, arg=mode))
-    self.seed = seed
     self.auto_vectorize = False
 
   def augment_label(self, label, transformation):
@@ -680,24 +679,45 @@ class RandomFlip(BaseImageAugmentationLayer):
 
   def augment_image(self, image, transformation):
     flipped_outputs = image
-    if self.horizontal:
-      seed = self._random_generator.make_seed_for_stateless_op()
-      if seed is not None:
-        flipped_outputs = tf.image.stateless_random_flip_left_right(
-            flipped_outputs, seed=seed)
-      else:
-        flipped_outputs = tf.image.random_flip_left_right(
-            flipped_outputs, self._random_generator.make_legacy_seed())
-    if self.vertical:
-      seed = self._random_generator.make_seed_for_stateless_op()
-      if seed is not None:
-        flipped_outputs = tf.image.stateless_random_flip_up_down(
-            flipped_outputs, seed=seed)
-      else:
-        flipped_outputs = tf.image.random_flip_up_down(
-            flipped_outputs, self._random_generator.make_legacy_seed())
+    if self.horizontal and transformation['flip_horizontal']:
+      flipped_outputs = tf.image.flip_left_right(flipped_outputs)
+    if self.vertical and transformation['flip_vertical']:
+      flipped_outputs = tf.image.flip_up_down(flipped_outputs)
     flipped_outputs.set_shape(image.shape)
     return flipped_outputs
+
+  def get_random_transformation(self,
+                                image=None,
+                                label=None,
+                                bounding_box=None):
+    flip_horizontal = False
+    flip_vertical = False
+    if self.horizontal:
+      flip_horizontal = np.random.choice([True, False])
+    if self.vertical:
+      flip_vertical = np.random.choice([True, False])
+    return {'flip_horizontal': flip_horizontal, 'flip_vertical': flip_vertical}
+
+  def augment_bounding_boxes(self, image, bounding_boxes, transformation=None):
+    transformation = transformation or self.get_random_transformation()
+    image = tf.expand_dims(image, 0)
+    image_shape = tf.shape(image)
+    h = image_shape[H_AXIS]
+    w = image_shape[W_AXIS]
+    bboxes_out = tf.identity(bounding_boxes)
+    if transformation['flip_horizontal']:
+      bboxes_out = tf.stack([
+          w - bboxes_out[:, 2], bboxes_out[:, 1], w - bboxes_out[:, 0],
+          bboxes_out[:, 3]
+      ],
+                            axis=-1)
+    if transformation['flip_vertical']:
+      bboxes_out = tf.stack([
+          bboxes_out[:, 0], h - bboxes_out[:, 3], bboxes_out[:, 2],
+          h - bboxes_out[:, 1]
+      ],
+                            axis=-1)
+    return bboxes_out
 
   def compute_output_shape(self, input_shape):
     return input_shape
@@ -705,7 +725,6 @@ class RandomFlip(BaseImageAugmentationLayer):
   def get_config(self):
     config = {
         'mode': self.mode,
-        'seed': self.seed,
     }
     base_config = super(RandomFlip, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
