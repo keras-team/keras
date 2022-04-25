@@ -150,16 +150,12 @@ def audio_dataset_from_directory(
 
   if sampling_rate is not None:
     if not isinstance(sampling_rate, int):
-      raise ValueError(
-          '`sampling_rate` should have an integer value. '
-          'Received: sampling_rate={sampling_rate}'
-      )
+      raise ValueError('`sampling_rate` should have an integer value. '
+                       f'Received: sampling_rate={sampling_rate}')
 
     if sampling_rate <= 0:
-      raise ValueError(
-          f'`sampling_rate` should be higher than 0. '
-          'Received: sampling_rate={sampling_rate}'
-      )
+      raise ValueError(f'`sampling_rate` should be higher than 0. '
+                       f'Received: sampling_rate={sampling_rate}')
 
     if tfio is None:
       raise ImportError(

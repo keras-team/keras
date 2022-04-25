@@ -113,7 +113,7 @@ class LayoutMap(collections.abc.MutableMapping):
                        'not use duplicated keys.')
     if not isinstance(layout, dtensor.Layout):
       raise ValueError(f'{layout} should be a dtensor.Layout type, '
-                       'got {type(layout)}')
+                       f'got {type(layout)}')
 
     self._layout_map[key] = layout
 
@@ -435,8 +435,8 @@ def _set_object_by_path(object_to_set, path, value):
     if i == len(path) - 1:
       # We found the actual attribute to set
       if isinstance(attr_name, int):
-      # This means we are trying to set an element in the array, make sure the
-      # instance is array like object.
+        # This means we are trying to set an element in the array, make sure the
+        # instance is array like object.
         object_to_set[attr_name] = value
       else:
         setattr(object_to_set, attr_name, value)
