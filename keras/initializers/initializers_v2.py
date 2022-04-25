@@ -16,6 +16,8 @@
 # pylint: disable=g-classes-have-attributes, missing-docstring, g-direct-tensorflow-import
 
 import math
+import warnings
+
 from keras import backend
 from keras.dtensor import utils
 
@@ -111,6 +113,14 @@ class Initializer:
     config.pop('dtype', None)
     return cls(**config)
 
+  def _warn_reuse(self):
+    if getattr(self, '_used', False):
+      if self.seed is None:
+        warnings.warn('This initializer has been called multiple times, which '
+                      'produce idential value even when unseeded. Please '
+                      'update your code to not sharing initializers.')
+    else:
+      self._used = True
 
 @keras_export('keras.initializers.Zeros', 'keras.initializers.zeros', v1=[])
 class Zeros(Initializer):
@@ -278,7 +288,7 @@ class RandomUniform(Initializer):
     self.minval = minval
     self.maxval = maxval
     self.seed = seed
-    self._random_generator = backend.RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed, force_stateless=True)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized as specified by the initializer.
@@ -293,6 +303,7 @@ class RandomUniform(Initializer):
       **kwargs: Additional keyword arguments.
     """
     _validate_kwargs(self.__class__.__name__, kwargs)
+    self._warn_reuse()
     dtype = _get_dtype(dtype)
     if not dtype.is_floating and not dtype.is_integer:
       raise ValueError(f'Expected float or integer dtype, got {dtype}.')
@@ -351,7 +362,7 @@ class RandomNormal(Initializer):
     self.mean = mean
     self.stddev = stddev
     self.seed = seed
-    self._random_generator = backend.RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed, force_stateless=True)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to random normal values.
@@ -365,6 +376,7 @@ class RandomNormal(Initializer):
       **kwargs: Additional keyword arguments.
     """
     _validate_kwargs(self.__class__.__name__, kwargs)
+    self._warn_reuse()
     dtype = _assert_float_dtype(_get_dtype(dtype))
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
@@ -426,7 +438,7 @@ class TruncatedNormal(Initializer):
     self.mean = mean
     self.stddev = stddev
     self.seed = seed
-    self._random_generator = backend.RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed, force_stateless=True)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to random normal values (truncated).
@@ -440,6 +452,7 @@ class TruncatedNormal(Initializer):
       **kwargs: Additional keyword arguments.
     """
     _validate_kwargs(self.__class__.__name__, kwargs)
+    self._warn_reuse()
     dtype = _assert_float_dtype(_get_dtype(dtype))
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
@@ -532,7 +545,7 @@ class VarianceScaling(Initializer):
     self.mode = mode
     self.distribution = distribution
     self.seed = seed
-    self._random_generator = backend.RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed, force_stateless=True)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized as specified by the initializer.
@@ -546,6 +559,7 @@ class VarianceScaling(Initializer):
       **kwargs: Additional keyword arguments.
     """
     _validate_kwargs(self.__class__.__name__, kwargs)
+    self._warn_reuse()
     dtype = _assert_float_dtype(_get_dtype(dtype))
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
@@ -630,7 +644,7 @@ class Orthogonal(Initializer):
   def __init__(self, gain=1.0, seed=None):
     self.gain = gain
     self.seed = seed
-    self._random_generator = backend.RandomGenerator(seed)
+    self._random_generator = backend.RandomGenerator(seed, force_stateless=True)
 
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to an orthogonal matrix.
@@ -644,6 +658,7 @@ class Orthogonal(Initializer):
       **kwargs: Additional keyword arguments.
     """
     _validate_kwargs(self.__class__.__name__, kwargs, support_partition=False)
+    self._warn_reuse()
     dtype = _assert_float_dtype(_get_dtype(dtype))
     # Check the shape
     if len(shape) < 2:

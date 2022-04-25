@@ -14,9 +14,9 @@
 # ==============================================================================
 """Tests for Keras initializers."""
 
-import tensorflow.compat.v2 as tf
+import warnings
 
-import numpy as np
+from absl.testing import parameterized
 
 from keras import backend
 from keras.testing_infra import test_combinations
@@ -25,6 +25,23 @@ from keras import models
 from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.layers import core
+
+import tensorflow.compat.v2 as tf
+
+
+RANDOM_INITIALIZERS = [
+    initializers.RandomUniformV2,
+    initializers.RandomNormalV2,
+    initializers.OrthogonalV2,
+    initializers.TruncatedNormalV2,
+    initializers.VarianceScalingV2,
+    initializers.LecunUniformV2,
+    initializers.LecunNormalV2,
+    initializers.GlorotUniformV2,
+    initializers.GlorotNormalV2,
+    initializers.HeNormalV2,
+    initializers.HeUniformV2,
+]
 
 
 def _compute_fans(shape):
@@ -55,10 +72,9 @@ def _compute_fans(shape):
 
 
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
-class KerasInitializersTest(tf.test.TestCase):
+class KerasInitializersTest(tf.test.TestCase, parameterized.TestCase):
 
-  def _runner(self, init, shape, target_mean=None, target_std=None,
-              target_max=None, target_min=None):
+  def _runner(self, init, shape):
     # The global seed is set so that we can get the same random streams between
     # eager and graph mode when stateful op is used.
     tf.random.set_seed(1337)
@@ -78,111 +94,77 @@ class KerasInitializersTest(tf.test.TestCase):
     with self.cached_session():
       self._runner(
           initializers.RandomUniformV2(minval=-1, maxval=1, seed=124),
-          tensor_shape,
-          target_mean=0.,
-          target_max=1,
-          target_min=-1)
+          tensor_shape)
 
   def test_normal(self):
     tensor_shape = (8, 12, 99)
     with self.cached_session():
       self._runner(
           initializers.RandomNormalV2(mean=0, stddev=1, seed=153),
-          tensor_shape,
-          target_mean=0.,
-          target_std=1)
+          tensor_shape)
 
   def test_truncated_normal(self):
     tensor_shape = (12, 99, 7)
     with self.cached_session():
       self._runner(
           initializers.TruncatedNormalV2(mean=0, stddev=1, seed=126),
-          tensor_shape,
-          target_mean=0.,
-          target_max=2,
-          target_min=-2)
+          tensor_shape)
 
   def test_constant(self):
     tensor_shape = (5, 6, 4)
     with self.cached_session():
       self._runner(
           initializers.ConstantV2(2.),
-          tensor_shape,
-          target_mean=2,
-          target_max=2,
-          target_min=2)
+          tensor_shape)
 
   def test_lecun_uniform(self):
     tensor_shape = (5, 6, 4, 2)
     with self.cached_session():
       fan_in, _ = _compute_fans(tensor_shape)
-      std = np.sqrt(1. / fan_in)
       self._runner(
           initializers.LecunUniformV2(seed=123),
-          tensor_shape,
-          target_mean=0.,
-          target_std=std)
+          tensor_shape)
 
   def test_glorot_uniform(self):
     tensor_shape = (5, 6, 4, 2)
     with self.cached_session():
-      fan_in, fan_out = _compute_fans(tensor_shape)
-      std = np.sqrt(2. / (fan_in + fan_out))
       self._runner(
           initializers.GlorotUniformV2(seed=123),
-          tensor_shape,
-          target_mean=0.,
-          target_std=std)
+          tensor_shape)
 
   def test_he_uniform(self):
     tensor_shape = (5, 6, 4, 2)
     with self.cached_session():
-      fan_in, _ = _compute_fans(tensor_shape)
-      std = np.sqrt(2. / fan_in)
       self._runner(
           initializers.HeUniformV2(seed=123),
-          tensor_shape,
-          target_mean=0.,
-          target_std=std)
+          tensor_shape)
 
   def test_lecun_normal(self):
     tensor_shape = (5, 6, 4, 2)
     with self.cached_session():
-      fan_in, _ = _compute_fans(tensor_shape)
-      std = np.sqrt(1. / fan_in)
       self._runner(
           initializers.LecunNormalV2(seed=123),
-          tensor_shape,
-          target_mean=0.,
-          target_std=std)
+          tensor_shape)
 
   def test_glorot_normal(self):
     tensor_shape = (5, 6, 4, 2)
     with self.cached_session():
-      fan_in, fan_out = _compute_fans(tensor_shape)
-      std = np.sqrt(2. / (fan_in + fan_out))
       self._runner(
           initializers.GlorotNormalV2(seed=123),
-          tensor_shape,
-          target_mean=0.,
-          target_std=std)
+          tensor_shape)
 
   def test_he_normal(self):
     tensor_shape = (5, 6, 4, 2)
     with self.cached_session():
-      fan_in, _ = _compute_fans(tensor_shape)
-      std = np.sqrt(2. / fan_in)
       self._runner(
           initializers.HeNormalV2(seed=123),
-          tensor_shape,
-          target_mean=0.,
-          target_std=std)
+          tensor_shape)
 
   def test_orthogonal(self):
     tensor_shape = (20, 20)
     with self.cached_session():
       self._runner(
-          initializers.OrthogonalV2(seed=123), tensor_shape, target_mean=0.)
+          initializers.OrthogonalV2(seed=123), tensor_shape)
 
   def test_identity(self):
     with self.cached_session():
@@ -190,28 +172,24 @@ class KerasInitializersTest(tf.test.TestCase):
       with self.assertRaises(ValueError):
         self._runner(
             initializers.IdentityV2(),
-            tensor_shape,
-            target_mean=1. / tensor_shape[0],
-            target_max=1.)
+            tensor_shape)
 
       tensor_shape = (3, 3)
       self._runner(
           initializers.IdentityV2(),
-          tensor_shape,
-          target_mean=1. / tensor_shape[0],
-          target_max=1.)
+          tensor_shape)
 
   def test_zero(self):
     tensor_shape = (4, 5)
     with self.cached_session():
       self._runner(
-          initializers.ZerosV2(), tensor_shape, target_mean=0., target_max=0.)
+          initializers.ZerosV2(), tensor_shape)
 
   def test_one(self):
     tensor_shape = (4, 5)
     with self.cached_session():
       self._runner(
-          initializers.OnesV2(), tensor_shape, target_mean=1., target_max=1.)
+          initializers.OnesV2(), tensor_shape)
 
   def test_default_random_uniform(self):
     ru = initializers.get('uniform')
@@ -281,6 +259,46 @@ class KerasInitializersTest(tf.test.TestCase):
             "initializer doesn't support partition-related arguments"):
           initializer(
               shape=(4, 2), partition_shape=(2, 2), partition_offset=(0, 0))
+
+  @parameterized.parameters(RANDOM_INITIALIZERS)
+  def test_stateless(self, initializer_cl):
+    with self.cached_session():
+      initializer = initializer_cl()
+      output1 = initializer(shape=[2, 3])
+      output2 = initializer(shape=[2, 3])
+      initializer2 = initializer_cl()
+      output3 = initializer2(shape=[2, 3])
+      output4 = initializer2(shape=[2, 3])
+
+      self.assertAllClose(output1, output2)
+      self.assertAllClose(output3, output4)
+      self.assertNotAllClose(output1, output3)
+
+      with warnings.catch_warnings(record=True) as w:
+        initializer(shape=[2, 3])
+        self.assertLen(w, 1)
+        self.assertIn('This initializer has been called multiple times',
+                      str(w[0].message))
+
+  @parameterized.parameters(RANDOM_INITIALIZERS)
+  def test_seed_stateless(self, initializer_cl):
+    with self.cached_session():
+      seed = 1337
+      initializer = initializer_cl(seed=seed)
+      output1 = initializer(shape=[2, 3])
+      output2 = initializer(shape=[2, 3])
+      initializer2 = initializer_cl(seed=seed)
+      output3 = initializer2(shape=[2, 3])
+      output4 = initializer2(shape=[2, 3])
+
+      self.assertAllClose(output1, output2)
+      self.assertAllClose(output3, output4)
+      self.assertAllClose(output1, output3)
+
+      # We don't raise warning for seeded initializer.
+      with warnings.catch_warnings(record=True) as w:
+        initializer(shape=[2, 3])
+        self.assertEmpty(w)
 
 
 if __name__ == '__main__':
