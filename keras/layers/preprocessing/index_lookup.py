@@ -349,7 +349,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     Returns:
       The integer size of the voculary, including optional mask and oov indices.
     """
-    return int(self.lookup_table.size().numpy()) + self._token_start_index()
+    return self.lookup_table.size() + self._token_start_index()
 
   def vocab_size(self):
     logging.warning("vocab_size is deprecated, please use vocabulary_size.")
