@@ -18,10 +18,10 @@
 import copy
 import functools
 import weakref
+import re
 
 from keras.utils import io_utils
 from keras.utils import tf_inspect
-from keras.utils.vis_utils import get_layer_index_bound_by_layer_name
 import numpy as np
 
 import tensorflow.compat.v2 as tf
@@ -117,6 +117,32 @@ def count_params(weights):
   return int(sum(np.prod(p) for p in standardized_weight_shapes))
 
 
+def get_layer_index_bound_by_layer_name(model, layer_names):
+  """Return specific range of layers to plot, mainly for sub-graph plot models.
+
+  Args:
+    model: tf.keras.Model
+    layer_names: unique name of layer of the model, type(str)
+
+  Returns:
+    return the index value of layer based on its unique name (layer_names)
+  """
+  lower_index = []
+  upper_index = []
+  for idx, layer in enumerate(model.layers):
+    if re.match(layer_names[0], layer.name):
+      lower_index.append(idx)
+    if re.match(layer_names[1], layer.name):
+      upper_index.append(idx)
+  if not lower_index or not upper_index:
+    raise ValueError(
+        'Passed layer_names does not match to layers in the model. '
+        f'Recieved: {layer_names}')
+  if min(lower_index) > max(upper_index):
+    return [min(upper_index), max(lower_index)]
+  return [min(lower_index), max(upper_index)]
+
+
 def print_summary(model,
                   line_length=None,
                   positions=None,
@@ -142,7 +168,7 @@ def print_summary(model,
           If not provided, defaults to `False`.
       show_trainable: Whether to show if a layer is trainable.
           If not provided, defaults to `False`.
-      layer_range: input of type`list` containing two `str` items, which is the
+      layer_range: input of type `list` containing two `str` items, which is the
         starting layer name and ending layer name (both inclusive) indicating
         the range of layers to be printed in summary. It
         also accepts regex patterns instead of exact name. In such case, start
@@ -220,7 +246,8 @@ def print_summary(model,
       raise ValueError(
           'layer_range should contain string type only. '
           f'Received: {layer_range}')
-    layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
+    layer_range = get_layer_index_bound_by_layer_name(
+    	model, layer_range)
     if layer_range[0] < 0 or layer_range[1] > len(model.layers):
       raise ValueError('Both values in layer_range should be in range (0, '
                        f'{len(model.layers)}. Received: {layer_range}')
@@ -360,7 +387,7 @@ def print_summary(model,
 
   layers = model.layers
   for i, layer in enumerate(layers):
-    if (layer_range) and (i < layer_range[0] or i > layer_range[1]):
+    if layer_range and (i < layer_range[0] or i > layer_range[1]):
       continue
     print_layer(layer)
   print_fn('=' * line_length)

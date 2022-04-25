@@ -21,6 +21,7 @@ from absl.testing import parameterized
 import keras
 from keras.applications import efficientnet
 from keras.utils import vis_utils
+from keras.utils import layer_utils
 
 
 class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
@@ -220,7 +221,7 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
 
 
 def get_layer_ids_from_model(model, layer_range):
-  layer_range = vis_utils.get_layer_index_bound_by_layer_name(
+  layer_range = layer_utils.get_layer_index_bound_by_layer_name(
       model, layer_range)
   layer_ids_from_model = []
   for i, layer in enumerate(model.layers):

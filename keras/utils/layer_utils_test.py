@@ -262,23 +262,32 @@ class LayerUtilsTest(tf.test.TestCase):
       reader.close()
       check_str = (
           'Model: '
-          '"trainable"\n____________________________________________________________________________\n'
+          '"trainable"\n'
+          '___________________________________________________________________'
+          '_________\n'
           ' Layer (type)                Output Shape              Param #   '
-          'Trainable  '
-          '\n============================================================================\n'
-          ' conv (Conv2D)               (None, 2, 3, 2)           62        N'
-          '          \n'
-          '                                                                            '
+          'Trainable  \n'
+          '==================================================================='
+          '=========\n'
+          ' conv (Conv2D)               (None, 2, 3, 2)           62        N '
+          '         \n'
+          '                                                                   '
+          '         '
           '\n flat (Flatten)              (None, 12)                0         '
           'Y          \n'
-          '                                                                            '
-          '\n dense (Dense)               (None, 5)                 65        '
-          'Y          \n'
-          '                                                                            '
-          '\n============================================================================\nTotal'
-          ' params: 127\nTrainable params: 65\nNon-trainable params: '
-          '62\n____________________________________________________________________________\n'
-          '____________________________________________________________________________\n'
+          '                                                                   '
+          '         \n'
+          ' dense (Dense)               (None, 5)                 65        Y '
+          '         \n'
+          '                                                                   '
+          '         \n'
+          '================================================================='
+          '===========\n'
+          'Total params: 127\nTrainable params: 65\nNon-trainable params: 62\n'
+          '___________________________________________________________________'
+          '_________\n'
+          '___________________________________________________________________'
+          '_________\n'
       )
 
       fin_str = ''
@@ -330,35 +339,52 @@ class LayerUtilsTest(tf.test.TestCase):
       reader.close()
       check_str = (
           'Model: '
-          '"model_2"\n____________________________________________________________________________\n'
+          '"model_2"\n'
+          '___________________________________________________________________'
+          '_________\n'
           ' Layer (type)                Output Shape              Param #   '
-          'Trainable  '
-          '\n============================================================================\n'
-          ' input3 (InputLayer)         [(None, None, None, 3)]   0         Y'
-          '          \n'
-          '                                                                            '
-          '\n model_1 (Functional)        (None, None, None, 3)     24        '
-          'Y          '
-          '\n|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n|'
-          ' input1 (InputLayer)       [(None, None, None, 3)]   0         Y'
-          '          |\n|'
-          '                                                                          '
-          '|\n| model (Functional)        (None, None, None, 3)     24        '
-          'Y          '
-          '|\n||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n||'
-          ' input2 (InputLayer)     [(None, None, None, 3)]   0         Y'
-          '          ||\n||'
-          '                                                                        '
-          '||\n|| conv2d (Conv2D)         (None, None, None, 3)     12        '
-          'N          ||\n||'
-          '                                                                        '
-          '||\n|| batch_normalization (BatchN  (None, None, None, 3)  12      '
-          'Y          ||\n|| ormalization)'
-          '                                                          '
-          '||\n|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n============================================================================\nTotal'
-          ' params: 24\nTrainable params: 6\nNon-trainable params: '
-          '18\n____________________________________________________________________________\n'
-          '____________________________________________________________________________\n'
+          'Trainable  \n'
+          '==================================================================='
+          '=========\n'
+          ' input3 (InputLayer)         [(None, None, None, 3)]   0         Y '
+          '         \n'
+          '                                                                   '
+          '         \n'
+          ' model_1 (Functional)        (None, None, None, 3)     24        Y '
+          '         \n'
+          '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯'
+          '¯¯¯¯¯¯¯¯|\n'
+          '| input1 (InputLayer)       [(None, None, None, 3)]   0         Y  '
+          '        |\n'
+          '|                                                                  '
+          '        |\n'
+          '| model (Functional)        (None, None, None, 3)     24        Y  '
+          '        |\n'
+          '||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯'
+          '¯¯¯¯¯¯¯||\n'
+          '|| input2 (InputLayer)     [(None, None, None, 3)]   0         Y   '
+          '       ||\n'
+          '||                                                                 '
+          '       ||\n'
+          '|| conv2d (Conv2D)         (None, None, None, 3)     12        N   '
+          '       ||\n'
+          '||                                                                 '
+          '       ||\n'
+          '|| batch_normalization (BatchN  (None, None, None, 3)  12      Y   '
+          '       ||\n'
+          '|| ormalization)                                                   '
+          '       ||\n'
+          '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯'
+          '¯¯¯¯¯¯¯¯|\n'
+          '¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯'
+          '¯¯¯¯¯¯¯¯¯\n'
+          '==================================================================='
+          '=========\n'
+          'Total params: 24\nTrainable params: 6\nNon-trainable params: 18\n'
+          '___________________________________________________________________'
+          '_________\n'
+          '___________________________________________________________________'
+          '_________\n'
       )
 
       fin_str = ''
@@ -388,13 +414,16 @@ class LayerUtilsTest(tf.test.TestCase):
       print(text, file=writer)
 
     try:
-      layer_utils.print_summary(model, print_fn=print_to_file, layer_range=["conv", "flat"])
+      layer_utils.print_summary(
+          model, print_fn=print_to_file, layer_range=["conv", "flat"])
       self.assertTrue(tf.io.gfile.exists(fpath))
       writer.close()
       reader = open(fpath, 'r')
       lines = reader.readlines()
       reader.close()
-      self.assertEqual(len(lines), 13)
+      #The expected lenght with no layer filter is 15
+      #we filtered out 2 lines by excluding the layer 'dense'
+      self.assertEqual(len(lines), 15-2)
     except ImportError:
       pass
 
@@ -458,13 +487,12 @@ class LayerUtilsTest(tf.test.TestCase):
           'Trainable params: 18\n'
           'Non-trainable params: 6\n'
           '_________________________________________________________________\n')
+      
+      check_lines = check_str.split("\n")[:-1] #Removing final empty string which is not a line
 
-      fin_str = ''
-      for line in lines:
-        fin_str += line
-      print(fin_str)
+      fin_str = ''.join(lines)
       self.assertIn(fin_str, check_str)
-      self.assertEqual(len(lines), 23)
+      self.assertEqual(len(lines), len(check_lines))
     except ImportError:
       pass
 
