@@ -3013,23 +3013,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     if self._saved_model_inputs_spec is not None:
       return  # Already set.
-    args = args or []
-    kwargs = kwargs or {}
 
     inputs_spec = tf.nest.map_structure(tf_utils.get_tensor_spec, inputs)
-
-    # Filter out non-tensor arguments from args and kwargs.
-    args_spec = []
-    for arg in args:
-      flat_arg = tf.nest.flatten(arg)
-      flat_specs = [tf_utils.get_tensor_spec(x) for x in flat_arg]
-      if any(s is None for s in flat_specs):
-        break  # Stop recording positional args once a non-tensor has been found
-      args_spec.append(tf.nest.pack_sequence_as(arg, flat_specs))
+    args_spec  = tf.nest.map_structure(tf_utils.get_tensor_spec, args or [])
     kwargs_spec = {}
+    # Filter out non-tensor arguments from kwargs.
     for key, kwarg in kwargs.items():
-      if key == 'training':
-        continue
       flat_kwarg = tf.nest.flatten(kwarg)
       flat_specs = [tf_utils.get_tensor_spec(x) for x in flat_kwarg]
       if any(s is None for s in flat_specs):
@@ -3037,7 +3026,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       kwargs_spec[key] = tf.nest.pack_sequence_as(kwarg, flat_specs)
 
     self._saved_model_inputs_spec = inputs_spec
-    self._saved_model_arg_spec = ([inputs_spec] + args_spec, kwargs_spec)
+    self._saved_model_arg_spec = ([inputs_spec] + list(args_spec), kwargs_spec)
 
   def _get_save_spec(self, dynamic_batch=True, inputs_only=True):
     if self._saved_model_inputs_spec is None:

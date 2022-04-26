@@ -941,6 +941,28 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
     self.assertAllEqual(self.evaluate(expected),
                         self.evaluate(actual))
 
+  def testSaveMultipleInputsWithTraining(self):
+
+    class CustomModel(keras.Model):
+      def call(self, input_1, training, input_2):
+        if training:
+          return input_1
+        else:
+          return input_2
+
+    inp1 = tf.constant(1., shape=[1])
+    inp2 = tf.constant(2., shape=[1])
+
+    model = CustomModel()
+    self.assertEqual(self.evaluate(model(inp1, True, inp2)), 1.)
+    self.assertEqual(self.evaluate(model(inp1, False, inp2)), 2.)
+
+    saved_model_dir = self._save_model_dir()
+    model.save(saved_model_dir, save_format='tf')
+    loaded = keras_load.load(saved_model_dir)
+    self.assertEqual(self.evaluate(loaded(inp1, True, inp2)), 1.)
+    self.assertEqual(self.evaluate(loaded(inp1, False, inp2)), 2.)
+
   def test_wrapped_layer_training(self):
     class Custom(keras.models.Model):
 

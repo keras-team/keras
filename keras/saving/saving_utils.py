@@ -299,7 +299,7 @@ def _enforce_names_consistency(specs):
   """Enforces that either all specs have names or none do."""
 
   def _has_name(spec):
-    return hasattr(spec, 'name') and spec.name is not None
+    return spec is None or (hasattr(spec, 'name') and spec.name is not None)
 
   def _clear_name(spec):
     spec = copy.deepcopy(spec)
