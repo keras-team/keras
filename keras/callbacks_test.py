@@ -44,6 +44,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import io_utils
 from keras.utils import np_utils
+from keras.utils import tf_utils
 
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
@@ -1950,7 +1951,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
 
     def test_ReduceLROnPlateau(self):
         with self.cached_session():
-            np.random.seed(1337)
+            tf_utils.set_random_seed(1337)
             (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
                 train_samples=TRAIN_SAMPLES,
                 test_samples=TEST_SAMPLES,
@@ -1961,8 +1962,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
             y_train = np_utils.to_categorical(y_train)
 
             def make_model():
-                tf.compat.v1.set_random_seed(1234)
-                np.random.seed(1337)
+                tf_utils.set_random_seed(1337)
                 model = test_utils.get_small_sequential_mlp(
                     num_hidden=NUM_HIDDEN,
                     num_classes=NUM_CLASSES,
