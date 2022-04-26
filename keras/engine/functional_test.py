@@ -488,6 +488,24 @@ class NetworkConstructionTest(test_combinations.TestCase):
     self.assertEqual(['out', 'out_1'], model.output_names)
     self.assertAllClose([2., 3.], model(1.))
 
+    model = models.Model(inputs=inp, outputs={"first": out[0], "second": out[1]})
+    self.assertEqual(["first", "second"], model.output_names)
+    self.assertAllClose({"first": 2., "second": 3.}, model(1.))
+
+    model = models.Model(inputs=inp, outputs={"name": out})
+    self.assertEqual(["name", "name_1"], model.output_names)
+    self.assertAllClose({"name": (2., 3.)}, model(1.))
+
+    model = models.Model(inputs=inp, outputs={
+      "first": {"other": out[0], "another": out[1]},
+      "second": out
+    })
+    self.assertEqual(["first", "first_1", "second", "second_1"], model.output_names)
+    self.assertAllClose(
+      {"first": {"other": 2., "another": 3.}, "second": (2., 3.)},
+      model(1.)
+    )
+
   def test_recursion(self):
     with tf.Graph().as_default(), self.cached_session():
       a = layers.Input(shape=(32,), name='input_a')

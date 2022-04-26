@@ -364,19 +364,30 @@ class Functional(training_lib.Model):
     """Assigns unique names to the Network's outputs.
 
     Output layers with multiple output tensors would otherwise lead to duplicate
-    names in self.output_names.
+    names in self.output_names. If outputs are in dictionary style the
+    provided top level keys are used as output names, otherwise the output layer
+    names are used.
     """
-    uniquified = []
-    output_names = set()
-    prefix_count = {}
-    for layer in self._output_layers:
-      proposal = layer.name
-      while proposal in output_names:
-        existing_count = prefix_count.get(layer.name, 1)
-        proposal = '{}_{}'.format(layer.name, existing_count)
-        prefix_count[layer.name] = existing_count + 1
-      output_names.add(proposal)
-      uniquified.append(proposal)
+
+    uniquified= []
+    if isinstance(self._nested_outputs, dict):
+      names = list(self._nested_outputs.keys())
+      names.sort()
+      for name in names:
+        layers = tf.nest.flatten(self._nested_outputs[name])
+        uniquified.append(name)
+        uniquified.extend([f"{name}_{i}" for i in range(1, len(layers))])
+    else:
+      output_names = set()
+      prefix_count = {}
+      for layer in self._output_layers:
+        proposal = layer.name
+        while proposal in output_names:
+          existing_count = prefix_count.get(layer.name, 1)
+          proposal = '{}_{}'.format(layer.name, existing_count)
+          prefix_count[layer.name] = existing_count + 1
+        output_names.add(proposal)
+        uniquified.append(proposal)
     self.output_names = uniquified
 
   @property
