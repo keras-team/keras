@@ -328,14 +328,6 @@ class MultiHeadAttention(Layer):
     else:
       self._key_shape = tf.TensorShape(key)
 
-    common_kwargs = dict(
-        kernel_initializer=self._kernel_initializer,
-        bias_initializer=self._bias_initializer,
-        kernel_regularizer=self._kernel_regularizer,
-        bias_regularizer=self._bias_regularizer,
-        activity_regularizer=self._activity_regularizer,
-        kernel_constraint=self._kernel_constraint,
-        bias_constraint=self._bias_constraint)
     # Any setup work performed only once should happen in an `init_scope`
     # to avoid creating symbolic Tensors that will later pollute any eager
     # operations.
@@ -349,7 +341,7 @@ class MultiHeadAttention(Layer):
                                          [self._num_heads, self._key_dim]),
           bias_axes=bias_axes if self._use_bias else None,
           name="query",
-          **common_kwargs)
+          **self._get_common_kwargs_for_sublayer())
       einsum_equation, bias_axes, output_rank = _build_proj_equation(
           self._key_shape.rank - 1, bound_dims=1, output_dims=2)
       self._key_dense = core.EinsumDense(
@@ -358,7 +350,7 @@ class MultiHeadAttention(Layer):
                                          [self._num_heads, self._key_dim]),
           bias_axes=bias_axes if self._use_bias else None,
           name="key",
-          **common_kwargs)
+          **self._get_common_kwargs_for_sublayer())
       einsum_equation, bias_axes, output_rank = _build_proj_equation(
           self._value_shape.rank - 1, bound_dims=1, output_dims=2)
       self._value_dense = core.EinsumDense(
@@ -367,14 +359,33 @@ class MultiHeadAttention(Layer):
                                          [self._num_heads, self._value_dim]),
           bias_axes=bias_axes if self._use_bias else None,
           name="value",
-          **common_kwargs)
+          **self._get_common_kwargs_for_sublayer())
 
       # Builds the attention computations for multi-head dot product attention.
       # These computations could be wrapped into the keras attention layer once
-      # it support mult-head einsum computations.
+      # it supports mult-head einsum computations.
       self._build_attention(output_rank)
       self._output_dense = self._make_output_dense(
-          free_dims, common_kwargs, "attention_output")
+          free_dims, self._get_common_kwargs_for_sublayer(),
+          "attention_output")
+
+  def _get_common_kwargs_for_sublayer(self):
+    common_kwargs = dict(
+        kernel_regularizer=self._kernel_regularizer,
+        bias_regularizer=self._bias_regularizer,
+        activity_regularizer=self._activity_regularizer,
+        kernel_constraint=self._kernel_constraint,
+        bias_constraint=self._bias_constraint)
+    # Create new clone of kernel/bias initializer, so that we don't reuse the
+    # initializer instance, which could lead to same init value since
+    # initializer is stateless.
+    kernel_initializer = self._kernel_initializer.__class__.from_config(
+        self._kernel_initializer.get_config())
+    bias_initializer = self._bias_initializer.__class__.from_config(
+        self._bias_initializer.get_config())
+    common_kwargs['kernel_initializer'] = kernel_initializer
+    common_kwargs['bias_initializer'] = bias_initializer
+    return common_kwargs
 
   def _make_output_dense(self, free_dims, common_kwargs, name=None):
     """Builds the output projection matrix.
