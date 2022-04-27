@@ -35,6 +35,7 @@ W_AXIS = -2
 
 IMAGES = 'images'
 LABELS = 'labels'
+TARGETS = 'targets'
 BOUNDING_BOXES = 'bounding_boxes'
 
 
@@ -350,6 +351,21 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     raise NotImplementedError()
 
   @doc_controls.for_subclass_implementers
+  def augment_target(self, target, transformation):
+    """Augment a single target during training.
+
+    Args:
+      target: 1D label to the layer. Forwarded from `layer.call()`.
+      transformation: The transformation object produced by
+        `get_random_transformation`. Used to coordinate the randomness between
+        image, label and bounding box.
+
+    Returns:
+      output 1D tensor, which will be forward to `layer.call()`.
+    """
+    return self.augment_label(target, transformation)
+
+  @doc_controls.for_subclass_implementers
   def augment_bounding_boxes(self, image, bounding_boxes, transformation=None):
     """Augment bounding boxes for one image during training.
 
@@ -387,12 +403,12 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
   def call(self, inputs, training=True):
     inputs = self._ensure_inputs_are_compute_dtype(inputs)
     if training:
-      inputs, is_dict = self._format_inputs(inputs)
+      inputs, is_dict, use_targets = self._format_inputs(inputs)
       images = inputs[IMAGES]
       if images.shape.rank == 3:
-        return self._format_output(self._augment(inputs), is_dict)
+        return self._format_output(self._augment(inputs), is_dict, use_targets)
       elif images.shape.rank == 4:
-        return self._format_output(self._batch_augment(inputs), is_dict)
+        return self._format_output(self._batch_augment(inputs), is_dict, use_targets)
       else:
         raise ValueError('Image augmentation layers are expecting inputs to be '
                          'rank 3 (HWC) or 4D (NHWC) tensors. Got shape: '
@@ -409,7 +425,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     image = self.augment_image(image, transformation=transformation)
     result = {IMAGES: image}
     if label is not None:
-      label = self.augment_label(label, transformation=transformation)
+      label = self.augment_target(label, transformation=transformation)
       result[LABELS] = label
     if bounding_box is not None:
       bounding_box = self.augment_bounding_boxes(
@@ -423,17 +439,25 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
   def _format_inputs(self, inputs):
     if tf.is_tensor(inputs):
       # single image input tensor
-      return {IMAGES: inputs}, False
-    elif isinstance(inputs, dict):
+      return {IMAGES: inputs}, False, False
+    elif isinstance(inputs, dict) and TARGETS in inputs:
       # TODO(scottzhu): Check if it only contains the valid keys
-      return inputs, True
+      inputs[LABELS] = inputs[TARGETS]
+      del inputs[TARGETS]
+      return inputs, True, True
+    elif isinstance(inputs, dict):
+      return inputs, True, False
     else:
       raise ValueError(
           f'Expect the inputs to be image tensor or dict. Got {inputs}')
 
-  def _format_output(self, output, is_dict):
+  def _format_output(self, output, is_dict, use_targets):
     if not is_dict:
       return output[IMAGES]
+    elif use_targets:
+      output[TARGETS] = output[LABELS]
+      del output[LABELS]
+      return output
     else:
       return output
 
@@ -491,24 +515,16 @@ class RandomCrop(BaseImageAugmentationLayer):
     self.seed = seed
 
   def call(self, inputs, training=True):
-    inputs = self._ensure_inputs_are_compute_dtype(inputs)
-    inputs, is_dict = self._format_inputs(inputs)
+
     if training:
-      images = inputs['images']
-      if images.shape.rank == 3:
-        return self._format_output(self._augment(inputs), is_dict)
-      elif images.shape.rank == 4:
-        return self._format_output(self._batch_augment(inputs), is_dict)
-      else:
-        raise ValueError('Image augmentation layers are expecting inputs to be '
-                         'rank 3 (HWC) or 4D (NHWC) tensors. Got shape: '
-                         f'{images.shape}')
+      return super().call(inputs, training)
     else:
+      inputs = self._ensure_inputs_are_compute_dtype(inputs)
+      inputs, is_dict, targets = self._format_inputs(inputs)
       output = inputs
-      output['images'] = self._resize(inputs['images'])
       # self._resize() returns valid results for both batched and unbatched
-      # input
-      return self._format_output(output, is_dict)
+      output['images'] = self._resize(inputs['images'])
+      return self._format_output(output, is_dict, targets)
 
   def get_random_transformation(self,
                                 image=None,

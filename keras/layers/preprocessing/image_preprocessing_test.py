@@ -2224,6 +2224,15 @@ class BaseImageAugmentationLayerTest(test_combinations.TestCase):
     expected_output = {'images': image + 2.0, 'labels': label + 2.0}
     self.assertAllClose(output, expected_output)
 
+  def test_augment_image_and_target(self):
+    add_layer = RandomAddLayer(fixed_value=2.0)
+    image = np.random.random(size=(8, 8, 3)).astype('float32')
+    label = np.random.random(size=(1,)).astype('float32')
+
+    output = add_layer({'images': image, 'targets': label})
+    expected_output = {'images': image + 2.0, 'targets': label + 2.0}
+    self.assertAllClose(output, expected_output)
+
   def test_augment_batch_images_and_labels(self):
     add_layer = RandomAddLayer()
     images = np.random.random(size=(2, 8, 8, 3)).astype('float32')

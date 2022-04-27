@@ -170,6 +170,10 @@ tf_class {
     argspec: "args=[\'self\', \'label\', \'transformation\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "augment_target"
+    argspec: "args=[\'self\', \'target\', \'transformation\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "build"
     argspec: "args=[\'self\', \'input_shape\'], varargs=None, keywords=None, defaults=None"
   }
