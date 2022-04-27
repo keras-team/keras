@@ -135,6 +135,15 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
     output = test_layer(query, query)
     self.assertEqual(output.shape.as_list(), [None, 40, 80])
 
+    # Make sure the sub layers have different kernel init value, and not reusing
+    # the initializers.
+    self.assertNotAllClose(keras.backend.eval(test_layer._query_dense.kernel),
+                           keras.backend.eval(test_layer._key_dense.kernel))
+    self.assertNotAllClose(keras.backend.eval(test_layer._query_dense.kernel),
+                           keras.backend.eval(test_layer._value_dense.kernel))
+    self.assertNotAllClose(keras.backend.eval(test_layer._query_dense.kernel),
+                           keras.backend.eval(test_layer._output_dense.kernel))
+
   def test_masked_attention_with_scores(self):
     """Test with a mask tensor."""
     test_layer = keras.layers.MultiHeadAttention(
