@@ -1954,60 +1954,107 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
     else:
       return random.randint(1, 1e9)
 
-  def random_normal(self, shape, mean=0., stddev=1., dtype=None):
+  def random_normal(self, shape, mean=0., stddev=1., dtype=None, nonce=None):
+    """Produce random number based on the normal distribution.
+
+    Args:
+      shape: The shape of the random values to generate.
+      mean: Floats, default to 0. Mean of the random values to generate.
+      stddev: Floats, default to 1. Standard deviation of the random values to
+        generate.
+      dtype: Optional dtype of the tensor. Only floating point types are
+        supported. If not specified, `tf.keras.backend.floatx()` is used, which
+        default to `float32` unless you configured it otherwise (via
+        `tf.keras.backend.set_floatx(float_dtype)`)
+      nonce: Optional integer scalar, that will be folded into the seed in the
+        stateless mode.
+    """
     self._maybe_init()
     dtype = dtype or floatx()
     if self._rng_type == self.RNG_STATEFUL:
       return self._generator.normal(
           shape=shape, mean=mean, stddev=stddev, dtype=dtype)
     elif self._rng_type == self.RNG_STATELESS:
+      seed = self.make_seed_for_stateless_op()
+      if nonce:
+        seed = tf.random.experimental.stateless_fold_in(seed, nonce)
       return tf.random.stateless_normal(
           shape=shape, mean=mean, stddev=stddev, dtype=dtype,
-          seed=self.make_seed_for_stateless_op())
+          seed=seed)
     return tf.random.normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype,
         seed=self.make_legacy_seed())
 
-  def random_uniform(self, shape, minval=0., maxval=None, dtype=None):
+  def random_uniform(self, shape, minval=0., maxval=None, dtype=None,
+                     nonce=None):
+    """Produce random number based on the uniform distribution.
+
+    Args:
+      shape: The shape of the random values to generate.
+      minval: Floats, default to 0. Lower bound of the range of
+        random values to generate (inclusive).
+      minval: Floats, default to None. Upper bound of the range of
+        random values to generate (exclusive).
+      dtype: Optional dtype of the tensor. Only floating point types are
+        supported. If not specified, `tf.keras.backend.floatx()` is used, which
+        default to `float32` unless you configured it otherwise (via
+        `tf.keras.backend.set_floatx(float_dtype)`)
+      nonce: Optional integer scalar, that will be folded into the seed in the
+        stateless mode.
+    """
     self._maybe_init()
     dtype = dtype or floatx()
     if self._rng_type == self.RNG_STATEFUL:
       return self._generator.uniform(
           shape=shape, minval=minval, maxval=maxval, dtype=dtype)
     elif self._rng_type == self.RNG_STATELESS:
+      seed = self.make_seed_for_stateless_op()
+      if nonce:
+        seed = tf.random.experimental.stateless_fold_in(seed, nonce)
       return tf.random.stateless_uniform(
         shape=shape, minval=minval, maxval=maxval, dtype=dtype,
-        seed=self.make_seed_for_stateless_op())
+        seed=seed)
     return tf.random.uniform(
         shape=shape, minval=minval, maxval=maxval, dtype=dtype,
         seed=self.make_legacy_seed())
 
-  def truncated_normal(self, shape, mean=0., stddev=1., dtype=None):
+  def truncated_normal(self, shape, mean=0., stddev=1., dtype=None, nonce=None):
+    """Produce random number based on the truncated normal distribution.
+
+    Args:
+      shape: The shape of the random values to generate.
+      mean: Floats, default to 0. Mean of the random values to generate.
+      stddev: Floats, default to 1. Standard deviation of the random values to
+        generate.
+      dtype: Optional dtype of the tensor. Only floating point types are
+        supported. If not specified, `tf.keras.backend.floatx()` is used, which
+        default to `float32` unless you configured it otherwise (via
+        `tf.keras.backend.set_floatx(float_dtype)`)
+      nonce: Optional integer scalar, that will be folded into the seed in the
+        stateless mode.
+    """
     self._maybe_init()
     dtype = dtype or floatx()
     if self._rng_type == self.RNG_STATEFUL:
       return self._generator.truncated_normal(
           shape=shape, mean=mean, stddev=stddev, dtype=dtype)
     elif self._rng_type == self.RNG_STATELESS:
+      seed = self.make_seed_for_stateless_op()
+      if nonce:
+        seed = tf.random.experimental.stateless_fold_in(seed, nonce)
       return tf.random.stateless_truncated_normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype,
-        seed=self.make_seed_for_stateless_op())
+        seed=seed)
     return tf.random.truncated_normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype,
         seed=self.make_legacy_seed())
 
   def dropout(self, inputs, rate, noise_shape=None):
     self._maybe_init()
-    if self._rng_type == self.RNG_STATEFUL:
+    if self._rng_type in [self.RNG_STATEFUL, self.RNG_STATELESS]:
       return tf.nn.experimental.stateless_dropout(
           inputs, rate=rate, noise_shape=noise_shape,
           seed=self.make_seed_for_stateless_op())
-    elif self._rng_type == self.RNG_STATELESS:
-      return tf.nn.experimental.stateless_dropout(
-          inputs, rate=rate, noise_shape=noise_shape,
-          seed=self.make_seed_for_stateless_op())
-    # We don't support stateless in this case, otherwise the dropout
-    # will always have identical behavior across the batches.
     return tf.nn.dropout(inputs, rate=rate, noise_shape=noise_shape,
                          seed=self.make_legacy_seed())
 

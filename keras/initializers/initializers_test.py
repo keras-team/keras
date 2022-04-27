@@ -14,8 +14,7 @@
 # ==============================================================================
 """Tests for Keras initializers."""
 
-import tensorflow.compat.v2 as tf
-
+from absl.testing import parameterized
 import numpy as np
 
 from keras import backend
@@ -25,6 +24,8 @@ from keras import models
 from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.layers import core
+
+import tensorflow.compat.v2 as tf
 
 
 def _compute_fans(shape):
@@ -55,7 +56,7 @@ def _compute_fans(shape):
 
 
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
-class KerasInitializersTest(tf.test.TestCase):
+class KerasInitializersTest(tf.test.TestCase, parameterized.TestCase):
 
   def _runner(self, init, shape, target_mean=None, target_std=None,
               target_max=None, target_min=None):
@@ -254,33 +255,54 @@ class KerasInitializersTest(tf.test.TestCase):
     initializer = initializers.deserialize(external_serialized_json)
     self.assertEqual(initializer.distribution, 'truncated_normal')
 
-  def test_partition(self):
+  @parameterized.named_parameters(
+      ('Zeros', initializers.ZerosV2, {}),
+      ('Ones', initializers.OnesV2, {}),
+      ('Constant', initializers.ConstantV2, {}),
+      ('RandomUniform', initializers.RandomUniformV2, {}),
+      ('RandomUniform_seeded', initializers.RandomUniformV2, {'seed': 123}),
+      ('RandomNormal', initializers.RandomNormalV2, {}),
+      ('RandomNormal_seeded', initializers.RandomNormalV2, {'seed': 123}),
+      ('TruncatedNormal', initializers.TruncatedNormalV2, {}),
+      ('TruncatedNormal_seeded', initializers.TruncatedNormalV2, {'seed': 123}),
+      ('LecunUniform', initializers.LecunUniformV2, {}),
+      ('LecunUniform_seeded', initializers.LecunUniformV2, {'seed': 123}),
+      ('GlorotUniform', initializers.GlorotUniformV2, {}),
+      ('GlorotUniform_seeded', initializers.GlorotUniformV2, {'seed': 123}),
+      ('HeUniform', initializers.HeUniformV2, {}),
+      ('HeUniform_seeded', initializers.HeUniformV2, {'seed': 123}),
+  )
+  def test_partition(self, initializer_cls, kwargs):
     with self.cached_session():
-      partition_enabled_initializers = [
-          initializers.ZerosV2(),
-          initializers.OnesV2(),
-          initializers.RandomUniformV2(),
-          initializers.RandomNormalV2(),
-          initializers.TruncatedNormalV2(),
-          initializers.LecunUniformV2(),
-          initializers.GlorotUniformV2(),
-          initializers.HeUniformV2()
-      ]
-      for initializer in partition_enabled_initializers:
-        got = initializer(
-            shape=(4, 2), partition_shape=(2, 2), partition_offset=(0, 0))
-        self.assertEqual(got.shape, (2, 2))
+      initializer = initializer_cls(**kwargs)
+      result = initializer(
+          shape=(4, 2), partition_shape=(2, 2), partition_offset=(0, 0))
+      self.assertEqual(result.shape, (2, 2))
 
-      partition_forbidden_initializers = [
-          initializers.OrthogonalV2(),
-          initializers.IdentityV2()
-      ]
-      for initializer in partition_forbidden_initializers:
-        with self.assertRaisesRegex(
-            ValueError,
-            "initializer doesn't support partition-related arguments"):
-          initializer(
-              shape=(4, 2), partition_shape=(2, 2), partition_offset=(0, 0))
+      if hasattr(initializer, 'seed'):
+        # Make sure the result are different when the partition_shape is same,
+        # but partition_offset is different, for random related initializers.
+        result_2 = initializer(
+            shape=(4, 2), partition_shape=(2, 2), partition_offset=(1, 0))
+        self.assertNotAllClose(result, result_2)
+
+        # Make sure initializer produce same result when provide same
+        # partition offset.
+        # TODO(scottzhu): Enable this assert when initializer is fully stateless
+        # result_3 = initializer(
+        #     shape=(4, 2), partition_shape=(2, 2), partition_offset=(1, 0))
+        # self.assertAllClose(result_2, result_3)
+
+  @parameterized.named_parameters(
+      ('Orthogonal', initializers.OrthogonalV2),
+      ('Identity', initializers.IdentityV2),
+  )
+  def test_partition_unsupported(self, initializer_cls):
+    with self.assertRaisesRegex(
+        ValueError,
+        "initializer doesn't support partition-related arguments"):
+      initializer_cls()(
+          shape=(4, 2), partition_shape=(2, 2), partition_offset=(0, 0))
 
 
 if __name__ == '__main__':
