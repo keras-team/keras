@@ -2552,8 +2552,8 @@ class TestTensorBoardV2(test_combinations.TestCase):
     self.assertEqual(
         self._strip_layer_names(summary_file.histograms, model_type),
         {
-            _ObservedSummary(logdir=self.train_dir, tag='bias_0'),
-            _ObservedSummary(logdir=self.train_dir, tag='kernel_0'),
+            _ObservedSummary(logdir=self.train_dir, tag='bias_0/histogram'),
+            _ObservedSummary(logdir=self.train_dir, tag='kernel_0/histogram'),
         },
     )
 
@@ -2586,17 +2586,17 @@ class TestTensorBoardV2(test_combinations.TestCase):
     self.assertEqual(
         self._strip_layer_names(summary_file.histograms, model_type),
         {
-            _ObservedSummary(logdir=self.train_dir, tag='bias_0'),
-            _ObservedSummary(logdir=self.train_dir, tag='kernel_0'),
+            _ObservedSummary(logdir=self.train_dir, tag='bias_0/histogram'),
+            _ObservedSummary(logdir=self.train_dir, tag='kernel_0/histogram'),
         },
     )
     if summary_file.convert_from_v2_summary_proto:
-      expected = {
-          _ObservedSummary(logdir=self.train_dir, tag='bias_0'),
-          _ObservedSummary(logdir=self.train_dir, tag='kernel_0'),
+      expected_image_summaries = {
+          _ObservedSummary(logdir=self.train_dir, tag='bias_0/image'),
+          _ObservedSummary(logdir=self.train_dir, tag='kernel_0/image'),
       }
     else:
-      expected = {
+      expected_image_summaries = {
           _ObservedSummary(logdir=self.train_dir, tag='bias_0/image/0'),
           _ObservedSummary(logdir=self.train_dir, tag='kernel_0/image/0'),
           _ObservedSummary(logdir=self.train_dir, tag='kernel_0/image/1'),
@@ -2604,7 +2604,7 @@ class TestTensorBoardV2(test_combinations.TestCase):
       }
     self.assertEqual(
         self._strip_layer_names(summary_file.images, model_type),
-        expected
+        expected_image_summaries
     )
 
   def test_TensorBoard_projector_callback(self):
