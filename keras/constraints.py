@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
+
 # pylint: disable=g-classes-have-attributes
 """Constraints: functions that impose constraints on weight values."""
 

@@ -330,7 +330,7 @@ class TFOpLambda(Layer):
     return cls(**config)
 
 
-def _delegate_property(keras_tensor_cls, property_name):  # pylint: disable=invalid-name
+def _delegate_property(keras_tensor_cls, property_name):
   """Register property on a KerasTensor class.
 
   Calling this multiple times with the same arguments should be a no-op.
@@ -350,7 +350,7 @@ def _delegate_property(keras_tensor_cls, property_name):  # pylint: disable=inva
   setattr(keras_tensor_cls, property_name, property_access)
 
 
-def _delegate_method(keras_tensor_cls, method_name):  # pylint: disable=invalid-name
+def _delegate_method(keras_tensor_cls, method_name):
   """Register method on a KerasTensor class.
 
   Calling this function times with the same arguments should be a no-op.

@@ -891,13 +891,13 @@ class BaseLayerTest(test_combinations.TestCase):
         CustomLayerDefaultTrainingTrue=CustomLayerDefaultTrainingTrue)
 
   def _test_custom_layer_training_arg(self,
-                                      # pylint: disable=invalid-name
+
                                       CustomLayerNoTrainingArg,
                                       CustomLayerDefaultTrainingMissing,
                                       CustomLayerDefaultTrainingNone,
                                       CustomLayerDefaultTrainingFalse,
                                       CustomLayerDefaultTrainingTrue,
-                                      # pylint: enable=invalid-name
+
                                       ):
     x = tf.ones(shape=(1, 1))
 

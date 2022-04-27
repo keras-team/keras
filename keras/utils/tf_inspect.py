@@ -24,7 +24,7 @@ ArgSpec = _inspect.ArgSpec
 
 
 if hasattr(_inspect, 'FullArgSpec'):
-  FullArgSpec = _inspect.FullArgSpec  # pylint: disable=invalid-name
+  FullArgSpec = _inspect.FullArgSpec
 else:
   FullArgSpec = collections.namedtuple('FullArgSpec', [
       'args', 'varargs', 'varkw', 'defaults', 'kwonlyargs', 'kwonlydefaults',
@@ -45,7 +45,7 @@ def _convert_maybe_argspec_to_fullargspec(argspec):
       annotations={})
 
 if hasattr(_inspect, 'getfullargspec'):
-  _getfullargspec = _inspect.getfullargspec  # pylint: disable=invalid-name
+  _getfullargspec = _inspect.getfullargspec
 
   def _getargspec(target):
     """A python3 version of getargspec.

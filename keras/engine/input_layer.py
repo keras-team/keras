@@ -257,7 +257,7 @@ class InputLayer(base_layer.Layer):
 
 @keras_export('keras.Input', 'keras.layers.Input')
 @traceback_utils.filter_traceback
-def Input(  # pylint: disable=invalid-name
+def Input(
     shape=None,
     batch_size=None,
     name=None,

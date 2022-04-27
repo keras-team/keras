@@ -1224,4 +1224,4 @@ class LazyLoader(python_types.ModuleType):
 
 # Aliases
 
-custom_object_scope = CustomObjectScope  # pylint: disable=invalid-name
+custom_object_scope = CustomObjectScope

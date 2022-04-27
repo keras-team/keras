@@ -375,7 +375,7 @@ class KerasTensor:
     return self._name
 
   @classmethod
-  def _overload_all_operators(cls, tensor_class):  # pylint: disable=invalid-name
+  def _overload_all_operators(cls, tensor_class):
     """Register overloads for all operators."""
     for operator in tf.Tensor.OVERLOADABLE_OPERATORS:
       cls._overload_operator(tensor_class, operator)
@@ -386,7 +386,7 @@ class KerasTensor:
       cls._overload_operator(tensor_class, 'experimental_ref')
 
   @classmethod
-  def _overload_operator(cls, tensor_class, operator):  # pylint: disable=invalid-name
+  def _overload_operator(cls, tensor_class, operator):
     """Overload an operator with the same implementation as a base Tensor class.
 
     We pull the operator out of the class dynamically to avoid ordering issues.

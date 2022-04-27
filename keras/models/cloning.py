@@ -35,8 +35,8 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 # API entries importable from `keras.models`:
-Model = training.Model  # pylint: disable=invalid-name
-Sequential = sequential.Sequential  # pylint: disable=invalid-name
+Model = training.Model
+Sequential = sequential.Sequential
 
 
 # Callable used to clone a layer with weights preserved.

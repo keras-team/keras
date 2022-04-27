@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
+
 """MobileNet v1 models for Keras.
 
 MobileNet is a general architecture and can be used for multiple use cases.

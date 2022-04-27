@@ -80,7 +80,7 @@ def GetContainingXLAContext(ctxt):
   return None
 
 
-def smart_cond(pred, true_fn=None, false_fn=None, name=None):  # pylint: disable=invalid-name
+def smart_cond(pred, true_fn=None, false_fn=None, name=None):
   """Return either `true_fn()` if predicate `pred` is true else `false_fn()`.
 
   If `pred` is a bool or has a constant value, we return either `true_fn()`
@@ -106,7 +106,7 @@ def smart_cond(pred, true_fn=None, false_fn=None, name=None):  # pylint: disable
       pred, true_fn=true_fn, false_fn=false_fn, name=name)
 
 
-def constant_value(pred):  # pylint: disable=invalid-name
+def constant_value(pred):
   """Return the bool value for `pred`, or None if `pred` had a dynamic value.
 
   Args:

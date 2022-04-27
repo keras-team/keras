@@ -14,7 +14,7 @@
 # ==============================================================================
 """Built-in regularizers."""
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=invalid-name
+
 
 import tensorflow.compat.v2 as tf
 

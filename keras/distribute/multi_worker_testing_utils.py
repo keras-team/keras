@@ -28,7 +28,7 @@ from tensorflow.python.training.server_lib import ClusterSpec
 _portpicker_import_error = None
 try:
   import portpicker  # pylint: disable=g-import-not-at-top
-except (ImportError, ModuleNotFoundError) as _error:  # pylint: disable=invalid-name
+except (ImportError, ModuleNotFoundError) as _error:
   _portpicker_import_error = _error
   portpicker = None
 

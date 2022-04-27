@@ -44,7 +44,7 @@ class DTensorBaseTest(tf.test.TestCase, parameterized.TestCase):
     reset_dtensor()
 
   @staticmethod
-  def configTestMesh(device_type_mesh_map):    # pylint: disable=invalid-name
+  def configTestMesh(device_type_mesh_map):
     """Configs corresponding mesh given test context.
 
     If runs on a CPU mesh, set virtual device on CPU.

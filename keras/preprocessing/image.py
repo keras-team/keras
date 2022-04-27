@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
+
 # pylint: disable=g-import-not-at-top
 # pylint: disable=g-classes-have-attributes
 
