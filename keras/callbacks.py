@@ -2573,9 +2573,13 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         for layer in self.model.layers:
           for weight in layer.weights:
             weight_name = weight.name.replace(':', '_')
-            tf.summary.histogram(weight_name, weight, step=epoch)
+            # Add a suffix to prevent summary tag name collision.
+            histogram_weight_name = weight_name + '/histogram'
+            tf.summary.histogram(histogram_weight_name, weight, step=epoch)
             if self.write_images:
-              self._log_weight_as_image(weight, weight_name, epoch)
+              # Add a suffix to prevent summary tag name collision.
+              image_weight_name = weight_name + '/image'
+              self._log_weight_as_image(weight, image_weight_name, epoch)
         self._train_writer.flush()
 
   def _log_weight_as_image(self, weight, weight_name, epoch):
