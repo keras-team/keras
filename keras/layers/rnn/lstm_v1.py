@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Long Short-Term Memory V1 layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 from keras import activations
 from keras import constraints

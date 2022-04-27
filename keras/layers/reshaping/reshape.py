@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Reshape layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 from keras.engine.base_layer import Layer
 import numpy as np

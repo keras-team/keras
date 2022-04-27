@@ -20,7 +20,7 @@ operators that allow adding dropouts, projections, or embeddings for inputs.
 Constructing multi-layer cells is supported by the class `MultiRNNCell`, or by
 calling the `rnn` ops several times.
 """
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 from __future__ import absolute_import
 from __future__ import division

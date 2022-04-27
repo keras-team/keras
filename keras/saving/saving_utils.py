@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utils related to keras model saving."""
 
-# pylint: disable=g-bad-import-order, g-direct-tensorflow-import
+# pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 import keras
 
@@ -29,7 +29,7 @@ from keras.utils import generic_utils
 from keras.utils import version_utils
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 from tensorflow.python.platform import tf_logging as logging
-# pylint: enable=g-bad-import-order, g-direct-tensorflow-import
+# pylint: enable=g-bad-import-order
 
 
 def extract_model_metrics(model):

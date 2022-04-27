@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Wrapper layer to apply every temporal slice of an input."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 from keras import backend
 from keras.engine.base_layer import Layer

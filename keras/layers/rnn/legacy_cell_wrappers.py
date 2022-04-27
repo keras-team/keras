@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Module implementing the V1 version of RNN cell wrappers."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 from __future__ import absolute_import
 from __future__ import division

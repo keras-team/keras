@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras depthwise 1D convolution."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 from keras.layers.convolutional.base_depthwise_conv import DepthwiseConv
 from keras.utils import conv_utils

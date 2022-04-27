@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Average pooling 2D layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 from keras.layers.pooling.base_pooling2d import Pooling2D
 import tensorflow.compat.v2 as tf

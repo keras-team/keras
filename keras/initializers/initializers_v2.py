@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras initializers for TF 2."""
-# pylint: disable=g-classes-have-attributes, missing-docstring, g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes, missing-docstring
 
 import math
 from keras import backend

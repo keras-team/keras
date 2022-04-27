@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the flatten layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 import functools
 import operator

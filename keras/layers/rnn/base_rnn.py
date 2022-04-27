@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Base class for recurrent layers."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 import collections
 

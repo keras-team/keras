@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Dropout layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 from keras import backend
 from keras.engine import base_layer

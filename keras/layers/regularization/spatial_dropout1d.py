@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the SpatialDropout1D layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 from keras.engine.input_spec import InputSpec
 from keras.layers.regularization.dropout import Dropout

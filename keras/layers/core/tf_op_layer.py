@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the TFOpLambda layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import,g-bad-import-order
+# pylint: disable=g-classes-have-attributes,g-bad-import-order
 import tensorflow.compat.v2 as tf
 # pylint: enable=g-bad-import-order
 

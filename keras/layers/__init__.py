@@ -16,7 +16,7 @@
 
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-bad-import-order,g-direct-tensorflow-import,disable=g-import-not-at-top
+# pylint: disable=g-bad-import-order,disable=g-import-not-at-top
 from tensorflow.python import tf2
 
 # Generic layers.

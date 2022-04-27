@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Bidirectional wrapper for RNNs."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 import copy
 

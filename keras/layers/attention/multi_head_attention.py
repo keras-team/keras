@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras-based multi-head attention layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+# pylint: disable=g-classes-have-attributes
 
 import collections
 import math

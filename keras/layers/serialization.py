@@ -15,7 +15,7 @@
 """Layer serialization/deserialization functions."""
 
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-bad-import-order,g-direct-tensorflow-import,unused-import,wildcard-import
+# pylint: disable=g-bad-import-order,unused-import,wildcard-import
 
 import threading
 from keras.engine import base_layer
