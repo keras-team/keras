@@ -93,8 +93,7 @@ class DropoutLayersTest(test_combinations.TestCase):
 
   def test_dropout_with_savemodel(self):
     inputs = keras.Input(shape=(5, 10))
-    layer = keras.layers.Dropout(0.5)
-    layer._random_generator._force_generator = True
+    layer = keras.layers.Dropout(0.5, force_generator=True)
     outputs = layer(inputs)
     model = keras.Model(inputs, outputs)
     train = model(np.ones((20, 5, 10)), training=True)
@@ -412,7 +411,8 @@ class TestStatefulLambda(test_combinations.TestCase):
     # Force the initializers to use the tf.random.Generator, which will contain
     # the state variable.
     kernel_initializer = initializers.RandomNormalV2()
-    kernel_initializer._random_generator._force_generator = True
+    kernel_initializer._random_generator._rng_type \
+      = kernel_initializer._random_generator.RNG_STATEFUL
     dense = keras.layers.Dense(1, use_bias=False,
                                kernel_initializer=kernel_initializer)
 
