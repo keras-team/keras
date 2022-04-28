@@ -2353,7 +2353,7 @@ class ContextValueCacheTest(tf.test.TestCase):
 
 
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
-class RandomGeneratorTest(tf.test.TestCase):
+class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_generator_reproducibility(self):
     seed = 1337
@@ -2470,6 +2470,25 @@ class RandomGeneratorTest(tf.test.TestCase):
     gen2 = backend.RandomGenerator(seed=seed, rng_type='stateless')
     output3 = gen2.random_normal(shape=[2, 3])
     self.assertAllClose(output3, output1)
+
+  @parameterized.named_parameters(
+      ('seeded', 1337), ('unseeded', None)
+  )
+  def test_stateless_with_seed_delta(self, seed):
+    gen = backend.RandomGenerator(seed=seed, rng_type='stateless')
+    output1 = gen.random_normal(shape=[2, 3], nonce=hash((1, 1)))
+    seed1 = gen._seed
+    output2 = gen.random_normal(shape=[2, 3], nonce=hash((1, 1)))
+    seed2 = gen._seed
+    output3 = gen.random_normal(shape=[2, 3], nonce=hash((2, 1)))
+    seed3 = gen._seed
+
+    self.assertAllClose(output1, output2)
+    # Different seed_delta will produce different value.
+    self.assertNotAllClose(output1, output3)
+    # Make sure the internal seed is not changed at all.
+    self.assertEqual(seed1, seed2)
+    self.assertEqual(seed1, seed3)
 
   def test_unknown_rng_type(self):
     with self.assertRaisesRegex(ValueError, 'Got: unknown'):
