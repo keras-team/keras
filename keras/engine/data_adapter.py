@@ -1394,8 +1394,42 @@ class _ClusterCoordinatorDataHandler(DataHandler):
   def sync(self):
     self._model._cluster_coordinator.join()  # pylint: disable=protected-access
 
-
+@keras_export("keras.__internal__.utils.get_data_handler", v1=[])
 def get_data_handler(*args, **kwargs):
+  """Creates a `DataHandler`, providing standardized access to a `Dataset`.
+
+  See `DataHandler` for the list and definition of the arguments. See the
+  implementation of `Model.fit()`, `evaluate()`, or `predict()` methods
+  for complete usage examples. As a rule of tumb, `get_data_handler()` accepts
+  the same inputs as the `x` argument of `Model.fit()`.
+
+  Example:
+
+  ```python
+    def step(iterator):
+      data = next(iterator)
+      # result <= Do something with data
+      return result
+    tf_step = tf.function(step, reduce_retracing=True)
+
+    # Assume x is a tf.data Dataset.
+    data_handler = data_adapter.get_data_handler(x=x)
+    for epo_idx, iterator in data_handler.enumerate_epochs():  # Epoch iteration
+        with data_handler.catch_stop_iteration(): # Stop on dataset exhaustion.
+          for step in data_handler.steps(): # Step iteration
+              step_result = step(iterator)
+  ```
+
+  Args:
+    *args: Arguments passed to the `DataHandler` constructor.
+    **kwargs: Arguments passed to the `DataHandler` constructor.
+
+  Returns:
+    A `DataHandler` object. If the model's cluster coordinate is set (e.g. the
+    model was defined under a parameter-server strategy), returns a
+    `_ClusterCoordinatorDataHandler`.
+
+  """
   if getattr(kwargs["model"], "_cluster_coordinator", None):
     return _ClusterCoordinatorDataHandler(*args, **kwargs)
   return DataHandler(*args, **kwargs)
