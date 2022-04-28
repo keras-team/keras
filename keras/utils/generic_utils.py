@@ -357,10 +357,27 @@ def register_keras_serializable(package='Custom', name=None):
   The object will be registered under the key 'package>name' where `name`,
   defaults to the object name if not passed.
 
+  Example:
+
+  ```python
+  # Note that `'my_package'` is used as the `package` argument here, and since
+  # the `name` argument is not provided, `'MyDense'` is used as the `name`.
+  @keras.utils.register_keras_serializable('my_package')
+  class MyDense(keras.layers.Dense):
+    pass
+    
+  assert keras.utils.get_registered_object('my_package>MyDense') == MyDense
+  assert keras.utils.get_registered_name(MyDense) == 'my_package>MyDense'
+  ```
+
   Args:
-    package: The package that this class belongs to.
-    name: The name to serialize this class under in this package. If None, the
-      class' name will be used.
+    package: The package that this class belongs to. This is used for the `key`
+      (which is 'package>name') to idenfify the class. Note that this is the
+      first argument passed into the decorator.
+    name: The name to serialize this class under in this package. If not
+      provided or `None`, the class' name will be used (note that this is the
+      case when the decorator is used with only one argument, which becomes the
+      `package`).
 
   Returns:
     A decorator that registers the decorated class with the passed names.
