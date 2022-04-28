@@ -554,10 +554,16 @@ class LayerCallCollection:
 
   def trace_with_input_signature(self):
     """Trace with the layer/models inferred input signature if possible."""
-    if None not in tf.nest.flatten(self._layer_inputs):
+    if self._layer_inputs[0] is None:
+      return
+
+    args, kwargs = self._layer_inputs
+    if self._expects_training_arg:
+      args, kwargs = self._call_spec.set_arg_value('training', False, args,
+                                                   kwargs, inputs_in_args=True)
+    if None not in tf.nest.flatten([args, kwargs]):
       # Manually add traces for layers that have keyword arguments and have
       # a fully defined input signature.
-      args, kwargs = self._layer_inputs
       self.add_trace(*args, **kwargs)
 
 
