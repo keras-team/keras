@@ -537,7 +537,7 @@ class RandomFlipTest(test_combinations.TestCase):
     orig_width = 8
     channels = 3
     if mock_random is None:
-      mock_random = [0.0 for _ in range(num_samples)]
+      mock_random = [True for _ in range(num_samples)]
       if mode == 'horizontal_and_vertical':
         mock_random *= 2
     inp = np.random.random((num_samples, orig_height, orig_width, channels))
@@ -548,8 +548,8 @@ class RandomFlipTest(test_combinations.TestCase):
       if mode == 'vertical' or mode == 'horizontal_and_vertical':
         expected_output = np.flip(expected_output, axis=1)
     with tf.compat.v1.test.mock.patch.object(
-        stateless_random_ops,
-        'stateless_random_uniform',
+        np.random,
+        'choice',
         side_effect=mock_random,
     ):
       with test_utils.use_gpu():
@@ -566,7 +566,7 @@ class RandomFlipTest(test_combinations.TestCase):
 
   def test_random_flip_horizontal_half(self):
     np.random.seed(1337)
-    mock_random = [0.0, 1.0]
+    mock_random = [True, False]
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = input_images.copy()
     expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=1)
@@ -574,7 +574,7 @@ class RandomFlipTest(test_combinations.TestCase):
 
   def test_random_flip_vertical_half(self):
     np.random.seed(1337)
-    mock_random = [0.0, 1.0]
+    mock_random = [True, False]
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = input_images.copy()
     expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=0)
@@ -591,10 +591,10 @@ class RandomFlipTest(test_combinations.TestCase):
   def test_random_flip_default(self):
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = np.flip(np.flip(input_images, axis=1), axis=2)
-    mock_random = [0.0, 0.0, 0.0, 0.0]
+    mock_random = [True, True, True, True]
     with tf.compat.v1.test.mock.patch.object(
-        stateless_random_ops,
-        'stateless_random_uniform',
+        np.random,
+        'choice',
         side_effect=mock_random,
     ):
       with self.cached_session():
@@ -612,11 +612,11 @@ class RandomFlipTest(test_combinations.TestCase):
   def test_random_flip_unbatched_image(self):
     input_image = np.random.random((4, 4, 1)).astype(np.float32)
     expected_output = np.flip(input_image, axis=0)
-    # mock_random = np.reshape([0.], [1, 1, 1])
+    mock_random = [True, True, True, True]
     with tf.compat.v1.test.mock.patch.object(
-        stateless_random_ops,
-        'stateless_random_uniform',
-        return_value=0.,
+        np.random,
+        'choice',
+        side_effect=mock_random,
     ):
       with self.cached_session():
         layer = image_preprocessing.RandomFlip('vertical')
@@ -631,6 +631,69 @@ class RandomFlipTest(test_combinations.TestCase):
     layer = image_preprocessing.RandomFlip(dtype='uint8')
     self.assertAllEqual(layer(inputs).dtype, 'uint8')
 
+  @test_utils.run_v2_only
+  def test_augment_bbox_horizontal(self):
+    image = tf.zeros([1, 20, 20, 3])
+    bboxes = np.array([[0, 0, 10, 10], [4, 4, 12, 12]], dtype='int32')
+    layer = image_preprocessing.RandomFlip()
+    output = layer.augment_bounding_boxes(
+        image,
+        bboxes,
+        transformation={
+            'flip_horizontal': True,
+            'flip_vertical': False
+        })
+    expected_output = [[10, 0, 20, 10], [8, 4, 16, 12]]
+    self.assertAllClose(expected_output, output)
+
+  @test_utils.run_v2_only
+  def test_augment_bbox_vertical(self):
+    image = tf.zeros([1, 20, 20, 3])
+    bboxes = np.array([[0, 0, 10, 10], [4, 4, 12, 12]], dtype='int32')
+    layer = image_preprocessing.RandomFlip()
+    output = layer.augment_bounding_boxes(
+        image,
+        bboxes,
+        transformation={
+            'flip_horizontal': False,
+            'flip_vertical': True
+        })
+    expected_output = [[0, 10, 10, 20], [4, 8, 12, 16]]
+    self.assertAllClose(expected_output, output)
+
+  @test_utils.run_v2_only
+  def test_augment_bbox_both(self):
+    image = tf.zeros([1, 20, 20, 3])
+    bboxes = np.array([[0, 0, 10, 10], [4, 4, 12, 12]], dtype='int32')
+    layer = image_preprocessing.RandomFlip()
+    output = layer.augment_bounding_boxes(
+        image,
+        bboxes,
+        transformation={
+            'flip_horizontal': True,
+            'flip_vertical': True
+        })
+    expected_output = [[10, 10, 20, 20], [8, 8, 16, 16]]
+    self.assertAllClose(expected_output, output)
+
+  @test_utils.run_v2_only
+  def test_augment_bbox_batched_input(self):
+    image = tf.zeros([20, 20, 3])
+    bboxes = np.array(
+        [[[0, 0, 10, 10], [4, 4, 12, 12]], [[0, 0, 10, 10], [4, 4, 12, 12]]],
+        dtype='int32')
+    input = {'images': [image, image], 'bounding_boxes': bboxes}
+    mock_random = [True, True, True, True]
+    with tf.compat.v1.test.mock.patch.object(
+        np.random,
+        'choice',
+        side_effect=mock_random,
+    ):
+      layer = image_preprocessing.RandomFlip()
+      output = layer(input, training=True)
+    expected_output = [[[10, 10, 20, 20], [8, 8, 16, 16]],
+                       [[10, 10, 20, 20], [8, 8, 16, 16]]]
+    self.assertAllClose(expected_output, output['bounding_boxes'])
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class RandomContrastTest(test_combinations.TestCase):
@@ -2030,7 +2093,6 @@ class LearningPhaseTest(test_combinations.TestCase):
 class DeterminismTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
-      ('random_flip', image_preprocessing.RandomFlip),
       ('random_contrast',
        functools.partial(image_preprocessing.RandomContrast, factor=1.)),
       ('random_crop',
