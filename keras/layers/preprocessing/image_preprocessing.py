@@ -231,14 +231,14 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
   `augment_label()`, which handles label augmentation if the layer supports
   that.
 
-  `augment_bounding_box()`, which handles the bounding box augmentation, if the
+  `augment_bounding_boxes()`, which handles the bounding box augmentation, if the
   layer supports that.
 
   `get_random_transformation()`, which should produce a random transformation
   setting. The tranformation object, which could be any type, will be passed to
-  `augment_image`, `augment_label` and `augment_bounding_box`, to coodinate
+  `augment_image`, `augment_label` and `augment_bounding_boxes`, to coodinate
   the randomness behavior, eg, in the RandomFlip layer, the image and
-  bounding_box should be changed in the same way.
+  bounding_boxes should be changed in the same way.
 
   The `call()` method support two formats of inputs:
   1. Single image tensor with 3D (HWC) or 4D (NHWC) format.
@@ -350,11 +350,12 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     raise NotImplementedError()
 
   @doc_controls.for_subclass_implementers
-  def augment_bounding_box(self, bounding_box, transformation=None):
+  def augment_bounding_boxes(self, image, bounding_boxes, transformation=None):
     """Augment bounding boxes for one image during training.
 
     Args:
-      bounding_box: 2D bounding boxes to the layer. Forwarded from `call()`.
+      image: 3D image input tensor to the layer. Forwarded from `layer.call()`.
+      bounding_boxes: 2D bounding boxes to the layer. Forwarded from `call()`.
       transformation: The transformation object produced by
         `get_random_transformation`. Used to coordinate the randomness between
         image, label and bounding box.
@@ -411,8 +412,8 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
       label = self.augment_label(label, transformation=transformation)
       result[LABELS] = label
     if bounding_box is not None:
-      bounding_box = self.augment_bounding_box(
-          bounding_box, transformation=transformation)
+      bounding_box = self.augment_bounding_boxes(
+          image, bounding_box, transformation=transformation)
       result[BOUNDING_BOXES] = bounding_box
     return result
 
