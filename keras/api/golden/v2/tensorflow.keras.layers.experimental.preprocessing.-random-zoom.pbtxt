@@ -158,8 +158,8 @@ tf_class {
     argspec: "args=[\'self\', \'name\', \'shape\', \'dtype\', \'initializer\', \'regularizer\', \'trainable\', \'constraint\', \'use_resource\', \'synchronization\', \'aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'VariableSynchronization.AUTO\', \'VariableAggregationV2.NONE\'], "
   }
   member_method {
-    name: "augment_bounding_box"
-    argspec: "args=[\'self\', \'bounding_box\', \'transformation\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    name: "augment_bounding_boxes"
+    argspec: "args=[\'self\', \'image\', \'bounding_boxes\', \'transformation\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
     name: "augment_image"
