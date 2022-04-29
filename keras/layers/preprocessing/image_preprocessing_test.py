@@ -442,7 +442,8 @@ class RandomCropTest(test_combinations.TestCase):
       layer = image_preprocessing.RandomCrop(8, 8)
       with tf.compat.v1.test.mock.patch.object(
           layer._random_generator, 'random_uniform', return_value=mock_offset):
-        actual_output = layer.augment_image(inp)
+        actual_output = layer.augment_image(
+            inp, transformation=layer.get_random_transformation(image=inp))
         self.assertAllClose(inp[2:10, 2:10, :], actual_output)
 
   def test_training_false(self):
@@ -744,7 +745,8 @@ class RandomContrastTest(test_combinations.TestCase):
     ):
       with test_utils.use_gpu():
         layer = image_preprocessing.RandomContrast((0.2, 0.5))
-        actual_output = layer.augment_image(inp)
+        actual_output = layer.augment_image(
+            inp, transformation=layer.get_random_transformation())
         self.assertAllClose(expected_output, actual_output)
 
   @test_utils.run_v2_only
@@ -820,7 +822,8 @@ class RandomBrightnessTest(test_combinations.TestCase):
     # Always scale up, but randomly between 0 ~ 255
     layer = image_preprocessing.RandomBrightness([0, 1.0])
     image = np.random.randint(0, 255, size=(224, 224, 3))
-    output = layer.augment_image(image, transformation=None)
+    output = layer.augment_image(
+        image, transformation=layer.get_random_transformation())
     diff = output - image
     self.assertGreaterEqual(tf.math.reduce_min(diff), 0)
     self.assertGreater(tf.math.reduce_mean(diff), 0)
@@ -828,7 +831,8 @@ class RandomBrightnessTest(test_combinations.TestCase):
     # Always scale down, but randomly between 0 ~ 255
     layer = image_preprocessing.RandomBrightness([-1.0, 0.0])
     image = np.random.randint(0, 255, size=(224, 224, 3))
-    output = layer.augment_image(image)
+    output = layer.augment_image(
+        image, transformation=layer.get_random_transformation())
     diff = output - image
     self.assertLessEqual(tf.math.reduce_max(diff), 0)
     self.assertLess(tf.math.reduce_mean(diff), 0)
@@ -1533,7 +1537,8 @@ class RandomRotationTest(test_combinations.TestCase):
       input_image = np.reshape(np.arange(0, 25), (5, 5, 1)).astype(np.float32)
       # 180 rotation.
       layer = image_preprocessing.RandomRotation(factor=(0.5, 0.5))
-      output_image = layer.augment_image(input_image, transformation=None)
+      output_image = layer.augment_image(
+          input_image, transformation=layer.get_random_transformation())
       expected_output = np.asarray([
           [24, 23, 22, 21, 20],
           [19, 18, 17, 16, 15],
@@ -1671,7 +1676,8 @@ class RandomZoomTest(test_combinations.TestCase):
       input_image = np.reshape(np.arange(0, 25), (5, 5, 1)).astype(np.int64)
       layer = image_preprocessing.RandomZoom((-.5, -.5), (-.5, -.5),
                                              interpolation='nearest')
-      output_image = layer.augment_image(input_image)
+      output_image = layer.augment_image(
+          input_image, transformation=layer.get_random_transformation())
       expected_output = np.asarray([
           [6, 7, 7, 8, 8],
           [11, 12, 12, 13, 13],
@@ -1812,7 +1818,8 @@ class RandomHeightTest(test_combinations.TestCase):
       layer = image_preprocessing.RandomHeight(.4)
       with tf.compat.v1.test.mock.patch.object(
           layer._random_generator, 'random_uniform', return_value=mock_factor):
-        img_out = layer.augment_image(img, transformation=None)
+        img_out = layer.augment_image(
+            img, transformation=layer.get_random_transformation(image=img))
         self.assertEqual(img_out.shape[0], 3)
 
   @test_utils.run_v2_only
@@ -1944,7 +1951,8 @@ class RandomWidthTest(test_combinations.TestCase):
       layer = image_preprocessing.RandomWidth(.4)
       with tf.compat.v1.test.mock.patch.object(
           layer._random_generator, 'random_uniform', return_value=mock_factor):
-        img_out = layer.augment_image(img, transformation=None)
+        img_out = layer.augment_image(
+            img, transformation=layer.get_random_transformation(image=img))
         self.assertEqual(img_out.shape[1], 3)
 
   @test_utils.run_v2_only
@@ -2062,10 +2070,10 @@ class RandomAddLayer(image_preprocessing.BaseImageAugmentationLayer):
     return self._random_generator.random_uniform(
         [], minval=self.value_range[0], maxval=self.value_range[1])
 
-  def augment_image(self, image, transformation=None):
+  def augment_image(self, image, transformation):
     return image + transformation
 
-  def augment_label(self, label, transformation=None):
+  def augment_label(self, label, transformation):
     return label + transformation
 
 

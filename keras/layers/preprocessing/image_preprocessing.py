@@ -274,7 +274,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
       super().__init__(**kwargs)
       self._factor = factor
 
-    def augment_image(self, image, transformation=None):
+    def augment_image(self, image, transformation):
       random_factor = tf.random.uniform([], self._factor[0], self._factor[1])
       mean = tf.math.reduced_mean(inputs, axis=-1, keep_dim=True)
       return (inputs - mean) * random_factor + mean
@@ -320,7 +320,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
       return tf.map_fn
 
   @doc_controls.for_subclass_implementers
-  def augment_image(self, image, transformation=None):
+  def augment_image(self, image, transformation):
     """Augment a single image during training.
 
     Args:
@@ -335,7 +335,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     raise NotImplementedError()
 
   @doc_controls.for_subclass_implementers
-  def augment_label(self, label, transformation=None):
+  def augment_label(self, label, transformation):
     """Augment a single label during training.
 
     Args:
@@ -523,9 +523,7 @@ class RandomCrop(BaseImageAugmentationLayer):
     w_start = rands[1] % (w_diff + 1)
     return {'top': h_start, 'left': w_start}
 
-  def augment_image(self, image, transformation=None):
-    if transformation is None:
-      transformation = self.get_random_transformation(image)
+  def augment_image(self, image, transformation):
     input_shape = tf.shape(image)
     h_diff = input_shape[H_AXIS] - self.height
     w_diff = input_shape[W_AXIS] - self.width
@@ -677,10 +675,10 @@ class RandomFlip(BaseImageAugmentationLayer):
     self.seed = seed
     self.auto_vectorize = False
 
-  def augment_label(self, label, transformation=None):
+  def augment_label(self, label, transformation):
     return label
 
-  def augment_image(self, image, transformation=None):
+  def augment_image(self, image, transformation):
     flipped_outputs = image
     if self.horizontal:
       seed = self._random_generator.make_seed_for_stateless_op()
@@ -820,7 +818,7 @@ class RandomTranslation(BaseImageAugmentationLayer):
     self.seed = seed
 
   @tf.function
-  def augment_image(self, image, transformation=None):
+  def augment_image(self, image, transformation):
     """Translated inputs with random ops."""
     # The transform op only accepts rank 4 inputs, so if we have an unbatched
     # image, we need to temporarily expand dims to a batch.
@@ -830,9 +828,6 @@ class RandomTranslation(BaseImageAugmentationLayer):
     inputs_shape = tf.shape(inputs)
     img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
     img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-
-    if transformation is None:
-      transformation = self.get_random_transformation(image=image)
     height_translation = transformation['height_translation']
     width_translation = transformation['width_translation']
     height_translation = height_translation * img_hd
@@ -873,7 +868,7 @@ class RandomTranslation(BaseImageAugmentationLayer):
     # issue for different tensorspec between inputs and outputs.
     return tf.vectorized_map(self._augment, inputs)
 
-  def augment_label(self, label, transformation=None):
+  def augment_label(self, label, transformation):
     return label
 
   def compute_output_shape(self, input_shape):
@@ -1145,9 +1140,7 @@ class RandomRotation(BaseImageAugmentationLayer):
         shape=[1], minval=min_angle, maxval=max_angle)
     return {'angle': angle}
 
-  def augment_image(self, image, transformation=None):
-    if transformation is None:
-      transformation = self.get_random_transformation()
+  def augment_image(self, image, transformation):
     image = utils.ensure_tensor(image, self.compute_dtype)
     original_shape = image.shape
     image = tf.expand_dims(image, 0)
@@ -1165,7 +1158,7 @@ class RandomRotation(BaseImageAugmentationLayer):
     output.set_shape(original_shape)
     return output
 
-  def augment_label(self, label, transformation=None):
+  def augment_label(self, label, transformation):
     return label
 
   def compute_output_shape(self, input_shape):
@@ -1307,10 +1300,8 @@ class RandomZoom(BaseImageAugmentationLayer):
 
     return {'height_zoom': height_zoom, 'width_zoom': width_zoom}
 
-  def augment_image(self, image, transformation=None):
+  def augment_image(self, image, transformation):
     image = utils.ensure_tensor(image, self.compute_dtype)
-    if transformation is None:
-      transformation = self.get_random_transformation()
     original_shape = image.shape
     image = tf.expand_dims(image, 0)
     image_shape = tf.shape(image)
@@ -1331,7 +1322,7 @@ class RandomZoom(BaseImageAugmentationLayer):
     output.set_shape(original_shape)
     return output
 
-  def augment_label(self, label, transformation=None):
+  def augment_label(self, label, transformation):
     return label
 
   def compute_output_shape(self, input_shape):
@@ -1459,16 +1450,14 @@ class RandomContrast(BaseImageAugmentationLayer):
         shape=[], minval=lower, maxval=upper, seed=random_seed)
     return {'contrast_factor': contrast_factor}
 
-  def augment_image(self, image, transformation=None):
-    if transformation is None:
-      transformation = self.get_random_transformation()
+  def augment_image(self, image, transformation):
     contrast_factor = transformation['contrast_factor']
     output = tf.image.adjust_contrast(image, contrast_factor=contrast_factor)
     output = tf.clip_by_value(output, 0, 255)
     output.set_shape(image.shape)
     return output
 
-  def augment_label(self, label, transformation=None):
+  def augment_label(self, label, transformation):
     return label
 
   def compute_output_shape(self, input_shape):
@@ -1554,12 +1543,10 @@ class RandomBrightness(BaseImageAugmentationLayer):
     self._set_value_range(value_range)
     self._seed = seed
 
-  def augment_image(self, image, transformation=None):
-    if transformation is None:
-      transformation = self.get_random_transformation()
+  def augment_image(self, image, transformation):
     return self._brightness_adjust(image, transformation['rgb_delta'])
 
-  def augment_label(self, label, transformation=None):
+  def augment_label(self, label, transformation):
     return label
 
   def get_random_transformation(self,
@@ -1706,14 +1693,14 @@ class RandomHeight(BaseImageAugmentationLayer):
     return {'height': adjusted_height}
 
   def _batch_augment(self, inputs):
-    images = self.augment_image(inputs[IMAGES], transformation=None)
+    images = self.augment_image(
+        inputs[IMAGES],
+        transformation=self.get_random_transformation(image=inputs[IMAGES]))
     result = {IMAGES: images}
     # to-do augment bbox to clip bbox to resized height value
     return result
 
-  def augment_image(self, image, transformation=None):
-    if transformation is None:
-      transformation = self.get_random_transformation(image)
+  def augment_image(self, image, transformation):
     # The batch dimension of the input=image is not modified. The output would
     # be accurate for both unbatched and batched input
     inputs_shape = tf.shape(image)
@@ -1810,14 +1797,14 @@ class RandomWidth(BaseImageAugmentationLayer):
     self.auto_vectorize = False
 
   def _batch_augment(self, inputs):
-    images = self.augment_image(inputs[IMAGES])
+    images = self.augment_image(
+        inputs[IMAGES],
+        transformation=self.get_random_transformation(image=inputs[IMAGES]))
     result = {IMAGES: images}
     # to-do augment bbox to clip bbox to resized width value
     return result
 
-  def augment_image(self, image, transformation=None):
-    if transformation is None:
-      transformation = self.get_random_transformation(image)
+  def augment_image(self, image, transformation):
     # The batch dimension of the input=image is not modified. The output would
     # be accurate for both unbatched and batched input
     inputs = utils.ensure_tensor(image)

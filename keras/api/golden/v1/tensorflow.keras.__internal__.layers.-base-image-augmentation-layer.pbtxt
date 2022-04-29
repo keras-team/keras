@@ -162,11 +162,11 @@ tf_class {
   }
   member_method {
     name: "augment_image"
-    argspec: "args=[\'self\', \'image\', \'transformation\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    argspec: "args=[\'self\', \'image\', \'transformation\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "augment_label"
-    argspec: "args=[\'self\', \'label\', \'transformation\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    argspec: "args=[\'self\', \'label\', \'transformation\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "build"
