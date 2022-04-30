@@ -223,15 +223,15 @@ class ConvNeXtBlock(Model):
     else:
       self.gamma = None
     
-    self.dw_conv_1 = layers.Conv2D(
+    self.depthwise_conv_1 = layers.Conv2D(
       filters=projection_dim, kernel_size=7, padding="same",
       groups=projection_dim, name=name + "_depthwise_conv")
     self.layer_norm = layers.LayerNormalization(epsilon=1e-6, 
       name=name + "_layernorm")
-    self.pw_conv_1 = layers.Dense(4 * projection_dim,
+    self.pointwise_conv_1 = layers.Dense(4 * projection_dim,
       name=name + "_pointwise_conv_1")
     self.act_fn = layers.Activation("gelu", name=name + "_gelu")
-    self.pw_conv_2 = layers.Dense(projection_dim, 
+    self.pointwise_conv_2 = layers.Dense(projection_dim, 
       name=name + "_pointwise_conv_2")
     self.drop_path = (
       StochasticDepth(drop_path_rate, name=name + "_stochastic_depth")
@@ -242,11 +242,11 @@ class ConvNeXtBlock(Model):
   def call(self, inputs):
     x = inputs
 
-    x = self.dw_conv_1(x)
+    x = self.depthwise_conv_1(x)
     x = self.layer_norm(x)
-    x = self.pw_conv_1(x)
+    x = self.pointwise_conv_1(x)
     x = self.act_fn(x)
-    x = self.pw_conv_2(x)
+    x = self.pointwise_conv_2(x)
 
     if self.gamma is not None:
       x = self.gamma * x
@@ -433,7 +433,7 @@ def ConvNeXt(depths,
   # Stochastic depth schedule.
   # This is referred from the original ConvNeXt codebase:
   # https://github.com/facebookresearch/ConvNeXt/blob/main/models/convnext.py#L86
-  dp_rates = [x for x in tf.linspace(0.0, drop_path_rate, sum(depths))]
+  depth_drop_rates = [x for x in tf.linspace(0.0, drop_path_rate, sum(depths))]
 
   # First apply downsampling blocks and then apply ConvNeXt stages.
   cur = 0
@@ -442,7 +442,7 @@ def ConvNeXt(depths,
     for j in range(depths[i]):
       x = ConvNeXtBlock(
         projection_dim=projection_dims[i],
-        drop_path_rate=dp_rates[cur + j],
+        drop_path_rate=depth_drop_rates[cur + j],
         layer_scale_init_value=layer_scale_init_value,
         name=model_name + f"_stage_{i}_block_{j}",
       )(x)
