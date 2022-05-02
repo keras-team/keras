@@ -258,8 +258,7 @@ def _get_next_sample(dataset_iterator,
           warnings.warn('The dataset is taking longer than 10 seconds to '
                         'iterate. This may be due to the size of the dataset. '
                         'Please consider using a smaller dataset'
-                        '(e.g. < 10,000 samples). \nTo hide this '
-                        'warning message, set `data_size_warning_flag=False`.',
+                        '(e.g. < 10,000 samples).',
                         category=ResourceWarning,
                         source='split_dataset')
           data_size_warning_flag = False
