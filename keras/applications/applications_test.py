@@ -16,6 +16,7 @@
 
 from absl.testing import parameterized
 from keras import backend
+from keras.applications import convnext
 from keras.applications import densenet
 from keras.applications import efficientnet
 from keras.applications import efficientnet_v2
@@ -45,6 +46,11 @@ MODEL_LIST_NO_NASNET = [(resnet.ResNet50, 2048), (resnet.ResNet101, 2048),
                         (mobilenet_v2.MobileNetV2, 1280),
                         (mobilenet_v3.MobileNetV3Small, 576),
                         (mobilenet_v3.MobileNetV3Large, 960),
+                        (convnext.ConvNeXtTiny, 768),
+                        (convnext.ConvNeXtSmall, 768),
+                        (convnext.ConvNeXtBase, 1024),
+                        (convnext.ConvNeXtLarge, 1536),
+                        (convnext.ConvNeXtXLarge, 2048),
                         (densenet.DenseNet121, 1024),
                         (densenet.DenseNet169, 1664),
                         (densenet.DenseNet201, 1920),
