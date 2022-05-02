@@ -30,6 +30,7 @@ from keras.engine import training_utils
 from keras.utils import data_utils
 from keras.utils import dataset_creator
 from keras.utils import tf_utils
+from tensorflow.python.distribute.input_lib import DistributedDataset
 from tensorflow.python.framework import type_spec
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
@@ -1197,7 +1198,8 @@ class DataHandler:
           break
         if self._adapter.should_recreate_iterator():
           data_iterator = iter(self._dataset)
-          self._inferred_steps = self._infer_steps(self._steps_per_epoch, self._dataset)
+          if not isinstance(self._dataset, DistributedDataset):
+            self._inferred_steps = self._infer_steps(self._steps_per_epoch, self._dataset)
         yield epoch, data_iterator
         self._adapter.on_epoch_end()
 
