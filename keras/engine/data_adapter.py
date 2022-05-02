@@ -1199,7 +1199,9 @@ class DataHandler:
         if self._adapter.should_recreate_iterator():
           data_iterator = iter(self._dataset)
           if not isinstance(self._dataset, DistributedDataset):
-            self._inferred_steps = self._infer_steps(self._steps_per_epoch, self._dataset)
+            steps = self._infer_steps(self._steps_per_epoch, self._dataset)
+            if steps is not None:
+              self._inferred_steps = steps
         yield epoch, data_iterator
         self._adapter.on_epoch_end()
 
