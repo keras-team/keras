@@ -24,7 +24,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.ops import stateless_random_ops
 
 
@@ -423,6 +423,47 @@ class RandomCropTest(test_combinations.TestCase):
         actual_output = layer(inp, training=True)
         self.assertAllClose(inp[2:10, 2:10, :], actual_output)
 
+  def test_batched_input(self):
+    np.random.seed(1337)
+    inp = np.random.random((20, 16, 16, 3))
+    mock_offset = [2, 2]
+    with test_utils.use_gpu():
+      layer = image_preprocessing.RandomCrop(8, 8)
+      with tf.compat.v1.test.mock.patch.object(
+          layer._random_generator, 'random_uniform', return_value=mock_offset):
+        actual_output = layer(inp, training=True)
+        self.assertAllClose(inp[:, 2:10, 2:10, :], actual_output)
+
+  def test_augment_image(self):
+    np.random.seed(1337)
+    inp = np.random.random((16, 16, 3))
+    mock_offset = [2, 2]
+    with test_utils.use_gpu():
+      layer = image_preprocessing.RandomCrop(8, 8)
+      with tf.compat.v1.test.mock.patch.object(
+          layer._random_generator, 'random_uniform', return_value=mock_offset):
+        actual_output = layer.augment_image(
+            inp, transformation=layer.get_random_transformation(image=inp))
+        self.assertAllClose(inp[2:10, 2:10, :], actual_output)
+
+  def test_training_false(self):
+    np.random.seed(1337)
+    height, width = 4, 6
+    inp = np.random.random((12, 8, 16, 3))
+    inp_dict = {'images': inp}
+    with test_utils.use_gpu():
+      layer = image_preprocessing.RandomCrop(height, width)
+      # test wih tensor input
+      actual_output = layer(inp, training=False)
+      resized_inp = tf.image.resize(inp, size=[4, 8])
+      expected_output = resized_inp[:, :, 1:7, :]
+      self.assertAllClose(expected_output, actual_output)
+      # test with dictionary input
+      actual_output = layer(inp_dict, training=False)
+      resized_inp = tf.image.resize(inp, size=[4, 8])
+      expected_output = resized_inp[:, :, 1:7, :]
+      self.assertAllClose(expected_output, actual_output['images'])
+
   @test_utils.run_v2_only
   def test_uint8_input(self):
     inputs = keras.Input((128, 128, 3), batch_size=2, dtype=tf.uint8)
@@ -496,7 +537,7 @@ class RandomFlipTest(test_combinations.TestCase):
     orig_width = 8
     channels = 3
     if mock_random is None:
-      mock_random = [0.0 for _ in range(num_samples)]
+      mock_random = [True for _ in range(num_samples)]
       if mode == 'horizontal_and_vertical':
         mock_random *= 2
     inp = np.random.random((num_samples, orig_height, orig_width, channels))
@@ -507,8 +548,8 @@ class RandomFlipTest(test_combinations.TestCase):
       if mode == 'vertical' or mode == 'horizontal_and_vertical':
         expected_output = np.flip(expected_output, axis=1)
     with tf.compat.v1.test.mock.patch.object(
-        stateless_random_ops,
-        'stateless_random_uniform',
+        np.random,
+        'choice',
         side_effect=mock_random,
     ):
       with test_utils.use_gpu():
@@ -525,7 +566,7 @@ class RandomFlipTest(test_combinations.TestCase):
 
   def test_random_flip_horizontal_half(self):
     np.random.seed(1337)
-    mock_random = [0.0, 1.0]
+    mock_random = [True, False]
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = input_images.copy()
     expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=1)
@@ -533,7 +574,7 @@ class RandomFlipTest(test_combinations.TestCase):
 
   def test_random_flip_vertical_half(self):
     np.random.seed(1337)
-    mock_random = [0.0, 1.0]
+    mock_random = [True, False]
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = input_images.copy()
     expected_output[0, :, :, :] = np.flip(input_images[0, :, :, :], axis=0)
@@ -550,10 +591,10 @@ class RandomFlipTest(test_combinations.TestCase):
   def test_random_flip_default(self):
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = np.flip(np.flip(input_images, axis=1), axis=2)
-    mock_random = [0.0, 0.0, 0.0, 0.0]
+    mock_random = [True, True, True, True]
     with tf.compat.v1.test.mock.patch.object(
-        stateless_random_ops,
-        'stateless_random_uniform',
+        np.random,
+        'choice',
         side_effect=mock_random,
     ):
       with self.cached_session():
@@ -571,11 +612,11 @@ class RandomFlipTest(test_combinations.TestCase):
   def test_random_flip_unbatched_image(self):
     input_image = np.random.random((4, 4, 1)).astype(np.float32)
     expected_output = np.flip(input_image, axis=0)
-    # mock_random = np.reshape([0.], [1, 1, 1])
+    mock_random = [True, True, True, True]
     with tf.compat.v1.test.mock.patch.object(
-        stateless_random_ops,
-        'stateless_random_uniform',
-        return_value=0.,
+        np.random,
+        'choice',
+        side_effect=mock_random,
     ):
       with self.cached_session():
         layer = image_preprocessing.RandomFlip('vertical')
@@ -590,6 +631,69 @@ class RandomFlipTest(test_combinations.TestCase):
     layer = image_preprocessing.RandomFlip(dtype='uint8')
     self.assertAllEqual(layer(inputs).dtype, 'uint8')
 
+  @test_utils.run_v2_only
+  def test_augment_bbox_horizontal(self):
+    image = tf.zeros([1, 20, 20, 3])
+    bboxes = np.array([[0, 0, 10, 10], [4, 4, 12, 12]], dtype='int32')
+    layer = image_preprocessing.RandomFlip()
+    output = layer.augment_bounding_boxes(
+        image,
+        bboxes,
+        transformation={
+            'flip_horizontal': True,
+            'flip_vertical': False
+        })
+    expected_output = [[10, 0, 20, 10], [8, 4, 16, 12]]
+    self.assertAllClose(expected_output, output)
+
+  @test_utils.run_v2_only
+  def test_augment_bbox_vertical(self):
+    image = tf.zeros([1, 20, 20, 3])
+    bboxes = np.array([[0, 0, 10, 10], [4, 4, 12, 12]], dtype='int32')
+    layer = image_preprocessing.RandomFlip()
+    output = layer.augment_bounding_boxes(
+        image,
+        bboxes,
+        transformation={
+            'flip_horizontal': False,
+            'flip_vertical': True
+        })
+    expected_output = [[0, 10, 10, 20], [4, 8, 12, 16]]
+    self.assertAllClose(expected_output, output)
+
+  @test_utils.run_v2_only
+  def test_augment_bbox_both(self):
+    image = tf.zeros([1, 20, 20, 3])
+    bboxes = np.array([[0, 0, 10, 10], [4, 4, 12, 12]], dtype='int32')
+    layer = image_preprocessing.RandomFlip()
+    output = layer.augment_bounding_boxes(
+        image,
+        bboxes,
+        transformation={
+            'flip_horizontal': True,
+            'flip_vertical': True
+        })
+    expected_output = [[10, 10, 20, 20], [8, 8, 16, 16]]
+    self.assertAllClose(expected_output, output)
+
+  @test_utils.run_v2_only
+  def test_augment_bbox_batched_input(self):
+    image = tf.zeros([20, 20, 3])
+    bboxes = np.array(
+        [[[0, 0, 10, 10], [4, 4, 12, 12]], [[0, 0, 10, 10], [4, 4, 12, 12]]],
+        dtype='int32')
+    input = {'images': [image, image], 'bounding_boxes': bboxes}
+    mock_random = [True, True, True, True]
+    with tf.compat.v1.test.mock.patch.object(
+        np.random,
+        'choice',
+        side_effect=mock_random,
+    ):
+      layer = image_preprocessing.RandomFlip()
+      output = layer(input, training=True)
+    expected_output = [[[10, 10, 20, 20], [8, 8, 16, 16]],
+                       [[10, 10, 20, 20], [8, 8, 16, 16]]]
+    self.assertAllClose(expected_output, output['bounding_boxes'])
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class RandomContrastTest(test_combinations.TestCase):
@@ -690,6 +794,24 @@ class RandomContrastTest(test_combinations.TestCase):
         actual_output = layer(inp, training=True)
         self.assertAllClose(expected_output, actual_output)
 
+  def test_augment_image(self):
+    np.random.seed(1337)
+    mock_random = 0.2
+    inp = np.random.random((4, 4, 1))
+    inp_mean = np.mean(inp, axis=0, keepdims=True)
+    inp_mean = np.mean(inp_mean, axis=1, keepdims=True)
+    expected_output = (inp - inp_mean) * mock_random + inp_mean
+    with tf.compat.v1.test.mock.patch.object(
+        stateless_random_ops,
+        'stateless_random_uniform',
+        return_value=mock_random,
+    ):
+      with test_utils.use_gpu():
+        layer = image_preprocessing.RandomContrast((0.2, 0.5))
+        actual_output = layer.augment_image(
+            inp, transformation=layer.get_random_transformation())
+        self.assertAllClose(expected_output, actual_output)
+
   @test_utils.run_v2_only
   def test_output_dtypes(self):
     inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
@@ -756,6 +878,25 @@ class RandomBrightnessTest(test_combinations.TestCase):
     inputs = np.random.randint(0, 255, size=(224, 224, 3))
     output = layer(inputs)
     diff = output - inputs
+    self.assertLessEqual(tf.math.reduce_max(diff), 0)
+    self.assertLess(tf.math.reduce_mean(diff), 0)
+
+  def test_augment_image(self):
+    # Always scale up, but randomly between 0 ~ 255
+    layer = image_preprocessing.RandomBrightness([0, 1.0])
+    image = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer.augment_image(
+        image, transformation=layer.get_random_transformation())
+    diff = output - image
+    self.assertGreaterEqual(tf.math.reduce_min(diff), 0)
+    self.assertGreater(tf.math.reduce_mean(diff), 0)
+
+    # Always scale down, but randomly between 0 ~ 255
+    layer = image_preprocessing.RandomBrightness([-1.0, 0.0])
+    image = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer.augment_image(
+        image, transformation=layer.get_random_transformation())
+    diff = output - image
     self.assertLessEqual(tf.math.reduce_max(diff), 0)
     self.assertLess(tf.math.reduce_mean(diff), 0)
 
@@ -1454,6 +1595,23 @@ class RandomRotationTest(test_combinations.TestCase):
       expected_output = np.reshape(expected_output, (5, 5, 1))
       self.assertAllClose(expected_output, output_image)
 
+  def test_augment_image(self):
+    with test_utils.use_gpu():
+      input_image = np.reshape(np.arange(0, 25), (5, 5, 1)).astype(np.float32)
+      # 180 rotation.
+      layer = image_preprocessing.RandomRotation(factor=(0.5, 0.5))
+      output_image = layer.augment_image(
+          input_image, transformation=layer.get_random_transformation())
+      expected_output = np.asarray([
+          [24, 23, 22, 21, 20],
+          [19, 18, 17, 16, 15],
+          [14, 13, 12, 11, 10],
+          [9, 8, 7, 6, 5],
+          [4, 3, 2, 1, 0],
+      ]).astype(np.float32)
+      expected_output = np.reshape(expected_output, (5, 5, 1))
+      self.assertAllClose(expected_output, output_image)
+
   @test_utils.run_v2_only
   def test_output_dtypes(self):
     inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
@@ -1576,6 +1734,23 @@ class RandomZoomTest(test_combinations.TestCase):
       expected_output = np.reshape(expected_output, (5, 5, 1))
       self.assertAllEqual(expected_output, output_image)
 
+  def test_augment_image(self):
+    with test_utils.use_gpu():
+      input_image = np.reshape(np.arange(0, 25), (5, 5, 1)).astype(np.int64)
+      layer = image_preprocessing.RandomZoom((-.5, -.5), (-.5, -.5),
+                                             interpolation='nearest')
+      output_image = layer.augment_image(
+          input_image, transformation=layer.get_random_transformation())
+      expected_output = np.asarray([
+          [6, 7, 7, 8, 8],
+          [11, 12, 12, 13, 13],
+          [11, 12, 12, 13, 13],
+          [16, 17, 17, 18, 18],
+          [16, 17, 17, 18, 18],
+      ]).astype(np.int64)
+      expected_output = np.reshape(expected_output, (5, 5, 1))
+      self.assertAllEqual(expected_output, output_image)
+
   @test_utils.run_v2_only
   def test_output_dtypes(self):
     inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
@@ -1683,6 +1858,31 @@ class RandomHeightTest(test_combinations.TestCase):
       with tf.compat.v1.test.mock.patch.object(
           layer._random_generator, 'random_uniform', return_value=mock_factor):
         img_out = layer(img, training=True)
+        self.assertEqual(img_out.shape[0], 3)
+
+  @test_utils.run_v2_only
+  def test_batched_input(self):
+    # need (maxval - minval) * rnd + minval = 0.6
+    mock_factor = 0.6
+    with test_utils.use_gpu():
+      images = np.random.random((5, 5, 8, 3))
+      layer = image_preprocessing.RandomHeight(.4)
+      with tf.compat.v1.test.mock.patch.object(
+          layer._random_generator, 'random_uniform', return_value=mock_factor):
+        img_out = layer(images, training=True)
+        self.assertEqual(img_out.shape[1], 3)
+
+  @test_utils.run_v2_only
+  def test_augment_image(self):
+    # need (maxval - minval) * rnd + minval = 0.6
+    mock_factor = 0.6
+    with test_utils.use_gpu():
+      img = np.random.random((5, 8, 3))
+      layer = image_preprocessing.RandomHeight(.4)
+      with tf.compat.v1.test.mock.patch.object(
+          layer._random_generator, 'random_uniform', return_value=mock_factor):
+        img_out = layer.augment_image(
+            img, transformation=layer.get_random_transformation(image=img))
         self.assertEqual(img_out.shape[0], 3)
 
   @test_utils.run_v2_only
@@ -1794,12 +1994,66 @@ class RandomWidthTest(test_combinations.TestCase):
         self.assertEqual(img_out.shape[1], 3)
 
   @test_utils.run_v2_only
+  def test_batched_input(self):
+    # need (maxval - minval) * rnd + minval = 0.6
+    mock_factor = 0.6
+    with test_utils.use_gpu():
+      img = np.random.random((12, 8, 5, 3))
+      layer = image_preprocessing.RandomWidth(.4)
+      with tf.compat.v1.test.mock.patch.object(
+          layer._random_generator, 'random_uniform', return_value=mock_factor):
+        img_out = layer(img, training=True)
+        self.assertEqual(img_out.shape[2], 3)
+
+  @test_utils.run_v2_only
+  def test_augment_image(self):
+    # need (maxval - minval) * rnd + minval = 0.6
+    mock_factor = 0.6
+    with test_utils.use_gpu():
+      img = np.random.random((8, 5, 3))
+      layer = image_preprocessing.RandomWidth(.4)
+      with tf.compat.v1.test.mock.patch.object(
+          layer._random_generator, 'random_uniform', return_value=mock_factor):
+        img_out = layer.augment_image(
+            img, transformation=layer.get_random_transformation(image=img))
+        self.assertEqual(img_out.shape[1], 3)
+
+  @test_utils.run_v2_only
   def test_output_dtypes(self):
     inputs = np.array([[[1], [2]], [[3], [4]]], dtype='float64')
     layer = image_preprocessing.RandomWidth(.2)
     self.assertAllEqual(layer(inputs).dtype, 'float32')
     layer = image_preprocessing.RandomWidth(.2, dtype='uint8')
     self.assertAllEqual(layer(inputs).dtype, 'uint8')
+
+
+@test_combinations.run_all_keras_modes(always_skip_v1=True)
+class WithLabelsTest(test_combinations.TestCase):
+
+  @parameterized.named_parameters(
+      ('RandomZoom', image_preprocessing.RandomZoom, {
+          'height_factor': 0.1
+      }),
+      ('RandomBrightness', image_preprocessing.RandomBrightness, {
+          'factor': 0.5
+      }),
+      ('RandomContrast', image_preprocessing.RandomContrast, {
+          'factor': 0.5
+      }),
+      ('RandomRotation', image_preprocessing.RandomRotation, {
+          'factor': 0.2
+      }),
+  )
+  def test_layer_with_labels(self, layer_cls, init_args):
+    layer = layer_cls(**init_args)
+
+    img = tf.random.uniform(
+        shape=(3, 512, 512, 3), minval=0, maxval=1, dtype=tf.float32)
+    labels = tf.constant(([[1, 0, 0], [0, 0, 1], [0, 1, 0]]), dtype=tf.float32)
+
+    inputs = {'images': img, 'labels': labels}
+    outputs = layer(inputs)
+    self.assertAllClose(labels, outputs["labels"])
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
@@ -1839,7 +2093,6 @@ class LearningPhaseTest(test_combinations.TestCase):
 class DeterminismTest(test_combinations.TestCase):
 
   @parameterized.named_parameters(
-      ('random_flip', image_preprocessing.RandomFlip),
       ('random_contrast',
        functools.partial(image_preprocessing.RandomContrast, factor=1.)),
       ('random_crop',
@@ -1879,10 +2132,10 @@ class RandomAddLayer(image_preprocessing.BaseImageAugmentationLayer):
     return self._random_generator.random_uniform(
         [], minval=self.value_range[0], maxval=self.value_range[1])
 
-  def augment_image(self, image, transformation=None):
+  def augment_image(self, image, transformation):
     return image + transformation
 
-  def augment_label(self, label, transformation=None):
+  def augment_label(self, label, transformation):
     return label + transformation
 
 

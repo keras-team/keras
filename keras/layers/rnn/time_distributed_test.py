@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for TimeDistributed wrapper."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 from absl.testing import parameterized
 import keras

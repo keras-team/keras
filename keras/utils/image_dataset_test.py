@@ -22,8 +22,8 @@ import shutil
 import numpy as np
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.preprocessing import image as image_preproc
 from keras.utils import image_dataset
+from keras.utils import image_utils
 
 try:
   import PIL  # pylint:disable=g-import-not-at-top
@@ -44,7 +44,7 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
         img = np.random.randint(0, 256, size=(height, width, 4))
       else:
         img = np.random.randint(0, 256, size=(height, width, 3))
-      img = image_preproc.array_to_img(img)
+      img = image_utils.array_to_img(img)
       imgs.append(img)
     return imgs
 
@@ -249,6 +249,20 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
     self.assertLen(batch, 2)
     self.assertEqual(batch[0].shape, (2, 18, 18, 3))
 
+    train_dataset, val_dataset = image_dataset.image_dataset_from_directory(
+        directory,
+        batch_size=10,
+        image_size=(18, 18),
+        validation_split=0.2,
+        subset='both',
+        seed=1337)
+    batch = next(iter(train_dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (8, 18, 18, 3))
+    batch = next(iter(val_dataset))
+    self.assertLen(batch, 2)
+    self.assertEqual(batch[0].shape, (2, 18, 18, 3))
+
   def test_image_dataset_from_directory_manual_labels(self):
     if PIL is None:
       return  # Skip test if PIL is not available.
@@ -335,8 +349,9 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
       _ = image_dataset.image_dataset_from_directory(
           directory, validation_split=2)
 
-    with self.assertRaisesRegex(ValueError,
-                                '`subset` must be either "training" or'):
+    with self.assertRaisesRegex(
+        ValueError, '`subset` must be either "training", '
+        '"validation" or "both"'):
       _ = image_dataset.image_dataset_from_directory(
           directory, validation_split=0.2, subset='other')
 

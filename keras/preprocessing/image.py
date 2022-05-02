@@ -15,11 +15,11 @@
 # pylint: disable=invalid-name
 # pylint: disable=g-import-not-at-top
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
 """Utilies for image preprocessing and augmentation.
 
-Warning: `tf.keras.preprocessing.image` APIs do not operate on tensors and are
-not recommended for new code. Prefer loading data with
+Deprecated: `tf.keras.preprocessing.image` APIs do not operate on tensors and
+are not recommended for new code. Prefer loading data with
 `tf.keras.utils.image_dataset_from_directory`, and then transforming the output
 `tf.data.Dataset` with preprocessing layers. For more information, see the
 tutorials for [loading images](
@@ -30,15 +30,14 @@ https://www.tensorflow.org/guide/keras/preprocessing_layers).
 """
 
 import collections
-import io
 import multiprocessing
 import os
-import pathlib
 import threading
 import warnings
 
 from keras import backend
 from keras.utils import data_utils
+from keras.utils import image_utils
 import numpy as np
 from tensorflow.python.util.tf_export import keras_export
 
@@ -49,293 +48,16 @@ try:
 except ImportError:
   pass
 try:
-  from PIL import Image as pil_image
   from PIL import ImageEnhance
 except ImportError:
-  pil_image = None
   ImageEnhance = None
-
-
-if pil_image is not None:
-  _PIL_INTERPOLATION_METHODS = {
-      'nearest': pil_image.NEAREST,
-      'bilinear': pil_image.BILINEAR,
-      'bicubic': pil_image.BICUBIC,
-      'hamming': pil_image.HAMMING,
-      'box': pil_image.BOX,
-      'lanczos': pil_image.LANCZOS,
-  }
-
-
-@keras_export('keras.utils.array_to_img',
-              'keras.preprocessing.image.array_to_img')
-def array_to_img(x, data_format=None, scale=True, dtype=None):
-  """Converts a 3D Numpy array to a PIL Image instance.
-
-  Usage:
-
-  ```python
-  from PIL import Image
-  img = np.random.random(size=(100, 100, 3))
-  pil_img = tf.keras.preprocessing.image.array_to_img(img)
-  ```
-
-
-  Args:
-      x: Input data, in any form that can be converted to a Numpy array.
-      data_format: Image data format, can be either "channels_first" or
-        "channels_last". Defaults to `None`, in which case the global setting
-        `tf.keras.backend.image_data_format()` is used (unless you changed it,
-        it defaults to "channels_last").
-      scale: Whether to rescale the image such that minimum and maximum values
-        are 0 and 255 respectively. Defaults to `True`.
-      dtype: Dtype to use. Default to `None`, in which case the global setting
-        `tf.keras.backend.floatx()` is used (unless you changed it, it defaults
-        to "float32")
-
-  Returns:
-      A PIL Image instance.
-
-  Raises:
-      ImportError: if PIL is not available.
-      ValueError: if invalid `x` or `data_format` is passed.
-  """
-
-  if data_format is None:
-    data_format = backend.image_data_format()
-  if dtype is None:
-    dtype = backend.floatx()
-  if pil_image is None:
-    raise ImportError('Could not import PIL.Image. '
-                      'The use of `array_to_img` requires PIL.')
-  x = np.asarray(x, dtype=dtype)
-  if x.ndim != 3:
-    raise ValueError('Expected image array to have rank 3 (single image). '
-                     f'Got array with shape: {x.shape}')
-
-  if data_format not in {'channels_first', 'channels_last'}:
-    raise ValueError(f'Invalid data_format: {data_format}')
-
-  # Original Numpy array x has format (height, width, channel)
-  # or (channel, height, width)
-  # but target PIL image has format (width, height, channel)
-  if data_format == 'channels_first':
-    x = x.transpose(1, 2, 0)
-  if scale:
-    x = x - np.min(x)
-    x_max = np.max(x)
-    if x_max != 0:
-      x /= x_max
-    x *= 255
-  if x.shape[2] == 4:
-    # RGBA
-    return pil_image.fromarray(x.astype('uint8'), 'RGBA')
-  elif x.shape[2] == 3:
-    # RGB
-    return pil_image.fromarray(x.astype('uint8'), 'RGB')
-  elif x.shape[2] == 1:
-    # grayscale
-    if np.max(x) > 255:
-      # 32-bit signed integer grayscale image. PIL mode "I"
-      return pil_image.fromarray(x[:, :, 0].astype('int32'), 'I')
-    return pil_image.fromarray(x[:, :, 0].astype('uint8'), 'L')
-  else:
-    raise ValueError(f'Unsupported channel number: {x.shape[2]}')
-
-
-@keras_export('keras.utils.img_to_array',
-              'keras.preprocessing.image.img_to_array')
-def img_to_array(img, data_format=None, dtype=None):
-  """Converts a PIL Image instance to a Numpy array.
-
-  Usage:
-
-  ```python
-  from PIL import Image
-  img_data = np.random.random(size=(100, 100, 3))
-  img = tf.keras.preprocessing.image.array_to_img(img_data)
-  array = tf.keras.preprocessing.image.img_to_array(img)
-  ```
-
-
-  Args:
-      img: Input PIL Image instance.
-      data_format: Image data format, can be either "channels_first" or
-        "channels_last". Defaults to `None`, in which case the global setting
-        `tf.keras.backend.image_data_format()` is used (unless you changed it,
-        it defaults to "channels_last").
-      dtype: Dtype to use. Default to `None`, in which case the global setting
-        `tf.keras.backend.floatx()` is used (unless you changed it, it defaults
-        to "float32")
-
-  Returns:
-      A 3D Numpy array.
-
-  Raises:
-      ValueError: if invalid `img` or `data_format` is passed.
-  """
-
-  if data_format is None:
-    data_format = backend.image_data_format()
-  if dtype is None:
-    dtype = backend.floatx()
-  if data_format not in {'channels_first', 'channels_last'}:
-    raise ValueError(f'Unknown data_format: {data_format}')
-  # Numpy array x has format (height, width, channel)
-  # or (channel, height, width)
-  # but original PIL image has format (width, height, channel)
-  x = np.asarray(img, dtype=dtype)
-  if len(x.shape) == 3:
-    if data_format == 'channels_first':
-      x = x.transpose(2, 0, 1)
-  elif len(x.shape) == 2:
-    if data_format == 'channels_first':
-      x = x.reshape((1, x.shape[0], x.shape[1]))
-    else:
-      x = x.reshape((x.shape[0], x.shape[1], 1))
-  else:
-    raise ValueError(f'Unsupported image shape: {x.shape}')
-  return x
-
-
-@keras_export('keras.utils.save_img', 'keras.preprocessing.image.save_img')
-def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
-  """Saves an image stored as a Numpy array to a path or file object.
-
-  Args:
-      path: Path or file object.
-      x: Numpy array.
-      data_format: Image data format, either "channels_first" or
-        "channels_last".
-      file_format: Optional file format override. If omitted, the format to use
-        is determined from the filename extension. If a file object was used
-        instead of a filename, this parameter should always be used.
-      scale: Whether to rescale image values to be within `[0, 255]`.
-      **kwargs: Additional keyword arguments passed to `PIL.Image.save()`.
-  """
-  if data_format is None:
-    data_format = backend.image_data_format()
-  img = array_to_img(x, data_format=data_format, scale=scale)
-  if img.mode == 'RGBA' and (file_format == 'jpg' or file_format == 'jpeg'):
-    warnings.warn('The JPG format does not support '
-                  'RGBA images, converting to RGB.')
-    img = img.convert('RGB')
-  img.save(path, format=file_format, **kwargs)
-
-
-@keras_export('keras.utils.load_img', 'keras.preprocessing.image.load_img')
-def load_img(path,
-             grayscale=False,
-             color_mode='rgb',
-             target_size=None,
-             interpolation='nearest',
-             keep_aspect_ratio=False):
-  """Loads an image into PIL format.
-
-  Usage:
-
-  ```
-  image = tf.keras.preprocessing.image.load_img(image_path)
-  input_arr = tf.keras.preprocessing.image.img_to_array(image)
-  input_arr = np.array([input_arr])  # Convert single image to a batch.
-  predictions = model.predict(input_arr)
-  ```
-
-  Args:
-      path: Path to image file.
-      grayscale: DEPRECATED use `color_mode="grayscale"`.
-      color_mode: One of "grayscale", "rgb", "rgba". Default: "rgb". The desired
-        image format.
-      target_size: Either `None` (default to original size) or tuple of ints
-        `(img_height, img_width)`.
-      interpolation: Interpolation method used to resample the image if the
-        target size is different from that of the loaded image. Supported
-        methods are "nearest", "bilinear", and "bicubic". If PIL version 1.1.3
-        or newer is installed, "lanczos" is also supported. If PIL version 3.4.0
-        or newer is installed, "box" and "hamming" are also supported. By
-        default, "nearest" is used.
-      keep_aspect_ratio: Boolean, whether to resize images to a target
-              size without aspect ratio distortion. The image is cropped in
-              the center with target aspect ratio before resizing.
-
-  Returns:
-      A PIL Image instance.
-
-  Raises:
-      ImportError: if PIL is not available.
-      ValueError: if interpolation method is not supported.
-  """
-  if grayscale:
-    warnings.warn('grayscale is deprecated. Please use '
-                  'color_mode = "grayscale"')
-    color_mode = 'grayscale'
-  if pil_image is None:
-    raise ImportError('Could not import PIL.Image. '
-                      'The use of `load_img` requires PIL.')
-  if isinstance(path, io.BytesIO):
-    img = pil_image.open(path)
-  elif isinstance(path, (pathlib.Path, bytes, str)):
-    if isinstance(path, pathlib.Path):
-      path = str(path.resolve())
-    with open(path, 'rb') as f:
-      img = pil_image.open(io.BytesIO(f.read()))
-  else:
-    raise TypeError('path should be path-like or io.BytesIO'
-                    ', not {}'.format(type(path)))
-
-  if color_mode == 'grayscale':
-    # if image is not already an 8-bit, 16-bit or 32-bit grayscale image
-    # convert it to an 8-bit grayscale image.
-    if img.mode not in ('L', 'I;16', 'I'):
-      img = img.convert('L')
-  elif color_mode == 'rgba':
-    if img.mode != 'RGBA':
-      img = img.convert('RGBA')
-  elif color_mode == 'rgb':
-    if img.mode != 'RGB':
-      img = img.convert('RGB')
-  else:
-    raise ValueError('color_mode must be "grayscale", "rgb", or "rgba"')
-  if target_size is not None:
-    width_height_tuple = (target_size[1], target_size[0])
-    if img.size != width_height_tuple:
-      if interpolation not in _PIL_INTERPOLATION_METHODS:
-        raise ValueError('Invalid interpolation method {} specified. Supported '
-                         'methods are {}'.format(
-                             interpolation,
-                             ', '.join(_PIL_INTERPOLATION_METHODS.keys())))
-      resample = _PIL_INTERPOLATION_METHODS[interpolation]
-
-      if keep_aspect_ratio:
-        width, height = img.size
-        target_width, target_height = width_height_tuple
-
-        crop_height = (width * target_height) // target_width
-        crop_width = (height * target_width) // target_height
-
-        # Set back to input height / width
-        # if crop_height / crop_width is not smaller.
-        crop_height = min(height, crop_height)
-        crop_width = min(width, crop_width)
-
-        crop_box_hstart = (height - crop_height) // 2
-        crop_box_wstart = (width - crop_width) // 2
-        crop_box_wend = crop_box_wstart + crop_width
-        crop_box_hend = crop_box_hstart + crop_height
-        crop_box = [
-            crop_box_wstart, crop_box_hstart, crop_box_wend, crop_box_hend
-        ]
-        img = img.resize(width_height_tuple, resample, box=crop_box)
-      else:
-        img = img.resize(width_height_tuple, resample)
-  return img
 
 
 @keras_export('keras.preprocessing.image.Iterator')
 class Iterator(data_utils.Sequence):
   """Base class for image data iterators.
 
-  Warning: `tf.keras.preprocessing.image.Iterator` is not recommended for
+  Deprecated: `tf.keras.preprocessing.image.Iterator` is not recommended for
   new code. Prefer loading images with
   `tf.keras.utils.image_dataset_from_directory` and transforming the output
   `tf.data.Dataset` with preprocessing layers. For more information, see the
@@ -612,13 +334,13 @@ class BatchFromFilesMixin():
     # self.filepaths is dynamic, is better to call it once outside the loop
     filepaths = self.filepaths
     for i, j in enumerate(index_array):
-      img = load_img(
+      img = image_utils.load_img(
           filepaths[j],
           color_mode=self.color_mode,
           target_size=self.target_size,
           interpolation=self.interpolation,
           keep_aspect_ratio=self.keep_aspect_ratio)
-      x = img_to_array(img, data_format=self.data_format)
+      x = image_utils.img_to_array(img, data_format=self.data_format)
       # Pillow images should be closed after `load_img`,
       # but not PIL images.
       if hasattr(img, 'close'):
@@ -631,7 +353,7 @@ class BatchFromFilesMixin():
     # optionally save augmented images to disk for debugging purposes
     if self.save_to_dir:
       for i, j in enumerate(index_array):
-        img = array_to_img(batch_x[i], self.data_format, scale=True)
+        img = image_utils.array_to_img(batch_x[i], self.data_format, scale=True)
         fname = '{prefix}_{index}_{hash}.{format}'.format(
             prefix=self.save_prefix,
             index=j,
@@ -686,8 +408,8 @@ class BatchFromFilesMixin():
 class DirectoryIterator(BatchFromFilesMixin, Iterator):
   """Iterator capable of reading images from a directory on disk.
 
-  Warning: `tf.keras.preprocessing.image.DirectoryIterator` is not recommended
-  for new code. Prefer loading images with
+  Deprecated: `tf.keras.preprocessing.image.DirectoryIterator` is not
+  recommended for new code. Prefer loading images with
   `tf.keras.utils.image_dataset_from_directory` and transforming the output
   `tf.data.Dataset` with preprocessing layers. For more information, see the
   tutorials for [loading images](
@@ -838,8 +560,8 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
 class NumpyArrayIterator(Iterator):
   """Iterator yielding data from a Numpy array.
 
-  Warning: `tf.keras.preprocessing.image.NumpyArrayIterator` is not recommended
-  for new code. Prefer loading images with
+  Deprecated: `tf.keras.preprocessing.image.NumpyArrayIterator` is not
+  recommended for new code. Prefer loading images with
   `tf.keras.utils.image_dataset_from_directory` and transforming the output
   `tf.data.Dataset` with preprocessing layers. For more information, see the
   tutorials for [loading images](
@@ -991,7 +713,7 @@ class NumpyArrayIterator(Iterator):
 
     if self.save_to_dir:
       for i, j in enumerate(index_array):
-        img = array_to_img(batch_x[i], self.data_format, scale=True)
+        img = image_utils.array_to_img(batch_x[i], self.data_format, scale=True)
         fname = '{prefix}_{index}_{hash}.{format}'.format(
             prefix=self.save_prefix,
             index=j,
@@ -1296,8 +1018,8 @@ def flip_axis(x, axis):
 class ImageDataGenerator():
   """Generate batches of tensor image data with real-time data augmentation.
 
-  Warning: `tf.keras.preprocessing.image.ImageDataGenerator` is not recommended
-  for new code. Prefer loading images with
+  Deprecated: `tf.keras.preprocessing.image.ImageDataGenerator` is not
+  recommended for new code. Prefer loading images with
   `tf.keras.utils.image_dataset_from_directory` and transforming the output
   `tf.data.Dataset` with preprocessing layers. For more information, see the
   tutorials for [loading images](
@@ -2202,7 +1924,7 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
                     fill_mode='nearest', cval=0., interpolation_order=1):
   """Performs a random rotation of a Numpy image tensor.
 
-  Warning: `tf.keras.preprocessing.image.random_rotation` does not operate on
+  Deprecated: `tf.keras.preprocessing.image.random_rotation` does not operate on
   tensors and is not recommended for new code. Prefer
   `tf.keras.layers.RandomRotation` which provides equivalent functionality as a
   preprocessing layer. For more information, see the tutorial for
@@ -2245,7 +1967,7 @@ def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
                  fill_mode='nearest', cval=0., interpolation_order=1):
   """Performs a random spatial shift of a Numpy image tensor.
 
-  Warning: `tf.keras.preprocessing.image.random_shift` does not operate on
+  Deprecated: `tf.keras.preprocessing.image.random_shift` does not operate on
   tensors and is not recommended for new code. Prefer
   `tf.keras.layers.RandomTranslation` which provides equivalent functionality as
   a preprocessing layer. For more information, see the tutorial for
@@ -2327,7 +2049,7 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
                 fill_mode='nearest', cval=0., interpolation_order=1):
   """Performs a random spatial zoom of a Numpy image tensor.
 
-  Warning: `tf.keras.preprocessing.image.random_zoom` does not operate on
+  Deprecated: `tf.keras.preprocessing.image.random_zoom` does not operate on
   tensors and is not recommended for new code. Prefer
   `tf.keras.layers.RandomZoom` which provides equivalent functionality as
   a preprocessing layer. For more information, see the tutorial for
@@ -2435,10 +2157,10 @@ def apply_brightness_shift(x, brightness, scale=True):
                       'Install PIL or Pillow.')
   x_min, x_max = np.min(x), np.max(x)
   local_scale = (x_min < 0) or (x_max > 255)
-  x = array_to_img(x, scale=local_scale or scale)
+  x = image_utils.array_to_img(x, scale=local_scale or scale)
   x = imgenhancer_Brightness = ImageEnhance.Brightness(x)
   x = imgenhancer_Brightness.enhance(brightness)
-  x = img_to_array(x)
+  x = image_utils.img_to_array(x)
   if not scale and local_scale:
     x = x / 255 * (x_max - x_min) + x_min
   return x
@@ -2448,8 +2170,8 @@ def apply_brightness_shift(x, brightness, scale=True):
 def random_brightness(x, brightness_range, scale=True):
   """Performs a random brightness shift.
 
-  Warning: `tf.keras.preprocessing.image.random_brightness` does not operate on
-  tensors and is not recommended for new code. Prefer
+  Deprecated: `tf.keras.preprocessing.image.random_brightness` does not operate
+  on tensors and is not recommended for new code. Prefer
   `tf.keras.layers.RandomBrightness` which provides equivalent functionality as
   a preprocessing layer. For more information, see the tutorial for
   [augmenting images](

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for GRU layer."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 import copy
 import os

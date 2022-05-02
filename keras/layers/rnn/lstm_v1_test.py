@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for LSTM V1 layer."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 import time
 

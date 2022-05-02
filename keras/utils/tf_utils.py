@@ -26,10 +26,10 @@ from keras.utils import tf_contextlib
 import numpy as np
 
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.framework import ops
 from tensorflow.python.util.tf_export import keras_export
-# pylint: enable=g-direct-tensorflow-import
+
 
 
 @keras_export('keras.utils.set_random_seed', v1=[])
@@ -549,6 +549,8 @@ def get_tensor_spec(t, dynamic_batch=False, name=None):
   elif (hasattr(t, '_keras_history') and
         hasattr(t._keras_history[0], '_type_spec')):
     return t._keras_history[0]._type_spec
+  elif isinstance(t, keras_tensor.KerasTensor):
+    spec = t.type_spec
   elif hasattr(t, 'shape') and hasattr(t, 'dtype'):
     spec = tf.TensorSpec(shape=t.shape, dtype=t.dtype, name=name)
   else:

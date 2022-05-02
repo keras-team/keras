@@ -25,7 +25,7 @@ import platform
 
 from absl.testing import parameterized
 import numpy as np
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from keras.testing_infra import test_combinations
 from keras.legacy_tf_layers import core as core_layers
 from tensorflow.python.ops import variable_scope

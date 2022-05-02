@@ -33,7 +33,7 @@ from keras.utils import layer_utils
 
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
 
 
 BASE_WEIGHTS_PATH = 'https://storage.googleapis.com/keras-applications/'
@@ -331,7 +331,7 @@ def EfficientNet(
     # normalize the input, we need to divide another sqrt(var) to match the
     # original implementation.
     # See https://github.com/tensorflow/tensorflow/issues/49930 for more details
-    x = x / tf.math.sqrt(IMAGENET_STDDEV_RGB)
+    x = layers.Rescaling(1. / tf.math.sqrt(IMAGENET_STDDEV_RGB))(x)
 
   x = layers.ZeroPadding2D(
       padding=imagenet_utils.correct_pad(x, 3),

@@ -14,17 +14,14 @@
 # ==============================================================================
 """Tests for Keras-based einsum dense layer."""
 
-import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
-
-import numpy as np
-
 import keras
-
-from keras.testing_infra import test_combinations  # pylint: disable=g-direct-tensorflow-import
+from keras.layers.core import einsum_dense
+from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.layers import einsum_dense
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes
@@ -128,6 +125,15 @@ from keras.layers import einsum_dense
         "expected_weight_shape": [32, 64],
         "expected_bias_shape": None,
         "expected_output_shape": (None, 64)
+    }, {
+        "testcase_name": "_2d_precast_elided_input_used_in_output",
+        "equation": "...bc,bc->...b",
+        "bias_axes": None,
+        "input_shape": (None, 32, 64),
+        "output_shape": (32),
+        "expected_weight_shape": [32, 64],
+        "expected_bias_shape": None,
+        "expected_output_shape": (None, 32)
     }, {
         "testcase_name": "_2d_precast_multiple_elided_dims",
         "equation": "...b,bc->...c",

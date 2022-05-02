@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utilities for text input preprocessing.
 
-Warning: `tf.keras.preprocessing.text` APIs are not recommended for new code.
+Deprecated: `tf.keras.preprocessing.text` APIs are not recommended for new code.
 Prefer `tf.keras.utils.text_dataset_from_directory` and
 `tf.keras.layers.TextVectorization` which provide a more efficient approach
 for preprocessing text input. For an introduction to these APIs, see
@@ -25,7 +25,7 @@ and [preprocessing layer guide]
 """
 # pylint: disable=invalid-name
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
 
 import collections
 import hashlib
@@ -43,8 +43,8 @@ def text_to_word_sequence(input_text,
                           split=' '):
   r"""Converts a text to a sequence of words (or tokens).
 
-  Warning: `tf.keras.preprocessing.text.text_to_word_sequence` does not operate
-  on tensors and is not recommended for new code. Prefer
+  Deprecated: `tf.keras.preprocessing.text.text_to_word_sequence` does not
+  operate on tensors and is not recommended for new code. Prefer
   `tf.strings.regex_replace` and `tf.strings.split` which provide equivalent
   functionality and accept `tf.Tensor` input. For an overview of text handling
   in Tensorflow, see the [text loading tutorial]
@@ -88,7 +88,7 @@ def one_hot(input_text,
             analyzer=None):
   r"""One-hot encodes a text into a list of word indexes of size `n`.
 
-  Warning: `tf.keras.text.preprocessing.one_hot` does not operate on tensors
+  Deprecated: `tf.keras.text.preprocessing.one_hot` does not operate on tensors
   and is not recommended for new code. Prefer `tf.keras.layers.Hashing` with
   `output_mode='one_hot'` which provides equivalent functionality through a
   layer which accepts `tf.Tensor` input. See the [preprocessing layer guide]
@@ -136,7 +136,7 @@ def hashing_trick(text,
                   analyzer=None):
   r"""Converts a text to a sequence of indexes in a fixed-size hashing space.
 
-  Warning: `tf.keras.text.preprocessing.hashing_trick` does not operate on
+  Deprecated: `tf.keras.text.preprocessing.hashing_trick` does not operate on
   tensors and is not recommended for new code. Prefer `tf.keras.layers.Hashing`
   which provides equivalent functionality through a layer which accepts
   `tf.Tensor` input. See the [preprocessing layer guide]
@@ -185,8 +185,8 @@ def hashing_trick(text,
 class Tokenizer(object):
   """Text tokenization utility class.
 
-  Warning: `tf.keras.preprocessing.text.Tokenizer` does not operate on tensors
-  and is not recommended for new code. Prefer
+  Deprecated: `tf.keras.preprocessing.text.Tokenizer` does not operate on
+  tensors and is not recommended for new code. Prefer
   `tf.keras.layers.TextVectorization` which provides equivalent functionality
   through a layer which accepts `tf.Tensor` input. See the
   [text loading tutorial](https://www.tensorflow.org/tutorials/load_data/text)
@@ -547,8 +547,8 @@ class Tokenizer(object):
 def tokenizer_from_json(json_string):
   """Parses a JSON tokenizer configuration and returns a tokenizer instance.
 
-  Warning: `tf.keras.preprocessing.text.Tokenizer` does not operate on tensors
-  and is not recommended for new code. Prefer
+  Deprecated: `tf.keras.preprocessing.text.Tokenizer` does not operate on
+  tensors and is not recommended for new code. Prefer
   `tf.keras.layers.TextVectorization` which provides equivalent functionality
   through a layer which accepts `tf.Tensor` input. See the
   [text loading tutorial](https://www.tensorflow.org/tutorials/load_data/text)

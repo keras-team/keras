@@ -22,10 +22,13 @@ from keras.models import Model
 from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
 
+from tensorflow.python.util.tf_export import keras_export
+
 # pylint: disable=g-classes-have-attributes
 
 
 @generic_utils.register_keras_serializable()
+@keras_export("keras.models.experimental.SharpnessAwareMinimization", v1=[])
 class SharpnessAwareMinimization(Model):
   """Sharpness aware minimization (SAM) training flow.
 

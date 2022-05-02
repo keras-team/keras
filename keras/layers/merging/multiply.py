@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Layer that multiplies (element-wise) several inputs."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 from keras.layers.merging.base_merge import _Merge
 

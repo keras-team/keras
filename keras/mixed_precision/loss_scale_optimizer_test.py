@@ -31,8 +31,8 @@ from keras.testing_infra import test_combinations
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.keras.optimizer_v2 import gradient_descent as legacy_sgd
 from tensorflow.python.platform import tf_logging
 

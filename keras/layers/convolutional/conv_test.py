@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for convolutional layers."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 from absl.testing import parameterized
 import keras
@@ -22,7 +22,7 @@ from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 @test_combinations.run_all_keras_modes

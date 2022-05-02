@@ -108,8 +108,10 @@ def image_dataset_from_directory(directory,
     validation_split: Optional float between 0 and 1,
         fraction of data to reserve for validation.
     subset: Subset of the data to return.
-        One of "training" or "validation".
+        One of "training", "validation" or "both".
         Only used if `validation_split` is set.
+        When `subset="both"`, the utility returns a tuple of two datasets
+        (the training and validation datasets respectively).
     interpolation: String, the interpolation method used when resizing images.
       Defaults to `bilinear`. Supports `bilinear`, `nearest`, `bicubic`,
       `area`, `lanczos3`, `lanczos5`, `gaussian`, `mitchellcubic`.
@@ -203,35 +205,85 @@ def image_dataset_from_directory(directory,
         f'When passing `label_mode="binary"`, there must be exactly 2 '
         f'class_names. Received: class_names={class_names}')
 
-  image_paths, labels = dataset_utils.get_training_or_validation_split(
-      image_paths, labels, validation_split, subset)
-  if not image_paths:
-    raise ValueError(f'No images found in directory {directory}. '
-                     f'Allowed formats: {ALLOWLIST_FORMATS}')
+  if subset == 'both':
+    image_paths_train, labels_train = dataset_utils.get_training_or_validation_split(
+        image_paths, labels, validation_split, 'training')
+    image_paths_val, labels_val = dataset_utils.get_training_or_validation_split(
+        image_paths, labels, validation_split, 'validation')
+    if not image_paths_train:
+      raise ValueError(f'No training images found in directory {directory}. '
+                       f'Allowed formats: {ALLOWLIST_FORMATS}')
+    if not image_paths_val:
+      raise ValueError(f'No validation images found in directory {directory}. '
+                       f'Allowed formats: {ALLOWLIST_FORMATS}')
+    train_dataset = paths_and_labels_to_dataset(
+        image_paths=image_paths_train,
+        image_size=image_size,
+        num_channels=num_channels,
+        labels=labels_train,
+        label_mode=label_mode,
+        num_classes=len(class_names),
+        interpolation=interpolation,
+        crop_to_aspect_ratio=crop_to_aspect_ratio)
+    val_dataset = paths_and_labels_to_dataset(
+        image_paths=image_paths_val,
+        image_size=image_size,
+        num_channels=num_channels,
+        labels=labels_val,
+        label_mode=label_mode,
+        num_classes=len(class_names),
+        interpolation=interpolation,
+        crop_to_aspect_ratio=crop_to_aspect_ratio)
+    train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
+    val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
+    if batch_size is not None:
+      if shuffle:
+        # Shuffle locally at each iteration
+        train_dataset = train_dataset.shuffle(
+            buffer_size=batch_size * 8, seed=seed)
+      train_dataset = train_dataset.batch(batch_size)
+      val_dataset = val_dataset.batch(batch_size)
+    else:
+      if shuffle:
+        train_dataset = train_dataset.shuffle(buffer_size=1024, seed=seed)
 
-  dataset = paths_and_labels_to_dataset(
-      image_paths=image_paths,
-      image_size=image_size,
-      num_channels=num_channels,
-      labels=labels,
-      label_mode=label_mode,
-      num_classes=len(class_names),
-      interpolation=interpolation,
-      crop_to_aspect_ratio=crop_to_aspect_ratio)
-  dataset = dataset.prefetch(tf.data.AUTOTUNE)
-  if batch_size is not None:
-    if shuffle:
-      # Shuffle locally at each iteration
-      dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-    dataset = dataset.batch(batch_size)
+    # Users may need to reference `class_names`.
+    train_dataset.class_names = class_names
+    val_dataset.class_names = class_names
+    # Include file paths for images as attribute.
+    train_dataset.file_paths = image_paths_train
+    val_dataset.file_paths = image_paths_val
+    dataset = [train_dataset, val_dataset]
   else:
-    if shuffle:
-      dataset = dataset.shuffle(buffer_size=1024, seed=seed)
+    image_paths, labels = dataset_utils.get_training_or_validation_split(
+        image_paths, labels, validation_split, subset)
+    if not image_paths:
+      raise ValueError(f'No images found in directory {directory}. '
+                       f'Allowed formats: {ALLOWLIST_FORMATS}')
 
-  # Users may need to reference `class_names`.
-  dataset.class_names = class_names
-  # Include file paths for images as attribute.
-  dataset.file_paths = image_paths
+    dataset = paths_and_labels_to_dataset(
+        image_paths=image_paths,
+        image_size=image_size,
+        num_channels=num_channels,
+        labels=labels,
+        label_mode=label_mode,
+        num_classes=len(class_names),
+        interpolation=interpolation,
+        crop_to_aspect_ratio=crop_to_aspect_ratio)
+    dataset = dataset.prefetch(tf.data.AUTOTUNE)
+    if batch_size is not None:
+      if shuffle:
+        # Shuffle locally at each iteration
+        dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
+      dataset = dataset.batch(batch_size)
+    else:
+      if shuffle:
+        dataset = dataset.shuffle(buffer_size=1024, seed=seed)
+
+    # Users may need to reference `class_names`.
+    dataset.class_names = class_names
+    # Include file paths for images as attribute.
+    dataset.file_paths = image_paths
   return dataset
 
 

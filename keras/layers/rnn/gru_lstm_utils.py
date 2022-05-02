@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities used by both the GRU and LSTM classes."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 import uuid
 

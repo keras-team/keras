@@ -25,7 +25,6 @@ from keras.layers import activation
 from keras.layers import attention
 from keras.layers import convolutional
 from keras.layers import core
-from keras.layers import einsum_dense
 from keras.layers import locally_connected
 from keras.layers import merging
 from keras.layers import noise
@@ -55,10 +54,10 @@ from keras.utils import tf_inspect as inspect
 from tensorflow.python.util.tf_export import keras_export
 
 ALL_MODULES = (base_layer, input_layer, activation, attention, convolutional,
-               core, einsum_dense, locally_connected, merging,
-               batch_normalization_v1, layer_normalization, unit_normalization,
-               pooling, image_preprocessing, regularization, reshaping, rnn,
-               hashing, hashed_crossing, category_encoding, discretization,
+               core, locally_connected, merging, batch_normalization_v1,
+               layer_normalization, unit_normalization, pooling,
+               image_preprocessing, regularization, reshaping, rnn, hashing,
+               hashed_crossing, category_encoding, discretization,
                integer_lookup, preprocessing_normalization, string_lookup,
                text_vectorization)
 ALL_V2_MODULES = (batch_normalization, layer_normalization, cell_wrappers, gru,

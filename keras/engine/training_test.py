@@ -42,7 +42,7 @@ from keras.utils import np_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
@@ -2077,6 +2077,31 @@ class TestExceptionsAndWarnings(test_combinations.TestCase):
     with self.assertRaisesRegex(ValueError,
                                 'Unexpected result of `predict_function`.*'):
       model.predict(np.array([]))
+
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  @parameterized.named_parameters(
+      ('dynamic', 0, False),
+      ('dynamic_multistep', 10, False),
+      ('static', 0, True),
+      ('static_multistep', 10, True),
+  )
+  def test_predict_structured(self, spe, static_batch):
+    inputs = layers_module.Input(shape=(2,))
+    outputs = layers_module.Dense(2)(inputs)
+    model = training_module.Model(
+        inputs=inputs,
+        outputs={'out': outputs},
+    )
+    model.compile(
+        loss='mse',
+        steps_per_execution=spe,
+        run_eagerly=test_utils.should_run_eagerly(),
+    )
+    xdata = np.random.uniform(size=(8, 2)).astype(np.float32)
+    dataset = tf.data.Dataset.from_tensor_slices((xdata, xdata))
+    dataset = dataset.batch(8, drop_remainder=static_batch)
+    ret = model.predict(dataset, steps=1)
+    tf.nest.assert_same_structure(ret, {'out': ''})
 
   @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_on_batch_error_inconsistent_batch_size(self):

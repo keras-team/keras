@@ -14,16 +14,13 @@
 # ==============================================================================
 """Keras' DTensor library."""
 
-_DTENSOR_API_ENABLED = False
+_DTENSOR_API_ENABLED = True
 
 
 # Conditional import the dtensor API, since it is currently broken in OSS.
 if _DTENSOR_API_ENABLED:
-  # pylint: disable=g-direct-tensorflow-import, g-import-not-at-top
-  from tensorflow.dtensor import python as dtensor_api
+  from tensorflow.compat.v2.experimental import dtensor as dtensor_api  # pylint: disable=g-import-not-at-top
 else:
   # Leave it with a placeholder, so that the import line from other python file
   # will not break.
   dtensor_api = None
-
-

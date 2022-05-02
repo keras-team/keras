@@ -41,6 +41,10 @@ tf_module {
     argspec: "args=[\'x\', \'data_format\', \'scale\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'True\', \'None\'], "
   }
   member_method {
+    name: "audio_dataset_from_directory"
+    argspec: "args=[\'directory\', \'labels\', \'label_mode\', \'class_names\', \'batch_size\', \'sampling_rate\', \'output_sequence_length\', \'ragged\', \'shuffle\', \'seed\', \'validation_split\', \'subset\', \'follow_links\'], varargs=None, keywords=None, defaults=[\'inferred\', \'int\', \'None\', \'32\', \'None\', \'None\', \'False\', \'True\', \'None\', \'None\', \'None\', \'False\'], "
+  }
+  member_method {
     name: "deserialize_keras_object"
     argspec: "args=[\'identifier\', \'module_objects\', \'custom_objects\', \'printable_module_name\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'object\'], "
   }

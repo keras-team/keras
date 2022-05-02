@@ -1873,6 +1873,11 @@ class ResetStatesTest(test_combinations.TestCase):
     self.assertEqual(self.evaluate(p_obj.true_positives), 50.)
     self.assertEqual(self.evaluate(p_obj.false_positives), 50.)
 
+  def test_precision_update_state_with_logits(self):
+    p_obj = metrics.Precision()
+    # Update state with logits (not in range (0, 1)) should not an raise error.
+    p_obj.update_state([-0.5, 0.5], [-2., 2.])
+
   def test_reset_state_recall(self):
     r_obj = metrics.Recall()
     model = _get_model([r_obj])
@@ -2027,6 +2032,19 @@ class ResetStatesTest(test_combinations.TestCase):
       self.assertEqual(self.evaluate(r_obj.false_negatives), 50.)
     finally:
       backend.set_floatx('float32')
+
+  def test_function_wrapped_reset_state(self):
+    m = metrics.Mean(name='my_mean')
+
+    # check reset_state in function.
+    @tf.function
+    def reset_in_fn():
+      m.reset_state()
+      return m.update_state(100)
+
+    for _ in range(5):
+      self.evaluate(reset_in_fn())
+    self.assertEqual(self.evaluate(m.count), 1)
 
 
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))

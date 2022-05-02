@@ -417,7 +417,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           x = base_layer_utils.generate_placeholders_from_shape(input_shape)
 
         kwargs = {}
-        call_signature = self._call_full_argspec
+        call_signature = self._call_spec.full_argspec
         call_args = call_signature.args
         # Exclude `self`, `inputs`, and any argument with a default value.
         if len(call_args) > 2:
@@ -466,7 +466,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       copied_args = copy.copy(args)
       copied_kwargs = copy.copy(kwargs)
 
-      inputs, copied_args, copied_kwargs = self._split_out_first_arg(
+      inputs, copied_args, copied_kwargs = self._call_spec.split_out_first_arg(
           copied_args, copied_kwargs)
 
       def _convert_to_graph_inputs(x):
@@ -480,7 +480,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       copied_kwargs = tf.nest.map_structure(
           _convert_to_graph_inputs, copied_kwargs)
 
-        # pylint: disable=g-import-not-at-top
+      # pylint: disable=g-import-not-at-top
       with layout_map_lib.layout_map_scope(self._layout_map):
         # We ignore the result here.
         super().__call__(inputs, *copied_args, **copied_kwargs)
@@ -582,6 +582,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           `tf.keras.metrics.SparseCategoricalAccuracy` based on the loss
           function used and the model output shape. We do a similar
           conversion for the strings 'crossentropy' and 'ce' as well.
+          The metrics passed here are evaluated without sample weighting; if you
+          would like sample weighting to apply, you can specify your
+          metrics via the `weighted_metrics` argument instead.
         loss_weights: Optional list or dictionary specifying scalar coefficients
           (Python floats) to weight the loss contributions of different model
           outputs. The loss value that will be minimized by the model will then
@@ -612,7 +615,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           machine learning.
           `jit_compile` is not enabled for by default.
           This option cannot be enabled with `run_eagerly=True`.
-          Note that `jit_compile=True` is
+          Note that `jit_compile=True`
           may not necessarily work for all models.
           For more information on supported operations please refer to the
           [XLA documentation](https://www.tensorflow.org/xla).
@@ -1140,7 +1143,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             See `tf.keras.utils.experimental.DatasetCreator` doc for more
             information.
           A more detailed description of unpacking behavior for iterator types
-          (Dataset, generator, Sequence) is given below. If using
+          (Dataset, generator, Sequence) is given below. If these include
+          `sample_weights` as a third component, note that sample weighting
+          applies to the `weighted_metrics` argument but not the `metrics`
+          argument in `compile()`. If using
           `tf.distribute.experimental.ParameterServerStrategy`, only
           `DatasetCreator` type is supported for `x`.
         y: Target data. Like the input data `x`,
@@ -1236,6 +1242,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             argument is not supported when `x` is a dataset, generator, or
            `keras.utils.Sequence` instance, instead provide the sample_weights
             as the third element of `x`.
+            Note that sample weighting does not apply to metrics specified
+            via the `metrics` argument in `compile()`. To apply sample weighting
+            to your metrics, you can specify them via the `weighted_metrics` in
+            `compile()` instead.
         initial_epoch: Integer.
             Epoch at which to start training
             (useful for resuming a previous training run).
@@ -1850,10 +1860,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         """Runs an evaluation execution with multiple steps."""
         outputs = step_function(self, iterator)
         for _ in tf.range(self._steps_per_execution - 1):
-          tf.autograph.experimental.set_loop_options(
-              shape_invariants=[(
-                  t, tf_utils.get_tensor_spec(t, dynamic_batch=True).shape)
-                                for t in tf.nest.flatten(outputs)])
+          tf.autograph.experimental.set_loop_options(shape_invariants=[(
+              outputs,
+              tf.nest.map_structure(
+                  lambda t: tf_utils.get_tensor_spec(t, dynamic_batch=True).
+                  shape, outputs))])
           step_outputs = step_function(self, iterator)
           outputs = tf.nest.map_structure(lambda t1, t2: concat([t1, t2]),
                                           outputs, step_outputs)
@@ -3032,7 +3043,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def _check_call_args(self, method_name):
     """Check that `call()` has only one positional arg."""
     # Always allow first arg, regardless of arg name.
-    fullargspec = self._call_full_argspec
+    fullargspec = self._call_spec.full_argspec
     if fullargspec.defaults:
       positional_args = fullargspec.args[:-len(fullargspec.defaults)]
     else:

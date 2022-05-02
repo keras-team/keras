@@ -13,22 +13,24 @@
 # limitations under the License.
 # ==============================================================================
 """Keras-based einsum dense layer."""
-
-import tensorflow.compat.v2 as tf
-# pylint: disable=g-classes-have-attributes
+# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 import re
+
 from keras import activations
 from keras import constraints
 from keras import initializers
 from keras import regularizers
 from keras.engine.base_layer import Layer
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.layers.experimental.EinsumDense")
+@keras_export("keras.layers.EinsumDense",
+              "keras.layers.experimental.EinsumDense")
 class EinsumDense(Layer):
-  """A layer that uses tf.einsum as the backing computation.
+  """A layer that uses `tf.einsum` as the backing computation.
 
   This layer can perform einsum calculations of arbitrary dimensionality.
 
@@ -52,7 +54,7 @@ class EinsumDense(Layer):
       matrix.
     bias_regularizer: Regularizer function applied to the bias vector.
     activity_regularizer: Regularizer function applied to the output of the
-      layer (its "activation")..
+      layer (its "activation").
     kernel_constraint: Constraint function applied to the `kernel` weights
       matrix.
     bias_constraint: Constraint function applied to the bias vector.
@@ -65,7 +67,9 @@ class EinsumDense(Layer):
   einsum operations. This example is equivalent to
   `tf.keras.layers.Dense(64, use_bias=True)`.
 
-  >>> layer = EinsumDense("ab,bc->ac", output_shape=64, bias_axes="c")
+  >>> layer = tf.keras.layers.EinsumDense("ab,bc->ac",
+  ...                                     output_shape=64,
+  ...                                     bias_axes="c")
   >>> input_tensor = tf.keras.Input(shape=[32])
   >>> output_tensor = layer(input_tensor)
   >>> output_tensor
@@ -74,14 +78,14 @@ class EinsumDense(Layer):
   **Applying a dense layer to a sequence**
 
   This example shows how to instantiate a layer that applies the same dense
-  operation to every element in a sequence. Here, the 'output_shape' has two
+  operation to every element in a sequence. Here, the `output_shape` has two
   values (since there are two non-batch dimensions in the output); the first
-  dimension in the output_shape is `None`, because the sequence dimension `b`
+  dimension in the `output_shape` is `None`, because the sequence dimension `b`
   has an unknown shape.
 
-  >>> layer = EinsumDense("abc,cd->abd",
-  ...                     output_shape=(None, 64),
-  ...                     bias_axes="d")
+  >>> layer = tf.keras.layers.EinsumDense("abc,cd->abd",
+  ...                                     output_shape=(None, 64),
+  ...                                     bias_axes="d")
   >>> input_tensor = tf.keras.Input(shape=[32, 128])
   >>> output_tensor = layer(input_tensor)
   >>> output_tensor
@@ -94,11 +98,13 @@ class EinsumDense(Layer):
   instead of specifying the batch and sequence dimensions.
 
   Because we are using ellipsis notation and have specified only one axis, the
-  output_shape arg is a single value. When instantiated in this way, the layer
+  `output_shape` arg is a single value. When instantiated in this way, the layer
   can handle any number of sequence dimensions - including the case where no
   sequence dimension exists.
 
-  >>> layer = EinsumDense("...x,xy->...y", output_shape=64, bias_axes="y")
+  >>> layer = tf.keras.layers.EinsumDense("...x,xy->...y",
+  ...                                     output_shape=64,
+  ...                                     bias_axes="y")
   >>> input_tensor = tf.keras.Input(shape=[32, 128])
   >>> output_tensor = layer(input_tensor)
   >>> output_tensor
@@ -263,8 +269,8 @@ def _analyze_split_string(split_string,
     input_dim_map = {dim: i for i, dim in enumerate(input_spec)}
     output_dim_map = {dim: i for i, dim in enumerate(output_spec)}
 
-  for i, dim in enumerate(input_spec):
-    input_shape_at_dim = input_shape[i]
+  for dim in input_spec:
+    input_shape_at_dim = input_shape[input_dim_map[dim]]
     if dim in output_dim_map:
       output_shape_at_dim = output_shape[output_dim_map[dim]]
       if (output_shape_at_dim is not None and

@@ -65,7 +65,8 @@ class UpSampling2D(Layer):
       It defaults to the `image_data_format` value found in your
       Keras config file at `~/.keras/keras.json`.
       If you never set it, then it will be "channels_last".
-    interpolation: A string, one of `nearest` or `bilinear`.
+    interpolation: A string, one of `"area"`, `"bicubic"`, `"bilinear"`,
+      `"gaussian"`, `"lanczos3"`, `"lanczos5"`, `"mitchellcubic"`, `"nearest"`.
 
   Input shape:
     4D tensor with shape:
@@ -90,9 +91,20 @@ class UpSampling2D(Layer):
     super(UpSampling2D, self).__init__(**kwargs)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.size = conv_utils.normalize_tuple(size, 2, 'size')
-    if interpolation not in {'nearest', 'bilinear'}:
-      raise ValueError('`interpolation` argument should be one of `"nearest"` '
-                       f'or `"bilinear"`. Received: "{interpolation}".')
+    interpolations = {
+        'area': tf.image.ResizeMethod.AREA,
+        'bicubic': tf.image.ResizeMethod.BICUBIC,
+        'bilinear': tf.image.ResizeMethod.BILINEAR,
+        'gaussian': tf.image.ResizeMethod.GAUSSIAN,
+        'lanczos3': tf.image.ResizeMethod.LANCZOS3,
+        'lanczos5': tf.image.ResizeMethod.LANCZOS5,
+        'mitchellcubic': tf.image.ResizeMethod.MITCHELLCUBIC,
+        'nearest': tf.image.ResizeMethod.NEAREST_NEIGHBOR,
+    }
+    interploations_list = '"' + '", "'.join(interpolations.keys()) + '"'
+    if interpolation not in interpolations:
+      raise ValueError('`interpolation` argument should be one of: '
+                       f'{interploations_list}. Received: "{interpolation}".')
     self.interpolation = interpolation
     self.input_spec = InputSpec(ndim=4)
 

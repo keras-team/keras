@@ -213,7 +213,7 @@ def MobileNet(input_shape=None,
     if depth_multiplier != 1:
       raise ValueError('If imagenet weights are being loaded, '
                        'depth multiplier must be 1.  '
-                       'Received depth_multiplier={depth_multiplier}')
+                       f'Received depth_multiplier={depth_multiplier}')
 
     if alpha not in [0.25, 0.50, 0.75, 1.0]:
       raise ValueError('If imagenet weights are being loaded, '

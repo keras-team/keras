@@ -135,6 +135,15 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
     output = test_layer(query, query)
     self.assertEqual(output.shape.as_list(), [None, 40, 80])
 
+    # Make sure the sub layers have different kernel init value, and not reusing
+    # the initializers.
+    self.assertNotAllClose(keras.backend.eval(test_layer._query_dense.kernel),
+                           keras.backend.eval(test_layer._key_dense.kernel))
+    self.assertNotAllClose(keras.backend.eval(test_layer._query_dense.kernel),
+                           keras.backend.eval(test_layer._value_dense.kernel))
+    self.assertNotAllClose(keras.backend.eval(test_layer._query_dense.kernel),
+                           keras.backend.eval(test_layer._output_dense.kernel))
+
   def test_masked_attention_with_scores(self):
     """Test with a mask tensor."""
     test_layer = keras.layers.MultiHeadAttention(
@@ -233,6 +242,37 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
     self.assertNotAllClose(
         keras.backend.eval(train_out),
         keras.backend.eval(test_out))
+
+  @test_combinations.generate(test_combinations.combine(
+      ragged_query=[True, False],
+      ragged_value=[True, False],
+      ragged_key=[True, False]))
+  def test_ragged_tensor(self, ragged_query, ragged_value, ragged_key):
+    if ragged_query:
+      query = tf.ragged.constant(
+          [[[3., 1.], [4., 1.]], [[5., 9.], [2., 6.], [3., 1.]], [[1., 2.]]],
+          inner_shape=(2,))
+    else:
+      query = keras.backend.ones(shape=(3, 2, 2))
+
+    if ragged_value:
+      value = tf.ragged.constant(
+          [[[3., 1.], [4., 1.]], [[5., 9.]], [[1., 2.]]], inner_shape=(2,))
+    else:
+      value = keras.backend.ones(shape=(3, 4, 2))
+
+    if ragged_key:
+      key = tf.ragged.constant(
+          [[[3., 1.], [4., 1.]],
+           [[5., 9.], [2., 6.], [3., 1.], [1., 5.]],
+           [[1., 2.]]],
+          inner_shape=(2,))
+    else:
+      key = keras.backend.ones(shape=(3, 4, 2))
+
+    test_layer = keras.layers.MultiHeadAttention(num_heads=5, key_dim=2)
+    results = test_layer(query, value, key)
+    self.assertAllEqual(results.shape.as_list(), query.shape.as_list())
 
 
 class SubclassAttention(keras.layers.MultiHeadAttention):

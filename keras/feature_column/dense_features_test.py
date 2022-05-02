@@ -23,7 +23,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 import numpy as np
 from tensorflow.python.eager import backprop
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from keras.testing_infra import test_combinations
 from keras.feature_column import dense_features as df
 

@@ -16,7 +16,7 @@
 
 import threading
 
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
@@ -112,7 +112,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
         initial_value, "graph") and initial_value.graph.building_function:
       raise ValueError(f"Argument `initial_value` ({initial_value}) could not "
                        "be lifted out of a `tf.function`. "
-                       "(Tried to create variable with name='{name}'). "
+                       f"(Tried to create variable with name='{name}'). "
                        "To avoid this error, when constructing `tf.Variable`s "
                        "inside of `tf.function` you can create the "
                        "`initial_value` tensor in a "
@@ -217,4 +217,3 @@ def disable_init_variable_creator():
     yield
   finally:
     _DISABLE_LAZY_VARIABLE_INIT.disabled = existing_value
-

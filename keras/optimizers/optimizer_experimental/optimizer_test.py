@@ -93,6 +93,12 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(variable._shared_name, "test/tmp")
     self.assertEqual(self.evaluate(variable), 0)
 
+  def testAddVarialeWithCustomShape(self):
+    optimizer = adam_new.Adam()
+    variable = optimizer.add_variable_from_reference(
+        tf.Variable([1.0, 2.0], name="tmp"), "test", shape=[])
+    self.assertEqual(variable, tf.Variable(0.))
+
   def testBuildIndexDict(self):
     optimizer = adam_new.Adam()
     var_list = [tf.Variable(0, name=f"var{i}") for i in range(10)]
@@ -110,6 +116,24 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     grad = [tf.convert_to_tensor([100.0, 100.0])]
     clipped_grad = optimizer._clip_gradients(grad)
     self.assertAllEqual(clipped_grad[0], [1.0, 1.0])
+
+  def testWeightDecay(self):
+    grads, var1, var2, var3 = tf.zeros(
+        ()), tf.Variable(2.0), tf.Variable(2.0), tf.Variable(2.0)
+    optimizer_1 = adamw_new.AdamW(learning_rate=0.001, weight_decay=0.004)
+    optimizer_1.apply_gradients(zip([grads], [var1]))
+
+    optimizer_2 = adamw_new.AdamW(learning_rate=0.001, weight_decay=0.004)
+    optimizer_2.exclude_from_weight_decay([var2])
+    optimizer_2.apply_gradients(zip([grads], [var2]))
+
+    optimizer_3 = adamw_new.AdamW(learning_rate=0.001, weight_decay=0.004)
+    optimizer_3.build([var3], exclude_from_weight_decay=[var3])
+    optimizer_3.apply_gradients(zip([grads], [var3]))
+
+    self.assertEqual(var1, 1.992)
+    self.assertEqual(var2, 2.0)
+    self.assertEqual(var3, 2.0)
 
   def testClipGlobalNorm(self):
     optimizer = adam_new.Adam(global_clipnorm=1)

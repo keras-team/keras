@@ -112,6 +112,7 @@ from keras.layers.reshaping.zero_padding3d import ZeroPadding3D
 # Core layers.
 from keras.layers.core.activation import Activation
 from keras.layers.core.dense import Dense
+from keras.layers.core.einsum_dense import EinsumDense
 from keras.layers.core.embedding import Embedding
 from keras.layers.core.lambda_layer import Lambda
 from keras.layers.core.masking import Masking
@@ -120,9 +121,6 @@ from keras.layers.core.tf_op_layer import InstanceMethod
 from keras.layers.core.tf_op_layer import InstanceProperty
 from keras.layers.core.tf_op_layer import SlicingOpLambda
 from keras.layers.core.tf_op_layer import TFOpLambda
-
-# Einsum-based dense layer/
-from keras.layers.einsum_dense import EinsumDense
 
 # Locally-connected layers.
 from keras.layers.locally_connected.locally_connected1d import LocallyConnected1D

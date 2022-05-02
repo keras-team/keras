@@ -437,7 +437,7 @@ class MetricsContainer(Container):
           m._name = output_name + '_' + m._name
         if m._name in metric_names:
           raise ValueError(
-              f'Found two metrics with the same name: {m._name}.'
+              f'Found two metrics with the same name: {m._name}. '
               'All the metrics added to the model need to have unique names.')
         metric_names.add(m._name)
 
@@ -706,6 +706,7 @@ def map_missing_dict_keys(y_pred, struct):
   """Replaces missing dict keys in `struct` with `None` placeholders."""
   if not isinstance(y_pred, dict) or not isinstance(struct, dict):
     return struct
+  struct = copy.copy(struct)
   for k in y_pred.keys():
     if k not in struct:
       struct[k] = None

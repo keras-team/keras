@@ -24,7 +24,7 @@ from keras.dtensor import lazy_variable
 from keras.dtensor import utils
 from keras.engine import base_layer
 
-from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
 
 # pylint: disable=missing-class-docstring
 
@@ -46,18 +46,41 @@ def get_current_layout_map():
 
 @keras_export('keras.dtensor.experimental.LayoutMap', v1=[])
 class LayoutMap(collections.abc.MutableMapping):
+  """A dict-like object that maps string to `Layout` instances.
+
+  `LayoutMap` uses a string as key and a `Layout` as value. There is a behavior
+  difference between a normal Python dict and this class. The string key will be
+  treated as a regex when retrieving the value. See the docstring of
+  `get` for more details.
+
+  See below for a usage example. You can define the naming schema
+  of the `Layout`, and then retrieve the corresponding `Layout` instance.
+
+  To use the `LayoutMap` with a `Model`, please see the docstring of
+  `tf.keras.dtensor.experimental.layout_map_scope`.
+
+  ```python
+  map = LayoutMap(mesh=None)
+  map['.*dense.*kernel'] = layout_2d
+  map['.*dense.*bias'] = layout_1d
+  map['.*conv2d.*kernel'] = layout_4d
+  map['.*conv2d.*bias'] = layout_1d
+
+  layout_1 = map['dense_1.kernel']    #   layout_1 == layout_2d
+  layout_2 = map['dense_1.bias']      #   layout_2 == layout_1d
+  layout_3 = map['dense_2.kernel']    #   layout_3 == layout_2d
+  layout_4 = map['dense_2.bias']      #   layout_4 == layout_1d
+  layout_5 = map['my_model/conv2d_123/kernel']    #   layout_5 == layout_4d
+  layout_6 = map['my_model/conv2d_123/bias']      #   layout_6 == layout_1d
+  ```
+
+  Args:
+    mesh: An optional `Mesh` that can be used to create all replicated
+      layout as default when there isn't a layout found based on the input
+      string query.
+  """
 
   def __init__(self, mesh=None):
-    """A dict like object that maps between string name and dtensor.Layout.
-
-    Note that this class might behave differently than a normal dict, eg, it
-    will treat the all the existing keys as a regex to map against input key.
-
-    Args:
-      mesh: An optional dtensor.Mesh that is used to provide all replicated
-        layout as default when there isn't a layout is found based on the
-        mapping.
-    """
     self._layout_map = collections.OrderedDict()
     self._default_mesh = mesh
 
@@ -90,7 +113,7 @@ class LayoutMap(collections.abc.MutableMapping):
                        'not use duplicated keys.')
     if not isinstance(layout, dtensor.Layout):
       raise ValueError(f'{layout} should be a dtensor.Layout type, '
-                       'got {type(layout)}')
+                       f'got {type(layout)}')
 
     self._layout_map[key] = layout
 
@@ -105,7 +128,15 @@ class LayoutMap(collections.abc.MutableMapping):
     return iter(self._layout_map)
 
   def get_default_mesh(self):
+    """Return the default `Mesh` set at instance creation.
+
+    The `Mesh` can be used to create default replicated `Layout` when there
+    isn't a match of the input string query.
+    """
     return self._default_mesh
+
+
+LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
 
 
 @keras_export('keras.dtensor.experimental.layout_map_scope', v1=[])
@@ -363,7 +394,7 @@ def _create_dvariable(layout_map, object_path, variable):
   Returns:
     A new tf.Variable with correct layout information.
   """
-  # TODO(scottzhu): Revisit this in future and see if we can just reuse the
+  # TODO(b/228209108): Revisit this in future and see if we can just reuse the
   # LazyInitVariable rather than creating a new tf.Variable instance.
   layout = layout_map[object_path]
   if layout is None:
@@ -404,8 +435,8 @@ def _set_object_by_path(object_to_set, path, value):
     if i == len(path) - 1:
       # We found the actual attribute to set
       if isinstance(attr_name, int):
-      # This means we are trying to set an element in the array, make sure the
-      # instance is array like object.
+        # This means we are trying to set an element in the array, make sure the
+        # instance is array like object.
         object_to_set[attr_name] = value
       else:
         setattr(object_to_set, attr_name, value)

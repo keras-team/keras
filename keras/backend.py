@@ -1827,12 +1827,56 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
   new stateless random ops with seeds and tf.random.Generator. Any class that
   relies on RNG (eg initializer, shuffle, dropout) should use this class to
   handle the transition from legacy RNGs to new RNGs.
-  """
 
-  def __init__(self, seed=None, force_generator=False):
+  Args:
+    seed: Optional int seed. When `rng_type` is "stateful", the seed is used
+      to create `tf.random.Generator` to produce deterministic sequences.
+      When `rng_type` is "stateless", new seed will be created if it is not
+      provided by user, and it will be passed down to stateless random ops.
+      When `rng_type` is "legacy_stateful", the seed will be passed down to
+      stateful random ops.
+    rng_type: Type of RNG to use, one of "stateful", "stateless",
+      "legacy_stateful". It defaults to "stateful" if
+      `enable_tf_random_generator` has been activated, or to
+      "legacy_stateful" otherwise.
+      - When using "stateless", the random ops outputs are constant (the same
+        inputs result in the same outputs).
+      - When using "stateful" or "legacy_stateful", the random ops outputs are
+        non-constant, but deterministic: calling the same random op multiple
+        times with the same inputs results in a deterministic sequence of
+        different outputs.
+      - "legacy_stateful" is backed by TF1 stateful RNG ops
+        (e.g. `tf.random.uniform`), while "stateful"
+        is backed by TF2 APIs (e.g. `tf.random.Generator.uniform`).
+  """
+  RNG_STATELESS = 'stateless'
+  RNG_STATEFUL = 'stateful'
+  RNG_LEGACY_STATEFUL = 'legacy_stateful'
+
+  def __init__(self, seed=None, rng_type=None, **kwargs):
     self._seed = seed
-    self._force_generator = force_generator
+    self._set_rng_type(rng_type, **kwargs)
     self._built = False
+
+  def _set_rng_type(self, rng_type, **kwargs):
+    # Only supported kwargs is "force_generator", which we will remove once we
+    # clean up all the caller.
+    # TODO(scottzhu): Remove the kwargs for force_generator.
+    if kwargs.get('force_generator', False):
+      rng_type = self.RNG_STATEFUL
+    if rng_type is None:
+      if is_tf_random_generator_enabled():
+        self._rng_type = self.RNG_STATEFUL
+      else:
+        self._rng_type = self.RNG_LEGACY_STATEFUL
+    else:
+      if rng_type not in [self.RNG_STATEFUL,
+                          self.RNG_LEGACY_STATEFUL, self.RNG_STATELESS]:
+        raise ValueError(
+            'Invalid `rng_type` received. '
+            'Valid `rng_type` are ["stateless", "stateful", "legacy_stateful"].'
+            f' Got: {rng_type}')
+      self._rng_type = rng_type
 
   def _maybe_init(self):
     """Lazily init the RandomGenerator.
@@ -1847,22 +1891,21 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
     if self._built:
       return
 
-    if (tf.compat.v1.executing_eagerly_outside_functions() and
-        (is_tf_random_generator_enabled() or self._force_generator)):
-      # In the case of V2, we use tf.random.Generator to create all the random
-      # numbers and seeds.
+    if (self._rng_type == self.RNG_STATEFUL and
+        not tf.compat.v1.executing_eagerly_outside_functions()):
+      # Fall back to legacy stateful since the generator need to work in tf2.
+      self._rng_type = self.RNG_LEGACY_STATEFUL
+
+    if self._rng_type == self.RNG_STATELESS:
+      self._seed = self._create_seed(self._seed)
+      self._generator = None
+    elif self._rng_type == self.RNG_STATEFUL:
       from keras.utils import tf_utils  # pylint: disable=g-import-not-at-top
       with tf_utils.maybe_init_scope(self):
-        if self._seed is not None:
-          self._generator = tf.random.Generator.from_seed(self._seed)
-        else:
-          if getattr(_SEED_GENERATOR, 'generator', None):
-            seed = _SEED_GENERATOR.generator.randint(1, 1e9)
-          else:
-            seed = random.randint(1, 1e9)
-          self._generator = tf.random.Generator.from_seed(seed)
+        seed = self._create_seed(self._seed)
+        self._generator = tf.random.Generator.from_seed(seed)
     else:
-      # In the v1 case, we use stateful op, regardless whether user provide a
+      # In legacy stateful, we use stateful op, regardless whether user provide
       # seed or not. Seeded stateful op will ensure generating same sequences.
       self._generator = None
     self._built = True
@@ -1878,7 +1921,9 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
       A tensor with shape [2,].
     """
     self._maybe_init()
-    if self._generator:
+    if self._rng_type == self.RNG_STATELESS:
+      return [self._seed, 0]
+    elif self._rng_type == self.RNG_STATEFUL:
       return self._generator.make_seeds()[:, 0]
     return None
 
@@ -1888,7 +1933,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
     When user didn't provide any original seed, this method will return None.
     Otherwise it will increment the counter and return as the new seed.
 
-    Note that it is important the generate different seed for stateful ops in
+    Note that it is important to generate different seed for stateful ops in
     the `tf.function`. The random ops will return same value when same seed is
     provided in the `tf.function`.
 
@@ -1901,39 +1946,112 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
       return result
     return None
 
-  def random_normal(self, shape, mean=0., stddev=1., dtype=None):
+  def _create_seed(self, user_specified_seed):
+    if user_specified_seed is not None:
+      return user_specified_seed
+    elif getattr(_SEED_GENERATOR, 'generator', None):
+      return _SEED_GENERATOR.generator.randint(1, 1e9)
+    else:
+      return random.randint(1, 1e9)
+
+  def random_normal(self, shape, mean=0., stddev=1., dtype=None, nonce=None):
+    """Produce random number based on the normal distribution.
+
+    Args:
+      shape: The shape of the random values to generate.
+      mean: Floats, default to 0. Mean of the random values to generate.
+      stddev: Floats, default to 1. Standard deviation of the random values to
+        generate.
+      dtype: Optional dtype of the tensor. Only floating point types are
+        supported. If not specified, `tf.keras.backend.floatx()` is used, which
+        default to `float32` unless you configured it otherwise (via
+        `tf.keras.backend.set_floatx(float_dtype)`)
+      nonce: Optional integer scalar, that will be folded into the seed in the
+        stateless mode.
+    """
     self._maybe_init()
     dtype = dtype or floatx()
-    if self._generator:
+    if self._rng_type == self.RNG_STATEFUL:
       return self._generator.normal(
           shape=shape, mean=mean, stddev=stddev, dtype=dtype)
+    elif self._rng_type == self.RNG_STATELESS:
+      seed = self.make_seed_for_stateless_op()
+      if nonce:
+        seed = tf.random.experimental.stateless_fold_in(seed, nonce)
+      return tf.random.stateless_normal(
+          shape=shape, mean=mean, stddev=stddev, dtype=dtype,
+          seed=seed)
     return tf.random.normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype,
         seed=self.make_legacy_seed())
 
-  def random_uniform(self, shape, minval=0., maxval=None, dtype=None):
+  def random_uniform(self, shape, minval=0., maxval=None, dtype=None,
+                     nonce=None):
+    """Produce random number based on the uniform distribution.
+
+    Args:
+      shape: The shape of the random values to generate.
+      minval: Floats, default to 0. Lower bound of the range of
+        random values to generate (inclusive).
+      minval: Floats, default to None. Upper bound of the range of
+        random values to generate (exclusive).
+      dtype: Optional dtype of the tensor. Only floating point types are
+        supported. If not specified, `tf.keras.backend.floatx()` is used, which
+        default to `float32` unless you configured it otherwise (via
+        `tf.keras.backend.set_floatx(float_dtype)`)
+      nonce: Optional integer scalar, that will be folded into the seed in the
+        stateless mode.
+    """
     self._maybe_init()
     dtype = dtype or floatx()
-    if self._generator:
+    if self._rng_type == self.RNG_STATEFUL:
       return self._generator.uniform(
           shape=shape, minval=minval, maxval=maxval, dtype=dtype)
+    elif self._rng_type == self.RNG_STATELESS:
+      seed = self.make_seed_for_stateless_op()
+      if nonce:
+        seed = tf.random.experimental.stateless_fold_in(seed, nonce)
+      return tf.random.stateless_uniform(
+        shape=shape, minval=minval, maxval=maxval, dtype=dtype,
+        seed=seed)
     return tf.random.uniform(
         shape=shape, minval=minval, maxval=maxval, dtype=dtype,
         seed=self.make_legacy_seed())
 
-  def truncated_normal(self, shape, mean=0., stddev=1., dtype=None):
+  def truncated_normal(self, shape, mean=0., stddev=1., dtype=None, nonce=None):
+    """Produce random number based on the truncated normal distribution.
+
+    Args:
+      shape: The shape of the random values to generate.
+      mean: Floats, default to 0. Mean of the random values to generate.
+      stddev: Floats, default to 1. Standard deviation of the random values to
+        generate.
+      dtype: Optional dtype of the tensor. Only floating point types are
+        supported. If not specified, `tf.keras.backend.floatx()` is used, which
+        default to `float32` unless you configured it otherwise (via
+        `tf.keras.backend.set_floatx(float_dtype)`)
+      nonce: Optional integer scalar, that will be folded into the seed in the
+        stateless mode.
+    """
     self._maybe_init()
     dtype = dtype or floatx()
-    if self._generator:
+    if self._rng_type == self.RNG_STATEFUL:
       return self._generator.truncated_normal(
           shape=shape, mean=mean, stddev=stddev, dtype=dtype)
+    elif self._rng_type == self.RNG_STATELESS:
+      seed = self.make_seed_for_stateless_op()
+      if nonce:
+        seed = tf.random.experimental.stateless_fold_in(seed, nonce)
+      return tf.random.stateless_truncated_normal(
+        shape=shape, mean=mean, stddev=stddev, dtype=dtype,
+        seed=seed)
     return tf.random.truncated_normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype,
         seed=self.make_legacy_seed())
 
   def dropout(self, inputs, rate, noise_shape=None):
     self._maybe_init()
-    if self._generator:
+    if self._rng_type in [self.RNG_STATEFUL, self.RNG_STATELESS]:
       return tf.nn.experimental.stateless_dropout(
           inputs, rate=rate, noise_shape=noise_shape,
           seed=self.make_seed_for_stateless_op())
@@ -3389,7 +3507,9 @@ def resize_images(x, height_factor, width_factor, data_format,
       height_factor: Positive integer.
       width_factor: Positive integer.
       data_format: One of `"channels_first"`, `"channels_last"`.
-      interpolation: A string, one of `nearest` or `bilinear`.
+      interpolation: A string, one of `"area"`, `"bicubic"`, `"bilinear"`,
+        `"gaussian"`, `"lanczos3"`, `"lanczos5"`, `"mitchellcubic"`,
+        `"nearest"`.
 
   Returns:
       A tensor.
@@ -3415,15 +3535,22 @@ def resize_images(x, height_factor, width_factor, data_format,
 
   if data_format == 'channels_first':
     x = permute_dimensions(x, [0, 2, 3, 1])
-  if interpolation == 'nearest':
-    x = tf.image.resize(
-        x, new_shape, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-  elif interpolation == 'bilinear':
-    x = tf.image.resize(x, new_shape,
-                                   method=tf.image.ResizeMethod.BILINEAR)
+  interpolations = {
+      'area': tf.image.ResizeMethod.AREA,
+      'bicubic': tf.image.ResizeMethod.BICUBIC,
+      'bilinear': tf.image.ResizeMethod.BILINEAR,
+      'gaussian': tf.image.ResizeMethod.GAUSSIAN,
+      'lanczos3': tf.image.ResizeMethod.LANCZOS3,
+      'lanczos5': tf.image.ResizeMethod.LANCZOS5,
+      'mitchellcubic': tf.image.ResizeMethod.MITCHELLCUBIC,
+      'nearest': tf.image.ResizeMethod.NEAREST_NEIGHBOR,
+  }
+  interploations_list = '"' + '", "'.join(interpolations.keys()) + '"'
+  if interpolation in interpolations:
+    x = tf.image.resize(x, new_shape, method=interpolations[interpolation])
   else:
-    raise ValueError('interpolation should be one '
-                     'of "nearest" or "bilinear".')
+    raise ValueError('`interpolation` argument should be one of: '
+                     f'{interploations_list}. Received: "{interpolation}".')
   if data_format == 'channels_first':
     x = permute_dimensions(x, [0, 3, 1, 2])
 
@@ -4014,7 +4141,7 @@ def batch_set_value(tuples):
       tuples: a list of tuples `(tensor, value)`.
           `value` should be a Numpy array.
   """
-  if tf.compat.v1.executing_eagerly_outside_functions():
+  if tf.executing_eagerly() or tf.inside_function():
     for x, value in tuples:
       x.assign(np.asarray(value, dtype=dtype_numpy(x)))
   else:

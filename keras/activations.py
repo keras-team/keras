@@ -14,12 +14,13 @@
 # ==============================================================================
 """Built-in activation functions."""
 
+import sys
+
 import tensorflow.compat.v2 as tf
 
 from keras import backend
 import keras.layers.activation as activation_layers
-from keras.utils.generic_utils import deserialize_keras_object
-from keras.utils.generic_utils import serialize_keras_object
+from keras.utils import generic_utils
 from tensorflow.python.util.tf_export import keras_export
 
 # b/123041942
@@ -505,7 +506,7 @@ def serialize(activation):
   if (hasattr(activation, '__name__') and
       activation.__name__ in _TF_ACTIVATIONS_V2):
     return _TF_ACTIVATIONS_V2[activation.__name__]
-  return serialize_keras_object(activation)
+  return generic_utils.serialize_keras_object(activation)
 
 
 # Add additional globals so that deserialize can find these common activation
@@ -544,17 +545,19 @@ def deserialize(name, custom_objects=None):
       ValueError: `Unknown activation function` if the input string does not
       denote any defined Tensorflow activation function.
   """
-  globs = globals()
+  activation_functions = {}
+  current_module = sys.modules[__name__]
 
-  # only replace missing activations
-  activation_globs = activation_layers.get_globals()
-  for key, val in activation_globs.items():
-    if key not in globs:
-      globs[key] = val
+  # we put 'current_module' after 'activation_layers' to prefer the local one
+  # if there is a collision
+  generic_utils.populate_dict_with_module_objects(
+      activation_functions,
+      (activation_layers, current_module),
+      obj_filter=callable)
 
-  return deserialize_keras_object(
+  return generic_utils.deserialize_keras_object(
       name,
-      module_objects=globs,
+      module_objects=activation_functions,
       custom_objects=custom_objects,
       printable_module_name='activation function')
 

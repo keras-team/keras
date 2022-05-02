@@ -36,8 +36,8 @@ from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
+from tensorflow.python.util.tf_export import keras_export
 
 
 def string_test(actual, expected):

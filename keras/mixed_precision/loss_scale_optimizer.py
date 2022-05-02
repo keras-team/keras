@@ -22,7 +22,7 @@ from keras.optimizers.optimizer_v2 import utils as optimizer_utils
 from keras.utils import generic_utils
 
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2 as legacy_optimizer
 from tensorflow.python.platform import tf_logging
 from tensorflow.python.util.tf_export import keras_export
@@ -800,7 +800,8 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
     # self._optimizer.apply_gradients does not take
     # experimental_aggregate_gradients.
     return self._optimizer.apply_gradients(
-        list(zip(grads, wrapped_vars.value)), name,
+        list(zip(grads, wrapped_vars.value)),
+        name=name,
         experimental_aggregate_gradients=False)
 
   def get_config(self):

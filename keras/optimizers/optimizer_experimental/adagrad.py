@@ -18,7 +18,7 @@ from keras import initializers
 from keras.optimizers.optimizer_experimental import optimizer
 from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -89,8 +89,9 @@ class Adagrad(optimizer.Optimizer):
     for var in var_list:
       self._accumulators.append(
           self.add_variable_from_reference(
-              var, 'accumulator', initializer(shape=var.shape,
-                                              dtype=var.dtype)))
+              var,
+              'accumulator',
+              initial_value=initializer(shape=var.shape, dtype=var.dtype)))
 
   def update_step(self, grad, variable):
     """Update step given gradient and the associated model variable."""

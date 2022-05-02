@@ -473,11 +473,9 @@ class GRUCell(LayerRNNCell):
       the first input). Required when `build` is called before `call`.
     **kwargs: Dict, keyword named properties for common layer attributes, like
       `trainable` etc when constructing the cell from configs of get_config().
-
-      References:
-    Learning Phrase Representations using RNN Encoder Decoder for Statistical
-    Machine Translation:
-      [Cho et al., 2014]
+      References: Learning Phrase Representations using RNN Encoder Decoder for
+        Statistical
+    Machine Translation: [Cho et al., 2014]
       (https://aclanthology.coli.uni-saarland.de/papers/D14-1179/d14-1179)
       ([pdf](http://emnlp2014.org/papers/pdf/EMNLP2014179.pdf))
   """
@@ -938,9 +936,8 @@ class LSTMCell(LayerRNNCell):
   @tf_utils.shape_type_conversion
   def build(self, inputs_shape):
     if inputs_shape[-1] is None:
-      raise ValueError(
-          "Expected inputs.shape[-1] to be known, "
-          "received shape: {inputs_shape}")
+      raise ValueError("Expected inputs.shape[-1] to be known, "
+                       f"received shape: {inputs_shape}")
     _check_supported_dtypes(self.dtype)
     input_depth = inputs_shape[-1]
     h_depth = self._num_units if self._num_proj is None else self._num_proj

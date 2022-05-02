@@ -652,8 +652,8 @@ class Layer(base_layer.Layer):
     if args:
       inputs = args[0]
       args = args[1:]
-    elif self._call_fn_args[0] in kwargs:
-      inputs = kwargs.pop(self._call_fn_args[0])
+    elif self._call_spec.arg_names[0] in kwargs:
+      inputs = kwargs.pop(self._call_spec.arg_names[0])
     else:
       raise ValueError(
           'The first argument to `Layer.call` must always be passed.')
@@ -685,7 +685,7 @@ class Layer(base_layer.Layer):
     mask_arg_passed_by_framework = False
     input_masks = self._collect_input_masks(inputs, args, kwargs)
     if (self._expects_mask_arg and input_masks is not None and
-        not self._call_arg_was_passed('mask', args, kwargs)):
+        not self._call_spec.arg_was_passed('mask', args, kwargs)):
       mask_arg_passed_by_framework = True
       kwargs['mask'] = input_masks
 
@@ -694,8 +694,8 @@ class Layer(base_layer.Layer):
     training_value = None
     training_arg_passed_by_framework = False
     # Priority 1: `training` was explicitly passed.
-    if self._call_arg_was_passed('training', args, kwargs):
-      training_value = self._get_call_arg_value('training', args, kwargs)
+    if self._call_spec.arg_was_passed('training', args, kwargs):
+      training_value = self._call_spec.get_arg_value('training', args, kwargs)
       if not self._expects_training_arg:
         kwargs.pop('training')
 
@@ -719,8 +719,8 @@ class Layer(base_layer.Layer):
           training_value = tf.cast(training_value, tf.bool)
         else:
           training_value = bool(training_value)
-        args, kwargs = self._set_call_arg_value(
-            'training', training_value, args, kwargs)
+        args, kwargs = self._call_spec.set_arg_value('training', training_value,
+                                                     args, kwargs)
         training_arg_passed_by_framework = True
 
     # Only create Keras history if at least one tensor originates from a
@@ -783,7 +783,7 @@ class Layer(base_layer.Layer):
                              '(layer: ' + self.name + ').')
           if base_layer_utils.have_all_keras_metadata(inputs):
             if training_arg_passed_by_framework:
-              args, kwargs = self._set_call_arg_value(
+              args, kwargs = self._call_spec.set_arg_value(
                   'training', None, args, kwargs, pop_kwarg_if_none=True)
             if mask_arg_passed_by_framework:
               kwargs.pop('mask')
@@ -1870,7 +1870,8 @@ class Layer(base_layer.Layer):
       output_list = tf.nest.flatten(outputs)
       with backend.name_scope('ActivityRegularizer'):
         for output in output_list:
-          activity_loss = self._activity_regularizer(output)
+          activity_loss = tf.convert_to_tensor(
+              self._activity_regularizer(output))
           batch_size = tf.cast(
               tf.compat.v1.shape(output)[0], activity_loss.dtype)
           # Make activity regularization strength batch-agnostic.
@@ -1921,8 +1922,8 @@ class Layer(base_layer.Layer):
 
   def _collect_input_masks(self, inputs, args, kwargs):
     """Checks if `mask` argument was passed, else gathers mask from inputs."""
-    if self._call_arg_was_passed('mask', args, kwargs):
-      return self._get_call_arg_value('mask', args, kwargs)
+    if self._call_spec.arg_was_passed('mask', args, kwargs):
+      return self._call_spec.get_arg_value('mask', args, kwargs)
 
     if not self._should_compute_mask:
       return None
@@ -1932,45 +1933,6 @@ class Layer(base_layer.Layer):
     if generic_utils.is_all_none(input_masks):
       return None
     return input_masks
-
-  def _call_arg_was_passed(self, arg_name, args, kwargs, inputs_in_args=False):
-    if arg_name in kwargs:
-      return True
-    call_fn_args = self._call_fn_args
-    if not inputs_in_args:
-      # Ignore `inputs` arg.
-      call_fn_args = call_fn_args[1:]
-    if arg_name in dict(zip(call_fn_args, args)):
-      return True
-    return False
-
-  def _get_call_arg_value(self, arg_name, args, kwargs, inputs_in_args=False):
-    if arg_name in kwargs:
-      return kwargs[arg_name]
-    call_fn_args = self._call_fn_args
-    if not inputs_in_args:
-      # Ignore `inputs` arg.
-      call_fn_args = call_fn_args[1:]
-    args_dict = dict(zip(call_fn_args, args))
-    return args_dict[arg_name]
-
-  def _set_call_arg_value(
-      self, arg_name, new_value, args,
-      kwargs, inputs_in_args=False, pop_kwarg_if_none=False):
-    arg_pos = self._call_fn_arg_positions.get(arg_name, None)
-    if arg_pos is not None:
-      if not inputs_in_args:
-        # Ignore `inputs` arg.
-        arg_pos = arg_pos - 1
-      if len(args) > arg_pos:
-        args = list(args)
-        args[arg_pos] = new_value
-        return args, kwargs
-    if new_value is None and pop_kwarg_if_none:
-      kwargs.pop(arg_name, None)
-    else:
-      kwargs[arg_name] = new_value
-    return args, kwargs
 
   def _get_node_attribute_at_index(self, node_index, attr, attr_name):
     """Private utility to retrieves an attribute (e.g. inputs) from a node.
@@ -2223,55 +2185,10 @@ class Layer(base_layer.Layer):
   def _is_layer(self):
     return True
 
-  def _init_call_fn_args(self, expects_training_arg=None):
-    # Clear cached call function arguments.
-    self.__class__._call_full_argspec.fget.cache.pop(self, None)
-    self.__class__._call_fn_args.fget.cache.pop(self, None)
-    self.__class__._call_accepts_kwargs.fget.cache.pop(self, None)
-
-    call_fn_args = self._call_fn_args
-    if expects_training_arg is None:
-      self._expects_training_arg = ('training' in call_fn_args or
-                                    self._call_accepts_kwargs)
-    else:
-      # Use value encoded into the metadata when loading from the SavedModel.
-      self._expects_training_arg = expects_training_arg
-    self._expects_mask_arg = ('mask' in call_fn_args or
-                              self._call_accepts_kwargs)
-
-  @property
-  @layer_utils.cached_per_instance
-  def _call_full_argspec(self):
-    # Argspec inspection is expensive and the call spec is used often, so it
-    # makes sense to cache the result.
-    return tf_inspect.getfullargspec(self.call)
-
-  @property
-  @layer_utils.cached_per_instance
-  def _call_fn_args(self):
-    all_args = self._call_full_argspec.args
-    # Scrub `self` that appears if a decorator was applied.
-    if all_args and all_args[0] == 'self':
-      return all_args[1:]
-    return all_args
-
-  @property
-  @layer_utils.cached_per_instance
-  def _call_fn_arg_positions(self):
-    call_fn_arg_positions = dict()
-    for pos, arg in enumerate(self._call_fn_args):
-      call_fn_arg_positions[arg] = pos
-    return call_fn_arg_positions
-
-  @property
-  @layer_utils.cached_per_instance
-  def _call_accepts_kwargs(self):
-    return self._call_full_argspec.varkw is not None
-
   @property
   @layer_utils.cached_per_instance
   def _should_compute_mask(self):
-    return ('mask' in self._call_fn_args or
+    return ('mask' in self._call_spec.arg_names or
             getattr(self, 'compute_mask', None) is not None)
 
   def _dedup_weights(self, weights):

@@ -25,7 +25,7 @@ from keras import initializers
 from keras.optimizers.optimizer_v2 import utils as optimizer_utils
 from keras.optimizers.schedules import learning_rate_schedule
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -343,6 +343,7 @@ class _BaseOptimizer(tf.Module):
   def add_variable_from_reference(self,
                                   model_variable,
                                   variable_name,
+                                  shape=None,
                                   initial_value=None):
     """Create an optimizer variable from model variable.
 
@@ -351,20 +352,27 @@ class _BaseOptimizer(tf.Module):
     corresponding momemtum variable is created of the same shape and dtype.
 
     Args:
-      model_variable: The corresponding model variable to the optimizer variable
-        to be created.
-      variable_name: The name prefix of the optimizer variable to be created.
-        The create variables name will follow the pattern
+      model_variable: tf.Variable. The corresponding model variable to the
+        optimizer variable to be created.
+      variable_name: String. The name prefix of the optimizer variable to be
+        created. The create variables name will follow the pattern
         `{variable_name}/{model_variable.name}`, e.g., `momemtum/dense_1`.
-      initial_value: The initial value of the optimizer variable, if None, the
-        value will be default to 0.
+      shape: List or Tuple, defaults to None. The shape of the optimizer
+        variable to be created. If None, the created variable will have the
+        same shape as `model_variable`.
+      initial_value: A Tensor, or Python object convertible to a Tensor,
+        defaults to None. The initial value of the optimizer variable, if None,
+        the initial value will be default to 0.
 
     Returns:
       An optimizer variable.
     """
     if initial_value is None:
-      initial_value = tf.zeros(
-          shape=model_variable.shape, dtype=model_variable.dtype)
+      if shape is None:
+        initial_value = tf.zeros(
+            shape=model_variable.shape, dtype=model_variable.dtype)
+      else:
+        initial_value = tf.zeros(shape, dtype=model_variable.dtype)
     return tf.Variable(
         initial_value=initial_value,
         name=f"{variable_name}/{model_variable._shared_name}",  # pylint: disable=protected-access
@@ -555,9 +563,7 @@ base_optimizer_keyword_args = """name: String. The name to use
       happens automatically after the last epoch, and you don't need to do
       anything.
     jit_compile: Boolean, defaults to True. If True, the optimizer will use XLA
-      compilation. `jit_compile` cannot be True when training with
-      `tf.distribute.experimental.ParameterServerStrategy`. Additionally,
-      if no GPU device is found, this flag will be ignored.
+      compilation. If no GPU device is found, this flag will be ignored.
     **kwargs: keyword arguments only used for backward compatibility."""
 
 
@@ -752,29 +758,12 @@ class Optimizer(_BaseOptimizer):
   def add_variable_from_reference(self,
                                   model_variable,
                                   variable_name,
+                                  shape=None,
                                   initial_value=None):
-    """Create an optimizer variable.
-
-    Create an optimizer variable based on the information of model variable.
-    The created optimizer variable will have the same shape and dtype as the
-    model variable, and placed at the same device.
-
-    Args:
-      model_variable: The corresponding model variable to the optimizer variable
-        to be created.
-      variable_name: The name prefix of the optimizer variable to be created.
-      initial_value: The initial value of the optimizer variable, if None, the
-        value will be default to 0.
-
-    Returns:
-      An optimizer variable.
-    """
     strategy = tf.distribute.get_strategy()
     with strategy.extended.colocate_vars_with(model_variable):
-      return super(Optimizer,
-                   self).add_variable_from_reference(model_variable,
-                                                     variable_name,
-                                                     initial_value)
+      return super().add_variable_from_reference(model_variable, variable_name,
+                                                 shape, initial_value)
 
   def _var_key(self, variable):
     """Get a unique identifier of the given variable."""

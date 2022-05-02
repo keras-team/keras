@@ -41,7 +41,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util import deprecation  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util import deprecation
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -2573,9 +2573,13 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         for layer in self.model.layers:
           for weight in layer.weights:
             weight_name = weight.name.replace(':', '_')
-            tf.summary.histogram(weight_name, weight, step=epoch)
+            # Add a suffix to prevent summary tag name collision.
+            histogram_weight_name = weight_name + '/histogram'
+            tf.summary.histogram(histogram_weight_name, weight, step=epoch)
             if self.write_images:
-              self._log_weight_as_image(weight, weight_name, epoch)
+              # Add a suffix to prevent summary tag name collision.
+              image_weight_name = weight_name + '/image'
+              self._log_weight_as_image(weight, image_weight_name, epoch)
         self._train_writer.flush()
 
   def _log_weight_as_image(self, weight, weight_name, epoch):
@@ -2913,25 +2917,13 @@ class LambdaCallback(Callback):
     self.__dict__.update(kwargs)
     if on_epoch_begin is not None:
       self.on_epoch_begin = on_epoch_begin
-    else:
-      self.on_epoch_begin = lambda epoch, logs: None
     if on_epoch_end is not None:
       self.on_epoch_end = on_epoch_end
-    else:
-      self.on_epoch_end = lambda epoch, logs: None
     if on_batch_begin is not None:
       self.on_batch_begin = on_batch_begin
-    else:
-      self.on_batch_begin = lambda batch, logs: None
     if on_batch_end is not None:
       self.on_batch_end = on_batch_end
-    else:
-      self.on_batch_end = lambda batch, logs: None
     if on_train_begin is not None:
       self.on_train_begin = on_train_begin
-    else:
-      self.on_train_begin = lambda logs: None
     if on_train_end is not None:
       self.on_train_end = on_train_end
-    else:
-      self.on_train_end = lambda logs: None

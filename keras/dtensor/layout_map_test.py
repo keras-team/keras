@@ -22,6 +22,7 @@ from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
+# TODO(scottzhu): Fix the layout map test with keras/dtensor/test_util
 from keras.dtensor.tests import test_util
 
 
@@ -178,7 +179,8 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
     # Init the model with eager tensor, make sure the model weights have correct
     # layout, as well as produce correct result.
-    inputs = tf.zeros((10, 10), layout=self.layout_2d)
+    inputs = tf.zeros((10, 10))
+    inputs = dtensor.copy_to_mesh(inputs, layout=self.layout_2d)
     result = model(inputs)
     self.assertAllClose(result, tf.zeros((10, 1000)))
     d1 = model.d1
@@ -195,7 +197,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     self.assertIs(d2.kernel, d2._trainable_weights[0])
     self.assertIs(d2.bias, d2._trainable_weights[1])
 
-    result = model(tf.zeros((10, 10), layout=self.layout_2d), training=True)
+    result = model(inputs, training=True)
     self.assertAllClose(result, tf.zeros((10, 1000), layout=self.layout_2d))
 
   def test_init_functional_model_variable_with_layout(self):
@@ -234,8 +236,13 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     self.assertIs(d2.kernel, d2._trainable_weights[0])
     self.assertIs(d2.bias, d2._trainable_weights[1])
 
-    result = model(tf.zeros((10, 10), layout=self.layout_2d), training=True)
-    self.assertAllClose(result, tf.zeros((10, 30), layout=self.layout_2d))
+    inputs = tf.zeros((10, 10))
+    inputs = dtensor.copy_to_mesh(inputs, layout=self.layout_2d)
+    result = model(inputs, training=True)
+    expected_result = tf.zeros((10, 30))
+    expected_result = dtensor.copy_to_mesh(
+        expected_result, layout=self.layout_2d)
+    self.assertAllClose(result, expected_result)
 
   def test_init_sequential_model_variable_with_layout(self):
     # Note that the sequential model is using layers name + attribute name
@@ -271,8 +278,13 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     self.assertIs(d2.kernel, d2._trainable_weights[0])
     self.assertIs(d2.bias, d2._trainable_weights[1])
 
-    result = model(tf.zeros((10, 10), layout=self.layout_2d), training=True)
-    self.assertAllClose(result, tf.zeros((10, 30), layout=self.layout_2d))
+    inputs = tf.zeros((10, 10))
+    inputs = dtensor.copy_to_mesh(inputs, layout=self.layout_2d)
+    result = model(inputs, training=True)
+    expected_result = tf.zeros((10, 30))
+    expected_result = dtensor.copy_to_mesh(
+        expected_result, layout=self.layout_2d)
+    self.assertAllClose(result, expected_result)
 
   def test_init_model_with_empty_layout_map(self):
     # Create empty layout map, which means all the weights just default to

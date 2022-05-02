@@ -21,7 +21,6 @@ import tensorflow.compat.v2 as tf
 
 import collections
 import contextlib
-import copy
 import functools
 import itertools
 import textwrap
@@ -554,7 +553,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Note that `trainable` cannot be `True` if `synchronization`
         is set to `ON_READ`.
       constraint: Constraint instance (callable).
-      use_resource: Whether to use `ResourceVariable`.
+      use_resource: Whether to use a `ResourceVariable` or not.
+         See [this guide](https://www.tensorflow.org/guide/migrate/tf1_vs_tf2#resourcevariables_instead_of_referencevariables)  # pylint: disable=line-too-long
+         for more information.
       synchronization: Indicates when a distributed a variable will be
         aggregated. Accepted values are constants defined in the class
         `tf.VariableSynchronization`. By default the synchronization is set to
@@ -932,7 +933,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # - input_spec compatibility is only checked against `inputs`
     # - mixed precision casting (autocast) is only applied to `inputs`,
     #   not to any other argument.
-    inputs, args, kwargs = self._split_out_first_arg(args, kwargs)
+    inputs, args, kwargs = self._call_spec.split_out_first_arg(args, kwargs)
     input_list = tf.nest.flatten(inputs)
 
     # Functional Model construction mode is invoked when `Layer`s are called on
@@ -1026,7 +1027,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     if _is_name_scope_on_model_declaration_enabled:
       with _name_scope_unnester(self._name_scope_on_declaration
                                ) as relative_name_scope_on_declaration:
-      # To avoid `tf.name_scope` autoincrement, use absolute path.
+        # To avoid `tf.name_scope` autoincrement, use absolute path.
         relative_name_scope = filter(
             None,
             [tf.get_current_name_scope(), relative_name_scope_on_declaration])
@@ -2279,8 +2280,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     training_value = None
     training_arg_passed_by_framework = False
     # Priority 1: `training` was explicitly passed a non-None value.
-    if self._call_arg_was_passed('training', args, kwargs):
-      training_value = self._get_call_arg_value('training', args, kwargs)
+    if self._call_spec.arg_was_passed('training', args, kwargs):
+      training_value = self._call_spec.get_arg_value('training', args, kwargs)
       if not self._expects_training_arg:
         kwargs.pop('training')
 
@@ -2301,12 +2302,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       # in the `call` signature (or in inference mode if the `call` signature
       # specifies no non-None default).
       else:
-        training_value = self._default_training_arg
+        training_value = self._call_spec.default_training_arg
       # In cases (2), (3), (4) the training argument is passed automatically
       # by the framework, and will not be hard-coded into the model.
       if self._expects_training_arg:
-        args, kwargs = self._set_call_arg_value('training', training_value,
-                                                args, kwargs)
+        args, kwargs = self._call_spec.set_arg_value('training', training_value,
+                                                     args, kwargs)
         training_arg_passed_by_framework = True
 
     with call_context.enter(
@@ -2320,7 +2321,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                          'Tensor or a list of Tensors, not None '
                          '(layer: ' + self.name + ').')
       if training_arg_passed_by_framework:
-        args, kwargs = self._set_call_arg_value(
+        args, kwargs = self._call_spec.set_arg_value(
             'training', None, args, kwargs, pop_kwarg_if_none=True)
       if mask_arg_passed_by_framework:
         kwargs.pop('mask')
@@ -2333,8 +2334,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     training_mode = None
     if self._expects_training_arg:
       # (1) `training` was passed to this `Layer.call`.
-      if self._call_arg_was_passed('training', args, kwargs):
-        training_mode = self._get_call_arg_value('training', args, kwargs)
+      if self._call_spec.arg_was_passed('training', args, kwargs):
+        training_mode = self._call_spec.get_arg_value('training', args, kwargs)
       # If no `training` arg was passed, or `None` was explicitly passed,
       # the framework will make a decision about the training mode is.
       if training_mode is None:
@@ -2356,11 +2357,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # or treating the layer as if it is in inference if no non-None default
         # is specified in the `call` signature.
         else:
-          training_mode = self._default_training_arg
+          training_mode = self._call_spec.default_training_arg
 
         # For case (2), (3), (4) `training` arg is passed by framework.
-        args, kwargs = self._set_call_arg_value('training', training_mode, args,
-                                                kwargs)
+        args, kwargs = self._call_spec.set_arg_value('training', training_mode,
+                                                     args, kwargs)
     else:
       if 'training' in kwargs:
         # `training` was passed to this `Layer` but is not needed for
@@ -2563,7 +2564,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       output_list = tf.nest.flatten(outputs)
       with backend.name_scope('ActivityRegularizer'):
         for output in output_list:
-          activity_loss = self._activity_regularizer(output)
+          activity_loss = tf.convert_to_tensor(
+              self._activity_regularizer(output))
           batch_size = tf.cast(
               tf.shape(output)[0], activity_loss.dtype)
           # Make activity regularization strength batch-agnostic.
@@ -2614,8 +2616,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       # or `compute_mask`.
       input_masks = None
       implicit_mask = False
-    elif self._call_arg_was_passed('mask', args, kwargs):
-      input_masks = self._get_call_arg_value('mask', args, kwargs)
+    elif self._call_spec.arg_was_passed('mask', args, kwargs):
+      input_masks = self._call_spec.get_arg_value('mask', args, kwargs)
       implicit_mask = False
     else:
       input_masks = [getattr(t, '_keras_mask', None) for t in input_list]
@@ -2627,47 +2629,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         input_masks = tf.nest.pack_sequence_as(inputs, input_masks)
         implicit_mask = True
     return input_masks, implicit_mask
-
-  def _call_arg_was_passed(self, arg_name, args, kwargs, inputs_in_args=False):
-    # Performance optimization: do no work in most common case.
-    if not args and not kwargs:
-      return False
-
-    if arg_name in kwargs:
-      return True
-    call_fn_args = self._call_fn_args
-    if not inputs_in_args:
-      # Ignore `inputs` arg.
-      call_fn_args = call_fn_args[1:]
-    return arg_name in dict(zip(call_fn_args, args))
-
-  def _get_call_arg_value(self, arg_name, args, kwargs, inputs_in_args=False):
-    if arg_name in kwargs:
-      return kwargs[arg_name]
-    call_fn_args = self._call_fn_args
-    if not inputs_in_args:
-      # Ignore `inputs` arg.
-      call_fn_args = call_fn_args[1:]
-    args_dict = dict(zip(call_fn_args, args))
-    return args_dict[arg_name]
-
-  def _set_call_arg_value(
-      self, arg_name, new_value, args,
-      kwargs, inputs_in_args=False, pop_kwarg_if_none=False):
-    arg_pos = self._call_fn_arg_positions.get(arg_name, None)
-    if arg_pos is not None:
-      if not inputs_in_args:
-        # Ignore `inputs` arg.
-        arg_pos = arg_pos - 1
-      if len(args) > arg_pos:
-        args = list(args)
-        args[arg_pos] = new_value
-        return tuple(args), kwargs
-    if new_value is None and pop_kwarg_if_none:
-      kwargs.pop(arg_name, None)
-    else:
-      kwargs[arg_name] = new_value
-    return args, kwargs
 
   def _set_connectivity_metadata(self, args, kwargs, outputs):
     # If the layer returns tensors from its inputs unmodified,
@@ -2716,7 +2677,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     if not self._inbound_nodes:
       raise RuntimeError(f'The layer {self.name} has never been called '
-                         'and thus has no defined {attr_name}.')
+                         f'and thus has no defined {attr_name}.')
     if not len(self._inbound_nodes) > node_index:
       raise ValueError(f'Asked to get {attr_name} at node '
                        f'{node_index}, but the layer has only '
@@ -2995,69 +2956,19 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     return True
 
   def _init_call_fn_args(self, expects_training_arg=None):
-    # Clear cached call function arguments.
-    self.__class__._call_full_argspec.fget.cache.pop(self, None)
-    self.__class__._call_fn_args.fget.cache.pop(self, None)
-    self.__class__._call_accepts_kwargs.fget.cache.pop(self, None)
-
-    call_fn_args = self._call_fn_args
-    call_fn_args += self._call_full_argspec.kwonlyargs or []
-    if expects_training_arg is None:
-      self._expects_training_arg = ('training' in call_fn_args or
-                                    self._call_accepts_kwargs)
-    else:
-      # Use value encoded into the metadata when loading from the SavedModel.
-      self._expects_training_arg = expects_training_arg
-    # The default training arg will be any (non-None) default specified in the
-    # method signature, or None if no value is specified.
-    call_fn_arg_defaults = self._call_fn_arg_defaults.copy()
-    call_fn_arg_defaults.update(self._call_full_argspec.kwonlydefaults or {})
-    self._default_training_arg = call_fn_arg_defaults.get('training')
-
-    self._expects_mask_arg = ('mask' in call_fn_args or
-                              self._call_accepts_kwargs)
+    self._call_spec = layer_utils.CallFunctionSpec(
+        tf_inspect.getfullargspec(self.call))
+    if expects_training_arg is not None:
+      self._call_spec.expects_training_arg = expects_training_arg
 
   @property
-  @layer_utils.cached_per_instance
-  def _call_full_argspec(self):
-    # Argspec inspection is expensive and the call spec is used often, so it
-    # makes sense to cache the result.
-    return tf_inspect.getfullargspec(self.call)
+  def _expects_training_arg(self):
+    """Whether the call function uses 'training' as a parameter."""
+    return self._call_spec.expects_training_arg
 
   @property
-  @layer_utils.cached_per_instance
-  def _call_fn_args(self):
-    all_args = self._call_full_argspec.args
-    # Scrub `self` that appears if a decorator was applied.
-    if all_args and all_args[0] == 'self':
-      return all_args[1:]
-    return all_args
-
-  @property
-  @layer_utils.cached_per_instance
-  def _call_fn_arg_defaults(self):
-    call_fn_args = self._call_fn_args
-    call_fn_defaults = self._call_full_argspec.defaults or []
-    defaults = dict()
-
-    # The call arg defaults are an n-tuple of the last n elements of the args
-    # list. (n = # of elements that have a default argument)
-    for i in range(-1 * len(call_fn_defaults), 0):
-      defaults[call_fn_args[i]] = call_fn_defaults[i]
-    return defaults
-
-  @property
-  @layer_utils.cached_per_instance
-  def _call_fn_arg_positions(self):
-    call_fn_arg_positions = dict()
-    for pos, arg in enumerate(self._call_fn_args):
-      call_fn_arg_positions[arg] = pos
-    return call_fn_arg_positions
-
-  @property
-  @layer_utils.cached_per_instance
-  def _call_accepts_kwargs(self):
-    return self._call_full_argspec.varkw is not None
+  def _expects_mask_arg(self):
+    return self._call_spec.expects_mask_arg
 
   @property
   def _eager_losses(self):
@@ -3086,21 +2997,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     return output
 
-  def _split_out_first_arg(self, args, kwargs):
-    # Grab the argument corresponding to the first argument in the
-    # layer's `call` method spec. This will either be the first positional
-    # argument, or it will be provided as a keyword argument.
-    if args:
-      inputs = args[0]
-      args = args[1:]
-    elif self._call_fn_args[0] in kwargs:
-      kwargs = copy.copy(kwargs)
-      inputs = kwargs.pop(self._call_fn_args[0])
-    else:
-      raise ValueError(
-          'The first argument to `Layer.call` must always be passed.')
-    return inputs, args, kwargs
-
   # SavedModel properties. Please see keras/saving/saved_model for details.
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
@@ -3117,23 +3013,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     if self._saved_model_inputs_spec is not None:
       return  # Already set.
-    args = args or []
-    kwargs = kwargs or {}
 
     inputs_spec = tf.nest.map_structure(tf_utils.get_tensor_spec, inputs)
-
-    # Filter out non-tensor arguments from args and kwargs.
-    args_spec = []
-    for arg in args:
-      flat_arg = tf.nest.flatten(arg)
-      flat_specs = [tf_utils.get_tensor_spec(x) for x in flat_arg]
-      if any(s is None for s in flat_specs):
-        break  # Stop recording positional args once a non-tensor has been found
-      args_spec.append(tf.nest.pack_sequence_as(arg, flat_specs))
+    args_spec  = tf.nest.map_structure(tf_utils.get_tensor_spec, args or [])
     kwargs_spec = {}
+    # Filter out non-tensor arguments from kwargs.
     for key, kwarg in kwargs.items():
-      if key == 'training':
-        continue
       flat_kwarg = tf.nest.flatten(kwarg)
       flat_specs = [tf_utils.get_tensor_spec(x) for x in flat_kwarg]
       if any(s is None for s in flat_specs):
@@ -3141,7 +3026,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       kwargs_spec[key] = tf.nest.pack_sequence_as(kwarg, flat_specs)
 
     self._saved_model_inputs_spec = inputs_spec
-    self._saved_model_arg_spec = ([inputs_spec] + args_spec, kwargs_spec)
+    self._saved_model_arg_spec = ([inputs_spec] + list(args_spec), kwargs_spec)
 
   def _get_save_spec(self, dynamic_batch=True, inputs_only=True):
     if self._saved_model_inputs_spec is None:

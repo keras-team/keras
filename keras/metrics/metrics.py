@@ -518,11 +518,13 @@ class FalsePositives(_ConfusionMatrixConditionCount):
   Use `sample_weight` of 0 to mask values.
 
   Args:
-    thresholds: (Optional) Defaults to 0.5. A float value or a python
+    thresholds: (Optional) Defaults to 0.5. A float value, or a Python
       list/tuple of float threshold values in [0, 1]. A threshold is compared
       with prediction values to determine the truth value of predictions
-      (i.e., above the threshold is `true`, below is `false`). One metric
-      value is generated for each threshold value.
+      (i.e., above the threshold is `true`, below is `false`). If used with a
+      loss function that sets `from_logits=True` (i.e. no sigmoid applied to
+      predictions), `thresholds` should be set to 0. One metric value is
+      generated for each threshold value.
     name: (Optional) string name of the metric instance.
     dtype: (Optional) data type of the metric result.
 
@@ -544,6 +546,14 @@ class FalsePositives(_ConfusionMatrixConditionCount):
   model.compile(optimizer='sgd',
                 loss='mse',
                 metrics=[tf.keras.metrics.FalsePositives()])
+  ```
+
+  Usage with a loss with `from_logits=True`:
+
+  ```python
+  model.compile(optimizer='adam',
+                loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                metrics=[tf.keras.metrics.FalsePositives(thresholds=0)])
   ```
   """
 
@@ -568,11 +578,13 @@ class FalseNegatives(_ConfusionMatrixConditionCount):
   Use `sample_weight` of 0 to mask values.
 
   Args:
-    thresholds: (Optional) Defaults to 0.5. A float value or a python
+    thresholds: (Optional) Defaults to 0.5. A float value, or a Python
       list/tuple of float threshold values in [0, 1]. A threshold is compared
       with prediction values to determine the truth value of predictions
-      (i.e., above the threshold is `true`, below is `false`). One metric
-      value is generated for each threshold value.
+      (i.e., above the threshold is `true`, below is `false`). If used with a
+      loss function that sets `from_logits=True` (i.e. no sigmoid applied to
+      predictions), `thresholds` should be set to 0. One metric value is
+      generated for each threshold value.
     name: (Optional) string name of the metric instance.
     dtype: (Optional) data type of the metric result.
 
@@ -594,6 +606,14 @@ class FalseNegatives(_ConfusionMatrixConditionCount):
   model.compile(optimizer='sgd',
                 loss='mse',
                 metrics=[tf.keras.metrics.FalseNegatives()])
+  ```
+
+  Usage with a loss with `from_logits=True`:
+
+  ```python
+  model.compile(optimizer='adam',
+                loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                metrics=[tf.keras.metrics.FalseNegatives(thresholds=0)])
   ```
   """
 
@@ -618,11 +638,13 @@ class TrueNegatives(_ConfusionMatrixConditionCount):
   Use `sample_weight` of 0 to mask values.
 
   Args:
-    thresholds: (Optional) Defaults to 0.5. A float value or a python
+    thresholds: (Optional) Defaults to 0.5. A float value, or a Python
       list/tuple of float threshold values in [0, 1]. A threshold is compared
       with prediction values to determine the truth value of predictions
-      (i.e., above the threshold is `true`, below is `false`). One metric
-      value is generated for each threshold value.
+      (i.e., above the threshold is `true`, below is `false`). If used with a
+      loss function that sets `from_logits=True` (i.e. no sigmoid applied to
+      predictions), `thresholds` should be set to 0. One metric value is
+      generated for each threshold value.
     name: (Optional) string name of the metric instance.
     dtype: (Optional) data type of the metric result.
 
@@ -644,6 +666,14 @@ class TrueNegatives(_ConfusionMatrixConditionCount):
   model.compile(optimizer='sgd',
                 loss='mse',
                 metrics=[tf.keras.metrics.TrueNegatives()])
+  ```
+
+  Usage with a loss with `from_logits=True`:
+
+  ```python
+  model.compile(optimizer='adam',
+                loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                metrics=[tf.keras.metrics.TrueNegatives(thresholds=0)])
   ```
   """
 
@@ -668,11 +698,13 @@ class TruePositives(_ConfusionMatrixConditionCount):
   Use `sample_weight` of 0 to mask values.
 
   Args:
-    thresholds: (Optional) Defaults to 0.5. A float value or a python
+    thresholds: (Optional) Defaults to 0.5. A float value, or a Python
       list/tuple of float threshold values in [0, 1]. A threshold is compared
       with prediction values to determine the truth value of predictions
-      (i.e., above the threshold is `true`, below is `false`). One metric
-      value is generated for each threshold value.
+      (i.e., above the threshold is `true`, below is `false`). If used with a
+      loss function that sets `from_logits=True` (i.e. no sigmoid applied to
+      predictions), `thresholds` should be set to 0. One metric value is
+      generated for each threshold value.
     name: (Optional) string name of the metric instance.
     dtype: (Optional) data type of the metric result.
 
@@ -694,6 +726,14 @@ class TruePositives(_ConfusionMatrixConditionCount):
   model.compile(optimizer='sgd',
                 loss='mse',
                 metrics=[tf.keras.metrics.TruePositives()])
+  ```
+
+  Usage with a loss with `from_logits=True`:
+
+  ```python
+  model.compile(optimizer='adam',
+                loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                metrics=[tf.keras.metrics.TruePositives(thresholds=0)])
   ```
   """
 
@@ -728,12 +768,14 @@ class Precision(base_metric.Metric):
   `class_id` is indeed a correct label.
 
   Args:
-    thresholds: (Optional) A float value or a python list/tuple of float
+    thresholds: (Optional) A float value, or a Python list/tuple of float
       threshold values in [0, 1]. A threshold is compared with prediction
       values to determine the truth value of predictions (i.e., above the
-      threshold is `true`, below is `false`). One metric value is generated
-      for each threshold value. If neither thresholds nor top_k are set, the
-      default is to calculate precision with `thresholds=0.5`.
+      threshold is `true`, below is `false`). If used with a loss function that
+      sets `from_logits=True` (i.e. no sigmoid applied to predictions),
+      `thresholds` should be set to 0. One metric value is generated for each
+      threshold value. If neither thresholds nor top_k are set, the default is
+      to calculate precision with `thresholds=0.5`.
     top_k: (Optional) Unset by default. An int value specifying the top-k
       predictions to consider when calculating precision.
     class_id: (Optional) Integer class ID for which we want binary metrics.
@@ -772,6 +814,14 @@ class Precision(base_metric.Metric):
   model.compile(optimizer='sgd',
                 loss='mse',
                 metrics=[tf.keras.metrics.Precision()])
+  ```
+
+  Usage with a loss with `from_logits=True`:
+
+  ```python
+  model.compile(optimizer='adam',
+                loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                metrics=[tf.keras.metrics.Precision(thresholds=0)])
   ```
   """
 
@@ -871,12 +921,14 @@ class Recall(base_metric.Metric):
   top-k predictions.
 
   Args:
-    thresholds: (Optional) A float value or a python list/tuple of float
+    thresholds: (Optional) A float value, or a Python list/tuple of float
       threshold values in [0, 1]. A threshold is compared with prediction
       values to determine the truth value of predictions (i.e., above the
-      threshold is `true`, below is `false`). One metric value is generated
-      for each threshold value. If neither thresholds nor top_k are set, the
-      default is to calculate recall with `thresholds=0.5`.
+      threshold is `true`, below is `false`). If used with a loss function that
+      sets `from_logits=True` (i.e. no sigmoid applied to predictions),
+      `thresholds` should be set to 0. One metric value is generated for each
+      threshold value. If neither thresholds nor top_k are set, the default is
+      to calculate recall with `thresholds=0.5`.
     top_k: (Optional) Unset by default. An int value specifying the top-k
       predictions to consider when calculating recall.
     class_id: (Optional) Integer class ID for which we want binary metrics.
@@ -903,6 +955,14 @@ class Recall(base_metric.Metric):
   model.compile(optimizer='sgd',
                 loss='mse',
                 metrics=[tf.keras.metrics.Recall()])
+  ```
+
+  Usage with a loss with `from_logits=True`:
+
+  ```python
+  model.compile(optimizer='adam',
+                loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                metrics=[tf.keras.metrics.Recall(thresholds=0)])
   ```
   """
 

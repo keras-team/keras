@@ -174,10 +174,11 @@ class Node:
     """Serializes `Node` for Functional API's `get_config`."""
     # Serialization still special-cases first argument.
     args, kwargs = self.call_args, self.call_kwargs
-    inputs, args, kwargs = self.layer._split_out_first_arg(args, kwargs)
+    inputs, args, kwargs = self.layer._call_spec.split_out_first_arg(
+        args, kwargs)
 
     # Treat everything other than first argument as a kwarg.
-    arguments = dict(zip(self.layer._call_fn_args[1:], args))
+    arguments = dict(zip(self.layer._call_spec.arg_names[1:], args))
     arguments.update(kwargs)
     kwargs = arguments
 

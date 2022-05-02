@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 import functools
 import os
 from tensorflow.python.eager import context
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.engine import training

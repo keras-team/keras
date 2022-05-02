@@ -15,7 +15,7 @@
 """Keras index lookup preprocessing layer."""
 
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
 
 import collections
 

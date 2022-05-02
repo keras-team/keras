@@ -42,8 +42,13 @@ except ImportError:
 
 
 def check_pydot():
-  """Returns True if PyDot and Graphviz are available."""
-  if pydot is None:
+  """Returns True if PyDot is available."""
+  return pydot is not None
+
+
+def check_graphviz():
+  """Returns True if both PyDot and Graphviz are available."""
+  if not check_pydot():
     return False
   try:
     # Attempt to create an image of a blank graph
@@ -136,7 +141,7 @@ def model_to_dot(model,
 
   Raises:
     ValueError: if `model_to_dot` is called before the model is built.
-    ImportError: if graphviz or pydot are not available.
+    ImportError: if pydot is not available.
   """
 
   if not model.built:
@@ -149,18 +154,8 @@ def model_to_dot(model,
   from keras.engine import functional
 
   if not check_pydot():
-    message = (
-        'You must install pydot (`pip install pydot`) '
-        'and install graphviz '
-        '(see instructions at https://graphviz.gitlab.io/download/) '
-        'for plot_model/model_to_dot to work.')
-    if 'IPython.core.magics.namespace' in sys.modules:
-      # We don't raise an exception here in order to avoid crashing notebook
-      # tests where graphviz is not available.
-      io_utils.print_msg(message)
-      return
-    else:
-      raise ImportError(message)
+    raise ImportError('You must install pydot (`pip install pydot`) for '
+                      'model_to_dot to work.')
 
   if subgraph:
     dot = pydot.Cluster(style='dashed', graph_name=model.name)
@@ -406,6 +401,7 @@ def plot_model(model,
       have an `activation` property).
 
   Raises:
+    ImportError: if graphviz or pydot are not available.
     ValueError: if `plot_model` is called before the model is built.
 
   Returns:
@@ -417,6 +413,20 @@ def plot_model(model,
     raise ValueError('This model has not yet been built. '
                      'Build the model first by calling `build()` or by calling '
                      'the model on a batch of data.')
+
+  if not check_graphviz():
+    message = (
+        'You must install pydot (`pip install pydot`) '
+        'and install graphviz '
+        '(see instructions at https://graphviz.gitlab.io/download/) '
+        'for plot_model to work.')
+    if 'IPython.core.magics.namespace' in sys.modules:
+      # We don't raise an exception here in order to avoid crashing notebook
+      # tests where graphviz is not available.
+      io_utils.print_msg(message)
+      return
+    else:
+      raise ImportError(message)
 
   dot = model_to_dot(
       model,

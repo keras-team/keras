@@ -331,6 +331,11 @@ class TestGetTensorSpec(parameterized.TestCase):
     else:
       self.assertEqual(result.shape.as_list(), expected_shape)
 
+  def test_with_keras_tensor_with_ragged_spec(self):
+    t = keras.engine.keras_tensor.KerasTensor(
+        tf.RaggedTensorSpec(shape=(None, None, 1)))
+    self.assertIsInstance(tf_utils.get_tensor_spec(t), tf.RaggedTensorSpec)
+
 
 class TestSyncToNumpyOrPythonType(parameterized.TestCase):
 

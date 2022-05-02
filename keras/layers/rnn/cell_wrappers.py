@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Module implementing RNN wrappers."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 # Note that all the APIs under this module are exported as tf.nn.*. This is due
 # to the fact that those APIs were from tf.nn.rnn_cell_impl. They are ported
@@ -48,9 +48,9 @@ class _RNNCellWrapper(AbstractRNNCell):
     super(_RNNCellWrapper, self).__init__(*args, **kwargs)
     self.cell = cell
     cell_call_spec = tf_inspect.getfullargspec(cell.call)
-    self._expects_training_arg = ("training" in cell_call_spec.args) or (
-        cell_call_spec.varkw is not None
-    )
+    self._call_spec.expects_training_arg = (("training"
+                                             in cell_call_spec.args) or
+                                            (cell_call_spec.varkw is not None))
 
   def _call_wrapped_cell(self, inputs, state, cell_call_fn, **kwargs):
     """Calls the wrapped cell and performs the wrapping logic.
@@ -231,9 +231,8 @@ class DropoutWrapper(_RNNCellWrapper):
         tensor_prob, const_prob = tensor_and_const_value(prob)
         if const_prob is not None:
           if const_prob < 0 or const_prob > 1:
-            raise ValueError(
-                f"Parameter {attr} must be between 0 and 1. "
-                "Received {const_prob}")
+            raise ValueError(f"Parameter {attr} must be between 0 and 1. "
+                             f"Received {const_prob}")
           setattr(self, "_%s" % attr, float(const_prob))
         else:
           setattr(self, "_%s" % attr, tensor_prob)

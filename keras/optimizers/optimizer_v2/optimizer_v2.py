@@ -30,7 +30,7 @@ from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
 
 
 keras_optimizers_gauge = tf.__internal__.monitoring.BoolGauge(
@@ -1187,7 +1187,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     params = self.weights
     if len(params) != len(weights):
       raise ValueError(
-          "You called `set_weights(weights)` on optimizer {self._name} "
+          f"You called `set_weights(weights)` on optimizer {self._name} "
           f"with a  weight list of length {str(len(weights))}, "
           f"but the optimizer was expecting {str(len(params))} "
           f"weights. Provided weights: {str(weights)[:50]}...")

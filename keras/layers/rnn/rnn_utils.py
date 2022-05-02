@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities for RNN cells and layers."""
-# pylint: disable=g-direct-tensorflow-import,protected-access
+# pylint: disable=protected-access
 
 from keras.utils import control_flow_util
 import tensorflow.compat.v2 as tf
