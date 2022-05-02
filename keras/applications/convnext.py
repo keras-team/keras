@@ -39,22 +39,21 @@ BASE_WEIGHTS_PATH = "https://storage.googleapis.com/convnext-tf/keras-applicatio
 
 WEIGHTS_HASHES = {
   "tiny":
-    ("dec324e40ebe943afc7b75b72484646eeb092c04bb079df35911d7080364f9a8",
-      "4d4f0e079db2cc0e627b55f7d0d76c367145d14f2c90674415373457cd822346"),
+    ("594e0f8c77df6cdf30d07e92f19d530921a53ff8301edd130c1bb9ad3dd6f25b",
+      "278a5149e8c6e26f001051db5a8398f40f233994af2921a072bdca54389a9048"),
   "small":
-    ("f964ea5cd5618a1e64902a74ca5ccff3797a4fa5dba11a14f2c4d1a562b72f08",
-      "fd8f0ac74faa4e364d7cb5b2d32af9ae35b54ce5e80525b5beb7b7571320065a"),
+    ("8f26cee79fea02bbbbdc721e7dd5d416562106b7768ec37459850c7b23f26cb2",
+      "b0700a330b2e8bfa6862b61d333d3d8860e566ce2f9395a2165e506935bba547"),
   "base":
-    ("d30e0c509f4e1abe2784d33765d4391ce8fbff259b0bd79f4a63684b20db87d2",
-      "736f7a96cd933ee568611e29f334737fb9aebaaea021ea7adfe4d2f5cbb4a9aa"),
+    ("2c08893b86245f4fc1d80f584faeb7431b23e895b03f71fc3d943a3489b60089",
+      "a3d12bf8938796ca00721db89cb9e5a1af77f847401348adef16fab3611233d3"),
   "large":
-    ("8a304c66deb782b0d59837bc13127068901adaaa280cfac604d3341aaf44b2cf",
-      "b02b623b3c28586423e6be4aa214e2f5619280b97b4ef6b35ffb686e83235f01"),
+    ("f17f979cc7cd23906a88f490ff1249d2b0dedc44a601f5700a0873afc1b0ad02",
+      "74ff1e5f6eee45c62194aaee4a3347d5e2cf574caccad414b2b117b3ad110b32"),
   "xlarge":
-    ("da65d1294d386c71aebd81bc2520b8d42f7f60eee4414806c60730cd63eb15cb",
-      "2bfbf5f0c2b3f004f1c32e9a76661e11a9ac49014ed2a68a49ecd0cd6c88d377"),
+    ("784b923c2db18fec883093b265c2a44c4fc401425f206a3ca036015290f401e8",
+      "ba28c90cf6a4c64acfe0ca3af3ad920652c50f24668a3aaaf245a1c47e7bfe6f"),
 }
-
 
 MODEL_CONFIGS = {
   "tiny": {
@@ -335,7 +334,9 @@ def ConvNeXt(depths,
     default_size: Default input image size.
     model_name: An optional name for the model.
     include_preprocessing: boolean denoting whther to include preprocessing in
-      the model.
+      the model. When `weights="imagenet"` this should be always set to True.
+      But for other models (e.g., randomly initialized) users should set it
+      to False and apply preprocessing to data accordingly.
     include_top: Boolean denoting whether to include classification head to the
       model.
     weights: one of `None` (random initialization), `"imagenet"` (pre-training 
@@ -497,10 +498,10 @@ def ConvNeXtTiny(model_name="convnext_tiny",
   classifier_activation="softmax"):
   return ConvNeXt(
     depths=MODEL_CONFIGS["tiny"]["depths"],
-    projection_dims=["tiny"]["projection_dims"],
+    projection_dims=MODEL_CONFIGS["tiny"]["projection_dims"],
     drop_path_rate=0.0,
     layer_scale_init_value=1e-6,
-    default_size=["tiny"]["default_size"],
+    default_size=MODEL_CONFIGS["tiny"]["default_size"],
     model_name=model_name,
     include_top=include_top,
     include_preprocessing=include_preprocessing,
@@ -525,10 +526,10 @@ def ConvNeXtSmall(model_name="convnext_small",
   classifier_activation="softmax"):
   return ConvNeXt(
     depths=MODEL_CONFIGS["small"]["depths"],
-    projection_dims=["small"]["projection_dims"],
+    projection_dims=MODEL_CONFIGS["small"]["projection_dims"],
     drop_path_rate=0.0,
     layer_scale_init_value=1e-6,
-    default_size=["small"]["default_size"],
+    default_size=MODEL_CONFIGS["small"]["default_size"],
     model_name=model_name,
     include_top=include_top,
     include_preprocessing=include_preprocessing,
@@ -553,10 +554,10 @@ def ConvNeXtBase(model_name="convnext_base",
   classifier_activation="softmax"):
   return ConvNeXt(
     depths=MODEL_CONFIGS["base"]["depths"],
-    projection_dims=["base"]["projection_dims"],
+    projection_dims=MODEL_CONFIGS["base"]["projection_dims"],
     drop_path_rate=0.0,
     layer_scale_init_value=1e-6,
-    default_size=["base"]["default_size"],
+    default_size=MODEL_CONFIGS["base"]["default_size"],
     model_name=model_name,
     include_top=include_top,
     include_preprocessing=include_preprocessing,
@@ -581,10 +582,10 @@ def ConvNeXtLarge(model_name="convnext_large",
   classifier_activation="softmax"):
   return ConvNeXt(
     depths=MODEL_CONFIGS["large"]["depths"],
-    projection_dims=["large"]["projection_dims"],
+    projection_dims=MODEL_CONFIGS["large"]["projection_dims"],
     drop_path_rate=0.0,
     layer_scale_init_value=1e-6,
-    default_size=["large"]["default_size"],
+    default_size=MODEL_CONFIGS["large"]["default_size"],
     model_name=model_name,
     include_top=include_top,
     include_preprocessing=include_preprocessing,
@@ -609,10 +610,10 @@ def ConvNeXtXLarge(model_name="convnext_xlarge",
   classifier_activation="softmax"):
   return ConvNeXt(
     depths=MODEL_CONFIGS["xlarge"]["depths"],
-    projection_dims=["xlarge"]["projection_dims"],
+    projection_dims=MODEL_CONFIGS["xlarge"]["projection_dims"],
     drop_path_rate=0.0,
     layer_scale_init_value=1e-6,
-    default_size=["xlarge"]["default_size"],
+    default_size=MODEL_CONFIGS["xlarge"]["default_size"],
     model_name=model_name,
     include_top=include_top,
     include_preprocessing=include_preprocessing,
