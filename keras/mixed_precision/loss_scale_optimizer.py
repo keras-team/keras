@@ -1246,6 +1246,10 @@ class LossScaleOptimizerV3(tf.__internal__.tracking.DelegatingTrackableMixin,
   def iterations(self):
     return self._optimizer.iterations
 
+  @iterations.setter
+  def iterations(self, variable):
+    self._optimizer.iterations = variable
+
   @property
   def learning_rate(self):
     return self._optimizer.learning_rate
