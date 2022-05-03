@@ -229,7 +229,7 @@ class ConvNeXtBlock(Model):
       name=name + "_layernorm")
     self.pointwise_conv_1 = layers.Dense(4 * projection_dim,
       name=name + "_pointwise_conv_1")
-    self.act_fn = layers.Activation("gelu", name=name + "_gelu")
+    self.activation = layers.Activation("gelu", name=name + "_gelu")
     self.pointwise_conv_2 = layers.Dense(projection_dim, 
       name=name + "_pointwise_conv_2")
     self.drop_path = (
@@ -244,7 +244,7 @@ class ConvNeXtBlock(Model):
     x = self.depthwise_conv_1(x)
     x = self.layer_norm(x)
     x = self.pointwise_conv_1(x)
-    x = self.act_fn(x)
+    x = self.activation(x)
     x = self.pointwise_conv_2(x)
 
     if self.gamma is not None:
