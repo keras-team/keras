@@ -1,6 +1,10 @@
 path: "tensorflow.keras.__internal__.utils"
 tf_module {
   member_method {
+    name: "get_data_handler"
+    argspec: "args=[], varargs=args, keywords=kwargs, defaults=None"
+  }
+  member_method {
     name: "layer_test"
     argspec: "args=[\'self\'], varargs=args, keywords=kwargs, defaults=None"
   }
