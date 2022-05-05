@@ -54,6 +54,27 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
 
       sam_model.fit(data, label, steps_per_epoch=1)
 
+  @ds_combinations.generate(
+      tf.__internal__.test.combinations.combine(strategy=STRATEGIES))
+  def test_sam_model_fit_with_sub_batch(self, strategy):
+    with strategy.scope():
+      model = keras.Sequential([
+          keras.Input([2, 2]),
+          keras.layers.Dense(4),
+          keras.layers.Dense(1),
+      ])
+      sam_model = sharpness_aware_minimization.SharpnessAwareMinimization(
+          model, num_batch_splits=4)
+      data = tf.random.uniform([48, 2])
+      label = data[:, 0] > 0.5
+
+      sam_model.compile(
+          optimizer=adam.Adam(),
+          loss=keras.losses.BinaryCrossentropy(from_logits=True),
+      )
+
+      sam_model.fit(data, label, steps_per_epoch=1)
+
   def test_save_sam(self):
     model = keras.Sequential([
         keras.Input([2, 2]),

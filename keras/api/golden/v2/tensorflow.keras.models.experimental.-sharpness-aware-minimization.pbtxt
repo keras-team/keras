@@ -151,7 +151,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'model\', \'rho\', \'name\'], varargs=None, keywords=None, defaults=[\'0.05\', \'None\'], "
+    argspec: "args=[\'self\', \'model\', \'rho\', \'num_batch_splits\', \'name\'], varargs=None, keywords=None, defaults=[\'0.05\', \'None\', \'None\'], "
   }
   member_method {
     name: "add_loss"
