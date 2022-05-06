@@ -33,6 +33,7 @@ from keras.applications import resnet_v2
 from keras.applications import vgg16
 from keras.applications import vgg19
 from keras.applications import xception
+from keras import utils
 import tensorflow.compat.v2 as tf
 
 MODEL_LIST_NO_NASNET = [(resnet.ResNet50, 2048), (resnet.ResNet101, 2048),
@@ -130,7 +131,12 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
     model = app(weights=None)
     # Can be serialized and deserialized
     config = model.get_config()
-    reconstructed_model = model.__class__.from_config(config)
+    if "ConvNeXt" in app.__name__:
+      custom_objects = {"ConvNeXtBlock": convnext.ConvNeXtBlock}
+      with utils.custom_object_scope(custom_objects):
+        reconstructed_model = model.__class__.from_config(config)
+    else:
+      reconstructed_model = model.__class__.from_config(config)
     self.assertEqual(len(model.weights), len(reconstructed_model.weights))
     backend.clear_session()
 
