@@ -27,7 +27,6 @@ References:
 from keras import backend
 from keras import layers
 from keras import utils
-from keras import Model
 from keras import Sequential
 from keras.applications import imagenet_utils
 from keras.engine import training
@@ -35,25 +34,26 @@ from keras.engine import training
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
-BASE_WEIGHTS_PATH = "https://storage.googleapis.com/convnext-tf/keras-applications/convnext/"
+BASE_WEIGHTS_PATH = "https://storage.googleapis.com/convnext-tf/keras-applications-temp/convnext/"
 
 WEIGHTS_HASHES = {
   "tiny":
-    ("594e0f8c77df6cdf30d07e92f19d530921a53ff8301edd130c1bb9ad3dd6f25b",
-      "278a5149e8c6e26f001051db5a8398f40f233994af2921a072bdca54389a9048"),
+    ("8ae6e78ce2933352b1ef4008e6dd2f17bc40771563877d156bc6426c7cf503ff",
+      "d547c096cabd03329d7be5562c5e14798aa39ed24b474157cef5e85ab9e49ef1"),
   "small":
-    ("8f26cee79fea02bbbbdc721e7dd5d416562106b7768ec37459850c7b23f26cb2",
-      "b0700a330b2e8bfa6862b61d333d3d8860e566ce2f9395a2165e506935bba547"),
+    ("ce1277d8f1ee5a0ef0e171469089c18f5233860ceaf9b168049cb9263fd7483c",
+      "6fc8009faa2f00c1c1dfce59feea9b0745eb260a7dd11bee65c8e20843da6eab"),
   "base":
-    ("2c08893b86245f4fc1d80f584faeb7431b23e895b03f71fc3d943a3489b60089",
-      "a3d12bf8938796ca00721db89cb9e5a1af77f847401348adef16fab3611233d3"),
+    ("52cbb006d3dadd03f6e095a8ca1aca47aecdd75acb4bc74bce1f5c695d0086e6",
+      "40a20c5548a5e9202f69735ecc06c990e6b7c9d2de39f0361e27baeb24cb7c45"),
   "large":
-    ("f17f979cc7cd23906a88f490ff1249d2b0dedc44a601f5700a0873afc1b0ad02",
-      "74ff1e5f6eee45c62194aaee4a3347d5e2cf574caccad414b2b117b3ad110b32"),
+    ("070c5ed9ed289581e477741d3b34beffa920db8cf590899d6d2c67fba2a198a6",
+      "40a20c5548a5e9202f69735ecc06c990e6b7c9d2de39f0361e27baeb24cb7c45"),
   "xlarge":
-    ("784b923c2db18fec883093b265c2a44c4fc401425f206a3ca036015290f401e8",
-      "ba28c90cf6a4c64acfe0ca3af3ad920652c50f24668a3aaaf245a1c47e7bfe6f"),
+    ("c1f5ccab661354fc3a79a10fa99af82f0fbf10ec65cb894a3ae0815f17a889ee",
+      "de3f8a54174130e0cecdc71583354753d557fcf1f4487331558e2a16ba0cfe05"),
 }
+
 
 MODEL_CONFIGS = {
   "tiny": {
@@ -84,35 +84,28 @@ MODEL_CONFIGS = {
 }
 
 BASE_DOCSTRING = """Instantiates the {name} architecture.
-
   Reference:
     - [A ConvNet for the 2020s](https://arxiv.org/abs/2201.03545)
     (CVPR 2022)
-
   For image classification use cases, see
   [this page for detailed examples](
   https://keras.io/api/applications/#usage-examples-for-image-classification-models).
-
   For transfer learning use cases, make sure to read the
   [guide to transfer learning & fine-tuning](
     https://keras.io/guides/transfer_learning/).
-
   The `base`, `large`, and `xlarge` models were first pre-trained on the
   ImageNet-21k dataset and then fine-tuned on the ImageNet-1k dataset. The
   pre-trained parameters of the models were assembled from the
   [official repository](https://github.com/facebookresearch/ConvNeXt). To get a
   sense of how these parameters were converted to Keras compatible parameters,
   please refer to [this repository](https://github.com/sayakpaul/keras-convnext-conversion).
-
   Note: Each Keras Application expects a specific kind of input preprocessing.
   For ConvNeXt, preprocessing is included in the model using a `Normalization` layer.
   ConvNeXt models expect their inputs to be float or uint8 tensors of pixels with
   values in the [0-255] range.
-
   When calling the `summary()` method after instantiating a ConvNeXt model, prefer
   setting the `expand_nested` argument `summary()` to `True` to better investigate
   the instantiated model.
-
   Args:
     include_top: Whether to include the fully-connected
       layer at the top of the network. Defaults to True.
@@ -145,7 +138,6 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
       Defaults to `"softmax"`.
       When loading pretrained weights, `classifier_activation` can only
       be `None` or `"softmax"`.
-
   Returns:
     A `keras.Model` instance.
 """
@@ -154,17 +146,14 @@ class StochasticDepth(layers.Layer):
   """Stochastic Depth module. It performs batch-wise dropping rather than
     sample-wise. In libraries like `timm`, it's similar to `DropPath` layers
     that drops residual paths sample-wise.
-
   Reference:
     - https://github.com.rwightman/pytorch-image-models
-
   Args:
     drop_path_rate (float): Probability of dropping paths. Should be within
       [0, 1].
   
   Returns:
     Tensor either with the residual path dropped or kept.
-
   """
   def __init__(self, drop_path_rate, **kwargs):
     super().__init__(**kwargs)
@@ -185,88 +174,87 @@ class StochasticDepth(layers.Layer):
     return config
 
 
-class ConvNeXtBlock(Model):
+class LayerScale(layers.Layer):
+  """Layer scale module.
+  Reference:
+    - hhttps://arxiv.org/abs/2103.17239
+  Args:
+    init_values (float): Initial value for layer scale. Should be within
+      [0, 1].
+    projection_dim (int): Projection dimensionality.
+  
+  Returns:
+    Tensor multiplied to the scale.
+  """
+  def __init__(self, init_values, projection_dim, **kwargs):
+    super().__init__(**kwargs)
+    self.init_values = init_values
+    self.projection_dim = projection_dim
+    self.gamma = tf.Variable(self.init_values * tf.ones((self.projection_dim,)))
+
+  def call(self, x):
+    return x * self.gamma
+
+  def get_config(self):
+    config = super().get_config()
+    config.update(
+      {"init_values": self.init_values, "projection_dim": self.projection_dim}
+    )
+    return config 
+
+def ConvNeXtBlock(projection_dim, drop_path_rate=0.0, 
+    layer_scale_init_value=1e-6, name=None):
   """ConvNeXt block.
   
   References:
     - https://arxiv.org/abs/2201.03545
     - https://github.com/facebookresearch/ConvNeXt/blob/main/models/convnext.py
-
   Notes:
     In the original ConvNeXt implementation (linked above), the authors use
     `Dense` layers for pointwise convolutions for increased efficiency. 
     Following that, this implementation also uses the same.
-
   Args:
     projection_dim (int): Number of filters for convolution layers. In the
     ConvNeXt paper, this is referred to as projection dimension.
     drop_path (float): Probability of dropping paths. Should be within [0, 1].
     layer_scale_init_value (float): Layer scale value. Should be a small float
       number.
-
   Returns:
-    A keras.Model instance.
+    Output tensor of the block.
   """
-  def __init__(self, projection_dim, drop_path_rate=0.0, 
-    layer_scale_init_value=1e-6, **kwargs):
-    super().__init__(**kwargs)
-    self.projection_dim = projection_dim
-    self.drop_path_rate = drop_path_rate
-    self.layer_scale_init_value = layer_scale_init_value
-    name = kwargs["name"]
-    
-    if layer_scale_init_value > 0.0:
-      self.gamma = tf.Variable(
-        layer_scale_init_value * tf.ones((projection_dim,)),
-        name=name + "_layer_scale_gamma")
-    else:
-      self.gamma = None
-    
-    self.depthwise_conv_1 = layers.Conv2D(
-      filters=projection_dim, kernel_size=7, padding="same",
-      groups=projection_dim, name=name + "_depthwise_conv")
-    self.layer_norm = layers.LayerNormalization(epsilon=1e-6, 
-      name=name + "_layernorm")
-    self.pointwise_conv_1 = layers.Dense(4 * projection_dim,
-      name=name + "_pointwise_conv_1")
-    self.activation = layers.Activation("gelu", name=name + "_gelu")
-    self.pointwise_conv_2 = layers.Dense(projection_dim, 
-      name=name + "_pointwise_conv_2")
-    self.drop_path = (
-      StochasticDepth(drop_path_rate, name=name + "_stochastic_depth")
-      if drop_path_rate > 0.0
-      else layers.Activation("linear", name=name + "_identity")
-    )
-
-  def call(self, inputs):
+  if name is None:
+    name = "prestem" + str(backend.get_uid("prestem"))
+  
+  def apply(inputs):
     x = inputs
-
-    x = self.depthwise_conv_1(x)
-    x = self.layer_norm(x)
-    x = self.pointwise_conv_1(x)
-    x = self.activation(x)
-    x = self.pointwise_conv_2(x)
-
-    if self.gamma is not None:
-      x = self.gamma * x
-
-    return inputs + self.drop_path(x)
-
-  def get_config(self):
-    config = {
-      "projection_dim": self.projection_dim,
-      "drop_path_rate": self.drop_path_rate,
-      "layer_scale_init_value": self.layer_scale_init_value,
-    }
-    return config
+    
+    x = layers.Conv2D(
+      filters=projection_dim, kernel_size=7, padding="same",
+      groups=projection_dim, name=name + "_depthwise_conv")(x)
+    x = layers.LayerNormalization(epsilon=1e-6, 
+      name=name + "_layernorm")(x)
+    x = layers.Dense(4 * projection_dim,
+      name=name + "_pointwise_conv_1")(x)
+    x = layers.Activation("gelu", name=name + "_gelu")(x)
+    x = layers.Dense(projection_dim, 
+      name=name + "_pointwise_conv_2")(x)
+    
+    if layer_scale_init_value is not None:
+      x = LayerScale(layer_scale_init_value, projection_dim,
+        name=name + "_layer_scale")(x)
+    if drop_path_rate:
+      layer = StochasticDepth(drop_path_rate, name=name + "_stochastic_depth")
+    else:
+      layer = layers.Activation("linear", name=name + "_identity")
+    
+    return inputs + layer(x)
+  return apply
 
 
 def PreStem(name=None):
   """Normalizes inputs with ImageNet-1k mean and std.
-
   Args:
     name (str): Name prefix.
-
   Returns:
     Normalized tensor.
   """
@@ -286,11 +274,9 @@ def PreStem(name=None):
 
 def Head(num_classes=1000, name=None):
   """Implementation of classification head of RegNet.
-
   Args:
     num_classes: number of classes for Dense layer
     name: name prefix
-
   Returns:
     Output logits tensor.
   """
@@ -322,7 +308,6 @@ def ConvNeXt(depths,
   classes=1000,
   classifier_activation="softmax"):
   """Instantiates ConvNeXt architecture given specific configuration.
-
   Args:
     depths: An iterable containing depths for each individual stages.
     projection_dims: An iterable containing output number of channels of
@@ -357,10 +342,8 @@ def ConvNeXt(depths,
     classifier_activation: A `str` or callable. The activation function to use
       on the "top" layer. Ignored unless `include_top=True`. Set
       `classifier_activation=None` to return the logits of the "top" layer.
-
   Returns:
     A `keras.Model` instance.
-
   Raises:
       ValueError: in case of invalid argument for `weights`,
         or invalid input shape.
@@ -402,7 +385,6 @@ def ConvNeXt(depths,
     inputs = img_input
 
   x = inputs
-  
   if include_preprocessing:
     channel_axis = 3 if backend.image_data_format() == "channels_last" else 1
     num_channels = input_shape[channel_axis - 1]
@@ -639,19 +621,16 @@ ConvNeXtXLarge.__doc__ = BASE_DOCSTRING.format(name="ConvNeXtXLarge")
 @keras_export("keras.applications.convnext.preprocess_input")
 def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
   """A placeholder method for backward compatibility.
-
   The preprocessing logic has been included in the efficientnet model
   implementation. Users are no longer required to call this method to normalize
   the input data. This method does nothing and only kept as a placeholder to
   align the API surface between old and new version of model.
-
   Args:
     x: A floating point `numpy.array` or a `tf.Tensor`.
     data_format: Optional data format of the image tensor/array. Defaults to
       None, in which case the global setting
       `tf.keras.backend.image_data_format()` is used (unless you changed it, it
       defaults to "channels_last").{mode}
-
   Returns:
     Unchanged `numpy.array` or `tf.Tensor`.
   """
