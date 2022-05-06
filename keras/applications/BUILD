@@ -16,7 +16,7 @@ py_library(
     srcs = [
         "__init__.py",
         "densenet.py",
-        "convnext.py"
+        "convnext.py",
         "efficientnet.py",
         "efficientnet_v2.py",
         "imagenet_utils.py",
