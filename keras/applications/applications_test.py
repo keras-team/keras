@@ -132,7 +132,7 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
     # Can be serialized and deserialized
     config = model.get_config()
     if "ConvNeXt" in app.__name__:
-      custom_objects = {"ConvNeXtBlock": convnext.ConvNeXtBlock}
+      custom_objects = {"LayerScale": convnext.LayerScale}
       with utils.custom_object_scope(custom_objects):
         reconstructed_model = model.__class__.from_config(config)
     else:
