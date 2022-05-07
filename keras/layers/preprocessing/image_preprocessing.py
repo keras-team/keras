@@ -1177,6 +1177,47 @@ class RandomRotation(BaseImageAugmentationLayer):
     output.set_shape(original_shape)
     return output
 
+  def augment_bounding_boxes(self, image, bounding_boxes, transformation):
+    image = tf.expand_dims(image, 0)
+    image_shape = tf.shape(image)
+    h = image_shape[H_AXIS]
+    w = image_shape[W_AXIS]
+    bbox_dtype = bounding_boxes.dtype
+    # origin coordinates, all the points on the image are rotated around this
+    # point
+    origin_x, origin_y = int(h / 2), int(w / 2)
+    angle = transformation['angle']
+    angle = -angle
+    # calculate coordinates of all four corners of the bounding box
+    point = tf.stack([
+        tf.stack([bounding_boxes[:, 0], bounding_boxes[:, 1]], axis=1),
+        tf.stack([bounding_boxes[:, 2], bounding_boxes[:, 1]], axis=1),
+        tf.stack([bounding_boxes[:, 2], bounding_boxes[:, 3]], axis=1),
+        tf.stack([bounding_boxes[:, 0], bounding_boxes[:, 3]], axis=1)], axis=1)
+    # point_x : x coordinates of all corners of the bounding box
+    point_x = tf.gather(point, [0], axis=2)
+    # point_y : y cordinates of all corners of the bounding box
+    point_y = tf.gather(point, [1], axis=2)
+    # rotated bbox coordinates
+    # new_x : new position of x coordinates of corners of bounding box
+    new_x = origin_x + tf.multiply(tf.cos(angle), tf.cast(
+        (point_x - origin_x), dtype=tf.float32)) - tf.multiply(
+            tf.sin(angle), tf.cast((point_y - origin_y), dtype=tf.float32))
+    # new_y : new position of y coordinates of corners of bounding box
+    new_y = origin_y + tf.multiply(tf.sin(angle), tf.cast(
+        (point_x - origin_x), dtype=tf.float32)) + tf.multiply(
+            tf.cos(angle), tf.cast((point_y - origin_y), dtype=tf.float32))
+    # rotated bbox coordinates
+    out = tf.concat([new_x, new_y], axis=2)
+    # find readjusted coordinates of bounding box to represent it in corners
+    # format
+    min_cordinates = tf.math.reduce_min(out, axis=1)
+    max_cordinates = tf.math.reduce_max(out, axis=1)
+    bboxes_out = tf.concat([min_cordinates, max_cordinates], axis=1)
+    # cordinates cannot be float values, it is casted to int32
+    bboxes_out = tf.cast(bboxes_out, bbox_dtype)
+    return bboxes_out
+
   def augment_label(self, label, transformation):
     return label
 
