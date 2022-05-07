@@ -182,7 +182,11 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
+        "//:expect_tensorflow_installed",
+        "//keras/saving/experimental",
         "//keras/utils:engine_utils",
+        "//keras/utils:generic_utils",
+        "//keras/utils:tf_utils",
     ],
 )
 
