@@ -118,8 +118,8 @@ def count_params(weights):
 
 
 def get_layer_index_bound_by_layer_name(model, layer_range=None):
-  """Return first and last indices of layers in layer_range,
-  mainly for sub-graph plot models.
+  """Return indices for slicing layers list to get just layers
+  in layer_range, mainly for sub-graph plot models.
 
   Args:
     model: tf.keras.Model
@@ -127,7 +127,8 @@ def get_layer_index_bound_by_layer_name(model, layer_range=None):
         all layers will be included
 
   Returns:
-    return the index value of layer based on its unique name (layer_names)
+    return the index value of layer based on its unique name (layer_names).
+        Output will be [first_layer_index, last_layer_index + 1]
   """
   if layer_range is not None:
     if len(layer_range) != 2:
