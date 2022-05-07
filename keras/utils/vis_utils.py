@@ -147,20 +147,8 @@ def model_to_dot(model,
     dot.set('dpi', dpi)
     dot.set_node_defaults(shape='record')
 
-  if layer_range is not None:
-    if len(layer_range) != 2:
-      raise ValueError(
-          'layer_range must be of shape (2,). Received: '
-          f'layer_range = {layer_range} of length {len(layer_range)}')
-    if (not isinstance(layer_range[0], str) or
-        not isinstance(layer_range[1], str)):
-      raise ValueError(
-          'layer_range should contain string type only. '
-          f'Received: {layer_range}')
-    layer_range = layer_utils.get_layer_index_bound_by_layer_name(model, layer_range)
-    if layer_range[0] < 0 or layer_range[1] > len(model.layers):
-      raise ValueError('Both values in layer_range should be in range (0, '
-                       f'{len(model.layers)}. Received: {layer_range}')
+  layer_range = layer_utils.get_layer_index_bound_by_layer_name(
+      model, layer_range)
 
   sub_n_first_node = {}
   sub_n_last_node = {}
@@ -179,7 +167,7 @@ def model_to_dot(model,
 
   # Create graph nodes.
   for i, layer in enumerate(layers):
-    if (layer_range) and (i < layer_range[0] or i > layer_range[1]):
+    if (layer_range) and (i < layer_range[0] or i >= layer_range[1]):
       continue
 
     layer_id = str(id(layer))
@@ -279,7 +267,7 @@ def model_to_dot(model,
 
   # Connect nodes with edges.
   for i, layer in enumerate(layers):
-    if (layer_range) and (i <= layer_range[0] or i > layer_range[1]):
+    if (layer_range) and (i <= layer_range[0] or i >= layer_range[1]):
       continue
     layer_id = str(id(layer))
     for i, node in enumerate(layer._inbound_nodes):

@@ -117,30 +117,44 @@ def count_params(weights):
   return int(sum(np.prod(p) for p in standardized_weight_shapes))
 
 
-def get_layer_index_bound_by_layer_name(model, layer_names):
-  """Return specific range of layers to plot, mainly for sub-graph plot models.
+def get_layer_index_bound_by_layer_name(model, layer_range=None):
+  """Return first and last indices of layers in layer_range,
+  mainly for sub-graph plot models.
 
   Args:
     model: tf.keras.Model
-    layer_names: unique name of layer of the model, type(str)
+    layer_names: unique name of layer of the model, type(str). If None
+        all layers will be included
 
   Returns:
     return the index value of layer based on its unique name (layer_names)
   """
-  lower_index = []
-  upper_index = []
-  for idx, layer in enumerate(model.layers):
-    if re.match(layer_names[0], layer.name):
-      lower_index.append(idx)
-    if re.match(layer_names[1], layer.name):
-      upper_index.append(idx)
+  if layer_range is not None:
+    if len(layer_range) != 2:
+      raise ValueError(
+          'layer_range must be of shape (2,). Received: '
+          f'layer_range = {layer_range} of length {len(layer_range)}')
+    if (not isinstance(layer_range[0], str) or
+        not isinstance(layer_range[1], str)):
+      raise ValueError(
+          'layer_range should contain string type only. '
+          f'Received: {layer_range}')
+  else:
+    return [0, len(model.layers)]
+
+  lower_index = [idx for idx, layer in enumerate(model.layers)
+                 if re.match(layer_range[0], layer.name)]
+  upper_index = [idx for idx, layer in enumerate(model.layers)
+                 if re.match(layer_range[1], layer.name)]
+
   if not lower_index or not upper_index:
     raise ValueError(
         'Passed layer_names does not match to layers in the model. '
-        f'Recieved: {layer_names}')
+        f'Recieved: {layer_range}')
+
   if min(lower_index) > max(upper_index):
-    return [min(upper_index), max(lower_index)]
-  return [min(lower_index), max(upper_index)]
+    return [min(upper_index), max(lower_index)+1]
+  return [min(lower_index), max(upper_index)+1]
 
 
 def print_summary(model,
@@ -236,21 +250,8 @@ def print_summary(model,
     positions.append(line_length)
     to_display.append('Trainable')
 
-  if layer_range is not None:
-    if len(layer_range) != 2:
-      raise ValueError(
-          'layer_range must be of shape (2,). Received: '
-          f'layer_range = {layer_range} of length {len(layer_range)}')
-    if (not isinstance(layer_range[0], str) or
-        not isinstance(layer_range[1], str)):
-      raise ValueError(
-          'layer_range should contain string type only. '
-          f'Received: {layer_range}')
-    layer_range = get_layer_index_bound_by_layer_name(
-    	model, layer_range)
-    if layer_range[0] < 0 or layer_range[1] > len(model.layers):
-      raise ValueError('Both values in layer_range should be in range (0, '
-                       f'{len(model.layers)}. Received: {layer_range}')
+  layer_range = get_layer_index_bound_by_layer_name(
+      model, layer_range)
 
   def print_row(fields, positions, nested_level=0):
     left_to_print = [str(x) for x in fields]
@@ -386,9 +387,7 @@ def print_summary(model,
                '|' * nested_level)
 
   layers = model.layers
-  for i, layer in enumerate(layers):
-    if layer_range and (i < layer_range[0] or i > layer_range[1]):
-      continue
+  for layer in model.layers[layer_range[0]:layer_range[1]]:
     print_layer(layer)
   print_fn('=' * line_length)
 
