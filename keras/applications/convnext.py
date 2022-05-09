@@ -420,7 +420,9 @@ def ConvNeXt(depths,
   # Stochastic depth schedule.
   # This is referred from the original ConvNeXt codebase:
   # https://github.com/facebookresearch/ConvNeXt/blob/main/models/convnext.py#L86
-  depth_drop_rates = [x for x in tf.linspace(0.0, drop_path_rate, sum(depths))]
+  depth_drop_rates = [
+    float(x) for x in tf.linspace(0.0, drop_path_rate, sum(depths))
+  ]
 
   # First apply downsampling blocks and then apply ConvNeXt stages.
   cur = 0
