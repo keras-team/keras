@@ -472,7 +472,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         "vocabulary": utils.listify_tensors(vocab),
         "idf_weights": utils.listify_tensors(idf_weights),
     }
-    base_config = super(TextVectorization, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   def set_vocabulary(self, vocabulary, idf_weights=None):

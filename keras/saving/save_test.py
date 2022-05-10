@@ -52,7 +52,7 @@ except ImportError:
 class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
-    super(TestSaveModel, self).setUp()
+    super().setUp()
     self.model = test_utils.get_small_sequential_mlp(1, 2, 3)
     self.subclassed_model = test_utils.get_small_subclass_mlp(1, 2)
 
@@ -164,7 +164,7 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
     class MyModel(keras.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.layer = keras.layers.Dense(1)
 
       def call(self, x):
@@ -240,7 +240,7 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
     class Sequential(keras.Model):
 
       def __init__(self):
-        super(Sequential, self).__init__()
+        super().__init__()
         self.layer = keras.layers.Dense(1)
 
       def call(self, x):
@@ -384,11 +384,11 @@ class TestJson(test_combinations.TestCase):
     class MyLayer(keras.layers.Layer):
 
       def __init__(self, sublayers, **kwargs):
-        super(MyLayer, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.sublayers = sublayers
 
       def get_config(self):
-        config = super(MyLayer, self).get_config()
+        config = super().get_config()
         config['sublayers'] = self.sublayers
         return config
 
@@ -1019,7 +1019,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
     class OuterLayer(keras.layers.Layer):
 
       def __init__(self, inner_layer):
-        super(OuterLayer, self).__init__()
+        super().__init__()
         self.inner_layer = inner_layer
 
       def call(self, inputs):
@@ -1039,7 +1039,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
     class InnerLayer(keras.layers.Layer):
 
       def __init__(self):
-        super(InnerLayer, self).__init__()
+        super().__init__()
         self.v = self.add_weight(name='v', shape=[], dtype=tf.float32)
 
       def call(self, inputs):
@@ -1313,7 +1313,7 @@ def _make_sequential_input_shape(input_size, output_size):
 class _make_subclassed(keras.Model):  # pylint: disable=invalid-name
 
   def __init__(self, input_size, output_size):
-    super(_make_subclassed, self).__init__()
+    super().__init__()
     self._config = {'input_size': input_size, 'output_size': output_size}
     self._hidden_layer = keras.layers.Dense(8, activation='relu', name='hidden')
     self._logits_layer = keras.layers.Dense(output_size, name='logits')
@@ -1333,7 +1333,7 @@ class _make_subclassed(keras.Model):  # pylint: disable=invalid-name
 class _make_subclassed_built(_make_subclassed):  # pylint: disable=invalid-name
 
   def __init__(self, input_size, output_size):
-    super(_make_subclassed_built, self).__init__(input_size, output_size)
+    super().__init__(input_size, output_size)
     self.build((None, input_size))
 
 

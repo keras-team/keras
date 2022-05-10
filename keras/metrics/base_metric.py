@@ -113,7 +113,7 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
   """
 
   def __init__(self, name=None, dtype=None, **kwargs):
-    super(Metric, self).__init__(name=name, dtype=dtype, **kwargs)
+    super().__init__(name=name, dtype=dtype, **kwargs)
     self.stateful = True  # All metric layers are stateful.
     self.built = True
     if not base_layer_utils.v2_dtype_behavior_enabled():
@@ -348,7 +348,7 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
       additional_kwargs = {}
 
     with tf.init_scope():
-      return super(Metric, self).add_weight(
+      return super().add_weight(
           name=name,
           shape=shape,
           dtype=self._dtype if dtype is None else dtype,
@@ -408,7 +408,7 @@ class Reduce(Metric):
   """
 
   def __init__(self, reduction, name, dtype=None):
-    super(Reduce, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
     self.reduction = reduction
     self.total = self.add_weight(
         'total', initializer='zeros')
@@ -532,7 +532,7 @@ class Sum(Reduce):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='sum', dtype=None):
-    super(Sum, self).__init__(reduction=metrics_utils.Reduction.SUM,
+    super().__init__(reduction=metrics_utils.Reduction.SUM,
                               name=name, dtype=dtype)
 
 
@@ -575,7 +575,7 @@ class Mean(Reduce):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='mean', dtype=None):
-    super(Mean, self).__init__(
+    super().__init__(
         reduction=metrics_utils.Reduction.WEIGHTED_MEAN, name=name, dtype=dtype)
 
 
@@ -609,7 +609,7 @@ class MeanMetricWrapper(Mean):
 
   @dtensor_utils.inject_mesh
   def __init__(self, fn, name=None, dtype=None, **kwargs):
-    super(MeanMetricWrapper, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
     self._fn = fn
     self._fn_kwargs = kwargs
 
@@ -644,7 +644,7 @@ class MeanMetricWrapper(Mean):
 
     ag_fn = tf.__internal__.autograph.tf_convert(self._fn, tf.__internal__.autograph.control_status_ctx())
     matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
-    return super(MeanMetricWrapper, self).update_state(
+    return super().update_state(
         matches, sample_weight=sample_weight)
 
   def get_config(self):
@@ -657,7 +657,7 @@ class MeanMetricWrapper(Mean):
 
     for k, v in self._fn_kwargs.items():
       config[k] = backend.eval(v) if is_tensor_or_variable(v) else v
-    base_config = super(MeanMetricWrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -710,7 +710,7 @@ class MeanTensor(Metric):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='mean_tensor', dtype=None, shape=None):
-    super(MeanTensor, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
     self._shape = None
     self._total = None
     self._count = None
@@ -814,7 +814,7 @@ class SumOverBatchSize(Reduce):
   """
 
   def __init__(self, name='sum_over_batch_size', dtype=None):
-    super(SumOverBatchSize, self).__init__(
+    super().__init__(
         reduction=metrics_utils.Reduction.SUM_OVER_BATCH_SIZE,
         name=name,
         dtype=dtype)
@@ -833,7 +833,7 @@ class SumOverBatchSizeMetricWrapper(SumOverBatchSize):
       dtype: (Optional) data type of the metric result.
       **kwargs: The keyword arguments that are passed on to `fn`.
     """
-    super(SumOverBatchSizeMetricWrapper, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
     self._fn = fn
     self._fn_kwargs = kwargs
 
@@ -845,14 +845,14 @@ class SumOverBatchSizeMetricWrapper(SumOverBatchSize):
 
     ag_fn = tf.__internal__.autograph.tf_convert(self._fn, tf.__internal__.autograph.control_status_ctx())
     matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
-    return super(SumOverBatchSizeMetricWrapper, self).update_state(
+    return super().update_state(
         matches, sample_weight=sample_weight)
 
   def get_config(self):
     config = {}
     for k, v in self._fn_kwargs.items():
       config[k] = backend.eval(v) if is_tensor_or_variable(v) else v
-    base_config = super(SumOverBatchSizeMetricWrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

@@ -163,7 +163,7 @@ class LayerNormalization(Layer):
                beta_constraint=None,
                gamma_constraint=None,
                **kwargs):
-    super(LayerNormalization, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     if isinstance(axis, (list, tuple)):
       self.axis = list(axis)
     elif isinstance(axis, int):
@@ -351,5 +351,5 @@ class LayerNormalization(Layer):
         'beta_constraint': constraints.serialize(self.beta_constraint),
         'gamma_constraint': constraints.serialize(self.gamma_constraint)
     }
-    base_config = super(LayerNormalization, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

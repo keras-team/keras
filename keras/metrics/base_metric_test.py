@@ -481,7 +481,7 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
     class ModelWithMetric(Model):
 
       def __init__(self):
-        super(ModelWithMetric, self).__init__()
+        super().__init__()
         self.dense1 = layers.Dense(
             3, activation='relu', kernel_initializer='ones')
         self.dense2 = layers.Dense(
@@ -522,7 +522,7 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
 class BinaryTruePositives(metrics.Metric):
 
   def __init__(self, name='binary_true_positives', **kwargs):
-    super(BinaryTruePositives, self).__init__(name=name, **kwargs)
+    super().__init__(name=name, **kwargs)
     self.true_positives = self.add_weight(name='tp', initializer='zeros')
 
   def update_state(self, y_true, y_pred, sample_weight=None):
@@ -546,7 +546,7 @@ class BinaryTruePositives(metrics.Metric):
 class BinaryTruePositivesViaControlFlow(metrics.Metric):
 
   def __init__(self, name='binary_true_positives', **kwargs):
-    super(BinaryTruePositivesViaControlFlow, self).__init__(name=name, **kwargs)
+    super().__init__(name=name, **kwargs)
     self.true_positives = self.add_weight(name='tp', initializer='zeros')
 
   def update_state(self, y_true, y_pred, sample_weight=None):
@@ -658,7 +658,7 @@ class CustomMetricsTest(tf.test.TestCase):
     class MyLayer(base_layer.Layer):
 
       def __init__(self, **kwargs):
-        super(MyLayer, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.mean_obj = metrics.Mean(name='my_mean_obj')
 
       def call(self, x):
@@ -678,7 +678,7 @@ class CustomMetricsTest(tf.test.TestCase):
     class MyModel(training_module.Model):
 
       def __init__(self, **kwargs):
-        super(MyModel, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.mean_obj = metrics.Mean(name='my_mean_obj')
 
       def call(self, x):

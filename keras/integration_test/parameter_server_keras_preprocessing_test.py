@@ -70,7 +70,7 @@ def create_in_process_cluster(num_workers, num_ps):
 class KPLTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
-    super(KPLTest, self).setUp()
+    super().setUp()
 
     cluster_spec = create_in_process_cluster(num_workers=3, num_ps=2)
     cluster_resolver = tf.distribute.cluster_resolver.SimpleClusterResolver(
@@ -269,7 +269,7 @@ class KPLCreatedInDatasetsFromFunctionTest(tf.test.TestCase,
                                            parameterized.TestCase):
 
   def setUp(self):
-    super(KPLCreatedInDatasetsFromFunctionTest, self).setUp()
+    super().setUp()
 
     cluster_spec = create_in_process_cluster(num_workers=3, num_ps=2)
     cluster_resolver = tf.distribute.cluster_resolver.SimpleClusterResolver(

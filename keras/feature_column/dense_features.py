@@ -90,7 +90,7 @@ class DenseFeatures(kfc._BaseFeaturesLayer):  # pylint: disable=protected-access
     Raises:
       ValueError: if an item in `feature_columns` is not a `DenseColumn`.
     """
-    super(DenseFeatures, self).__init__(
+    super().__init__(
         feature_columns=feature_columns,
         trainable=trainable,
         name=name,
@@ -109,7 +109,7 @@ class DenseFeatures(kfc._BaseFeaturesLayer):  # pylint: disable=protected-access
     Returns:
       A serialized JSON storing information necessary for recreating this layer.
     """
-    metadata = json.loads(super(DenseFeatures, self)._tracking_metadata)
+    metadata = json.loads(super()._tracking_metadata)
     metadata['_is_feature_layer'] = True
     return json.dumps(metadata, default=json_utils.get_json_type)
 

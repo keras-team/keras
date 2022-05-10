@@ -129,7 +129,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
                growth_steps,
                multiplier):
     """Creates the dynamic loss scale."""
-    super(_DynamicLossScaleState, self).__init__()
+    super().__init__()
     self._initial_loss_scale = float(initial_loss_scale)
     self._growth_steps = int(growth_steps)
     self._multiplier = float(multiplier)
@@ -192,13 +192,12 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
       if g == graph_key:
         weights[name] = v
     weights.update(
-        super(_DynamicLossScaleState,
-              self)._trackable_children(save_type, **kwargs))
+        super()._trackable_children(save_type, **kwargs))
     return weights
 
   def _lookup_dependency(self, name):
     """From Trackable. Find a weight in the current graph."""
-    unconditional = super(_DynamicLossScaleState, self)._lookup_dependency(name)
+    unconditional = super()._lookup_dependency(name)
     if unconditional is not None:
       return unconditional
     if tf.executing_eagerly():
@@ -936,7 +935,7 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
       raise e
 
   def __dir__(self):
-    result = set(super(LossScaleOptimizer, self).__dir__())
+    result = set(super().__dir__())
     if '_optimizer' in result:
       result |= self._optimizer._hyper.keys()
       if 'learning_rate' in self._optimizer._hyper.keys():
@@ -960,7 +959,7 @@ class LossScaleOptimizer(tf.__internal__.tracking.DelegatingTrackableMixin,
         and not has_attribute):
       self._optimizer._set_hyper(name, value)
     else:
-      super(LossScaleOptimizer, self).__setattr__(name, value)
+      super().__setattr__(name, value)
 
   # Explicitly delegate learning_rate. Normally hyperparameters are delegated in
   # __getattribute__, but if a hyperparameter is not in self._optimizer._hyper

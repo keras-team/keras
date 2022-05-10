@@ -62,7 +62,7 @@ class Masking(Layer):
   """
 
   def __init__(self, mask_value=0., **kwargs):
-    super(Masking, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.supports_masking = True
     self.mask_value = mask_value
     self._compute_output_and_mask_jointly = True
@@ -83,5 +83,5 @@ class Masking(Layer):
 
   def get_config(self):
     config = {'mask_value': self.mask_value}
-    base_config = super(Masking, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

@@ -84,7 +84,7 @@ class Concatenate(_Merge):
       axis: Axis along which to concatenate.
       **kwargs: standard layer keyword arguments.
     """
-    super(Concatenate, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.axis = axis
     self.supports_masking = True
     self._reshape_required = False
@@ -178,7 +178,7 @@ class Concatenate(_Merge):
     config = {
         'axis': self.axis,
     }
-    base_config = super(Concatenate, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

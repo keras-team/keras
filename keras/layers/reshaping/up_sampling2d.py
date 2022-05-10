@@ -88,7 +88,7 @@ class UpSampling2D(Layer):
                data_format=None,
                interpolation='nearest',
                **kwargs):
-    super(UpSampling2D, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.size = conv_utils.normalize_tuple(size, 2, 'size')
     interpolations = {
@@ -136,5 +136,5 @@ class UpSampling2D(Layer):
         'data_format': self.data_format,
         'interpolation': self.interpolation
     }
-    base_config = super(UpSampling2D, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

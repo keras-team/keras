@@ -154,7 +154,7 @@ class MySubclassModel(keras.Model):
   """A subclass model."""
 
   def __init__(self, input_dim=3):
-    super(MySubclassModel, self).__init__(name='my_subclass_model')
+    super().__init__(name='my_subclass_model')
     self._config = {'input_dim': input_dim}
     self.dense1 = keras.layers.Dense(8, activation='relu')
     self.dense2 = keras.layers.Dense(2, activation='softmax')
@@ -182,7 +182,7 @@ def nested_subclassed_model():
     """A nested subclass model."""
 
     def __init__(self):
-      super(NestedSubclassModel, self).__init__()
+      super().__init__()
       self.dense1 = keras.layers.Dense(4, activation='relu')
       self.dense2 = keras.layers.Dense(2, activation='relu')
       self.bn = keras.layers.BatchNormalization()
@@ -221,7 +221,7 @@ def nested_functional_in_subclassed_model():
     """A functional nested in subclass model."""
 
     def __init__(self):
-      super(NestedFunctionalInSubclassModel, self).__init__(
+      super().__init__(
           name='nested_functional_in_subclassed_model')
       self.dense1 = keras.layers.Dense(4, activation='relu')
       self.dense2 = keras.layers.Dense(2, activation='relu')
@@ -241,7 +241,7 @@ def shared_layer_subclassed_model():
     """A subclass model with shared layers."""
 
     def __init__(self):
-      super(SharedLayerSubclassModel, self).__init__(
+      super().__init__(
           name='shared_layer_subclass_model')
       self.dense = keras.layers.Dense(3, activation='relu')
       self.dp = keras.layers.Dropout(0.5)

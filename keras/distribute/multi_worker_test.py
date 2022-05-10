@@ -113,7 +113,7 @@ class MultiWorkerVerificationCallback(callbacks.Callback):
       num_epoch: Number of epochs this Callback is expected to be called for.
       num_worker: Number of workers this Callback is expected to be called from.
     """
-    super(MultiWorkerVerificationCallback, self).__init__()
+    super().__init__()
     self._num_epoch = num_epoch
     self._num_worker = num_worker
     self._task_dict = {

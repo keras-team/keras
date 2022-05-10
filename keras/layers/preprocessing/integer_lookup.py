@@ -366,7 +366,7 @@ class IntegerLookup(index_lookup.IndexLookup):
     mask_token = None if mask_token is None else np.int64(mask_token)
     oov_token = None if oov_token is None else np.int64(oov_token)
 
-    super(IntegerLookup, self).__init__(
+    super().__init__(
         max_tokens=max_tokens,
         num_oov_indices=num_oov_indices,
         mask_token=mask_token,

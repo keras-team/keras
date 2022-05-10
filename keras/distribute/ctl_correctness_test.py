@@ -223,7 +223,7 @@ class TestDistributionStrategyDnnCorrectness(tf.test.TestCase,
   """Test custom training loop correctness with a simple DNN model."""
 
   def setUp(self):
-    super(TestDistributionStrategyDnnCorrectness, self).setUp()
+    super().setUp()
     np.random.seed(_RANDOM_SEED)
     tf.compat.v1.set_random_seed(_RANDOM_SEED)
 

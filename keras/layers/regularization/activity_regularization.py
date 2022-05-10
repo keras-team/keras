@@ -38,7 +38,7 @@ class ActivityRegularization(Layer):
   """
 
   def __init__(self, l1=0., l2=0., **kwargs):
-    super(ActivityRegularization, self).__init__(
+    super().__init__(
         activity_regularizer=regularizers.L1L2(l1=l1, l2=l2), **kwargs)
     self.supports_masking = True
     self.l1 = l1
@@ -49,5 +49,5 @@ class ActivityRegularization(Layer):
 
   def get_config(self):
     config = {'l1': self.l1, 'l2': self.l2}
-    base_config = super(ActivityRegularization, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

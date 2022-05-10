@@ -75,7 +75,7 @@ class Dropout(base_layer.BaseRandomLayer):
   """
 
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
-    super(Dropout, self).__init__(seed=seed, **kwargs)
+    super().__init__(seed=seed, **kwargs)
     if isinstance(rate, (int, float)) and not 0 <= rate <= 1:
       raise ValueError(f'Invalid value {rate} received for '
                        f'`rate`, expected a value between 0 and 1.')
@@ -121,5 +121,5 @@ class Dropout(base_layer.BaseRandomLayer):
         'noise_shape': self.noise_shape,
         'seed': self.seed
     }
-    base_config = super(Dropout, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

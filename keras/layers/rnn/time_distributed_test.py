@@ -274,13 +274,13 @@ class TimeDistributedTest(test_combinations.TestCase):
     class TestListLayer(TestLayer):
 
       def compute_output_shape(self, input_shape):
-        shape = super(TestListLayer, self).compute_output_shape(input_shape)
+        shape = super().compute_output_shape(input_shape)
         return shape.as_list()
 
     class TestTupleLayer(TestLayer):
 
       def compute_output_shape(self, input_shape):
-        shape = super(TestTupleLayer, self).compute_output_shape(input_shape)
+        shape = super().compute_output_shape(input_shape)
         return tuple(shape.as_list())
 
     # Layers can specify output shape as list/tuple/TensorShape
@@ -399,7 +399,7 @@ class TimeDistributedTest(test_combinations.TestCase):
     class TestLayer(keras.layers.Layer):
 
       def __init__(self):
-        super(TestLayer, self).__init__()
+        super().__init__()
         self.dense_1 = dense_1
         self.dense_2 = dense_2
 

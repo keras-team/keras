@@ -734,7 +734,7 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     config = {
         'gamma': self.gamma,
     }
-    base_config = super(BinaryFocalCrossentropy, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

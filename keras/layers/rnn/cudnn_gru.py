@@ -85,7 +85,7 @@ class CuDNNGRU(_CuDNNRNN):
     self.units = units
     cell_spec = collections.namedtuple('cell', 'state_size')
     self._cell = cell_spec(state_size=self.units)
-    super(CuDNNGRU, self).__init__(
+    super().__init__(
         return_sequences=return_sequences,
         return_state=return_state,
         go_backwards=go_backwards,
@@ -110,7 +110,7 @@ class CuDNNGRU(_CuDNNRNN):
     return self._cell
 
   def build(self, input_shape):
-    super(CuDNNGRU, self).build(input_shape)
+    super().build(input_shape)
     if isinstance(input_shape, list):
       input_shape = input_shape[0]
     input_dim = int(input_shape[-1])
@@ -203,5 +203,5 @@ class CuDNNGRU(_CuDNNRNN):
             constraints.serialize(self.recurrent_constraint),
         'bias_constraint': constraints.serialize(self.bias_constraint)
     }
-    base_config = super(CuDNNGRU, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

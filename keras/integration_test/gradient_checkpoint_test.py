@@ -164,7 +164,7 @@ class GradientCheckpointTest(tf.test.TestCase):
     self.assertLen(losses, n_step)
 
   def tearDown(self):
-    super(GradientCheckpointTest, self).tearDown()
+    super().tearDown()
     # Make sure all the models created in keras has been deleted and cleared
     # from the global keras grpah, also do a force GC to recycle the GPU memory.
     tf.keras.backend.clear_session()

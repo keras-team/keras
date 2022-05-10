@@ -86,7 +86,7 @@ class MeanRelativeError(base_metric.Mean):
 
   @dtensor_utils.inject_mesh
   def __init__(self, normalizer, name=None, dtype=None):
-    super(MeanRelativeError, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
     normalizer = tf.cast(normalizer, self._dtype)
     self.normalizer = normalizer
 
@@ -117,13 +117,13 @@ class MeanRelativeError(base_metric.Mean):
     relative_errors = tf.math.divide_no_nan(
         tf.abs(y_true - y_pred), self.normalizer)
 
-    return super(MeanRelativeError, self).update_state(
+    return super().update_state(
         relative_errors, sample_weight=sample_weight)
 
   def get_config(self):
     n = self.normalizer
     config = {'normalizer': backend.eval(n) if is_tensor_or_variable(n) else n}
-    base_config = super(MeanRelativeError, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -167,7 +167,7 @@ class Accuracy(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='accuracy', dtype=None):
-    super(Accuracy, self).__init__(accuracy, name, dtype=dtype)
+    super().__init__(accuracy, name, dtype=dtype)
 
 
 @keras_export('keras.metrics.BinaryAccuracy')
@@ -212,7 +212,7 @@ class BinaryAccuracy(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='binary_accuracy', dtype=None, threshold=0.5):
-    super(BinaryAccuracy, self).__init__(
+    super().__init__(
         metrics_utils.binary_matches, name, dtype=dtype, threshold=threshold)
 
 
@@ -265,7 +265,7 @@ class CategoricalAccuracy(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='categorical_accuracy', dtype=None):
-    super(CategoricalAccuracy, self).__init__(
+    super().__init__(
         lambda y_true, y_pred: metrics_utils.sparse_categorical_matches(  # pylint: disable=g-long-lambda
             tf.math.argmax(y_true, axis=-1), y_pred),
         name,
@@ -320,7 +320,7 @@ class SparseCategoricalAccuracy(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='sparse_categorical_accuracy', dtype=None):
-    super(SparseCategoricalAccuracy, self).__init__(
+    super().__init__(
         metrics_utils.sparse_categorical_matches, name, dtype=dtype)
 
 
@@ -386,7 +386,7 @@ class TopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, k=5, name='top_k_categorical_accuracy', dtype=None):
-    super(TopKCategoricalAccuracy, self).__init__(
+    super().__init__(
         lambda yt, yp, k: metrics_utils.sparse_top_k_categorical_matches(  # pylint: disable=g-long-lambda
             tf.math.argmax(yt, axis=-1), yp, k),
         name,
@@ -429,7 +429,7 @@ class SparseTopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, k=5, name='sparse_top_k_categorical_accuracy', dtype=None):
-    super(SparseTopKCategoricalAccuracy, self).__init__(
+    super().__init__(
         metrics_utils.sparse_top_k_categorical_matches, name, dtype=dtype, k=k)
 
 
@@ -455,7 +455,7 @@ class _ConfusionMatrixConditionCount(base_metric.Metric):
                thresholds=None,
                name=None,
                dtype=None):
-    super(_ConfusionMatrixConditionCount, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
     self._confusion_matrix_cond = confusion_matrix_cond
     self.init_thresholds = thresholds
     self.thresholds = metrics_utils.parse_init_thresholds(
@@ -502,7 +502,7 @@ class _ConfusionMatrixConditionCount(base_metric.Metric):
 
   def get_config(self):
     config = {'thresholds': self.init_thresholds}
-    base_config = super(_ConfusionMatrixConditionCount, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -559,7 +559,7 @@ class FalsePositives(_ConfusionMatrixConditionCount):
 
   @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
-    super(FalsePositives, self).__init__(
+    super().__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.FALSE_POSITIVES,
         thresholds=thresholds,
         name=name,
@@ -619,7 +619,7 @@ class FalseNegatives(_ConfusionMatrixConditionCount):
 
   @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
-    super(FalseNegatives, self).__init__(
+    super().__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.FALSE_NEGATIVES,
         thresholds=thresholds,
         name=name,
@@ -679,7 +679,7 @@ class TrueNegatives(_ConfusionMatrixConditionCount):
 
   @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
-    super(TrueNegatives, self).__init__(
+    super().__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.TRUE_NEGATIVES,
         thresholds=thresholds,
         name=name,
@@ -739,7 +739,7 @@ class TruePositives(_ConfusionMatrixConditionCount):
 
   @dtensor_utils.inject_mesh
   def __init__(self, thresholds=None, name=None, dtype=None):
-    super(TruePositives, self).__init__(
+    super().__init__(
         confusion_matrix_cond=metrics_utils.ConfusionMatrix.TRUE_POSITIVES,
         thresholds=thresholds,
         name=name,
@@ -832,7 +832,7 @@ class Precision(base_metric.Metric):
                class_id=None,
                name=None,
                dtype=None):
-    super(Precision, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
     self.init_thresholds = thresholds
     self.top_k = top_k
     self.class_id = class_id
@@ -896,7 +896,7 @@ class Precision(base_metric.Metric):
         'top_k': self.top_k,
         'class_id': self.class_id
     }
-    base_config = super(Precision, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -973,7 +973,7 @@ class Recall(base_metric.Metric):
                class_id=None,
                name=None,
                dtype=None):
-    super(Recall, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
     self.init_thresholds = thresholds
     self.top_k = top_k
     self.class_id = class_id
@@ -1037,7 +1037,7 @@ class Recall(base_metric.Metric):
         'top_k': self.top_k,
         'class_id': self.class_id
     }
-    base_config = super(Recall, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1054,7 +1054,7 @@ class SensitivitySpecificityBase(base_metric.Metric, metaclass=abc.ABCMeta):
                class_id=None,
                name=None,
                dtype=None):
-    super(SensitivitySpecificityBase, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
     if num_thresholds <= 0:
       raise ValueError(
           'Argument `num_thresholds` must be an integer > 0. '
@@ -1125,7 +1125,7 @@ class SensitivitySpecificityBase(base_metric.Metric, metaclass=abc.ABCMeta):
 
   def get_config(self):
     config = {'class_id': self.class_id}
-    base_config = super(SensitivitySpecificityBase, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   def _find_max_under_constraint(self, constrained, dependent, predicate):
@@ -1223,7 +1223,7 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
           f'Received: specificity={specificity}')
     self.specificity = specificity
     self.num_thresholds = num_thresholds
-    super(SensitivityAtSpecificity, self).__init__(
+    super().__init__(
         specificity,
         num_thresholds=num_thresholds,
         class_id=class_id,
@@ -1245,7 +1245,7 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
         'num_thresholds': self.num_thresholds,
         'specificity': self.specificity
     }
-    base_config = super(SensitivityAtSpecificity, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1320,7 +1320,7 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
           f'Received: sensitivity={sensitivity}')
     self.sensitivity = sensitivity
     self.num_thresholds = num_thresholds
-    super(SpecificityAtSensitivity, self).__init__(
+    super().__init__(
         sensitivity,
         num_thresholds=num_thresholds,
         class_id=class_id,
@@ -1342,7 +1342,7 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
         'num_thresholds': self.num_thresholds,
         'sensitivity': self.sensitivity
     }
-    base_config = super(SpecificityAtSensitivity, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1409,7 +1409,7 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
           f'Received: recall={recall}')
     self.recall = recall
     self.num_thresholds = num_thresholds
-    super(PrecisionAtRecall, self).__init__(
+    super().__init__(
         value=recall,
         num_thresholds=num_thresholds,
         class_id=class_id,
@@ -1428,7 +1428,7 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
 
   def get_config(self):
     config = {'num_thresholds': self.num_thresholds, 'recall': self.recall}
-    base_config = super(PrecisionAtRecall, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1498,7 +1498,7 @@ class RecallAtPrecision(SensitivitySpecificityBase):
           f'Received: precision={precision}')
     self.precision = precision
     self.num_thresholds = num_thresholds
-    super(RecallAtPrecision, self).__init__(
+    super().__init__(
         value=precision,
         num_thresholds=num_thresholds,
         class_id=class_id,
@@ -1518,7 +1518,7 @@ class RecallAtPrecision(SensitivitySpecificityBase):
   def get_config(self):
     config = {'num_thresholds': self.num_thresholds,
               'precision': self.precision}
-    base_config = super(RecallAtPrecision, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1700,7 +1700,7 @@ class AUC(base_metric.Metric):
     else:
       self.summation_method = metrics_utils.AUCSummationMethod.from_str(
           summation_method)
-    super(AUC, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
 
     # Handle multilabel arguments.
     self.multi_label = multi_label
@@ -2000,7 +2000,7 @@ class AUC(base_metric.Metric):
       # were initialized. This ensures that a metric initialized from this
       # config has the same thresholds.
       config['thresholds'] = self.thresholds[1:-1]
-    base_config = super(AUC, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -2051,7 +2051,7 @@ class CosineSimilarity(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='cosine_similarity', dtype=None, axis=-1):
-    super(CosineSimilarity, self).__init__(
+    super().__init__(
         cosine_similarity, name, dtype=dtype, axis=axis)
 
 
@@ -2088,7 +2088,7 @@ class MeanAbsoluteError(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='mean_absolute_error', dtype=None):
-    super(MeanAbsoluteError, self).__init__(
+    super().__init__(
         mean_absolute_error, name, dtype=dtype)
 
 
@@ -2125,7 +2125,7 @@ class MeanAbsolutePercentageError(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='mean_absolute_percentage_error', dtype=None):
-    super(MeanAbsolutePercentageError, self).__init__(
+    super().__init__(
         mean_absolute_percentage_error, name, dtype=dtype)
 
 
@@ -2162,7 +2162,7 @@ class MeanSquaredError(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='mean_squared_error', dtype=None):
-    super(MeanSquaredError, self).__init__(
+    super().__init__(
         mean_squared_error, name, dtype=dtype)
 
 
@@ -2199,7 +2199,7 @@ class MeanSquaredLogarithmicError(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='mean_squared_logarithmic_error', dtype=None):
-    super(MeanSquaredLogarithmicError, self).__init__(
+    super().__init__(
         mean_squared_logarithmic_error, name, dtype=dtype)
 
 
@@ -2236,7 +2236,7 @@ class Hinge(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='hinge', dtype=None):
-    super(Hinge, self).__init__(hinge, name, dtype=dtype)
+    super().__init__(hinge, name, dtype=dtype)
 
 
 @keras_export('keras.metrics.SquaredHinge')
@@ -2275,7 +2275,7 @@ class SquaredHinge(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='squared_hinge', dtype=None):
-    super(SquaredHinge, self).__init__(squared_hinge, name, dtype=dtype)
+    super().__init__(squared_hinge, name, dtype=dtype)
 
 
 @keras_export('keras.metrics.CategoricalHinge')
@@ -2311,7 +2311,7 @@ class CategoricalHinge(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='categorical_hinge', dtype=None):
-    super(CategoricalHinge, self).__init__(categorical_hinge, name, dtype=dtype)
+    super().__init__(categorical_hinge, name, dtype=dtype)
 
 
 @keras_export('keras.metrics.RootMeanSquaredError')
@@ -2343,7 +2343,7 @@ class RootMeanSquaredError(base_metric.Mean):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='root_mean_squared_error', dtype=None):
-    super(RootMeanSquaredError, self).__init__(name, dtype=dtype)
+    super().__init__(name, dtype=dtype)
 
   def update_state(self, y_true, y_pred, sample_weight=None):
     """Accumulates root mean squared error statistics.
@@ -2363,7 +2363,7 @@ class RootMeanSquaredError(base_metric.Mean):
     y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
         y_pred, y_true)
     error_sq = tf.math.squared_difference(y_pred, y_true)
-    return super(RootMeanSquaredError, self).update_state(
+    return super().update_state(
         error_sq, sample_weight=sample_weight)
 
   def result(self):
@@ -2404,7 +2404,7 @@ class LogCoshError(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='logcosh', dtype=None):
-    super(LogCoshError, self).__init__(logcosh, name, dtype=dtype)
+    super().__init__(logcosh, name, dtype=dtype)
 
 
 @keras_export('keras.metrics.Poisson')
@@ -2441,7 +2441,7 @@ class Poisson(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='poisson', dtype=None):
-    super(Poisson, self).__init__(poisson, name, dtype=dtype)
+    super().__init__(poisson, name, dtype=dtype)
 
 
 @keras_export('keras.metrics.KLDivergence')
@@ -2478,7 +2478,7 @@ class KLDivergence(base_metric.MeanMetricWrapper):
 
   @dtensor_utils.inject_mesh
   def __init__(self, name='kullback_leibler_divergence', dtype=None):
-    super(KLDivergence, self).__init__(
+    super().__init__(
         kullback_leibler_divergence, name, dtype=dtype)
 
 
@@ -2512,7 +2512,7 @@ class _IoUBase(base_metric.Metric):
   """
 
   def __init__(self, num_classes, name=None, dtype=None):
-    super(_IoUBase, self).__init__(name=name, dtype=dtype)
+    super().__init__(name=name, dtype=dtype)
     self.num_classes = num_classes
 
     # Variable to accumulate the predictions in the confusion matrix.
@@ -2640,7 +2640,7 @@ class IoU(_IoUBase):
       name=None,
       dtype=None,
   ):
-    super(IoU, self).__init__(
+    super().__init__(
         name=name,
         num_classes=num_classes,
         dtype=dtype,
@@ -2682,7 +2682,7 @@ class IoU(_IoUBase):
         'num_classes': self.num_classes,
         'target_class_ids': self.target_class_ids,
     }
-    base_config = super(IoU, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -2764,7 +2764,7 @@ class BinaryIoU(IoU):
       dtype=None,
   ):
 
-    super(BinaryIoU, self).__init__(
+    super().__init__(
         num_classes=2,
         target_class_ids=target_class_ids,
         name=name,
@@ -2865,7 +2865,7 @@ class MeanIoU(IoU):
   @dtensor_utils.inject_mesh
   def __init__(self, num_classes, name=None, dtype=None):
     target_class_ids = list(range(num_classes))
-    super(MeanIoU, self).__init__(
+    super().__init__(
         name=name,
         num_classes=num_classes,
         target_class_ids=target_class_ids,
@@ -2961,7 +2961,7 @@ class OneHotIoU(IoU):
       name=None,
       dtype=None,
   ):
-    super(OneHotIoU, self).__init__(
+    super().__init__(
         num_classes=num_classes,
         target_class_ids=target_class_ids,
         name=name,
@@ -3065,7 +3065,7 @@ class OneHotMeanIoU(MeanIoU):
       name=None,
       dtype=None,
   ):
-    super(OneHotMeanIoU, self).__init__(
+    super().__init__(
         num_classes=num_classes,
         name=name,
         dtype=dtype,
@@ -3137,7 +3137,7 @@ class BinaryCrossentropy(base_metric.MeanMetricWrapper):
                dtype=None,
                from_logits=False,
                label_smoothing=0):
-    super(BinaryCrossentropy, self).__init__(
+    super().__init__(
         binary_crossentropy,
         name,
         dtype=dtype,
@@ -3202,7 +3202,7 @@ class CategoricalCrossentropy(base_metric.MeanMetricWrapper):
                dtype=None,
                from_logits=False,
                label_smoothing=0):
-    super(CategoricalCrossentropy, self).__init__(
+    super().__init__(
         categorical_crossentropy,
         name,
         dtype=dtype,
@@ -3274,7 +3274,7 @@ class SparseCategoricalCrossentropy(base_metric.MeanMetricWrapper):
                dtype=None,
                from_logits=False,
                axis=-1):
-    super(SparseCategoricalCrossentropy, self).__init__(
+    super().__init__(
         sparse_categorical_crossentropy,
         name,
         dtype=dtype,

@@ -132,7 +132,7 @@ class Attention(BaseDenseAttention):
   """
 
   def __init__(self, use_scale=False, score_mode='dot', **kwargs):
-    super(Attention, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.use_scale = use_scale
     self.score_mode = score_mode
     if self.score_mode not in ['dot', 'concat']:
@@ -159,7 +159,7 @@ class Attention(BaseDenseAttention):
           trainable=True)
     else:
       self.concat_score_weight = None
-    super(Attention, self).build(input_shape)
+    super().build(input_shape)
 
   def _calculate_scores(self, query, key):
     """Calculates attention scores as a query-key dot product.
@@ -191,5 +191,5 @@ class Attention(BaseDenseAttention):
 
   def get_config(self):
     config = {'use_scale': self.use_scale, 'score_mode': self.score_mode}
-    base_config = super(Attention, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

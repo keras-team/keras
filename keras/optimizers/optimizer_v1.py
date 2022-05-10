@@ -165,7 +165,7 @@ class SGD(Optimizer):
   """
 
   def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False, **kwargs):
-    super(SGD, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     with backend.name_scope(self.__class__.__name__):
       self.iterations = backend.variable(0, dtype='int64', name='iterations')
       self.lr = backend.variable(lr, name='lr')
@@ -216,7 +216,7 @@ class SGD(Optimizer):
         'decay': float(backend.get_value(self.decay)),
         'nesterov': self.nesterov
     }
-    base_config = super(SGD, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -236,7 +236,7 @@ class RMSprop(Optimizer):
   """
 
   def __init__(self, lr=0.001, rho=0.9, epsilon=None, decay=0., **kwargs):
-    super(RMSprop, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     with backend.name_scope(self.__class__.__name__):
       self.lr = backend.variable(lr, name='lr')
       self.rho = backend.variable(rho, name='rho')
@@ -287,7 +287,7 @@ class RMSprop(Optimizer):
         'decay': float(backend.get_value(self.decay)),
         'epsilon': self.epsilon
     }
-    base_config = super(RMSprop, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -313,7 +313,7 @@ class Adagrad(Optimizer):
   """
 
   def __init__(self, lr=0.01, epsilon=None, decay=0., **kwargs):
-    super(Adagrad, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     with backend.name_scope(self.__class__.__name__):
       self.lr = backend.variable(lr, name='lr')
       self.decay = backend.variable(decay, name='decay')
@@ -361,7 +361,7 @@ class Adagrad(Optimizer):
         'decay': float(backend.get_value(self.decay)),
         'epsilon': self.epsilon
     }
-    base_config = super(Adagrad, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -394,7 +394,7 @@ class Adadelta(Optimizer):
   """
 
   def __init__(self, lr=1.0, rho=0.95, epsilon=None, decay=0., **kwargs):
-    super(Adadelta, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     with backend.name_scope(self.__class__.__name__):
       self.lr = backend.variable(lr, name='lr')
       self.decay = backend.variable(decay, name='decay')
@@ -453,7 +453,7 @@ class Adadelta(Optimizer):
         'decay': float(backend.get_value(self.decay)),
         'epsilon': self.epsilon
     }
-    base_config = super(Adadelta, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -481,7 +481,7 @@ class Adam(Optimizer):
                decay=0.,
                amsgrad=False,
                **kwargs):
-    super(Adam, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     with backend.name_scope(self.__class__.__name__):
       self.iterations = backend.variable(0, dtype='int64', name='iterations')
       self.lr = backend.variable(lr, name='lr')
@@ -559,7 +559,7 @@ class Adam(Optimizer):
         'epsilon': self.epsilon,
         'amsgrad': self.amsgrad
     }
-    base_config = super(Adam, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -584,7 +584,7 @@ class Adamax(Optimizer):
                epsilon=None,
                decay=0.,
                **kwargs):
-    super(Adamax, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     with backend.name_scope(self.__class__.__name__):
       self.iterations = backend.variable(0, dtype='int64', name='iterations')
       self.lr = backend.variable(lr, name='lr')
@@ -649,7 +649,7 @@ class Adamax(Optimizer):
         'decay': float(backend.get_value(self.decay)),
         'epsilon': self.epsilon
     }
-    base_config = super(Adamax, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -677,7 +677,7 @@ class Nadam(Optimizer):
                epsilon=None,
                schedule_decay=0.004,
                **kwargs):
-    super(Nadam, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     with backend.name_scope(self.__class__.__name__):
       self.iterations = backend.variable(0, dtype='int64', name='iterations')
       self.m_schedule = backend.variable(1., name='m_schedule')
@@ -749,7 +749,7 @@ class Nadam(Optimizer):
         'epsilon': self.epsilon,
         'schedule_decay': self.schedule_decay
     }
-    base_config = super(Nadam, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

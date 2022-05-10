@@ -201,13 +201,13 @@ class MonitoredPool(multiprocessing.pool.ThreadPool):
   def __init__(self, *args, **kwargs):
     self._apply_counter = 0
     self._func_wrapper = None
-    super(MonitoredPool, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
   def apply_async(self, func, *args, **kwargs):
     self._apply_counter += 1
     if self._func_wrapper:
       func = self._func_wrapper(func)  # pylint: disable=not-callable
-    return super(MonitoredPool, self).apply_async(func, *args, **kwargs)
+    return super().apply_async(func, *args, **kwargs)
 
 
 def add_sleep(f):
@@ -238,7 +238,7 @@ _TEST_DATA = np.array((
 class AggregationTest(test_combinations.TestCase):
 
   def setUp(self):
-    super(AggregationTest, self).setUp()
+    super().setUp()
     self._old_pool = training_utils_v1._COPY_POOL
     self._old_threshold = (
         training_utils_v1.SliceAggregator._BINARY_SIZE_THRESHOLD)
@@ -247,7 +247,7 @@ class AggregationTest(test_combinations.TestCase):
         training_utils_v1._COPY_THREADS)
 
   def tearDown(self):
-    super(AggregationTest, self).tearDown()
+    super().tearDown()
     training_utils_v1._COPY_POOL = self._old_pool
     training_utils_v1.SliceAggregator._BINARY_SIZE_THRESHOLD = (
         self._old_threshold)

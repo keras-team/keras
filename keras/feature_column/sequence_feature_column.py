@@ -99,7 +99,7 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
       ValueError: If any of the `feature_columns` is not a
         `SequenceDenseColumn`.
     """
-    super(SequenceFeatures, self).__init__(
+    super().__init__(
         feature_columns=feature_columns,
         trainable=trainable,
         name=name,

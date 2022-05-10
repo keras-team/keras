@@ -863,7 +863,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
   def __getattribute__(self, name):
     """Overridden to support hyperparameter access."""
     try:
-      return super(OptimizerV2, self).__getattribute__(name)
+      return super().__getattribute__(name)
     except AttributeError as e:
       # Needed to avoid infinite recursion with __setattr__.
       if name == "_hyper":
@@ -876,7 +876,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       raise e
 
   def __dir__(self):
-    result = set(super(OptimizerV2, self).__dir__())
+    result = set(super().__dir__())
     if "_hyper" in result:
       result |= self._hyper.keys()
       if "learning_rate" in self._hyper.keys():
@@ -891,7 +891,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     if hasattr(self, "_hyper") and name in self._hyper:
       self._set_hyper(name, value)
     else:
-      super(OptimizerV2, self).__setattr__(name, value)
+      super().__setattr__(name, value)
 
   def get_slot_names(self):
     """A list of names for this optimizer's slots."""
@@ -1520,7 +1520,7 @@ class RestoredOptimizer(OptimizerV2):
   # methods.
 
   def __init__(self):
-    super(RestoredOptimizer, self).__init__("RestoredOptimizer")
+    super().__init__("RestoredOptimizer")
     self._hypers_created = True
 
   def get_config(self):

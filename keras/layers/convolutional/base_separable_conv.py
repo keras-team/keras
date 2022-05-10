@@ -119,7 +119,7 @@ class SeparableConv(Conv):
                trainable=True,
                name=None,
                **kwargs):
-    super(SeparableConv, self).__init__(
+    super().__init__(
         rank=rank,
         filters=filters,
         kernel_size=kernel_size,
@@ -233,5 +233,5 @@ class SeparableConv(Conv):
         'bias_constraint':
             constraints.serialize(self.bias_constraint)
     }
-    base_config = super(SeparableConv, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

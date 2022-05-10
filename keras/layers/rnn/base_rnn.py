@@ -253,7 +253,7 @@ class RNN(base_layer.Layer):
                      kwargs.pop('input_dim', None))
       kwargs['input_shape'] = input_shape
 
-    super(RNN, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.cell = cell
     self.return_sequences = return_sequences
     self.return_state = return_state
@@ -285,7 +285,7 @@ class RNN(base_layer.Layer):
       # called with any time step value, as long as it is not None), so it
       # cannot be used as the call function signature when saving to SavedModel.
       return False
-    return super(RNN, self)._use_input_spec_as_call_signature
+    return super()._use_input_spec_as_call_signature
 
   @property
   def states(self):
@@ -512,7 +512,7 @@ class RNN(base_layer.Layer):
         inputs, initial_state, constants, self._num_constants)
 
     if initial_state is None and constants is None:
-      return super(RNN, self).__call__(inputs, **kwargs)
+      return super().__call__(inputs, **kwargs)
 
     # If any of `initial_state` or `constants` are specified and are Keras
     # tensors, then add them to the inputs and temporarily modify the
@@ -559,7 +559,7 @@ class RNN(base_layer.Layer):
             tf.nest.map_structure(lambda _: None, inputs)) + additional_specs
       # Perform the call with temporarily replaced input_spec
       self.input_spec = full_input_spec
-      output = super(RNN, self).__call__(full_input, **kwargs)
+      output = super().__call__(full_input, **kwargs)
       # Remove the additional_specs from input spec and keep the rest. It is
       # important to keep since the input spec was populated by build(), and
       # will be reused in the stateful=True.
@@ -570,7 +570,7 @@ class RNN(base_layer.Layer):
         kwargs['initial_state'] = initial_state
       if constants is not None:
         kwargs['constants'] = constants
-      return super(RNN, self).__call__(inputs, **kwargs)
+      return super().__call__(inputs, **kwargs)
 
   def call(self,
            inputs,
@@ -845,7 +845,7 @@ class RNN(base_layer.Layer):
       config['zero_output_for_mask'] = self.zero_output_for_mask
 
     config['cell'] = generic_utils.serialize_keras_object(self.cell)
-    base_config = super(RNN, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod

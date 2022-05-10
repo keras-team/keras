@@ -102,7 +102,7 @@ class AdamW(optimizer.Optimizer):
                jit_compile=True,
                name='AdamW',
                **kwargs):
-    super(AdamW, self).__init__(
+    super().__init__(
         name=name,
         clipnorm=clipnorm,
         clipvalue=clipvalue,
@@ -203,7 +203,7 @@ class AdamW(optimizer.Optimizer):
       variable.assign_sub((m * alpha) / (tf.sqrt(v) + self.epsilon))
 
   def get_config(self):
-    config = super(AdamW, self).get_config()
+    config = super().get_config()
 
     config.update({
         'learning_rate': self._serialize_hyperparameter(self._learning_rate),

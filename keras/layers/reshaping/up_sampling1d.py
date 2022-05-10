@@ -61,7 +61,7 @@ class UpSampling1D(Layer):
   """
 
   def __init__(self, size=2, **kwargs):
-    super(UpSampling1D, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.size = int(size)
     self.input_spec = InputSpec(ndim=3)
 
@@ -76,5 +76,5 @@ class UpSampling1D(Layer):
 
   def get_config(self):
     config = {'size': self.size}
-    base_config = super(UpSampling1D, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

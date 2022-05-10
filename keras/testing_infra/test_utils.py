@@ -442,7 +442,7 @@ class SmallSubclassMLP(models.Model):
                use_bn=False,
                use_dp=False,
                **kwargs):
-    super(SmallSubclassMLP, self).__init__(name='test_model', **kwargs)
+    super().__init__(name='test_model', **kwargs)
     self.use_bn = use_bn
     self.use_dp = use_dp
 
@@ -467,7 +467,7 @@ class _SmallSubclassMLPCustomBuild(models.Model):
   """A subclass model small MLP that uses a custom build method."""
 
   def __init__(self, num_hidden, num_classes):
-    super(_SmallSubclassMLPCustomBuild, self).__init__()
+    super().__init__()
     self.layer_a = None
     self.layer_b = None
     self.num_hidden = num_hidden
@@ -519,7 +519,7 @@ class _SubclassModel(models.Model):
     """
 
     inputs = kwargs.pop('input_tensor', None)
-    super(_SubclassModel, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     # Note that clone and build doesn't support lists of layers in subclassed
     # models. Adding each layer directly here.
     for i, layer in enumerate(model_layers):
@@ -550,7 +550,7 @@ class _SubclassModelCustomBuild(models.Model):
   """A Keras subclass model that uses a custom build method."""
 
   def __init__(self, layer_generating_func, *args, **kwargs):
-    super(_SubclassModelCustomBuild, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self.all_layers = None
     self._layer_generating_func = layer_generating_func
 
@@ -649,7 +649,7 @@ class _MultiIOSubclassModel(models.Model):
 
   def __init__(self, branch_a, branch_b, shared_input_branch=None,
                shared_output_branch=None, name=None):
-    super(_MultiIOSubclassModel, self).__init__(name=name)
+    super().__init__(name=name)
     self._shared_input_branch = shared_input_branch
     self._branch_a = branch_a
     self._branch_b = branch_b
@@ -686,7 +686,7 @@ class _MultiIOSubclassModelCustomBuild(models.Model):
   def __init__(self, branch_a_func, branch_b_func,
                shared_input_branch_func=None,
                shared_output_branch_func=None):
-    super(_MultiIOSubclassModelCustomBuild, self).__init__()
+    super().__init__()
     self._shared_input_branch_func = shared_input_branch_func
     self._branch_a_func = branch_a_func
     self._branch_b_func = branch_b_func

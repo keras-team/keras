@@ -28,7 +28,7 @@ class TextWithTransformerBenchmark(tf.test.Benchmark):
   """
 
   def __init__(self):
-    super(TextWithTransformerBenchmark, self).__init__()
+    super().__init__()
     self.max_feature = 20000
     self.max_len = 200
     (self.imdb_x, self.imdb_y), _ = tf.keras.datasets.imdb.load_data(
@@ -143,7 +143,7 @@ class MultiHeadSelfAttention(tf.keras.layers.Layer):
   """Implement multi head self attention as a Keras layer."""
 
   def __init__(self, embed_dim, num_heads=8):
-    super(MultiHeadSelfAttention, self).__init__()
+    super().__init__()
     self.embed_dim = embed_dim
     self.num_heads = num_heads
     if embed_dim % num_heads != 0:
@@ -195,7 +195,7 @@ class TransformerBlock(tf.keras.layers.Layer):
   """Implement a Transformer block as a layer."""
 
   def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
-    super(TransformerBlock, self).__init__()
+    super().__init__()
     self.att = MultiHeadSelfAttention(embed_dim, num_heads)
     self.ffn = tf.keras.Sequential([
         tf.keras.layers.Dense(ff_dim, activation='relu'),
@@ -219,7 +219,7 @@ class TokenAndPositionEmbedding(tf.keras.layers.Layer):
   """Implement embedding layer."""
 
   def __init__(self, maxlen, vocab_size, embed_dim):
-    super(TokenAndPositionEmbedding, self).__init__()
+    super().__init__()
     self.token_emb = tf.keras.layers.Embedding(
         input_dim=vocab_size, output_dim=embed_dim)
     self.pos_emb = tf.keras.layers.Embedding(

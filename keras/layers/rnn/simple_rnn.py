@@ -125,7 +125,7 @@ class SimpleRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
       self._enable_caching_device = kwargs.pop('enable_caching_device', True)
     else:
       self._enable_caching_device = kwargs.pop('enable_caching_device', False)
-    super(SimpleRNNCell, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.units = units
     self.activation = activations.get(activation)
     self.use_bias = use_bias
@@ -234,7 +234,7 @@ class SimpleRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
             self.recurrent_dropout
     }
     config.update(rnn_utils.config_for_enable_caching_device(self))
-    base_config = super(SimpleRNNCell, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -376,7 +376,7 @@ class SimpleRNN(RNN):
         dtype=kwargs.get('dtype'),
         trainable=kwargs.get('trainable', True),
         **cell_kwargs)
-    super(SimpleRNN, self).__init__(
+    super().__init__(
         cell,
         return_sequences=return_sequences,
         return_state=return_state,
@@ -388,7 +388,7 @@ class SimpleRNN(RNN):
     self.input_spec = [InputSpec(ndim=3)]
 
   def call(self, inputs, mask=None, training=None, initial_state=None):
-    return super(SimpleRNN, self).call(
+    return super().call(
         inputs, mask=mask, training=training, initial_state=initial_state)
 
   @property
@@ -480,7 +480,7 @@ class SimpleRNN(RNN):
         'recurrent_dropout':
             self.recurrent_dropout
     }
-    base_config = super(SimpleRNN, self).get_config()
+    base_config = super().get_config()
     config.update(rnn_utils.config_for_enable_caching_device(self.cell))
     del base_config['cell']
     return dict(list(base_config.items()) + list(config.items()))

@@ -167,7 +167,7 @@ def _FilterGoldenProtoDict(golden_proto_dict, omit_golden_symbols_map):
 class ApiCompatibilityTest(tf.test.TestCase):
 
   def __init__(self, *args, **kwargs):
-    super(ApiCompatibilityTest, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
     self._update_golden_warning = file_io.read_file_to_string(
         _UPDATE_WARNING_FILE)

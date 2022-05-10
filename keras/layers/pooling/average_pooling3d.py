@@ -86,7 +86,7 @@ class AveragePooling3D(Pooling3D):
                padding='valid',
                data_format=None,
                **kwargs):
-    super(AveragePooling3D, self).__init__(
+    super().__init__(
         tf.nn.avg_pool3d,
         pool_size=pool_size, strides=strides,
         padding=padding, data_format=data_format, **kwargs)

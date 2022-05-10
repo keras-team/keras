@@ -48,7 +48,7 @@ class Subtract(_Merge):
 
   @tf_utils.shape_type_conversion
   def build(self, input_shape):
-    super(Subtract, self).build(input_shape)
+    super().build(input_shape)
     if len(input_shape) != 2:
       raise ValueError(
           'A `Subtract` layer should be called on exactly 2 inputs. '

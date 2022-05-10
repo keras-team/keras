@@ -278,7 +278,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
-        super(CustomerLayer, self).__init__()
+        super().__init__()
         self.input_spec = input_spec.InputSpec(ndim=2)
 
       def call(self, inputs):
@@ -301,7 +301,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     class CustomLayer(base_tf_layers.Layer):
 
       def __init__(self):
-        super(CustomLayer, self).__init__()
+        super().__init__()
         self.input_spec = input_spec.InputSpec(min_ndim=2)
 
       def call(self, inputs):
@@ -325,7 +325,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
-        super(CustomerLayer, self).__init__()
+        super().__init__()
         self.input_spec = input_spec.InputSpec(max_ndim=2)
 
       def call(self, inputs):
@@ -349,7 +349,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
-        super(CustomerLayer, self).__init__()
+        super().__init__()
         self.input_spec = input_spec.InputSpec(dtype='float32')
 
       def call(self, inputs):
@@ -370,7 +370,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
-        super(CustomerLayer, self).__init__()
+        super().__init__()
         self.input_spec = input_spec.InputSpec(axes={-1: 2})
 
       def call(self, inputs):
@@ -393,7 +393,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
-        super(CustomerLayer, self).__init__()
+        super().__init__()
         self.input_spec = input_spec.InputSpec(shape=(None, 3))
 
       def call(self, inputs):
@@ -414,7 +414,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
     class CustomerLayer(base_tf_layers.Layer):
 
       def __init__(self):
-        super(CustomerLayer, self).__init__()
+        super().__init__()
         self.input_spec = None
 
       def call(self, inputs):

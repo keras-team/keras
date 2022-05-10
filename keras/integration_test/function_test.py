@@ -25,7 +25,7 @@ class MiniModel(tf.keras.Model):
   """
 
   def __init__(self):
-    super(MiniModel, self).__init__(name='')
+    super().__init__(name='')
     self.fc = tf.keras.layers.Dense(1, name='fc', kernel_initializer='ones',
                                     bias_initializer='ones')
 
@@ -43,7 +43,7 @@ class DefunnedMiniModel(MiniModel):
 class ModelWithOptimizer(tf.keras.Model):
 
   def __init__(self):
-    super(ModelWithOptimizer, self).__init__()
+    super().__init__()
     self.dense = tf.keras.layers.Dense(1)
     self.optimizer = tf.keras.optimizers.Adam(0.01)
 

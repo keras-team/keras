@@ -155,7 +155,7 @@ class RandomFourierFeatures(base_layer.Layer):
     if scale is not None and scale <= 0.0:
       raise ValueError('When provided, `scale` should be a positive float. '
                        f'Received: {scale}')
-    super(RandomFourierFeatures, self).__init__(
+    super().__init__(
         trainable=trainable, name=name, **kwargs)
     self.output_dim = output_dim
     self.kernel_initializer = kernel_initializer
@@ -204,7 +204,7 @@ class RandomFourierFeatures(base_layer.Layer):
         initializer=tf.compat.v1.constant_initializer(self.scale),
         trainable=True,
         constraint='NonNeg')
-    super(RandomFourierFeatures, self).build(input_shape)
+    super().build(input_shape)
 
   def call(self, inputs):
     inputs = tf.convert_to_tensor(inputs, dtype=self.dtype)
@@ -232,7 +232,7 @@ class RandomFourierFeatures(base_layer.Layer):
         'kernel_initializer': kernel_initializer,
         'scale': self.scale,
     }
-    base_config = super(RandomFourierFeatures, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

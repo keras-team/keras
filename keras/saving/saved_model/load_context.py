@@ -22,7 +22,7 @@ class LoadContext(threading.local):
   """A context for loading a model."""
 
   def __init__(self):
-    super(LoadContext, self).__init__()
+    super().__init__()
     self._entered_load_context = []
     self._load_options = None
 

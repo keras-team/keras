@@ -75,7 +75,7 @@ class Softmax(Layer):
   """
 
   def __init__(self, axis=-1, **kwargs):
-    super(Softmax, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.supports_masking = True
     self.axis = axis
 
@@ -100,7 +100,7 @@ class Softmax(Layer):
 
   def get_config(self):
     config = {'axis': self.axis}
-    base_config = super(Softmax, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @tf_utils.shape_type_conversion

@@ -92,7 +92,7 @@ class ZeroPadding2D(Layer):
   """
 
   def __init__(self, padding=(1, 1), data_format=None, **kwargs):
-    super(ZeroPadding2D, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.data_format = conv_utils.normalize_data_format(data_format)
     if isinstance(padding, int):
       self.padding = ((padding, padding), (padding, padding))
@@ -145,5 +145,5 @@ class ZeroPadding2D(Layer):
 
   def get_config(self):
     config = {'padding': self.padding, 'data_format': self.data_format}
-    base_config = super(ZeroPadding2D, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

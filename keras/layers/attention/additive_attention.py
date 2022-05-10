@@ -130,7 +130,7 @@ class AdditiveAttention(BaseDenseAttention):
   """
 
   def __init__(self, use_scale=True, **kwargs):
-    super(AdditiveAttention, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.use_scale = use_scale
 
   def build(self, input_shape):
@@ -146,7 +146,7 @@ class AdditiveAttention(BaseDenseAttention):
           trainable=True)
     else:
       self.scale = None
-    super(AdditiveAttention, self).build(input_shape)
+    super().build(input_shape)
 
   def _calculate_scores(self, query, key):
     """Calculates attention scores as a nonlinear sum of query and key.
@@ -171,5 +171,5 @@ class AdditiveAttention(BaseDenseAttention):
 
   def get_config(self):
     config = {'use_scale': self.use_scale}
-    base_config = super(AdditiveAttention, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

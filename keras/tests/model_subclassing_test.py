@@ -42,7 +42,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
     class DummyModel(keras.Model):
 
       def __init__(self):
-        super(DummyModel, self).__init__()
+        super().__init__()
         self.dense1 = keras.layers.Dense(32, activation='relu')
         self.uses_custom_build = False
 
@@ -75,7 +75,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
     class DummyModel(keras.Model):
 
       def __init__(self):
-        super(DummyModel, self).__init__()
+        super().__init__()
         self.layer1 = keras.layers.Dense(10, activation='relu')
 
       def build(self, input_shape):
@@ -98,7 +98,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
     class MyModel(keras.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.dense1 = keras.layers.Dense(1)
         self.dense2 = keras.layers.Dense(1)
         self.add = keras.layers.Add()
@@ -137,7 +137,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
       """An Embedding layer."""
 
       def __init__(self, vocab_size, embedding_dim, **kwargs):
-        super(Embedding, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.vocab_size = vocab_size
         self.embedding_dim = embedding_dim
 
@@ -155,7 +155,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
     class EmbedModel(keras.Model):
 
       def __init__(self, vocab_size, embed_size):
-        super(EmbedModel, self).__init__()
+        super().__init__()
         self.embed1 = Embedding(vocab_size, embed_size)
 
       def call(self, inputs):
@@ -178,7 +178,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
     class SimpleRNNModel(keras.Model):
 
       def __init__(self):
-        super(SimpleRNNModel, self).__init__()
+        super().__init__()
         self.lstm = keras.layers.LSTM(units)
 
       def call(self, inputs):
@@ -354,7 +354,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
     class Foo(keras.Model):
 
       def __init__(self):
-        super(Foo, self).__init__()
+        super().__init__()
         self.isdep = keras.layers.Dense(1)
         self.notdep = data_structures.NoDependency(keras.layers.Dense(2))
         self.notdep_var = data_structures.NoDependency(
@@ -371,7 +371,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
     class ExtraVar(keras.Model):
 
       def __init__(self):
-        super(ExtraVar, self).__init__()
+        super().__init__()
         self.dense = keras.layers.Dense(1)
         self.var = tf.Variable(1.)
         self.not_trainable_var = tf.Variable(2., trainable=False)
@@ -419,7 +419,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
     class MyModel(keras.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.b = self.add_weight('bias', (10,))
         self.c = self.add_weight('bias2', (10,), trainable=False)
 
@@ -454,7 +454,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
     class MyModel(keras.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.b = self.add_weight('bias', (10,))
         self.c = self.add_weight('bias2', (10,))
 
@@ -517,7 +517,7 @@ class GraphSpecificModelSubclassingTests(tf.test.TestCase):
     class TestModel1(keras.Model):
 
       def __init__(self):
-        super(TestModel1, self).__init__()
+        super().__init__()
         self.fc = keras.layers.Dense(10, input_shape=(784,),
                                      activity_regularizer='l1')
         self.bn = keras.Sequential([keras.layers.BatchNormalization(axis=1)])
@@ -537,7 +537,7 @@ class GraphSpecificModelSubclassingTests(tf.test.TestCase):
     class TestModel2(keras.Model):
 
       def __init__(self):
-        super(TestModel2, self).__init__()
+        super().__init__()
         self.fc = keras.layers.Dense(10, input_shape=(784,),
                                      activity_regularizer='l1')
         self.bn = keras.Sequential(
@@ -563,7 +563,7 @@ class GraphSpecificModelSubclassingTests(tf.test.TestCase):
       class TestModel3(keras.Model):
 
         def __init__(self):
-          super(TestModel3, self).__init__()
+          super().__init__()
           self.fc = keras.layers.Dense(10, input_shape=(784,),
                                        activity_regularizer='l1')
           self.bn = bn
@@ -710,7 +710,7 @@ class CustomCallSignatureTests(tf.test.TestCase, parameterized.TestCase):
     class MyModel(keras.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.my_variable = tf.Variable(0.0, trainable=False)
         self.layer = keras.layers.Dense(4)
 
@@ -737,7 +737,7 @@ class CustomCallSignatureTests(tf.test.TestCase, parameterized.TestCase):
     class MyModel(keras.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.layer = keras.layers.Dense(4)
 
       def call(self, obs):

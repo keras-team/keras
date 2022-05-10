@@ -48,7 +48,7 @@ class Pooling1D(Layer):
   def __init__(self, pool_function, pool_size, strides,
                padding='valid', data_format='channels_last',
                name=None, **kwargs):
-    super(Pooling1D, self).__init__(name=name, **kwargs)
+    super().__init__(name=name, **kwargs)
     if data_format is None:
       data_format = backend.image_data_format()
     if strides is None:
@@ -96,5 +96,5 @@ class Pooling1D(Layer):
         'padding': self.padding,
         'data_format': self.data_format,
     }
-    base_config = super(Pooling1D, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

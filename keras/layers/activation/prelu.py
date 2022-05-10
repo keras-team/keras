@@ -67,7 +67,7 @@ class PReLU(Layer):
                alpha_constraint=None,
                shared_axes=None,
                **kwargs):
-    super(PReLU, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.supports_masking = True
     self.alpha_initializer = initializers.get(alpha_initializer)
     self.alpha_regularizer = regularizers.get(alpha_regularizer)
@@ -112,7 +112,7 @@ class PReLU(Layer):
         'alpha_constraint': constraints.serialize(self.alpha_constraint),
         'shared_axes': self.shared_axes
     }
-    base_config = super(PReLU, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @tf_utils.shape_type_conversion

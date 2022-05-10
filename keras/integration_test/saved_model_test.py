@@ -122,7 +122,7 @@ class LoadTest(tf.test.TestCase, parameterized.TestCase):
     class _HasOptimizer(tf.Module):
 
       def __init__(self):
-        super(_HasOptimizer, self).__init__()
+        super().__init__()
         self.layer = tf.keras.layers.Dense(1)
         self.optimizer = tf.keras.optimizers.Adam(0.01)
 

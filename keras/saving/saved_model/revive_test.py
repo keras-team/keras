@@ -37,7 +37,7 @@ from keras.utils import generic_utils
 class SubclassedModelNoConfig(keras.Model):
 
   def __init__(self, a, b):
-    super(SubclassedModelNoConfig, self).__init__()
+    super().__init__()
 
     self.a = a
     self.b = b
@@ -53,7 +53,7 @@ class SubclassedModelNoConfig(keras.Model):
             # TODO(b/145029112): Bug with losses when there are shared layers.
             # self.shared,  <-- Enable when bug is fixed.
             CustomLayerNoConfig(self.a + 5, self.b + 6)])])
-    super(SubclassedModelNoConfig, self).build(input_shape)
+    super().build(input_shape)
 
   def call(self, inputs):
     x = inputs
@@ -80,7 +80,7 @@ class SparseDense(keras.layers.Dense):
 class SubclassedSparseModelNoConfig(keras.Model):
 
   def __init__(self, a, b):
-    super(SubclassedSparseModelNoConfig, self).__init__()
+    super().__init__()
     self.a = a
     self.shared = CustomLayerNoConfig(a, b)
     self.all_layers = [SparseDense(4)]
@@ -106,7 +106,7 @@ class SubclassedModelWithConfig(SubclassedModelNoConfig):
 class CustomLayerNoConfig(keras.layers.Layer):
 
   def __init__(self, a, b, name=None):
-    super(CustomLayerNoConfig, self).__init__(name=name)
+    super().__init__(name=name)
     self.a = tf.Variable(a, name='a')
     self.b = b
     def a_regularizer():
@@ -141,13 +141,13 @@ class CustomNetworkDefaultConfig(keras.Model):
     inputs = keras.Input((2, 3), name='inputs')
     x = keras.layers.Flatten(name='flatten')(inputs)
     y = keras.layers.Dense(num_classes, name='outputs')(x)
-    super(CustomNetworkDefaultConfig, self).__init__(inputs, y, name=name)
+    super().__init__(inputs, y, name=name)
 
 
 class CustomNetworkWithConfig(CustomNetworkDefaultConfig):
 
   def __init__(self, num_classes, name=None):
-    super(CustomNetworkWithConfig, self).__init__(num_classes, name=name)
+    super().__init__(num_classes, name=name)
     self._config_dict = dict(num_classes=num_classes)
 
   def get_config(self):
@@ -161,7 +161,7 @@ class CustomNetworkWithConfig(CustomNetworkDefaultConfig):
 class CustomNetworkWithConfigName(CustomNetworkWithConfig):
 
   def __init__(self, num_classes, name=None):
-    super(CustomNetworkWithConfigName, self).__init__(num_classes, name=name)
+    super().__init__(num_classes, name=name)
     self._config_dict['name'] = self.name
 
 
@@ -169,7 +169,7 @@ class UnregisteredCustomSequentialModel(keras.Sequential):
   # This class is *not* registered in the CustomObjectScope.
 
   def __init__(self, **kwargs):
-    super(UnregisteredCustomSequentialModel, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.add(keras.layers.InputLayer(input_shape=(2, 3)))
 
 
@@ -202,7 +202,7 @@ class WideDeepModel(SubclassedModelWithConfig):
 class ReviveTestBase(test_combinations.TestCase):
 
   def setUp(self):
-    super(ReviveTestBase, self).setUp()
+    super().setUp()
     self.path = self.get_temp_dir()
     self.addCleanup(shutil.rmtree, self.path, ignore_errors=True)
 
@@ -287,7 +287,7 @@ class TestBigModelRevive(ReviveTestBase):
     class SubclassedModel(keras.Model):
 
       def __init__(self):
-        super(SubclassedModel, self).__init__()
+        super().__init__()
         self.all_layers = [CustomLayerWithConfig(1., 2),
                            CustomLayerNoConfig(3., 4),
                            SubclassedModelWithConfig(4., 6.),

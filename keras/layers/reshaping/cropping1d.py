@@ -60,7 +60,7 @@ class Cropping1D(Layer):
   """
 
   def __init__(self, cropping=(1, 1), **kwargs):
-    super(Cropping1D, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.cropping = conv_utils.normalize_tuple(
         cropping, 2, 'cropping', allow_zero=True)
     self.input_spec = InputSpec(ndim=3)
@@ -85,5 +85,5 @@ class Cropping1D(Layer):
 
   def get_config(self):
     config = {'cropping': self.cropping}
-    base_config = super(Cropping1D, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

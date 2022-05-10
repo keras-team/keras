@@ -22,7 +22,7 @@ tf.disable_eager_execution()
 class KerasNetworkTFRNNs(tf.keras.Model):
 
   def __init__(self, name=None):
-    super(KerasNetworkTFRNNs, self).__init__(name=name)
+    super().__init__(name=name)
     self._cell = tf.nn.rnn_cell.MultiRNNCell(
         [tf.nn.rnn_cell.LSTMCell(1) for _ in range(2)])
 
@@ -33,7 +33,7 @@ class KerasNetworkTFRNNs(tf.keras.Model):
 class KerasNetworkKerasRNNs(tf.keras.Model):
 
   def __init__(self, name=None):
-    super(KerasNetworkKerasRNNs, self).__init__(name=name)
+    super().__init__(name=name)
     self._cell = tf.keras.layers.StackedRNNCells(
         [tf.keras.layers.LSTMCell(1) for _ in range(2)])
 
@@ -44,7 +44,7 @@ class KerasNetworkKerasRNNs(tf.keras.Model):
 class LegacyRNNTest(tf.test.TestCase):
 
   def setUp(self):
-    super(LegacyRNNTest, self).setUp()
+    super().setUp()
     self._seed = 23489
     np.random.seed(self._seed)
 

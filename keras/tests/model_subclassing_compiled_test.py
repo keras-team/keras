@@ -135,7 +135,7 @@ class ModelSubclassCompiledTest(test_combinations.TestCase):
     class BNNet(keras.Model):
 
       def __init__(self):
-        super(BNNet, self).__init__()
+        super().__init__()
         self.bn = keras.layers.BatchNormalization(beta_initializer='ones',
                                                   gamma_initializer='ones')
 
@@ -165,7 +165,7 @@ class ModelSubclassCompiledTest(test_combinations.TestCase):
     class DPNet(keras.Model):
 
       def __init__(self):
-        super(DPNet, self).__init__()
+        super().__init__()
         self.dp = keras.layers.Dropout(0.5)
         self.dense = keras.layers.Dense(1,
                                         use_bias=False,
@@ -375,7 +375,7 @@ class ModelSubclassCompiledTest(test_combinations.TestCase):
     class Inner(keras.Model):
 
       def __init__(self):
-        super(Inner, self).__init__()
+        super().__init__()
         self.dense1 = keras.layers.Dense(32, activation='relu')
         self.dense2 = keras.layers.Dense(num_classes, activation='relu')
         self.bn = keras.layers.BatchNormalization()
@@ -412,7 +412,7 @@ class ModelSubclassCompiledTest(test_combinations.TestCase):
     class DPNet(keras.Model):
 
       def __init__(self):
-        super(DPNet, self).__init__()
+        super().__init__()
         self.dp = keras.layers.Dropout(0.5)
         self.dense = keras.layers.Dense(1,
                                         use_bias=False,

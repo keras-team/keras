@@ -28,7 +28,7 @@ class MLPReutersBenchmark(tf.test.Benchmark):
   """Benchmarks for MLP using `tf.test.Benchmark`."""
 
   def __init__(self):
-    super(MLPReutersBenchmark, self).__init__()
+    super().__init__()
     self.max_words = 1000
     (self.x_train, self.y_train), _ = tf.keras.datasets.reuters.load_data(
         num_words=self.max_words)

@@ -27,7 +27,7 @@ from tensorflow.python.eager.context import get_executor
 class SubclassedKerasModel(tf.keras.Model):
 
   def __init__(self, initializer="ones"):
-    super(SubclassedKerasModel, self).__init__()
+    super().__init__()
     self.layer_a = tf.keras.layers.Dense(
         64, kernel_initializer=initializer, bias_initializer="zeros")
     self.layer_b = tf.keras.layers.Dense(

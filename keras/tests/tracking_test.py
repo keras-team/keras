@@ -31,7 +31,7 @@ from tensorflow.python.training.tracking import util
 class HasList(training.Model):
 
   def __init__(self):
-    super(HasList, self).__init__()
+    super().__init__()
     self.layer_list = tf.__internal__.tracking.wrap([core.Dense(3)])
     self.layer_list.append(core.Dense(4))
     self.layer_list.extend(
@@ -111,7 +111,7 @@ class ListTests(test_combinations.TestCase):
     class _Subclassed(training.Model):
 
       def __init__(self, wrapped):
-        super(_Subclassed, self).__init__()
+        super().__init__()
         self._wrapped = wrapped
 
       def call(self, x):
@@ -129,7 +129,7 @@ class ListTests(test_combinations.TestCase):
     class AttrDict(dict):
 
       def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.__dict__ = self
 
     def ffnet(layer_sizes, name):
@@ -143,7 +143,7 @@ class ListTests(test_combinations.TestCase):
     class MyModel2(training.Model):
 
       def __init__(self, config, name="my_model_2"):
-        super(MyModel2, self).__init__(name=name)
+        super().__init__(name=name)
         self._num_tokens = config.num_tokens
 
         # list of sub-models
@@ -188,7 +188,7 @@ class ListTests(test_combinations.TestCase):
     class HasEqualContainers(training.Model):
 
       def __init__(self):
-        super(HasEqualContainers, self).__init__()
+        super().__init__()
         self.l1 = []
         self.l2 = []
 
@@ -206,7 +206,7 @@ class ListTests(test_combinations.TestCase):
     class ListToTensor(training.Model):
 
       def __init__(self):
-        super(ListToTensor, self).__init__()
+        super().__init__()
         self.l = [1., 2., 3.]
 
     self.assertAllEqual(
@@ -231,7 +231,7 @@ class ListWrapperTest(tf.test.TestCase):
 class HasMapping(training.Model):
 
   def __init__(self):
-    super(HasMapping, self).__init__()
+    super().__init__()
     self.layer_dict = tf.__internal__.tracking.wrap(dict(output=core.Dense(7)))
     self.layer_dict["norm"] = tf.__internal__.tracking.wrap([])
     self.layer_dict["dense"] = tf.__internal__.tracking.wrap([])
@@ -387,7 +387,7 @@ class MappingTests(test_combinations.TestCase):
 class HasTuple(training.Model):
 
   def __init__(self):
-    super(HasTuple, self).__init__()
+    super().__init__()
     self.layer_list = (
         core.Dense(3), core.Dense(4),
         core.Dense(5, kernel_regularizer=tf.reduce_sum))
@@ -458,7 +458,7 @@ class TupleTests(test_combinations.TestCase):
     class _Subclassed(training.Model):
 
       def __init__(self, wrapped):
-        super(_Subclassed, self).__init__()
+        super().__init__()
         self._wrapped = wrapped
 
       def call(self, x):
@@ -498,7 +498,7 @@ class TupleTests(test_combinations.TestCase):
     class HasEqualContainers(training.Model):
 
       def __init__(self):
-        super(HasEqualContainers, self).__init__()
+        super().__init__()
         self.l1 = ()
         self.l2 = ()
 
@@ -522,7 +522,7 @@ class TupleTests(test_combinations.TestCase):
     class TupleToTensor(training.Model):
 
       def __init__(self):
-        super(TupleToTensor, self).__init__()
+        super().__init__()
         self.l = (1., 2., 3.)
 
     self.assertAllEqual(
@@ -551,7 +551,7 @@ class InterfaceTests(test_combinations.TestCase):
 
       @tf.__internal__.tracking.no_automatic_dependency_tracking
       def __init__(self):
-        super(NoDependencyModel, self).__init__()
+        super().__init__()
         self.a = []
         self.b = tf.Module()
 

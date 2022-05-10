@@ -233,7 +233,7 @@ class KerasClassifier(BaseWrapper):
     else:
       raise ValueError('Invalid shape for y: ' + str(y.shape))
     self.n_classes_ = len(self.classes_)
-    return super(KerasClassifier, self).fit(x, y, **kwargs)
+    return super().fit(x, y, **kwargs)
 
   def predict(self, x, **kwargs):
     """Returns the class predictions for the given test data.

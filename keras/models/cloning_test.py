@@ -36,7 +36,7 @@ class TestModel(keras.Model):
 
   def __init__(self, n_outputs=4, trainable=True):
     """A test class with one dense layer and number of outputs as a variable."""
-    super(TestModel, self).__init__()
+    super().__init__()
     self.layer1 = keras.layers.Dense(n_outputs)
     self.n_outputs = tf.Variable(n_outputs, trainable=trainable)
 

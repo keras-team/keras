@@ -90,7 +90,7 @@ class CuDNNLSTM(_CuDNNRNN):
     self.units = units
     cell_spec = collections.namedtuple('cell', 'state_size')
     self._cell = cell_spec(state_size=(self.units, self.units))
-    super(CuDNNLSTM, self).__init__(
+    super().__init__(
         return_sequences=return_sequences,
         return_state=return_state,
         go_backwards=go_backwards,
@@ -116,7 +116,7 @@ class CuDNNLSTM(_CuDNNRNN):
     return self._cell
 
   def build(self, input_shape):
-    super(CuDNNLSTM, self).build(input_shape)
+    super().build(input_shape)
     if isinstance(input_shape, list):
       input_shape = input_shape[0]
     input_dim = int(input_shape[-1])
@@ -226,5 +226,5 @@ class CuDNNLSTM(_CuDNNRNN):
             constraints.serialize(self.recurrent_constraint),
         'bias_constraint': constraints.serialize(self.bias_constraint)
     }
-    base_config = super(CuDNNLSTM, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

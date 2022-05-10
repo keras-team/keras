@@ -72,6 +72,6 @@ class UnitNormalization(base_layer.Layer):
     return input_shape
 
   def get_config(self):
-    config = super(UnitNormalization, self).get_config()
+    config = super().get_config()
     config.update({'axis': self.axis})
     return config

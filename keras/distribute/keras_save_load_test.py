@@ -26,7 +26,7 @@ class KerasSaveLoadTest(test_base.TestSavedModelBase):
 
   def setUp(self):
     self._root_dir = 'keras_save_load'
-    super(KerasSaveLoadTest, self).setUp()
+    super().setUp()
 
   def _save_model(self, model, saved_dir):
     model.save(saved_dir, save_format='tf')

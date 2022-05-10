@@ -37,7 +37,7 @@ class ToDense(Layer):
   """Create a dense (standard) tensor from the given input tensor."""
 
   def __init__(self, default_value, **kwargs):
-    super(ToDense, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self._default_value = default_value
 
   def call(self, inputs):
@@ -63,7 +63,7 @@ class ToRagged(Layer):
   """Create a ragged tensor based on a given dense tensor."""
 
   def __init__(self, padding, ragged_rank=1, **kwargs):
-    super(ToRagged, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self._padding = padding
     self._ragged_rank = ragged_rank
 
@@ -86,7 +86,7 @@ class _SubclassModel(keras.Model):
   """A Keras subclass model."""
 
   def __init__(self, layers, i_layer=None):
-    super(_SubclassModel, self).__init__()
+    super().__init__()
     # Note that clone and build doesn't support lists of layers in subclassed
     # models. Adding each layer directly here.
     for i, layer in enumerate(layers):

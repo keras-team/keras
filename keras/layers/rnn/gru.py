@@ -139,7 +139,7 @@ class GRUCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
       self._enable_caching_device = kwargs.pop('enable_caching_device', True)
     else:
       self._enable_caching_device = kwargs.pop('enable_caching_device', False)
-    super(GRUCell, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.units = units
     self.activation = activations.get(activation)
     self.recurrent_activation = activations.get(recurrent_activation)
@@ -339,7 +339,7 @@ class GRUCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         'reset_after': self.reset_after
     }
     config.update(rnn_utils.config_for_enable_caching_device(self))
-    base_config = super(GRUCell, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
@@ -535,7 +535,7 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
         dtype=kwargs.get('dtype'),
         trainable=kwargs.get('trainable', True),
         **cell_kwargs)
-    super(GRU, self).__init__(
+    super().__init__(
         cell,
         return_sequences=return_sequences,
         return_state=return_state,
@@ -732,7 +732,7 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
             self.reset_after
     }
     config.update(rnn_utils.config_for_enable_caching_device(self.cell))
-    base_config = super(GRU, self).get_config()
+    base_config = super().get_config()
     del base_config['cell']
     return dict(list(base_config.items()) + list(config.items()))
 

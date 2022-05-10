@@ -22,7 +22,7 @@ from keras.testing_infra import test_utils
 class SimpleConvTestModel(keras.Model):
 
   def __init__(self, num_classes=10):
-    super(SimpleConvTestModel, self).__init__(name='test_model')
+    super().__init__(name='test_model')
     self.num_classes = num_classes
 
     self.conv1 = keras.layers.Conv2D(32, (3, 3), activation='relu')
@@ -59,7 +59,7 @@ class NestedTestModel1(keras.Model):
   """
 
   def __init__(self, num_classes=2):
-    super(NestedTestModel1, self).__init__(name='nested_model_1')
+    super().__init__(name='nested_model_1')
     self.num_classes = num_classes
     self.dense1 = keras.layers.Dense(32, activation='relu')
     self.dense2 = keras.layers.Dense(num_classes, activation='relu')
@@ -79,7 +79,7 @@ class NestedTestModel2(keras.Model):
   """
 
   def __init__(self, num_classes=2):
-    super(NestedTestModel2, self).__init__(name='nested_model_2')
+    super().__init__(name='nested_model_2')
     self.num_classes = num_classes
     self.dense1 = keras.layers.Dense(32, activation='relu')
     self.dense2 = keras.layers.Dense(num_classes, activation='relu')
@@ -113,7 +113,7 @@ def get_nested_model_3(input_dim, num_classes):
   class Inner(keras.Model):
 
     def __init__(self):
-      super(Inner, self).__init__()
+      super().__init__()
       self.dense1 = keras.layers.Dense(32, activation='relu')
       self.dense2 = keras.layers.Dense(5, activation='relu')
       self.bn = keras.layers.BatchNormalization()
@@ -132,7 +132,7 @@ def get_nested_model_3(input_dim, num_classes):
 class CustomCallModel(keras.Model):
 
   def __init__(self):
-    super(CustomCallModel, self).__init__()
+    super().__init__()
     self.dense1 = keras.layers.Dense(1, activation='relu')
     self.dense2 = keras.layers.Dense(1, activation='softmax')
 
@@ -147,7 +147,7 @@ class CustomCallModel(keras.Model):
 class TrainingNoDefaultModel(keras.Model):
 
   def __init__(self):
-    super(TrainingNoDefaultModel, self).__init__()
+    super().__init__()
     self.dense1 = keras.layers.Dense(1)
 
   def call(self, x, training):
@@ -157,7 +157,7 @@ class TrainingNoDefaultModel(keras.Model):
 class TrainingMaskingModel(keras.Model):
 
   def __init__(self):
-    super(TrainingMaskingModel, self).__init__()
+    super().__init__()
     self.dense1 = keras.layers.Dense(1)
 
   def call(self, x, training=False, mask=None):

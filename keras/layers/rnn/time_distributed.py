@@ -72,7 +72,7 @@ class TimeDistributed(Wrapper):
       raise ValueError(
           'Please initialize `TimeDistributed` layer with a '
           f'`tf.keras.layers.Layer` instance. Received: {layer}')
-    super(TimeDistributed, self).__init__(layer, **kwargs)
+    super().__init__(layer, **kwargs)
     self.supports_masking = True
 
     # It is safe to use the fast, reshape-based approach with all of our
@@ -132,7 +132,7 @@ class TimeDistributed(Wrapper):
     child_input_shape = tf.nest.map_structure(self._remove_timesteps,
                                               input_shape)
     child_input_shape = tf_utils.convert_shapes(child_input_shape)
-    super(TimeDistributed, self).build(tuple(child_input_shape))
+    super().build(tuple(child_input_shape))
     self.built = True
 
   def compute_output_shape(self, input_shape):

@@ -70,7 +70,7 @@ class Adadelta(optimizer.Optimizer):
                jit_compile=True,
                name='Adadelta',
                **kwargs):
-    super(Adadelta, self).__init__(
+    super().__init__(
         clipnorm=clipnorm,
         clipvalue=clipvalue,
         global_clipnorm=global_clipnorm,
@@ -127,7 +127,7 @@ class Adadelta(optimizer.Optimizer):
     variable.assign_add(lr * delta_var)
 
   def get_config(self):
-    config = super(Adadelta, self).get_config()
+    config = super().get_config()
 
     config.update({
         'learning_rate': self._serialize_hyperparameter(self._learning_rate),

@@ -40,7 +40,7 @@ class DropoutRNNCellMixin:
 
   def __init__(self, *args, **kwargs):
     self._create_non_trackable_mask_cache()
-    super(DropoutRNNCellMixin, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _create_non_trackable_mask_cache(self):
@@ -148,7 +148,7 @@ class DropoutRNNCellMixin:
   def __getstate__(self):
     # Used for deepcopy. The caching can't be pickled by python, since it will
     # contain tensor and graph.
-    state = super(DropoutRNNCellMixin, self).__getstate__()
+    state = super().__getstate__()
     state.pop('_dropout_mask_cache', None)
     state.pop('_recurrent_dropout_mask_cache', None)
     return state
@@ -158,7 +158,7 @@ class DropoutRNNCellMixin:
         self._create_dropout_mask)
     state['_recurrent_dropout_mask_cache'] = backend.ContextValueCache(
         self._create_recurrent_dropout_mask)
-    super(DropoutRNNCellMixin, self).__setstate__(state)
+    super().__setstate__(state)
 
 
 def _generate_dropout_mask(generator, ones, rate, training=None, count=1):

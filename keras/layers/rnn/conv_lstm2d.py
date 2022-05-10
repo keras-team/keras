@@ -155,7 +155,7 @@ class ConvLSTM2D(ConvLSTM):
                dropout=0.0,
                recurrent_dropout=0.0,
                **kwargs):
-    super(ConvLSTM2D, self).__init__(
+    super().__init__(
         rank=2,
         filters=filters,
         kernel_size=kernel_size,

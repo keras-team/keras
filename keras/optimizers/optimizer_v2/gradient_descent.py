@@ -105,7 +105,7 @@ class SGD(optimizer_v2.OptimizerV2):
                nesterov=False,
                name="SGD",
                **kwargs):
-    super(SGD, self).__init__(name, **kwargs)
+    super().__init__(name, **kwargs)
     self._set_hyper("learning_rate", kwargs.get("lr", learning_rate))
     self._set_hyper("decay", self._initial_decay)
 
@@ -125,7 +125,7 @@ class SGD(optimizer_v2.OptimizerV2):
         self.add_slot(var, "momentum")
 
   def _prepare_local(self, var_device, var_dtype, apply_state):
-    super(SGD, self)._prepare_local(var_device, var_dtype, apply_state)
+    super()._prepare_local(var_device, var_dtype, apply_state)
     apply_state[(var_device, var_dtype)]["momentum"] = tf.identity(
         self._get_hyper("momentum", var_dtype))
 
@@ -154,7 +154,7 @@ class SGD(optimizer_v2.OptimizerV2):
   def _resource_apply_sparse_duplicate_indices(self, grad, var, indices,
                                                **kwargs):
     if self._momentum:
-      return super(SGD, self)._resource_apply_sparse_duplicate_indices(
+      return super()._resource_apply_sparse_duplicate_indices(
           grad, var, indices, **kwargs)
     else:
       var_device, var_dtype = var.device, var.dtype.base_dtype
@@ -184,7 +184,7 @@ class SGD(optimizer_v2.OptimizerV2):
         use_nesterov=self.nesterov)
 
   def get_config(self):
-    config = super(SGD, self).get_config()
+    config = super().get_config()
     config.update({
         "learning_rate": self._serialize_hyperparameter("learning_rate"),
         "decay": self._initial_decay,

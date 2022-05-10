@@ -69,7 +69,7 @@ def _create_normalization_layer_without_adapt():
 class LayerCorrectnessTest(test_combinations.TestCase):
 
   def setUp(self):
-    super(LayerCorrectnessTest, self).setUp()
+    super().setUp()
     # Set two virtual CPUs to test MirroredStrategy with multiple devices
     cpus = tf.config.list_physical_devices('CPU')
     tf.config.set_logical_device_configuration(cpus[0], [

@@ -129,7 +129,7 @@ class AveragePooling2D(Pooling2D):
                padding='valid',
                data_format=None,
                **kwargs):
-    super(AveragePooling2D, self).__init__(
+    super().__init__(
         tf.nn.avg_pool,
         pool_size=pool_size, strides=strides,
         padding=padding, data_format=data_format, **kwargs)

@@ -37,7 +37,7 @@ from keras.utils import control_flow_util
 class DynamicLayer(base_layer.Layer):
 
   def __init__(self, dynamic=False, **kwargs):
-    super(DynamicLayer, self).__init__(dynamic=dynamic, **kwargs)
+    super().__init__(dynamic=dynamic, **kwargs)
 
   def call(self, inputs):
     samples = tf.TensorArray(
@@ -120,7 +120,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class BuildCounter(base_layer.Layer):
 
       def __init__(self, *args, **kwargs):  # pylint: disable=redefined-outer-name
-        super(BuildCounter, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.build_counter = 0
 
       def build(self, input_shape):
@@ -173,7 +173,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class MyModel(training_lib.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__(dynamic=True)
+        super().__init__(dynamic=True)
         self.layer1 = layers.Dense(3)
         self.layer2 = layers.Dense(3)
 
@@ -195,7 +195,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class MyModel(training_lib.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__(dynamic=True)
+        super().__init__(dynamic=True)
         self.layer1 = layers.Dense(3)
         self.layer2 = layers.Dense(3)
 
@@ -287,7 +287,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class TestLayer(base_layer.Layer):
 
       def __init__(self):
-        super(TestLayer, self).__init__()
+        super().__init__()
         self.default_weight = self.add_weight()
         self.weight_without_name = self.add_weight(shape=(3, 4))
         self.regularized_weight_without_name = self.add_weight(
@@ -350,7 +350,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class ComputeSum(base_layer.Layer):
 
       def __init__(self):
-        super(ComputeSum, self).__init__()
+        super().__init__()
         self.total = tf.Variable(
             initial_value=tf.zeros((1, 1)), trainable=False)
         if not tf.executing_eagerly():
@@ -415,7 +415,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class RawVariableLayer(base_layer.Layer):
 
       def __init__(self, **kwargs):
-        super(RawVariableLayer, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # Test variables in nested structure.
         self.var_list = [tf.Variable(1.), {'a': tf.Variable(2.)}]
 
@@ -612,7 +612,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class MyLayer(base_layer.Layer):
 
       def __init__(self, my_kwarg='default', **kwargs):
-        super(MyLayer, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.my_kwarg = my_kwarg
 
     # `__init__` includes kwargs but `get_config` is not overridden, so
@@ -623,11 +623,11 @@ class BaseLayerTest(test_combinations.TestCase):
     class MyLayerNew(base_layer.Layer):
 
       def __init__(self, my_kwarg='default', **kwargs):
-        super(MyLayerNew, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.my_kwarg = my_kwarg
 
       def get_config(self):
-        config = super(MyLayerNew, self).get_config()
+        config = super().get_config()
         config['my_kwarg'] = self.my_kwarg
         return config
 
@@ -638,7 +638,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class MyLayerNew2(base_layer.Layer):
 
       def __init__(self, name='MyLayerName', dtype=None, **kwargs):  # pylint:disable=redefined-outer-name
-        super(MyLayerNew2, self).__init__(name=name, dtype=dtype, **kwargs)
+        super().__init__(name=name, dtype=dtype, **kwargs)
 
     # Check that if the kwargs in `__init__` are base layer constructor
     # arguments, no error is thrown:
@@ -718,7 +718,7 @@ class BaseLayerTest(test_combinations.TestCase):
 
       def build(self, input_shape):
         self.add_weight('w', shape=input_shape[1:])
-        super(CustomLayer, self).build(input_shape)
+        super().build(input_shape)
 
     layer = CustomLayer()
     self.assertFalse(layer.built)
@@ -763,7 +763,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class CustomLayerNoTrainingArg(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
-        super(CustomLayerNoTrainingArg, self).__init__()
+        super().__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs):
@@ -772,7 +772,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class CustomLayerDefaultTrainingMissing(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
-        super(CustomLayerDefaultTrainingMissing, self).__init__()
+        super().__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, training):
@@ -784,7 +784,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class CustomLayerDefaultTrainingNone(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
-        super(CustomLayerDefaultTrainingNone, self).__init__()
+        super().__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, training=None):
@@ -796,7 +796,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class CustomLayerDefaultTrainingFalse(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
-        super(CustomLayerDefaultTrainingFalse, self).__init__()
+        super().__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, training=False):
@@ -808,7 +808,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class CustomLayerDefaultTrainingTrue(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
-        super(CustomLayerDefaultTrainingTrue, self).__init__()
+        super().__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, training=True):
@@ -829,7 +829,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class CustomLayerNoTrainingArg(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
-        super(CustomLayerNoTrainingArg, self).__init__()
+        super().__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs):
@@ -838,7 +838,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class CustomLayerDefaultTrainingMissing(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
-        super(CustomLayerDefaultTrainingMissing, self).__init__()
+        super().__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, *, training):
@@ -850,7 +850,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class CustomLayerDefaultTrainingNone(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
-        super(CustomLayerDefaultTrainingNone, self).__init__()
+        super().__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, *, training=None):
@@ -862,7 +862,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class CustomLayerDefaultTrainingFalse(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
-        super(CustomLayerDefaultTrainingFalse, self).__init__()
+        super().__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, *, training=False):
@@ -874,7 +874,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class CustomLayerDefaultTrainingTrue(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
-        super(CustomLayerDefaultTrainingTrue, self).__init__()
+        super().__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, *, training=True):
@@ -968,7 +968,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class MyModule(tf.Module):
 
       def __init__(self):
-        super(MyModule, self).__init__()
+        super().__init__()
         self.v1 = tf.Variable(1., trainable=True, name='v1')
         self.v2 = tf.Variable(2., trainable=False, name='v2')
 
@@ -978,7 +978,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class MyLayer(base_layer.Layer):
 
       def __init__(self, **kwargs):
-        super(MyLayer, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.my_modules = {}
         self.my_modules['a'] = MyModule()
 
@@ -998,7 +998,7 @@ class BaseLayerTest(test_combinations.TestCase):
     class MyModel(training_lib.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.my_modules = []
         self.my_modules.append(MyModule())
 
@@ -1158,7 +1158,7 @@ class NestedTrackingTest(tf.test.TestCase):
     class MyLayer(base_layer.Layer):
 
       def __init__(self):
-        super(MyLayer, self).__init__()
+        super().__init__()
         self.dense1 = layers.Dense(1)
         self.dense2 = layers.BatchNormalization()
 
@@ -1214,7 +1214,7 @@ class NestedTrackingTest(tf.test.TestCase):
         self.v1 = self.add_weight('v1', shape=())
 
       def __init__(self):
-        super(MyLayer, self).__init__()
+        super().__init__()
         self.ul1 = UpdateAndLossLayer()
         self.ul2 = UpdateAndLossLayer()
 
@@ -1264,7 +1264,7 @@ class NestedTrackingTest(tf.test.TestCase):
     class LayerWithClassAttribute(base_layer.Layer):
 
       def __init__(self):
-        super(LayerWithClassAttribute, self).__init__()
+        super().__init__()
         self.layer_fn = layers.Dense
 
     layer = LayerWithClassAttribute()
@@ -1302,7 +1302,7 @@ class NestedTrackingTest(tf.test.TestCase):
     class Sequential(training_lib.Model):
 
       def __init__(self):
-        super(Sequential, self).__init__()
+        super().__init__()
         self.dense_layers = [layers.Dense(10), layers.Dense(5)]
 
       def call(self, inputs):
@@ -1342,7 +1342,7 @@ class NameScopingTest(test_combinations.TestCase):
     class NestedLayer(base_layer.Layer):
 
       def __init__(self, name='OuterName'):
-        super(NestedLayer, self).__init__(name=name)
+        super().__init__(name=name)
         self.dense = layers.Dense(10, name='InnerName')
 
       def call(self, inputs):
@@ -1639,8 +1639,7 @@ class AutographControlFlowTest(test_combinations.TestCase):
     class MyLayer(base_layer.Layer):
 
       def __init__(self):
-        super(MyLayer,
-              self).__init__(dynamic=test_utils.should_run_eagerly())
+        super().__init__(dynamic=test_utils.should_run_eagerly())
 
       def call(self, inputs, training=None):
         if training:
@@ -1684,8 +1683,7 @@ class AutographControlFlowTest(test_combinations.TestCase):
     class MyLayer(base_layer.Layer):
 
       def __init__(self):
-        super(MyLayer,
-              self).__init__(dynamic=test_utils.should_run_eagerly())
+        super().__init__(dynamic=test_utils.should_run_eagerly())
 
       def call(self, inputs, training=None):
         if training:
@@ -1710,7 +1708,7 @@ class AutographControlFlowTest(test_combinations.TestCase):
     class TestModel(training_lib.Model):
 
       def __init__(self):
-        super(TestModel, self).__init__(
+        super().__init__(
             name='test_model', dynamic=test_utils.should_run_eagerly())
         self.layer = layers.Dense(2, activity_regularizer='l2')
 
@@ -1740,7 +1738,7 @@ class AutographControlFlowTest(test_combinations.TestCase):
     class TestModel(training_lib.Model):
 
       def __init__(self):
-        super(TestModel, self).__init__(
+        super().__init__(
             name='test_model', dynamic=test_utils.should_run_eagerly())
         self.layer = layers.TimeDistributed(
             layers.Dense(2, activity_regularizer='l2'), input_shape=(3, 4))
@@ -1904,7 +1902,7 @@ class DTypeTest(test_combinations.TestCase):
 
       def __init__(self, *args, **kwargs):
         kwargs['autocast'] = False
-        super(IdentityLayerWithoutAutocast, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     layer = IdentityLayerWithoutAutocast(dtype='float64')
     self.assertEqual(layer(self._const('float32')).dtype, 'float32')

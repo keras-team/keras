@@ -129,7 +129,7 @@ class Lambda(Layer):
                mask=None,
                arguments=None,
                **kwargs):
-    super(Lambda, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
     self.arguments = arguments or {}
     self.function = function
@@ -155,7 +155,7 @@ class Lambda(Layer):
       # `add_loss`.
       with tf.__internal__.eager_context.eager_mode():
         try:
-          return super(Lambda, self).compute_output_shape(input_shape)
+          return super().compute_output_shape(input_shape)
         except NotImplementedError:
           raise NotImplementedError(
               'We could not automatically infer the shape of the Lambda\'s '
@@ -275,7 +275,7 @@ class Lambda(Layer):
       })
     config['arguments'] = self.arguments
 
-    base_config = super(Lambda, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   def _serialize_function_to_config(self, inputs, allow_raw=False):

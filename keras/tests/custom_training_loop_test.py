@@ -166,7 +166,7 @@ class CustomTrainingLoopTest(test_combinations.TestCase):
     class MyModel(keras.layers.Layer):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.layer = LayerWithTrainingArg()
 
       def call(self, inputs):
@@ -203,7 +203,7 @@ class CustomTrainingLoopTest(test_combinations.TestCase):
     class MyModel(keras.layers.Layer):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.layer = LayerWithTrainingArg()
 
       def call(self, inputs, training=False):

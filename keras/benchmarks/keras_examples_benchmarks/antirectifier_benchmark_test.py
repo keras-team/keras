@@ -26,7 +26,7 @@ class AntirectifierBenchmark(tf.test.Benchmark):
   """Benchmarks for Antirectifier using `tf.test.Benchmark`."""
 
   def __init__(self):
-    super(AntirectifierBenchmark, self).__init__()
+    super().__init__()
     (self.x_train, self.y_train), _ = tf.keras.datasets.mnist.load_data()
     self.x_train = self.x_train.reshape(-1, 784)
     self.x_train = self.x_train.astype("float32") / 255
@@ -131,7 +131,7 @@ class Antirectifier(tf.keras.layers.Layer):
   """Build simple custom layer."""
 
   def __init__(self, initializer="he_normal", **kwargs):
-    super(Antirectifier, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.initializer = tf.keras.initializers.get(initializer)
 
   def build(self, input_shape):
@@ -153,7 +153,7 @@ class Antirectifier(tf.keras.layers.Layer):
 
   def get_config(self):
     # Implement get_config to enable serialization. This is optional.
-    base_config = super(Antirectifier, self).get_config()
+    base_config = super().get_config()
     config = {"initializer": tf.keras.initializers.serialize(self.initializer)}
     return dict(list(base_config.items()) + list(config.items()))
 

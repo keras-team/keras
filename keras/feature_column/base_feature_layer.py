@@ -55,7 +55,7 @@ class _BaseFeaturesLayer(Layer):
                name,
                partitioner=None,
                **kwargs):
-    super(_BaseFeaturesLayer, self).__init__(
+    super().__init__(
         name=name, trainable=trainable, **kwargs)
     self._feature_columns = _normalize_feature_columns(
         feature_columns)
@@ -77,7 +77,7 @@ class _BaseFeaturesLayer(Layer):
         with tf.compat.v1.variable_scope(
             _sanitize_column_name_for_variable_scope(column.name)):
           column.create_state(self._state_manager)
-    super(_BaseFeaturesLayer, self).build(None)
+    super().build(None)
 
   def _output_shape(self, input_shape, num_elements):
     """Computes expected output shape of the layer or a column's dense tensor.
@@ -123,8 +123,7 @@ class _BaseFeaturesLayer(Layer):
     config['partitioner'] = generic_utils.serialize_keras_object(
         self._partitioner)
 
-    base_config = super(  # pylint: disable=bad-super-call
-        _BaseFeaturesLayer, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod

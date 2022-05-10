@@ -442,7 +442,7 @@ class RaggedKerasTensor(KerasTensor):
   def _to_placeholder(self):
     ragged_spec = self.type_spec
     if ragged_spec.ragged_rank == 0 or ragged_spec.shape.rank is None:
-      return super(RaggedKerasTensor, self)._to_placeholder()
+      return super()._to_placeholder()
 
     flat_shape = ragged_spec.shape[ragged_spec.ragged_rank:]
     result = tf.compat.v1.placeholder(ragged_spec.dtype, flat_shape)
@@ -533,7 +533,7 @@ class UserRegisteredTypeKerasTensor(KerasTensor):
     type_spec = UserRegisteredSpec(x.shape, x.dtype)
     name = getattr(x, 'name', None)
 
-    super(UserRegisteredTypeKerasTensor, self).__init__(type_spec, name)
+    super().__init__(type_spec, name)
 
   @classmethod
   def from_tensor(cls, tensor):
