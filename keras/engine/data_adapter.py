@@ -30,6 +30,7 @@ from keras.engine import training_utils
 from keras.utils import data_utils
 from keras.utils import dataset_creator
 from keras.utils import tf_utils
+from tensorflow.python.distribute.input_lib import DistributedDataset
 from tensorflow.python.framework import type_spec
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
@@ -919,7 +920,6 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
       raise ValueError("`sample_weight` argument is not supported when using "
                        "`keras.utils.Sequence` as input.")
 
-    self._size = len(x)
     self._shuffle_sequence = shuffle
     self._keras_sequence = x
     self._enqueuer = None
@@ -959,7 +959,7 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
     return generator_fn
 
   def get_size(self):
-    return self._size
+    return len(self._keras_sequence)
 
   def should_recreate_iterator(self):
     return True
@@ -1139,6 +1139,8 @@ class DataHandler:
     self._insufficient_data = False
     self._model = model
 
+    self._steps_per_epoch = steps_per_epoch
+
     # `steps_per_execution_value` is the cached initial value.
     # `steps_per_execution` is mutable and may be changed by the DataAdapter
     # to handle partial executions.
@@ -1196,6 +1198,10 @@ class DataHandler:
           break
         if self._adapter.should_recreate_iterator():
           data_iterator = iter(self._dataset)
+          if not isinstance(self._dataset, DistributedDataset):
+            steps = self._infer_steps(self._steps_per_epoch, self._dataset)
+            if steps is not None:
+              self._inferred_steps = steps
         yield epoch, data_iterator
         self._adapter.on_epoch_end()
 

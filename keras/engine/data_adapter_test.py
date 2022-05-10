@@ -26,6 +26,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.engine import data_adapter
 from keras.utils import data_utils
+from tensorflow.python.eager import context
 
 
 class DummyArrayLike:
@@ -115,6 +116,78 @@ class TestRaggedSequence(TestSequence):
     row_lengths = np.full(self.batch_size, 2)
     rt = tf.RaggedTensor.from_row_lengths(values, row_lengths)
     return (rt, np.ones((self.batch_size,)))
+
+
+class TestBatchSequence(data_utils.Sequence):
+
+  def __init__(self, batch_size, feature_shape, epochs=2):
+    """Creates a keras.utils.Sequence with increasing batch_size.
+
+    Args:
+        batch_size (Union[int, List[int]]): Can be a list containing two values:
+          start and end batch_size
+        feature_shape (int): Number of features in a sample
+        epochs (int, optional): Number of epochs
+    """
+    self.batch_size = batch_size
+    self.feature_shape = feature_shape
+
+    self._epochs = epochs
+    # we use `on_epoch_end` method to prepare data for the next epoch
+    # set current epoch to `-1`, so that `on_epoch_end` will increase it to `0`
+    self._current_epoch = -1
+    # actual batch size will be set inside `on_epoch_end`
+    self._current_batch_size = 0
+
+    self.on_epoch_end()
+
+  def __len__(self):
+    """Number of batches in the Sequence.
+
+    Returns: int
+        The number of batches in the Sequence.
+    """
+    # data was rebalanced, so need to recalculate number of examples
+    num_examples = 20
+    batch_size = self._current_batch_size
+    return num_examples // batch_size + int(
+        num_examples % batch_size >
+        0)  # = math.ceil(num_examples / batch_size )
+
+  def __getitem__(self, index):
+    """Gets batch at position `index`.
+
+    Arguments:
+        index (int): position of the batch in the Sequence.
+    Returns: Tuple[Any, Any] A batch (tuple of input data and target data).
+    """
+    # return input and target data, as our target data is inside the input
+    # data return None for the target data
+    return (np.zeros((self._current_batch_size, self.feature_shape)),
+            np.ones((self._current_batch_size,)))
+
+  def on_epoch_end(self):
+    """Updates the data after every epoch."""
+    self._current_epoch += 1
+    if self._current_epoch < self._epochs:
+      self._current_batch_size = self._linearly_increasing_batch_size()
+
+  def _linearly_increasing_batch_size(self):
+    """Linearly increase batch size with every epoch.
+
+    The idea comes from https://arxiv.org/abs/1711.00489.
+
+    Returns: int
+        The batch size to use in this epoch.
+    """
+    if not isinstance(self.batch_size, list):
+      return int(self.batch_size)
+
+    if self._epochs > 1:
+      return int(self.batch_size[0] + self._current_epoch *
+                 (self.batch_size[1] - self.batch_size[0]) / (self._epochs - 1))
+    else:
+      return int(self.batch_size[0])
 
 
 class TensorLikeDataAdapterTest(DataAdapterTestBase):
@@ -400,6 +473,82 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
     self.assertEqual(adapter.get_size(), size)   # 50/steps
     self.assertEqual(adapter.has_partial_batch(), bool(partial_batch_size))
     self.assertEqual(adapter.partial_batch_size(), partial_batch_size or None)
+
+
+class IncreasingBatchSizeAdapterTest(test_combinations.TestCase):
+
+  def setUp(self):
+    super(IncreasingBatchSizeAdapterTest, self).setUp()
+    self.adapter_cls = data_adapter.KerasSequenceAdapter
+
+    self.epochs = 2
+    self.increasing_batch_size = [5, 10]
+    self.sequence_input = TestBatchSequence(
+        batch_size=self.increasing_batch_size,
+        feature_shape=10,
+        epochs=self.epochs,
+    )
+    self.model = keras.models.Sequential(
+        [keras.layers.Dense(8, input_shape=(10,), activation='softmax')])
+
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  def test_training_with_test_batch_sequence(self):
+    """Ensures TestBatchSequence works as expected."""
+    self.model.compile(
+        loss='sparse_categorical_crossentropy',
+        optimizer='sgd',
+        run_eagerly=test_utils.should_run_eagerly())
+
+    # Check state before fit()
+    self.assertEqual(self.sequence_input._current_epoch, 0)
+    self.assertEqual(self.sequence_input._current_batch_size, 5)
+
+    # Execute fit()
+    self.model.fit(self.sequence_input, epochs=self.epochs)
+
+    # Check state after fit()
+    self.assertEqual(self.sequence_input._current_epoch, 2)
+    self.assertEqual(self.sequence_input._current_batch_size, 10)
+
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  def test_training_with_increasing_batch_size(self):
+    """Ensures data_adapters DataHandler & DataAdapter work as expected."""
+    self.model.compile(
+        loss='sparse_categorical_crossentropy',
+        optimizer='sgd',
+        run_eagerly=test_utils.should_run_eagerly())
+    self.model.stop_training = False
+    self.model.train_function = self.model.make_train_function()
+
+    # Check state before fit()
+    self.assertEqual(self.sequence_input._current_epoch, 0)
+    self.assertEqual(self.sequence_input._current_batch_size, 5)
+    data_handler = data_adapter.get_data_handler(
+        self.sequence_input,
+        epochs=self.epochs,
+        model=self.model,
+    )
+    self.assertEqual(data_handler.inferred_steps, 4)  # 20 samples / 5 bs = 4
+
+    # Execute fit()-loop
+    for epoch, iterator in data_handler.enumerate_epochs():
+      self.model.reset_metrics()
+      with data_handler.catch_stop_iteration():
+        for step in data_handler.steps():
+          with tf.profiler.experimental.Trace(
+              'train',
+              epoch_num=epoch,
+              step_num=step,
+              batch_size=self.sequence_input._current_batch_size,
+              _r=1,
+          ):
+            if data_handler.should_sync:
+              context.async_wait()
+            if self.model.stop_training:
+              break
+
+    # Check state after fit()
+    self.assertEqual(data_handler.inferred_steps, 2)  # 20 samples / 10 bs = 2
 
 
 class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
