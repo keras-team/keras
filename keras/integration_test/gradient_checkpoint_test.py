@@ -143,6 +143,7 @@ def _train_with_recompute(n_steps):
 class GradientCheckpointTest(tf.test.TestCase):
 
   def test_raises_oom_exception(self):
+    self.skipTest('b/232015009: flaky test')
     if not _limit_gpu_memory():
       self.skipTest('No virtual GPUs found')
     with self.assertRaises(Exception) as context:
