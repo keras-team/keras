@@ -20,6 +20,7 @@ from absl import flags
 from absl.testing import parameterized
 import numpy as np
 
+from keras.applications import convnext
 from keras.applications import densenet
 from keras.applications import efficientnet
 from keras.applications import efficientnet_v2
@@ -55,6 +56,10 @@ ARG_TO_MODEL = {
     'mobilenet_v2': (mobilenet_v2, [mobilenet_v2.MobileNetV2]),
     'mobilenet_v3_small': (mobilenet_v3, [mobilenet_v3.MobileNetV3Small]),
     'mobilenet_v3_large': (mobilenet_v3, [mobilenet_v3.MobileNetV3Large]),
+    'convnext': 
+        (convnext, 
+        [convnext.ConvNeXtTiny, convnext.ConvNeXtSmall, convnext.ConvNeXtBase,
+        convnext.ConvNeXtLarge, convnext.ConvNeXtXLarge]),
     'densenet':
         (densenet,
          [densenet.DenseNet121, densenet.DenseNet169, densenet.DenseNet201]),
