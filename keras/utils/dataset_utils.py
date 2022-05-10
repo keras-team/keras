@@ -24,8 +24,10 @@ import warnings
 import random
 
 import numpy as np
+from tensorflow.python.util.tf_export import keras_export
 
 
+@keras_export('keras.utils.split_dataset', v1=[])
 def split_dataset(dataset,
                   left_size=None,
                   right_size=None,
@@ -53,8 +55,9 @@ def split_dataset(dataset,
   dataset_type_spec = _get_type_spec(dataset)
 
   if dataset_type_spec not in [tf.data.Dataset, list, tuple, np.ndarray]:
-    raise TypeError('`dataset` must be either a tf.data.Dataset object '
-                    f'or a list/tuple of arrays. Received : {type(dataset)}')
+    raise TypeError('The `dataset` argument must be either a `tf.data.Dataset` '
+                    'object or a list/tuple of arrays. '
+                    f'Received: dataset={dataset} of type {type(dataset)}')
 
   if right_size is None and left_size is None:
     raise ValueError('At least one of the `left_size` or `right_size` '
@@ -114,7 +117,7 @@ def _convert_dataset_to_list(dataset,
         samples. Defaults to True.
 
   Returns:
-      List: A list of tuples/numpy arrays.
+      List: A list of tuples/NumPy arrays.
   """
   dataset_iterator = _get_data_iterator_from_dataset(dataset, dataset_type_spec)
   dataset_as_list = []
@@ -157,15 +160,15 @@ def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
       expected_shape = dataset[0].shape
       for i, element in enumerate(dataset):
         if np.array(element).shape[0] != expected_shape[0]:
-          raise ValueError('Received a list of numpy arrays with different '
+          raise ValueError('Received a list of NumPy arrays with different '
                            f'lengths. Mismatch found at index {i}, '
                            f'Expected shape={expected_shape} '
                            f'Received shape={np.array(element).shape}.'
-                           f'Please provide a list of numpy arrays with '
-                           f'same length.')
+                           f'Please provide a list of NumPy arrays with '
+                           f'the same length.')
     else:
-      raise ValueError('Expected a list of numpy.ndarrays,'
-                       'Received: {}'.format(type(dataset[0])))
+      raise ValueError('Expected a list of `numpy.ndarray` objects,'
+                       f'Received: {type(dataset[0])}')
 
     return iter(zip(*dataset))
   elif dataset_type_spec == tuple:
@@ -177,15 +180,15 @@ def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
       expected_shape = dataset[0].shape
       for i, element in enumerate(dataset):
         if np.array(element).shape[0] != expected_shape[0]:
-          raise ValueError('Received a tuple of numpy arrays with different '
+          raise ValueError('Received a tuple of NumPy arrays with different '
                            f'lengths. Mismatch found at index {i}, '
                            f'Expected shape={expected_shape} '
                            f'Received shape={np.array(element).shape}.'
-                           f'Please provide a tuple of numpy arrays with '
-                           'same length.')
+                           f'Please provide a tuple of NumPy arrays with '
+                           'the same length.')
     else:
-      raise ValueError('Expected a tuple of numpy.ndarrays, '
-                       'Received: {}'.format(type(dataset[0])))
+      raise ValueError('Expected a tuple of `numpy.ndarray` objects, '
+                       f'Received: {type(dataset[0])}')
 
     return iter(zip(*dataset))
   elif dataset_type_spec == tf.data.Dataset:
@@ -231,8 +234,8 @@ def _get_next_sample(dataset_iterator, ensure_shape_similarity,
     yield first_sample
   except StopIteration:
     raise ValueError('Received an empty Dataset. `dataset` must '
-                     'be a non-empty list/tuple of numpy.ndarrays '
-                     'or tf.data.Dataset objects.')
+                     'be a non-empty list/tuple of `numpy.ndarray` objects '
+                     'or `tf.data.Dataset` objects.')
 
   for i, sample in enumerate(dataset_iterator):
     if ensure_shape_similarity:
@@ -248,9 +251,9 @@ def _get_next_sample(dataset_iterator, ensure_shape_similarity,
         if int(cur_time - start_time) > 10 and data_size_warning_flag:
           warnings.warn(
               'The dataset is taking longer than 10 seconds to '
-              'iterate. This may be due to the size of the dataset. '
-              'Please consider using a smaller dataset'
-              '(e.g. < 10,000 samples).',
+              'iterate over. This may be due to the size of the dataset. '
+              'Keep in mind that the `split_dataset` utility is only for '
+              'small in-memory dataset (e.g. < 10,000 samples).',
               category=ResourceWarning,
               source='split_dataset')
           data_size_warning_flag = False
@@ -308,24 +311,25 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
 
   # check left_size is a integer or float
   if left_size is not None and left_size_type not in [int, float]:
-    raise TypeError('Invalid `left_size` Type.Expected: int or float or None, '
+    raise TypeError('Invalid `left_size` Type. Expected: int or float or None, '
                     f'Received: type(left_size)={left_size_type}.  ')
 
   # check right_size is a integer or float
   if right_size is not None and right_size_type not in [int, float]:
-    raise TypeError(f'Invalid `right_size` Type.Expected: int or float or None,'
-                    f'Received: type(right_size)={right_size_type}.  ')
+    raise TypeError(f'Invalid `right_size` Type. '
+                    'Expected: int or float or None,'
+                    f'Received: type(right_size)={right_size_type}.')
 
   # check left_size and right_size are non-zero
   if left_size == 0 and right_size == 0:
     raise ValueError('Both `left_size` and `right_size` are zero. '
-                     'Atleast one of the split sizes must be non-zero.')
+                     'At least one of the split sizes must be non-zero.')
 
   # check left_size is non-negative and less than 1 and less than total_length
   if (left_size_type == int and (left_size <= 0 or left_size >= total_length) or
       left_size_type == float and (left_size <= 0 or left_size >= 1)):
     raise ValueError('`left_size` should be either a positive integer '
-                     f'and smaller than {total_length} or a float '
+                     f'smaller than {total_length}, or a float '
                      'within the range `[0, 1]`. Received: left_size='
                      f'{left_size}')
 
@@ -368,7 +372,7 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
   for split, side in [(left_size, 'left'), (right_size, 'right')]:
     if split == 0:
       raise ValueError(f'With `dataset` of length={total_length}, `left_size`='
-                       '{left_size} and `right_size`={right_size}.'
+                       f'{left_size} and `right_size`={right_size}.'
                        f'Resulting {side} side dataset split will be empty. '
                        'Adjust any of the aforementioned parameters')
 
@@ -460,8 +464,7 @@ def index_directory(directory,
         raise ValueError(
             'The `class_names` passed did not match the '
             'names of the subdirectories of the target directory. '
-            'Expected: %s, but received: %s' %
-            (subdirs, class_names))
+            f'Expected: {subdirs}, but received: {class_names}')
   class_indices = dict(zip(class_names, range(len(class_names))))
 
   # Build an index of the files
@@ -482,9 +485,9 @@ def index_directory(directory,
   if labels not in ('inferred', None):
     if len(labels) != len(filenames):
       raise ValueError('Expected the lengths of `labels` to match the number '
-                       'of files in the target directory. len(labels) is %s '
-                       'while we found %s files in %s.' % (
-                           len(labels), len(filenames), directory))
+                       'of files in the target directory. len(labels) is '
+                       f'{len(labels)} while we found {len(filenames)} files '
+                       f'in directory {directory}.')
   else:
     i = 0
     labels = np.zeros((len(filenames),), dtype='int32')
@@ -493,10 +496,10 @@ def index_directory(directory,
       i += len(partial_labels)
 
   if labels is None:
-    print('Found %d files.' % (len(filenames),))
+    print(f'Found {len(filenames)} files.')
   else:
-    print('Found %d files belonging to %d classes.' %
-          (len(filenames), len(class_names)))
+    print(f'Found {len(filenames)} files belonging '
+          f'to {len(class_names)} classes.')
   pool.close()
   pool.join()
   file_paths = [tf.io.gfile.join(directory, fname) for fname in filenames]
@@ -570,16 +573,16 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
 
   num_val_samples = int(validation_split * len(samples))
   if subset == 'training':
-    print('Using %d files for training.' % (len(samples) - num_val_samples,))
+    print(f'Using {len(samples) - num_val_samples} files for training.')
     samples = samples[:-num_val_samples]
     labels = labels[:-num_val_samples]
   elif subset == 'validation':
-    print('Using %d files for validation.' % (num_val_samples,))
+    print(f'Using {num_val_samples} files for validation.')
     samples = samples[-num_val_samples:]
     labels = labels[-num_val_samples:]
   else:
     raise ValueError('`subset` must be either "training" '
-                     'or "validation", received: %s' % (subset,))
+                     f'or "validation", received: {subset}')
   return samples, labels
 
 
@@ -622,14 +625,14 @@ def check_validation_split_arg(validation_split, subset, shuffle, seed):
   """
   if validation_split and not 0 < validation_split < 1:
     raise ValueError(
-        '`validation_split` must be between 0 and 1, received: %s' %
-        (validation_split,))
+        '`validation_split` must be between 0 and 1, '
+        f'received: {validation_split}')
   if (validation_split or subset) and not (validation_split and subset):
     raise ValueError(
         'If `subset` is set, `validation_split` must be set, and inversely.')
   if subset not in ('training', 'validation', 'both', None):
     raise ValueError('`subset` must be either "training", '
-                     '"validation" or "both", received: %s' % (subset,))
+                     f'"validation" or "both", received: {subset}')
   if validation_split and shuffle and seed is None:
     raise ValueError(
         'If using `validation_split` and shuffling the data, you must provide '
