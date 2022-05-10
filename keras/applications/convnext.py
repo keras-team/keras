@@ -34,7 +34,7 @@ from keras.engine import training
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
-BASE_WEIGHTS_PATH = "https://storage.googleapis.com/convnext-tf/keras-applications-temp/convnext/"
+BASE_WEIGHTS_PATH = "https://storage.googleapis.com/tensorflow/keras-applications/convnext/"
 
 WEIGHTS_HASHES = {
   "tiny":
