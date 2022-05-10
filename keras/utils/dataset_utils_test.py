@@ -60,14 +60,14 @@ class SplitDatasetTest(tf.test.TestCase):
 
   def test_dataset_with_invalid_shape(self):
     with self.assertRaisesRegex(
-        ValueError, 'Received a list of numpy arrays '
-        'with different length'):
+        ValueError, 'Received a list of NumPy arrays '
+        'with different lengths'):
       dataset = [np.ones(shape=(200, 32)), np.zeros(shape=(100, 32))]
       dataset_utils.split_dataset(dataset, left_size=4)
 
     with self.assertRaisesRegex(
-        ValueError, 'Received a tuple of numpy arrays '
-        'with different length'):
+        ValueError, 'Received a tuple of NumPy arrays '
+        'with different lengths'):
       dataset = (np.ones(shape=(200, 32)), np.zeros(shape=(201, 32)))
       dataset_utils.split_dataset(dataset, left_size=4)
 
@@ -293,35 +293,30 @@ class SplitDatasetTest(tf.test.TestCase):
 
   def test_invalid_dataset(self):
     with self.assertRaisesRegex(
-        TypeError, '`dataset` must be either a tf.data.Dataset '
-        'object or a list/tuple of arrays. Received '
-        ': <class \'NoneType\'>'):
+        TypeError, 'The `dataset` argument must be either a `tf.data.Dataset` '
+        'object or a list/tuple of arrays.'):
       dataset_utils.split_dataset(dataset=None, left_size=5)
     with self.assertRaisesRegex(
-        TypeError, '`dataset` must be either a tf.data.Dataset '
-        'object or a list/tuple of arrays. Received '
-        ': <class \'int\'>'):
+        TypeError, 'The `dataset` argument must be either a `tf.data.Dataset` '
+        'object or a list/tuple of arrays.'):
       dataset_utils.split_dataset(dataset=1, left_size=5)
     with self.assertRaisesRegex(
-        TypeError, '`dataset` must be either a tf.data.Dataset '
-        'object or a list/tuple of arrays. Received '
-        ': <class \'float\'>'):
+        TypeError, 'The `dataset` argument must be either a `tf.data.Dataset` '
+        'object or a list/tuple of arrays.'):
       dataset_utils.split_dataset(dataset=float(1.2), left_size=5)
     with self.assertRaisesRegex(
-        TypeError, '`dataset` must be either a tf.data.Dataset '
-        'object or a list/tuple of arrays. Received '
-        ': <class \'dict\'>'):
+        TypeError, 'The `dataset` argument must be either a `tf.data.Dataset` '
+        'object or a list/tuple of arrays.'):
       dataset_utils.split_dataset(dataset=dict({}), left_size=5)
     with self.assertRaisesRegex(
-        TypeError, '`dataset` must be either a tf.data.Dataset '
-        'object or a list/tuple of arrays. Received '
-        ': <class \'float\'>'):
+        TypeError, 'The `dataset` argument must be either a `tf.data.Dataset` '
+        'object or a list/tuple of arrays.'):
       dataset_utils.split_dataset(dataset=float('INF'), left_size=5)
 
   def test_valid_left_and_right_sizes(self):
     dataset = np.array([1, 2, 3])
     splitted_dataset = dataset_utils.split_dataset(dataset, 1, 2)
-    assert (len(splitted_dataset) == 2)
+    self.assertLen(splitted_dataset, 2)
     left_split, right_split = splitted_dataset
     self.assertEqual(len(left_split), 1)
     self.assertEqual(len(right_split), 2)
@@ -358,7 +353,7 @@ class SplitDatasetTest(tf.test.TestCase):
     dataset = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     splitted_dataset = dataset_utils.split_dataset(
         dataset, left_size=0.1, right_size=0.9)
-    assert (len(splitted_dataset) == 2)
+    self.assertLen(splitted_dataset, 2)
     left_split, right_split = splitted_dataset
     self.assertEqual(len(left_split), 1)
     self.assertEqual(len(right_split), 9)
@@ -368,7 +363,7 @@ class SplitDatasetTest(tf.test.TestCase):
     dataset = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     splitted_dataset = dataset_utils.split_dataset(
         dataset, left_size=2, right_size=5)
-    assert (len(splitted_dataset) == 2)
+    self.assertLen(splitted_dataset, 2)
     left_split, right_split = splitted_dataset
     self.assertEqual(len(left_split), 2)
     self.assertEqual(len(right_split), 5)
@@ -413,7 +408,7 @@ class SplitDatasetTest(tf.test.TestCase):
       dataset_utils.split_dataset(np.array([1, 2, 3]), left_size=3)
 
     expected_regex = ('Both `left_size` and `right_size` are zero. '
-                      'Atleast one of the split sizes must be non-zero.')
+                      'At least one of the split sizes must be non-zero.')
     with self.assertRaisesRegex(ValueError, expected_regex):
       dataset_utils.split_dataset(
           np.array([1, 2, 3]), left_size=0, right_size=0)

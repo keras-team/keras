@@ -129,6 +129,10 @@ tf_module {
     argspec: "args=[\'seed\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "split_dataset"
+    argspec: "args=[\'dataset\', \'left_size\', \'right_size\', \'shuffle\', \'seed\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'False\', \'None\'], "
+  }
+  member_method {
     name: "text_dataset_from_directory"
     argspec: "args=[\'directory\', \'labels\', \'label_mode\', \'class_names\', \'batch_size\', \'max_length\', \'shuffle\', \'seed\', \'validation_split\', \'subset\', \'follow_links\'], varargs=None, keywords=None, defaults=[\'inferred\', \'int\', \'None\', \'32\', \'None\', \'True\', \'None\', \'None\', \'None\', \'False\'], "
   }
