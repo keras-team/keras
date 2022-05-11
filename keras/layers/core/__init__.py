@@ -20,7 +20,7 @@ from keras.layers.core.einsum_dense import EinsumDense
 from keras.layers.core.embedding import Embedding
 from keras.layers.core.lambda_layer import Lambda
 from keras.layers.core.masking import Masking
-# Required by third_party/py/tensorflow_gnn/graph/keras/keras_tensors.py
+# Required by third_party/py/tensorflow_gnn/keras/keras_tensors.py
 from keras.layers.core.tf_op_layer import _delegate_method
 from keras.layers.core.tf_op_layer import _delegate_property
 from keras.layers.core.tf_op_layer import ClassMethod
