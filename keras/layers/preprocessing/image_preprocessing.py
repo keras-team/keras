@@ -37,6 +37,8 @@ IMAGES = 'images'
 LABELS = 'labels'
 BOUNDING_BOXES = 'bounding_boxes'
 
+_VALUE_RANGE_VALIDATION_ERROR = (
+    'The `value_range` argument should be a list of two numbers. ')
 
 def check_fill_mode_and_interpolation(fill_mode, interpolation):
   if fill_mode not in {'reflect', 'wrap', 'constant', 'nearest'}:
@@ -1483,7 +1485,7 @@ class RandomContrast(BaseImageAugmentationLayer):
     seed: Integer. Used to create a random seed.
   """
 
-  def __init__(self, factor, seed=None, **kwargs):
+  def __init__(self, factor, value_range=(0, 255), seed=None, **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomContrast').set(
         True)
     super(RandomContrast, self).__init__(seed=seed, force_generator=True,
@@ -1497,7 +1499,17 @@ class RandomContrast(BaseImageAugmentationLayer):
     if self.lower < 0. or self.upper < 0. or self.lower > 1.:
       raise ValueError('Factor cannot have negative values or greater than 1.0,'
                        ' got {}'.format(factor))
+    self._set_value_range(value_range)
     self.seed = seed
+
+  def _set_value_range(self, value_range):
+    if not isinstance(value_range, (tuple, list)):
+      raise ValueError(
+          self._VALUE_RANGE_VALIDATION_ERROR + f'Got {value_range}')
+    if len(value_range) != 2:
+      raise ValueError(
+          self._VALUE_RANGE_VALIDATION_ERROR + f'Got {value_range}')
+    self._value_range = sorted(value_range)
 
   def get_random_transformation(self,
                                 image=None,
@@ -1513,7 +1525,11 @@ class RandomContrast(BaseImageAugmentationLayer):
   def augment_image(self, image, transformation):
     contrast_factor = transformation['contrast_factor']
     output = tf.image.adjust_contrast(image, contrast_factor=contrast_factor)
-    output = tf.clip_by_value(output, 0, 255)
+    output = tf.clip_by_value(
+        output,
+        self._value_range[0],
+        self._value_range[1]
+    )
     output.set_shape(image.shape)
     return output
 
@@ -1526,6 +1542,7 @@ class RandomContrast(BaseImageAugmentationLayer):
   def get_config(self):
     config = {
         'factor': self.factor,
+        'value_range': self._value_range,
         'seed': self.seed,
     }
     base_config = super(RandomContrast, self).get_config()
@@ -1592,8 +1609,6 @@ class RandomBrightness(BaseImageAugmentationLayer):
   _FACTOR_VALIDATION_ERROR = (
       'The `factor` argument should be a number (or a list of two numbers) '
       'in the range [-1.0, 1.0]. ')
-  _VALUE_RANGE_VALIDATION_ERROR = (
-      'The `value_range` argument should be a list of two numbers. ')
 
   def __init__(self, factor, value_range=(0, 255), seed=None, **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomBrightness').set(

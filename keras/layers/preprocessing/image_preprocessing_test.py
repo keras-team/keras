@@ -738,6 +738,24 @@ class RandomContrastTest(test_combinations.TestCase):
       layer = image_preprocessing.RandomContrast(amplitude)
       layer(input_images)
 
+  @test_utils.run_v2_only
+  def test_output_value_range(self):
+    layer = image_preprocessing.RandomContrast(factor=0.5, value_range=[0, 255])
+    inputs = np.random.randint(0, 255, size=(224, 224, 3))
+    output = layer(inputs)
+    output_min = tf.math.reduce_min(output)
+    output_max = tf.math.reduce_max(output)
+    self.assertGreaterEqual(output_min, 0)
+    self.assertLessEqual(output_max, 255)
+
+    layer = image_preprocessing.RandomContrast(factor=0.5, value_range=[0, 1])
+    inputs = np.random.randint(0, 1, size=(224, 224, 3))
+    output = layer(inputs)
+    output_min = tf.math.reduce_min(output)
+    output_max = tf.math.reduce_max(output)
+    self.assertGreaterEqual(output_min, 0)
+    self.assertLessEqual(output_max, 255)
+
   def test_random_contrast_inference(self):
     input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
     expected_output = input_images
@@ -1631,7 +1649,7 @@ class RandomRotationTest(test_combinations.TestCase):
     with test_utils.use_gpu():
       input_image = np.random.random((512, 512, 3)).astype(np.float32)
       bboxes = tf.convert_to_tensor([[200,200,400,400],[100,100,300,300]])
-      input = {'images':input_image, 'bounding_boxes':bboxes}
+      input = {'images': input_image, 'bounding_boxes': bboxes}
       # 180 rotation.
       layer = image_preprocessing.RandomRotation(factor=(0.0833, 0.0833))
       output_bbox = layer(input)
