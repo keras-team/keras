@@ -241,6 +241,7 @@ class L1L2(Regularizer):
     if self.l1:
       regularization += self.l1 * tf.reduce_sum(tf.abs(x))
     if self.l2:
+      # equivalent to "self.l2 * tf.reduce_sum(tf.square(x))"
       regularization += 2.0 * self.l2 * tf.nn.l2_loss(x)
     return regularization
 
@@ -310,6 +311,7 @@ class L2(Regularizer):
     self.l2 = backend.cast_to_floatx(l2)
 
   def __call__(self, x):
+    # equivalent to "self.l2 * tf.reduce_sum(tf.square(x))"
     return 2.0 * self.l2 * tf.nn.l2_loss(x)
 
   def get_config(self):
