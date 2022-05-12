@@ -420,7 +420,6 @@ distribute_py_test(
         "no_windows_gpu",
         "noasan",  # TODO(b/337374867) fails with -fsanitize=null
         "nomultivm",  # TODO(b/170502145)
-        "notpu",  # TODO(b/210148661)
         "notsan",
     ],
     xla_enable_strict_auto_jit = False,  # Tensorflow also fails.
