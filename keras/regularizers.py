@@ -368,7 +368,8 @@ class OrthogonalRegularizer(Regularizer):
       size = inputs.shape[1]
     product_no_diagonal = product * (1. - tf.eye(size, dtype=inputs.dtype))
     num_pairs = size * (size - 1.) / 2.
-    return self.factor * 0.5 * tf.reduce_sum(product_no_diagonal) / num_pairs
+    return self.factor * 0.5 * tf.reduce_sum(
+        tf.abs(product_no_diagonal)) / num_pairs
 
   def get_config(self):
     return {'factor': float(self.factor), 'mode': self.mode}
