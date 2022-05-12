@@ -346,7 +346,7 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
     class LayerWithNestedSpec(keras.layers.Layer):
 
       def __init__(self):
-        super(LayerWithNestedSpec, self).__init__()
+        super().__init__()
         self.input_spec = {
             'a': keras.layers.InputSpec(max_ndim=3, axes={-1: 2}),
             'b': keras.layers.InputSpec(shape=(None, 2, 3), dtype='int32')}
@@ -590,7 +590,7 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
     class Model(keras.models.Model):
 
       def __init__(self):
-        super(Model, self).__init__()
+        super().__init__()
         self.layer_with_training_default_none = LayerWithLearningPhase()
         self.layer_with_training_default_true = LayerWithTrainingDefaultTrue()
         self.layer_with_required_training_arg = LayerWithTrainingRequiredArg()
@@ -714,10 +714,10 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
 
       def build(self, input_shape):
         self.w = self.add_weight('w', shape=[])
-        super(CustomAdd, self).build(input_shape)
+        super().build(input_shape)
 
       def call(self, inputs):
-        outputs = super(CustomAdd, self).call(inputs)
+        outputs = super().call(inputs)
         return outputs * self.w
 
     input1 = keras.layers.Input(shape=(None, 3), name='input_1')
@@ -967,7 +967,7 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
     class Custom(keras.models.Model):
 
       def __init__(self):
-        super(Custom, self).__init__()
+        super().__init__()
         self.layer = LayerWithLearningPhase()
 
       def call(self, inputs):
@@ -1009,7 +1009,7 @@ class TestSavedModelFormat(tf.test.TestCase):
     class Model(keras.models.Model):
 
       def __init__(self):
-        super(Model, self).__init__()
+        super().__init__()
         self.layer = CustomLayer()
 
       @tf.function(
@@ -1055,7 +1055,7 @@ class TestSavedModelFormat(tf.test.TestCase):
     class DoNotTrace(keras.layers.Layer):
 
       def __init__(self):
-        super(DoNotTrace, self).__init__()
+        super().__init__()
         self.input_spec = keras.layers.InputSpec(shape=[None])
         self.built = True
 
@@ -1181,7 +1181,7 @@ class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
 
       def __init__(self):
         self.child = LayerWithKwargs()
-        super(LayerWithChildLayer, self).__init__()
+        super().__init__()
 
       def call(self, inputs):
         return self.child(inputs)
@@ -1210,7 +1210,7 @@ class CustomMeanMetric(keras.metrics.Mean):
     # Sometimes built-in metrics return an op in update_state. Custom
     # metrics don't support returning ops, so wrap the update_state method
     # while returning nothing.
-    super(CustomMeanMetric, self).update_state(*args)
+    super().update_state(*args)
 
 
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
@@ -1300,7 +1300,7 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
         # Sometimes built-in metrics return an op in update_state. Custom
         # metrics don't support returning ops, so wrap the update_state method
         # while returning nothing.
-        super(CustomMetric, self).update_state(*args)
+        super().update_state(*args)
 
     with self.cached_session():
       metric = CustomMetric()
@@ -1352,7 +1352,7 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
       @tf.function(
           input_signature=[tf.TensorSpec(None, tf.float32)])
       def update_state(self, value):
-        super(NegativeMean, self).update_state(-value)
+        super().update_state(-value)
 
     metric = NegativeMean()
     self.evaluate([v.initializer for v in metric.variables])

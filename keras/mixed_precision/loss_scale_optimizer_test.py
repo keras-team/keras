@@ -636,8 +636,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                           experimental_aggregate_gradients=True):
         for grad, _ in grads_and_vars:
           outer_self.assertIsInstance(grad, tf.Tensor)
-        return super(MyOptimizer,
-                     self).apply_gradients(grads_and_vars, name,
+        return super().apply_gradients(grads_and_vars, name,
                                            experimental_aggregate_gradients)
 
     with create_mirrored_strategy().scope() as strategy:

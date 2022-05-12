@@ -90,7 +90,7 @@ class Resizing(base_layer.Layer):
     self.interpolation = interpolation
     self.crop_to_aspect_ratio = crop_to_aspect_ratio
     self._interpolation_method = image_utils.get_interpolation(interpolation)
-    super(Resizing, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Resizing').set(True)
 
   def call(self, inputs):
@@ -139,7 +139,7 @@ class Resizing(base_layer.Layer):
         'interpolation': self.interpolation,
         'crop_to_aspect_ratio': self.crop_to_aspect_ratio,
     }
-    base_config = super(Resizing, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -178,7 +178,7 @@ class CenterCrop(base_layer.Layer):
   def __init__(self, height, width, **kwargs):
     self.height = height
     self.width = width
-    super(CenterCrop, self).__init__(**kwargs, autocast=False)
+    super().__init__(**kwargs, autocast=False)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('CenterCrop').set(True)
 
   def call(self, inputs):
@@ -212,7 +212,7 @@ class CenterCrop(base_layer.Layer):
         'height': self.height,
         'width': self.width,
     }
-    base_config = super(CenterCrop, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -508,7 +508,7 @@ class RandomCrop(BaseImageAugmentationLayer):
 
   def __init__(self, height, width, seed=None, **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomCrop').set(True)
-    super(RandomCrop, self).__init__(**kwargs, autocast=False, seed=seed,
+    super().__init__(**kwargs, autocast=False, seed=seed,
                                      force_generator=True)
     self.height = height
     self.width = width
@@ -570,7 +570,7 @@ class RandomCrop(BaseImageAugmentationLayer):
         'width': self.width,
         'seed': self.seed,
     }
-    base_config = super(RandomCrop, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -611,7 +611,7 @@ class Rescaling(base_layer.Layer):
   def __init__(self, scale, offset=0., **kwargs):
     self.scale = scale
     self.offset = offset
-    super(Rescaling, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Rescaling').set(True)
 
   def call(self, inputs):
@@ -628,7 +628,7 @@ class Rescaling(base_layer.Layer):
         'scale': self.scale,
         'offset': self.offset,
     }
-    base_config = super(Rescaling, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -673,7 +673,7 @@ class RandomFlip(BaseImageAugmentationLayer):
                mode=HORIZONTAL_AND_VERTICAL,
                seed=None,
                **kwargs):
-    super(RandomFlip, self).__init__(seed=seed, force_generator=True, **kwargs)
+    super().__init__(seed=seed, force_generator=True, **kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomFlip').set(True)
     self.mode = mode
     if mode == HORIZONTAL:
@@ -742,7 +742,7 @@ class RandomFlip(BaseImageAugmentationLayer):
     config = {
         'mode': self.mode,
     }
-    base_config = super(RandomFlip, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -815,7 +815,7 @@ class RandomTranslation(BaseImageAugmentationLayer):
                **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomTranslation').set(
         True)
-    super(RandomTranslation, self).__init__(seed=seed, force_generator=True,
+    super().__init__(seed=seed, force_generator=True,
                                             **kwargs)
     self.height_factor = height_factor
     if isinstance(height_factor, (tuple, list)):
@@ -918,7 +918,7 @@ class RandomTranslation(BaseImageAugmentationLayer):
         'interpolation': self.interpolation,
         'seed': self.seed,
     }
-    base_config = super(RandomTranslation, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1147,7 +1147,7 @@ class RandomRotation(BaseImageAugmentationLayer):
                **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomRotation').set(
         True)
-    super(RandomRotation, self).__init__(seed=seed, force_generator=True,
+    super().__init__(seed=seed, force_generator=True,
                                          **kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
@@ -1248,7 +1248,7 @@ class RandomRotation(BaseImageAugmentationLayer):
         'interpolation': self.interpolation,
         'seed': self.seed,
     }
-    base_config = super(RandomRotation, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1325,7 +1325,7 @@ class RandomZoom(BaseImageAugmentationLayer):
                fill_value=0.0,
                **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomZoom').set(True)
-    super(RandomZoom, self).__init__(seed=seed, force_generator=True, **kwargs)
+    super().__init__(seed=seed, force_generator=True, **kwargs)
     self.height_factor = height_factor
     if isinstance(height_factor, (tuple, list)):
       self.height_lower = height_factor[0]
@@ -1413,7 +1413,7 @@ class RandomZoom(BaseImageAugmentationLayer):
         'interpolation': self.interpolation,
         'seed': self.seed,
     }
-    base_config = super(RandomZoom, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1502,7 +1502,7 @@ class RandomContrast(BaseImageAugmentationLayer):
   def __init__(self, factor, seed=None, **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomContrast').set(
         True)
-    super(RandomContrast, self).__init__(seed=seed, force_generator=True,
+    super().__init__(seed=seed, force_generator=True,
                                          **kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
@@ -1544,7 +1544,7 @@ class RandomContrast(BaseImageAugmentationLayer):
         'factor': self.factor,
         'seed': self.seed,
     }
-    base_config = super(RandomContrast, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1735,7 +1735,7 @@ class RandomHeight(BaseImageAugmentationLayer):
                seed=None,
                **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomHeight').set(True)
-    super(RandomHeight, self).__init__(seed=seed, force_generator=True,
+    super().__init__(seed=seed, force_generator=True,
                                        **kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
@@ -1803,7 +1803,7 @@ class RandomHeight(BaseImageAugmentationLayer):
         'interpolation': self.interpolation,
         'seed': self.seed,
     }
-    base_config = super(RandomHeight, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1853,7 +1853,7 @@ class RandomWidth(BaseImageAugmentationLayer):
                seed=None,
                **kwargs):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomWidth').set(True)
-    super(RandomWidth, self).__init__(seed=seed, force_generator=True, **kwargs)
+    super().__init__(seed=seed, force_generator=True, **kwargs)
     self.factor = factor
     if isinstance(factor, (tuple, list)):
       self.width_lower = factor[0]
@@ -1921,5 +1921,5 @@ class RandomWidth(BaseImageAugmentationLayer):
         'interpolation': self.interpolation,
         'seed': self.seed,
     }
-    base_config = super(RandomWidth, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

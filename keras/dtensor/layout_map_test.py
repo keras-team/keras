@@ -29,7 +29,7 @@ from keras.dtensor.tests import test_util
 class LayoutMapTest(test_util.DTensorBaseTest):
 
   def setUp(self):
-    super(LayoutMapTest, self).setUp()
+    super().setUp()
     backend.enable_tf_random_generator()
     tf_utils.set_random_seed(1337)
     global_ids = test_util.create_device_ids_array((2, 2))
@@ -149,7 +149,7 @@ class SubclassModel(tf.keras.Model):
 class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
   def setUp(self):
-    super(ObjectPathMappingTest, self).setUp()
+    super().setUp()
     backend.enable_tf_random_generator()
     tf_utils.set_random_seed(1337)
     global_ids = test_util.create_device_ids_array((2, 2))

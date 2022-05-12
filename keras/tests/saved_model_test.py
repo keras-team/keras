@@ -44,7 +44,7 @@ class _ModelWithOptimizerUsingDefun(tf.train.Checkpoint):
 class MemoryTests(tf.test.TestCase):
 
   def setUp(self):
-    super(MemoryTests, self).setUp()
+    super().setUp()
     self._model = _ModelWithOptimizerUsingDefun()
 
   @tf_test_utils.assert_no_garbage_created

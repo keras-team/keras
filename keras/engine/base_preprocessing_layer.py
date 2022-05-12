@@ -50,7 +50,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
   _must_restore_from_config = True
 
   def __init__(self, **kwargs):
-    super(PreprocessingLayer, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self._is_compiled = False
     self._is_adapted = False
 

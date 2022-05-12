@@ -772,7 +772,7 @@ class Optimizer(_BaseOptimizer):
     # TODO(b/197554203): replace _distributed_container() with a public api.
     if hasattr(variable, "_distributed_container"):
       variable = variable._distributed_container()
-    return super(Optimizer, self)._var_key(variable)
+    return super()._var_key(variable)
 
   def aggregate_gradients(self, grads_and_vars):
     """Aggregate gradients on all devices.
@@ -870,7 +870,7 @@ class Optimizer(_BaseOptimizer):
 class RestoredOptimizer(Optimizer):
 
   def __init__(self):
-    super(RestoredOptimizer, self).__init__("RestoredOptimizer")
+    super().__init__("RestoredOptimizer")
 
   def get_config(self):
     raise NotImplementedError(

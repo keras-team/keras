@@ -35,7 +35,7 @@ class MiniModel(keras_training.Model):
   """
 
   def __init__(self):
-    super(MiniModel, self).__init__(name="")
+    super().__init__(name="")
     self.fc = keras_core.Dense(1, name="fc", kernel_initializer="ones",
                                bias_initializer="ones")
 

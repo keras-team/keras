@@ -50,7 +50,7 @@ class Encoder(json.JSONEncoder):
     return get_json_type(obj)
 
   def encode(self, obj):
-    return super(Encoder, self).encode(_encode_tuple(obj))
+    return super().encode(_encode_tuple(obj))
 
 
 def _encode_tuple(x):

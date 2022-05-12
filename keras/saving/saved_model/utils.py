@@ -207,7 +207,7 @@ def set_training_arg_spec(arg_spec, default_training_value):
 class SaveOptionsContext(threading.local):
 
   def __init__(self):
-    super(SaveOptionsContext, self).__init__()
+    super().__init__()
     self.save_traces = True
 
 

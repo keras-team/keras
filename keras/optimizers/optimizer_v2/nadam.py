@@ -75,7 +75,7 @@ class Nadam(optimizer_v2.OptimizerV2):
                        'tf.keras.optimizers.LearningRateSchedules as the '
                        'learning rate.')
 
-    super(Nadam, self).__init__(name, **kwargs)
+    super().__init__(name, **kwargs)
     self._set_hyper('learning_rate', kwargs.get('lr', learning_rate))
     self._set_hyper('decay', self._initial_decay)
     self._set_hyper('beta_1', beta_1)
@@ -141,7 +141,7 @@ class Nadam(optimizer_v2.OptimizerV2):
   def _prepare(self, var_list):
     # Get the value of the momentum cache before starting to apply gradients.
     self._m_cache_read = tf.identity(self._m_cache)
-    return super(Nadam, self)._prepare(var_list)
+    return super()._prepare(var_list)
 
   def _resource_apply_dense(self, grad, var, apply_state=None):
     var_device, var_dtype = var.device, var.dtype.base_dtype
@@ -207,7 +207,7 @@ class Nadam(optimizer_v2.OptimizerV2):
     return tf.group(*[var_update, m_t_bar, v_t])
 
   def get_config(self):
-    config = super(Nadam, self).get_config()
+    config = super().get_config()
     config.update({
         'learning_rate': self._serialize_hyperparameter('learning_rate'),
         'decay': self._initial_decay,

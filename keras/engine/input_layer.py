@@ -153,7 +153,7 @@ class InputLayer(base_layer.Layer):
           '`input_tensor.dtype` differs from `dtype`. Received: '
           f'input_tensor.dtype={input_tensor.dtype} '
           f'but expected dtype={dtype}')
-    super(InputLayer, self).__init__(dtype=dtype, name=name)
+    super().__init__(dtype=dtype, name=name)
     self.built = True
     self.sparse = True if sparse else False
     self.ragged = True if ragged else False

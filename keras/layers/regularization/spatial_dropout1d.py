@@ -48,7 +48,7 @@ class SpatialDropout1D(Dropout):
   """
 
   def __init__(self, rate, **kwargs):
-    super(SpatialDropout1D, self).__init__(rate, **kwargs)
+    super().__init__(rate, **kwargs)
     self.input_spec = InputSpec(ndim=3)
 
   def _get_noise_shape(self, inputs):

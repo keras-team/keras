@@ -129,7 +129,7 @@ class Dense(keras_layers.Dense, base.Layer):
                trainable=True,
                name=None,
                **kwargs):
-    super(Dense, self).__init__(units=units,
+    super().__init__(units=units,
                                 activation=activation,
                                 use_bias=use_bias,
                                 kernel_initializer=kernel_initializer,
@@ -321,14 +321,14 @@ class Dropout(keras_layers.Dropout, base.Layer):
                seed=None,
                name=None,
                **kwargs):
-    super(Dropout, self).__init__(rate=rate,
+    super().__init__(rate=rate,
                                   noise_shape=noise_shape,
                                   seed=seed,
                                   name=name,
                                   **kwargs)
 
   def call(self, inputs, training=False):
-    return super(Dropout, self).call(inputs, training=training)
+    return super().call(inputs, training=training)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.dropout'])

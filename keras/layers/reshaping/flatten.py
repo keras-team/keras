@@ -59,7 +59,7 @@ class Flatten(Layer):
   """
 
   def __init__(self, data_format=None, **kwargs):
-    super(Flatten, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.input_spec = InputSpec(min_ndim=1)
     self._channels_first = self.data_format == 'channels_first'
@@ -110,6 +110,6 @@ class Flatten(Layer):
     return tf.TensorShape(output_shape)
 
   def get_config(self):
-    config = super(Flatten, self).get_config()
+    config = super().get_config()
     config.update({'data_format': self.data_format})
     return config

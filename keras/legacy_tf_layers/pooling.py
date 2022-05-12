@@ -82,7 +82,7 @@ class AveragePooling1D(keras_layers.AveragePooling1D, base.Layer):
                name=None, **kwargs):
     if strides is None:
       raise ValueError('Argument `strides` must not be None.')
-    super(AveragePooling1D, self).__init__(
+    super().__init__(
         pool_size=pool_size,
         strides=strides,
         padding=padding,
@@ -224,7 +224,7 @@ class MaxPooling1D(keras_layers.MaxPooling1D, base.Layer):
                name=None, **kwargs):
     if strides is None:
       raise ValueError('Argument `strides` must not be None.')
-    super(MaxPooling1D, self).__init__(
+    super().__init__(
         pool_size=pool_size,
         strides=strides,
         padding=padding,
@@ -370,7 +370,7 @@ class AveragePooling2D(keras_layers.AveragePooling2D, base.Layer):
                name=None, **kwargs):
     if strides is None:
       raise ValueError('Argument `strides` must not be None.')
-    super(AveragePooling2D, self).__init__(
+    super().__init__(
         pool_size=pool_size, strides=strides,
         padding=padding, data_format=data_format, name=name, **kwargs)
 
@@ -515,7 +515,7 @@ class MaxPooling2D(keras_layers.MaxPooling2D, base.Layer):
                name=None, **kwargs):
     if strides is None:
       raise ValueError('Argument `strides` must not be None.')
-    super(MaxPooling2D, self).__init__(
+    super().__init__(
         pool_size=pool_size, strides=strides,
         padding=padding, data_format=data_format, name=name, **kwargs)
 
@@ -662,7 +662,7 @@ class AveragePooling3D(keras_layers.AveragePooling3D, base.Layer):
                name=None, **kwargs):
     if strides is None:
       raise ValueError('Argument `strides` must not be None.')
-    super(AveragePooling3D, self).__init__(
+    super().__init__(
         pool_size=pool_size, strides=strides,
         padding=padding, data_format=data_format, name=name, **kwargs)
 
@@ -811,7 +811,7 @@ class MaxPooling3D(keras_layers.MaxPooling3D, base.Layer):
                name=None, **kwargs):
     if strides is None:
       raise ValueError('Argument `strides` must not be None.')
-    super(MaxPooling3D, self).__init__(
+    super().__init__(
         pool_size=pool_size, strides=strides,
         padding=padding, data_format=data_format, name=name, **kwargs)
 

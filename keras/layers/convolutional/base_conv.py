@@ -109,7 +109,7 @@ class Conv(Layer):
                name=None,
                conv_op=None,
                **kwargs):
-    super(Conv, self).__init__(
+    super().__init__(
         trainable=trainable,
         name=name,
         activity_regularizer=regularizers.get(activity_regularizer),
@@ -350,7 +350,7 @@ class Conv(Layer):
         'bias_constraint':
             constraints.serialize(self.bias_constraint)
     }
-    base_config = super(Conv, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   def _compute_causal_padding(self, inputs):

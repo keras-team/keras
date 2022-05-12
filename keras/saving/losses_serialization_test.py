@@ -43,7 +43,7 @@ class MyMeanAbsoluteError(losses.LossFunctionWrapper):
   def __init__(self,
                reduction=losses_utils.ReductionV2.AUTO,
                name='mean_absolute_error'):
-    super(MyMeanAbsoluteError, self).__init__(
+    super().__init__(
         my_mae, name=name, reduction=reduction)
 
 

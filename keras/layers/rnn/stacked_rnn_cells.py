@@ -73,7 +73,7 @@ class StackedRNNCells(base_layer.Layer):
                       'be deprecated. Please update the code to work with the '
                       'natural order of states if you rely on the RNN states, '
                       'eg RNN(return_state=True).')
-    super(StackedRNNCells, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
   @property
   def state_size(self):
@@ -167,7 +167,7 @@ class StackedRNNCells(base_layer.Layer):
     for cell in self.cells:
       cells.append(generic_utils.serialize_keras_object(cell))
     config = {'cells': cells}
-    base_config = super(StackedRNNCells, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod

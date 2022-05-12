@@ -130,7 +130,7 @@ class Conv1D(keras_layers.Conv1D, base.Layer):
                trainable=True,
                name=None,
                **kwargs):
-    super(Conv1D, self).__init__(
+    super().__init__(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -404,7 +404,7 @@ class Conv2D(keras_layers.Conv2D, base.Layer):
                trainable=True,
                name=None,
                **kwargs):
-    super(Conv2D, self).__init__(
+    super().__init__(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -686,7 +686,7 @@ class Conv3D(keras_layers.Conv3D, base.Layer):
                trainable=True,
                name=None,
                **kwargs):
-    super(Conv3D, self).__init__(
+    super().__init__(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -975,7 +975,7 @@ class SeparableConv1D(keras_layers.SeparableConv1D, base.Layer):
                trainable=True,
                name=None,
                **kwargs):
-    super(SeparableConv1D, self).__init__(
+    super().__init__(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -1122,7 +1122,7 @@ class SeparableConv2D(keras_layers.SeparableConv2D, base.Layer):
                trainable=True,
                name=None,
                **kwargs):
-    super(SeparableConv2D, self).__init__(
+    super().__init__(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -1576,7 +1576,7 @@ class Conv2DTranspose(keras_layers.Conv2DTranspose, base.Layer):
                trainable=True,
                name=None,
                **kwargs):
-    super(Conv2DTranspose, self).__init__(
+    super().__init__(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -1833,7 +1833,7 @@ class Conv3DTranspose(keras_layers.Conv3DTranspose, base.Layer):
                trainable=True,
                name=None,
                **kwargs):
-    super(Conv3DTranspose, self).__init__(
+    super().__init__(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,

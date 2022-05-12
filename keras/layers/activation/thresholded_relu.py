@@ -47,7 +47,7 @@ class ThresholdedReLU(Layer):
   """
 
   def __init__(self, theta=1.0, **kwargs):
-    super(ThresholdedReLU, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     if theta is None:
       raise ValueError(
           'Theta of a Thresholded ReLU layer cannot be None, expecting a float.'
@@ -64,7 +64,7 @@ class ThresholdedReLU(Layer):
 
   def get_config(self):
     config = {'theta': float(self.theta)}
-    base_config = super(ThresholdedReLU, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @tf_utils.shape_type_conversion

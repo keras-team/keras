@@ -233,7 +233,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     generic_utils.validate_kwargs(kwargs, {
         'trainable', 'dtype', 'dynamic', 'name', 'autocast', 'inputs', 'outputs'
     })
-    super(Model, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     # By default, Model is a subclass model, which is not in graph network.
     self._is_graph_network = False
 
@@ -303,7 +303,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   def __setattr__(self, name, value):
     if not getattr(self, '_self_setattr_tracking', True):
-      super(Model, self).__setattr__(name, value)
+      super().__setattr__(name, value)
       return
 
     if all(
@@ -317,7 +317,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             'forgot to call `super().__init__()`.'
             ' Always start with this line.')
 
-    super(Model, self).__setattr__(name, value)
+    super().__setattr__(name, value)
 
   def __reduce__(self):
     if self.built:
@@ -331,7 +331,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       # can be serialized as plain Python objects.
       # Thus we call up the superclass hierarchy to get an implementation of
       # __reduce__ that can pickle this Model as a plain Python object.
-      return super(Model, self).__reduce__()
+      return super().__reduce__()
 
   def __deepcopy__(self, memo):
     if self.built:
@@ -340,7 +340,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       memo[id(self)] = new
     else:
       # See comment in __reduce__ for explanation
-      deserializer, serialized, *rest = super(Model, self).__reduce__()
+      deserializer, serialized, *rest = super().__reduce__()
       new = deserializer(*serialized)
       memo[id(self)] = new
       if rest:
@@ -380,7 +380,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       on real tensor data.
     """
     if self._is_graph_network:
-      super(Model, self).build(input_shape)
+      super().build(input_shape)
       return
 
     if input_shape is None:
@@ -455,7 +455,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                            'model, call your model on real tensor data (of '
                            'the correct dtype).\n\nThe actual error from '
                            f'`call` is: {e}.')
-    super(Model, self).build(input_shape)
+    super().build(input_shape)
 
   @traceback_utils.filter_traceback
   def __call__(self, *args, **kwargs):
@@ -2393,7 +2393,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         A flat list of Numpy arrays.
     """
     with self.distribute_strategy.scope():
-      return super(Model, self).get_weights()
+      return super().get_weights()
 
   @traceback_utils.filter_traceback
   def save(self,
@@ -3000,7 +3000,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       inputs_spec.append(
           tf_utils.get_tensor_spec(tensor, dynamic_batch=False, name=name))
     inputs_spec = tf.nest.pack_sequence_as(inputs, inputs_spec)
-    super(Model, self)._set_save_spec(inputs_spec, args, kwargs)
+    super()._set_save_spec(inputs_spec, args, kwargs)
 
     # Store the input shapes
     if (self.__class__.__name__ == 'Sequential' and
@@ -3244,7 +3244,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       self.predict_function = None
       self.train_tf_function = None
 
-    children = super(Model, self)._trackable_children(save_type, **kwargs)
+    children = super()._trackable_children(save_type, **kwargs)
 
     if save_type == 'savedmodel':
       self.train_function = train_function

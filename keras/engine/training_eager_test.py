@@ -37,7 +37,7 @@ class TrainingTest(test_combinations.TestCase):
     class DynamicModel(keras.Model):
 
       def __init__(self):
-        super(DynamicModel, self).__init__(dynamic=True)
+        super().__init__(dynamic=True)
         self.dense = keras.layers.Dense(
             1, kernel_initializer='zeros', bias_initializer='ones')
 

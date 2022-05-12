@@ -111,17 +111,17 @@ class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
           d.shape = x.shape
           d.get_shape = x.get_shape
           return d, x
-        super(PlumbingLayer, self).__init__(_fn, **kwargs)
+        super().__init__(_fn, **kwargs)
         self._enter_dunder_call = False
 
       def __call__(self, inputs, *args, **kwargs):
         self._enter_dunder_call = True
-        d, _ = super(PlumbingLayer, self).__call__(inputs, *args, **kwargs)
+        d, _ = super().__call__(inputs, *args, **kwargs)
         self._enter_dunder_call = False
         return d
 
       def call(self, inputs, *args, **kwargs):
-        d, v = super(PlumbingLayer, self).call(inputs, *args, **kwargs)
+        d, v = super().call(inputs, *args, **kwargs)
         if self._enter_dunder_call:
           return d, v
         return d

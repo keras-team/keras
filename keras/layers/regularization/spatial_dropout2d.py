@@ -57,7 +57,7 @@ class SpatialDropout2D(Dropout):
   """
 
   def __init__(self, rate, data_format=None, **kwargs):
-    super(SpatialDropout2D, self).__init__(rate, **kwargs)
+    super().__init__(rate, **kwargs)
     if data_format is None:
       data_format = backend.image_data_format()
     if data_format not in {'channels_last', 'channels_first'}:

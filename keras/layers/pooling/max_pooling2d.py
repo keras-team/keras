@@ -152,7 +152,7 @@ class MaxPooling2D(Pooling2D):
                padding='valid',
                data_format=None,
                **kwargs):
-    super(MaxPooling2D, self).__init__(
+    super().__init__(
         tf.compat.v1.nn.max_pool,
         pool_size=pool_size, strides=strides,
         padding=padding, data_format=data_format, **kwargs)

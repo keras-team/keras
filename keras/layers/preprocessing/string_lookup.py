@@ -323,7 +323,7 @@ class StringLookup(index_lookup.IndexLookup):
 
     self.encoding = encoding
 
-    super(StringLookup, self).__init__(
+    super().__init__(
         max_tokens=max_tokens,
         num_oov_indices=num_oov_indices,
         mask_token=mask_token,
@@ -340,7 +340,7 @@ class StringLookup(index_lookup.IndexLookup):
 
   def get_config(self):
     config = {"encoding": self.encoding}
-    base_config = super(StringLookup, self).get_config()
+    base_config = super().get_config()
     # There is only one valid dtype for strings, so we don't expose this.
     del base_config["vocabulary_dtype"]
     return dict(list(base_config.items()) + list(config.items()))

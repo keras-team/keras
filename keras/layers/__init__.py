@@ -267,4 +267,4 @@ class VersionAwareLayers:
     serialization.populate_deserializable_objects()
     if name in serialization.LOCAL.ALL_OBJECTS:
       return serialization.LOCAL.ALL_OBJECTS[name]
-    return super(VersionAwareLayers, self).__getattr__(name)
+    return super().__getattr__(name)

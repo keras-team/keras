@@ -147,7 +147,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
     class EmbeddingModel(keras.Model):
 
       def __init__(self):
-        super(EmbeddingModel, self).__init__()
+        super().__init__()
         self.shared_weights = self.add_weight(
             "weights",
             shape=(2000, 300),

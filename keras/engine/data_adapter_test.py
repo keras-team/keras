@@ -60,7 +60,7 @@ tf.register_tensor_conversion_function(DummyArrayLike, fail_on_convert)
 class DataAdapterTestBase(test_combinations.TestCase):
 
   def setUp(self):
-    super(DataAdapterTestBase, self).setUp()
+    super().setUp()
     self.batch_size = 5
     self.numpy_input = np.zeros((50, 10))
     self.numpy_target = np.ones(50)
@@ -193,7 +193,7 @@ class TestBatchSequence(data_utils.Sequence):
 class TensorLikeDataAdapterTest(DataAdapterTestBase):
 
   def setUp(self):
-    super(TensorLikeDataAdapterTest, self).setUp()
+    super().setUp()
     self.adapter_cls = data_adapter.TensorLikeDataAdapter
 
   def test_can_handle_numpy(self):
@@ -554,7 +554,7 @@ class IncreasingBatchSizeAdapterTest(test_combinations.TestCase):
 class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
 
   def setUp(self):
-    super(GenericArrayLikeDataAdapterTest, self).setUp()
+    super().setUp()
     self.adapter_cls = data_adapter.GenericArrayLikeDataAdapter
 
   def test_can_handle_some_numpy(self):
@@ -787,7 +787,7 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
 class DatasetAdapterTest(DataAdapterTestBase):
 
   def setUp(self):
-    super(DatasetAdapterTest, self).setUp()
+    super().setUp()
     self.adapter_cls = data_adapter.DatasetAdapter
 
   def test_can_handle(self):
@@ -830,7 +830,7 @@ class DatasetAdapterTest(DataAdapterTestBase):
 class GeneratorDataAdapterTest(DataAdapterTestBase):
 
   def setUp(self):
-    super(GeneratorDataAdapterTest, self).setUp()
+    super().setUp()
     self.adapter_cls = data_adapter.GeneratorDataAdapter
 
   def test_can_handle(self):
@@ -915,7 +915,7 @@ class GeneratorDataAdapterTest(DataAdapterTestBase):
 class KerasSequenceAdapterTest(DataAdapterTestBase):
 
   def setUp(self):
-    super(KerasSequenceAdapterTest, self).setUp()
+    super().setUp()
     self.adapter_cls = data_adapter.KerasSequenceAdapter
 
   def test_can_handle(self):
@@ -973,14 +973,14 @@ class KerasSequenceAdapterTest(DataAdapterTestBase):
 class KerasSequenceAdapterSparseTest(KerasSequenceAdapterTest):
 
   def setUp(self):
-    super(KerasSequenceAdapterSparseTest, self).setUp()
+    super().setUp()
     self.sequence_input = TestSparseSequence(self.batch_size, 10)
 
 
 class KerasSequenceAdapterRaggedTest(KerasSequenceAdapterTest):
 
   def setUp(self):
-    super(KerasSequenceAdapterRaggedTest, self).setUp()
+    super().setUp()
     self.sequence_input = TestRaggedSequence(self.batch_size, 10)
 
     self.model = keras.models.Sequential([
@@ -1286,7 +1286,7 @@ class TestValidationSplit(test_combinations.TestCase):
 class ListsOfScalarsDataAdapterTest(DataAdapterTestBase):
 
   def setUp(self):
-    super(ListsOfScalarsDataAdapterTest, self).setUp()
+    super().setUp()
     self.adapter_cls = data_adapter.ListsOfScalarsDataAdapter
 
   def test_can_list_inputs(self):

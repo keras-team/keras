@@ -161,7 +161,7 @@ class ExponentialDecay(LearningRateSchedule):
       name: String.  Optional name of the operation.  Defaults to
         'ExponentialDecay'.
     """
-    super(ExponentialDecay, self).__init__()
+    super().__init__()
     self.initial_learning_rate = initial_learning_rate
     self.decay_steps = decay_steps
     self.decay_rate = decay_rate
@@ -252,7 +252,7 @@ class PiecewiseConstantDecay(LearningRateSchedule):
     Raises:
       ValueError: if the number of elements in the lists do not match.
     """
-    super(PiecewiseConstantDecay, self).__init__()
+    super().__init__()
 
     if len(boundaries) != len(values) - 1:
       raise ValueError(
@@ -392,7 +392,7 @@ class PolynomialDecay(LearningRateSchedule):
       name: String.  Optional name of the operation. Defaults to
         'PolynomialDecay'.
     """
-    super(PolynomialDecay, self).__init__()
+    super().__init__()
 
     self.initial_learning_rate = initial_learning_rate
     self.decay_steps = decay_steps
@@ -513,7 +513,7 @@ class InverseTimeDecay(LearningRateSchedule):
       name: String.  Optional name of the operation.  Defaults to
         'InverseTimeDecay'.
     """
-    super(InverseTimeDecay, self).__init__()
+    super().__init__()
 
     self.initial_learning_rate = initial_learning_rate
     self.decay_steps = decay_steps
@@ -609,7 +609,7 @@ class CosineDecay(LearningRateSchedule):
         Minimum learning rate value as a fraction of initial_learning_rate.
       name: String. Optional name of the operation.  Defaults to 'CosineDecay'.
     """
-    super(CosineDecay, self).__init__()
+    super().__init__()
 
     self.initial_learning_rate = initial_learning_rate
     self.decay_steps = decay_steps
@@ -707,7 +707,7 @@ class CosineDecayRestarts(LearningRateSchedule):
         Minimum learning rate value as a fraction of the initial_learning_rate.
       name: String. Optional name of the operation.  Defaults to 'SGDRDecay'.
     """
-    super(CosineDecayRestarts, self).__init__()
+    super().__init__()
 
     self.initial_learning_rate = initial_learning_rate
     self.first_decay_steps = first_decay_steps
@@ -844,7 +844,7 @@ class LinearCosineDecay(LearningRateSchedule):
       name: String.  Optional name of the operation.  Defaults to
         'LinearCosineDecay'.
     """
-    super(LinearCosineDecay, self).__init__()
+    super().__init__()
 
     self.initial_learning_rate = initial_learning_rate
     self.decay_steps = decay_steps
@@ -970,7 +970,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
       name: String.  Optional name of the operation.  Defaults to
         'NoisyLinearCosineDecay'.
     """
-    super(NoisyLinearCosineDecay, self).__init__()
+    super().__init__()
 
     self.initial_learning_rate = initial_learning_rate
     self.decay_steps = decay_steps

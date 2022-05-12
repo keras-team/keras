@@ -28,7 +28,7 @@ class ModelSavedModelSaver(layer_serialization.LayerSavedModelSaver):
     return constants.MODEL_IDENTIFIER
 
   def _python_properties_internal(self):
-    metadata = super(ModelSavedModelSaver, self)._python_properties_internal()
+    metadata = super()._python_properties_internal()
     # Network stateful property is dependent on the child layers.
     metadata.pop('stateful')
     metadata['is_graph_network'] = self.obj._is_graph_network  # pylint: disable=protected-access
@@ -53,7 +53,7 @@ class ModelSavedModelSaver(layer_serialization.LayerSavedModelSaver):
     # Other than the default signature function, all other attributes match with
     # the ones serialized by Layer.
     objects, functions = (
-        super(ModelSavedModelSaver, self)._get_serialized_attributes_internal(
+        super()._get_serialized_attributes_internal(
             serialization_cache))
     functions['_default_save_signature'] = default_signature
     return objects, functions

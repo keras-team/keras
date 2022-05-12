@@ -38,7 +38,7 @@ class _RNNCellWithConstants(keras.layers.Layer):
     self.units = units
     self.state_size = units
     self.constant_size = constant_size
-    super(_RNNCellWithConstants, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
   def build(self, input_shape):
     self.input_kernel = self.add_weight(
@@ -66,14 +66,14 @@ class _RNNCellWithConstants(keras.layers.Layer):
 
   def get_config(self):
     config = {'units': self.units, 'constant_size': self.constant_size}
-    base_config = super(_RNNCellWithConstants, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
 class _ResidualLSTMCell(keras.layers.LSTMCell):
 
   def call(self, inputs, states, training=None):
-    output, states = super(_ResidualLSTMCell, self).call(inputs, states)
+    output, states = super().call(inputs, states)
     return output + inputs, states
 
 
@@ -579,13 +579,13 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     class TestListLayer(TestLayer):
 
       def compute_output_shape(self, input_shape):
-        shape = super(TestListLayer, self).compute_output_shape(input_shape)
+        shape = super().compute_output_shape(input_shape)
         return shape.as_list()
 
     class TestTupleLayer(TestLayer):
 
       def compute_output_shape(self, input_shape):
-        shape = super(TestTupleLayer, self).compute_output_shape(input_shape)
+        shape = super().compute_output_shape(input_shape)
         return tuple(shape.as_list())
 
     # Layers can specify output shape as list/tuple/TensorShape

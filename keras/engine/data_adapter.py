@@ -233,7 +233,7 @@ class TensorLikeDataAdapter(DataAdapter):
                steps=None,
                shuffle=False,
                **kwargs):
-    super(TensorLikeDataAdapter, self).__init__(x, y, **kwargs)
+    super().__init__(x, y, **kwargs)
     x, y, sample_weights = _process_tensorlike((x, y, sample_weights))
     sample_weight_modes = broadcast_sample_weight_modes(
         sample_weights, sample_weight_modes)
@@ -438,7 +438,7 @@ class GenericArrayLikeDataAdapter(TensorLikeDataAdapter):
         "supported by TensorFlow I/O (https://github.com/tensorflow/io) we "
         "recommend using that to load a Dataset instead.")
 
-    super(GenericArrayLikeDataAdapter, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
   def slice_inputs(self, indices_dataset, inputs):
     """Slice inputs into a Dataset of batches.
@@ -492,7 +492,7 @@ class DatasetCreatorAdapter(DataAdapter):
   """Adapter that handles dataset functions."""
 
   def __init__(self, x, y, steps=None, distribution_strategy=None, **kwargs):
-    super(DatasetCreatorAdapter, self).__init__(x, **kwargs)
+    super().__init__(x, **kwargs)
 
     if not isinstance(x, dataset_creator.DatasetCreator):
       raise TypeError("The input of a `DatasetCreatorAdapter` should be a "
@@ -574,7 +574,7 @@ class CompositeTensorDataAdapter(DataAdapter):
                steps=None,
                shuffle=False,
                **kwargs):
-    super(CompositeTensorDataAdapter, self).__init__(x, y, **kwargs)
+    super().__init__(x, y, **kwargs)
     x, y, sample_weights = _process_tensorlike((x, y, sample_weights))
     sample_weight_modes = broadcast_sample_weight_modes(
         sample_weights, sample_weight_modes)
@@ -653,7 +653,7 @@ class ListsOfScalarsDataAdapter(DataAdapter):
                batch_size=None,
                shuffle=False,
                **kwargs):
-    super(ListsOfScalarsDataAdapter, self).__init__(x, y, **kwargs)
+    super().__init__(x, y, **kwargs)
     x = np.asarray(x)
     if y is not None:
       y = np.asarray(y)
@@ -704,7 +704,7 @@ class DatasetAdapter(DataAdapter):
                sample_weights=None,
                steps=None,
                **kwargs):
-    super(DatasetAdapter, self).__init__(x, y, **kwargs)
+    super().__init__(x, y, **kwargs)
     # Note that the dataset instance is immutable, its fine to reuse the user
     # provided dataset.
     self._dataset = x
@@ -794,7 +794,7 @@ class GeneratorDataAdapter(DataAdapter):
       raise ValueError("`sample_weight` argument is not supported when using "
                        "python generator as input.")
 
-    super(GeneratorDataAdapter, self).__init__(x, y, **kwargs)
+    super().__init__(x, y, **kwargs)
 
     # Since we have to know the dtype of the python generator when we build the
     # dataset, we have to look at a batch to infer the structure.
@@ -923,7 +923,7 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
     self._shuffle_sequence = shuffle
     self._keras_sequence = x
     self._enqueuer = None
-    super(KerasSequenceAdapter, self).__init__(
+    super().__init__(
         x,
         shuffle=False,  # Shuffle is handed in the _make_callable override.
         workers=workers,

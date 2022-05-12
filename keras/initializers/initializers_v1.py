@@ -156,7 +156,7 @@ class RandomNormal(tf.compat.v1.random_normal_initializer):
   """
 
   def __init__(self, mean=0.0, stddev=0.05, seed=None, dtype=tf.float32):
-    super(RandomNormal, self).__init__(
+    super().__init__(
         mean=mean, stddev=stddev, seed=seed, dtype=dtype)
 
 
@@ -274,7 +274,7 @@ class RandomUniform(tf.compat.v1.random_uniform_initializer):
 
   def __init__(self, minval=-0.05, maxval=0.05, seed=None,
                dtype=tf.float32):
-    super(RandomUniform, self).__init__(
+    super().__init__(
         minval=minval, maxval=maxval, seed=seed, dtype=dtype)
 
 
@@ -405,7 +405,7 @@ class TruncatedNormal(tf.compat.v1.truncated_normal_initializer):
       dtype: Default data type, used if no `dtype` argument is provided when
         calling the initializer. Only floating point types are supported.
     """
-    super(TruncatedNormal, self).__init__(
+    super().__init__(
         mean=mean, stddev=stddev, seed=seed, dtype=dtype)
 
 
@@ -413,7 +413,7 @@ class TruncatedNormal(tf.compat.v1.truncated_normal_initializer):
 class LecunNormal(tf.compat.v1.variance_scaling_initializer):
 
   def __init__(self, seed=None):
-    super(LecunNormal, self).__init__(
+    super().__init__(
         scale=1., mode='fan_in', distribution='truncated_normal', seed=seed)
 
   def get_config(self):
@@ -424,7 +424,7 @@ class LecunNormal(tf.compat.v1.variance_scaling_initializer):
 class LecunUniform(tf.compat.v1.variance_scaling_initializer):
 
   def __init__(self, seed=None):
-    super(LecunUniform, self).__init__(
+    super().__init__(
         scale=1., mode='fan_in', distribution='uniform', seed=seed)
 
   def get_config(self):
@@ -435,7 +435,7 @@ class LecunUniform(tf.compat.v1.variance_scaling_initializer):
 class HeNormal(tf.compat.v1.variance_scaling_initializer):
 
   def __init__(self, seed=None):
-    super(HeNormal, self).__init__(
+    super().__init__(
         scale=2., mode='fan_in', distribution='truncated_normal', seed=seed)
 
   def get_config(self):
@@ -446,7 +446,7 @@ class HeNormal(tf.compat.v1.variance_scaling_initializer):
 class HeUniform(tf.compat.v1.variance_scaling_initializer):
 
   def __init__(self, seed=None):
-    super(HeUniform, self).__init__(
+    super().__init__(
         scale=2., mode='fan_in', distribution='uniform', seed=seed)
 
   def get_config(self):

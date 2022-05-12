@@ -36,7 +36,7 @@ class MultiplyLayerWithFunction(mp_test_util.MultiplyLayer):
 
   @tf.function
   def _multiply(self, x, y):
-    return super(MultiplyLayerWithFunction, self)._multiply(x, y)
+    return super()._multiply(x, y)
 
 
 # If called outside any strategy.scope() calls, this will return the default

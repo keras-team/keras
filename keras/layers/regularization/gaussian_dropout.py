@@ -52,7 +52,7 @@ class GaussianDropout(base_layer.BaseRandomLayer):
   """
 
   def __init__(self, rate, seed=None, **kwargs):
-    super(GaussianDropout, self).__init__(seed=seed, **kwargs)
+    super().__init__(seed=seed, **kwargs)
     self.supports_masking = True
     self.rate = rate
     self.seed = seed
@@ -73,7 +73,7 @@ class GaussianDropout(base_layer.BaseRandomLayer):
 
   def get_config(self):
     config = {'rate': self.rate, 'seed': self.seed}
-    base_config = super(GaussianDropout, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @tf_utils.shape_type_conversion

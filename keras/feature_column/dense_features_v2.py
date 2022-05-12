@@ -80,7 +80,7 @@ class DenseFeatures(dense_features.DenseFeatures):
     Raises:
       ValueError: if an item in `feature_columns` is not a `DenseColumn`.
     """
-    super(DenseFeatures, self).__init__(
+    super().__init__(
         feature_columns=feature_columns,
         trainable=trainable,
         name=name,

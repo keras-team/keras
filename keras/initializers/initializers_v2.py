@@ -793,7 +793,7 @@ class GlorotUniform(VarianceScaling):
   """
 
   def __init__(self, seed=None):
-    super(GlorotUniform, self).__init__(
+    super().__init__(
         scale=1.0,
         mode='fan_avg',
         distribution='uniform',
@@ -839,7 +839,7 @@ class GlorotNormal(VarianceScaling):
   """
 
   def __init__(self, seed=None):
-    super(GlorotNormal, self).__init__(
+    super().__init__(
         scale=1.0,
         mode='fan_avg',
         distribution='truncated_normal',
@@ -888,7 +888,7 @@ class LecunNormal(VarianceScaling):
   """
 
   def __init__(self, seed=None):
-    super(LecunNormal, self).__init__(
+    super().__init__(
         scale=1., mode='fan_in', distribution='truncated_normal', seed=seed)
 
   def get_config(self):
@@ -930,7 +930,7 @@ class LecunUniform(VarianceScaling):
   """
 
   def __init__(self, seed=None):
-    super(LecunUniform, self).__init__(
+    super().__init__(
         scale=1., mode='fan_in', distribution='uniform', seed=seed)
 
   def get_config(self):
@@ -972,7 +972,7 @@ class HeNormal(VarianceScaling):
   """
 
   def __init__(self, seed=None):
-    super(HeNormal, self).__init__(
+    super().__init__(
         scale=2., mode='fan_in', distribution='truncated_normal', seed=seed)
 
   def get_config(self):
@@ -1014,7 +1014,7 @@ class HeUniform(VarianceScaling):
   """
 
   def __init__(self, seed=None):
-    super(HeUniform, self).__init__(
+    super().__init__(
         scale=2., mode='fan_in', distribution='uniform', seed=seed)
 
   def get_config(self):

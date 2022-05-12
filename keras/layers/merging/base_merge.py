@@ -32,7 +32,7 @@ class _Merge(Layer):
     Args:
       **kwargs: standard layer keyword arguments.
     """
-    super(_Merge, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.supports_masking = True
 
   def _merge_function(self, inputs):

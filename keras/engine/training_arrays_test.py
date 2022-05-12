@@ -168,7 +168,7 @@ class PrintTrainingInfoTest(test_combinations.TestCase,
     class MyModel(keras.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__(self)
+        super().__init__(self)
         self.dense1 = keras.layers.Dense(10, activation="relu")
         self.dense2 = keras.layers.Dense(10, activation="relu")
         self.concat = keras.layers.Concatenate()
@@ -208,7 +208,7 @@ class PrintTrainingInfoTest(test_combinations.TestCase,
     class my_model(keras.Model):
 
       def __init__(self):
-        super(my_model, self).__init__(self)
+        super().__init__(self)
         self.hidden_layer_0 = keras.layers.Dense(100, activation="relu")
         self.hidden_layer_1 = keras.layers.Dense(100, activation="relu")
         self.concat = keras.layers.Concatenate()

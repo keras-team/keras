@@ -95,7 +95,7 @@ class GRUCell(gru.GRUCell):
                recurrent_dropout=0.,
                reset_after=False,
                **kwargs):
-    super(GRUCell, self).__init__(
+    super().__init__(
         units,
         activation=activation,
         recurrent_activation=recurrent_activation,
@@ -261,7 +261,7 @@ class GRU(RNN):
         dtype=kwargs.get('dtype'),
         trainable=kwargs.get('trainable', True),
         **cell_kwargs)
-    super(GRU, self).__init__(
+    super().__init__(
         cell,
         return_sequences=return_sequences,
         return_state=return_state,
@@ -273,7 +273,7 @@ class GRU(RNN):
     self.input_spec = [InputSpec(ndim=3)]
 
   def call(self, inputs, mask=None, training=None, initial_state=None):
-    return super(GRU, self).call(
+    return super().call(
         inputs, mask=mask, training=training, initial_state=initial_state)
 
   @property
@@ -384,7 +384,7 @@ class GRU(RNN):
             self.reset_after
     }
     config.update(rnn_utils.config_for_enable_caching_device(self.cell))
-    base_config = super(GRU, self).get_config()
+    base_config = super().get_config()
     del base_config['cell']
     return dict(list(base_config.items()) + list(config.items()))
 

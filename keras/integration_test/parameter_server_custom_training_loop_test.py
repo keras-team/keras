@@ -61,7 +61,7 @@ class ParameterServerCustomTrainingLoopTest(tf.test.TestCase):
     return cluster_spec
 
   def setUp(self):
-    super(ParameterServerCustomTrainingLoopTest, self).setUp()
+    super().setUp()
 
     cluster_spec = self.create_in_process_cluster(num_workers=3, num_ps=2)
     cluster_resolver = tf.distribute.cluster_resolver.SimpleClusterResolver(

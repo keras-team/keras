@@ -508,7 +508,7 @@ class TestSequentialEagerIntegration(test_combinations.TestCase):
     class MySequential(keras.Sequential):
 
       def __init__(self, name=None):
-        super(MySequential, self).__init__(name=name)
+        super().__init__(name=name)
         self.call = tf.function(self.call)
 
     model = MySequential()

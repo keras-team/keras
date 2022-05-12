@@ -142,7 +142,7 @@ class LocallyConnected2D(Layer):
                bias_constraint=None,
                implementation=1,
                **kwargs):
-    super(LocallyConnected2D, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.filters = filters
     self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
     self.strides = conv_utils.normalize_tuple(
@@ -351,5 +351,5 @@ class LocallyConnected2D(Layer):
         'implementation':
             self.implementation
     }
-    base_config = super(LocallyConnected2D, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

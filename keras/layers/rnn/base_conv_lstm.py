@@ -111,7 +111,7 @@ class ConvLSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
                dropout=0.0,
                recurrent_dropout=0.0,
                **kwargs):
-    super(ConvLSTMCell, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.rank = rank
     if self.rank > 3:
       raise ValueError(f'Rank {rank} convolutions are not currently '
@@ -326,7 +326,7 @@ class ConvLSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         'recurrent_dropout':
             self.recurrent_dropout,
     }
-    base_config = super(ConvLSTMCell, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -462,7 +462,7 @@ class ConvLSTM(ConvRNN):
         dropout=dropout,
         recurrent_dropout=recurrent_dropout,
         dtype=kwargs.get('dtype'))
-    super(ConvLSTM, self).__init__(
+    super().__init__(
         rank,
         cell,
         return_sequences=return_sequences,
@@ -473,7 +473,7 @@ class ConvLSTM(ConvRNN):
     self.activity_regularizer = regularizers.get(activity_regularizer)
 
   def call(self, inputs, mask=None, training=None, initial_state=None):
-    return super(ConvLSTM, self).call(
+    return super().call(
         inputs, mask=mask, training=training, initial_state=initial_state)
 
   @property
@@ -591,7 +591,7 @@ class ConvLSTM(ConvRNN):
               'bias_constraint': constraints.serialize(self.bias_constraint),
               'dropout': self.dropout,
               'recurrent_dropout': self.recurrent_dropout}
-    base_config = super(ConvLSTM, self).get_config()
+    base_config = super().get_config()
     del base_config['cell']
     return dict(list(base_config.items()) + list(config.items()))
 

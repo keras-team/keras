@@ -112,7 +112,7 @@ class Ftrl(optimizer_v2.OptimizerV2):
                l2_shrinkage_regularization_strength=0.0,
                beta=0.0,
                **kwargs):
-    super(Ftrl, self).__init__(name, **kwargs)
+    super().__init__(name, **kwargs)
 
     if initial_accumulator_value < 0.0:
       raise ValueError(
@@ -156,7 +156,7 @@ class Ftrl(optimizer_v2.OptimizerV2):
       self.add_slot(var, 'linear')
 
   def _prepare_local(self, var_device, var_dtype, apply_state):
-    super(Ftrl, self)._prepare_local(var_device, var_dtype, apply_state)
+    super()._prepare_local(var_device, var_dtype, apply_state)
     apply_state[(var_device, var_dtype)].update(
         dict(
             learning_rate_power=tf.identity(
@@ -248,7 +248,7 @@ class Ftrl(optimizer_v2.OptimizerV2):
           use_locking=self._use_locking)
 
   def get_config(self):
-    config = super(Ftrl, self).get_config()
+    config = super().get_config()
     config.update({
         'learning_rate':
             self._serialize_hyperparameter('learning_rate'),

@@ -242,7 +242,7 @@ class SharedObjectConfig(dict):
   def __init__(self, base_config, object_id, **kwargs):
     self.ref_count = 1
     self.object_id = object_id
-    super(SharedObjectConfig, self).__init__(base_config, **kwargs)
+    super().__init__(base_config, **kwargs)
 
   def increment_ref_count(self):
     # As soon as we've seen the object more than once, we want to attach the
@@ -1221,7 +1221,7 @@ class LazyLoader(python_types.ModuleType):
   def __init__(self, local_name, parent_module_globals, name):
     self._local_name = local_name
     self._parent_module_globals = parent_module_globals
-    super(LazyLoader, self).__init__(name)
+    super().__init__(name)
 
   def _load(self):
     """Load the module and insert it into the parent's globals."""

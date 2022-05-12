@@ -40,7 +40,7 @@ except ImportError:
 class MyMeanAbsoluteError(metrics.MeanMetricWrapper):
 
   def __init__(self, name='my_mae', dtype=None):
-    super(MyMeanAbsoluteError, self).__init__(_my_mae, name, dtype=dtype)
+    super().__init__(_my_mae, name, dtype=dtype)
 
 
 # Custom metric function

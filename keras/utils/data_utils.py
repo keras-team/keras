@@ -719,7 +719,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
   """
 
   def __init__(self, sequence, use_multiprocessing=False, shuffle=False):
-    super(OrderedEnqueuer, self).__init__(sequence, use_multiprocessing)
+    super().__init__(sequence, use_multiprocessing)
     self.shuffle = shuffle
 
   def _get_executor_init(self, workers):
@@ -858,7 +858,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
   def __init__(self, generator,
                use_multiprocessing=False,
                random_seed=None):
-    super(GeneratorEnqueuer, self).__init__(generator, use_multiprocessing)
+    super().__init__(generator, use_multiprocessing)
     self.random_seed = random_seed
 
   def _get_executor_init(self, workers):

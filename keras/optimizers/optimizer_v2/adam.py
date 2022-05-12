@@ -107,7 +107,7 @@ class Adam(optimizer_v2.OptimizerV2):
                amsgrad=False,
                name='Adam',
                **kwargs):
-    super(Adam, self).__init__(name, **kwargs)
+    super().__init__(name, **kwargs)
     self._set_hyper('learning_rate', kwargs.get('lr', learning_rate))
     self._set_hyper('decay', self._initial_decay)
     self._set_hyper('beta_1', beta_1)
@@ -127,7 +127,7 @@ class Adam(optimizer_v2.OptimizerV2):
         self.add_slot(var, 'vhat')
 
   def _prepare_local(self, var_device, var_dtype, apply_state):
-    super(Adam, self)._prepare_local(var_device, var_dtype, apply_state)
+    super()._prepare_local(var_device, var_dtype, apply_state)
 
     local_step = tf.cast(self.iterations + 1, var_dtype)
     beta_1_t = tf.identity(self._get_hyper('beta_1', var_dtype))
@@ -156,7 +156,7 @@ class Adam(optimizer_v2.OptimizerV2):
     num_vars = int((len(params) - 1) / 2)
     if len(weights) == 3 * num_vars + 1:
       weights = weights[:len(params)]
-    super(Adam, self).set_weights(weights)
+    super().set_weights(weights)
 
   def _resource_apply_dense(self, grad, var, apply_state=None):
     var_device, var_dtype = var.device, var.dtype.base_dtype
@@ -236,7 +236,7 @@ class Adam(optimizer_v2.OptimizerV2):
       return tf.group(*[var_update, m_t, v_t, v_hat_t])
 
   def get_config(self):
-    config = super(Adam, self).get_config()
+    config = super().get_config()
     config.update({
         'learning_rate': self._serialize_hyperparameter('learning_rate'),
         'decay': self._initial_decay,
@@ -359,7 +359,7 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
         compatibility, recommended to use `learning_rate` instead.
     """
 
-    super(NonFusedAdam, self).__init__(name, **kwargs)
+    super().__init__(name, **kwargs)
     self._set_hyper('learning_rate', kwargs.get('lr', learning_rate))
     self._set_hyper('decay', self._initial_decay)
     self._set_hyper('beta_1', beta_1)
@@ -379,7 +379,7 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
         self.add_slot(var, 'vhat')
 
   def _prepare_local(self, var_device, var_dtype, apply_state):
-    super(NonFusedAdam, self)._prepare_local(var_device, var_dtype, apply_state)
+    super()._prepare_local(var_device, var_dtype, apply_state)
 
     local_step = tf.cast(self.iterations + 1, var_dtype)
     beta_1_t = tf.identity(self._get_hyper('beta_1', var_dtype))
@@ -409,7 +409,7 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
     num_vars = int((len(params) - 1) / 2)
     if len(weights) == 3 * num_vars + 1:
       weights = weights[:len(params)]
-    super(NonFusedAdam, self).set_weights(weights)
+    super().set_weights(weights)
 
   @tf.function(jit_compile=True)
   def _resource_apply_dense(self, grad, var, apply_state=None):
@@ -460,7 +460,7 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
                      (tf.sqrt(v_hat) + coefficients['epsilon']))
 
   def get_config(self):
-    config = super(NonFusedAdam, self).get_config()
+    config = super().get_config()
     config.update({
         'learning_rate': self._serialize_hyperparameter('learning_rate'),
         'decay': self._initial_decay,

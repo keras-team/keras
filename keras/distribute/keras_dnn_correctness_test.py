@@ -225,7 +225,7 @@ class TestDistributionStrategyDnnMetricEvalCorrectness(
 class SubclassedModel(keras.Model):
 
   def __init__(self, initial_weights, input_shapes):
-    super(SubclassedModel, self).__init__()
+    super().__init__()
     self.dense1 = keras.layers.Dense(10, activation='relu', input_shape=(1,))
     self.dense2 = keras.layers.Dense(
         10, activation='relu', kernel_regularizer=keras.regularizers.l2(1e-4))

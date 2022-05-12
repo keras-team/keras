@@ -72,7 +72,7 @@ class ReLU(Layer):
   """
 
   def __init__(self, max_value=None, negative_slope=0., threshold=0., **kwargs):
-    super(ReLU, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     if max_value is not None and max_value < 0.:
       raise ValueError('max_value of a ReLU layer cannot be a negative '
                        f'value. Received: {max_value}')
@@ -104,7 +104,7 @@ class ReLU(Layer):
         'negative_slope': self.negative_slope,
         'threshold': self.threshold
     }
-    base_config = super(ReLU, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @tf_utils.shape_type_conversion

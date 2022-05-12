@@ -176,7 +176,7 @@ class TestModelSavingandLoading(parameterized.TestCase, tf.test.TestCase):
     class SubclassedModel(model_lib.Model):
 
       def __init__(self):
-        super(SubclassedModel, self).__init__()
+        super().__init__()
         self.layer1 = keras.layers.Dense(3)
         self.layer2 = keras.layers.Dense(1)
 
@@ -239,7 +239,7 @@ def sequential_model_without_input_shape(uses_learning_phase=True):
 class Subclassed(keras.models.Model):
 
   def __init__(self):
-    super(Subclassed, self).__init__()
+    super().__init__()
     self.dense1 = keras.layers.Dense(2)
     self.dense2 = keras.layers.Dense(3)
 

@@ -123,13 +123,11 @@ class DistributionStrategySiameseEmbeddingModelCorrectnessTest(
                max_word_id=19,
                num_classes=2):
     features_a, labels_a, _ = (
-        super(DistributionStrategySiameseEmbeddingModelCorrectnessTest,
-              self).get_data(count, min_words, max_words, max_word_id,
+        super().get_data(count, min_words, max_words, max_word_id,
                              num_classes))
 
     features_b, labels_b, _ = (
-        super(DistributionStrategySiameseEmbeddingModelCorrectnessTest,
-              self).get_data(count, min_words, max_words, max_word_id,
+        super().get_data(count, min_words, max_words, max_word_id,
                              num_classes))
 
     y_train = np.zeros((count, 1), dtype=np.float32)

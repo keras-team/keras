@@ -304,7 +304,7 @@ class AttentionSubclassTest(test_combinations.TestCase):
 class TestModel(keras.Model):
 
   def __init__(self):
-    super(TestModel, self).__init__()
+    super().__init__()
     self.attention = keras.layers.MultiHeadAttention(
         num_heads=3,
         key_dim=4,

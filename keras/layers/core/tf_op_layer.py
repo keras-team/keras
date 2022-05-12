@@ -57,7 +57,7 @@ class ClassMethod(Layer):
     # Do not individually trace op layers in the SavedModel.
     self._must_restore_from_config = True
 
-    super(ClassMethod, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
     # Preserve all argument data structures when saving/loading a config
     # (e.g., don't unnest lists that contain one element)
@@ -80,7 +80,7 @@ class ClassMethod(Layer):
           'public TensorFlow API symbols can be serialized.')
 
     config = {'cls_symbol': self.cls_symbol, 'method_name': self.method_name}
-    base_config = super(ClassMethod, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -141,7 +141,7 @@ class InstanceProperty(Layer):
     # Do not individually trace op layers in the SavedModel.
     self._must_restore_from_config = True
 
-    super(InstanceProperty, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
     # Preserve all argument data structures when saving/loading a config
     # (e.g., don't unnest lists that contain one element)
@@ -152,7 +152,7 @@ class InstanceProperty(Layer):
 
   def get_config(self):
     config = {'attr_name': self.attr_name}
-    base_config = super(InstanceProperty, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -231,7 +231,7 @@ class TFOpLambda(Layer):
     # Do not individually trace op layers in the SavedModel.
     self._must_restore_from_config = True
 
-    super(TFOpLambda, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
     # Preserve all argument data structures when saving/loading a config
     # (e.g., don't unnest lists that contain one element)
@@ -314,7 +314,7 @@ class TFOpLambda(Layer):
           'public TensorFlow API symbols can be serialized.')
     config = {'function': self.symbol}
 
-    base_config = super(TFOpLambda, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -465,7 +465,7 @@ class SlicingOpLambda(TFOpLambda):
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, function, **kwargs):
-    super(SlicingOpLambda, self).__init__(function, **kwargs)
+    super().__init__(function, **kwargs)
 
     original_call = self.call
 

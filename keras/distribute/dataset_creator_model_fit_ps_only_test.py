@@ -73,7 +73,7 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
     class MyCallback(callbacks_lib.Callback):
 
       def __init__(self):
-        super(MyCallback, self).__init__()
+        super().__init__()
         # Fetches the RemoteValues if necessary.
         self._supports_tf_logs = True
 

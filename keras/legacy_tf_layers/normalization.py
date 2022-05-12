@@ -203,7 +203,7 @@ class BatchNormalization(batch_normalization_v1.BatchNormalization, base.Layer):
                adjustment=None,
                name=None,
                **kwargs):
-    super(BatchNormalization, self).__init__(
+    super().__init__(
         axis=axis,
         momentum=momentum,
         epsilon=epsilon,
@@ -228,7 +228,7 @@ class BatchNormalization(batch_normalization_v1.BatchNormalization, base.Layer):
         **kwargs)
 
   def call(self, inputs, training=False):
-    return super(BatchNormalization, self).call(inputs, training=training)
+    return super().call(inputs, training=training)
 
 
 @keras_export(v1=['keras.__internal__.legacy.layers.batch_normalization'])

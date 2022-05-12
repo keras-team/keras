@@ -83,7 +83,7 @@ class WideDeepModel(keras_training.Model):
       **kwargs: The keyword arguments that are passed on to BaseLayer.__init__.
         Allowed keyword arguments include `name`.
     """
-    super(WideDeepModel, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     base_layer.keras_premade_model_gauge.get_cell('WideDeep').set(True)
     self.linear_model = linear_model
     self.dnn_model = dnn_model

@@ -74,7 +74,7 @@ class GlobalAveragePooling1D(GlobalPooling1D):
   """
 
   def __init__(self, data_format='channels_last', **kwargs):
-    super(GlobalAveragePooling1D, self).__init__(data_format=data_format,
+    super().__init__(data_format=data_format,
                                                  **kwargs)
     self.supports_masking = True
 

@@ -30,7 +30,7 @@ class CustomMnistBenchmark(tf.test.Benchmark):
   """Benchmarks for custom training loop using `tf.test.Benchmark`."""
 
   def __init__(self):
-    super(CustomMnistBenchmark, self).__init__()
+    super().__init__()
     self.num_classes = 10
     self.input_shape = (28, 28, 1)
     self.epochs = 15

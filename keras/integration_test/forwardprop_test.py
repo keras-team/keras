@@ -266,7 +266,7 @@ class ForwardpropTest(tf.test.TestCase, parameterized.TestCase):
     class M(tf.keras.Model):
 
       def __init__(self):
-        super(M, self).__init__()
+        super().__init__()
         self.embed = tf.keras.layers.Embedding(5, 1)
         self.proj = tf.keras.layers.Dense(1)
 

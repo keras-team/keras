@@ -217,7 +217,7 @@ class BatchNormalizationTest(test_combinations.TestCase):
     class MyModel(keras.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.bn = keras.layers.BatchNormalization()
 
       @tf.function()

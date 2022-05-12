@@ -124,7 +124,7 @@ class EinsumDense(Layer):
                kernel_constraint=None,
                bias_constraint=None,
                **kwargs):
-    super(EinsumDense, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.equation = equation
     if isinstance(output_shape, int):
       self.partial_output_shape = [output_shape]
@@ -166,7 +166,7 @@ class EinsumDense(Layer):
           trainable=True)
     else:
       self.bias = None
-    super(EinsumDense, self).build(input_shape)
+    super().build(input_shape)
 
   def compute_output_shape(self, _):
     return tf.TensorShape(self.full_output_shape)
@@ -186,7 +186,7 @@ class EinsumDense(Layer):
         "kernel_constraint": constraints.serialize(self.kernel_constraint),
         "bias_constraint": constraints.serialize(self.bias_constraint),
     }
-    base_config = super(EinsumDense, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   def call(self, inputs):

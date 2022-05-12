@@ -288,7 +288,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
       """A simple metric that adds all the one's in `y_true`."""
 
       def __init__(self, name='add_all_ones', **kwargs):
-        super(AddAllOnes, self).__init__(name=name, **kwargs)
+        super().__init__(name=name, **kwargs)
         self.total = self.add_weight(name='total', initializer='zeros')
 
       def update_state(self, y_true, y_pred, sample_weight=None):
@@ -1993,7 +1993,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
     class MyCallbackWithTFBatchHooks(keras.callbacks.Callback):
 
       def __init__(self):
-        super(MyCallbackWithTFBatchHooks, self).__init__()
+        super().__init__()
         self._supports_tf_logs = True
 
     class MyCallbackWithoutBatchHooks(keras.callbacks.Callback):
@@ -2051,7 +2051,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
     class MutateTensorFlowLogs(CallAllHooks):
 
       def __init__(self):
-        super(MutateTensorFlowLogs, self).__init__()
+        super().__init__()
         self._supports_tf_logs = True
 
       def _run(self, *args, logs=None):
@@ -2067,7 +2067,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
     class AssertTensorFlowLogs(AssertNumpyLogs):
 
       def __init__(self):
-        super(AssertTensorFlowLogs, self).__init__()
+        super().__init__()
         self._supports_tf_logs = True
 
     cb_list = keras.callbacks.CallbackList([
@@ -2202,7 +2202,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
     class MyCallback(keras.callbacks.Callback):
 
       def __init__(self):
-        super(MyCallback, self).__init__()
+        super().__init__()
         self.batch_counter = 0
 
       def on_train_batch_end(self, batch, logs=None):
@@ -2227,7 +2227,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
     class TestingCallbackList(keras.callbacks.CallbackList):
 
       def __init__(self, *args, **kwargs):
-        super(TestingCallbackList, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if ((not isinstance(self.callbacks[0], CustomCallback)) or
             (not isinstance(self.callbacks[1], keras.callbacks.History)) or
             (not isinstance(self.callbacks[2], keras.callbacks.ProgbarLogger))):
@@ -3207,7 +3207,7 @@ class SummaryOpsTest(tf.test.TestCase):
     class SimpleSubclass(keras.Model):
 
       def __init__(self):
-        super(SimpleSubclass, self).__init__(name='subclass')
+        super().__init__(name='subclass')
         self.dense = Dense(10, input_shape=(100,))
         self.activation = Activation('relu', name='my_relu')
 

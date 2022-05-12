@@ -29,7 +29,7 @@ import tensorflow.compat.v2 as tf
 class AddingPreprocessingLayer(base_preprocessing_layer.PreprocessingLayer):
 
   def build(self, input_shape):
-    super(AddingPreprocessingLayer, self).build(input_shape)
+    super().build(input_shape)
     self.sum = tf.Variable(0., dtype=tf.float32)
 
   def update_state(self, data):

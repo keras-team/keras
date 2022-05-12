@@ -130,7 +130,7 @@ class CategoryEncoding(base_layer.Layer):
     if "dtype" not in kwargs:
       kwargs["dtype"] = backend.floatx()
 
-    super(CategoryEncoding, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell("CategoryEncoding").set(
         True)
 
@@ -178,7 +178,7 @@ class CategoryEncoding(base_layer.Layer):
         "output_mode": self.output_mode,
         "sparse": self.sparse,
     }
-    base_config = super(CategoryEncoding, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   def call(self, inputs, count_weights=None):

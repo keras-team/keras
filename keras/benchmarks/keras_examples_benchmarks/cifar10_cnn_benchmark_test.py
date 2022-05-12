@@ -26,7 +26,7 @@ class Cifar10CNNBenchmark(tf.test.Benchmark):
   """Benchmarks for CNN using `tf.test.Benchmark`."""
 
   def __init__(self):
-    super(Cifar10CNNBenchmark, self).__init__()
+    super().__init__()
     self.num_classes = 10
     (self.x_train, self.y_train), _ = tf.keras.datasets.cifar10.load_data()
     self.x_train = self.x_train.astype('float32') / 255

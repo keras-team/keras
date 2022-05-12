@@ -275,4 +275,4 @@ class SidecarEvaluatorExperimental(SidecarEvaluator):
         '`tf.keras.experimental.SidecarEvaluator` endpoint is '
         'deprecated and will be removed in a future release. Please use '
         '`tf.keras.utils.SidecarEvaluator`.')
-    super(SidecarEvaluatorExperimental, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)

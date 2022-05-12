@@ -110,7 +110,7 @@ class Dense(Layer):
                kernel_constraint=None,
                bias_constraint=None,
                **kwargs):
-    super(Dense, self).__init__(
+    super().__init__(
         activity_regularizer=activity_regularizer, **kwargs)
 
     self.units = int(units) if not isinstance(units, int) else units
@@ -249,7 +249,7 @@ class Dense(Layer):
     return input_shape[:-1].concatenate(self.units)
 
   def get_config(self):
-    config = super(Dense, self).get_config()
+    config = super().get_config()
     config.update({
         'units': self.units,
         'activation': activations.serialize(self.activation),

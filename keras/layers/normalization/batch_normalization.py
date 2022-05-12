@@ -172,7 +172,7 @@ class BatchNormalizationBase(Layer):
                adjustment=None,
                name=None,
                **kwargs):
-    super(BatchNormalizationBase, self).__init__(name=name, **kwargs)
+    super().__init__(name=name, **kwargs)
     if isinstance(axis, (list, tuple)):
       self.axis = axis[:]
     elif isinstance(axis, int):
@@ -938,7 +938,7 @@ class BatchNormalizationBase(Layer):
                       'layer cannot be serialized and has been omitted from '
                       'the layer config. It will not be included when '
                       're-creating the layer from the saved config.')
-    base_config = super(BatchNormalizationBase, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1032,7 +1032,7 @@ class SyncBatchNormalization(BatchNormalizationBase):
           '`fused` argument cannot be True for SyncBatchNormalization.')
 
     # Currently we only support aggregating over the global batch size.
-    super(SyncBatchNormalization, self).__init__(
+    super().__init__(
         axis=axis,
         momentum=momentum,
         epsilon=epsilon,
@@ -1232,7 +1232,7 @@ class BatchNormalization(BatchNormalizationBase):
                beta_constraint=None,
                gamma_constraint=None,
                **kwargs):
-    super(BatchNormalization, self).__init__(
+    super().__init__(
         axis=axis,
         momentum=momentum,
         epsilon=epsilon,

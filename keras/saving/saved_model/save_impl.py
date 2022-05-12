@@ -345,7 +345,7 @@ def _restore_layer_losses(losses_dict):
 class LayerTracingContext(threading.local):
 
   def __init__(self):
-    super(LayerTracingContext, self).__init__()
+    super().__init__()
     self.enable_call_tracing = False
     self.trace_queue = []
 

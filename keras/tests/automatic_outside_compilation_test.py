@@ -95,7 +95,7 @@ class CustomModel(training.Model):
   """Custom model with summary ops in model call definition."""
 
   def __init__(self, name=None, enable_histograms=True):
-    super(CustomModel, self).__init__()
+    super().__init__()
     self._my_layers = [
         layer_lib.Dense(
             4096,
@@ -158,7 +158,7 @@ def mnist_model(input_shape, enable_histograms=True):
 class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
 
   def setUp(self):
-    super(AutoOutsideCompilationWithKerasTest, self).setUp()
+    super().setUp()
     set_soft_device_placement(True)
     self.summary_dir = self.get_temp_dir()
 

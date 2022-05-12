@@ -37,7 +37,7 @@ class MyModel(training.Model):
   """A concrete Model for testing."""
 
   def __init__(self):
-    super(MyModel, self).__init__()
+    super().__init__()
     self._named_dense = core.Dense(1, use_bias=True)
     self._second = core.Dense(1, use_bias=False)
     # We can still track Trackables which aren't Layers.
@@ -51,7 +51,7 @@ class MyModel(training.Model):
 class NonLayerTrackable(tf.Module):
 
   def __init__(self):
-    super(NonLayerTrackable, self).__init__()
+    super().__init__()
     self.a_variable = trackable_utils.add_variable(
         self, name="a_variable", shape=[])
 
@@ -420,7 +420,7 @@ class CheckpointingTests(test_combinations.TestCase):
     class Model(training.Model):
 
       def __init__(self):
-        super(Model, self).__init__()
+        super().__init__()
         self.w = tf.Variable(0.0)
         self.b = tf.Variable(0.0)
         self.vars = [self.w, self.b]

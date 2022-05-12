@@ -895,7 +895,7 @@ class BaseLogger(Callback):
   """
 
   def __init__(self, stateful_metrics=None):
-    super(BaseLogger, self).__init__()
+    super().__init__()
     self.stateful_metrics = set(stateful_metrics or [])
 
   def on_epoch_begin(self, epoch, logs=None):
@@ -936,7 +936,7 @@ class TerminateOnNaN(Callback):
   """
 
   def __init__(self):
-    super(TerminateOnNaN, self).__init__()
+    super().__init__()
     self._supports_tf_logs = True
 
   def on_batch_end(self, batch, logs=None):
@@ -968,7 +968,7 @@ class ProgbarLogger(Callback):
   """
 
   def __init__(self, count_mode='samples', stateful_metrics=None):
-    super(ProgbarLogger, self).__init__()
+    super().__init__()
     self._supports_tf_logs = True
     if count_mode == 'samples':
       self.use_steps = False
@@ -1141,7 +1141,7 @@ class History(Callback):
   """
 
   def __init__(self):
-    super(History, self).__init__()
+    super().__init__()
     self.history = {}
 
   def on_train_begin(self, logs=None):
@@ -1275,7 +1275,7 @@ class ModelCheckpoint(Callback):
                options=None,
                initial_value_threshold=None,
                **kwargs):
-    super(ModelCheckpoint, self).__init__()
+    super().__init__()
     self._supports_tf_logs = True
     self.monitor = monitor
     self.verbose = verbose
@@ -1667,7 +1667,7 @@ class BackupAndRestore(Callback):
   """
 
   def __init__(self, backup_dir):
-    super(BackupAndRestore, self).__init__()
+    super().__init__()
     self.backup_dir = backup_dir
     self._supports_tf_logs = True
     self._supported_strategies = (
@@ -1738,7 +1738,7 @@ class BackupAndRestoreExperimental(BackupAndRestore):
         '`tf.keras.callbacks.experimental.BackupAndRestore` endpoint is '
         'deprecated and will be removed in a future release. Please use '
         '`tf.keras.callbacks.BackupAndRestore`.')
-    super(BackupAndRestoreExperimental, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
 
 @keras_export('keras.callbacks.EarlyStopping')
@@ -1805,7 +1805,7 @@ class EarlyStopping(Callback):
                mode='auto',
                baseline=None,
                restore_best_weights=False):
-    super(EarlyStopping, self).__init__()
+    super().__init__()
 
     self.monitor = monitor
     self.patience = patience
@@ -1922,7 +1922,7 @@ class RemoteMonitor(Callback):
                field='data',
                headers=None,
                send_as_json=False):
-    super(RemoteMonitor, self).__init__()
+    super().__init__()
 
     self.root = root
     self.path = path
@@ -1995,7 +1995,7 @@ class LearningRateScheduler(Callback):
   """
 
   def __init__(self, schedule, verbose=0):
-    super(LearningRateScheduler, self).__init__()
+    super().__init__()
     self.schedule = schedule
     self.verbose = verbose
 
@@ -2210,7 +2210,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                embeddings_freq=0,
                embeddings_metadata=None,
                **kwargs):
-    super(TensorBoard, self).__init__()
+    super().__init__()
     self._supports_tf_logs = True
     self._validate_kwargs(kwargs)
 
@@ -2690,7 +2690,7 @@ class ReduceLROnPlateau(Callback):
                cooldown=0,
                min_lr=0,
                **kwargs):
-    super(ReduceLROnPlateau, self).__init__()
+    super().__init__()
 
     self.monitor = monitor
     if factor >= 1.0:
@@ -2797,7 +2797,7 @@ class CSVLogger(Callback):
     self.writer = None
     self.keys = None
     self.append_header = True
-    super(CSVLogger, self).__init__()
+    super().__init__()
 
   def on_train_begin(self, logs=None):
     if self.append:
@@ -2913,7 +2913,7 @@ class LambdaCallback(Callback):
                on_train_begin=None,
                on_train_end=None,
                **kwargs):
-    super(LambdaCallback, self).__init__()
+    super().__init__()
     self.__dict__.update(kwargs)
     if on_epoch_begin is not None:
       self.on_epoch_begin = on_epoch_begin

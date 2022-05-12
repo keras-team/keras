@@ -161,7 +161,7 @@ class LayerUtilsTest(tf.test.TestCase):
     class Sequential(keras.Model):
 
       def __init__(self, *args):
-        super(Sequential, self).__init__()
+        super().__init__()
         self.module_list = list(args) if args else []
 
       def call(self, x):
@@ -172,7 +172,7 @@ class LayerUtilsTest(tf.test.TestCase):
     class Block(keras.Model):
 
       def __init__(self):
-        super(Block, self).__init__()
+        super().__init__()
         self.module = Sequential(
             keras.layers.Dense(10),
             keras.layers.Dense(10),
@@ -185,7 +185,7 @@ class LayerUtilsTest(tf.test.TestCase):
     class Base(keras.Model):
 
       def __init__(self):
-        super(Base, self).__init__()
+        super().__init__()
         self.module = Sequential(Block(), Block())
 
       def call(self, input_tensor):
@@ -196,7 +196,7 @@ class LayerUtilsTest(tf.test.TestCase):
     class Network(keras.Model):
 
       def __init__(self):
-        super(Network, self).__init__()
+        super().__init__()
         self.child = Base()
 
       def call(self, inputs):
@@ -376,14 +376,14 @@ class LayerUtilsTest(tf.test.TestCase):
     class MyObject(tf.__internal__.tracking.AutoTrackable):
 
       def __init__(self):
-        super(MyObject, self).__init__()
+        super().__init__()
         self._frozen = True
 
       def __setattr__(self, key, value):
         """Enforce that cache does not set attribute on MyObject."""
         if getattr(self, '_frozen', False):
           raise ValueError('Cannot mutate when frozen.')
-        return super(MyObject, self).__setattr__(key, value)
+        return super().__setattr__(key, value)
 
       @property
       @layer_utils.cached_per_instance

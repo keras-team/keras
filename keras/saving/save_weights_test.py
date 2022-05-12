@@ -376,7 +376,7 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
 class SubclassedModel(training.Model):
 
   def __init__(self):
-    super(SubclassedModel, self).__init__()
+    super().__init__()
     self.x_layer = keras.layers.Dense(3)
     self.b_layer = keras.layers.Dense(1)
 
@@ -585,7 +585,7 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
     class SubclassedModelRestore(training.Model):
 
       def __init__(self):
-        super(SubclassedModelRestore, self).__init__()
+        super().__init__()
         self.x_layer = keras.layers.Dense(3)
         self.y_layer = keras.layers.Dense(3)
         self.b_layer = keras.layers.Dense(1)

@@ -136,7 +136,7 @@ class RNNTest(test_combinations.TestCase):
       def __init__(self, units, **kwargs):
         self.units = units
         self.state_size = units
-        super(MinimalRNNCell, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
       def build(self, input_shape):
         self.kernel = self.add_weight(shape=(input_shape[-1], self.units),
@@ -156,7 +156,7 @@ class RNNTest(test_combinations.TestCase):
 
       def get_config(self):
         config = {'units': self.units}
-        base_config = super(MinimalRNNCell, self).get_config()
+        base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     # Test basic case.
@@ -216,7 +216,7 @@ class RNNTest(test_combinations.TestCase):
 
       def __init__(self, units, **kwargs):
         self.units = units
-        super(MinimalRNNCell, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
       @property
       def state_size(self):
@@ -661,7 +661,7 @@ class RNNTest(test_combinations.TestCase):
       def __init__(self, units, **kwargs):
         self.units = units
         self.state_size = units
-        super(CustomRNNCell, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
       def build(self, input_shape):
         self.kernel = self.add_weight(shape=(input_shape[-1], self.units),
@@ -681,7 +681,7 @@ class RNNTest(test_combinations.TestCase):
 
       def get_config(self):
         config = {'units': self.units}
-        base_config = super(CustomRNNCell, self).get_config()
+        base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     for cell_class in [keras.layers.SimpleRNNCell,
@@ -874,7 +874,7 @@ class RNNTest(test_combinations.TestCase):
     class CellWrapper(keras.layers.AbstractRNNCell):
 
       def __init__(self, cell):
-        super(CellWrapper, self).__init__()
+        super().__init__()
         self.cell = cell
 
       @property
@@ -1325,7 +1325,7 @@ class RNNTest(test_combinations.TestCase):
       def __init__(self):
         self.state_size = None
         self.output_size = None
-        super(Cell, self).__init__()
+        super().__init__()
 
       def build(self, input_shape):
         self.state_size = input_shape[-1]
@@ -1741,7 +1741,7 @@ class RNNTest(test_combinations.TestCase):
       def __init__(self):
         self.state_size = ((), [], ())
         self.output_size = None
-        super(StatelessCell, self).__init__()
+        super().__init__()
 
       def build(self, input_shape):
         self.output_size = input_shape[-1]
@@ -1803,7 +1803,7 @@ class RNNCellWithConstants(keras.layers.Layer):
     self.units = units
     self.state_size = units
     self.constant_size = constant_size
-    super(RNNCellWithConstants, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
   def build(self, input_shape):
     self.input_kernel = self.add_weight(
@@ -1831,7 +1831,7 @@ class RNNCellWithConstants(keras.layers.Layer):
 
   def get_config(self):
     config = {'units': self.units, 'constant_size': self.constant_size}
-    base_config = super(RNNCellWithConstants, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1847,7 +1847,7 @@ class Minimal2DRNNCell(keras.layers.Layer):
     self.unit_b = unit_b
     self.state_size = tf.TensorShape([unit_a, unit_b])
     self.output_size = tf.TensorShape([unit_a, unit_b])
-    super(Minimal2DRNNCell, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
   def build(self, input_shape):
     input_a = input_shape[-2]
@@ -1880,7 +1880,7 @@ class PlusOneRNNCell(keras.layers.Layer):
 
   def __init__(self, num_unit, **kwargs):
     self.state_size = num_unit
-    super(PlusOneRNNCell, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
   def build(self, input_shape):
     self.output_size = input_shape[-1]
@@ -1896,7 +1896,7 @@ class NestedCell(keras.layers.Layer):
     self.unit_2 = unit_2
     self.unit_3 = unit_3
     self.use_tuple = use_tuple
-    super(NestedCell, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     # A nested state.
     if use_tuple:
       self.state_size = NestedState(

@@ -55,7 +55,7 @@ class AlphaDropout(base_layer.BaseRandomLayer):
   """
 
   def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
-    super(AlphaDropout, self).__init__(seed=seed, **kwargs)
+    super().__init__(seed=seed, **kwargs)
     self.rate = rate
     self.noise_shape = noise_shape
     self.seed = seed
@@ -92,7 +92,7 @@ class AlphaDropout(base_layer.BaseRandomLayer):
 
   def get_config(self):
     config = {'rate': self.rate, 'seed': self.seed}
-    base_config = super(AlphaDropout, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @tf_utils.shape_type_conversion

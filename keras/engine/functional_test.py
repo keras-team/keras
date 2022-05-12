@@ -1644,7 +1644,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
     class Model(training_lib.Model):
 
       def __init__(self):
-        super(Model, self).__init__()
+        super().__init__()
         self.conv1 = layers.Conv2D(8, 3)
         self.pool = layers.GlobalAveragePooling2D()
         self.fc = layers.Dense(3)
@@ -1672,7 +1672,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
     class BasicBlock(training_lib.Model):
 
       def __init__(self):
-        super(BasicBlock, self).__init__()
+        super().__init__()
         self.conv1 = layers.Conv2D(8, 3)
         self.pool = layers.GlobalAveragePooling2D()
         self.dense = layers.Dense(3)
@@ -1686,7 +1686,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
     class CompoundModel(training_lib.Model):
 
       def __init__(self):
-        super(CompoundModel, self).__init__()
+        super().__init__()
         self.block = BasicBlock()
 
       def call(self, x):
@@ -1712,7 +1712,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
       # inside a model created using functional API.
 
       def __init__(self):
-        super(BasicBlock, self).__init__()
+        super().__init__()
         self.conv1 = layers.Conv2D(8, 3)
 
       def call(self, x):
@@ -2178,7 +2178,7 @@ class WeightAccessTest(test_combinations.TestCase):
     class SubclassModel(models.Model):
 
       def __init__(self):
-        super(SubclassModel, self).__init__()
+        super().__init__()
         self.w = self.add_weight(shape=(), initializer='ones')
 
       def call(self, inputs):
@@ -2227,17 +2227,17 @@ class AttrTrackingLayer(base_layer.Layer):
   def __init__(self, *args, **kwargs):
     self.stateful_count = 0
     self.dynamic_count = 0
-    super(AttrTrackingLayer, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
   @base_layer.Layer.stateful.getter
   def stateful(self):
     self.stateful_count += 1
-    return super(AttrTrackingLayer, self).stateful
+    return super().stateful
 
   @property
   def dynamic(self):
     self.dynamic_count += 1
-    return super(AttrTrackingLayer, self).dynamic
+    return super().dynamic
 
 
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))

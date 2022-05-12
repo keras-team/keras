@@ -118,7 +118,7 @@ class Model(training_lib.Model):
   """
 
   def __init__(self, *args, **kwargs):
-    super(Model, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     # initializing _distribution_strategy here since it is possible to call
     # predict on a model without compiling it.
     self._distribution_strategy = None
@@ -210,7 +210,7 @@ class Model(training_lib.Model):
           (not saving_utils.is_hdf5_filepath(filepath))):  # pylint: disable=protected-access
         raise ValueError('Load weights is not yet supported with TPUStrategy '
                          'with steps_per_run greater than 1.')
-    return super(Model, self).load_weights(filepath, by_name, skip_mismatch)
+    return super().load_weights(filepath, by_name, skip_mismatch)
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
   def compile(self,
@@ -480,7 +480,7 @@ class Model(training_lib.Model):
         # See b/155687393 for more details, the model is created as a v2
         # instance but converted to v1. Fallback to use base Model to retrieve
         # the metrics.
-        return super(Model, self).metrics
+        return super().metrics
       metrics += self._compile_metric_functions
     metrics.extend(self._metrics)
     metrics.extend(
@@ -500,7 +500,7 @@ class Model(training_lib.Model):
         # See b/155687393 for more details, the model is created as a v2
         # instance but converted to v1. Fallback to use base Model to retrieve
         # the metrics name
-        return super(Model, self).metrics_names
+        return super().metrics_names
 
       # Add output loss metric names to the metric names list.
       if len(self._training_endpoints) > 1:
@@ -2825,7 +2825,7 @@ class DistributedCallbackModel(Model):
   """Model that is used for callbacks with tf.distribute.Strategy."""
 
   def __init__(self, model):
-    super(DistributedCallbackModel, self).__init__()
+    super().__init__()
     self.optimizer = model.optimizer
 
   def set_original_model(self, orig_model):
@@ -2858,7 +2858,7 @@ class DistributedCallbackModel(Model):
       logging.warning('You are accessing attribute ' + item + ' of the '
                       'DistributedCallbackModel that may not have been set '
                       'correctly.')
-    return super(DistributedCallbackModel, self).__getattr__(item)
+    return super().__getattr__(item)
 
 
 class _TrainingEndpoint:

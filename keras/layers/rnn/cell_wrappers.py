@@ -45,7 +45,7 @@ class _RNNCellWrapper(AbstractRNNCell):
   """
 
   def __init__(self, cell, *args, **kwargs):
-    super(_RNNCellWrapper, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self.cell = cell
     cell_call_spec = tf_inspect.getfullargspec(cell.call)
     self._call_spec.expects_training_arg = (("training"
@@ -123,7 +123,7 @@ class _RNNCellWrapper(AbstractRNNCell):
             "config": self.cell.get_config()
         },
     }
-    base_config = super(_RNNCellWrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -210,7 +210,7 @@ class DropoutWrapper(_RNNCellWrapper):
       raise ValueError("keras LSTM cell does not work with DropoutWrapper. "
                        "Please use LSTMCell(dropout=x, recurrent_dropout=y) "
                        "instead.")
-    super(DropoutWrapper, self).__init__(cell, dtype=dtype, **kwargs)
+    super().__init__(cell, dtype=dtype, **kwargs)
 
     if (dropout_state_filter_visitor is not None and
         not callable(dropout_state_filter_visitor)):
@@ -389,7 +389,7 @@ class DropoutWrapper(_RNNCellWrapper):
       config.update({"dropout_fn": function,
                      "dropout_fn_type": function_type,
                      "dropout_fn_module": function_module})
-    base_config = super(DropoutWrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -420,7 +420,7 @@ class ResidualWrapper(_RNNCellWrapper):
           and outputs.
       **kwargs: dict of keyword arguments for base layer.
     """
-    super(ResidualWrapper, self).__init__(cell, **kwargs)
+    super().__init__(cell, **kwargs)
     self._residual_fn = residual_fn
 
   def _call_wrapped_cell(self, inputs, state, cell_call_fn, **kwargs):
@@ -466,7 +466,7 @@ class ResidualWrapper(_RNNCellWrapper):
       }
     else:
       config = {}
-    base_config = super(ResidualWrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -496,7 +496,7 @@ class DeviceWrapper(_RNNCellWrapper):
       device: A device string or function, for passing to `tf.device`.
       **kwargs: dict of keyword arguments for base layer.
     """
-    super(DeviceWrapper, self).__init__(cell, **kwargs)
+    super().__init__(cell, **kwargs)
     self._device = device
 
   def zero_state(self, batch_size, dtype):
@@ -511,7 +511,7 @@ class DeviceWrapper(_RNNCellWrapper):
 
   def get_config(self):
     config = {"device": self._device}
-    base_config = super(DeviceWrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

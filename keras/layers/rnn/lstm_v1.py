@@ -98,7 +98,7 @@ class LSTMCell(lstm.LSTMCell):
                dropout=0.,
                recurrent_dropout=0.,
                **kwargs):
-    super(LSTMCell, self).__init__(
+    super().__init__(
         units,
         activation=activation,
         recurrent_activation=recurrent_activation,
@@ -261,7 +261,7 @@ class LSTM(RNN):
         dtype=kwargs.get('dtype'),
         trainable=kwargs.get('trainable', True),
         **cell_kwargs)
-    super(LSTM, self).__init__(
+    super().__init__(
         cell,
         return_sequences=return_sequences,
         return_state=return_state,
@@ -273,7 +273,7 @@ class LSTM(RNN):
     self.input_spec = [InputSpec(ndim=3)]
 
   def call(self, inputs, mask=None, training=None, initial_state=None):
-    return super(LSTM, self).call(
+    return super().call(
         inputs, mask=mask, training=training, initial_state=initial_state)
 
   @property
@@ -384,7 +384,7 @@ class LSTM(RNN):
             self.implementation
     }
     config.update(rnn_utils.config_for_enable_caching_device(self.cell))
-    base_config = super(LSTM, self).get_config()
+    base_config = super().get_config()
     del base_config['cell']
     return dict(list(base_config.items()) + list(config.items()))
 

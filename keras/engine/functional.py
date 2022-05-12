@@ -136,7 +136,7 @@ class Functional(training_lib.Model):
     if skip_init:
       return
     generic_utils.validate_kwargs(kwargs, {})
-    super(Functional, self).__init__(name=name, trainable=trainable)
+    super().__init__(name=name, trainable=trainable)
     # Check if the inputs contain any intermediate `KerasTensor` (not created
     # by tf.keras.Input()). In this case we need to clone the `Node` and
     # `KerasTensor` objects to mimic rebuilding a new model from new inputs.
@@ -406,14 +406,14 @@ class Functional(training_lib.Model):
   def _trackable_children(self, save_type='checkpoint', **kwargs):
     dependencies = self._layer_checkpoint_dependencies
     dependencies.update(
-        super(Functional, self)._trackable_children(save_type, **kwargs))
+        super()._trackable_children(save_type, **kwargs))
     return dependencies
 
   def _lookup_dependency(self, name):
     layer_dependencies = self._layer_checkpoint_dependencies
     if name in layer_dependencies:
       return layer_dependencies[name]
-    return super(Functional, self)._lookup_dependency(name)
+    return super()._lookup_dependency(name)
 
   def _handle_deferred_layer_dependencies(self, layers):
     """Handles layer checkpoint dependencies that are added after init."""
@@ -887,7 +887,7 @@ class Functional(training_lib.Model):
       # Functional models and Sequential models that have an explicit input
       # shape should use the batch size set by the input layer.
       dynamic_batch = False
-    return super(Functional, self)._get_save_spec(dynamic_batch, inputs_only)
+    return super()._get_save_spec(dynamic_batch, inputs_only)
 
 
 def _make_node_key(layer_name, node_index):
@@ -1447,7 +1447,7 @@ class ModuleWrapper(base_layer.Layer):
     Raises:
       ValueError: If `method` is not defined on `module`.
     """
-    super(ModuleWrapper, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     if method_name is None:
       if hasattr(module, '__call__'):
         method_name = '__call__'

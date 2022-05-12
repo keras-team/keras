@@ -131,7 +131,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
      unique_id) = _infer_shape_dtype_and_create_handle(initial_value, shape,
                                                        dtype, name)
 
-    super(LazyInitVariable, self).__init__(
+    super().__init__(
         distribute_strategy=distribute_strategy,
         initial_value=initial_value,
         shape=shape,
@@ -175,7 +175,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
            initial_value, self._shape, self._dtype, self._name)
       self.initialize()
 
-    super(LazyInitVariable, self).__init__(
+    super().__init__(
         trainable=self._trainable,
         shape=shape,
         dtype=dtype,

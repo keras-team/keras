@@ -46,7 +46,7 @@ class RepeatVector(Layer):
   """
 
   def __init__(self, n, **kwargs):
-    super(RepeatVector, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.n = n
     if not isinstance(n, int):
       raise TypeError(f'Expected an integer value for `n`, got {type(n)}.')
@@ -61,5 +61,5 @@ class RepeatVector(Layer):
 
   def get_config(self):
     config = {'n': self.n}
-    base_config = super(RepeatVector, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
