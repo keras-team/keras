@@ -1609,7 +1609,7 @@ RegNetY320.__doc__ = BASE_DOCSTRING.format(name="RegNetY320")
 def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
   """A placeholder method for backward compatibility.
 
-  The preprocessing logic has been included in the regnet model
+  The preprocessing logic has been included in the efficientnet model
   implementation. Users are no longer required to call this method to normalize
   the input data. This method does nothing and only kept as a placeholder to
   align the API surface between old and new version of model.
