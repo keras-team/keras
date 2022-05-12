@@ -1439,6 +1439,11 @@ class DataHandler:
         if adapter_steps is not None:
             return adapter_steps
 
+        # tf.distribute's `PerWorkerDataset` does not inherit from
+        # `tf.data.Dataset` and in those cases we give up on inferring steps.
+        if not isinstance(dataset, tf.data.Dataset):
+            return None
+
         size = tf.data.experimental.cardinality(dataset)
         if size == tf.data.experimental.INFINITE_CARDINALITY and steps is None:
             raise ValueError(
