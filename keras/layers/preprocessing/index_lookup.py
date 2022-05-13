@@ -347,7 +347,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     """Gets the current size of the layer's vocabulary.
 
     Returns:
-      The integer size of the voculary, including optional mask and oov indices.
+      The integer size of the vocabulary, including optional mask and oov indices.
     """
     return int(self.lookup_table.size().numpy()) + self._token_start_index()
 
