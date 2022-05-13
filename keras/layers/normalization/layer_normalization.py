@@ -191,29 +191,27 @@ class LayerNormalization(Layer):
         self.supports_masking = True
 
         # Indicates whether a faster fused implementation can be used. This will
-        # be set to True or False in build()"
+        # be set to True or False in build()
         self._fused = None
 
-    def _fused_can_be_used(self, ndims):
-        """Returns false if fused implementation cannot be used.
+    def _can_use_fused_op(self, ndims):
+        """Returns True if fused implementation can be used, False otherwise.
 
-        Check if the axis is contiguous and can be collapsed into the last axis.
-        The self.axis is assumed to have no duplicates.
+        Checks if `self.axis` is contiguous and can be collapsed into its last
+        axis; `self.axis` is assumed to have no duplicate or negative values.
         """
-        axis = sorted(self.axis)
-        can_use_fused = False
-
-        if axis[-1] == ndims - 1 and axis[-1] - axis[0] == len(axis) - 1:
-            can_use_fused = True
-
         # fused_batch_norm will silently raise epsilon to be at least 1.001e-5,
         # so we cannot used the fused version if epsilon is below that value.
-        # Also, the variable dtype must be float32, as fused_batch_norm only
-        # supports float32 variables.
-        if self.epsilon < 1.001e-5 or self.dtype != "float32":
-            can_use_fused = False
+        if self.epsilon < 1.001e-5:
+            return False
 
-        return can_use_fused
+        # The variable dtype must be float32, as fused_batch_norm only supports
+        # float32 variables.
+        if self.dtype != 'float32':
+            return False
+
+        axis = sorted(self.axis)
+        return axis[-1] == ndims - 1 and axis[-1] - axis[0] == len(axis) - 1
 
     def build(self, input_shape):
         self.axis = tf_utils.validate_axis(self.axis, input_shape)
@@ -247,7 +245,7 @@ class LayerNormalization(Layer):
         else:
             self.beta = None
 
-        self._fused = self._fused_can_be_used(rank)
+        self._fused = self._can_use_fused_op(rank)
         self.built = True
 
     def call(self, inputs):
