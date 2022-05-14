@@ -107,22 +107,21 @@ class CheckpointingTests(test_combinations.TestCase):
     named_variables = {v.name: v for v in named_variables}
     self.assertEqual(len(expected_checkpoint_names),
                      len(named_variables.keys()))
-    # Check that we've mapped to the right variable objects (not exhaustive)
-    self.assertEqual(
-        "global_step",
-        named_variables["optimizer_step" + suffix].full_name)
-    self.assertEqual(
-        "my_model/dense_1/kernel",
-        named_variables["model/_second/kernel" + suffix].full_name)
-    self.assertEqual(
-        "my_model/dense/kernel",
-        named_variables["model/_named_dense/kernel" + suffix].full_name)
-    self.assertEqual(
-        "beta1_power",
-        named_variables["optimizer/beta1_power" + suffix].full_name)
-    self.assertEqual(
-        "beta2_power",
-        named_variables["optimizer/beta2_power" + suffix].full_name)
+    # Check that we've created the right full_names of objects (not exhaustive)
+    expected_names = {
+        "optimizer_step" + suffix: "global_step",
+        "model/_second/kernel" + suffix: "my_model/dense_1/kernel",
+        "model/_named_dense/kernel" + suffix: "my_model/dense/kernel",
+        "optimizer/beta1_power" + suffix: "beta1_power",
+        "optimizer/beta2_power" + suffix: "beta2_power",
+    }
+    for nodes in serialized_graph.nodes:
+      for attribute in nodes.attributes:
+        expected_name = expected_names.pop(attribute.checkpoint_key, None)
+        if expected_name is not None:
+          self.assertEqual(expected_name, attribute.full_name)
+    self.assertEmpty(expected_names)
+
     # Spot check the generated protocol buffers.
     self.assertEqual("optimizer",
                      serialized_graph.nodes[0].children[1].local_name)
@@ -138,6 +137,7 @@ class CheckpointingTests(test_combinations.TestCase):
         serialized_graph.nodes[optimizer_node.slot_variables[0]
                                .original_variable_node_id]
         .attributes[0].full_name)
+
     # We strip off the :0 suffix, as variable.name-based saving does.
     self.assertEqual(
         "my_model/dense/kernel/Adam",
