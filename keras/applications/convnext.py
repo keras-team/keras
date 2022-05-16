@@ -38,19 +38,19 @@ from tensorflow.python.util.tf_export import keras_export
 BASE_WEIGHTS_PATH = "https://storage.googleapis.com/tensorflow/keras-applications/convnext/"
 
 WEIGHTS_HASHES = {
-  "tiny":
+  "convnext_tiny":
     ("8ae6e78ce2933352b1ef4008e6dd2f17bc40771563877d156bc6426c7cf503ff",
       "d547c096cabd03329d7be5562c5e14798aa39ed24b474157cef5e85ab9e49ef1"),
-  "small":
+  "convnext_small":
     ("ce1277d8f1ee5a0ef0e171469089c18f5233860ceaf9b168049cb9263fd7483c",
       "6fc8009faa2f00c1c1dfce59feea9b0745eb260a7dd11bee65c8e20843da6eab"),
-  "base":
+  "convnext_base":
     ("52cbb006d3dadd03f6e095a8ca1aca47aecdd75acb4bc74bce1f5c695d0086e6",
       "40a20c5548a5e9202f69735ecc06c990e6b7c9d2de39f0361e27baeb24cb7c45"),
-  "large":
+  "convnext_large":
     ("070c5ed9ed289581e477741d3b34beffa920db8cf590899d6d2c67fba2a198a6",
       "96f02b6f0753d4f543261bc9d09bed650f24dd6bc02ddde3066135b63d23a1cd"),
-  "xlarge":
+  "convnext_xlarge":
     ("c1f5ccab661354fc3a79a10fa99af82f0fbf10ec65cb894a3ae0815f17a889ee",
       "de3f8a54174130e0cecdc71583354753d557fcf1f4487331558e2a16ba0cfe05"),
 }
