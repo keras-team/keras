@@ -1246,6 +1246,7 @@ class DataHandler:
   def steps(self):
     """Yields steps for the current epoch."""
     self._current_step = self._initial_step
+    self._initial_step = 0
     # `self._inferred_steps` can be changed by `catch_stop_iteration`.
     while (self._inferred_steps is None or
            self._current_step < self._inferred_steps):

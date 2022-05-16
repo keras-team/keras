@@ -27,6 +27,9 @@ CKPT_SAVED_EPOCH = '_ckpt_saved_epoch'
 
 CKPT_SAVED_EPOCH_UNUSED_VALUE = -1
 
+CKPT_SAVED_BATCH = '_ckpt_saved_batch'
+
+CKPT_SAVED_BATCH_UNUSED_VALUE = -1
 
 class WorkerTrainingState:
   """Training state management class.
@@ -36,23 +39,28 @@ class WorkerTrainingState:
   for fault-tolerance, also known as preemption-recovery purpose.
   """
 
-  def __init__(self, model, checkpoint_dir):
+  def __init__(self, model, checkpoint_dir, save_freq='epoch'):
     self._model = model
-
-    # The epoch at which the checkpoint is saved. Used for fault-tolerance.
-    # GPU device only has int64 dtype registered VarHandleOp.
+    self._save_freq = save_freq
+    # The batch and epoch at which the checkpoint is saved. Used for
+    # fault-tolerance. GPU device only has int64 dtype registered VarHandleOp.
     self._ckpt_saved_epoch = tf.Variable(
         initial_value=tf.constant(
             CKPT_SAVED_EPOCH_UNUSED_VALUE, dtype=tf.int64),
         name='ckpt_saved_epoch')
-
+    self._ckpt_saved_batch = tf.Variable(
+        initial_value=tf.constant(
+            CKPT_SAVED_BATCH_UNUSED_VALUE, dtype=tf.int64),
+        name='ckpt_saved_batch')
     # Variable initialization.
     backend.set_value(self._ckpt_saved_epoch, CKPT_SAVED_EPOCH_UNUSED_VALUE)
-
-    # _ckpt_saved_epoch gets tracked and is included in the checkpoint file
-    # when backing up.
+    backend.set_value(self._ckpt_saved_batch, CKPT_SAVED_BATCH_UNUSED_VALUE)
+    # _ckpt_saved_epoch  and _ckpt_saved_batch gets tracked and is included in
+    # the checkpoint file when backing up.
     checkpoint = tf.train.Checkpoint(
-        model=self._model, ckpt_saved_epoch=self._ckpt_saved_epoch,
+        model=self._model,
+        ckpt_saved_epoch=self._ckpt_saved_epoch,
+        ckpt_saved_batch=self._ckpt_saved_batch,
         train_counter=self._model._train_counter)
 
     # If this is single-worker training, checkpoint_dir are the same for
@@ -78,14 +86,18 @@ class WorkerTrainingState:
       self.write_checkpoint_manager = tf.train.CheckpointManager(
           checkpoint, directory=write_checkpoint_dir, max_to_keep=1)
 
-  def back_up(self, epoch):
+  def back_up(self, epoch, batch=0):
     """Back up the current state of training into a checkpoint file.
 
     Args:
       epoch: The current epoch information to be saved.
+      batch: The current batch(step) information to be saved.
     """
+
     backend.set_value(self._ckpt_saved_epoch, epoch)
-    # Save the model plus CKPT_SAVED_EPOCH variable.
+    backend.set_value(self._ckpt_saved_batch, batch)
+
+    # Save the model plus CKPT_SAVED_BATCH variable.
     if self.write_checkpoint_manager.save():
       distributed_file_utils.remove_temp_dirpath(
           self.write_checkpoint_manager.directory,
@@ -112,7 +124,10 @@ class WorkerTrainingState:
       except tf.errors.NotFoundError:
         pass
 
-  def maybe_load_initial_epoch_from_ckpt(self, initial_epoch, mode):
+  def maybe_load_initial_counters_from_ckpt(self,
+                                            steps_per_epoch,
+                                            initial_epoch,
+                                            mode):
     """Maybe load initial epoch from ckpt considering possible worker recovery.
 
     When `_ckpt_saved_epoch` attribute exists and is not
@@ -122,18 +137,36 @@ class WorkerTrainingState:
     unfinished training from certain epoch.
 
     Args:
+      steps_per_epoch: The number of steps per epoch value.
       initial_epoch: The original initial_epoch user passes in in `fit()`.
       mode: The mode for running `model.fit()`.
 
     Returns:
       If the training is recovering from previous failure under multi-worker
-      training setting, return the epoch the training is supposed to continue
-      at. Otherwise, return the `initial_epoch` the user passes in.
+      training setting, return the (epoch, step) the training is supposed to
+      continue at. Otherwise, return the `initial_epoch, initial_step` the user
+      passes in.
     """
 
+    initial_step = 0
     epoch = backend.eval(self._ckpt_saved_epoch)
-    if mode == mode_keys.ModeKeys.TRAIN and epoch >= 0:
-      # The most recently saved epoch is one epoch prior to the epoch it
-      # failed at, so return the value of 'self._ckpt_saved_epoch' plus one.
-      return epoch + 1
-    return initial_epoch
+    batch = backend.eval(self._ckpt_saved_batch)
+    if mode == mode_keys.ModeKeys.TRAIN:
+      if self._save_freq == 'epoch':
+        if epoch >= 0:
+          # The most recently saved epoch is one epoch prior to the epoch it
+          # failed at, so return the value of 'self._ckpt_saved_epoch' plus one.
+          initial_epoch = epoch + 1
+      else:
+        if batch >= 0 and epoch >= 0:
+          # If the checkpoint was last saved at last batch of the epoch, return
+          # the next epoch number and batch=0
+          if batch == steps_per_epoch - 1:
+            initial_epoch = epoch + 1
+            initial_step = 0
+          else:
+            # If the checkpoint was not last saved at last batch of the epoch,
+            # return the same epoch and next batch number
+            initial_epoch = epoch
+            initial_step = batch + 1
+    return (initial_epoch, initial_step)
