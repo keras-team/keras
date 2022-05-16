@@ -140,20 +140,20 @@ class CheckpointingTests(test_combinations.TestCase):
     named_variables = {v.name: v for v in named_variables}
     self.assertEqual(len(expected_checkpoint_names),
                      len(named_variables.keys()))
-    # Check that we've mapped to the right variable objects (not exhaustive)
-    self.assertEqual(
-        "global_step",
-        named_variables["step" + suffix].full_name)
-    self.assertEqual(
-        "my_model/dense_1/kernel",
-        named_variables["model/_second/kernel" + suffix].full_name)
-    self.assertEqual(
-        "my_model/dense/kernel",
-        named_variables["model/_named_dense/kernel" + suffix].full_name)
-    self.assertEqual("Adam/beta_1",
-                     named_variables["optimizer/beta_1" + suffix].full_name)
-    self.assertEqual("Adam/beta_2",
-                     named_variables["optimizer/beta_2" + suffix].full_name)
+    # Check that we've created the right full_names of objects (not exhaustive)
+    expected_names = {
+        "step" + suffix: "global_step",
+        "model/_second/kernel" + suffix: "my_model/dense_1/kernel",
+        "model/_named_dense/kernel" + suffix: "my_model/dense/kernel",
+        "optimizer/beta_1" + suffix: "Adam/beta_1",
+        "optimizer/beta_2" + suffix: "Adam/beta_2",
+    }
+    for nodes in serialized_graph.nodes:
+      for attribute in nodes.attributes:
+        expected_name = expected_names.pop(attribute.checkpoint_key, None)
+        if expected_name is not None:
+          self.assertEqual(expected_name, attribute.full_name)
+    self.assertEmpty(expected_names)
     # Spot check the generated protocol buffers.
     self.assertEqual("optimizer",
                      serialized_graph.nodes[0].children[1].local_name)
