@@ -96,6 +96,7 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
   For transfer learning use cases, make sure to read the
   [guide to transfer learning & fine-tuning](
     https://keras.io/guides/transfer_learning/).
+
   The `base`, `large`, and `xlarge` models were first pre-trained on the
   ImageNet-21k dataset and then fine-tuned on the ImageNet-1k dataset. The
   pre-trained parameters of the models were assembled from the
@@ -103,10 +104,12 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
   sense of how these parameters were converted to Keras compatible parameters,
   please refer to
   [this repository](https://github.com/sayakpaul/keras-convnext-conversion).
+
   Note: Each Keras Application expects a specific kind of input preprocessing.
   For ConvNeXt, preprocessing is included in the model using a `Normalization`
   layer.  ConvNeXt models expect their inputs to be float or uint8 tensors of
   pixels with values in the [0-255] range.
+
   When calling the `summary()` method after instantiating a ConvNeXt model,
   prefer setting the `expand_nested` argument `summary()` to `True` to better
   investigate the instantiated model.
@@ -657,7 +660,7 @@ ConvNeXtXLarge.__doc__ = BASE_DOCSTRING.format(name="ConvNeXtXLarge")
 def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
   """A placeholder method for backward compatibility.
 
-  The preprocessing logic has been included in the efficientnet model
+  The preprocessing logic has been included in the convnext model
   implementation. Users are no longer required to call this method to normalize
   the input data. This method does nothing and only kept as a placeholder to
   align the API surface between old and new version of model.
