@@ -5424,6 +5424,8 @@ def binary_crossentropy(target, output, from_logits=False):
 def binary_focal_crossentropy(
     target,
     output,
+    apply_class_balancing=False,
+    alpha=0.25,
     gamma=2.0,
     from_logits=False,
 ):
@@ -5433,16 +5435,26 @@ def binary_focal_crossentropy(
   helps to apply a focal factor to down-weight easy examples and focus more on
   hard examples. By default, the focal tensor is computed as follows:
 
-  `focal_factor = (1 - output)**gamma` for class 1
-  `focal_factor = output**gamma` for class 0
-  where `gamma` is a focusing parameter. When `gamma` = 0, this function is
-  equivalent to the binary crossentropy.
+  `focal_factor = (1 - output) ** gamma` for class 1
+  `focal_factor = output ** gamma` for class 0
+  where `gamma` is a focusing parameter. When `gamma` = 0, there is no focal
+  effect on the binary crossentropy.
+
+  If `apply_class_balancing == True`, this function also takes into account a
+  weight balancing factor for the binary classes 0 and 1 as follows:
+
+  `weight = alpha` for class 1 (`target == 1`)
+  `weight = 1 - alpha` for class 0
+  where `alpha` is a float in the range of `[0, 1]`.
 
   Args:
     target: A tensor with the same shape as `output`.
     output: A tensor.
-    gamma: A focusing parameter used to compute the focal factor, default is 2.0
-      as mentioned in reference.
+    apply_class_balancing: A bool, whether to apply weight balancing on the
+      binary classes 0 and 1.
+    alpha: A weight balancing factor for class 1, default is `0.25` as mentioned
+      in the reference. The weight for class 0 is `1.0 - alpha`.
+    gamma: A focusing parameter, default is `2.0` as mentioned in the reference.
     from_logits: Whether `output` is expected to be a logits tensor. By default,
       we consider that `output` encodes a probability distribution.
 
@@ -5454,7 +5466,7 @@ def binary_focal_crossentropy(
       lambda: sigmoid(output),
       lambda: output,
   )
-  p_t = (target * sigmoidal) + ((1 - target) * (1 - sigmoidal))
+  p_t = target * sigmoidal + (1 - target) * (1 - sigmoidal)
   # Calculate focal factor
   focal_factor = tf.pow(1.0 - p_t, gamma)
   # Binary crossentropy
@@ -5463,60 +5475,13 @@ def binary_focal_crossentropy(
       output=output,
       from_logits=from_logits,
   )
-  return focal_factor * bce
+  focal_bce = focal_factor * bce
 
+  if apply_class_balancing:
+    weight = target * alpha + (1 - target) * (1 - alpha)
+    focal_bce = weight * focal_bce
 
-@keras_export('keras.backend.binary_weighted_focal_crossentropy')
-@tf.__internal__.dispatch.add_dispatch_support
-@doc_controls.do_not_generate_docs
-def binary_weighted_focal_crossentropy(
-    target,
-    output,
-    alpha=0.25,
-    gamma=2.0,
-    from_logits=False,
-):
-  """Binary weighted focal crossentropy between an output tensor and a target.
-
-  According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
-  helps to apply a focal factor to down-weight easy examples and focus more on
-  hard examples. By default, the focal tensor is computed as follows:
-
-  `focal_factor = (1 - output)**gamma` for class 1
-  `focal_factor = output**gamma` for class 0
-  where `gamma` is a focusing parameter. When `gamma` = 0, there is no focal
-  effect on the binary crossentropy.
-
-  This function also takes into account a weight balancing factor for the binary
-  classes 0 and 1 as follows:
-
-  `weight = alpha` for class 1 (`target` = 1)
-  `weight = 1 - alpha` for class 0
-  where `alpha` is a float in the range of [0, 1].
-
-  Args:
-    target: A tensor with the same shape as `output`.
-    output: A tensor.
-    alpha: A weight balancing factor for class 1, default is 0.25 as mentioned
-    in reference. The weight for class 0 is 1.0 - `alpha`.
-    gamma: A focusing parameter, default is 2.0 as mentioned in reference.
-    from_logits: Whether `output` is expected to be a logits tensor. By default,
-      we consider that `output` encodes a probability distribution.
-
-  Returns:
-    A tensor.
-  """
-  # Balancing weight for the binary classes
-  weight = target * alpha + (1 - target) * (1 - alpha)
-
-  # Binary focal crossentropy
-  bfce = binary_focal_crossentropy(
-      target=target,
-      output=output,
-      gamma=gamma,
-      from_logits=from_logits,
-  )
-  return weight * bfce
+  return focal_bce
 
 
 @keras_export('keras.backend.sigmoid')
