@@ -38,6 +38,10 @@ pip install -r requirements.txt
 # keras code from local workspace.
 pip uninstall -y keras-nightly
 
+# LD Library Path needs to be same as TensorFlow Ubuntu Docker build -
+# https://github.com/tensorflow/build/blob/master/tf_sig_build_dockerfiles/Dockerfile
+export LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda-11.1/lib64"
+
 # TODO(scottzhu): Using --define=use_fast_cpp_protos=false to suppress the
 # protobuf build issue for now. We should have a proper solution for this.
 bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going \
