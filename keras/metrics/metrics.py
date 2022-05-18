@@ -1704,6 +1704,7 @@ class AUC(base_metric.Metric):
 
     # Handle multilabel arguments.
     self.multi_label = multi_label
+    self.num_labels = num_labels
     if label_weights is not None:
       label_weights = tf.constant(label_weights, dtype=self.dtype)
       tf.debugging.assert_non_negative(
@@ -1992,6 +1993,7 @@ class AUC(base_metric.Metric):
         'curve': self.curve.value,
         'summation_method': self.summation_method.value,
         'multi_label': self.multi_label,
+        'num_labels': self.num_labels,
         'label_weights': label_weights,
         'from_logits': self._from_logits
     }

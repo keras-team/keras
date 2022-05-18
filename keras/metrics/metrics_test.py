@@ -1755,6 +1755,37 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), 1.176, atol=1e-3)
 
 
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+class AUCTest(tf.test.TestCase):
+
+  def test_config(self):
+    auc_obj = metrics.AUC(
+      num_thresholds=100,
+      curve='PR',
+      summation_method='majoring',
+      name='test_auc',
+      dtype=tf.float64,
+      multi_label=True,
+      num_labels=2,
+      from_logits=True
+    )
+    self.assertEqual(auc_obj.name, 'test_auc')
+    self.assertEqual(auc_obj._dtype, tf.float64)
+    self.assertEqual(auc_obj.num_labels, 2)
+    self.assertTrue(auc_obj._from_logits)
+    old_config = auc_obj.get_config()
+    self.assertDictEqual(old_config, json.loads(json.dumps(old_config)))
+
+    # Check save and restore config
+    auc_obj2 = metrics.AUC.from_config(old_config)
+    self.assertEqual(auc_obj2.name, 'test_auc')
+    self.assertEqual(auc_obj2._dtype, tf.float64)
+    self.assertEqual(auc_obj2.num_labels, 2)
+    self.assertTrue(auc_obj2._from_logits)
+    new_config = auc_obj2.get_config()
+    self.assertDictEqual(old_config, new_config)
+
+
 class BinaryTruePositives(metrics.Metric):
 
   def __init__(self, name='binary_true_positives', **kwargs):
