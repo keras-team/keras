@@ -2870,6 +2870,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             and the end predicate will be the last element it matches to
             `layer_range[1]`. By default `None` which considers all layers of
             model.
+
     Raises:
         ValueError: if `summary()` is called before the model is built.
     """
