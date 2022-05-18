@@ -30,7 +30,6 @@ from unittest import mock
 from absl.testing import parameterized
 import keras
 from keras.callbacks import BackupAndRestore
-from keras.callbacks import Callback
 from keras.callbacks import BackupAndRestoreExperimental
 from keras.engine import sequential
 from keras.layers import Activation
@@ -331,8 +330,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
 
   def test_backup_restore_train_counter(self):
     if not tf.compat.v1.executing_eagerly():
-      self.skipTest(
-          'BackupAndRestore only available when eager execution is enabled')
+      self.skipTest('BackupAndRestore only available when execution is enabled')
     model = keras.Sequential([keras.layers.Dense(1)])
     model.compile('sgd', 'mse')
     cbk = BackupAndRestore(self.get_temp_dir())
@@ -394,85 +392,6 @@ class KerasCallbacksTest(test_combinations.TestCase):
       model.fit(
           dataset, epochs=20, steps_per_epoch=5, callbacks=[backup_callback])
 
-  def _test_backup_and_restore_callback_at_steps(self, cls, epoch_int,
-                                                 steps_int, mode):
-    if not tf.compat.v1.executing_eagerly():
-      self.skipTest(
-          'BackupAndRestore only available when eager execution is enabled')
-
-    class InterruptingCallback(keras.callbacks.Callback):
-      """A callback to intentionally introduce interruption to training."""
-      batch_count = 0
-
-      def on_epoch_end(self, epoch, log=None):
-        if epoch == epoch_int:
-          raise RuntimeError('EpochInterruption')
-
-      def on_batch_end(self, batch, logs=None):
-        self.batch_count += 1
-        if self.batch_count == steps_int:
-          raise RuntimeError('StepsInterruption')
-
-    class VerifyRestore(Callback):
-      """Verify if the training restored to the correct epoch and step."""
-
-      def __init__(self, initial_epoch, initial_step):
-        super(VerifyRestore, self).__init__()
-        self.initial_epoch = initial_epoch
-        self.initial_step = initial_step
-        self._current_epoch = 0
-
-      def on_epoch_begin(self, epoch, logs=None):
-        self._current_epoch = epoch
-        if epoch < self.initial_epoch:
-          raise ValueError(
-              'Training did not restore at epoch (%d) and step (%d)' %
-              (self.initial_epoch, self.initial_step))
-
-      def on_batch_begin(self, batch, logs=None):
-        if (batch <= self.initial_step and
-            self._current_epoch < self.initial_epoch):
-          raise ValueError(
-              'Training did not restore at Epoch (%d) and step (%d)' %
-              (self.initial_epoch, self.initial_step))
-
-    model = keras.Sequential([keras.layers.Dense(10)])
-    optimizer = gradient_descent.SGD()
-    model.compile(optimizer, loss='mse')
-
-    x = tf.random.uniform((24, 10))
-    y = tf.random.uniform((24,))
-    dataset = tf.data.Dataset.from_tensor_slices((x, y)).repeat().batch(2)
-    save_freq_arg = 'epoch' if mode == 'epoch' else 7
-    backup_callback = cls(
-        backup_dir=self.get_temp_dir(), save_freq=save_freq_arg)
-    # epoch where the restore should resume from
-    init_epoch = epoch_int if save_freq_arg == 'epoch' else int(
-        ((steps_int // 7) * 7) // 5)
-    # step from where the restore should resume from
-    init_step = 0 if save_freq_arg == 'epoch' else int(((
-        (steps_int // 7) * 7) % 5) - 1)
-    # callback to verify accurate training state restore
-    verify_restore_callback = VerifyRestore(
-        initial_epoch=init_epoch, initial_step=init_step)
-    try:
-      model.fit(
-          dataset,
-          epochs=20,
-          steps_per_epoch=5,
-          callbacks=[backup_callback, InterruptingCallback()])
-    except RuntimeError as e:
-      if str(e) == 'EpochInterruption':
-        logging.warning('***Handling interruption at epoch***')
-      elif str(e) == 'StepsInterruption':
-        logging.warning('***Handling interruption at Nth step***')
-      # This continues at the epoch and step where it left off.
-      model.fit(
-          dataset,
-          epochs=20,
-          steps_per_epoch=5,
-          callbacks=[backup_callback, verify_restore_callback])
-
   def test_experimental_backup_and_restore(self):
     """Ensure the legacy endpoint of `BackupAndRestore` gives warning."""
 
@@ -505,58 +424,6 @@ class KerasCallbacksTest(test_combinations.TestCase):
                    'endpoint is deprecated')
     self.assertNotIn(warning_msg, '\n'.join(warning_messages))
     warning_msg = ('***Handling interruption***')
-    self.assertIn(warning_msg, '\n'.join(warning_messages))
-
-  def test_backup_and_restore_steps(self):
-    """Ensure the public endpoint of `BackupAndRestore` is working."""
-
-    warning_messages = []
-
-    def warning(msg):
-      warning_messages.append(msg)
-
-    with tf.compat.v1.test.mock.patch.object(logging, 'warning', warning):
-      # interrupt at steps before 1 epoch
-      self._test_backup_and_restore_callback_at_steps(
-          BackupAndRestore, epoch_int=20, steps_int=3, mode='batch')
-    warning_msg = ('`tf.keras.callbacks.experimental.BackupAndRestore` '
-                   'endpoint is deprecated')
-    self.assertNotIn(warning_msg, '\n'.join(warning_messages))
-    warning_msg = ('***Handling interruption at Nth step***')
-    self.assertIn(warning_msg, '\n'.join(warning_messages))
-
-    # interrupt at steps after 1 epoch
-    warning_messages = []
-    with tf.compat.v1.test.mock.patch.object(logging, 'warning', warning):
-      self._test_backup_and_restore_callback_at_steps(
-          BackupAndRestore, epoch_int=20, steps_int=8, mode='batch')
-    warning_msg = ('***Handling interruption at Nth step***')
-    self.assertIn(warning_msg, '\n'.join(warning_messages))
-
-    # interrupt at epoch before steps
-    warning_messages = []
-    with tf.compat.v1.test.mock.patch.object(logging, 'warning', warning):
-      self._test_backup_and_restore_callback_at_steps(
-          BackupAndRestore, epoch_int=1, steps_int=12, mode='epoch')
-    warning_msg = ('***Handling interruption at epoch***')
-    self.assertIn(warning_msg, '\n'.join(warning_messages))
-
-  def test_backup_and_restore_steps_last_batch(self):
-    """Ensure the public endpoint of `BackupAndRestore` is working."""
-
-    warning_messages = []
-
-    def warning(msg):
-      warning_messages.append(msg)
-
-    with tf.compat.v1.test.mock.patch.object(logging, 'warning', warning):
-      # interrupt at last step in 7th epoch
-      self._test_backup_and_restore_callback_at_steps(
-          BackupAndRestore, epoch_int=20, steps_int=35, mode='batch')
-    warning_msg = ('`tf.keras.callbacks.experimental.BackupAndRestore` '
-                   'endpoint is deprecated')
-    self.assertNotIn(warning_msg, '\n'.join(warning_messages))
-    warning_msg = ('***Handling interruption at Nth step***')
     self.assertIn(warning_msg, '\n'.join(warning_messages))
 
   @test_combinations.run_all_keras_modes
