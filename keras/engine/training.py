@@ -2843,7 +2843,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               positions=None,
               print_fn=None,
               expand_nested=False,
-              show_trainable=False):
+              show_trainable=False,
+              layer_range=None):
     """Prints a string summary of the network.
 
     Args:
@@ -2861,7 +2862,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             If not provided, defaults to `False`.
         show_trainable: Whether to show if a layer is trainable.
             If not provided, defaults to `False`.
-
+        layer_range: input of type `list` containing two `str` items, which is the
+            starting layer name and ending layer name (both inclusive) indicating
+            the range of layers to be printed in summary. It
+            also accepts regex patterns instead of exact name. In such case, start
+            predicate will be the first element it matches to `layer_range[0]`
+            and the end predicate will be the last element it matches to
+            `layer_range[1]`. By default `None` which considers all layers of
+            model.
     Raises:
         ValueError: if `summary()` is called before the model is built.
     """
@@ -2876,7 +2884,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         positions=positions,
         print_fn=print_fn,
         expand_nested=expand_nested,
-        show_trainable=show_trainable)
+        show_trainable=show_trainable,
+        layer_range=layer_range)
 
   @property
   def layers(self):
