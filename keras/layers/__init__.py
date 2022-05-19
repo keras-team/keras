@@ -31,6 +31,7 @@ from keras.layers.preprocessing.image_preprocessing import CenterCrop
 from keras.layers.preprocessing.image_preprocessing import RandomCrop
 from keras.layers.preprocessing.image_preprocessing import RandomFlip
 from keras.layers.preprocessing.image_preprocessing import RandomContrast
+from keras.layers.preprocessing.image_preprocessing import RandomBrightness
 from keras.layers.preprocessing.image_preprocessing import RandomHeight
 from keras.layers.preprocessing.image_preprocessing import RandomRotation
 from keras.layers.preprocessing.image_preprocessing import RandomTranslation
