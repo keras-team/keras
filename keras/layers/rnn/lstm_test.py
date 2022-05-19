@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for LSTM layer."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 import copy
 import os

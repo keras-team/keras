@@ -5,8 +5,8 @@ tf_class {
   is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
-  is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"
-  is_instance: "<class \'tensorflow.python.training.tracking.base.Trackable\'>"
+  is_instance: "<class \'tensorflow.python.trackable.autotrackable.AutoTrackable\'>"
+  is_instance: "<class \'tensorflow.python.trackable.base.Trackable\'>"
   is_instance: "<class \'keras.utils.version_utils.LayerVersionSelector\'>"
   is_instance: "<type \'object\'>"
   member {
@@ -158,16 +158,20 @@ tf_class {
     argspec: "args=[\'self\', \'name\', \'shape\', \'dtype\', \'initializer\', \'regularizer\', \'trainable\', \'constraint\', \'use_resource\', \'synchronization\', \'aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'VariableSynchronization.AUTO\', \'VariableAggregationV2.NONE\'], "
   }
   member_method {
-    name: "augment_bounding_box"
-    argspec: "args=[\'self\', \'bounding_box\', \'transformation\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    name: "augment_bounding_boxes"
+    argspec: "args=[\'self\', \'image\', \'bounding_boxes\', \'transformation\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "augment_image"
-    argspec: "args=[\'self\', \'image\', \'transformation\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    argspec: "args=[\'self\', \'image\', \'transformation\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "augment_label"
-    argspec: "args=[\'self\', \'label\', \'transformation\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    argspec: "args=[\'self\', \'label\', \'transformation\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "augment_target"
+    argspec: "args=[\'self\', \'target\', \'transformation\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "build"

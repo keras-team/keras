@@ -1758,7 +1758,7 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 class BinaryTruePositives(metrics.Metric):
 
   def __init__(self, name='binary_true_positives', **kwargs):
-    super(BinaryTruePositives, self).__init__(name=name, **kwargs)
+    super().__init__(name=name, **kwargs)
     self.true_positives = self.add_weight(name='tp', initializer='zeros')
 
   def update_state(self, y_true, y_pred, sample_weight=None):
@@ -1782,7 +1782,7 @@ class BinaryTruePositives(metrics.Metric):
 class BinaryTruePositivesViaControlFlow(metrics.Metric):
 
   def __init__(self, name='binary_true_positives', **kwargs):
-    super(BinaryTruePositivesViaControlFlow, self).__init__(name=name, **kwargs)
+    super().__init__(name=name, **kwargs)
     self.true_positives = self.add_weight(name='tp', initializer='zeros')
 
   def update_state(self, y_true, y_pred, sample_weight=None):
@@ -1872,6 +1872,11 @@ class ResetStatesTest(test_combinations.TestCase):
     model.evaluate(x, y)
     self.assertEqual(self.evaluate(p_obj.true_positives), 50.)
     self.assertEqual(self.evaluate(p_obj.false_positives), 50.)
+
+  def test_precision_update_state_with_logits(self):
+    p_obj = metrics.Precision()
+    # Update state with logits (not in range (0, 1)) should not an raise error.
+    p_obj.update_state([-0.5, 0.5], [-2., 2.])
 
   def test_reset_state_recall(self):
     r_obj = metrics.Recall()

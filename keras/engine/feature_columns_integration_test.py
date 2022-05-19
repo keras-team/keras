@@ -29,7 +29,7 @@ from keras.utils import np_utils
 class TestDNNModel(keras.models.Model):
 
   def __init__(self, feature_columns, units, name=None, **kwargs):
-    super(TestDNNModel, self).__init__(name=name, **kwargs)
+    super().__init__(name=name, **kwargs)
     self._input_layer = df.DenseFeatures(feature_columns, name='input_layer')
     self._dense_layer = keras.layers.Dense(units, name='dense_layer')
 

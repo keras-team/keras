@@ -34,7 +34,7 @@ class SavedModelSaveAndLoadTest(test_base.TestSavedModelBase):
 
   def setUp(self):
     self._root_dir = 'saved_model_save_load'
-    super(SavedModelSaveAndLoadTest, self).setUp()
+    super().setUp()
 
   def _save_model(self, model, saved_dir):
     save.save_model(model, saved_dir, save_format='tf')

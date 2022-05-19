@@ -142,7 +142,7 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
     class MetricLayer(base_layer.Layer):
 
       def __init__(self):
-        super(MetricLayer, self).__init__(name="metric_layer")
+        super().__init__(name="metric_layer")
         self.sum = metrics.Sum(name="sum")
         # Using aggregation for jit_compile results in failure. Thus only set
         # aggregation for PS Strategy for multi-gpu tests.

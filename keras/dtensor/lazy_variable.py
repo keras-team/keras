@@ -16,7 +16,7 @@
 
 import threading
 
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
@@ -112,7 +112,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
         initial_value, "graph") and initial_value.graph.building_function:
       raise ValueError(f"Argument `initial_value` ({initial_value}) could not "
                        "be lifted out of a `tf.function`. "
-                       "(Tried to create variable with name='{name}'). "
+                       f"(Tried to create variable with name='{name}'). "
                        "To avoid this error, when constructing `tf.Variable`s "
                        "inside of `tf.function` you can create the "
                        "`initial_value` tensor in a "
@@ -131,7 +131,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
      unique_id) = _infer_shape_dtype_and_create_handle(initial_value, shape,
                                                        dtype, name)
 
-    super(LazyInitVariable, self).__init__(
+    super().__init__(
         distribute_strategy=distribute_strategy,
         initial_value=initial_value,
         shape=shape,
@@ -175,7 +175,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
            initial_value, self._shape, self._dtype, self._name)
       self.initialize()
 
-    super(LazyInitVariable, self).__init__(
+    super().__init__(
         trainable=self._trainable,
         shape=shape,
         dtype=dtype,
@@ -217,4 +217,3 @@ def disable_init_variable_creator():
     yield
   finally:
     _DISABLE_LAZY_VARIABLE_INIT.disabled = existing_value
-

@@ -27,7 +27,7 @@ import tensorflow.compat.v2 as tf
 class UtilsTest(test_util.DTensorBaseTest):
 
   def setUp(self):
-    super(UtilsTest, self).setUp()
+    super().setUp()
     global_ids = test_util.create_device_ids_array((2, 2))
     local_device_ids = np.ravel(global_ids).tolist()
     mesh_dict = {

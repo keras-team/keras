@@ -26,7 +26,7 @@ import threading
 
 from absl.testing import parameterized
 
-# pylint: disable=g-direct-tensorflow-import
+
 import keras
 from keras import backend
 from keras import callbacks
@@ -37,7 +37,7 @@ from keras.distribute import multi_worker_testing_utils
 from keras.optimizers.optimizer_v2 import rmsprop
 from keras.utils import kpl_test_utils
 
-# pylint: disable=g-direct-tensorflow-import
+
 
 
 def _clone_and_build_model(model, strategy):
@@ -113,7 +113,7 @@ class MultiWorkerVerificationCallback(callbacks.Callback):
       num_epoch: Number of epochs this Callback is expected to be called for.
       num_worker: Number of workers this Callback is expected to be called from.
     """
-    super(MultiWorkerVerificationCallback, self).__init__()
+    super().__init__()
     self._num_epoch = num_epoch
     self._num_worker = num_worker
     self._task_dict = {

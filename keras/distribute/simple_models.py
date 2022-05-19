@@ -87,7 +87,7 @@ class SimpleSequentialModel(model_collection_base.ModelAndInput):
 class _SimpleModel(keras.Model):
 
   def __init__(self):
-    super(_SimpleModel, self).__init__()
+    super().__init__()
     self._dense_layer = keras.layers.Dense(5, dtype=tf.float32)
 
   def call(self, inputs):

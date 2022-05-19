@@ -26,7 +26,7 @@ class IRNNMnistBenchmark(tf.test.Benchmark):
   """Benchmarks for IRNN using `tf.test.Benchmark`."""
 
   def __init__(self):
-    super(IRNNMnistBenchmark, self).__init__()
+    super().__init__()
     self.num_classes = 10
     self.hidden_units = 100
     self.learning_rate = 1e-6

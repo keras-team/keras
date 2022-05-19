@@ -21,9 +21,9 @@ import threading
 
 from absl import logging
 from keras.utils import keras_logging
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.util.tf_export import keras_export
-# pylint: enable=g-direct-tensorflow-import
+
 
 INTERACTIVE_LOGGING = threading.local()
 INTERACTIVE_LOGGING.enable = keras_logging.INTERACTIVE_LOGGING_DEFAULT

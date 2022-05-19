@@ -17,7 +17,7 @@
 from keras.optimizers.optimizer_experimental import optimizer
 from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -104,7 +104,7 @@ class SGD(optimizer.Optimizer):
                jit_compile=True,
                name='SGD',
                **kwargs):
-    super(SGD, self).__init__(
+    super().__init__(
         name=name,
         clipnorm=clipnorm,
         clipvalue=clipvalue,
@@ -175,7 +175,7 @@ class SGD(optimizer.Optimizer):
         variable.assign_add(-gradient * lr)
 
   def get_config(self):
-    config = super(SGD, self).get_config()
+    config = super().get_config()
 
     config.update({
         'learning_rate': self._serialize_hyperparameter(self._learning_rate),

@@ -58,7 +58,7 @@ class LeakyReLU(Layer):
   """
 
   def __init__(self, alpha=0.3, **kwargs):
-    super(LeakyReLU, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     if alpha is None:
       raise ValueError(
           'The alpha value of a Leaky ReLU layer cannot be None, '
@@ -71,7 +71,7 @@ class LeakyReLU(Layer):
 
   def get_config(self):
     config = {'alpha': float(self.alpha)}
-    base_config = super(LeakyReLU, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @tf_utils.shape_type_conversion

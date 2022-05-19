@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for up-sampling layers."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 import keras
 from keras.testing_infra import test_combinations
@@ -21,7 +21,7 @@ from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 @tf_test_utils.for_all_test_methods(tf_test_utils.disable_xla,

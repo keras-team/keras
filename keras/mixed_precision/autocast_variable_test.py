@@ -65,7 +65,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     set_cpu_logical_devices_to_at_least(3)
-    super(AutoCastVariableTest, self).setUp()
+    super().setUp()
 
   @tf.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_read(self, distribution):

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities related to image handling."""
-# pylint: disable=g-direct-tensorflow-import
+
 # pylint: disable=g-import-not-at-top
 
 import io

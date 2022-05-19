@@ -15,7 +15,7 @@
 """Keras discretization preprocessing layer."""
 
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
 
 from keras import backend
 from keras.engine import base_preprocessing_layer

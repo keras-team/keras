@@ -17,7 +17,7 @@ import gc
 
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.platform import test as test_lib
 
 layers = tf.keras.layers
@@ -143,6 +143,7 @@ def _train_with_recompute(n_steps):
 class GradientCheckpointTest(tf.test.TestCase):
 
   def test_raises_oom_exception(self):
+    self.skipTest('b/232015009: flaky test')
     if not _limit_gpu_memory():
       self.skipTest('No virtual GPUs found')
     with self.assertRaises(Exception) as context:
@@ -163,7 +164,7 @@ class GradientCheckpointTest(tf.test.TestCase):
     self.assertLen(losses, n_step)
 
   def tearDown(self):
-    super(GradientCheckpointTest, self).tearDown()
+    super().tearDown()
     # Make sure all the models created in keras has been deleted and cleared
     # from the global keras grpah, also do a force GC to recycle the GPU memory.
     tf.keras.backend.clear_session()

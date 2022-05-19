@@ -14,7 +14,7 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.index_lookup."""
 
-# pylint: disable=g-direct-tensorflow-import
+
 
 import os
 
@@ -27,7 +27,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 @test_utils.run_v2_only

@@ -140,7 +140,7 @@ class Embedding(Layer):
     # before casting to int32 might cause the int32 values to be different due
     # to a loss of precision.
     kwargs['autocast'] = False
-    super(Embedding, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
     self.input_dim = input_dim
     self.output_dim = output_dim
@@ -218,5 +218,5 @@ class Embedding(Layer):
         'mask_zero': self.mask_zero,
         'input_length': self.input_length
     }
-    base_config = super(Embedding, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

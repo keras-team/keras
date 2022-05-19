@@ -25,7 +25,8 @@ from keras.optimizers.schedules import learning_rate_schedule
 
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 # pylint: disable=protected-access,missing-class-docstring
@@ -103,6 +104,7 @@ class Optimizer(optimizer_lib._BaseOptimizer):
         dtype=model_variable.dtype,
         trainable=False)
 
+  @doc_controls.do_not_generate_docs
   def aggregate_gradients(self, grads_and_vars):
     # Hide the aggregate_gradients from Optimizer.aggregate_gradients
     raise NotImplementedError(

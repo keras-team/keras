@@ -119,7 +119,7 @@ class _DummyEagerGraph(threading.local):
     # Constructors for classes subclassing threading.local run once
     # per thread accessing something in the class. Thus, each thread will
     # get a different key.
-    super(_DummyEagerGraph, self).__init__()
+    super().__init__()
     self.key = _DummyEagerGraph._WeakReferencableClass()
     self.learning_phase_is_set = False
 
@@ -1827,12 +1827,56 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
   new stateless random ops with seeds and tf.random.Generator. Any class that
   relies on RNG (eg initializer, shuffle, dropout) should use this class to
   handle the transition from legacy RNGs to new RNGs.
-  """
 
-  def __init__(self, seed=None, force_generator=False):
+  Args:
+    seed: Optional int seed. When `rng_type` is "stateful", the seed is used
+      to create `tf.random.Generator` to produce deterministic sequences.
+      When `rng_type` is "stateless", new seed will be created if it is not
+      provided by user, and it will be passed down to stateless random ops.
+      When `rng_type` is "legacy_stateful", the seed will be passed down to
+      stateful random ops.
+    rng_type: Type of RNG to use, one of "stateful", "stateless",
+      "legacy_stateful". It defaults to "stateful" if
+      `enable_tf_random_generator` has been activated, or to
+      "legacy_stateful" otherwise.
+      - When using "stateless", the random ops outputs are constant (the same
+        inputs result in the same outputs).
+      - When using "stateful" or "legacy_stateful", the random ops outputs are
+        non-constant, but deterministic: calling the same random op multiple
+        times with the same inputs results in a deterministic sequence of
+        different outputs.
+      - "legacy_stateful" is backed by TF1 stateful RNG ops
+        (e.g. `tf.random.uniform`), while "stateful"
+        is backed by TF2 APIs (e.g. `tf.random.Generator.uniform`).
+  """
+  RNG_STATELESS = 'stateless'
+  RNG_STATEFUL = 'stateful'
+  RNG_LEGACY_STATEFUL = 'legacy_stateful'
+
+  def __init__(self, seed=None, rng_type=None, **kwargs):
     self._seed = seed
-    self._force_generator = force_generator
+    self._set_rng_type(rng_type, **kwargs)
     self._built = False
+
+  def _set_rng_type(self, rng_type, **kwargs):
+    # Only supported kwargs is "force_generator", which we will remove once we
+    # clean up all the caller.
+    # TODO(scottzhu): Remove the kwargs for force_generator.
+    if kwargs.get('force_generator', False):
+      rng_type = self.RNG_STATEFUL
+    if rng_type is None:
+      if is_tf_random_generator_enabled():
+        self._rng_type = self.RNG_STATEFUL
+      else:
+        self._rng_type = self.RNG_LEGACY_STATEFUL
+    else:
+      if rng_type not in [self.RNG_STATEFUL,
+                          self.RNG_LEGACY_STATEFUL, self.RNG_STATELESS]:
+        raise ValueError(
+            'Invalid `rng_type` received. '
+            'Valid `rng_type` are ["stateless", "stateful", "legacy_stateful"].'
+            f' Got: {rng_type}')
+      self._rng_type = rng_type
 
   def _maybe_init(self):
     """Lazily init the RandomGenerator.
@@ -1847,22 +1891,21 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
     if self._built:
       return
 
-    if (tf.compat.v1.executing_eagerly_outside_functions() and
-        (is_tf_random_generator_enabled() or self._force_generator)):
-      # In the case of V2, we use tf.random.Generator to create all the random
-      # numbers and seeds.
+    if (self._rng_type == self.RNG_STATEFUL and
+        not tf.compat.v1.executing_eagerly_outside_functions()):
+      # Fall back to legacy stateful since the generator need to work in tf2.
+      self._rng_type = self.RNG_LEGACY_STATEFUL
+
+    if self._rng_type == self.RNG_STATELESS:
+      self._seed = self._create_seed(self._seed)
+      self._generator = None
+    elif self._rng_type == self.RNG_STATEFUL:
       from keras.utils import tf_utils  # pylint: disable=g-import-not-at-top
       with tf_utils.maybe_init_scope(self):
-        if self._seed is not None:
-          self._generator = tf.random.Generator.from_seed(self._seed)
-        else:
-          if getattr(_SEED_GENERATOR, 'generator', None):
-            seed = _SEED_GENERATOR.generator.randint(1, 1e9)
-          else:
-            seed = random.randint(1, 1e9)
-          self._generator = tf.random.Generator.from_seed(seed)
+        seed = self._create_seed(self._seed)
+        self._generator = tf.random.Generator.from_seed(seed)
     else:
-      # In the v1 case, we use stateful op, regardless whether user provide a
+      # In legacy stateful, we use stateful op, regardless whether user provide
       # seed or not. Seeded stateful op will ensure generating same sequences.
       self._generator = None
     self._built = True
@@ -1878,7 +1921,9 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
       A tensor with shape [2,].
     """
     self._maybe_init()
-    if self._generator:
+    if self._rng_type == self.RNG_STATELESS:
+      return [self._seed, 0]
+    elif self._rng_type == self.RNG_STATEFUL:
       return self._generator.make_seeds()[:, 0]
     return None
 
@@ -1888,7 +1933,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
     When user didn't provide any original seed, this method will return None.
     Otherwise it will increment the counter and return as the new seed.
 
-    Note that it is important the generate different seed for stateful ops in
+    Note that it is important to generate different seed for stateful ops in
     the `tf.function`. The random ops will return same value when same seed is
     provided in the `tf.function`.
 
@@ -1901,39 +1946,112 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
       return result
     return None
 
-  def random_normal(self, shape, mean=0., stddev=1., dtype=None):
+  def _create_seed(self, user_specified_seed):
+    if user_specified_seed is not None:
+      return user_specified_seed
+    elif getattr(_SEED_GENERATOR, 'generator', None):
+      return _SEED_GENERATOR.generator.randint(1, 1e9)
+    else:
+      return random.randint(1, 1e9)
+
+  def random_normal(self, shape, mean=0., stddev=1., dtype=None, nonce=None):
+    """Produce random number based on the normal distribution.
+
+    Args:
+      shape: The shape of the random values to generate.
+      mean: Floats, default to 0. Mean of the random values to generate.
+      stddev: Floats, default to 1. Standard deviation of the random values to
+        generate.
+      dtype: Optional dtype of the tensor. Only floating point types are
+        supported. If not specified, `tf.keras.backend.floatx()` is used, which
+        default to `float32` unless you configured it otherwise (via
+        `tf.keras.backend.set_floatx(float_dtype)`)
+      nonce: Optional integer scalar, that will be folded into the seed in the
+        stateless mode.
+    """
     self._maybe_init()
     dtype = dtype or floatx()
-    if self._generator:
+    if self._rng_type == self.RNG_STATEFUL:
       return self._generator.normal(
           shape=shape, mean=mean, stddev=stddev, dtype=dtype)
+    elif self._rng_type == self.RNG_STATELESS:
+      seed = self.make_seed_for_stateless_op()
+      if nonce:
+        seed = tf.random.experimental.stateless_fold_in(seed, nonce)
+      return tf.random.stateless_normal(
+          shape=shape, mean=mean, stddev=stddev, dtype=dtype,
+          seed=seed)
     return tf.random.normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype,
         seed=self.make_legacy_seed())
 
-  def random_uniform(self, shape, minval=0., maxval=None, dtype=None):
+  def random_uniform(self, shape, minval=0., maxval=None, dtype=None,
+                     nonce=None):
+    """Produce random number based on the uniform distribution.
+
+    Args:
+      shape: The shape of the random values to generate.
+      minval: Floats, default to 0. Lower bound of the range of
+        random values to generate (inclusive).
+      minval: Floats, default to None. Upper bound of the range of
+        random values to generate (exclusive).
+      dtype: Optional dtype of the tensor. Only floating point types are
+        supported. If not specified, `tf.keras.backend.floatx()` is used, which
+        default to `float32` unless you configured it otherwise (via
+        `tf.keras.backend.set_floatx(float_dtype)`)
+      nonce: Optional integer scalar, that will be folded into the seed in the
+        stateless mode.
+    """
     self._maybe_init()
     dtype = dtype or floatx()
-    if self._generator:
+    if self._rng_type == self.RNG_STATEFUL:
       return self._generator.uniform(
           shape=shape, minval=minval, maxval=maxval, dtype=dtype)
+    elif self._rng_type == self.RNG_STATELESS:
+      seed = self.make_seed_for_stateless_op()
+      if nonce:
+        seed = tf.random.experimental.stateless_fold_in(seed, nonce)
+      return tf.random.stateless_uniform(
+        shape=shape, minval=minval, maxval=maxval, dtype=dtype,
+        seed=seed)
     return tf.random.uniform(
         shape=shape, minval=minval, maxval=maxval, dtype=dtype,
         seed=self.make_legacy_seed())
 
-  def truncated_normal(self, shape, mean=0., stddev=1., dtype=None):
+  def truncated_normal(self, shape, mean=0., stddev=1., dtype=None, nonce=None):
+    """Produce random number based on the truncated normal distribution.
+
+    Args:
+      shape: The shape of the random values to generate.
+      mean: Floats, default to 0. Mean of the random values to generate.
+      stddev: Floats, default to 1. Standard deviation of the random values to
+        generate.
+      dtype: Optional dtype of the tensor. Only floating point types are
+        supported. If not specified, `tf.keras.backend.floatx()` is used, which
+        default to `float32` unless you configured it otherwise (via
+        `tf.keras.backend.set_floatx(float_dtype)`)
+      nonce: Optional integer scalar, that will be folded into the seed in the
+        stateless mode.
+    """
     self._maybe_init()
     dtype = dtype or floatx()
-    if self._generator:
+    if self._rng_type == self.RNG_STATEFUL:
       return self._generator.truncated_normal(
           shape=shape, mean=mean, stddev=stddev, dtype=dtype)
+    elif self._rng_type == self.RNG_STATELESS:
+      seed = self.make_seed_for_stateless_op()
+      if nonce:
+        seed = tf.random.experimental.stateless_fold_in(seed, nonce)
+      return tf.random.stateless_truncated_normal(
+        shape=shape, mean=mean, stddev=stddev, dtype=dtype,
+        seed=seed)
     return tf.random.truncated_normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype,
         seed=self.make_legacy_seed())
 
   def dropout(self, inputs, rate, noise_shape=None):
     self._maybe_init()
-    if self._generator:
+    if self._rng_type in [self.RNG_STATEFUL, self.RNG_STATELESS]:
       return tf.nn.experimental.stateless_dropout(
           inputs, rate=rate, noise_shape=noise_shape,
           seed=self.make_seed_for_stateless_op())
@@ -5306,6 +5424,8 @@ def binary_crossentropy(target, output, from_logits=False):
 def binary_focal_crossentropy(
     target,
     output,
+    apply_class_balancing=False,
+    alpha=0.25,
     gamma=2.0,
     from_logits=False,
 ):
@@ -5315,16 +5435,26 @@ def binary_focal_crossentropy(
   helps to apply a focal factor to down-weight easy examples and focus more on
   hard examples. By default, the focal tensor is computed as follows:
 
-  `focal_factor = (1 - output)**gamma` for class 1
-  `focal_factor = output**gamma` for class 0
-  where `gamma` is a focusing parameter. When `gamma` = 0, this function is
-  equivalent to the binary crossentropy.
+  `focal_factor = (1 - output) ** gamma` for class 1
+  `focal_factor = output ** gamma` for class 0
+  where `gamma` is a focusing parameter. When `gamma` = 0, there is no focal
+  effect on the binary crossentropy.
+
+  If `apply_class_balancing == True`, this function also takes into account a
+  weight balancing factor for the binary classes 0 and 1 as follows:
+
+  `weight = alpha` for class 1 (`target == 1`)
+  `weight = 1 - alpha` for class 0
+  where `alpha` is a float in the range of `[0, 1]`.
 
   Args:
     target: A tensor with the same shape as `output`.
     output: A tensor.
-    gamma: A focusing parameter used to compute the focal factor, default is 2.0
-      as mentioned in reference.
+    apply_class_balancing: A bool, whether to apply weight balancing on the
+      binary classes 0 and 1.
+    alpha: A weight balancing factor for class 1, default is `0.25` as mentioned
+      in the reference. The weight for class 0 is `1.0 - alpha`.
+    gamma: A focusing parameter, default is `2.0` as mentioned in the reference.
     from_logits: Whether `output` is expected to be a logits tensor. By default,
       we consider that `output` encodes a probability distribution.
 
@@ -5336,7 +5466,7 @@ def binary_focal_crossentropy(
       lambda: sigmoid(output),
       lambda: output,
   )
-  p_t = (target * sigmoidal) + ((1 - target) * (1 - sigmoidal))
+  p_t = target * sigmoidal + (1 - target) * (1 - sigmoidal)
   # Calculate focal factor
   focal_factor = tf.pow(1.0 - p_t, gamma)
   # Binary crossentropy
@@ -5345,60 +5475,13 @@ def binary_focal_crossentropy(
       output=output,
       from_logits=from_logits,
   )
-  return focal_factor * bce
+  focal_bce = focal_factor * bce
 
+  if apply_class_balancing:
+    weight = target * alpha + (1 - target) * (1 - alpha)
+    focal_bce = weight * focal_bce
 
-@keras_export('keras.backend.binary_weighted_focal_crossentropy')
-@tf.__internal__.dispatch.add_dispatch_support
-@doc_controls.do_not_generate_docs
-def binary_weighted_focal_crossentropy(
-    target,
-    output,
-    alpha=0.25,
-    gamma=2.0,
-    from_logits=False,
-):
-  """Binary weighted focal crossentropy between an output tensor and a target.
-
-  According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
-  helps to apply a focal factor to down-weight easy examples and focus more on
-  hard examples. By default, the focal tensor is computed as follows:
-
-  `focal_factor = (1 - output)**gamma` for class 1
-  `focal_factor = output**gamma` for class 0
-  where `gamma` is a focusing parameter. When `gamma` = 0, there is no focal
-  effect on the binary crossentropy.
-
-  This function also takes into account a weight balancing factor for the binary
-  classes 0 and 1 as follows:
-
-  `weight = alpha` for class 1 (`target` = 1)
-  `weight = 1 - alpha` for class 0
-  where `alpha` is a float in the range of [0, 1].
-
-  Args:
-    target: A tensor with the same shape as `output`.
-    output: A tensor.
-    alpha: A weight balancing factor for class 1, default is 0.25 as mentioned
-    in reference. The weight for class 0 is 1.0 - `alpha`.
-    gamma: A focusing parameter, default is 2.0 as mentioned in reference.
-    from_logits: Whether `output` is expected to be a logits tensor. By default,
-      we consider that `output` encodes a probability distribution.
-
-  Returns:
-    A tensor.
-  """
-  # Balancing weight for the binary classes
-  weight = target * alpha + (1 - target) * (1 - alpha)
-
-  # Binary focal crossentropy
-  bfce = binary_focal_crossentropy(
-      target=target,
-      output=output,
-      gamma=gamma,
-      from_logits=from_logits,
-  )
-  return weight * bfce
+  return focal_bce
 
 
 @keras_export('keras.backend.sigmoid')

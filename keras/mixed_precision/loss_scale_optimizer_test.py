@@ -31,8 +31,8 @@ from keras.testing_infra import test_combinations
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.keras.optimizer_v2 import gradient_descent as legacy_sgd
 from tensorflow.python.platform import tf_logging
 
@@ -636,8 +636,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                           experimental_aggregate_gradients=True):
         for grad, _ in grads_and_vars:
           outer_self.assertIsInstance(grad, tf.Tensor)
-        return super(MyOptimizer,
-                     self).apply_gradients(grads_and_vars, name,
+        return super().apply_gradients(grads_and_vars, name,
                                            experimental_aggregate_gradients)
 
     with create_mirrored_strategy().scope() as strategy:

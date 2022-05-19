@@ -142,7 +142,7 @@ class Sequential(functional.Functional):
     # bottom of the stack.
     # `Trackable` manages the `_layers` attributes and does filtering
     # over it.
-    layers = super(Sequential, self).layers
+    layers = super().layers
     if layers and isinstance(layers[0], input_layer.InputLayer):
       return layers[1:]
     return layers[:]
@@ -346,7 +346,7 @@ class Sequential(functional.Functional):
       if not self.built:
         input_shape = tuple(input_shape)
         self._build_input_shape = input_shape
-        super(Sequential, self).build(input_shape)
+        super().build(input_shape)
     self.built = True
 
   def call(self, inputs, training=None, mask=None):  # pylint: disable=redefined-outer-name
@@ -371,7 +371,7 @@ class Sequential(functional.Functional):
     if self._graph_initialized:
       if not self.built:
         self._init_graph_network(self.inputs, self.outputs)
-      return super(Sequential, self).call(inputs, training=training, mask=mask)
+      return super().call(inputs, training=training, mask=mask)
 
     outputs = inputs  # handle the corner case where self.layers is empty
     for layer in self.layers:
@@ -409,7 +409,7 @@ class Sequential(functional.Functional):
 
   def get_config(self):
     layer_configs = []
-    for layer in super(Sequential, self).layers:
+    for layer in super().layers:
       # `super().layers` include the InputLayer if available (it is filtered out
       # of `self.layers`). Note that `self._self_tracked_trackables` is managed
       # by the tracking infrastructure and should not be used.

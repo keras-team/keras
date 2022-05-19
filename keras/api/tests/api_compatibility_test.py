@@ -1,4 +1,3 @@
-# Lint as: python3
 # Copyright 2021 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -168,7 +167,7 @@ def _FilterGoldenProtoDict(golden_proto_dict, omit_golden_symbols_map):
 class ApiCompatibilityTest(tf.test.TestCase):
 
   def __init__(self, *args, **kwargs):
-    super(ApiCompatibilityTest, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
     self._update_golden_warning = file_io.read_file_to_string(
         _UPDATE_WARNING_FILE)

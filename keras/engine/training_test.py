@@ -42,7 +42,7 @@ from keras.utils import np_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
@@ -375,7 +375,7 @@ class TrainingTest(test_combinations.TestCase):
     class ReturnTraining(layers_module.Layer):
 
       def __init__(self, input_shape=None, **kwargs):
-        super(ReturnTraining, self).__init__(input_shape=input_shape, **kwargs)
+        super().__init__(input_shape=input_shape, **kwargs)
         self._nested_layer = None
 
       def build(self, input_shape):
@@ -739,7 +739,7 @@ class TrainingTest(test_combinations.TestCase):
 
         def __init__(self, use_namedtuple):
           self._use_namedtuple = use_namedtuple
-          super(XYSequence, self).__init__()
+          super().__init__()
 
         def __getitem__(self, idx):
           x, y = np.ones((4, 1)), np.ones((4, 1))
@@ -754,7 +754,7 @@ class TrainingTest(test_combinations.TestCase):
 
         def __init__(self, use_namedtuple):
           self._use_namedtuple = use_namedtuple
-          super(XSequence, self).__init__()
+          super().__init__()
 
         def __getitem__(self, idx):
           x = np.ones((4, 1))
@@ -929,7 +929,7 @@ class TrainingTest(test_combinations.TestCase):
         # doubling the learning rate if weights are not deduped.
         self._kernel = dense_to_track.kernel
         self._bias = dense_to_track.bias
-        super(WatchingLayer, self).__init__()
+        super().__init__()
 
     inp = layers_module.Input(shape=(1,))
     dense_layer = layers_module.Dense(1)
@@ -966,7 +966,7 @@ class TrainingTest(test_combinations.TestCase):
       def __init__(self, trainable_var, non_trainable_var):
         self.trainable_var = trainable_var
         self.non_trainable_var = non_trainable_var
-        super(AddWeightLayer, self).__init__()
+        super().__init__()
 
       def call(self, inputs):
         return inputs + self.trainable_var
@@ -974,7 +974,7 @@ class TrainingTest(test_combinations.TestCase):
     class LayerWithWeightSharedLayers(layers_module.Layer):
 
       def __init__(self):
-        super(LayerWithWeightSharedLayers, self).__init__()
+        super().__init__()
         shared_trainable_var = tf.Variable(1.)
         shared_non_trainable_var = tf.Variable(
             1., trainable=False)
@@ -1062,7 +1062,7 @@ class TrainingTest(test_combinations.TestCase):
     class TestCallback(Callback):
 
       def __init__(self):
-        super(TestCallback, self).__init__()
+        super().__init__()
         self.epoch_end_logs = None
         self.batch_end_logs = None
         self.epoch_end_call_count = 0
@@ -1470,7 +1470,7 @@ class TrainingTest(test_combinations.TestCase):
     class ModelWithTrainingArg(training_module.Model):
 
       def __init__(self):
-        super(ModelWithTrainingArg, self).__init__()
+        super().__init__()
         self.l1 = LayerWithTrainingArg()
 
       def call(self, inputs, training=None):
@@ -1615,11 +1615,11 @@ class TrainingTest(test_combinations.TestCase):
 
       def __init__(self):
         self.aggregate_gradients_called = False
-        super(_Optimizer, self).__init__(name='MyOptimizer')
+        super().__init__(name='MyOptimizer')
 
       def _aggregate_gradients(self, grads):
         self.aggregate_gradients_called = True
-        return super(_Optimizer, self)._aggregate_gradients(grads)
+        return super()._aggregate_gradients(grads)
 
     mock_optimizer = _Optimizer()
 
@@ -1642,8 +1642,7 @@ class TrainingTest(test_combinations.TestCase):
       _HAS_AGGREGATE_GRAD = False
 
       def apply_gradients(self, grads_and_vars, name=None):  # pylint: disable=useless-super-delegation
-        return super(_OptimizerOverrideApplyGradients,
-                     self).apply_gradients(grads_and_vars, name)
+        return super().apply_gradients(grads_and_vars, name)
 
     mock_optimizer = _OptimizerOverrideApplyGradients()
     model.compile(mock_optimizer, 'mse',
@@ -1661,7 +1660,7 @@ class TrainingTest(test_combinations.TestCase):
         # Gradients w.r.t. extra_weights are None
         self.extra_weight_1 = self.add_weight('extra_weight_1', shape=(),
                                               initializer='ones')
-        super(DenseWithExtraWeight, self).build(input_shape)
+        super().build(input_shape)
         self.extra_weight_2 = self.add_weight('extra_weight_2', shape=(),
                                               initializer='ones')
 
@@ -1685,7 +1684,7 @@ class TrainingTest(test_combinations.TestCase):
     class MyModel(training_module.Model):
 
       def __init__(self, name):
-        super(MyModel, self).__init__(name=name)
+        super().__init__(name=name)
 
         self.weight = tf.Variable(0, name=name)
 
@@ -1708,7 +1707,7 @@ class TrainingTest(test_combinations.TestCase):
     class UpdateLayer(layers_module.Layer):
 
       def __init__(self):
-        super(UpdateLayer, self).__init__()
+        super().__init__()
         self.v = tf.Variable(0., trainable=False)
 
       def call(self, x):
@@ -1764,15 +1763,15 @@ class TrainingTest(test_combinations.TestCase):
       def train_step(self, data):
         # No tuple wrapping for single x input and no targets.
         test_case.assertIsInstance(data, expected_data_type)
-        return super(MyModel, self).train_step(data)
+        return super().train_step(data)
 
       def test_step(self, data):
         test_case.assertIsInstance(data, expected_data_type)
-        return super(MyModel, self).test_step(data)
+        return super().test_step(data)
 
       def predict_step(self, data):
         test_case.assertIsInstance(data, expected_data_type)
-        return super(MyModel, self).predict_step(data)
+        return super().predict_step(data)
 
     inputs = layers_module.Input(shape=(1,), name='my_input')
     outputs = layers_module.Dense(1)(inputs)
@@ -1885,13 +1884,12 @@ class TrainingTest(test_combinations.TestCase):
 
       def update_state(self, x, y_true, y_pred, sample_weight=None):
         matches = self.sq_diff_plus_x(x, y_true, y_pred)
-        return super(CustomMetric, self).update_state(matches)
+        return super().update_state(matches)
 
     class MyModel(sequential.Sequential):
 
       def compute_metrics(self, x, y, y_pred, sample_weight):
-        metric_results = super(MyModel,
-                               self).compute_metrics(x, y, y_pred,
+        metric_results = super().compute_metrics(x, y, y_pred,
                                                      sample_weight)
         self.custom_metric.update_state(x, y, y_pred, sample_weight)
         metric_results['custom_metric_name'] = self.custom_metric.result()
@@ -1917,7 +1915,7 @@ class TrainingTest(test_combinations.TestCase):
     class MyModel(training_module.Model):
 
       def __init__(self, *args, **kwargs):
-        super(MyModel, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.loss_metric = metrics_module.Mean(name='loss')
 
       def compute_loss(self, x, y, y_pred, sample_weight):
@@ -2077,6 +2075,31 @@ class TestExceptionsAndWarnings(test_combinations.TestCase):
     with self.assertRaisesRegex(ValueError,
                                 'Unexpected result of `predict_function`.*'):
       model.predict(np.array([]))
+
+  @test_combinations.run_all_keras_modes(always_skip_v1=True)
+  @parameterized.named_parameters(
+      ('dynamic', 0, False),
+      ('dynamic_multistep', 10, False),
+      ('static', 0, True),
+      ('static_multistep', 10, True),
+  )
+  def test_predict_structured(self, spe, static_batch):
+    inputs = layers_module.Input(shape=(2,))
+    outputs = layers_module.Dense(2)(inputs)
+    model = training_module.Model(
+        inputs=inputs,
+        outputs={'out': outputs},
+    )
+    model.compile(
+        loss='mse',
+        steps_per_execution=spe,
+        run_eagerly=test_utils.should_run_eagerly(),
+    )
+    xdata = np.random.uniform(size=(8, 2)).astype(np.float32)
+    dataset = tf.data.Dataset.from_tensor_slices((xdata, xdata))
+    dataset = dataset.batch(8, drop_remainder=static_batch)
+    ret = model.predict(dataset, steps=1)
+    tf.nest.assert_same_structure(ret, {'out': ''})
 
   @test_combinations.run_all_keras_modes(always_skip_v1=True)
   def test_on_batch_error_inconsistent_batch_size(self):
@@ -2423,7 +2446,7 @@ class MaskingTest(test_combinations.TestCase):
     class CustomMaskedLayer(layers_module.Layer):
 
       def __init__(self):
-        super(CustomMaskedLayer, self).__init__()
+        super().__init__()
         self.supports_masking = True
 
       def call(self, inputs, mask=None):
@@ -3393,7 +3416,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class TestModel(training_module.Model):
 
       def __init__(self):
-        super(TestModel, self).__init__(name='test_model')
+        super().__init__(name='test_model')
         self.dense1 = layers_module.Dense(2, kernel_initializer='ones')
         self.mean = metrics_module.Mean(name='metric_1')
 
@@ -3465,7 +3488,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class LayerWithAddMetric(layers_module.Layer):
 
       def __init__(self):
-        super(LayerWithAddMetric, self).__init__()
+        super().__init__()
         self.dense = layers_module.Dense(1, kernel_initializer='ones')
 
       def __call__(self, inputs):
@@ -3477,7 +3500,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class LayerWithNestedAddMetricLayer(layers_module.Layer):
 
       def __init__(self):
-        super(LayerWithNestedAddMetricLayer, self).__init__()
+        super().__init__()
         self.layer = LayerWithAddMetric()
 
       def call(self, inputs):
@@ -3525,7 +3548,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class TestModel(training_module.Model):
 
       def __init__(self):
-        super(TestModel, self).__init__(name='test_model')
+        super().__init__(name='test_model')
         self.dense1 = layers_module.Dense(2, kernel_initializer='ones')
 
       def call(self, x):
@@ -3552,7 +3575,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class TestModel(training_module.Model):
 
       def __init__(self):
-        super(TestModel, self).__init__(name='test_model')
+        super().__init__(name='test_model')
         self.dense1 = layers_module.Dense(2, kernel_initializer='ones')
         self.mean1 = metrics_module.Mean(name='metric_1')
         self.mean2 = metrics_module.Mean(name='metric_2')
@@ -3592,7 +3615,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class TestLayer(layers_module.Layer):
 
       def __init__(self):
-        super(TestLayer, self).__init__(name='test_layer')
+        super().__init__(name='test_layer')
         self.dense1 = layers_module.Dense(2, kernel_initializer='ones')
         self.m1 = metrics_module.Mean(name='m_1')
         self.m2 = [
@@ -3627,7 +3650,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class TestModel(training_module.Model):
 
       def __init__(self):
-        super(TestModel, self).__init__(name='test_model')
+        super().__init__(name='test_model')
         self.dense1 = layers_module.Dense(2, kernel_initializer='ones')
         self.mean = metrics_module.Mean(name='metric_1')
         self.mean2 = metrics_module.Mean(name='metric_1')
@@ -3656,7 +3679,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class TestModel(training_module.Model):
 
       def __init__(self):
-        super(TestModel, self).__init__(name='test_model')
+        super().__init__(name='test_model')
         self.dense1 = layers_module.Dense(2, kernel_initializer='ones')
 
       def call(self, x):
@@ -3727,7 +3750,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class MyModel(training_module.Model):
 
       def __init__(self, **kwargs):
-        super(MyModel, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._sampler = MyLayer(name='sampler')
 
       def call(self, inputs, training=None, mask=None):
@@ -3762,7 +3785,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class TestModel(training_module.Model):
 
       def __init__(self):
-        super(TestModel, self).__init__(name='test_model')
+        super().__init__(name='test_model')
         self.dense1 = layers_module.Dense(2, kernel_initializer='ones')
 
       def call(self, x):
@@ -3781,7 +3804,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class TestModel(training_module.Model):
 
       def __init__(self):
-        super(TestModel, self).__init__(name='test_model')
+        super().__init__(name='test_model')
         self.dense1 = layers_module.Dense(2, kernel_initializer='ones')
         self.mean = metrics_module.Mean(name='metric_1')
 
@@ -3851,7 +3874,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class LayerWithAddMetric(layers_module.Layer):
 
       def __init__(self):
-        super(LayerWithAddMetric, self).__init__()
+        super().__init__()
         self.dense = layers_module.Dense(1, kernel_initializer='ones')
 
       def call(self, inputs):
@@ -3901,7 +3924,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
     class DictMetric(metrics_module.Metric):
 
       def __init__(self):
-        super(DictMetric, self).__init__()
+        super().__init__()
         self.sample_count = tf.Variable(0)
         self.l2_sum = tf.Variable(0.)
 
@@ -4154,7 +4177,7 @@ class TestBuildCustomModel(test_combinations.TestCase):
     class MyModel(training_module.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.l1 = layers_module.Dense(1)
         self.l2 = layers_module.Dense(2)
 
@@ -4179,7 +4202,7 @@ class TestBuildCustomModel(test_combinations.TestCase):
     class MyModel(training_module.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.l1 = layers_module.Dense(1)
 
       def call(self, x):
@@ -4198,7 +4221,7 @@ class TestBuildCustomModel(test_combinations.TestCase):
     class MyModel(training_module.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.l1 = layers_module.Dense(1)
 
       def call(self, inputs):
@@ -4213,7 +4236,7 @@ class TestBuildCustomModel(test_combinations.TestCase):
     class MyModel(training_module.Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.class_token = self.add_weight(shape=(1,), name='class_token')
         self.inner_layer = layers_module.Dense(1)
 

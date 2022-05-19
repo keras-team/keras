@@ -63,7 +63,7 @@ class Reshape(Layer):
         samples dimension (batch size).
       **kwargs: Any additional layer keyword arguments.
     """
-    super(Reshape, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.target_shape = tuple(target_shape)
 
   def _fix_unknown_dimension(self, input_shape, output_shape):
@@ -133,5 +133,5 @@ class Reshape(Layer):
 
   def get_config(self):
     config = {'target_shape': self.target_shape}
-    base_config = super(Reshape, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

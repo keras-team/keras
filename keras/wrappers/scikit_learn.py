@@ -26,7 +26,7 @@ from keras.models import Sequential
 from keras.utils.generic_utils import has_arg
 from keras.utils.np_utils import to_categorical
 from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.tools.docs import doc_controls
 
 
 class BaseWrapper:
@@ -233,7 +233,7 @@ class KerasClassifier(BaseWrapper):
     else:
       raise ValueError('Invalid shape for y: ' + str(y.shape))
     self.n_classes_ = len(self.classes_)
-    return super(KerasClassifier, self).fit(x, y, **kwargs)
+    return super().fit(x, y, **kwargs)
 
   def predict(self, x, **kwargs):
     """Returns the class predictions for the given test data.

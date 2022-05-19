@@ -160,7 +160,7 @@ class RNNCell(base_layer.Layer):
   """
 
   def __init__(self, trainable=True, name=None, dtype=None, **kwargs):
-    super(RNNCell, self).__init__(
+    super().__init__(
         trainable=trainable, name=name, dtype=dtype, **kwargs)
     # Attribute that indicates whether the cell is a TF RNN cell, due the slight
     # difference between TF and Keras RNN cell. Notably the state is not wrapped
@@ -189,7 +189,7 @@ class RNNCell(base_layer.Layer):
     if scope is not None:
       with tf.compat.v1.variable_scope(
           scope, custom_getter=self._rnn_get_variable) as scope:
-        return super(RNNCell, self).__call__(inputs, state, scope=scope)
+        return super().__call__(inputs, state, scope=scope)
     else:
       scope_attrname = "rnncell_scope"
       scope = getattr(self, scope_attrname, None)
@@ -199,7 +199,7 @@ class RNNCell(base_layer.Layer):
             custom_getter=self._rnn_get_variable)
         setattr(self, scope_attrname, scope)
       with scope:
-        return super(RNNCell, self).__call__(inputs, state)
+        return super().__call__(inputs, state)
 
   def _rnn_get_variable(self, getter, *args, **kwargs):
     variable = getter(*args, **kwargs)
@@ -298,7 +298,7 @@ class RNNCell(base_layer.Layer):
 
   # TODO(b/134773139): Remove when contrib RNN cells implement `get_config`
   def get_config(self):  # pylint: disable=useless-super-delegation
-    return super(RNNCell, self).get_config()
+    return super().get_config()
 
   @property
   def _use_input_spec_as_call_signature(self):
@@ -385,7 +385,7 @@ class BasicRNNCell(LayerRNNCell):
         "is equivalent as `tf.keras.layers.SimpleRNNCell`, "
         "and will be replaced by that in Tensorflow 2.0.",
         stacklevel=2)
-    super(BasicRNNCell, self).__init__(
+    super().__init__(
         _reuse=reuse, name=name, dtype=dtype, **kwargs)
     _check_supported_dtypes(self.dtype)
     if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
@@ -445,7 +445,7 @@ class BasicRNNCell(LayerRNNCell):
         "activation": activations.serialize(self._activation),
         "reuse": self._reuse,
     }
-    base_config = super(BasicRNNCell, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -473,11 +473,9 @@ class GRUCell(LayerRNNCell):
       the first input). Required when `build` is called before `call`.
     **kwargs: Dict, keyword named properties for common layer attributes, like
       `trainable` etc when constructing the cell from configs of get_config().
-
-      References:
-    Learning Phrase Representations using RNN Encoder Decoder for Statistical
-    Machine Translation:
-      [Cho et al., 2014]
+      References: Learning Phrase Representations using RNN Encoder Decoder for
+        Statistical
+    Machine Translation: [Cho et al., 2014]
       (https://aclanthology.coli.uni-saarland.de/papers/D14-1179/d14-1179)
       ([pdf](http://emnlp2014.org/papers/pdf/EMNLP2014179.pdf))
   """
@@ -497,7 +495,7 @@ class GRUCell(LayerRNNCell):
         "is equivalent as `tf.keras.layers.GRUCell`, "
         "and will be replaced by that in Tensorflow 2.0.",
         stacklevel=2)
-    super(GRUCell, self).__init__(
+    super().__init__(
         _reuse=reuse, name=name, dtype=dtype, **kwargs)
     _check_supported_dtypes(self.dtype)
 
@@ -585,7 +583,7 @@ class GRUCell(LayerRNNCell):
         "activation": activations.serialize(self._activation),
         "reuse": self._reuse,
     }
-    base_config = super(GRUCell, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -675,7 +673,7 @@ class BasicLSTMCell(LayerRNNCell):
         "is equivalent as `tf.keras.layers.LSTMCell`, "
         "and will be replaced by that in Tensorflow 2.0.",
         stacklevel=2)
-    super(BasicLSTMCell, self).__init__(
+    super().__init__(
         _reuse=reuse, name=name, dtype=dtype, **kwargs)
     _check_supported_dtypes(self.dtype)
     if not state_is_tuple:
@@ -783,7 +781,7 @@ class BasicLSTMCell(LayerRNNCell):
         "activation": activations.serialize(self._activation),
         "reuse": self._reuse,
     }
-    base_config = super(BasicLSTMCell, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -880,7 +878,7 @@ class LSTMCell(LayerRNNCell):
         "is equivalent as `tf.keras.layers.LSTMCell`, "
         "and will be replaced by that in Tensorflow 2.0.",
         stacklevel=2)
-    super(LSTMCell, self).__init__(
+    super().__init__(
         _reuse=reuse, name=name, dtype=dtype, **kwargs)
     _check_supported_dtypes(self.dtype)
     if not state_is_tuple:
@@ -938,9 +936,8 @@ class LSTMCell(LayerRNNCell):
   @tf_utils.shape_type_conversion
   def build(self, inputs_shape):
     if inputs_shape[-1] is None:
-      raise ValueError(
-          "Expected inputs.shape[-1] to be known, "
-          "received shape: {inputs_shape}")
+      raise ValueError("Expected inputs.shape[-1] to be known, "
+                       f"received shape: {inputs_shape}")
     _check_supported_dtypes(self.dtype)
     input_depth = inputs_shape[-1]
     h_depth = self._num_units if self._num_proj is None else self._num_proj
@@ -1075,7 +1072,7 @@ class LSTMCell(LayerRNNCell):
         "activation": activations.serialize(self._activation),
         "reuse": self._reuse,
     }
-    base_config = super(LSTMCell, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1109,7 +1106,7 @@ class MultiRNNCell(RNNCell):
     logging.warning("`tf.nn.rnn_cell.MultiRNNCell` is deprecated. This class "
                     "is equivalent as `tf.keras.layers.StackedRNNCells`, "
                     "and will be replaced by that in Tensorflow 2.0.")
-    super(MultiRNNCell, self).__init__()
+    super().__init__()
     if not cells:
       raise ValueError("Must specify at least one cell for MultiRNNCell.")
     if not tf.nest.is_nested(cells):
@@ -1153,7 +1150,7 @@ class MultiRNNCell(RNNCell):
       else:
         # We know here that state_size of each cell is not a tuple and
         # presumably does not contain TensorArrays or anything else fancy
-        return super(MultiRNNCell, self).zero_state(batch_size, dtype)
+        return super().zero_state(batch_size, dtype)
 
   @property
   def trainable_weights(self):

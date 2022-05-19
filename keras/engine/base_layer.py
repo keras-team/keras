@@ -476,9 +476,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         `TensorShape` if the layer expects a list of inputs
         (one instance per input).
     """
-    # Only record the build input shapes of overridden build methods.
-    if not hasattr(self.build, '_is_default'):
-      self._build_input_shape = input_shape
+    self._build_input_shape = input_shape
     self.built = True
 
   @doc_controls.for_subclass_implementers
@@ -553,7 +551,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Note that `trainable` cannot be `True` if `synchronization`
         is set to `ON_READ`.
       constraint: Constraint instance (callable).
-      use_resource: Whether to use `ResourceVariable`.
+      use_resource: Whether to use a `ResourceVariable` or not.
+         See [this guide](https://www.tensorflow.org/guide/migrate/tf1_vs_tf2#resourcevariables_instead_of_referencevariables)  # pylint: disable=line-too-long
+         for more information.
       synchronization: Indicates when a distributed a variable will be
         aggregated. Accepted values are constants defined in the class
         `tf.VariableSynchronization`. By default the synchronization is set to
@@ -2562,7 +2562,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       output_list = tf.nest.flatten(outputs)
       with backend.name_scope('ActivityRegularizer'):
         for output in output_list:
-          activity_loss = self._activity_regularizer(output)
+          activity_loss = tf.convert_to_tensor(
+              self._activity_regularizer(output))
           batch_size = tf.cast(
               tf.shape(output)[0], activity_loss.dtype)
           # Make activity regularization strength batch-agnostic.
@@ -2674,7 +2675,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     if not self._inbound_nodes:
       raise RuntimeError(f'The layer {self.name} has never been called '
-                         'and thus has no defined {attr_name}.')
+                         f'and thus has no defined {attr_name}.')
     if not len(self._inbound_nodes) > node_index:
       raise ValueError(f'Asked to get {attr_name} at node '
                        f'{node_index}, but the layer has only '
@@ -2953,7 +2954,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     return True
 
   def _init_call_fn_args(self, expects_training_arg=None):
-    self._call_spec = layer_utils.CallFunctionSpec(self.call)
+    self._call_spec = layer_utils.CallFunctionSpec(
+        tf_inspect.getfullargspec(self.call))
     if expects_training_arg is not None:
       self._call_spec.expects_training_arg = expects_training_arg
 
@@ -3009,23 +3011,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     """
     if self._saved_model_inputs_spec is not None:
       return  # Already set.
-    args = args or []
-    kwargs = kwargs or {}
 
     inputs_spec = tf.nest.map_structure(tf_utils.get_tensor_spec, inputs)
-
-    # Filter out non-tensor arguments from args and kwargs.
-    args_spec = []
-    for arg in args:
-      flat_arg = tf.nest.flatten(arg)
-      flat_specs = [tf_utils.get_tensor_spec(x) for x in flat_arg]
-      if any(s is None for s in flat_specs):
-        break  # Stop recording positional args once a non-tensor has been found
-      args_spec.append(tf.nest.pack_sequence_as(arg, flat_specs))
+    args_spec  = tf.nest.map_structure(tf_utils.get_tensor_spec, args or [])
     kwargs_spec = {}
+    # Filter out non-tensor arguments from kwargs.
     for key, kwarg in kwargs.items():
-      if key == 'training':
-        continue
       flat_kwarg = tf.nest.flatten(kwarg)
       flat_specs = [tf_utils.get_tensor_spec(x) for x in flat_kwarg]
       if any(s is None for s in flat_specs):
@@ -3033,7 +3024,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       kwargs_spec[key] = tf.nest.pack_sequence_as(kwarg, flat_specs)
 
     self._saved_model_inputs_spec = inputs_spec
-    self._saved_model_arg_spec = ([inputs_spec] + args_spec, kwargs_spec)
+    self._saved_model_arg_spec = ([inputs_spec] + list(args_spec), kwargs_spec)
 
   def _get_save_spec(self, dynamic_batch=True, inputs_only=True):
     if self._saved_model_inputs_spec is None:

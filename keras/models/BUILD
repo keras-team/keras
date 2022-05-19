@@ -75,11 +75,12 @@ distribute_py_test(
     name = "sharpness_aware_minimization_test",
     size = "medium",
     srcs = ["sharpness_aware_minimization_test.py"],
-    shard_count = 1,
+    shard_count = 8,
     tags = [
         "multi_gpu",
         "no_oss",  # TODO(b/226938240): Reenable
         "nomultivm",
+        "requires-net:ipv4",
     ],
     deps = [
         ":sharpness_aware_minimization",

@@ -23,7 +23,7 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.optimizers.optimizer_v2.rmsprop import RMSprop

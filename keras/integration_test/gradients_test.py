@@ -21,7 +21,7 @@ class TestKerasModelClass(tf.keras.Model):
   """A simple tensorflow keras Model class definition."""
 
   def __init__(self, width):
-    super(TestKerasModelClass, self).__init__()
+    super().__init__()
     self.width = width
 
   def build(self, input_shape):
@@ -80,7 +80,7 @@ class GradientsTest(tf.test.TestCase):
     class HasLSTM(tf.keras.Model):
 
       def __init__(self):
-        super(HasLSTM, self).__init__()
+        super().__init__()
         self.lstm = tf.keras.layers.LSTM(units=5)
         self.dense = tf.keras.layers.Dense(1, activation=tf.nn.sigmoid)
 

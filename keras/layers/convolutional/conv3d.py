@@ -154,7 +154,7 @@ class Conv3D(Conv):
                kernel_constraint=None,
                bias_constraint=None,
                **kwargs):
-    super(Conv3D, self).__init__(
+    super().__init__(
         rank=3,
         filters=filters,
         kernel_size=kernel_size,

@@ -123,7 +123,7 @@ class Bidirectional(Wrapper):
     # We don't want to track `layer` since we're already tracking the two copies
     # of it we actually run.
     self._setattr_tracking = False
-    super(Bidirectional, self).__init__(layer, **kwargs)
+    super().__init__(layer, **kwargs)
     self._setattr_tracking = True
 
     # Recreate the forward layer from the original layer config, so that it will
@@ -246,7 +246,7 @@ class Bidirectional(Wrapper):
       inputs = inputs[0]
 
     if initial_state is None and constants is None:
-      return super(Bidirectional, self).__call__(inputs, **kwargs)
+      return super().__call__(inputs, **kwargs)
 
     # Applies the same workaround as in `RNN.__call__`
     additional_inputs = []
@@ -306,11 +306,11 @@ class Bidirectional(Wrapper):
       # Perform the call with temporarily replaced input_spec
       original_input_spec = self.input_spec
       self.input_spec = full_input_spec
-      output = super(Bidirectional, self).__call__(full_input, **kwargs)
+      output = super().__call__(full_input, **kwargs)
       self.input_spec = original_input_spec
       return output
     else:
-      return super(Bidirectional, self).__call__(inputs, **kwargs)
+      return super().__call__(inputs, **kwargs)
 
   def call(self,
            inputs,
@@ -443,7 +443,7 @@ class Bidirectional(Wrapper):
 
     if hasattr(self, '_backward_layer_config'):
       config['backward_layer'] = self._backward_layer_config
-    base_config = super(Bidirectional, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod

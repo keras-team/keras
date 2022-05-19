@@ -25,7 +25,7 @@ and [preprocessing layer guide]
 """
 # pylint: disable=invalid-name
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
 
 import collections
 import hashlib

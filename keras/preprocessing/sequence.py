@@ -22,7 +22,7 @@ for more details.
 """
 # pylint: disable=invalid-name
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
 
 import json
 import random

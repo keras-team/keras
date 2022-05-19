@@ -41,7 +41,7 @@ class Wrapper(Layer):
   def __init__(self, layer, **kwargs):
     assert isinstance(layer, Layer)
     self.layer = layer
-    super(Wrapper, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
   def build(self, input_shape=None):
     if not self.layer.built:
@@ -58,7 +58,7 @@ class Wrapper(Layer):
 
   def get_config(self):
     config = {'layer': generic_utils.serialize_keras_object(self.layer)}
-    base_config = super(Wrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod

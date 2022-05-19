@@ -18,18 +18,30 @@ from __future__ import division
 from __future__ import print_function
 import os
 import sys
-
+from absl.testing import parameterized
+from keras.saving.experimental import saving_lib
 from keras.testing_infra import test_utils
+from keras.utils import generic_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 
 # `tf.print` message is only available in stderr in TF2, which this test checks.
 @test_utils.run_v2_only
-class CustomObjectSavingTest(tf.test.TestCase):
+class CustomObjectSavingTest(tf.test.TestCase, parameterized.TestCase):
   """Test for custom Keras object saving with `register_keras_serializable`."""
 
-  def test_register_keras_serializable_correct_class(self):
+  def setUp(self):
+    super().setUp()
+    generic_utils.get_custom_objects().clear()
+
+  @tf.__internal__.distribute.combinations.generate(
+      tf.__internal__.test.combinations.combine(
+          mode=['eager'], idempotent_saving_enabled=[True, False]))
+  def test_register_keras_serializable_correct_class(self,
+                                                     idempotent_saving_enabled):
+    saving_lib._ENABLED = idempotent_saving_enabled
+
     train_step_message = 'This is my training step'
     temp_dir = os.path.join(self.get_temp_dir(), 'my_model')
 

@@ -147,7 +147,7 @@ class RNNSavedModelSaver(LayerSavedModelSaver):
 
   def _get_serialized_attributes_internal(self, serialization_cache):
     objects, functions = (
-        super(RNNSavedModelSaver, self)._get_serialized_attributes_internal(
+        super()._get_serialized_attributes_internal(
             serialization_cache))
     states = tf.__internal__.tracking.wrap(self.obj.states)
     # SaveModel require all the objects to be Trackable when saving.

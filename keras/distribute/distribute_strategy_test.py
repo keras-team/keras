@@ -65,7 +65,7 @@ def simple_subclassed_model(num_labels=_NUM_CLASS):
   class _SimpleMLP(keras.Model):
 
     def __init__(self, num_labels):
-      super(_SimpleMLP, self).__init__()
+      super().__init__()
       self.dense = keras.layers.Dense(num_labels)
 
     def call(self, inputs):
@@ -302,7 +302,7 @@ def strategy_and_optimizer_combinations():
 class BatchCountingCB(keras.callbacks.Callback):
 
   def __init__(self):
-    super(BatchCountingCB, self).__init__()
+    super().__init__()
     self.train_begin_batches = []
     self.train_end_batches = []
     self.test_begin_batches = []
@@ -830,7 +830,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
         # Gradients w.r.t. extra_weights are None
         self.extra_weight_1 = self.add_weight('extra_weight_1', shape=(),
                                               initializer='ones')
-        super(DenseWithExtraWeight, self).build(input_shape)
+        super().build(input_shape)
         self.extra_weight_2 = self.add_weight('extra_weight_2', shape=(),
                                               initializer='ones')
 
@@ -1572,7 +1572,7 @@ class TestDistributionStrategyWithDatasetsFile(tf.test.TestCase,
                                                parameterized.TestCase):
 
   def setUp(self):
-    super(TestDistributionStrategyWithDatasetsFile, self).setUp()
+    super().setUp()
     self.input_file_name = os.path.join(self.get_temp_dir(), 'input.tfrecord')
     inputs = np.zeros((20, 3), dtype=np.float32)
     input_dataset = tf.data.Dataset.from_tensor_slices(inputs)
@@ -2308,7 +2308,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       """Create a ragged tensor based on a given dense tensor."""
 
       def __init__(self, padding, ragged_rank=1, **kwargs):
-        super(ToRagged, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._padding = padding
         self._ragged_rank = ragged_rank
 
@@ -2561,7 +2561,7 @@ class DeterministicModel(keras.Model):
   """
 
   def __init__(self, strategy):
-    super(DeterministicModel, self).__init__()
+    super().__init__()
     self.x = None
     self.strategy = strategy
 

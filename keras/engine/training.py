@@ -38,6 +38,7 @@ from keras.saving import hdf5_format
 from keras.saving import pickle_utils
 from keras.saving import save
 from keras.saving import saving_utils
+from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import model_serialization
 from keras.utils import generic_utils
@@ -232,7 +233,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     generic_utils.validate_kwargs(kwargs, {
         'trainable', 'dtype', 'dynamic', 'name', 'autocast', 'inputs', 'outputs'
     })
-    super(Model, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     # By default, Model is a subclass model, which is not in graph network.
     self._is_graph_network = False
 
@@ -302,7 +303,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   def __setattr__(self, name, value):
     if not getattr(self, '_self_setattr_tracking', True):
-      super(Model, self).__setattr__(name, value)
+      super().__setattr__(name, value)
       return
 
     if all(
@@ -316,7 +317,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             'forgot to call `super().__init__()`.'
             ' Always start with this line.')
 
-    super(Model, self).__setattr__(name, value)
+    super().__setattr__(name, value)
 
   def __reduce__(self):
     if self.built:
@@ -330,7 +331,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       # can be serialized as plain Python objects.
       # Thus we call up the superclass hierarchy to get an implementation of
       # __reduce__ that can pickle this Model as a plain Python object.
-      return super(Model, self).__reduce__()
+      return super().__reduce__()
 
   def __deepcopy__(self, memo):
     if self.built:
@@ -339,7 +340,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       memo[id(self)] = new
     else:
       # See comment in __reduce__ for explanation
-      deserializer, serialized, *rest = super(Model, self).__reduce__()
+      deserializer, serialized, *rest = super().__reduce__()
       new = deserializer(*serialized)
       memo[id(self)] = new
       if rest:
@@ -379,7 +380,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       on real tensor data.
     """
     if self._is_graph_network:
-      super(Model, self).build(input_shape)
+      super().build(input_shape)
       return
 
     if input_shape is None:
@@ -454,7 +455,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                            'model, call your model on real tensor data (of '
                            'the correct dtype).\n\nThe actual error from '
                            f'`call` is: {e}.')
-    super(Model, self).build(input_shape)
+    super().build(input_shape)
 
   @traceback_utils.filter_traceback
   def __call__(self, *args, **kwargs):
@@ -582,6 +583,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           `tf.keras.metrics.SparseCategoricalAccuracy` based on the loss
           function used and the model output shape. We do a similar
           conversion for the strings 'crossentropy' and 'ce' as well.
+          The metrics passed here are evaluated without sample weighting; if you
+          would like sample weighting to apply, you can specify your
+          metrics via the `weighted_metrics` argument instead.
         loss_weights: Optional list or dictionary specifying scalar coefficients
           (Python floats) to weight the loss contributions of different model
           outputs. The loss value that will be minimized by the model will then
@@ -639,8 +643,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       self._run_eagerly = run_eagerly
 
       self.optimizer = self._get_optimizer(optimizer)
-      self.compiled_loss = compile_utils.LossesContainer(
-          loss, loss_weights, output_names=self.output_names)
+      if isinstance(loss, compile_utils.LossesContainer):
+        self.compiled_loss = loss
+      else:
+        self.compiled_loss = compile_utils.LossesContainer(
+            loss, loss_weights, output_names=self.output_names)
       self.compiled_metrics = compile_utils.MetricsContainer(
           metrics, weighted_metrics, output_names=self.output_names,
           from_serialized=from_serialized)
@@ -1140,7 +1147,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             See `tf.keras.utils.experimental.DatasetCreator` doc for more
             information.
           A more detailed description of unpacking behavior for iterator types
-          (Dataset, generator, Sequence) is given below. If using
+          (Dataset, generator, Sequence) is given below. If these include
+          `sample_weights` as a third component, note that sample weighting
+          applies to the `weighted_metrics` argument but not the `metrics`
+          argument in `compile()`. If using
           `tf.distribute.experimental.ParameterServerStrategy`, only
           `DatasetCreator` type is supported for `x`.
         y: Target data. Like the input data `x`,
@@ -1236,6 +1246,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             argument is not supported when `x` is a dataset, generator, or
            `keras.utils.Sequence` instance, instead provide the sample_weights
             as the third element of `x`.
+            Note that sample weighting does not apply to metrics specified
+            via the `metrics` argument in `compile()`. To apply sample weighting
+            to your metrics, you can specify them via the `weighted_metrics` in
+            `compile()` instead.
         initial_epoch: Integer.
             Epoch at which to start training
             (useful for resuming a previous training run).
@@ -1850,10 +1864,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         """Runs an evaluation execution with multiple steps."""
         outputs = step_function(self, iterator)
         for _ in tf.range(self._steps_per_execution - 1):
-          tf.autograph.experimental.set_loop_options(
-              shape_invariants=[(
-                  t, tf_utils.get_tensor_spec(t, dynamic_batch=True).shape)
-                                for t in tf.nest.flatten(outputs)])
+          tf.autograph.experimental.set_loop_options(shape_invariants=[(
+              outputs,
+              tf.nest.map_structure(
+                  lambda t: tf_utils.get_tensor_spec(t, dynamic_batch=True).
+                  shape, outputs))])
           step_outputs = step_function(self, iterator)
           outputs = tf.nest.map_structure(lambda t1, t2: concat([t1, t2]),
                                           outputs, step_outputs)
@@ -2378,7 +2393,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         A flat list of Numpy arrays.
     """
     with self.distribute_strategy.scope():
-      return super(Model, self).get_weights()
+      return super().get_weights()
 
   @traceback_utils.filter_traceback
   def save(self,
@@ -2703,7 +2718,17 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # see their model's `__init__()` be fed with unexpected keyword argument, if
     # their `__init__()` takes no argument for example, and they don't override
     # `from_config()`, which would use `cls(**config)` as a result.
-    return {}
+    config = {}
+
+    if saving_lib._ENABLED:  # pylint: disable=protected-access
+      if self.optimizer:
+        config['optimizer'] = saving_lib.serialize_keras_object(self.optimizer)
+      if self.compiled_loss:
+        config['loss'] = saving_lib.serialize_keras_object(self.compiled_loss)
+      if self.built:
+        config['input_shape'] = self._build_input_shape
+
+    return config
 
   @classmethod
   def from_config(cls, config, custom_objects=None):
@@ -2728,8 +2753,20 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       # where `get_config()` is returning insufficient information to be
       # considered a Functional model. In this case, we fall back to provide
       # all config into the constructor of the class.
+      optimizer, loss = None, None
+
+      optimizer_dict = config.pop('optimizer', {})
+      if optimizer_dict:
+        optimizer = saving_lib.deserialize_keras_object(optimizer_dict)
+
+      loss_dict = config.pop('loss', {})
+      if loss_dict:
+        loss = saving_lib.deserialize_keras_object(loss_dict)
+
+      input_shape = config.pop('input_shape', {})
+
       try:
-        return cls(**config)
+        model = cls(**config)
       except TypeError as e:
         raise TypeError('Unable to revive model from config. When overriding '
                         'the `get_config()`, make sure that the returned '
@@ -2740,6 +2777,16 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         f'instance of {cls.__name__} from the config. \n\n'
                         f'Error encountered during deserialization:\n{e}')
 
+      if saving_lib._ENABLED:  # pylint: disable=protected-access
+
+        if optimizer or loss:
+          model.compile(optimizer=optimizer, loss=loss)
+
+        if input_shape:
+          model.build(input_shape)
+
+      return model
+
   def to_json(self, **kwargs):
     """Returns a JSON string containing the network configuration.
 
@@ -2747,8 +2794,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     `keras.models.model_from_json(json_string, custom_objects={})`.
 
     Args:
-        **kwargs: Additional keyword arguments
-            to be passed to `json.dumps()`.
+        **kwargs: Additional keyword arguments to be passed to `json.dumps()`.
 
     Returns:
         A JSON string.
@@ -2964,7 +3010,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       inputs_spec.append(
           tf_utils.get_tensor_spec(tensor, dynamic_batch=False, name=name))
     inputs_spec = tf.nest.pack_sequence_as(inputs, inputs_spec)
-    super(Model, self)._set_save_spec(inputs_spec, args, kwargs)
+    super()._set_save_spec(inputs_spec, args, kwargs)
 
     # Store the input shapes
     if (self.__class__.__name__ == 'Sequential' and
@@ -3208,7 +3254,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       self.predict_function = None
       self.train_tf_function = None
 
-    children = super(Model, self)._trackable_children(save_type, **kwargs)
+    children = super()._trackable_children(save_type, **kwargs)
 
     if save_type == 'savedmodel':
       self.train_function = train_function
@@ -3274,6 +3320,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   @property
   def _compile_was_called(self):
     return self._is_compiled
+
+  def _save_new(self, dirpath):
+    return saving_lib.save(self, dirpath)
 
 
 def reduce_per_replica(values, strategy, reduction='first'):

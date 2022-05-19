@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Layer that computes the minimum (element-wise) of several inputs."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 from keras.layers.merging.base_merge import _Merge
 import tensorflow.compat.v2 as tf

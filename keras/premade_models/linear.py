@@ -22,7 +22,7 @@ from keras.engine import base_layer
 from keras.engine import input_spec
 from keras.engine import training
 from keras.layers import core
-from tensorflow.python.util import deprecation  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.util import deprecation
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -93,7 +93,7 @@ class LinearModel(training.Model):
     self.bias_initializer = initializers.get(bias_initializer)
     self.kernel_regularizer = regularizers.get(kernel_regularizer)
     self.bias_regularizer = regularizers.get(bias_regularizer)
-    super(LinearModel, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     base_layer.keras_premade_model_gauge.get_cell('Linear').set(True)
 
   def build(self, input_shape):

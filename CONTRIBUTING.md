@@ -269,3 +269,7 @@ mind.
     [application page](https://keras.io/api/applications/) updating the
     "Available Models" section. The contribution guide for keras.io can be found
     [here](https://github.com/keras-team/keras-io/blob/master/contributor_guide.md).
+-   As every PR requires several CPU/GPU hours of CI testing, we discourage
+    submitting PRs to fix one typo, one warning,etc. We recommend fixing the
+    same issue at the file level at least (e.g.: fix all typos in a file, fix
+    all compiler warning in a file, etc.)

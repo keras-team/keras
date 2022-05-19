@@ -30,7 +30,7 @@ from keras.optimizers.optimizer_v2 import gradient_descent
 class CustomModel(tf.Module):
 
   def __init__(self, name=None):
-    super(CustomModel, self).__init__(name=name)
+    super().__init__(name=name)
     with self.name_scope:
       self._layers = [
           keras.layers.Dense(4, name="dense"),
@@ -108,7 +108,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
       class KerasSubclassModel(keras.Model):
 
         def __init__(self):
-          super(KerasSubclassModel, self).__init__()
+          super().__init__()
           self.l = keras.layers.Dense(4, name="dense")
 
         def call(self, x):
@@ -486,7 +486,7 @@ class KerasModelsXLATest(tf.test.TestCase, parameterized.TestCase):
     class CustomDense(keras.layers.Layer):
 
       def __init__(self, num_outputs):
-        super(CustomDense, self).__init__()
+        super().__init__()
         self.num_outputs = num_outputs
 
       def build(self, input_shape):

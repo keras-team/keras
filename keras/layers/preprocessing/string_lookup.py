@@ -323,7 +323,7 @@ class StringLookup(index_lookup.IndexLookup):
 
     self.encoding = encoding
 
-    super(StringLookup, self).__init__(
+    super().__init__(
         max_tokens=max_tokens,
         num_oov_indices=num_oov_indices,
         mask_token=mask_token,
@@ -340,7 +340,7 @@ class StringLookup(index_lookup.IndexLookup):
 
   def get_config(self):
     config = {"encoding": self.encoding}
-    base_config = super(StringLookup, self).get_config()
+    base_config = super().get_config()
     # There is only one valid dtype for strings, so we don't expose this.
     del base_config["vocabulary_dtype"]
     return dict(list(base_config.items()) + list(config.items()))
@@ -357,7 +357,7 @@ class StringLookup(index_lookup.IndexLookup):
     During `adapt()`, the layer will build a vocabulary of all string tokens
     seen in the dataset, sorted by occurance count, with ties broken by sort
     order of the tokens (high to low). At the end of `adapt()`, if `max_tokens`
-    is set, the voculary wil be truncated to `max_tokens` size. For example,
+    is set, the vocabulary wil be truncated to `max_tokens` size. For example,
     adapting a layer with `max_tokens=1000` will compute the 1000 most frequent
     tokens occurring in the input dataset. If `output_mode='tf-idf'`, `adapt()`
     will also learn the document frequencies of each token in the input dataset.

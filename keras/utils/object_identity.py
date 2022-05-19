@@ -74,7 +74,7 @@ class _WeakObjectIdentityWrapper(_ObjectIdentityWrapper):
   __slots__ = ()
 
   def __init__(self, wrapped):
-    super(_WeakObjectIdentityWrapper, self).__init__(weakref.ref(wrapped))
+    super().__init__(weakref.ref(wrapped))
 
   @property
   def unwrapped(self):

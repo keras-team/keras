@@ -29,7 +29,7 @@ class SavedModelKerasModelTest(test_base.TestSavedModelBase):
 
   def setUp(self):
     self._root_dir = 'saved_model_save_load'
-    super(SavedModelKerasModelTest, self).setUp()
+    super().setUp()
 
   def _save_model(self, model, saved_dir):
     tf.saved_model.save(model, saved_dir)
@@ -89,7 +89,7 @@ class SavedModelTFModuleTest(test_base.TestSavedModelBase):
 
   def setUp(self):
     self._root_dir = 'saved_model_save_load'
-    super(SavedModelTFModuleTest, self).setUp()
+    super().setUp()
 
   def _train_model(self, model, x_train, y_train, batch_size):
     pass

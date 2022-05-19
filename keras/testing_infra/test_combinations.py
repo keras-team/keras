@@ -39,7 +39,7 @@ class TestCase(tf.test.TestCase, parameterized.TestCase):
 
   def tearDown(self):
     keras.backend.clear_session()
-    super(TestCase, self).tearDown()
+    super().tearDown()
 
 
 def run_with_all_saved_model_formats(

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Layer that computes the dot product between two inputs."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 from keras import backend
 from keras.engine import base_layer_utils
@@ -89,7 +89,7 @@ class Dot(_Merge):
         is the cosine proximity between the two samples.
       **kwargs: Standard layer keyword arguments.
     """
-    super(Dot, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     if not isinstance(axes, int):
       if not isinstance(axes, (list, tuple)):
         raise TypeError(
@@ -190,7 +190,7 @@ class Dot(_Merge):
         'axes': self.axes,
         'normalize': self.normalize,
     }
-    base_config = super(Dot, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

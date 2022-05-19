@@ -15,7 +15,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=g-import-not-at-top
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
 """Utilies for image preprocessing and augmentation.
 
 Deprecated: `tf.keras.preprocessing.image` APIs do not operate on tensors and

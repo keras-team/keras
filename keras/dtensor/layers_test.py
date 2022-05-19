@@ -27,7 +27,7 @@ import tensorflow.compat.v2 as tf
 class LayersTest(test_util.DTensorBaseTest):
 
   def setUp(self):
-    super(LayersTest, self).setUp()
+    super().setUp()
     backend.enable_tf_random_generator()
     tf_utils.set_random_seed(1337)
     global_ids = test_util.create_device_ids_array((2, 2))

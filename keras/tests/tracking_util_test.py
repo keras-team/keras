@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 import os
 import weakref
 from tensorflow.python.eager import context
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.engine import input_layer
@@ -37,7 +37,7 @@ class MyModel(training.Model):
   """A concrete Model for testing."""
 
   def __init__(self):
-    super(MyModel, self).__init__()
+    super().__init__()
     self._named_dense = core.Dense(1, use_bias=True)
     self._second = core.Dense(1, use_bias=False)
     # We can still track Trackables which aren't Layers.
@@ -51,7 +51,7 @@ class MyModel(training.Model):
 class NonLayerTrackable(tf.Module):
 
   def __init__(self):
-    super(NonLayerTrackable, self).__init__()
+    super().__init__()
     self.a_variable = trackable_utils.add_variable(
         self, name="a_variable", shape=[])
 
@@ -140,20 +140,20 @@ class CheckpointingTests(test_combinations.TestCase):
     named_variables = {v.name: v for v in named_variables}
     self.assertEqual(len(expected_checkpoint_names),
                      len(named_variables.keys()))
-    # Check that we've mapped to the right variable objects (not exhaustive)
-    self.assertEqual(
-        "global_step",
-        named_variables["step" + suffix].full_name)
-    self.assertEqual(
-        "my_model/dense_1/kernel",
-        named_variables["model/_second/kernel" + suffix].full_name)
-    self.assertEqual(
-        "my_model/dense/kernel",
-        named_variables["model/_named_dense/kernel" + suffix].full_name)
-    self.assertEqual("Adam/beta_1",
-                     named_variables["optimizer/beta_1" + suffix].full_name)
-    self.assertEqual("Adam/beta_2",
-                     named_variables["optimizer/beta_2" + suffix].full_name)
+    # Check that we've created the right full_names of objects (not exhaustive)
+    expected_names = {
+        "step" + suffix: "global_step",
+        "model/_second/kernel" + suffix: "my_model/dense_1/kernel",
+        "model/_named_dense/kernel" + suffix: "my_model/dense/kernel",
+        "optimizer/beta_1" + suffix: "Adam/beta_1",
+        "optimizer/beta_2" + suffix: "Adam/beta_2",
+    }
+    for nodes in serialized_graph.nodes:
+      for attribute in nodes.attributes:
+        expected_name = expected_names.pop(attribute.checkpoint_key, None)
+        if expected_name is not None:
+          self.assertEqual(expected_name, attribute.full_name)
+    self.assertEmpty(expected_names)
     # Spot check the generated protocol buffers.
     self.assertEqual("optimizer",
                      serialized_graph.nodes[0].children[1].local_name)
@@ -420,7 +420,7 @@ class CheckpointingTests(test_combinations.TestCase):
     class Model(training.Model):
 
       def __init__(self):
-        super(Model, self).__init__()
+        super().__init__()
         self.w = tf.Variable(0.0)
         self.b = tf.Variable(0.0)
         self.vars = [self.w, self.b]

@@ -103,7 +103,7 @@ class AssertTypeLayer(base_layer.Layer):
   def __init__(self, assert_type=None, **kwargs):
     self._assert_type = (tf.as_dtype(assert_type).name if assert_type
                          else None)
-    super(AssertTypeLayer, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
   def assert_input_types(self, inputs):
     """Asserts `inputs` are of the correct type. Should be called in call()."""
@@ -147,7 +147,7 @@ class MultiplyLayer(AssertTypeLayer):
 
     self._use_operator = use_operator
     self._var_name = var_name
-    super(MultiplyLayer, self).__init__(
+    super().__init__(
         activity_regularizer=self._activity_regularizer, **kwargs)
 
   def build(self, _):
@@ -166,7 +166,7 @@ class MultiplyLayer(AssertTypeLayer):
       return tf.multiply(x, y)
 
   def get_config(self):
-    config = super(MultiplyLayer, self).get_config()
+    config = super().get_config()
     config['regularizer'] = regularizers.serialize(self._regularizer)
     config['activity_regularizer'] = regularizers.serialize(
         self._activity_regularizer)

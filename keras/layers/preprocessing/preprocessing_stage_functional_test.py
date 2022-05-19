@@ -36,7 +36,7 @@ class PL(base_preprocessing_layer.PreprocessingLayer):
   def __init__(self, **kwargs):
     self.adapt_time = None
     self.adapt_count = 0
-    super(PL, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
   def adapt(self, data, reset_state=True):
     self.adapt_time = time.time()

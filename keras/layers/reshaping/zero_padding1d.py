@@ -70,7 +70,7 @@ class ZeroPadding1D(Layer):
   """
 
   def __init__(self, padding=1, **kwargs):
-    super(ZeroPadding1D, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.padding = conv_utils.normalize_tuple(
         padding, 2, 'padding', allow_zero=True)
     self.input_spec = InputSpec(ndim=3)
@@ -87,5 +87,5 @@ class ZeroPadding1D(Layer):
 
   def get_config(self):
     config = {'padding': self.padding}
-    base_config = super(ZeroPadding1D, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

@@ -19,7 +19,7 @@ import numpy as np
 
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.dtensor.python import api as dtensor_api
 from tensorflow.python.eager import context
 

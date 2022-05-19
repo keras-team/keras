@@ -104,7 +104,7 @@ class MetricsAggregator(Aggregator):
   """
 
   def __init__(self, use_steps, num_samples=None, steps=None):
-    super(MetricsAggregator, self).__init__(
+    super().__init__(
         use_steps=use_steps,
         num_samples=num_samples,
         steps=steps,
@@ -250,7 +250,7 @@ class ConcatAggregator(Aggregator):
 
   def __init__(self, batch_size):
     self.composite = None
-    super(ConcatAggregator, self).__init__(
+    super().__init__(
         use_steps=True, num_samples=None, steps=None, batch_size=batch_size)
 
   def create(self, batch_element):
@@ -333,7 +333,7 @@ class SliceAggregator(Aggregator):
     self._async_copies = []
     self._pool = get_copy_pool()
     self._errors = []
-    super(SliceAggregator, self).__init__(
+    super().__init__(
         use_steps=False,
         num_samples=num_samples,
         steps=None,

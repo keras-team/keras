@@ -148,7 +148,7 @@ class SeparableConv2D(SeparableConv):
                pointwise_constraint=None,
                bias_constraint=None,
                **kwargs):
-    super(SeparableConv2D, self).__init__(
+    super().__init__(
         rank=2,
         filters=filters,
         kernel_size=kernel_size,

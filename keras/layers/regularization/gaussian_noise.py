@@ -54,7 +54,7 @@ class GaussianNoise(base_layer.BaseRandomLayer):
   """
 
   def __init__(self, stddev, seed=None, **kwargs):
-    super(GaussianNoise, self).__init__(seed=seed, **kwargs)
+    super().__init__(seed=seed, **kwargs)
     self.supports_masking = True
     self.stddev = stddev
     self.seed = seed
@@ -72,7 +72,7 @@ class GaussianNoise(base_layer.BaseRandomLayer):
 
   def get_config(self):
     config = {'stddev': self.stddev, 'seed': self.seed}
-    base_config = super(GaussianNoise, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @tf_utils.shape_type_conversion

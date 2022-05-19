@@ -56,7 +56,7 @@ class Permute(Layer):
   """
 
   def __init__(self, dims, **kwargs):
-    super(Permute, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.dims = tuple(dims)
     if sorted(dims) != list(range(1, len(dims) + 1)):
       raise ValueError(
@@ -78,5 +78,5 @@ class Permute(Layer):
 
   def get_config(self):
     config = {'dims': self.dims}
-    base_config = super(Permute, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

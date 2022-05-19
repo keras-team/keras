@@ -20,7 +20,7 @@ from keras.engine import data_adapter
 from keras.engine.base_layer import Layer
 from keras.utils import version_utils
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.eager import context
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
@@ -50,7 +50,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
   _must_restore_from_config = True
 
   def __init__(self, **kwargs):
-    super(PreprocessingLayer, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self._is_compiled = False
     self._is_adapted = False
 

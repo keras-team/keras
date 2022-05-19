@@ -43,7 +43,7 @@ from keras.utils import np_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 _DATA_TYPES = [tf.half, tf.float32, tf.float64]
@@ -1297,10 +1297,10 @@ class OptimizerCoefficientTest(test_combinations.TestCase):
     class SubclassedOptimizer(optimizer_class):
 
       def _resource_apply_dense(self, grad, var):  # pylint: disable=useless-super-delegation
-        return super(SubclassedOptimizer, self)._resource_apply_dense(grad, var)
+        return super()._resource_apply_dense(grad, var)
 
       def _resource_apply_sparse(self, grad, var, indices):  # pylint: disable=useless-super-delegation
-        return super(SubclassedOptimizer, self)._resource_apply_sparse(
+        return super()._resource_apply_sparse(
             grad, var, indices)
 
     init_kwargs = init_kwargs or {}

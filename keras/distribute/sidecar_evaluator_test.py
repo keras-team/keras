@@ -1,4 +1,3 @@
-# Lint as: python3
 # Copyright 2020 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +26,7 @@ from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.platform import tf_logging as logging
 
 _BATCH_SIZE = 32
 

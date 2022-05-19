@@ -87,7 +87,7 @@ class _RNNCellWrapperV1(RNNCell):
   """
 
   def __init__(self, cell, *args, **kwargs):
-    super(_RNNCellWrapperV1, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     assert_like_rnncell("cell", cell)
     self.cell = cell
     if isinstance(cell, tf.__internal__.tracking.Trackable):
@@ -156,7 +156,7 @@ class _RNNCellWrapperV1(RNNCell):
             "config": self.cell.get_config()
         },
     }
-    base_config = super(_RNNCellWrapperV1, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -245,7 +245,7 @@ class DropoutWrapper(_RNNCellWrapperV1):
         but not `callable`.
       ValueError: if any of the keep_probs are not between 0 and 1.
     """
-    super(DropoutWrapper, self).__init__(cell, dtype=dtype, **kwargs)
+    super().__init__(cell, dtype=dtype, **kwargs)
 
     if (dropout_state_filter_visitor is not None and
         not callable(dropout_state_filter_visitor)):
@@ -266,9 +266,8 @@ class DropoutWrapper(_RNNCellWrapperV1):
         tensor_prob, const_prob = tensor_and_const_value(prob)
         if const_prob is not None:
           if const_prob < 0 or const_prob > 1:
-            raise ValueError(
-                f"Parameter {attr} must be between 0 and 1. "
-                "Received {const_prob}")
+            raise ValueError(f"Parameter {attr} must be between 0 and 1. "
+                             f"Received {const_prob}")
           setattr(self, "_%s" % attr, float(const_prob))
         else:
           setattr(self, "_%s" % attr, tensor_prob)
@@ -433,7 +432,7 @@ class DropoutWrapper(_RNNCellWrapperV1):
       config.update({"dropout_fn": function,
                      "dropout_fn_type": function_type,
                      "dropout_fn_module": function_module})
-    base_config = super(DropoutWrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -465,7 +464,7 @@ class ResidualWrapper(_RNNCellWrapperV1):
           and outputs.
       **kwargs: dict of keyword arguments for base layer.
     """
-    super(ResidualWrapper, self).__init__(cell, **kwargs)
+    super().__init__(cell, **kwargs)
     self._residual_fn = residual_fn
 
   def _call_wrapped_cell(self, inputs, state, cell_call_fn, **kwargs):
@@ -511,7 +510,7 @@ class ResidualWrapper(_RNNCellWrapperV1):
       }
     else:
       config = {}
-    base_config = super(ResidualWrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @classmethod
@@ -542,7 +541,7 @@ class DeviceWrapper(_RNNCellWrapperV1):
       device: A device string or function, for passing to `tf.device`.
       **kwargs: dict of keyword arguments for base layer.
     """
-    super(DeviceWrapper, self).__init__(cell, **kwargs)
+    super().__init__(cell, **kwargs)
     self._device = device
 
   def zero_state(self, batch_size, dtype):
@@ -557,7 +556,7 @@ class DeviceWrapper(_RNNCellWrapperV1):
 
   def get_config(self):
     config = {"device": self._device}
-    base_config = super(DeviceWrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

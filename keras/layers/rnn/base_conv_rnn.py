@@ -137,7 +137,7 @@ class ConvRNN(RNN):
                       'stack convolutional cells. Only pass a single cell '
                       'instance as the `cell` argument. Received: '
                       f'cell={cell}')
-    super(ConvRNN, self).__init__(cell, return_sequences, return_state,
+    super().__init__(cell, return_sequences, return_state,
                                   go_backwards, stateful, unroll, **kwargs)
     self.rank = rank
     self.input_spec = [InputSpec(ndim=rank + 3)]

@@ -16,6 +16,7 @@
 # pylint: disable=g-bad-import-order
 
 from keras.utils.data_utils import get_file
+from keras.utils.dataset_utils import split_dataset
 from keras.utils.generic_utils import Progbar
 from keras.utils.image_dataset import image_dataset_from_directory
 from keras.utils.text_dataset import text_dataset_from_directory
@@ -46,6 +47,8 @@ from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import get_custom_objects
 from keras.utils.generic_utils import serialize_keras_object
 
+# Audio related
+from keras.utils.audio_dataset import audio_dataset_from_directory
+
 # Internal
 from keras.utils.layer_utils import get_source_inputs
-

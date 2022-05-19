@@ -17,7 +17,7 @@
 from keras.optimizers.optimizer_experimental import optimizer
 from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -85,7 +85,7 @@ class RMSprop(optimizer.Optimizer):
                jit_compile=True,
                name='RMSprop',
                **kwargs):
-    super(RMSprop, self).__init__(
+    super().__init__(
         clipnorm=clipnorm,
         clipvalue=clipvalue,
         global_clipnorm=global_clipnorm,
@@ -178,7 +178,7 @@ class RMSprop(optimizer.Optimizer):
         variable.assign_add(-lr * transformed_grad)
 
   def get_config(self):
-    config = super(RMSprop, self).get_config()
+    config = super().get_config()
 
     config.update({
         'learning_rate': self._serialize_hyperparameter(self._learning_rate),

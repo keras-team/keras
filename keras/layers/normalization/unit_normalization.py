@@ -14,7 +14,7 @@
 # ==============================================================================
 """Unit Normalization layer."""
 # pylint: disable=g-bad-import-order
-# pylint: disable=g-direct-tensorflow-import
+
 # pylint: disable=g-classes-have-attributes
 
 import tensorflow.compat.v2 as tf
@@ -72,6 +72,6 @@ class UnitNormalization(base_layer.Layer):
     return input_shape
 
   def get_config(self):
-    config = super(UnitNormalization, self).get_config()
+    config = super().get_config()
     config.update({'axis': self.axis})
     return config

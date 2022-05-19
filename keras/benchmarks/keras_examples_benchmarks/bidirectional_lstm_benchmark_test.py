@@ -26,7 +26,7 @@ class BidirectionalLSTMBenchmark(tf.test.Benchmark):
   """Benchmarks for Bidirectional LSTM using `tf.test.Benchmark`."""
 
   def __init__(self):
-    super(BidirectionalLSTMBenchmark, self).__init__()
+    super().__init__()
     self.max_feature = 20000
     self.max_len = 200
     (self.imdb_x, self.imdb_y), _ = tf.keras.datasets.imdb.load_data(

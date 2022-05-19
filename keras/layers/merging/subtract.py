@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Layer that subtracts two inputs."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 from keras.layers.merging.base_merge import _Merge
 from keras.utils import tf_utils
@@ -48,7 +48,7 @@ class Subtract(_Merge):
 
   @tf_utils.shape_type_conversion
   def build(self, input_shape):
-    super(Subtract, self).build(input_shape)
+    super().build(input_shape)
     if len(input_shape) != 2:
       raise ValueError(
           'A `Subtract` layer should be called on exactly 2 inputs. '

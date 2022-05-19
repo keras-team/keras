@@ -132,7 +132,7 @@ class DepthwiseConv2D(DepthwiseConv):
                depthwise_constraint=None,
                bias_constraint=None,
                **kwargs):
-    super(DepthwiseConv2D, self).__init__(
+    super().__init__(
         2,
         kernel_size=kernel_size,
         strides=strides,

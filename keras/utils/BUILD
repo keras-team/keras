@@ -20,6 +20,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":audio_dataset",
         ":data_utils",
         ":generic_utils",
         ":image_dataset",
@@ -286,6 +287,18 @@ py_library(
     ],
 )
 
+py_library(
+    name = "audio_dataset",
+    srcs = [
+        "audio_dataset.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
 tf_py_test(
     name = "dataset_creator_test",
     srcs = ["dataset_creator_test.py"],
@@ -298,6 +311,20 @@ tf_py_test(
         "//keras/engine",
         "//keras/layers/core",
         "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "dataset_utils_test",
+    size = "medium",
+    timeout = "moderate",
+    srcs = ["dataset_utils_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )
 
@@ -551,6 +578,20 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":timeseries_dataset",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "audio_dataset_test",
+    size = "small",
+    srcs = ["audio_dataset_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":audio_dataset",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",

@@ -187,7 +187,7 @@ class TraceModelCallTest(test_combinations.TestCase):
     class Model(keras.Model):
 
       def __init__(self):
-        super(Model, self).__init__()
+        super().__init__()
         self.dense = keras.layers.Dense(3, name='dense')
 
       @tf.function(
@@ -296,7 +296,7 @@ class BasicAutographedMetricLayer(keras.layers.Layer):
 class BasicAutographedMetricModel(keras.models.Model):
 
   def __init__(self):
-    super(BasicAutographedMetricModel, self).__init__(name='test_model')
+    super().__init__(name='test_model')
     self._layer = BasicAutographedMetricLayer()
 
   def call(self, inputs, **kwargs):
@@ -399,7 +399,7 @@ class ExtractModelMetricsTest(test_combinations.TestCase):
 class UnbuiltModelSavingErrorMessageTest(test_combinations.TestCase):
 
   def setUp(self):
-    super(UnbuiltModelSavingErrorMessageTest, self).setUp()
+    super().setUp()
     if not tf.__internal__.tf2.enabled():
       self.skipTest('The test does not intend to cover TF1.')
 

@@ -15,7 +15,7 @@
 """Keras index lookup preprocessing layer."""
 
 # pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
 
 import collections
 
@@ -347,9 +347,12 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     """Gets the current size of the layer's vocabulary.
 
     Returns:
-      The integer size of the voculary, including optional mask and oov indices.
+      The integer size of the vocabulary, including optional mask and oov indices.
     """
-    return int(self.lookup_table.size().numpy()) + self._token_start_index()
+    if tf.executing_eagerly():
+      return int(self.lookup_table.size().numpy()) + self._token_start_index()
+    else:
+      return self.lookup_table.size() + self._token_start_index()
 
   def vocab_size(self):
     logging.warning("vocab_size is deprecated, please use vocabulary_size.")

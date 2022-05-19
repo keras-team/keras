@@ -136,7 +136,7 @@ class Conv1DTranspose(Conv1D):
                kernel_constraint=None,
                bias_constraint=None,
                **kwargs):
-    super(Conv1DTranspose, self).__init__(
+    super().__init__(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -274,7 +274,7 @@ class Conv1DTranspose(Conv1D):
     return tf.TensorShape(output_shape)
 
   def get_config(self):
-    config = super(Conv1DTranspose, self).get_config()
+    config = super().get_config()
     config['output_padding'] = self.output_padding
     return config
 

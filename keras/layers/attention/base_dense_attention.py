@@ -68,7 +68,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
   """
 
   def __init__(self, causal=False, dropout=0.0, **kwargs):
-    super(BaseDenseAttention, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.causal = causal
     self.dropout = dropout
     self.supports_masking = True
@@ -212,7 +212,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         'causal': self.causal,
         'dropout': self.dropout,
     }
-    base_config = super(BaseDenseAttention, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

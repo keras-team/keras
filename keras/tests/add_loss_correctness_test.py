@@ -56,7 +56,7 @@ def get_ctl_train_step(model):
 class TestAddLossCorrectness(test_combinations.TestCase):
 
   def setUp(self):
-    super(TestAddLossCorrectness, self).setUp()
+    super().setUp()
     self.x = np.array([[0.], [1.], [2.]], dtype='float32')
     self.y = np.array([[0.5], [2.], [3.5]], dtype='float32')
     self.w = np.array([[1.25], [0.5], [1.25]], dtype='float32')
@@ -176,7 +176,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
     class MyModel(Model):
 
       def __init__(self):
-        super(MyModel, self).__init__()
+        super().__init__()
         self.bias = test_utils.Bias()
 
       def call(self, inputs):
@@ -204,7 +204,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
     class MyLayer(layers.Layer):
 
       def __init__(self):
-        super(MyLayer, self).__init__()
+        super().__init__()
         self.bias = test_utils.Bias()
 
       def call(self, inputs):
@@ -352,7 +352,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
     class LayerWithNestedLayerWithLoss(layers.Layer):
 
       def __init__(self):
-        super(LayerWithNestedLayerWithLoss, self).__init__()
+        super().__init__()
         self.loss_layer = LayerWithLoss()
 
       def call(self, inputs):
@@ -372,7 +372,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
     class LayerWithSharedNestedLossLayer(layers.Layer):
 
       def __init__(self):
-        super(LayerWithSharedNestedLossLayer, self).__init__()
+        super().__init__()
         self.loss_layer = layers.ActivityRegularization(l2=0.001)
         self.add_weight(shape=(1,), regularizer='l2')
 

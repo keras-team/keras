@@ -35,8 +35,8 @@ import tensorflow.compat.v2 as tf
 from tensorboard.plugins.histogram import summary_v2 as histogram_summary_v2
 from tensorboard.plugins.image import summary_v2 as image_summary_v2
 from tensorboard.plugins.scalar import summary_v2 as scalar_summary_v2
-from tensorflow.python.eager.context import set_soft_device_placement  # pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.eager.context import set_soft_device_placement
+from tensorflow.python.framework import test_util as tf_test_utils
 
 NUM_CLASSES = 4
 
@@ -95,7 +95,7 @@ class CustomModel(training.Model):
   """Custom model with summary ops in model call definition."""
 
   def __init__(self, name=None, enable_histograms=True):
-    super(CustomModel, self).__init__()
+    super().__init__()
     self._my_layers = [
         layer_lib.Dense(
             4096,
@@ -158,7 +158,7 @@ def mnist_model(input_shape, enable_histograms=True):
 class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
 
   def setUp(self):
-    super(AutoOutsideCompilationWithKerasTest, self).setUp()
+    super().setUp()
     set_soft_device_placement(True)
     self.summary_dir = self.get_temp_dir()
 

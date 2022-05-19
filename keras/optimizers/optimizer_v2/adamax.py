@@ -92,7 +92,7 @@ class Adamax(optimizer_v2.OptimizerV2):
                epsilon=1e-7,
                name='Adamax',
                **kwargs):
-    super(Adamax, self).__init__(name, **kwargs)
+    super().__init__(name, **kwargs)
     self._set_hyper('learning_rate', kwargs.get('lr', learning_rate))
     self._set_hyper('decay', self._initial_decay)
     self._set_hyper('beta_1', beta_1)
@@ -107,7 +107,7 @@ class Adamax(optimizer_v2.OptimizerV2):
       self.add_slot(var, 'v')  # Create slots for the second moments.
 
   def _prepare_local(self, var_device, var_dtype, apply_state):
-    super(Adamax, self)._prepare_local(var_device, var_dtype, apply_state)
+    super()._prepare_local(var_device, var_dtype, apply_state)
 
     local_step = tf.cast(self.iterations + 1, var_dtype)
     beta_1_t = tf.identity(self._get_hyper('beta_1', var_dtype))
@@ -173,7 +173,7 @@ class Adamax(optimizer_v2.OptimizerV2):
     return tf.group(*[var_update, m_t, v_t])
 
   def get_config(self):
-    config = super(Adamax, self).get_config()
+    config = super().get_config()
     config.update({
         'learning_rate': self._serialize_hyperparameter('learning_rate'),
         'decay': self._initial_decay,

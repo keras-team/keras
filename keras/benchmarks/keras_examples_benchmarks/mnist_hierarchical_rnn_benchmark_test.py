@@ -26,7 +26,7 @@ class HierarchicalRNNBenchmark(tf.test.Benchmark):
   """Benchmarks for Hierarchical RNN using `tf.test.Benchmark`."""
 
   def __init__(self):
-    super(HierarchicalRNNBenchmark, self).__init__()
+    super().__init__()
     self.num_classes = 10
     self.row_hidden, self.col_hidden = 128, 128
     (self.x_train, self.y_train), _ = tf.keras.datasets.mnist.load_data()

@@ -212,7 +212,7 @@ class Layer(base_layer.Layer):
     # Mark that legacy layers should not be instrumented as Keras usage
     self._disable_keras_instrumentation = True
 
-    super(Layer, self).__init__(trainable=trainable, name=name, dtype=dtype,
+    super().__init__(trainable=trainable, name=name, dtype=dtype,
                                 **kwargs)
 
     if _is_in_keras_style_scope():
@@ -289,7 +289,7 @@ class Layer(base_layer.Layer):
   def add_loss(self, losses, inputs=None):
     previous_losses_length = len(self._losses)
     previous_callable_losses_length = len(self._callable_losses)
-    super(Layer, self).add_loss(losses, inputs=inputs)
+    super().add_loss(losses, inputs=inputs)
     if not tf.executing_eagerly():
       # TODO(fchollet): deprecate collection below.
       new_losses = self._losses[previous_losses_length:]
@@ -306,7 +306,7 @@ class Layer(base_layer.Layer):
   def _name_scope(self):  # pylint: disable=method-hidden
     """Determines op naming for the Layer."""
     if self._keras_style:
-      return super(Layer, self)._name_scope()
+      return super()._name_scope()
     return self._current_scope.original_name_scope
 
   def _set_scope(self, scope=None):
@@ -385,7 +385,7 @@ class Layer(base_layer.Layer):
       if kwarg != 'experimental_autocast':
         raise TypeError('Unknown keyword argument:', kwarg)
     if self._keras_style:
-      return super(Layer, self).add_weight(
+      return super().add_weight(
           name=name,
           shape=shape,
           dtype=dtype,
@@ -453,7 +453,7 @@ class Layer(base_layer.Layer):
                         scope.use_resource)
         if initializer is None:
           initializer = scope.initializer
-        variable = super(Layer, self).add_weight(
+        variable = super().add_weight(
             name,
             shape,
             dtype=tf.as_dtype(dtype),
@@ -525,7 +525,7 @@ class Layer(base_layer.Layer):
         raise ValueError(
             'scope argument not allowed when keras style layers are enabled, '
             'but saw: {}'.format(scope))
-      return super(Layer, self).__call__(inputs, *args, **kwargs)
+      return super().__call__(inputs, *args, **kwargs)
 
     self._set_scope(scope)
 
@@ -566,7 +566,7 @@ class Layer(base_layer.Layer):
         kwargs['scope'] = scope
 
       # Actually call layer
-      outputs = super(Layer, self).__call__(inputs, *args, **kwargs)
+      outputs = super().__call__(inputs, *args, **kwargs)
 
     if not tf.executing_eagerly():
       # Update global default collections.

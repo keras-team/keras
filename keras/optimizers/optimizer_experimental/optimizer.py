@@ -25,7 +25,7 @@ from keras import initializers
 from keras.optimizers.optimizer_v2 import utils as optimizer_utils
 from keras.optimizers.schedules import learning_rate_schedule
 import tensorflow.compat.v2 as tf
-# pylint: disable=g-direct-tensorflow-import
+
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -772,7 +772,7 @@ class Optimizer(_BaseOptimizer):
     # TODO(b/197554203): replace _distributed_container() with a public api.
     if hasattr(variable, "_distributed_container"):
       variable = variable._distributed_container()
-    return super(Optimizer, self)._var_key(variable)
+    return super()._var_key(variable)
 
   def aggregate_gradients(self, grads_and_vars):
     """Aggregate gradients on all devices.
@@ -870,7 +870,7 @@ class Optimizer(_BaseOptimizer):
 class RestoredOptimizer(Optimizer):
 
   def __init__(self):
-    super(RestoredOptimizer, self).__init__("RestoredOptimizer")
+    super().__init__("RestoredOptimizer")
 
   def get_config(self):
     raise NotImplementedError(

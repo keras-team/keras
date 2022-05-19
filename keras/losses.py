@@ -15,15 +15,18 @@
 # pylint: disable=g-classes-have-attributes
 """Built-in loss functions."""
 
-import tensorflow.compat.v2 as tf
 
 import abc
 import functools
+
 from keras import backend
+from keras.saving.experimental import saving_lib
+from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import tf_utils
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
+import tensorflow.compat.v2 as tf
 from tensorflow.python.ops.ragged import ragged_map_ops
 from tensorflow.python.ops.ragged import ragged_util
 from tensorflow.python.util import dispatch
@@ -246,8 +249,28 @@ class LossFunctionWrapper(Loss):
     config = {}
     for k, v in self._fn_kwargs.items():
       config[k] = backend.eval(v) if tf_utils.is_tensor_or_variable(v) else v
+
+    if saving_lib._ENABLED:  # pylint: disable=protected-access
+      config['fn'] = generic_utils.get_registered_name(self.fn)
+
     base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
+
+  @classmethod
+  def from_config(cls, config):
+    """Instantiates a `Loss` from its config (output of `get_config()`).
+
+    Args:
+        config: Output of `get_config()`.
+
+    Returns:
+        A `keras.losses.Loss` instance.
+    """
+    if saving_lib._ENABLED:  # pylint: disable=protected-access
+      fn_name = config.pop('fn', None)
+      if fn_name and cls is LossFunctionWrapper:
+        config['fn'] = get(fn_name)
+    return cls(**config)
 
 
 @keras_export('keras.losses.MeanSquaredError')
@@ -637,6 +660,12 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
   >>> loss(y_true, y_pred).numpy()
   0.691
 
+  >>> # Apply class weight
+  >>> loss = tf.keras.losses.BinaryFocalCrossentropy(
+  ...     apply_class_balancing=True, gamma=2, from_logits=True)
+  >>> loss(y_true, y_pred).numpy()
+  0.51
+
   >>> # Example 2: (batch_size = 2, number of samples = 4)
   >>> y_true = [[0, 1], [0, 0]]
   >>> y_pred = [[-18.6, 0.51], [2.94, -12.8]]
@@ -645,9 +674,22 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
   >>> loss(y_true, y_pred).numpy()
   0.647
 
-  >>> # Using 'sample_weight' attribute
+  >>> # Apply class weight
+  >>> loss = tf.keras.losses.BinaryFocalCrossentropy(
+  ...     apply_class_balancing=True, gamma=3, from_logits=True)
+  >>> loss(y_true, y_pred).numpy()
+  0.482
+
+  >>> # Using 'sample_weight' attribute with focal effect
+  >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=3, from_logits=True)
   >>> loss(y_true, y_pred, sample_weight=[0.8, 0.2]).numpy()
   0.133
+
+  >>> # Apply class weight
+  >>> loss = tf.keras.losses.BinaryFocalCrossentropy(
+  ...     apply_class_balancing=True, gamma=3, from_logits=True)
+  >>> loss(y_true, y_pred, sample_weight=[0.8, 0.2]).numpy()
+  0.097
 
   >>> # Using 'sum' reduction` type.
   >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=4, from_logits=True,
@@ -655,13 +697,33 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
   >>> loss(y_true, y_pred).numpy()
   1.222
 
+  >>> # Apply class weight
+  >>> loss = tf.keras.losses.BinaryFocalCrossentropy(
+  ...     apply_class_balancing=True, gamma=4, from_logits=True,
+  ...     reduction=tf.keras.losses.Reduction.SUM)
+  >>> loss(y_true, y_pred).numpy()
+  0.914
+
   >>> # Using 'none' reduction type.
   >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=5, from_logits=True,
   ...     reduction=tf.keras.losses.Reduction.NONE)
   >>> loss(y_true, y_pred).numpy()
   array([0.0017 1.1561], dtype=float32)
 
+  >>> # Apply class weight
+  >>> loss = tf.keras.losses.BinaryFocalCrossentropy(
+  ...     apply_class_balancing=True, gamma=5, from_logits=True,
+  ...     reduction=tf.keras.losses.Reduction.NONE)
+  >>> loss(y_true, y_pred).numpy()
+  array([0.0004 0.8670], dtype=float32)
+
+
   Args:
+    apply_class_balancing: A bool, whether to apply weight balancing on the
+      binary classes 0 and 1.
+    alpha: A weight balancing factor for class 1, default is `0.25` as mentioned
+      in reference [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf).
+      The weight for class 0 is `1.0 - alpha`.
     gamma: A focusing parameter used to compute the focal factor, default is
       `2.0` as mentioned in the reference
       [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf).
@@ -689,6 +751,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
 
   def __init__(
       self,
+      apply_class_balancing=False,
+      alpha=0.25,
       gamma=2.0,
       from_logits=False,
       label_smoothing=0.,
@@ -699,6 +763,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     """Initializes `BinaryFocalCrossentropy` instance."""
     super().__init__(
         binary_focal_crossentropy,
+        apply_class_balancing=apply_class_balancing,
+        alpha=alpha,
         gamma=gamma,
         name=name,
         reduction=reduction,
@@ -706,13 +772,17 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
         label_smoothing=label_smoothing,
         axis=axis)
     self.from_logits = from_logits
+    self.apply_class_balancing = apply_class_balancing
+    self.alpha = alpha
     self.gamma = gamma
 
   def get_config(self):
     config = {
+        'apply_class_balancing': self.apply_class_balancing,
+        'alpha': self.alpha,
         'gamma': self.gamma,
     }
-    base_config = super(BinaryFocalCrossentropy, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1978,6 +2048,8 @@ def _ragged_tensor_binary_crossentropy(y_true,
 def binary_focal_crossentropy(
     y_true,
     y_pred,
+    apply_class_balancing=False,
+    alpha=0.25,
     gamma=2.0,
     from_logits=False,
     label_smoothing=0.,
@@ -1991,8 +2063,15 @@ def binary_focal_crossentropy(
 
   `focal_factor = (1 - output)**gamma` for class 1
   `focal_factor = output**gamma` for class 0
-  where `gamma` is a focusing parameter. When `gamma` = 0, this function is
-  equivalent to the binary crossentropy loss.
+  where `gamma` is a focusing parameter. When `gamma` = 0, there is no focal
+  effect on the binary crossentropy loss.
+
+  If `apply_class_balancing == True`, this function also takes into account a
+  weight balancing factor for the binary classes 0 and 1 as follows:
+
+  `weight = alpha` for class 1 (`target == 1`)
+  `weight = 1 - alpha` for class 0
+  where `alpha` is a float in the range of `[0, 1]`.
 
   Standalone usage:
 
@@ -2006,6 +2085,10 @@ def binary_focal_crossentropy(
   Args:
     y_true: Ground truth values, of shape `(batch_size, d0, .. dN)`.
     y_pred: The predicted values, of shape `(batch_size, d0, .. dN)`.
+    apply_class_balancing: A bool, whether to apply weight balancing on the
+      binary classes 0 and 1.
+    alpha: A weight balancing factor for class 1, default is `0.25` as mentioned
+    in the reference. The weight for class 0 is `1.0 - alpha`.
     gamma: A focusing parameter, default is `2.0` as mentioned in the reference.
     from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
       we assume that `y_pred` encodes a probability distribution.
@@ -2031,6 +2114,8 @@ def binary_focal_crossentropy(
       backend.binary_focal_crossentropy(
           target=y_true,
           output=y_pred,
+          apply_class_balancing=apply_class_balancing,
+          alpha=alpha,
           gamma=gamma,
           from_logits=from_logits,
       ),
@@ -2042,6 +2127,8 @@ def binary_focal_crossentropy(
 def _ragged_tensor_binary_focal_crossentropy(
     y_true,
     y_pred,
+    apply_class_balancing=False,
+    alpha=0.25,
     gamma=2.0,
     from_logits=False,
     label_smoothing=0.,
@@ -2060,8 +2147,12 @@ def _ragged_tensor_binary_focal_crossentropy(
   Args:
     y_true: Tensor of one-hot true targets.
     y_pred: Tensor of predicted targets.
-    gamma: A focusing parameter, default is `2.0` as mentioned in the reference
-      [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf).
+    apply_class_balancing: A bool, whether to apply weight balancing on the
+      binary classes 0 and 1.
+    alpha: A weight balancing factor for class 1, default is `0.25` as mentioned
+      in the reference [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf).
+      The weight for class 0 is `1.0 - alpha`.
+    gamma: A focusing parameter, default is `2.0` as mentioned in the reference.
     from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
       we assume that `y_pred` encodes a probability distribution.
     label_smoothing: Float in `[0, 1]`. If > `0` then smooth the labels. For
@@ -2074,6 +2165,8 @@ def _ragged_tensor_binary_focal_crossentropy(
   """
   fn = functools.partial(
       binary_focal_crossentropy,
+      apply_class_balancing=apply_class_balancing,
+      alpha=alpha,
       gamma=gamma,
       from_logits=from_logits,
       label_smoothing=label_smoothing,

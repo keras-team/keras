@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for locally-connected layers."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 import os
 

@@ -106,7 +106,7 @@ class MaxPooling1D(Pooling1D):
   def __init__(self, pool_size=2, strides=None,
                padding='valid', data_format='channels_last', **kwargs):
 
-    super(MaxPooling1D, self).__init__(
+    super().__init__(
         functools.partial(backend.pool2d, pool_mode='max'),
         pool_size=pool_size,
         strides=strides,

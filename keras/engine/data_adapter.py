@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Adapter module that convert different input data objects into tf.dataset."""
-# pylint: disable=g-direct-tensorflow-import
+
 import tensorflow.compat.v2 as tf
 
 import abc
@@ -30,6 +30,7 @@ from keras.engine import training_utils
 from keras.utils import data_utils
 from keras.utils import dataset_creator
 from keras.utils import tf_utils
+from tensorflow.python.distribute.input_lib import DistributedDataset
 from tensorflow.python.framework import type_spec
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
@@ -232,7 +233,7 @@ class TensorLikeDataAdapter(DataAdapter):
                steps=None,
                shuffle=False,
                **kwargs):
-    super(TensorLikeDataAdapter, self).__init__(x, y, **kwargs)
+    super().__init__(x, y, **kwargs)
     x, y, sample_weights = _process_tensorlike((x, y, sample_weights))
     sample_weight_modes = broadcast_sample_weight_modes(
         sample_weights, sample_weight_modes)
@@ -437,7 +438,7 @@ class GenericArrayLikeDataAdapter(TensorLikeDataAdapter):
         "supported by TensorFlow I/O (https://github.com/tensorflow/io) we "
         "recommend using that to load a Dataset instead.")
 
-    super(GenericArrayLikeDataAdapter, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
   def slice_inputs(self, indices_dataset, inputs):
     """Slice inputs into a Dataset of batches.
@@ -491,7 +492,7 @@ class DatasetCreatorAdapter(DataAdapter):
   """Adapter that handles dataset functions."""
 
   def __init__(self, x, y, steps=None, distribution_strategy=None, **kwargs):
-    super(DatasetCreatorAdapter, self).__init__(x, **kwargs)
+    super().__init__(x, **kwargs)
 
     if not isinstance(x, dataset_creator.DatasetCreator):
       raise TypeError("The input of a `DatasetCreatorAdapter` should be a "
@@ -573,7 +574,7 @@ class CompositeTensorDataAdapter(DataAdapter):
                steps=None,
                shuffle=False,
                **kwargs):
-    super(CompositeTensorDataAdapter, self).__init__(x, y, **kwargs)
+    super().__init__(x, y, **kwargs)
     x, y, sample_weights = _process_tensorlike((x, y, sample_weights))
     sample_weight_modes = broadcast_sample_weight_modes(
         sample_weights, sample_weight_modes)
@@ -652,7 +653,7 @@ class ListsOfScalarsDataAdapter(DataAdapter):
                batch_size=None,
                shuffle=False,
                **kwargs):
-    super(ListsOfScalarsDataAdapter, self).__init__(x, y, **kwargs)
+    super().__init__(x, y, **kwargs)
     x = np.asarray(x)
     if y is not None:
       y = np.asarray(y)
@@ -703,7 +704,7 @@ class DatasetAdapter(DataAdapter):
                sample_weights=None,
                steps=None,
                **kwargs):
-    super(DatasetAdapter, self).__init__(x, y, **kwargs)
+    super().__init__(x, y, **kwargs)
     # Note that the dataset instance is immutable, its fine to reuse the user
     # provided dataset.
     self._dataset = x
@@ -793,7 +794,7 @@ class GeneratorDataAdapter(DataAdapter):
       raise ValueError("`sample_weight` argument is not supported when using "
                        "python generator as input.")
 
-    super(GeneratorDataAdapter, self).__init__(x, y, **kwargs)
+    super().__init__(x, y, **kwargs)
 
     # Since we have to know the dtype of the python generator when we build the
     # dataset, we have to look at a batch to infer the structure.
@@ -919,11 +920,10 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
       raise ValueError("`sample_weight` argument is not supported when using "
                        "`keras.utils.Sequence` as input.")
 
-    self._size = len(x)
     self._shuffle_sequence = shuffle
     self._keras_sequence = x
     self._enqueuer = None
-    super(KerasSequenceAdapter, self).__init__(
+    super().__init__(
         x,
         shuffle=False,  # Shuffle is handed in the _make_callable override.
         workers=workers,
@@ -959,7 +959,7 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
     return generator_fn
 
   def get_size(self):
-    return self._size
+    return len(self._keras_sequence)
 
   def should_recreate_iterator(self):
     return True
@@ -1139,6 +1139,8 @@ class DataHandler:
     self._insufficient_data = False
     self._model = model
 
+    self._steps_per_epoch = steps_per_epoch
+
     # `steps_per_execution_value` is the cached initial value.
     # `steps_per_execution` is mutable and may be changed by the DataAdapter
     # to handle partial executions.
@@ -1196,6 +1198,10 @@ class DataHandler:
           break
         if self._adapter.should_recreate_iterator():
           data_iterator = iter(self._dataset)
+          if not isinstance(self._dataset, DistributedDataset):
+            steps = self._infer_steps(self._steps_per_epoch, self._dataset)
+            if steps is not None:
+              self._inferred_steps = steps
         yield epoch, data_iterator
         self._adapter.on_epoch_end()
 
@@ -1394,8 +1400,42 @@ class _ClusterCoordinatorDataHandler(DataHandler):
   def sync(self):
     self._model._cluster_coordinator.join()  # pylint: disable=protected-access
 
-
+@keras_export("keras.__internal__.utils.get_data_handler", v1=[])
 def get_data_handler(*args, **kwargs):
+  """Creates a `DataHandler`, providing standardized access to a `Dataset`.
+
+  See `DataHandler` for the list and definition of the arguments. See the
+  implementation of `Model.fit()`, `evaluate()`, or `predict()` methods
+  for complete usage examples. As a rule of tumb, `get_data_handler()` accepts
+  the same inputs as the `x` argument of `Model.fit()`.
+
+  Example:
+
+  ```python
+    def step(iterator):
+      data = next(iterator)
+      # result <= Do something with data
+      return result
+    tf_step = tf.function(step, reduce_retracing=True)
+
+    # Assume x is a tf.data Dataset.
+    data_handler = data_adapter.get_data_handler(x=x)
+    for epo_idx, iterator in data_handler.enumerate_epochs():  # Epoch iteration
+        with data_handler.catch_stop_iteration(): # Stop on dataset exhaustion.
+          for step in data_handler.steps(): # Step iteration
+              step_result = step(iterator)
+  ```
+
+  Args:
+    *args: Arguments passed to the `DataHandler` constructor.
+    **kwargs: Arguments passed to the `DataHandler` constructor.
+
+  Returns:
+    A `DataHandler` object. If the model's cluster coordinate is set (e.g. the
+    model was defined under a parameter-server strategy), returns a
+    `_ClusterCoordinatorDataHandler`.
+
+  """
   if getattr(kwargs["model"], "_cluster_coordinator", None):
     return _ClusterCoordinatorDataHandler(*args, **kwargs)
   return DataHandler(*args, **kwargs)

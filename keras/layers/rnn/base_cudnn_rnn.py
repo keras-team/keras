@@ -138,7 +138,7 @@ class _CuDNNRNN(RNN):
 
   @property
   def losses(self):
-    return super(RNN, self).losses
+    return super(RNN, self).losses  # pylint: disable=bad-super-call
 
   def get_losses_for(self, inputs=None):
     return super(  # pylint: disable=bad-super-call

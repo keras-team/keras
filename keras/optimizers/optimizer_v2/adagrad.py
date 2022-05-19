@@ -74,7 +74,7 @@ class Adagrad(optimizer_v2.OptimizerV2):
                        initial_accumulator_value)
     if epsilon is None:
       epsilon = backend_config.epsilon()
-    super(Adagrad, self).__init__(name, **kwargs)
+    super().__init__(name, **kwargs)
     self._set_hyper('learning_rate', kwargs.get('lr', learning_rate))
     self._set_hyper('decay', self._initial_decay)
     self._initial_accumulator_value = initial_accumulator_value
@@ -88,7 +88,7 @@ class Adagrad(optimizer_v2.OptimizerV2):
       self.add_slot(var, 'accumulator', init)
 
   def _prepare_local(self, var_device, var_dtype, apply_state):
-    super(Adagrad, self)._prepare_local(var_device, var_dtype, apply_state)
+    super()._prepare_local(var_device, var_dtype, apply_state)
     apply_state[(var_device, var_dtype)].update(
         dict(
             epsilon=tf.convert_to_tensor(
@@ -103,7 +103,7 @@ class Adagrad(optimizer_v2.OptimizerV2):
     # iteration to 0.
     if len(params) == len(weights) + 1:
       weights = [np.array(0)] + weights
-    super(Adagrad, self).set_weights(weights)
+    super().set_weights(weights)
 
   @classmethod
   def from_config(cls, config, custom_objects=None):
@@ -158,7 +158,7 @@ class Adagrad(optimizer_v2.OptimizerV2):
         use_locking=self._use_locking)
 
   def get_config(self):
-    config = super(Adagrad, self).get_config()
+    config = super().get_config()
     config.update({
         'learning_rate': self._serialize_hyperparameter('learning_rate'),
         'decay': self._initial_decay,

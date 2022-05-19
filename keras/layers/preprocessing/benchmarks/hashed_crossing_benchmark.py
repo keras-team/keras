@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Benchmark for KPL implementation of categorical cross hash columns with dense inputs."""
-# pylint: disable=g-direct-tensorflow-import
+
 
 import keras
 from keras.layers.preprocessing import hashed_crossing

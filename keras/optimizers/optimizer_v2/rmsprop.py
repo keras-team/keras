@@ -132,7 +132,7 @@ class RMSprop(optimizer_v2.OptimizerV2):
     different invocations of optimizer functions.
     @end_compatibility
     """
-    super(RMSprop, self).__init__(name, **kwargs)
+    super().__init__(name, **kwargs)
     self._set_hyper("learning_rate", kwargs.get("lr", learning_rate))
     self._set_hyper("decay", self._initial_decay)
     self._set_hyper("rho", rho)
@@ -159,7 +159,7 @@ class RMSprop(optimizer_v2.OptimizerV2):
         self.add_slot(var, "mg")
 
   def _prepare_local(self, var_device, var_dtype, apply_state):
-    super(RMSprop, self)._prepare_local(var_device, var_dtype, apply_state)
+    super()._prepare_local(var_device, var_dtype, apply_state)
 
     rho = tf.identity(self._get_hyper("rho", var_dtype))
     apply_state[(var_device, var_dtype)].update(
@@ -282,10 +282,10 @@ class RMSprop(optimizer_v2.OptimizerV2):
     # iteration to 0.
     if len(params) == len(weights) + 1:
       weights = [np.array(0)] + weights
-    super(RMSprop, self).set_weights(weights)
+    super().set_weights(weights)
 
   def get_config(self):
-    config = super(RMSprop, self).get_config()
+    config = super().get_config()
     config.update({
         "learning_rate": self._serialize_hyperparameter("learning_rate"),
         "decay": self._initial_decay,

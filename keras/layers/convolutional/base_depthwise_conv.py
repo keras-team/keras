@@ -132,7 +132,7 @@ class DepthwiseConv(Conv):
                depthwise_constraint=None,
                bias_constraint=None,
                **kwargs):
-    super(DepthwiseConv, self).__init__(
+    super().__init__(
         rank,
         filters=None,
         kernel_size=kernel_size,
@@ -193,7 +193,7 @@ class DepthwiseConv(Conv):
     raise NotImplementedError
 
   def get_config(self):
-    config = super(DepthwiseConv, self).get_config()
+    config = super().get_config()
     config.pop('filters')
     config.pop('kernel_initializer')
     config.pop('kernel_regularizer')

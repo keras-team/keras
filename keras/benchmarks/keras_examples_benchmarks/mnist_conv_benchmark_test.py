@@ -28,7 +28,7 @@ class ConvMnistBenchmark(tf.test.Benchmark):
   """Benchmarks for Convnet using `tf.test.Benchmark`."""
 
   def __init__(self):
-    super(ConvMnistBenchmark, self).__init__()
+    super().__init__()
     self.num_classes = 10
     self.input_shape = (28, 28, 1)
     (self.x_train, self.y_train), _ = tf.keras.datasets.mnist.load_data()

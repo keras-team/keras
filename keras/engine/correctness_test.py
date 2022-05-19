@@ -28,7 +28,7 @@ class MultiInputSubclassed(keras.Model):
   """Subclassed Model that adds its inputs and then adds a bias."""
 
   def __init__(self):
-    super(MultiInputSubclassed, self).__init__()
+    super().__init__()
     self.add = keras.layers.Add()
     self.bias = test_utils.Bias()
 

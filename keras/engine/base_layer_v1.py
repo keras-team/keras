@@ -1870,7 +1870,8 @@ class Layer(base_layer.Layer):
       output_list = tf.nest.flatten(outputs)
       with backend.name_scope('ActivityRegularizer'):
         for output in output_list:
-          activity_loss = self._activity_regularizer(output)
+          activity_loss = tf.convert_to_tensor(
+              self._activity_regularizer(output))
           batch_size = tf.cast(
               tf.compat.v1.shape(output)[0], activity_loss.dtype)
           # Make activity regularization strength batch-agnostic.

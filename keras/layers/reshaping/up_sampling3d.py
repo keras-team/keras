@@ -72,7 +72,7 @@ class UpSampling3D(Layer):
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.size = conv_utils.normalize_tuple(size, 3, 'size')
     self.input_spec = InputSpec(ndim=5)
-    super(UpSampling3D, self).__init__(**kwargs)
+    super().__init__(**kwargs)
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
@@ -101,5 +101,5 @@ class UpSampling3D(Layer):
 
   def get_config(self):
     config = {'size': self.size, 'data_format': self.data_format}
-    base_config = super(UpSampling3D, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

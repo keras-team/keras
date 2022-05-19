@@ -33,13 +33,31 @@ NUM_CLASSES = 2
 class KerasRegularizersTest(test_combinations.TestCase,
                             parameterized.TestCase):
 
-  def create_model(self, kernel_regularizer=None, activity_regularizer=None):
+  def create_model(self,
+                   kernel_regularizer=None,
+                   bias_regularizer=None,
+                   activity_regularizer=None):
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(NUM_CLASSES,
                                  kernel_regularizer=kernel_regularizer,
+                                 bias_regularizer=bias_regularizer,
                                  activity_regularizer=activity_regularizer,
                                  input_shape=(DATA_DIM,)))
     return model
+
+  def regularizer_fn_tensor(x):
+    return tf.constant(0.)
+
+  def regularizer_fn_scalar(x):
+    return 0.
+
+  class RegularizerTensor(regularizers.Regularizer):
+    def __call__(self, x):
+      return tf.constant(0.)
+
+  class RegularizerScalar(regularizers.Regularizer):
+    def __call__(self, x):
+      return 0.
 
   def get_data(self):
     (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
@@ -67,6 +85,14 @@ class KerasRegularizersTest(test_combinations.TestCase,
       ('l1', regularizers.l1()),
       ('l2', regularizers.l2()),
       ('l1_l2', regularizers.l1_l2()),
+      ('l2_zero', keras.regularizers.l2(0.)),
+      ('function_tensor', regularizer_fn_tensor),
+      ('function_scalar', regularizer_fn_scalar),
+      ('lambda_tensor', lambda x: tf.constant(0.)),
+      ('lambda_scalar', lambda x: 0.),
+      ('regularizer_base_class', regularizers.Regularizer()),
+      ('regularizer_custom_class_tensor', RegularizerTensor()),
+      ('regularizer_custom_class_scalar', RegularizerScalar()),
   ])
   def test_kernel_regularization(self, regularizer):
     (x_train, y_train), _ = self.get_data()
@@ -84,6 +110,37 @@ class KerasRegularizersTest(test_combinations.TestCase,
       ('l2', regularizers.l2()),
       ('l1_l2', regularizers.l1_l2()),
       ('l2_zero', keras.regularizers.l2(0.)),
+      ('function_tensor', regularizer_fn_tensor),
+      ('function_scalar', regularizer_fn_scalar),
+      ('lambda_tensor', lambda x: tf.constant(0.)),
+      ('lambda_scalar', lambda x: 0.),
+      ('regularizer_base_class', regularizers.Regularizer()),
+      ('regularizer_custom_class_tensor', RegularizerTensor()),
+      ('regularizer_custom_class_scalar', RegularizerScalar()),
+  ])
+  def test_bias_regularization(self, regularizer):
+    (x_train, y_train), _ = self.get_data()
+    model = self.create_model(bias_regularizer=regularizer)
+    model.compile(
+        loss='categorical_crossentropy',
+        optimizer='sgd',
+        run_eagerly=test_utils.should_run_eagerly())
+    self.assertEqual(len(model.losses), 1)
+    model.fit(x_train, y_train, batch_size=10, epochs=1, verbose=0)
+
+  @test_combinations.run_all_keras_modes
+  @parameterized.named_parameters([
+      ('l1', regularizers.l1()),
+      ('l2', regularizers.l2()),
+      ('l1_l2', regularizers.l1_l2()),
+      ('l2_zero', keras.regularizers.l2(0.)),
+      ('function_tensor', regularizer_fn_tensor),
+      ('function_scalar', regularizer_fn_scalar),
+      ('lambda_tensor', lambda x: tf.constant(0.)),
+      ('lambda_scalar', lambda x: 0.),
+      ('regularizer_base_class', regularizers.Regularizer()),
+      ('regularizer_custom_class_tensor', RegularizerTensor()),
+      ('regularizer_custom_class_scalar', RegularizerScalar()),
   ])
   def test_activity_regularization(self, regularizer):
     (x_train, y_train), _ = self.get_data()

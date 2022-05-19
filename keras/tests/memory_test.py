@@ -30,7 +30,7 @@ class SingleLayerNet(keras.Model):
   """Simple keras model used to ensure that there are no leaks."""
 
   def __init__(self):
-    super(SingleLayerNet, self).__init__()
+    super().__init__()
     self.fc1 = keras.layers.Dense(5)
 
   def call(self, x):

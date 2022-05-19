@@ -297,7 +297,7 @@ class TestDistributionStrategyErrorCases(tf.test.TestCase, parameterized.TestCas
       class _SimpleMLP(keras.Model):
 
         def __init__(self, num_labels):
-          super(_SimpleMLP, self).__init__()
+          super().__init__()
           self.dense = keras.layers.Dense(num_labels)
 
         def call(self, inputs):

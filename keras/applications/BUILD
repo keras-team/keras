@@ -15,6 +15,7 @@ py_library(
     name = "applications",
     srcs = [
         "__init__.py",
+        "convnext.py",
         "densenet.py",
         "efficientnet.py",
         "efficientnet_v2.py",
@@ -261,6 +262,24 @@ tf_py_test(
         "no_oss",
         "no_pip",
         "requires-net:external",
+    ],
+    deps = [
+        ":applications",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/preprocessing",
+    ],
+)
+
+tf_py_test(
+    name = "applications_load_weight_test_convnext",
+    size = "large",
+    srcs = ["applications_load_weight_test.py"],
+    args = ["--module=convnext"],
+    main = "applications_load_weight_test.py",
+    tags = [
+        "no_oss",
+        "no_pip",
     ],
     deps = [
         ":applications",

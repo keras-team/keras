@@ -53,7 +53,7 @@ class NestedControlFlowLayer(base_layer.Layer):
   """Layer nested with a control flow layer."""
 
   def __init__(self, **kwargs):
-    super(NestedControlFlowLayer, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.layer = ControlFlowLayer1()
 
   def call(self, inputs):
@@ -74,7 +74,7 @@ class NestedControlFlowModel(keras.Model):
   """Model with an `if` condition in call using a control flow layer."""
 
   def __init__(self, **kwargs):
-    super(NestedControlFlowModel, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.layer = NestedControlFlowLayer()
 
   def call(self, inputs):

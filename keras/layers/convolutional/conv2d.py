@@ -167,7 +167,7 @@ class Conv2D(Conv):
                kernel_constraint=None,
                bias_constraint=None,
                **kwargs):
-    super(Conv2D, self).__init__(
+    super().__init__(
         rank=2,
         filters=filters,
         kernel_size=kernel_size,

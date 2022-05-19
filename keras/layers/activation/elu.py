@@ -46,7 +46,7 @@ class ELU(Layer):
   """
 
   def __init__(self, alpha=1.0, **kwargs):
-    super(ELU, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     if alpha is None:
       raise ValueError(
           'Alpha of an ELU layer cannot be None, expecting a float. '
@@ -59,7 +59,7 @@ class ELU(Layer):
 
   def get_config(self):
     config = {'alpha': float(self.alpha)}
-    base_config = super(ELU, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
   @tf_utils.shape_type_conversion

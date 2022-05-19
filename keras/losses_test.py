@@ -14,17 +14,16 @@
 # ==============================================================================
 """Tests for Keras loss functions."""
 
-import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
-import numpy as np
-
-from tensorflow.python.autograph.impl import api as autograph
 from keras import activations
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras import losses
+from keras.testing_infra import test_combinations
 from keras.utils import losses_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+
+from tensorflow.python.autograph.impl import api as autograph
 
 ALL_LOSSES = [
     losses.mean_squared_error, losses.mean_absolute_error,
@@ -1136,6 +1135,257 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
     # Reduced loss = ((0.001 + 1.03 + 0.032) / 3 + 0.009) / 2 = 0.18166
 
     self.assertAlmostEqual(self.evaluate(loss), 0.18166, 3)
+
+
+@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
+
+  def test_config(self):
+    obj = losses.BinaryFocalCrossentropy(
+        apply_class_balancing=True,
+        alpha=0.1,
+        gamma=1.5,
+        name='bfce_0',
+    )
+    self.assertTrue(obj.apply_class_balancing)
+    self.assertEqual(obj.name, 'bfce_0')
+    self.assertAlmostEqual(obj.alpha, 0.1)
+    self.assertAlmostEqual(obj.gamma, 1.5)
+
+    obj_2 = losses.BinaryFocalCrossentropy.from_config(obj.get_config())
+    self.assertTrue(obj_2.apply_class_balancing)
+    self.assertEqual(obj_2.name, 'bfce_0')
+    self.assertAlmostEqual(obj_2.alpha, 0.1)
+    self.assertAlmostEqual(obj_2.gamma, 1.5)
+
+  def test_all_correct_unweighted(self):
+    y_true = tf.constant([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+    ], dtype=tf.float32)
+    obj = losses.BinaryFocalCrossentropy(apply_class_balancing=True, gamma=1.5)
+    loss = obj(y_true, y_true)
+    self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
+
+    # Test with logits.
+    logits = tf.constant([
+        [100.0, -100.0, -100.0],
+        [-100.0, 100.0, -100.0],
+        [-100.0, -100.0, 100.0],
+    ])
+    obj = losses.BinaryFocalCrossentropy(
+        apply_class_balancing=True,
+        alpha=0.3,
+        gamma=2.0,
+        from_logits=True,
+    )
+    loss = obj(y_true, logits)
+    self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
+
+  def test_unweighted(self):
+    y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
+    y_pred = np.asarray([0.9, 0.8, 0.7, 0.2], dtype=np.float32).reshape([2, 2])
+    obj = losses.BinaryFocalCrossentropy(
+        apply_class_balancing=True,
+        alpha=0.4,
+        gamma=2.0,
+    )
+    loss = obj(y_true, y_pred)
+
+    # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+    # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
+    #              = [[0.4, 0.6], [0.4, 0.6]]
+    # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
+
+    # bceLoss = -log(p_t) = [[0.105, 1.609] ,[0.357, 0.223]]
+    # weightedfocalLoss = alpha_weight focal bceLoss
+    #                   = [[0.0004, 0.618], [0.0128, 0.0054]]
+    # Reduced loss = (0.0004 + 0.618 + 0.0128 + 0.0054) / 4 = 0.15915
+
+    self.assertAlmostEqual(self.evaluate(loss), 0.15915, 3)
+
+    # Test with logits.
+    y_true = tf.constant([[1, 1, 0], [0, 1, 0]], dtype=tf.float32)
+    logits = tf.constant([[1.5, -2.7, 2.9], [-3.8, 1.2, -4.5]])
+    obj = losses.BinaryFocalCrossentropy(
+        apply_class_balancing=True,
+        alpha=0.3,
+        gamma=3.0,
+        from_logits=True,
+    )
+    loss = obj(y_true, logits)
+
+    # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
+    #              = [[0.3, 0.3, 0.7], [0.7, 0.3, 0.7]]
+    # sigmoidal = sigmoid(logits)
+    #           = [[0.8176, 0.063, 0.9478], [0.0219, 0.7685, 0.011]]
+    # p_t = y_true sigmoidal + (1 - y_true) (1 - sigmoidal)
+    #     = [[0.8176, 0.063, 0.0522], [0.9781, 0.7685, 0.989]]
+    # focal = (1 - p_t) ** gamma
+    #       = [[0.006, 0.823, 0.851], [0.00001, 0.0124, 0.000001]]
+
+    # bceLoss = -log(p_t)
+    #         = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]]
+
+    # weightedfocalLoss = alpha_weight focal bceLoss
+    # = [[0.00036, 0.68229, 1.7598], [0.00000014, 0.00099, 0.000000007]]
+    # Reduced loss = 0.40724
+
+    self.assertAlmostEqual(self.evaluate(loss), 0.40724, 3)
+
+  def test_scalar_weighted(self):
+    y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
+    y_pred = np.asarray([0.9, 0.8, 0.7, 0.2], dtype=np.float32).reshape([2, 2])
+    obj = losses.BinaryFocalCrossentropy(
+        apply_class_balancing=True,
+        alpha=0.6,
+        gamma=2.0,
+    )
+    loss = obj(y_true, y_pred, sample_weight=1.23)
+
+    # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
+    #              = [[0.6, 0.4], [0.6, 0.4]]
+    # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+    # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
+
+    # bceLoss = -log(p_t) = [[0.105, 1.609] ,[0.357, 0.223]] * sample_weight
+    # weightedfocalLoss = alpha_weight focal bceLoss
+    #           = [[0.0006, 0.412], [0.0192, 0.0036]] * sample_weight
+    # Reduced loss = (0.0006 + 0.412 + 0.0192 + 0.0036) * 1.23 / 4 = 0.13388
+
+    self.assertAlmostEqual(self.evaluate(loss), 0.13388, 3)
+
+    # Test with logits.
+    y_true = tf.constant([[1, 1, 0], [0, 1, 0]], dtype=tf.float32)
+    logits = tf.constant([[1.5, -2.7, 2.9], [-3.8, 1.2, -4.5]])
+    obj = losses.BinaryFocalCrossentropy(
+        apply_class_balancing=True,
+        alpha=0.2,
+        gamma=3.0,
+        from_logits=True,
+    )
+    loss = obj(y_true, logits, sample_weight=3.21)
+
+    # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
+    #              = [[0.2, 0.2, 0.8], [0.8, 0.2, 0.8]]
+    # sigmoidal = sigmoid(logits)
+    #           = [[0.8176, 0.063, 0.9478], [0.0219, 0.7685, 0.011]]
+    # p_t = y_true sigmoidal + (1 - y_true) (1 - sigmoidal)
+    #     = [[0.8176, 0.063, 0.0522], [0.9781, 0.7685, 0.989]]
+    # focal = (1 - p_t) ** gamma
+    #       = [[0.006, 0.823, 0.851], [0.00001, 0.0124, 0.000001]]
+
+    # bceLoss = -log(p_t) * sample_weight
+    # = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]] * sample_weight
+
+    # weightedfocalLoss = alpha_weight * focal * bceLoss =
+    # [[0.00024, 0.45486, 2.0112], [0.00000016, 0.00066, 0.000000008]] * 3.21
+    # Reduced loss = 0.41116 * 3.21 = 1.32
+
+    self.assertAlmostEqual(self.evaluate(loss), 1.32, 3)
+
+  def test_sample_weighted(self):
+    y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
+    y_pred = np.asarray([0.9, 0.8, 0.7, 0.2], dtype=np.float32).reshape([2, 2])
+    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    obj = losses.BinaryFocalCrossentropy(
+        apply_class_balancing=True,
+        alpha=0.1,
+        gamma=2.0,
+    )
+    loss = obj(y_true, y_pred, sample_weight=sample_weight)
+
+    # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
+    #              = [[0.1, 0.9], [0.1, 0.9]]
+    # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+    # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
+
+    # bceLoss = -log(p_t) * sample_weight
+    #         = [[0.105, 1.609] ,[0.357, 0.223]] * sample_weight
+    # focalLoss = alpha_weight * focal * bceLoss
+    #           = [[0.0001, 0.927], [0.0032, 0.0081]] * sample_weight
+    #           = [[0.00012, 1.1124], [0.01088, 0.02754]]
+    # Reduced loss = (0.00012 + 1.1124 + 0.01088 + 0.02754) / 4 = 0.2877
+
+    self.assertAlmostEqual(self.evaluate(loss), 0.2877, 3)
+
+    # Test with logits.
+    y_true = tf.constant([[1, 1, 0], [0, 1, 0]], dtype=tf.float32)
+    logits = tf.constant([[1.5, -2.7, 2.9], [-3.8, 1.2, -4.5]])
+    obj = losses.BinaryFocalCrossentropy(
+        apply_class_balancing=True,
+        alpha=0.2,
+        gamma=3.0,
+        from_logits=True,
+    )
+    loss = obj(y_true, logits, sample_weight=sample_weight)
+
+    # sigmoidal = sigmoid(logits)
+    #           = [[0.8176, 0.063, 0.9478], [0.0219, 0.7685, 0.011]]
+    # p_t = y_true sigmoidal + (1 - y_true) (1 - sigmoidal)
+    #     = [[0.8176, 0.063, 0.0522], [0.9781, 0.7685, 0.989]]
+    # focal = (1 - p_t) ** gamma
+    #       = [[0.006, 0.823, 0.851], [0.00001, 0.0124, 0.000001]]
+
+    # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
+    #              = [[0.2, 0.2, 0.8], [0.8, 0.2, 0.8]]
+
+    # bceLoss = -log(p_t) * sample_weight
+    # = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]] * sample_weight
+
+    # focalLoss = alpha_weight * focal * bceLoss =
+    # [[0.00024, 0.45486, 2.0112], [1.6e-7, 6.6e-4, 8e-9]] * sample_weight
+    # focalLoss = [[0.000288, 0.5458, 2.41344], [5.44e-7, 2.444e-3, 2.72e-8]]
+    # Reduced loss = 0.49366
+
+    self.assertAlmostEqual(self.evaluate(loss), 0.49366, 3)
+
+  def test_no_reduction(self):
+    y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
+    y_pred = np.asarray([0.9, 0.8, 0.7, 0.2], dtype=np.float32).reshape([2, 2])
+    obj = losses.BinaryFocalCrossentropy(
+        apply_class_balancing=True,
+        alpha=0.6,
+        gamma=2.0,
+        reduction=losses_utils.ReductionV2.NONE,
+    )
+    loss = obj(y_true, y_pred)
+
+    # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
+    #              = [[0.6, 0.4], [0.6, 0.4]]
+
+    # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+    # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
+
+    # bceLoss = -log(p_t) = [[0.105, 1.609] ,[0.357, 0.223]]
+    # focalLoss = alpha_weight focal bceLoss
+    #           = [[0.0006, 0.412], [0.0192, 0.0036]]
+    # Reduced loss = [(0.0006 + 0.412) / 2, (0.0192 + 0.0036) / 2]
+
+    self.assertAllClose(self.evaluate(loss), (0.2063, 0.0114), 3)
+
+  def test_ragged_tensors(self):
+    y_true = tf.ragged.constant([[1, 0, 1], [0]])
+    y_pred = tf.ragged.constant([[0.9, 0.8, 0.7], [0.2]])
+    obj = losses.BinaryFocalCrossentropy(
+        apply_class_balancing=True,
+        alpha=0.1,
+        gamma=2.0,
+    )
+    loss = obj(y_true, y_pred)
+
+    # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
+    #              = [[0.1, 0.9, 0.1], [0.9]]
+    # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2, 0.7], [0.8]]
+    # focal = (1 - p_t) ** gamma = [[0.01, 0.64, 0.09], [0.04]]
+
+    # bceLoss = -log(p_t) = [[0.105, 1.609, 0.357], [0.223]]
+    # focalLoss = alpha_weight focal bceLoss
+    #           = [[0.0001, 0.927, 0.0032], [0.0081]]
+    # Reduced loss = ((0.0001 + 0.927 + 0.0032) / 3 + 0.0081) / 2 = 0.1591
+
+    self.assertAlmostEqual(self.evaluate(loss), 0.1591, 3)
 
 
 @test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))

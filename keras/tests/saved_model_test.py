@@ -17,7 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 import os
-from tensorflow.python.framework import test_util as tf_test_utils  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.framework import test_util as tf_test_utils
 from keras.layers import core
 from keras.optimizers.optimizer_v2 import adam
 
@@ -44,7 +44,7 @@ class _ModelWithOptimizerUsingDefun(tf.train.Checkpoint):
 class MemoryTests(tf.test.TestCase):
 
   def setUp(self):
-    super(MemoryTests, self).setUp()
+    super().setUp()
     self._model = _ModelWithOptimizerUsingDefun()
 
   @tf_test_utils.assert_no_garbage_created

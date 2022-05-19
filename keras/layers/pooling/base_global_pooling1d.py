@@ -25,7 +25,7 @@ class GlobalPooling1D(Layer):
   """Abstract class for different global pooling 1D layers."""
 
   def __init__(self, data_format='channels_last', keepdims=False, **kwargs):
-    super(GlobalPooling1D, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self.input_spec = InputSpec(ndim=3)
     self.data_format = conv_utils.normalize_data_format(data_format)
     self.keepdims = keepdims
@@ -48,6 +48,6 @@ class GlobalPooling1D(Layer):
 
   def get_config(self):
     config = {'data_format': self.data_format, 'keepdims': self.keepdims}
-    base_config = super(GlobalPooling1D, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 

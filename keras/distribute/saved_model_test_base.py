@@ -112,7 +112,7 @@ class TestSavedModelBase(tf.test.TestCase, parameterized.TestCase):
     np.random.seed(_RANDOM_SEED)
     tf.compat.v1.set_random_seed(_RANDOM_SEED)
     self._root_dir = 'base'
-    super(TestSavedModelBase, self).setUp()
+    super().setUp()
 
   def _save_model(self, model, saved_dir):
     """Save the given model to the given saved_dir.
