@@ -23,111 +23,129 @@ from keras.benchmarks import benchmark_util
 
 
 class BidirectionalLSTMBenchmark(tf.test.Benchmark):
-  """Benchmarks for Bidirectional LSTM using `tf.test.Benchmark`."""
+    """Benchmarks for Bidirectional LSTM using `tf.test.Benchmark`."""
 
-  def __init__(self):
-    super().__init__()
-    self.max_feature = 20000
-    self.max_len = 200
-    (self.imdb_x, self.imdb_y), _ = tf.keras.datasets.imdb.load_data(
-        num_words=self.max_feature)
-    self.imdb_x = tf.keras.preprocessing.sequence.pad_sequences(
-        self.imdb_x, maxlen=self.max_len)
+    def __init__(self):
+        super().__init__()
+        self.max_feature = 20000
+        self.max_len = 200
+        (self.imdb_x, self.imdb_y), _ = tf.keras.datasets.imdb.load_data(
+            num_words=self.max_feature
+        )
+        self.imdb_x = tf.keras.preprocessing.sequence.pad_sequences(
+            self.imdb_x, maxlen=self.max_len
+        )
 
-  def _build_model(self):
-    """Model from https://keras.io/examples/nlp/bidirectional_lstm_imdb/."""
-    inputs = tf.keras.Input(shape=(None,), dtype='int32')
-    x = tf.keras.layers.Embedding(self.max_feature, 128)(inputs)
-    x = tf.keras.layers.Bidirectional(
-        tf.keras.layers.LSTM(64, return_sequences=True))(
-            x)
-    x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64))(x)
-    outputs = tf.keras.layers.Dense(1, activation='sigmoid')(x)
-    model = tf.keras.Model(inputs, outputs)
-    return model
+    def _build_model(self):
+        """Model from https://keras.io/examples/nlp/bidirectional_lstm_imdb/."""
+        inputs = tf.keras.Input(shape=(None,), dtype="int32")
+        x = tf.keras.layers.Embedding(self.max_feature, 128)(inputs)
+        x = tf.keras.layers.Bidirectional(
+            tf.keras.layers.LSTM(64, return_sequences=True)
+        )(x)
+        x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64))(x)
+        outputs = tf.keras.layers.Dense(1, activation="sigmoid")(x)
+        model = tf.keras.Model(inputs, outputs)
+        return model
 
-  # In each benchmark test, the required arguments for the
-  # method `measure_performance` include:
-  #   x: Input data, it could be Numpy or loaded from tfds.
-  #   y: Target data. If `x` is a dataset or generator instance,
-  #      `y` should not be specified.
-  #   loss: Loss function for model.
-  #   optimizer: Optimizer for model.
-  #   Check more details in `measure_performance()` method of
-  #   benchmark_util.
-  def benchmark_bidirect_lstm_imdb_bs_128(self):
-    """Measure performance with batch_size=128."""
-    batch_size = 128
-    metrics, wall_time, extras = benchmark_util.measure_performance(
-        self._build_model,
-        x=self.imdb_x,
-        y=self.imdb_y,
-        batch_size=batch_size,
-        optimizer='adam',
-        loss='binary_crossentropy',
-        metrics=['accuracy'])
+    # In each benchmark test, the required arguments for the
+    # method `measure_performance` include:
+    #   x: Input data, it could be Numpy or loaded from tfds.
+    #   y: Target data. If `x` is a dataset or generator instance,
+    #      `y` should not be specified.
+    #   loss: Loss function for model.
+    #   optimizer: Optimizer for model.
+    #   Check more details in `measure_performance()` method of
+    #   benchmark_util.
+    def benchmark_bidirect_lstm_imdb_bs_128(self):
+        """Measure performance with batch_size=128."""
+        batch_size = 128
+        metrics, wall_time, extras = benchmark_util.measure_performance(
+            self._build_model,
+            x=self.imdb_x,
+            y=self.imdb_y,
+            batch_size=batch_size,
+            optimizer="adam",
+            loss="binary_crossentropy",
+            metrics=["accuracy"],
+        )
 
-    metadata = benchmark_util.get_keras_examples_metadata(
-        'bidirectional_lstm', batch_size)
-    extras.update(metadata)
-    self.report_benchmark(wall_time=wall_time, metrics=metrics, extras=extras)
+        metadata = benchmark_util.get_keras_examples_metadata(
+            "bidirectional_lstm", batch_size
+        )
+        extras.update(metadata)
+        self.report_benchmark(
+            wall_time=wall_time, metrics=metrics, extras=extras
+        )
 
-  def benchmark_bidirect_lstm_imdb_bs_256(self):
-    """Measure performance with batch_size=256."""
-    batch_size = 256
-    metrics, wall_time, extras = benchmark_util.measure_performance(
-        self._build_model,
-        x=self.imdb_x,
-        y=self.imdb_y,
-        batch_size=batch_size,
-        optimizer='adam',
-        loss='binary_crossentropy',
-        metrics=['accuracy'])
+    def benchmark_bidirect_lstm_imdb_bs_256(self):
+        """Measure performance with batch_size=256."""
+        batch_size = 256
+        metrics, wall_time, extras = benchmark_util.measure_performance(
+            self._build_model,
+            x=self.imdb_x,
+            y=self.imdb_y,
+            batch_size=batch_size,
+            optimizer="adam",
+            loss="binary_crossentropy",
+            metrics=["accuracy"],
+        )
 
-    metadata = benchmark_util.get_keras_examples_metadata(
-        'bidirectional_lstm', batch_size)
-    extras.update(metadata)
-    self.report_benchmark(wall_time=wall_time, metrics=metrics, extras=extras)
+        metadata = benchmark_util.get_keras_examples_metadata(
+            "bidirectional_lstm", batch_size
+        )
+        extras.update(metadata)
+        self.report_benchmark(
+            wall_time=wall_time, metrics=metrics, extras=extras
+        )
 
-  def benchmark_bidirect_lstm_imdb_bs_512(self):
-    """Measure performance with batch_size=512."""
-    batch_size = 512
-    metrics, wall_time, extras = benchmark_util.measure_performance(
-        self._build_model,
-        x=self.imdb_x,
-        y=self.imdb_y,
-        batch_size=batch_size,
-        optimizer='adam',
-        loss='binary_crossentropy',
-        metrics=['accuracy'])
+    def benchmark_bidirect_lstm_imdb_bs_512(self):
+        """Measure performance with batch_size=512."""
+        batch_size = 512
+        metrics, wall_time, extras = benchmark_util.measure_performance(
+            self._build_model,
+            x=self.imdb_x,
+            y=self.imdb_y,
+            batch_size=batch_size,
+            optimizer="adam",
+            loss="binary_crossentropy",
+            metrics=["accuracy"],
+        )
 
-    metadata = benchmark_util.get_keras_examples_metadata(
-        'bidirectional_lstm', batch_size)
-    extras.update(metadata)
-    self.report_benchmark(wall_time=wall_time, metrics=metrics, extras=extras)
+        metadata = benchmark_util.get_keras_examples_metadata(
+            "bidirectional_lstm", batch_size
+        )
+        extras.update(metadata)
+        self.report_benchmark(
+            wall_time=wall_time, metrics=metrics, extras=extras
+        )
 
-  def benchmark_bidirect_lstm_imdb_bs_512_gpu_2(self):
-    """Measure performance with batch_size=512, gpu=2 and
+    def benchmark_bidirect_lstm_imdb_bs_512_gpu_2(self):
+        """Measure performance with batch_size=512, gpu=2 and
 
-    distribution_strategy=`mirrored`.
-    """
-    batch_size = 512
-    metrics, wall_time, extras = benchmark_util.measure_performance(
-        self._build_model,
-        x=self.imdb_x,
-        y=self.imdb_y,
-        batch_size=batch_size,
-        num_gpus=2,
-        distribution_strategy='mirrored',
-        optimizer='adam',
-        loss='binary_crossentropy',
-        metrics=['accuracy'])
+        distribution_strategy=`mirrored`.
+        """
+        batch_size = 512
+        metrics, wall_time, extras = benchmark_util.measure_performance(
+            self._build_model,
+            x=self.imdb_x,
+            y=self.imdb_y,
+            batch_size=batch_size,
+            num_gpus=2,
+            distribution_strategy="mirrored",
+            optimizer="adam",
+            loss="binary_crossentropy",
+            metrics=["accuracy"],
+        )
 
-    metadata = benchmark_util.get_keras_examples_metadata(
-        'bidirectional_lstm', batch_size)
-    extras.update(metadata)
-    self.report_benchmark(wall_time=wall_time, metrics=metrics, extras=extras)
+        metadata = benchmark_util.get_keras_examples_metadata(
+            "bidirectional_lstm", batch_size
+        )
+        extras.update(metadata)
+        self.report_benchmark(
+            wall_time=wall_time, metrics=metrics, extras=extras
+        )
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

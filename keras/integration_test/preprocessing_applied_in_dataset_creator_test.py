@@ -41,34 +41,43 @@ STRATEGIES = [
 
 
 @ds_combinations.generate(
-    test_combinations.combine(strategy=STRATEGIES, mode="eager"))
+    test_combinations.combine(strategy=STRATEGIES, mode="eager")
+)
 class PreprocessingAppliedInDatasetCreatorTest(tf.test.TestCase):
-  """Demonstrate Keras preprocessing layers applied in tf.data.Dataset.map."""
+    """Demonstrate Keras preprocessing layers applied in tf.data.Dataset.map."""
 
-  def testDistributedModelFit(self, strategy):
-    if (not tf.__internal__.tf2.enabled()
-        and isinstance(strategy,
-                       tf.distribute.experimental.ParameterServerStrategy)):
-      self.skipTest(
-          "Parameter Server strategy with dataset creator need to be run when "
-          "eager execution is enabled.")
-    with strategy.scope():
-      preprocessing_model = utils.make_preprocessing_model(self.get_temp_dir())
-      training_model = utils.make_training_model()
-      training_model.compile(optimizer="sgd", loss="binary_crossentropy")
+    def testDistributedModelFit(self, strategy):
+        if not tf.__internal__.tf2.enabled() and isinstance(
+            strategy, tf.distribute.experimental.ParameterServerStrategy
+        ):
+            self.skipTest(
+                "Parameter Server strategy with dataset creator need to be run when "
+                "eager execution is enabled."
+            )
+        with strategy.scope():
+            preprocessing_model = utils.make_preprocessing_model(
+                self.get_temp_dir()
+            )
+            training_model = utils.make_training_model()
+            training_model.compile(optimizer="sgd", loss="binary_crossentropy")
 
-    def dataset_fn(input_context):
-      dataset = utils.make_dataset()
-      dataset = dataset.shard(input_context.num_input_pipelines,
-                              input_context.input_pipeline_id)
-      batch_size = input_context.get_per_replica_batch_size(
-          global_batch_size=utils.BATCH_SIZE)
-      dataset = dataset.batch(batch_size).repeat().prefetch(2)
-      return dataset.map(lambda x, y: (preprocessing_model(x), y))
+        def dataset_fn(input_context):
+            dataset = utils.make_dataset()
+            dataset = dataset.shard(
+                input_context.num_input_pipelines,
+                input_context.input_pipeline_id,
+            )
+            batch_size = input_context.get_per_replica_batch_size(
+                global_batch_size=utils.BATCH_SIZE
+            )
+            dataset = dataset.batch(batch_size).repeat().prefetch(2)
+            return dataset.map(lambda x, y: (preprocessing_model(x), y))
 
-    dataset_creator = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
-    training_model.fit(dataset_creator, epochs=2, steps_per_epoch=utils.STEPS)
+        dataset_creator = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
+        training_model.fit(
+            dataset_creator, epochs=2, steps_per_epoch=utils.STEPS
+        )
 
 
 if __name__ == "__main__":
-  multi_process_runner.test_main()
+    multi_process_runner.test_main()

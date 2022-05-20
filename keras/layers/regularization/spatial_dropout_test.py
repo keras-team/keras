@@ -22,40 +22,39 @@ import tensorflow.compat.v2 as tf
 
 @test_combinations.run_all_keras_modes
 class SpacialDropoutTest(test_combinations.TestCase):
+    def test_spatial_dropout_1d(self):
+        test_utils.layer_test(
+            keras.layers.SpatialDropout1D,
+            kwargs={"rate": 0.5},
+            input_shape=(2, 3, 4),
+        )
 
-  def test_spatial_dropout_1d(self):
-    test_utils.layer_test(
-        keras.layers.SpatialDropout1D,
-        kwargs={'rate': 0.5},
-        input_shape=(2, 3, 4))
+    def test_spatial_dropout_2d(self):
+        test_utils.layer_test(
+            keras.layers.SpatialDropout2D,
+            kwargs={"rate": 0.5},
+            input_shape=(2, 3, 4, 5),
+        )
 
-  def test_spatial_dropout_2d(self):
-    test_utils.layer_test(
-        keras.layers.SpatialDropout2D,
-        kwargs={'rate': 0.5},
-        input_shape=(2, 3, 4, 5))
+        test_utils.layer_test(
+            keras.layers.SpatialDropout2D,
+            kwargs={"rate": 0.5, "data_format": "channels_first"},
+            input_shape=(2, 3, 4, 5),
+        )
 
-    test_utils.layer_test(
-        keras.layers.SpatialDropout2D,
-        kwargs={
-            'rate': 0.5,
-            'data_format': 'channels_first'
-        },
-        input_shape=(2, 3, 4, 5))
+    def test_spatial_dropout_3d(self):
+        test_utils.layer_test(
+            keras.layers.SpatialDropout3D,
+            kwargs={"rate": 0.5},
+            input_shape=(2, 3, 4, 4, 5),
+        )
 
-  def test_spatial_dropout_3d(self):
-    test_utils.layer_test(
-        keras.layers.SpatialDropout3D,
-        kwargs={'rate': 0.5},
-        input_shape=(2, 3, 4, 4, 5))
+        test_utils.layer_test(
+            keras.layers.SpatialDropout3D,
+            kwargs={"rate": 0.5, "data_format": "channels_first"},
+            input_shape=(2, 3, 4, 4, 5),
+        )
 
-    test_utils.layer_test(
-        keras.layers.SpatialDropout3D,
-        kwargs={
-            'rate': 0.5,
-            'data_format': 'channels_first'
-        },
-        input_shape=(2, 3, 4, 4, 5))
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

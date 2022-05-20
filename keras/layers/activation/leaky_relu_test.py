@@ -22,25 +22,29 @@ import tensorflow.compat.v2 as tf
 
 @test_combinations.run_all_keras_modes
 class LeakyReLUTest(test_combinations.TestCase):
+    def test_leaky_relu(self):
+        for alpha in [0.0, 0.5]:
+            test_utils.layer_test(
+                keras.layers.LeakyReLU,
+                kwargs={"alpha": alpha},
+                input_shape=(2, 3, 4),
+                supports_masking=True,
+            )
 
-  def test_leaky_relu(self):
-    for alpha in [0., .5]:
-      test_utils.layer_test(keras.layers.LeakyReLU,
-                            kwargs={'alpha': alpha},
-                            input_shape=(2, 3, 4),
-                            supports_masking=True)
-
-  def test_leaky_relu_with_invalid_alpha(self):
-    # Test case for GitHub issue 46993.
-    with self.assertRaisesRegex(
-        ValueError, 'The alpha value of a Leaky ReLU layer '
-        'cannot be None. Expecting a float. Received: None'):
-      test_utils.layer_test(
-          keras.layers.LeakyReLU,
-          kwargs={'alpha': None},
-          input_shape=(2, 3, 4),
-          supports_masking=True)
+    def test_leaky_relu_with_invalid_alpha(self):
+        # Test case for GitHub issue 46993.
+        with self.assertRaisesRegex(
+            ValueError,
+            "The alpha value of a Leaky ReLU layer "
+            "cannot be None. Expecting a float. Received: None",
+        ):
+            test_utils.layer_test(
+                keras.layers.LeakyReLU,
+                kwargs={"alpha": None},
+                input_shape=(2, 3, 4),
+                supports_masking=True,
+            )
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

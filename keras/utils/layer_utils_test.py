@@ -36,454 +36,467 @@ _PICKLEABLE_CALL_COUNT = collections.Counter()
 
 
 class MyPickleableObject(tf.__internal__.tracking.AutoTrackable):
-  """Needed for InterfaceTests.test_property_cache_serialization.
+    """Needed for InterfaceTests.test_property_cache_serialization.
 
-  This class must be at the top level. This is a constraint of pickle,
-  unrelated to `cached_per_instance`.
-  """
+    This class must be at the top level. This is a constraint of pickle,
+    unrelated to `cached_per_instance`.
+    """
 
-  @property
-  @layer_utils.cached_per_instance
-  def my_id(self):
-    _PICKLEABLE_CALL_COUNT[self] += 1
-    return id(self)
+    @property
+    @layer_utils.cached_per_instance
+    def my_id(self):
+        _PICKLEABLE_CALL_COUNT[self] += 1
+        return id(self)
 
 
 class LayerUtilsTest(tf.test.TestCase):
+    def test_print_summary(self):
+        model = keras.Sequential()
+        model.add(
+            keras.layers.Conv2D(
+                filters=2,
+                kernel_size=(2, 3),
+                input_shape=(3, 5, 5),
+                name="conv",
+            )
+        )
+        model.add(keras.layers.Flatten(name="flat"))
+        model.add(keras.layers.Dense(5, name="dense"))
 
-  def test_print_summary(self):
-    model = keras.Sequential()
-    model.add(
-        keras.layers.Conv2D(
-            filters=2, kernel_size=(2, 3), input_shape=(3, 5, 5), name='conv'))
-    model.add(keras.layers.Flatten(name='flat'))
-    model.add(keras.layers.Dense(5, name='dense'))
+        file_name = "model_1.txt"
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        fpath = os.path.join(temp_dir, file_name)
+        writer = open(fpath, "w")
 
-    file_name = 'model_1.txt'
-    temp_dir = self.get_temp_dir()
-    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
-    fpath = os.path.join(temp_dir, file_name)
-    writer = open(fpath, 'w')
+        def print_to_file(text):
+            print(text, file=writer)
 
-    def print_to_file(text):
-      print(text, file=writer)
+        try:
+            layer_utils.print_summary(model, print_fn=print_to_file)
+            self.assertTrue(tf.io.gfile.exists(fpath))
+            writer.close()
+            reader = open(fpath, "r")
+            lines = reader.readlines()
+            reader.close()
+            self.assertEqual(len(lines), 15)
+        except ImportError:
+            pass
 
-    try:
-      layer_utils.print_summary(model, print_fn=print_to_file)
-      self.assertTrue(tf.io.gfile.exists(fpath))
-      writer.close()
-      reader = open(fpath, 'r')
-      lines = reader.readlines()
-      reader.close()
-      self.assertEqual(len(lines), 15)
-    except ImportError:
-      pass
+    def test_print_summary_without_print_fn(self):
+        model = keras.Sequential(
+            [keras.layers.Dense(5, input_shape=(10,), name="dense")]
+        )
+        io_utils.enable_interactive_logging()
+        with self.captureWritesToStream(sys.stdout) as printed:
+            layer_utils.print_summary(model)
+        self.assertIn("dense (Dense)", printed.contents())
 
-  def test_print_summary_without_print_fn(self):
-    model = keras.Sequential([
-        keras.layers.Dense(5, input_shape=(10,), name='dense')])
-    io_utils.enable_interactive_logging()
-    with self.captureWritesToStream(sys.stdout) as printed:
-      layer_utils.print_summary(model)
-    self.assertIn('dense (Dense)', printed.contents())
+    def test_print_summary_expand_nested(self):
+        shape = (None, None, 3)
 
-  def test_print_summary_expand_nested(self):
-    shape = (None, None, 3)
+        def make_model():
+            x = inputs = keras.Input(shape)
+            x = keras.layers.Conv2D(3, 1)(x)
+            x = keras.layers.BatchNormalization()(x)
+            return keras.Model(inputs, x)
 
-    def make_model():
-      x = inputs = keras.Input(shape)
-      x = keras.layers.Conv2D(3, 1)(x)
-      x = keras.layers.BatchNormalization()(x)
-      return keras.Model(inputs, x)
+        x = inner_inputs = keras.Input(shape)
+        x = make_model()(x)
+        inner_model = keras.Model(inner_inputs, x)
 
-    x = inner_inputs = keras.Input(shape)
-    x = make_model()(x)
-    inner_model = keras.Model(inner_inputs, x)
+        inputs = keras.Input(shape)
+        model = keras.Model(inputs, inner_model(inputs))
 
-    inputs = keras.Input(shape)
-    model = keras.Model(inputs, inner_model(inputs))
+        file_name = "model_2.txt"
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        fpath = os.path.join(temp_dir, file_name)
+        writer = open(fpath, "w")
 
-    file_name = 'model_2.txt'
-    temp_dir = self.get_temp_dir()
-    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
-    fpath = os.path.join(temp_dir, file_name)
-    writer = open(fpath, 'w')
+        def print_to_file(text):
+            print(text, file=writer)
 
-    def print_to_file(text):
-      print(text, file=writer)
+        try:
+            layer_utils.print_summary(
+                model, print_fn=print_to_file, expand_nested=True
+            )
+            self.assertTrue(tf.io.gfile.exists(fpath))
+            writer.close()
+            reader = open(fpath, "r")
+            lines = reader.readlines()
+            reader.close()
+            check_str = (
+                'Model: "model_2"\n'
+                "_________________________________________________________________\n"
+                " Layer (type)                Output Shape              Param #   \n"
+                "=================================================================\n"
+                " input_3 (InputLayer)        [(None, None, None, 3)]   0         \n"
+                "                                                                 \n"
+                " model_1 (Functional)        (None, None, None, 3)     24        \n"
+                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"
+                "| input_1 (InputLayer)      [(None, None, None, 3)]   0         |\n"
+                "|                                                               |\n"
+                "| model (Functional)        (None, None, None, 3)     24        |\n"
+                "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"
+                "|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||\n"
+                "||                                                             ||\n"
+                "|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n"
+                "||                                                             ||\n"
+                "|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n"
+                "|| ormalization)                                               ||\n"
+                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"
+                "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"
+                "=================================================================\n"
+                "Total params: 24\n"
+                "Trainable params: 18\n"
+                "Non-trainable params: 6\n"
+                "_________________________________________________________________\n"
+            )
 
-    try:
-      layer_utils.print_summary(
-          model, print_fn=print_to_file, expand_nested=True)
-      self.assertTrue(tf.io.gfile.exists(fpath))
-      writer.close()
-      reader = open(fpath, 'r')
-      lines = reader.readlines()
-      reader.close()
-      check_str = (
-          'Model: "model_2"\n'
-          '_________________________________________________________________\n'
-          ' Layer (type)                Output Shape              Param #   \n'
-          '=================================================================\n'
-          ' input_3 (InputLayer)        [(None, None, None, 3)]   0         \n'
-          '                                                                 \n'
-          ' model_1 (Functional)        (None, None, None, 3)     24        \n'
-          '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n'
-          '| input_1 (InputLayer)      [(None, None, None, 3)]   0         |\n'
-          '|                                                               |\n'
-          '| model (Functional)        (None, None, None, 3)     24        |\n'
-          '||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n'
-          '|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||\n'
-          '||                                                             ||\n'
-          '|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n'
-          '||                                                             ||\n'
-          '|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n'
-          '|| ormalization)                                               ||\n'
-          '|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n'
-          '¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n'
-          '=================================================================\n'
-          'Total params: 24\n'
-          'Trainable params: 18\n'
-          'Non-trainable params: 6\n'
-          '_________________________________________________________________\n')
+            fin_str = ""
+            for line in lines:
+                fin_str += line
 
-      fin_str = ''
-      for line in lines:
-        fin_str += line
+            self.assertIn(fin_str, check_str)
+            self.assertEqual(len(lines), 25)
+        except ImportError:
+            pass
 
-      self.assertIn(fin_str, check_str)
-      self.assertEqual(len(lines), 25)
-    except ImportError:
-      pass
+    def test_summary_subclass_model_expand_nested(self):
+        class Sequential(keras.Model):
+            def __init__(self, *args):
+                super().__init__()
+                self.module_list = list(args) if args else []
 
-  def test_summary_subclass_model_expand_nested(self):
+            def call(self, x):
+                for module in self.module_list:
+                    x = module(x)
+                return x
 
-    class Sequential(keras.Model):
+        class Block(keras.Model):
+            def __init__(self):
+                super().__init__()
+                self.module = Sequential(
+                    keras.layers.Dense(10),
+                    keras.layers.Dense(10),
+                )
 
-      def __init__(self, *args):
-        super().__init__()
-        self.module_list = list(args) if args else []
+            def call(self, input_tensor):
+                x = self.module(input_tensor)
+                return x
 
-      def call(self, x):
-        for module in self.module_list:
-          x = module(x)
-        return x
+        class Base(keras.Model):
+            def __init__(self):
+                super().__init__()
+                self.module = Sequential(Block(), Block())
 
-    class Block(keras.Model):
+            def call(self, input_tensor):
+                x = self.module(input_tensor)
+                y = self.module(x)
+                return x, y
 
-      def __init__(self):
-        super().__init__()
-        self.module = Sequential(
-            keras.layers.Dense(10),
-            keras.layers.Dense(10),
+        class Network(keras.Model):
+            def __init__(self):
+                super().__init__()
+                self.child = Base()
+
+            def call(self, inputs):
+                return self.child(inputs)
+
+        net = Network()
+        inputs = keras.Input(shape=(10,))
+        outputs = net(inputs)
+        model = keras.models.Model(inputs=inputs, outputs=outputs)
+
+        file_name = "model_3.txt"
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        fpath = os.path.join(temp_dir, file_name)
+        writer = open(fpath, "w")
+
+        def print_to_file(text):
+            print(text, file=writer)
+
+        try:
+            layer_utils.print_summary(
+                model,
+                line_length=120,
+                print_fn=print_to_file,
+                expand_nested=True,
+            )
+            self.assertTrue(tf.io.gfile.exists(fpath))
+            writer.close()
+            reader = open(fpath, "r")
+            lines = reader.readlines()
+            reader.close()
+            # The output content are slightly different for the input shapes between
+            # v1 and v2.
+            if tf.__internal__.tf2.enabled():
+                self.assertEqual(len(lines), 39)
+            else:
+                self.assertEqual(len(lines), 40)
+        except ImportError:
+            pass
+
+    def test_print_summary_show_trainable(self):
+        model = keras.Sequential(name="trainable")
+        untrained = keras.layers.Conv2D(
+            filters=2, kernel_size=(2, 3), input_shape=(3, 5, 5), name="conv"
+        )
+        model.add(untrained)
+        model.add(keras.layers.Flatten(name="flat"))
+        model.add(keras.layers.Dense(5, name="dense"))
+
+        untrained.trainable = False
+
+        file_name = "model_4.txt"
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        fpath = os.path.join(temp_dir, file_name)
+        writer = open(fpath, "w")
+
+        def print_to_file(text):
+            print(text, file=writer)
+
+        try:
+            layer_utils.print_summary(
+                model, print_fn=print_to_file, show_trainable=True
+            )
+            self.assertTrue(tf.io.gfile.exists(fpath))
+            writer.close()
+            reader = open(fpath, "r")
+            lines = reader.readlines()
+            reader.close()
+            check_str = (
+                "Model: "
+                '"trainable"\n____________________________________________________________________________\n'
+                " Layer (type)                Output Shape              Param #   "
+                "Trainable  "
+                "\n============================================================================\n"
+                " conv (Conv2D)               (None, 2, 3, 2)           62        N"
+                "          \n"
+                "                                                                            "
+                "\n flat (Flatten)              (None, 12)                0         "
+                "Y          \n"
+                "                                                                            "
+                "\n dense (Dense)               (None, 5)                 65        "
+                "Y          \n"
+                "                                                                            "
+                "\n============================================================================\nTotal"
+                " params: 127\nTrainable params: 65\nNon-trainable params: "
+                "62\n____________________________________________________________________________\n"
+                "____________________________________________________________________________\n"
+            )
+
+            fin_str = ""
+            for line in lines:
+                fin_str += line
+
+            self.assertIn(fin_str, check_str)
+            self.assertEqual(len(lines), 15)
+        except ImportError:
+            pass
+
+    def test_print_summary_expand_nested_show_trainable(self):
+        shape = (None, None, 3)
+
+        def make_model():
+            x = inputs = keras.Input(shape, name="input2")
+            untrainable = keras.layers.Conv2D(3, 1)
+            untrainable.trainable = False
+            x = untrainable(x)
+            x = keras.layers.BatchNormalization()(x)
+            return keras.Model(inputs, x)
+
+        x = inner_inputs = keras.Input(shape, name="input1")
+        x = make_model()(x)
+        inner_model = keras.Model(inner_inputs, x)
+
+        inputs = keras.Input(shape, name="input3")
+        model = keras.Model(inputs, inner_model(inputs))
+
+        file_name = "model_6.txt"
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        fpath = os.path.join(temp_dir, file_name)
+        writer = open(fpath, "w")
+
+        def print_to_file(text):
+            print(text, file=writer)
+
+        try:
+            layer_utils.print_summary(
+                model,
+                print_fn=print_to_file,
+                expand_nested=True,
+                show_trainable=True,
+            )
+            self.assertTrue(tf.io.gfile.exists(fpath))
+            writer.close()
+            reader = open(fpath, "r")
+            lines = reader.readlines()
+            reader.close()
+            check_str = (
+                "Model: "
+                '"model_2"\n____________________________________________________________________________\n'
+                " Layer (type)                Output Shape              Param #   "
+                "Trainable  "
+                "\n============================================================================\n"
+                " input3 (InputLayer)         [(None, None, None, 3)]   0         Y"
+                "          \n"
+                "                                                                            "
+                "\n model_1 (Functional)        (None, None, None, 3)     24        "
+                "Y          "
+                "\n|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n|"
+                " input1 (InputLayer)       [(None, None, None, 3)]   0         Y"
+                "          |\n|"
+                "                                                                          "
+                "|\n| model (Functional)        (None, None, None, 3)     24        "
+                "Y          "
+                "|\n||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n||"
+                " input2 (InputLayer)     [(None, None, None, 3)]   0         Y"
+                "          ||\n||"
+                "                                                                        "
+                "||\n|| conv2d (Conv2D)         (None, None, None, 3)     12        "
+                "N          ||\n||"
+                "                                                                        "
+                "||\n|| batch_normalization (BatchN  (None, None, None, 3)  12      "
+                "Y          ||\n|| ormalization)"
+                "                                                          "
+                "||\n|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n============================================================================\nTotal"
+                " params: 24\nTrainable params: 6\nNon-trainable params: "
+                "18\n____________________________________________________________________________\n"
+                "____________________________________________________________________________\n"
+            )
+
+            fin_str = ""
+            for line in lines:
+                fin_str += line
+
+            self.assertIn(fin_str, check_str)
+            self.assertEqual(len(lines), 25)
+        except ImportError:
+            pass
+
+    def test_property_cache(self):
+        test_counter = collections.Counter()
+
+        class MyObject(tf.__internal__.tracking.AutoTrackable):
+            def __init__(self):
+                super().__init__()
+                self._frozen = True
+
+            def __setattr__(self, key, value):
+                """Enforce that cache does not set attribute on MyObject."""
+                if getattr(self, "_frozen", False):
+                    raise ValueError("Cannot mutate when frozen.")
+                return super().__setattr__(key, value)
+
+            @property
+            @layer_utils.cached_per_instance
+            def test_property(self):
+                test_counter[id(self)] += 1
+                return id(self)
+
+        first_object = MyObject()
+        second_object = MyObject()
+
+        # Make sure the objects return the correct values
+        self.assertEqual(first_object.test_property, id(first_object))
+        self.assertEqual(second_object.test_property, id(second_object))
+
+        # Make sure the cache does not share across objects
+        self.assertNotEqual(
+            first_object.test_property, second_object.test_property
         )
 
-      def call(self, input_tensor):
-        x = self.module(input_tensor)
-        return x
+        # Check again (Now the values should be cached.)
+        self.assertEqual(first_object.test_property, id(first_object))
+        self.assertEqual(second_object.test_property, id(second_object))
 
-    class Base(keras.Model):
+        # Count the function calls to make sure the cache is actually being used.
+        self.assertAllEqual(tuple(test_counter.values()), (1, 1))
 
-      def __init__(self):
-        super().__init__()
-        self.module = Sequential(Block(), Block())
+    def test_property_cache_threaded(self):
+        call_count = collections.Counter()
 
-      def call(self, input_tensor):
-        x = self.module(input_tensor)
-        y = self.module(x)
-        return x, y
+        class MyObject(tf.__internal__.tracking.AutoTrackable):
+            @property
+            @layer_utils.cached_per_instance
+            def test_property(self):
+                # Random sleeps to ensure that the execution thread changes
+                # mid-computation.
+                call_count["test_property"] += 1
+                time.sleep(np.random.random() + 1.0)
 
-    class Network(keras.Model):
+                # Use a RandomState which is seeded off the instance's id (the mod is
+                # because numpy limits the range of seeds) to ensure that an instance
+                # returns the same value in different threads, but different instances
+                # return different values.
+                return int(
+                    np.random.RandomState(id(self) % (2**31)).randint(2**16)
+                )
 
-      def __init__(self):
-        super().__init__()
-        self.child = Base()
+            def get_test_property(self, _):
+                """Function provided to .map for threading test."""
+                return self.test_property
 
-      def call(self, inputs):
-        return self.child(inputs)
+        # Test that multiple threads return the same value. This requires that
+        # the underlying function is repeatable, as cached_property makes no attempt
+        # to prioritize the first call.
+        test_obj = MyObject()
+        with contextlib.closing(multiprocessing.dummy.Pool(32)) as pool:
+            # Intentionally make a large pool (even when there are only a small number
+            # of cpus) to ensure that the runtime switches threads.
+            results = pool.map(test_obj.get_test_property, range(64))
+        self.assertEqual(len(set(results)), 1)
 
-    net = Network()
-    inputs = keras.Input(shape=(10,))
-    outputs = net(inputs)
-    model = keras.models.Model(inputs=inputs, outputs=outputs)
+        # Make sure we actually are testing threaded behavior.
+        self.assertGreater(call_count["test_property"], 1)
 
-    file_name = 'model_3.txt'
-    temp_dir = self.get_temp_dir()
-    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
-    fpath = os.path.join(temp_dir, file_name)
-    writer = open(fpath, 'w')
+        # Make sure new threads still cache hit.
+        with contextlib.closing(multiprocessing.dummy.Pool(2)) as pool:
+            start_time = (
+                timeit.default_timer()
+            )  # Don't time pool instantiation.
+            results = pool.map(test_obj.get_test_property, range(4))
+        total_time = timeit.default_timer() - start_time
 
-    def print_to_file(text):
-      print(text, file=writer)
+        # Note(taylorrobie): The reason that it is safe to time a unit test is that
+        #                    a cache hit will be << 1 second, and a cache miss is
+        #                    guaranteed to be >= 1 second. Empirically confirmed by
+        #                    100,000 runs with no flakes.
+        self.assertLess(total_time, 0.95)
 
-    try:
-      layer_utils.print_summary(
-          model, line_length=120, print_fn=print_to_file, expand_nested=True)
-      self.assertTrue(tf.io.gfile.exists(fpath))
-      writer.close()
-      reader = open(fpath, 'r')
-      lines = reader.readlines()
-      reader.close()
-      # The output content are slightly different for the input shapes between
-      # v1 and v2.
-      if tf.__internal__.tf2.enabled():
-        self.assertEqual(len(lines), 39)
-      else:
-        self.assertEqual(len(lines), 40)
-    except ImportError:
-      pass
+    def test_property_cache_serialization(self):
+        # Reset call count. .keys() must be wrapped in a list, because otherwise we
+        # would mutate the iterator while iterating.
+        for k in list(_PICKLEABLE_CALL_COUNT.keys()):
+            _PICKLEABLE_CALL_COUNT.pop(k)
 
-  def test_print_summary_show_trainable(self):
-    model = keras.Sequential(name='trainable')
-    untrained = keras.layers.Conv2D(
-        filters=2, kernel_size=(2, 3), input_shape=(3, 5, 5), name='conv')
-    model.add(untrained)
-    model.add(keras.layers.Flatten(name='flat'))
-    model.add(keras.layers.Dense(5, name='dense'))
+        first_instance = MyPickleableObject()
+        self.assertEqual(id(first_instance), first_instance.my_id)
 
-    untrained.trainable = False
+        # Test that we can pickle and un-pickle
+        second_instance = pickle.loads(pickle.dumps(first_instance))
 
-    file_name = 'model_4.txt'
-    temp_dir = self.get_temp_dir()
-    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
-    fpath = os.path.join(temp_dir, file_name)
-    writer = open(fpath, 'w')
+        self.assertEqual(id(second_instance), second_instance.my_id)
+        self.assertNotEqual(first_instance.my_id, second_instance.my_id)
 
-    def print_to_file(text):
-      print(text, file=writer)
+        # Make sure de-serialized object uses the cache.
+        self.assertEqual(_PICKLEABLE_CALL_COUNT[second_instance], 1)
 
-    try:
-      layer_utils.print_summary(
-          model, print_fn=print_to_file, show_trainable=True)
-      self.assertTrue(tf.io.gfile.exists(fpath))
-      writer.close()
-      reader = open(fpath, 'r')
-      lines = reader.readlines()
-      reader.close()
-      check_str = (
-          'Model: '
-          '"trainable"\n____________________________________________________________________________\n'
-          ' Layer (type)                Output Shape              Param #   '
-          'Trainable  '
-          '\n============================================================================\n'
-          ' conv (Conv2D)               (None, 2, 3, 2)           62        N'
-          '          \n'
-          '                                                                            '
-          '\n flat (Flatten)              (None, 12)                0         '
-          'Y          \n'
-          '                                                                            '
-          '\n dense (Dense)               (None, 5)                 65        '
-          'Y          \n'
-          '                                                                            '
-          '\n============================================================================\nTotal'
-          ' params: 127\nTrainable params: 65\nNon-trainable params: '
-          '62\n____________________________________________________________________________\n'
-          '____________________________________________________________________________\n'
-      )
-
-      fin_str = ''
-      for line in lines:
-        fin_str += line
-
-      self.assertIn(fin_str, check_str)
-      self.assertEqual(len(lines), 15)
-    except ImportError:
-      pass
-
-  def test_print_summary_expand_nested_show_trainable(self):
-    shape = (None, None, 3)
-
-    def make_model():
-      x = inputs = keras.Input(shape, name='input2')
-      untrainable = keras.layers.Conv2D(3, 1)
-      untrainable.trainable = False
-      x = untrainable(x)
-      x = keras.layers.BatchNormalization()(x)
-      return keras.Model(inputs, x)
-
-    x = inner_inputs = keras.Input(shape, name='input1')
-    x = make_model()(x)
-    inner_model = keras.Model(inner_inputs, x)
-
-    inputs = keras.Input(shape, name='input3')
-    model = keras.Model(inputs, inner_model(inputs))
-
-    file_name = 'model_6.txt'
-    temp_dir = self.get_temp_dir()
-    self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
-    fpath = os.path.join(temp_dir, file_name)
-    writer = open(fpath, 'w')
-
-    def print_to_file(text):
-      print(text, file=writer)
-
-    try:
-      layer_utils.print_summary(
-          model,
-          print_fn=print_to_file,
-          expand_nested=True,
-          show_trainable=True)
-      self.assertTrue(tf.io.gfile.exists(fpath))
-      writer.close()
-      reader = open(fpath, 'r')
-      lines = reader.readlines()
-      reader.close()
-      check_str = (
-          'Model: '
-          '"model_2"\n____________________________________________________________________________\n'
-          ' Layer (type)                Output Shape              Param #   '
-          'Trainable  '
-          '\n============================================================================\n'
-          ' input3 (InputLayer)         [(None, None, None, 3)]   0         Y'
-          '          \n'
-          '                                                                            '
-          '\n model_1 (Functional)        (None, None, None, 3)     24        '
-          'Y          '
-          '\n|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n|'
-          ' input1 (InputLayer)       [(None, None, None, 3)]   0         Y'
-          '          |\n|'
-          '                                                                          '
-          '|\n| model (Functional)        (None, None, None, 3)     24        '
-          'Y          '
-          '|\n||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n||'
-          ' input2 (InputLayer)     [(None, None, None, 3)]   0         Y'
-          '          ||\n||'
-          '                                                                        '
-          '||\n|| conv2d (Conv2D)         (None, None, None, 3)     12        '
-          'N          ||\n||'
-          '                                                                        '
-          '||\n|| batch_normalization (BatchN  (None, None, None, 3)  12      '
-          'Y          ||\n|| ormalization)'
-          '                                                          '
-          '||\n|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n============================================================================\nTotal'
-          ' params: 24\nTrainable params: 6\nNon-trainable params: '
-          '18\n____________________________________________________________________________\n'
-          '____________________________________________________________________________\n'
-      )
-
-      fin_str = ''
-      for line in lines:
-        fin_str += line
-
-      self.assertIn(fin_str, check_str)
-      self.assertEqual(len(lines), 25)
-    except ImportError:
-      pass
-
-  def test_property_cache(self):
-    test_counter = collections.Counter()
-
-    class MyObject(tf.__internal__.tracking.AutoTrackable):
-
-      def __init__(self):
-        super().__init__()
-        self._frozen = True
-
-      def __setattr__(self, key, value):
-        """Enforce that cache does not set attribute on MyObject."""
-        if getattr(self, '_frozen', False):
-          raise ValueError('Cannot mutate when frozen.')
-        return super().__setattr__(key, value)
-
-      @property
-      @layer_utils.cached_per_instance
-      def test_property(self):
-        test_counter[id(self)] += 1
-        return id(self)
-
-    first_object = MyObject()
-    second_object = MyObject()
-
-    # Make sure the objects return the correct values
-    self.assertEqual(first_object.test_property, id(first_object))
-    self.assertEqual(second_object.test_property, id(second_object))
-
-    # Make sure the cache does not share across objects
-    self.assertNotEqual(first_object.test_property, second_object.test_property)
-
-    # Check again (Now the values should be cached.)
-    self.assertEqual(first_object.test_property, id(first_object))
-    self.assertEqual(second_object.test_property, id(second_object))
-
-    # Count the function calls to make sure the cache is actually being used.
-    self.assertAllEqual(tuple(test_counter.values()), (1, 1))
-
-  def test_property_cache_threaded(self):
-    call_count = collections.Counter()
-
-    class MyObject(tf.__internal__.tracking.AutoTrackable):
-
-      @property
-      @layer_utils.cached_per_instance
-      def test_property(self):
-        # Random sleeps to ensure that the execution thread changes
-        # mid-computation.
-        call_count['test_property'] += 1
-        time.sleep(np.random.random() + 1.)
-
-        # Use a RandomState which is seeded off the instance's id (the mod is
-        # because numpy limits the range of seeds) to ensure that an instance
-        # returns the same value in different threads, but different instances
-        # return different values.
-        return int(np.random.RandomState(id(self) % (2 ** 31)).randint(2 ** 16))
-
-      def get_test_property(self, _):
-        """Function provided to .map for threading test."""
-        return self.test_property
-
-    # Test that multiple threads return the same value. This requires that
-    # the underlying function is repeatable, as cached_property makes no attempt
-    # to prioritize the first call.
-    test_obj = MyObject()
-    with contextlib.closing(multiprocessing.dummy.Pool(32)) as pool:
-      # Intentionally make a large pool (even when there are only a small number
-      # of cpus) to ensure that the runtime switches threads.
-      results = pool.map(test_obj.get_test_property, range(64))
-    self.assertEqual(len(set(results)), 1)
-
-    # Make sure we actually are testing threaded behavior.
-    self.assertGreater(call_count['test_property'], 1)
-
-    # Make sure new threads still cache hit.
-    with contextlib.closing(multiprocessing.dummy.Pool(2)) as pool:
-      start_time = timeit.default_timer()  # Don't time pool instantiation.
-      results = pool.map(test_obj.get_test_property, range(4))
-    total_time = timeit.default_timer() - start_time
-
-    # Note(taylorrobie): The reason that it is safe to time a unit test is that
-    #                    a cache hit will be << 1 second, and a cache miss is
-    #                    guaranteed to be >= 1 second. Empirically confirmed by
-    #                    100,000 runs with no flakes.
-    self.assertLess(total_time, 0.95)
-
-  def test_property_cache_serialization(self):
-    # Reset call count. .keys() must be wrapped in a list, because otherwise we
-    # would mutate the iterator while iterating.
-    for k in list(_PICKLEABLE_CALL_COUNT.keys()):
-      _PICKLEABLE_CALL_COUNT.pop(k)
-
-    first_instance = MyPickleableObject()
-    self.assertEqual(id(first_instance), first_instance.my_id)
-
-    # Test that we can pickle and un-pickle
-    second_instance = pickle.loads(pickle.dumps(first_instance))
-
-    self.assertEqual(id(second_instance), second_instance.my_id)
-    self.assertNotEqual(first_instance.my_id, second_instance.my_id)
-
-    # Make sure de-serialized object uses the cache.
-    self.assertEqual(_PICKLEABLE_CALL_COUNT[second_instance], 1)
-
-    # Make sure the decorator cache is not being serialized with the object.
-    expected_size = len(pickle.dumps(second_instance))
-    for _ in range(5):
-      # Add some more entries to the cache.
-      _ = MyPickleableObject().my_id
-    self.assertEqual(len(_PICKLEABLE_CALL_COUNT), 7)
-    size_check_instance = MyPickleableObject()
-    _ = size_check_instance.my_id
-    self.assertEqual(expected_size, len(pickle.dumps(size_check_instance)))
+        # Make sure the decorator cache is not being serialized with the object.
+        expected_size = len(pickle.dumps(second_instance))
+        for _ in range(5):
+            # Add some more entries to the cache.
+            _ = MyPickleableObject().my_id
+        self.assertEqual(len(_PICKLEABLE_CALL_COUNT), 7)
+        size_check_instance = MyPickleableObject()
+        _ = size_check_instance.my_id
+        self.assertEqual(expected_size, len(pickle.dumps(size_check_instance)))
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

@@ -17,28 +17,28 @@ import tensorflow.compat.v2 as tf
 
 
 class VectorizedMapTest(tf.test.TestCase):
+    def test_vectorized_map(self):
+        batch_size = 10
+        num_features = 32
+        layer = tf.keras.layers.Dense(1)
 
-  def test_vectorized_map(self):
-    batch_size = 10
-    num_features = 32
-    layer = tf.keras.layers.Dense(1)
+        def model_fn(arg):
+            with tf.GradientTape() as g:
+                inp, label = arg
+                inp = tf.expand_dims(inp, 0)
+                label = tf.expand_dims(label, 0)
+                prediction = layer(inp)
+                loss = tf.nn.l2_loss(label - prediction)
+            return g.gradient(loss, (layer.kernel, layer.bias))
 
-    def model_fn(arg):
-      with tf.GradientTape() as g:
-        inp, label = arg
-        inp = tf.expand_dims(inp, 0)
-        label = tf.expand_dims(label, 0)
-        prediction = layer(inp)
-        loss = tf.nn.l2_loss(label - prediction)
-      return g.gradient(loss, (layer.kernel, layer.bias))
-
-    inputs = tf.random.uniform([batch_size, num_features])
-    labels = tf.random.uniform([batch_size, 1])
-    per_example_gradients = tf.vectorized_map(model_fn, (inputs, labels))
-    self.assertEqual(per_example_gradients[0].shape,
-                     (batch_size, num_features, 1))
-    self.assertEqual(per_example_gradients[1].shape, (batch_size, 1))
+        inputs = tf.random.uniform([batch_size, num_features])
+        labels = tf.random.uniform([batch_size, 1])
+        per_example_gradients = tf.vectorized_map(model_fn, (inputs, labels))
+        self.assertEqual(
+            per_example_gradients[0].shape, (batch_size, num_features, 1)
+        )
+        self.assertEqual(per_example_gradients[1].shape, (batch_size, 1))
 
 
 if __name__ == "__main__":
-  tf.test.main()
+    tf.test.main()

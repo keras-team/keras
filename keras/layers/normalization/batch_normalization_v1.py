@@ -20,6 +20,6 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 # pylint: disable=missing-docstring
-@keras_export(v1=['keras.layers.BatchNormalization'])
+@keras_export(v1=["keras.layers.BatchNormalization"])
 class BatchNormalization(batch_normalization.BatchNormalizationBase):
-  _USE_V2_BEHAVIOR = False
+    _USE_V2_BEHAVIOR = False
