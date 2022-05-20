@@ -28,109 +28,258 @@ from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.Conv1D'])
-@tf_export(v1=['layers.Conv1D'])
+@keras_export(v1=["keras.__internal__.legacy.layers.Conv1D"])
+@tf_export(v1=["layers.Conv1D"])
 class Conv1D(keras_layers.Conv1D, base.Layer):
-  """1D convolution layer (e.g. temporal convolution).
+    """1D convolution layer (e.g. temporal convolution).
 
-  This layer creates a convolution kernel that is convolved
-  (actually cross-correlated) with the layer input to produce a tensor of
-  outputs. If `use_bias` is True (and a `bias_initializer` is provided),
-  a bias vector is created and added to the outputs. Finally, if
-  `activation` is not `None`, it is applied to the outputs as well.
+    This layer creates a convolution kernel that is convolved
+    (actually cross-correlated) with the layer input to produce a tensor of
+    outputs. If `use_bias` is True (and a `bias_initializer` is provided),
+    a bias vector is created and added to the outputs. Finally, if
+    `activation` is not `None`, it is applied to the outputs as well.
 
-  Args:
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: An integer or tuple/list of a single integer, specifying the
-      length of the 1D convolution window.
-    strides: An integer or tuple/list of a single integer,
-      specifying the stride length of the convolution.
-      Specifying any stride value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, length, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, length)`.
-    dilation_rate: An integer or tuple/list of a single integer, specifying
-      the dilation rate to use for dilated convolution.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any `strides` value != 1.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    kernel_regularizer: Optional regularizer for the convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    kernel_constraint: Optional projection function to be applied to the
-        kernel after being updated by an `Optimizer` (e.g. used to implement
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
+    Args:
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: An integer or tuple/list of a single integer, specifying the
+        length of the 1D convolution window.
+      strides: An integer or tuple/list of a single integer,
+        specifying the stride length of the convolution.
+        Specifying any stride value != 1 is incompatible with specifying
+        any `dilation_rate` value != 1.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, length, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, length)`.
+      dilation_rate: An integer or tuple/list of a single integer, specifying
+        the dilation rate to use for dilated convolution.
+        Currently, specifying any `dilation_rate` value != 1 is
+        incompatible with specifying any `strides` value != 1.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      kernel_initializer: An initializer for the convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      kernel_regularizer: Optional regularizer for the convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      kernel_constraint: Optional projection function to be applied to the
+          kernel after being updated by an `Optimizer` (e.g. used to implement
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
 
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv1D`.
+    The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv1D`.
 
 
-  #### Structural Mapping to Native TF2
+    #### Structural Mapping to Native TF2
 
-  None of the supported arguments have changed name.
+    None of the supported arguments have changed name.
 
-  Before:
+    Before:
 
-  ```python
-   conv = tf.compat.v1.layers.Conv1D(filters=3, kernel_size=3)
-  ```
+    ```python
+     conv = tf.compat.v1.layers.Conv1D(filters=3, kernel_size=3)
+    ```
 
-  After:
+    After:
 
-  ```python
-   conv = tf.keras.layers.Conv1D(filters=3, kernels_size=3)
-  ```
-  @end_compatibility
-  """
+    ```python
+     conv = tf.keras.layers.Conv1D(filters=3, kernels_size=3)
+    ```
+    @end_compatibility
+    """
 
-  def __init__(self, filters,
-               kernel_size,
-               strides=1,
-               padding='valid',
-               data_format='channels_last',
-               dilation_rate=1,
-               activation=None,
-               use_bias=True,
-               kernel_initializer=None,
-               bias_initializer=tf.compat.v1.zeros_initializer(),
-               kernel_regularizer=None,
-               bias_regularizer=None,
-               activity_regularizer=None,
-               kernel_constraint=None,
-               bias_constraint=None,
-               trainable=True,
-               name=None,
-               **kwargs):
-    super().__init__(
+    def __init__(
+        self,
+        filters,
+        kernel_size,
+        strides=1,
+        padding="valid",
+        data_format="channels_last",
+        dilation_rate=1,
+        activation=None,
+        use_bias=True,
+        kernel_initializer=None,
+        bias_initializer=tf.compat.v1.zeros_initializer(),
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        trainable=True,
+        name=None,
+        **kwargs
+    ):
+        super().__init__(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+            activation=activation,
+            use_bias=use_bias,
+            kernel_initializer=kernel_initializer,
+            bias_initializer=bias_initializer,
+            kernel_regularizer=kernel_regularizer,
+            bias_regularizer=bias_regularizer,
+            activity_regularizer=activity_regularizer,
+            kernel_constraint=kernel_constraint,
+            bias_constraint=bias_constraint,
+            trainable=trainable,
+            name=name,
+            **kwargs
+        )
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.conv1d"])
+@tf_export(v1=["layers.conv1d"])
+def conv1d(
+    inputs,
+    filters,
+    kernel_size,
+    strides=1,
+    padding="valid",
+    data_format="channels_last",
+    dilation_rate=1,
+    activation=None,
+    use_bias=True,
+    kernel_initializer=None,
+    bias_initializer=tf.compat.v1.zeros_initializer(),
+    kernel_regularizer=None,
+    bias_regularizer=None,
+    activity_regularizer=None,
+    kernel_constraint=None,
+    bias_constraint=None,
+    trainable=True,
+    name=None,
+    reuse=None,
+):
+    """Functional interface for 1D convolution layer (e.g. temporal convolution).
+
+    This layer creates a convolution kernel that is convolved
+    (actually cross-correlated) with the layer input to produce a tensor of
+    outputs. If `use_bias` is True (and a `bias_initializer` is provided),
+    a bias vector is created and added to the outputs. Finally, if
+    `activation` is not `None`, it is applied to the outputs as well.
+
+    Args:
+      inputs: Tensor input.
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: An integer or tuple/list of a single integer, specifying the
+        length of the 1D convolution window.
+      strides: An integer or tuple/list of a single integer,
+        specifying the stride length of the convolution.
+        Specifying any stride value != 1 is incompatible with specifying
+        any `dilation_rate` value != 1.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, length, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, length)`.
+      dilation_rate: An integer or tuple/list of a single integer, specifying
+        the dilation rate to use for dilated convolution.
+        Currently, specifying any `dilation_rate` value != 1 is
+        incompatible with specifying any `strides` value != 1.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      kernel_initializer: An initializer for the convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      kernel_regularizer: Optional regularizer for the convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      kernel_constraint: Optional projection function to be applied to the
+          kernel after being updated by an `Optimizer` (e.g. used to implement
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
+      reuse: Boolean, whether to reuse the weights of a previous layer
+        by the same name.
+
+    Returns:
+      Output tensor.
+
+    Raises:
+      ValueError: if eager execution is enabled.
+
+
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv1D`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.conv1d(x, filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.Conv1D(filters=3, kernels_size=3)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.conv1d` is deprecated and "
+        "will be removed in a future version. "
+        "Please Use `tf.keras.layers.Conv1D` instead.",
+        stacklevel=2,
+    )
+    layer = Conv1D(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -147,264 +296,280 @@ class Conv1D(keras_layers.Conv1D, base.Layer):
         kernel_constraint=kernel_constraint,
         bias_constraint=bias_constraint,
         trainable=trainable,
-        name=name, **kwargs)
+        name=name,
+        _reuse=reuse,
+        _scope=name,
+    )
+    return layer(inputs)
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.conv1d'])
-@tf_export(v1=['layers.conv1d'])
-def conv1d(inputs,
-           filters,
-           kernel_size,
-           strides=1,
-           padding='valid',
-           data_format='channels_last',
-           dilation_rate=1,
-           activation=None,
-           use_bias=True,
-           kernel_initializer=None,
-           bias_initializer=tf.compat.v1.zeros_initializer(),
-           kernel_regularizer=None,
-           bias_regularizer=None,
-           activity_regularizer=None,
-           kernel_constraint=None,
-           bias_constraint=None,
-           trainable=True,
-           name=None,
-           reuse=None):
-  """Functional interface for 1D convolution layer (e.g. temporal convolution).
-
-  This layer creates a convolution kernel that is convolved
-  (actually cross-correlated) with the layer input to produce a tensor of
-  outputs. If `use_bias` is True (and a `bias_initializer` is provided),
-  a bias vector is created and added to the outputs. Finally, if
-  `activation` is not `None`, it is applied to the outputs as well.
-
-  Args:
-    inputs: Tensor input.
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: An integer or tuple/list of a single integer, specifying the
-      length of the 1D convolution window.
-    strides: An integer or tuple/list of a single integer,
-      specifying the stride length of the convolution.
-      Specifying any stride value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, length, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, length)`.
-    dilation_rate: An integer or tuple/list of a single integer, specifying
-      the dilation rate to use for dilated convolution.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any `strides` value != 1.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    kernel_regularizer: Optional regularizer for the convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    kernel_constraint: Optional projection function to be applied to the
-        kernel after being updated by an `Optimizer` (e.g. used to implement
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-    reuse: Boolean, whether to reuse the weights of a previous layer
-      by the same name.
-
-  Returns:
-    Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv1D`.
-
-
-  #### Structural Mapping to Native TF2
-
-  None of the supported arguments have changed name.
-
-  Before:
-
-  ```python
-   y = tf.compat.v1.layers.conv1d(x, filters=3, kernel_size=3)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.Conv1D(filters=3, kernels_size=3)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.conv1d` is deprecated and '
-      'will be removed in a future version. '
-      'Please Use `tf.keras.layers.Conv1D` instead.',
-      stacklevel=2)
-  layer = Conv1D(
-      filters=filters,
-      kernel_size=kernel_size,
-      strides=strides,
-      padding=padding,
-      data_format=data_format,
-      dilation_rate=dilation_rate,
-      activation=activation,
-      use_bias=use_bias,
-      kernel_initializer=kernel_initializer,
-      bias_initializer=bias_initializer,
-      kernel_regularizer=kernel_regularizer,
-      bias_regularizer=bias_regularizer,
-      activity_regularizer=activity_regularizer,
-      kernel_constraint=kernel_constraint,
-      bias_constraint=bias_constraint,
-      trainable=trainable,
-      name=name,
-      _reuse=reuse,
-      _scope=name)
-  return layer(inputs)
-
-
-@keras_export(v1=['keras.__internal__.legacy.layers.Conv2D'])
-@tf_export(v1=['layers.Conv2D'])
+@keras_export(v1=["keras.__internal__.legacy.layers.Conv2D"])
+@tf_export(v1=["layers.Conv2D"])
 class Conv2D(keras_layers.Conv2D, base.Layer):
-  """2D convolution layer (e.g. spatial convolution over images).
+    """2D convolution layer (e.g. spatial convolution over images).
 
-  This layer creates a convolution kernel that is convolved
-  (actually cross-correlated) with the layer input to produce a tensor of
-  outputs. If `use_bias` is True (and a `bias_initializer` is provided),
-  a bias vector is created and added to the outputs. Finally, if
-  `activation` is not `None`, it is applied to the outputs as well.
+    This layer creates a convolution kernel that is convolved
+    (actually cross-correlated) with the layer input to produce a tensor of
+    outputs. If `use_bias` is True (and a `bias_initializer` is provided),
+    a bias vector is created and added to the outputs. Finally, if
+    `activation` is not `None`, it is applied to the outputs as well.
 
-  Args:
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: An integer or tuple/list of 2 integers, specifying the
-      height and width of the 2D convolution window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 2 integers,
-      specifying the strides of the convolution along the height and width.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Specifying any stride value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
+    Args:
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: An integer or tuple/list of 2 integers, specifying the
+        height and width of the 2D convolution window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 2 integers,
+        specifying the strides of the convolution along the height and width.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Specifying any stride value != 1 is incompatible with specifying
+        any `dilation_rate` value != 1.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, height, width, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, height, width)`.
 
-    dilation_rate: An integer or tuple/list of 2 integers, specifying
-      the dilation rate to use for dilated convolution.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any stride value != 1.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    kernel_regularizer: Optional regularizer for the convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    kernel_constraint: Optional projection function to be applied to the
-        kernel after being updated by an `Optimizer` (e.g. used to implement
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv2D`.
+      dilation_rate: An integer or tuple/list of 2 integers, specifying
+        the dilation rate to use for dilated convolution.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Currently, specifying any `dilation_rate` value != 1 is
+        incompatible with specifying any stride value != 1.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      kernel_initializer: An initializer for the convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      kernel_regularizer: Optional regularizer for the convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      kernel_constraint: Optional projection function to be applied to the
+          kernel after being updated by an `Optimizer` (e.g. used to implement
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
+    The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv2D`.
 
-  ```python
-   conv = tf.compat.v1.layers.Conv2D(filters=3, kernel_size=3)
-  ```
 
-  After:
+    #### Structural Mapping to Native TF2
 
-  ```python
-   conv = tf.keras.layers.Conv2D(filters=3, kernels_size=3)
-  ```
-  @end_compatibility
-  """
+    None of the supported arguments have changed name.
 
-  def __init__(self, filters,
-               kernel_size,
-               strides=(1, 1),
-               padding='valid',
-               data_format='channels_last',
-               dilation_rate=(1, 1),
-               activation=None,
-               use_bias=True,
-               kernel_initializer=None,
-               bias_initializer=tf.compat.v1.zeros_initializer(),
-               kernel_regularizer=None,
-               bias_regularizer=None,
-               activity_regularizer=None,
-               kernel_constraint=None,
-               bias_constraint=None,
-               trainable=True,
-               name=None,
-               **kwargs):
-    super().__init__(
+    Before:
+
+    ```python
+     conv = tf.compat.v1.layers.Conv2D(filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    ```python
+     conv = tf.keras.layers.Conv2D(filters=3, kernels_size=3)
+    ```
+    @end_compatibility
+    """
+
+    def __init__(
+        self,
+        filters,
+        kernel_size,
+        strides=(1, 1),
+        padding="valid",
+        data_format="channels_last",
+        dilation_rate=(1, 1),
+        activation=None,
+        use_bias=True,
+        kernel_initializer=None,
+        bias_initializer=tf.compat.v1.zeros_initializer(),
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        trainable=True,
+        name=None,
+        **kwargs
+    ):
+        super().__init__(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+            activation=activation,
+            use_bias=use_bias,
+            kernel_initializer=kernel_initializer,
+            bias_initializer=bias_initializer,
+            kernel_regularizer=kernel_regularizer,
+            bias_regularizer=bias_regularizer,
+            activity_regularizer=activity_regularizer,
+            kernel_constraint=kernel_constraint,
+            bias_constraint=bias_constraint,
+            trainable=trainable,
+            name=name,
+            **kwargs
+        )
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.conv2d"])
+@tf_export(v1=["layers.conv2d"])
+def conv2d(
+    inputs,
+    filters,
+    kernel_size,
+    strides=(1, 1),
+    padding="valid",
+    data_format="channels_last",
+    dilation_rate=(1, 1),
+    activation=None,
+    use_bias=True,
+    kernel_initializer=None,
+    bias_initializer=tf.compat.v1.zeros_initializer(),
+    kernel_regularizer=None,
+    bias_regularizer=None,
+    activity_regularizer=None,
+    kernel_constraint=None,
+    bias_constraint=None,
+    trainable=True,
+    name=None,
+    reuse=None,
+):
+    """Functional interface for the 2D convolution layer.
+
+    This layer creates a convolution kernel that is convolved
+    (actually cross-correlated) with the layer input to produce a tensor of
+    outputs. If `use_bias` is True (and a `bias_initializer` is provided),
+    a bias vector is created and added to the outputs. Finally, if
+    `activation` is not `None`, it is applied to the outputs as well.
+
+    Args:
+      inputs: Tensor input.
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: An integer or tuple/list of 2 integers, specifying the
+        height and width of the 2D convolution window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 2 integers,
+        specifying the strides of the convolution along the height and width.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Specifying any stride value != 1 is incompatible with specifying
+        any `dilation_rate` value != 1.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, height, width, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, height, width)`.
+
+      dilation_rate: An integer or tuple/list of 2 integers, specifying
+        the dilation rate to use for dilated convolution.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Currently, specifying any `dilation_rate` value != 1 is
+        incompatible with specifying any stride value != 1.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      kernel_initializer: An initializer for the convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      kernel_regularizer: Optional regularizer for the convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      kernel_constraint: Optional projection function to be applied to the
+          kernel after being updated by an `Optimizer` (e.g. used to implement
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
+      reuse: Boolean, whether to reuse the weights of a previous layer
+        by the same name.
+
+    Returns:
+      Output tensor.
+
+    Raises:
+      ValueError: if eager execution is enabled.
+
+
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv2D`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.conv2d(x, filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.Conv2D(filters=3, kernels_size=3)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.conv2d` is deprecated and "
+        "will be removed in a future version. "
+        "Please Use `tf.keras.layers.Conv2D` instead.",
+        stacklevel=2,
+    )
+    layer = Conv2D(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -421,272 +586,282 @@ class Conv2D(keras_layers.Conv2D, base.Layer):
         kernel_constraint=kernel_constraint,
         bias_constraint=bias_constraint,
         trainable=trainable,
-        name=name, **kwargs)
+        name=name,
+        _reuse=reuse,
+        _scope=name,
+    )
+    return layer(inputs)
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.conv2d'])
-@tf_export(v1=['layers.conv2d'])
-def conv2d(inputs,
-           filters,
-           kernel_size,
-           strides=(1, 1),
-           padding='valid',
-           data_format='channels_last',
-           dilation_rate=(1, 1),
-           activation=None,
-           use_bias=True,
-           kernel_initializer=None,
-           bias_initializer=tf.compat.v1.zeros_initializer(),
-           kernel_regularizer=None,
-           bias_regularizer=None,
-           activity_regularizer=None,
-           kernel_constraint=None,
-           bias_constraint=None,
-           trainable=True,
-           name=None,
-           reuse=None):
-  """Functional interface for the 2D convolution layer.
-
-  This layer creates a convolution kernel that is convolved
-  (actually cross-correlated) with the layer input to produce a tensor of
-  outputs. If `use_bias` is True (and a `bias_initializer` is provided),
-  a bias vector is created and added to the outputs. Finally, if
-  `activation` is not `None`, it is applied to the outputs as well.
-
-  Args:
-    inputs: Tensor input.
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: An integer or tuple/list of 2 integers, specifying the
-      height and width of the 2D convolution window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 2 integers,
-      specifying the strides of the convolution along the height and width.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Specifying any stride value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
-
-    dilation_rate: An integer or tuple/list of 2 integers, specifying
-      the dilation rate to use for dilated convolution.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any stride value != 1.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    kernel_regularizer: Optional regularizer for the convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    kernel_constraint: Optional projection function to be applied to the
-        kernel after being updated by an `Optimizer` (e.g. used to implement
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-    reuse: Boolean, whether to reuse the weights of a previous layer
-      by the same name.
-
-  Returns:
-    Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv2D`.
-
-
-  #### Structural Mapping to Native TF2
-
-  None of the supported arguments have changed name.
-
-  Before:
-
-  ```python
-   y = tf.compat.v1.layers.conv2d(x, filters=3, kernel_size=3)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.Conv2D(filters=3, kernels_size=3)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.conv2d` is deprecated and '
-      'will be removed in a future version. '
-      'Please Use `tf.keras.layers.Conv2D` instead.',
-      stacklevel=2)
-  layer = Conv2D(
-      filters=filters,
-      kernel_size=kernel_size,
-      strides=strides,
-      padding=padding,
-      data_format=data_format,
-      dilation_rate=dilation_rate,
-      activation=activation,
-      use_bias=use_bias,
-      kernel_initializer=kernel_initializer,
-      bias_initializer=bias_initializer,
-      kernel_regularizer=kernel_regularizer,
-      bias_regularizer=bias_regularizer,
-      activity_regularizer=activity_regularizer,
-      kernel_constraint=kernel_constraint,
-      bias_constraint=bias_constraint,
-      trainable=trainable,
-      name=name,
-      _reuse=reuse,
-      _scope=name)
-  return layer(inputs)
-
-
-@keras_export(v1=['keras.__internal__.legacy.layers.Conv3D'])
-@tf_export(v1=['layers.Conv3D'])
+@keras_export(v1=["keras.__internal__.legacy.layers.Conv3D"])
+@tf_export(v1=["layers.Conv3D"])
 class Conv3D(keras_layers.Conv3D, base.Layer):
-  """3D convolution layer (e.g. spatial convolution over volumes).
+    """3D convolution layer (e.g. spatial convolution over volumes).
 
-  This layer creates a convolution kernel that is convolved
-  (actually cross-correlated) with the layer input to produce a tensor of
-  outputs. If `use_bias` is True (and a `bias_initializer` is provided),
-  a bias vector is created and added to the outputs. Finally, if
-  `activation` is not `None`, it is applied to the outputs as well.
+    This layer creates a convolution kernel that is convolved
+    (actually cross-correlated) with the layer input to produce a tensor of
+    outputs. If `use_bias` is True (and a `bias_initializer` is provided),
+    a bias vector is created and added to the outputs. Finally, if
+    `activation` is not `None`, it is applied to the outputs as well.
 
-  Args:
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: An integer or tuple/list of 3 integers, specifying the
-      depth, height and width of the 3D convolution window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 3 integers,
-      specifying the strides of the convolution along the depth,
-      height and width.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Specifying any stride value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, depth, height, width, channels)` while `channels_first`
-      corresponds to inputs with shape
-      `(batch, channels, depth, height, width)`.
-    dilation_rate: An integer or tuple/list of 3 integers, specifying
-      the dilation rate to use for dilated convolution.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any stride value != 1.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    kernel_regularizer: Optional regularizer for the convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    kernel_constraint: Optional projection function to be applied to the
-        kernel after being updated by an `Optimizer` (e.g. used to implement
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv3D`.
+    Args:
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: An integer or tuple/list of 3 integers, specifying the
+        depth, height and width of the 3D convolution window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 3 integers,
+        specifying the strides of the convolution along the depth,
+        height and width.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Specifying any stride value != 1 is incompatible with specifying
+        any `dilation_rate` value != 1.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, depth, height, width, channels)` while `channels_first`
+        corresponds to inputs with shape
+        `(batch, channels, depth, height, width)`.
+      dilation_rate: An integer or tuple/list of 3 integers, specifying
+        the dilation rate to use for dilated convolution.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Currently, specifying any `dilation_rate` value != 1 is
+        incompatible with specifying any stride value != 1.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      kernel_initializer: An initializer for the convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      kernel_regularizer: Optional regularizer for the convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      kernel_constraint: Optional projection function to be applied to the
+          kernel after being updated by an `Optimizer` (e.g. used to implement
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
+    The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv3D`.
 
-  ```python
-   conv = tf.compat.v1.layers.Conv3D(filters=3, kernel_size=3)
-  ```
 
-  After:
+    #### Structural Mapping to Native TF2
 
-  ```python
-   conv = tf.keras.layers.Conv3D(filters=3, kernels_size=3)
-  ```
-  @end_compatibility
-  """
+    None of the supported arguments have changed name.
 
-  def __init__(self, filters,
-               kernel_size,
-               strides=(1, 1, 1),
-               padding='valid',
-               data_format='channels_last',
-               dilation_rate=(1, 1, 1),
-               activation=None,
-               use_bias=True,
-               kernel_initializer=None,
-               bias_initializer=tf.compat.v1.zeros_initializer(),
-               kernel_regularizer=None,
-               bias_regularizer=None,
-               activity_regularizer=None,
-               kernel_constraint=None,
-               bias_constraint=None,
-               trainable=True,
-               name=None,
-               **kwargs):
-    super().__init__(
+    Before:
+
+    ```python
+     conv = tf.compat.v1.layers.Conv3D(filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    ```python
+     conv = tf.keras.layers.Conv3D(filters=3, kernels_size=3)
+    ```
+    @end_compatibility
+    """
+
+    def __init__(
+        self,
+        filters,
+        kernel_size,
+        strides=(1, 1, 1),
+        padding="valid",
+        data_format="channels_last",
+        dilation_rate=(1, 1, 1),
+        activation=None,
+        use_bias=True,
+        kernel_initializer=None,
+        bias_initializer=tf.compat.v1.zeros_initializer(),
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        trainable=True,
+        name=None,
+        **kwargs
+    ):
+        super().__init__(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+            activation=activation,
+            use_bias=use_bias,
+            kernel_initializer=kernel_initializer,
+            bias_initializer=bias_initializer,
+            kernel_regularizer=kernel_regularizer,
+            bias_regularizer=bias_regularizer,
+            activity_regularizer=activity_regularizer,
+            kernel_constraint=kernel_constraint,
+            bias_constraint=bias_constraint,
+            trainable=trainable,
+            name=name,
+            **kwargs
+        )
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.conv3d"])
+@tf_export(v1=["layers.conv3d"])
+def conv3d(
+    inputs,
+    filters,
+    kernel_size,
+    strides=(1, 1, 1),
+    padding="valid",
+    data_format="channels_last",
+    dilation_rate=(1, 1, 1),
+    activation=None,
+    use_bias=True,
+    kernel_initializer=None,
+    bias_initializer=tf.compat.v1.zeros_initializer(),
+    kernel_regularizer=None,
+    bias_regularizer=None,
+    activity_regularizer=None,
+    kernel_constraint=None,
+    bias_constraint=None,
+    trainable=True,
+    name=None,
+    reuse=None,
+):
+    """Functional interface for the 3D convolution layer.
+
+    This layer creates a convolution kernel that is convolved
+    (actually cross-correlated) with the layer input to produce a tensor of
+    outputs. If `use_bias` is True (and a `bias_initializer` is provided),
+    a bias vector is created and added to the outputs. Finally, if
+    `activation` is not `None`, it is applied to the outputs as well.
+
+    Args:
+      inputs: Tensor input.
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: An integer or tuple/list of 3 integers, specifying the
+        depth, height and width of the 3D convolution window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 3 integers,
+        specifying the strides of the convolution along the depth,
+        height and width.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Specifying any stride value != 1 is incompatible with specifying
+        any `dilation_rate` value != 1.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, depth, height, width, channels)` while `channels_first`
+        corresponds to inputs with shape
+        `(batch, channels, depth, height, width)`.
+      dilation_rate: An integer or tuple/list of 3 integers, specifying
+        the dilation rate to use for dilated convolution.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Currently, specifying any `dilation_rate` value != 1 is
+        incompatible with specifying any stride value != 1.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      kernel_initializer: An initializer for the convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      kernel_regularizer: Optional regularizer for the convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      kernel_constraint: Optional projection function to be applied to the
+          kernel after being updated by an `Optimizer` (e.g. used to implement
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
+      reuse: Boolean, whether to reuse the weights of a previous layer
+        by the same name.
+
+    Returns:
+      Output tensor.
+
+    Raises:
+      ValueError: if eager execution is enabled.
+
+
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv3D`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.conv3d(x, filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.Conv3D(filters=3, kernels_size=3)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.conv3d` is deprecated and "
+        "will be removed in a future version. "
+        "Please Use `tf.keras.layers.Conv3D` instead.",
+        stacklevel=2,
+    )
+    layer = Conv3D(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -703,426 +878,449 @@ class Conv3D(keras_layers.Conv3D, base.Layer):
         kernel_constraint=kernel_constraint,
         bias_constraint=bias_constraint,
         trainable=trainable,
-        name=name, **kwargs)
+        name=name,
+        _reuse=reuse,
+        _scope=name,
+    )
+    return layer(inputs)
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.conv3d'])
-@tf_export(v1=['layers.conv3d'])
-def conv3d(inputs,
-           filters,
-           kernel_size,
-           strides=(1, 1, 1),
-           padding='valid',
-           data_format='channels_last',
-           dilation_rate=(1, 1, 1),
-           activation=None,
-           use_bias=True,
-           kernel_initializer=None,
-           bias_initializer=tf.compat.v1.zeros_initializer(),
-           kernel_regularizer=None,
-           bias_regularizer=None,
-           activity_regularizer=None,
-           kernel_constraint=None,
-           bias_constraint=None,
-           trainable=True,
-           name=None,
-           reuse=None):
-  """Functional interface for the 3D convolution layer.
-
-  This layer creates a convolution kernel that is convolved
-  (actually cross-correlated) with the layer input to produce a tensor of
-  outputs. If `use_bias` is True (and a `bias_initializer` is provided),
-  a bias vector is created and added to the outputs. Finally, if
-  `activation` is not `None`, it is applied to the outputs as well.
-
-  Args:
-    inputs: Tensor input.
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: An integer or tuple/list of 3 integers, specifying the
-      depth, height and width of the 3D convolution window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 3 integers,
-      specifying the strides of the convolution along the depth,
-      height and width.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Specifying any stride value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, depth, height, width, channels)` while `channels_first`
-      corresponds to inputs with shape
-      `(batch, channels, depth, height, width)`.
-    dilation_rate: An integer or tuple/list of 3 integers, specifying
-      the dilation rate to use for dilated convolution.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any stride value != 1.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    kernel_regularizer: Optional regularizer for the convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    kernel_constraint: Optional projection function to be applied to the
-        kernel after being updated by an `Optimizer` (e.g. used to implement
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-    reuse: Boolean, whether to reuse the weights of a previous layer
-      by the same name.
-
-  Returns:
-    Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is `tf.keras.layers.Conv3D`.
-
-
-  #### Structural Mapping to Native TF2
-
-  None of the supported arguments have changed name.
-
-  Before:
-
-  ```python
-   y = tf.compat.v1.layers.conv3d(x, filters=3, kernel_size=3)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.Conv3D(filters=3, kernels_size=3)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.conv3d` is deprecated and '
-      'will be removed in a future version. '
-      'Please Use `tf.keras.layers.Conv3D` instead.',
-      stacklevel=2)
-  layer = Conv3D(
-      filters=filters,
-      kernel_size=kernel_size,
-      strides=strides,
-      padding=padding,
-      data_format=data_format,
-      dilation_rate=dilation_rate,
-      activation=activation,
-      use_bias=use_bias,
-      kernel_initializer=kernel_initializer,
-      bias_initializer=bias_initializer,
-      kernel_regularizer=kernel_regularizer,
-      bias_regularizer=bias_regularizer,
-      activity_regularizer=activity_regularizer,
-      kernel_constraint=kernel_constraint,
-      bias_constraint=bias_constraint,
-      trainable=trainable,
-      name=name,
-      _reuse=reuse,
-      _scope=name)
-  return layer(inputs)
-
-
-@keras_export(v1=['keras.__internal__.legacy.layers.SeparableConv1D'])
-@tf_export(v1=['layers.SeparableConv1D'])
+@keras_export(v1=["keras.__internal__.legacy.layers.SeparableConv1D"])
+@tf_export(v1=["layers.SeparableConv1D"])
 class SeparableConv1D(keras_layers.SeparableConv1D, base.Layer):
-  """Depthwise separable 1D convolution.
+    """Depthwise separable 1D convolution.
 
-  This layer performs a depthwise convolution that acts separately on
-  channels, followed by a pointwise convolution that mixes channels.
-  If `use_bias` is True and a bias initializer is provided,
-  it adds a bias vector to the output.
-  It then optionally applies an activation function to produce the final output.
+    This layer performs a depthwise convolution that acts separately on
+    channels, followed by a pointwise convolution that mixes channels.
+    If `use_bias` is True and a bias initializer is provided,
+    it adds a bias vector to the output.
+    It then optionally applies an activation function to produce the final output.
 
-  Args:
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: A single integer specifying the spatial
-      dimensions of the filters.
-    strides: A single integer specifying the strides
-      of the convolution.
-      Specifying any `stride` value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, length, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, length)`.
-    dilation_rate: A single integer, specifying
-      the dilation rate to use for dilated convolution.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any stride value != 1.
-    depth_multiplier: The number of depthwise convolution output channels for
-      each input channel. The total number of depthwise convolution output
-      channels will be equal to `num_filters_in * depth_multiplier`.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    depthwise_initializer: An initializer for the depthwise convolution kernel.
-    pointwise_initializer: An initializer for the pointwise convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    depthwise_regularizer: Optional regularizer for the depthwise
-      convolution kernel.
-    pointwise_regularizer: Optional regularizer for the pointwise
-      convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    depthwise_constraint: Optional projection function to be applied to the
-        depthwise kernel after being updated by an `Optimizer` (e.g. used for
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    pointwise_constraint: Optional projection function to be applied to the
-        pointwise kernel after being updated by an `Optimizer`.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.SeparableConv1D`.
+    Args:
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: A single integer specifying the spatial
+        dimensions of the filters.
+      strides: A single integer specifying the strides
+        of the convolution.
+        Specifying any `stride` value != 1 is incompatible with specifying
+        any `dilation_rate` value != 1.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, length, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, length)`.
+      dilation_rate: A single integer, specifying
+        the dilation rate to use for dilated convolution.
+        Currently, specifying any `dilation_rate` value != 1 is
+        incompatible with specifying any stride value != 1.
+      depth_multiplier: The number of depthwise convolution output channels for
+        each input channel. The total number of depthwise convolution output
+        channels will be equal to `num_filters_in * depth_multiplier`.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      depthwise_initializer: An initializer for the depthwise convolution kernel.
+      pointwise_initializer: An initializer for the pointwise convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      depthwise_regularizer: Optional regularizer for the depthwise
+        convolution kernel.
+      pointwise_regularizer: Optional regularizer for the pointwise
+        convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      depthwise_constraint: Optional projection function to be applied to the
+          depthwise kernel after being updated by an `Optimizer` (e.g. used for
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      pointwise_constraint: Optional projection function to be applied to the
+          pointwise kernel after being updated by an `Optimizer`.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
-
-  ```python
-   conv = tf.compat.v1.layers.SeparableConv1D(filters=3, kernel_size=3)
-  ```
-
-  After:
-
-  ```python
-   conv = tf.keras.layers.SeparableConv1D(filters=3, kernels_size=3)
-  ```
-  @end_compatibility
-  """
-
-  def __init__(self, filters,
-               kernel_size,
-               strides=1,
-               padding='valid',
-               data_format='channels_last',
-               dilation_rate=1,
-               depth_multiplier=1,
-               activation=None,
-               use_bias=True,
-               depthwise_initializer=None,
-               pointwise_initializer=None,
-               bias_initializer=tf.compat.v1.zeros_initializer(),
-               depthwise_regularizer=None,
-               pointwise_regularizer=None,
-               bias_regularizer=None,
-               activity_regularizer=None,
-               depthwise_constraint=None,
-               pointwise_constraint=None,
-               bias_constraint=None,
-               trainable=True,
-               name=None,
-               **kwargs):
-    super().__init__(
-        filters=filters,
-        kernel_size=kernel_size,
-        strides=strides,
-        padding=padding,
-        data_format=data_format,
-        dilation_rate=dilation_rate,
-        depth_multiplier=depth_multiplier,
-        activation=activation,
-        use_bias=use_bias,
-        depthwise_initializer=depthwise_initializer,
-        pointwise_initializer=pointwise_initializer,
-        bias_initializer=bias_initializer,
-        depthwise_regularizer=depthwise_regularizer,
-        pointwise_regularizer=pointwise_regularizer,
-        bias_regularizer=bias_regularizer,
-        activity_regularizer=activity_regularizer,
-        depthwise_constraint=depthwise_constraint,
-        pointwise_constraint=pointwise_constraint,
-        bias_constraint=bias_constraint,
-        trainable=trainable,
-        name=name,
-        **kwargs)
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.SeparableConv1D`.
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.SeparableConv2D'])
-@tf_export(v1=['layers.SeparableConv2D'])
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     conv = tf.compat.v1.layers.SeparableConv1D(filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    ```python
+     conv = tf.keras.layers.SeparableConv1D(filters=3, kernels_size=3)
+    ```
+    @end_compatibility
+    """
+
+    def __init__(
+        self,
+        filters,
+        kernel_size,
+        strides=1,
+        padding="valid",
+        data_format="channels_last",
+        dilation_rate=1,
+        depth_multiplier=1,
+        activation=None,
+        use_bias=True,
+        depthwise_initializer=None,
+        pointwise_initializer=None,
+        bias_initializer=tf.compat.v1.zeros_initializer(),
+        depthwise_regularizer=None,
+        pointwise_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        depthwise_constraint=None,
+        pointwise_constraint=None,
+        bias_constraint=None,
+        trainable=True,
+        name=None,
+        **kwargs
+    ):
+        super().__init__(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+            depth_multiplier=depth_multiplier,
+            activation=activation,
+            use_bias=use_bias,
+            depthwise_initializer=depthwise_initializer,
+            pointwise_initializer=pointwise_initializer,
+            bias_initializer=bias_initializer,
+            depthwise_regularizer=depthwise_regularizer,
+            pointwise_regularizer=pointwise_regularizer,
+            bias_regularizer=bias_regularizer,
+            activity_regularizer=activity_regularizer,
+            depthwise_constraint=depthwise_constraint,
+            pointwise_constraint=pointwise_constraint,
+            bias_constraint=bias_constraint,
+            trainable=trainable,
+            name=name,
+            **kwargs
+        )
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.SeparableConv2D"])
+@tf_export(v1=["layers.SeparableConv2D"])
 class SeparableConv2D(keras_layers.SeparableConv2D, base.Layer):
-  """Depthwise separable 2D convolution.
+    """Depthwise separable 2D convolution.
 
-  This layer performs a depthwise convolution that acts separately on
-  channels, followed by a pointwise convolution that mixes channels.
-  If `use_bias` is True and a bias initializer is provided,
-  it adds a bias vector to the output.
-  It then optionally applies an activation function to produce the final output.
+    This layer performs a depthwise convolution that acts separately on
+    channels, followed by a pointwise convolution that mixes channels.
+    If `use_bias` is True and a bias initializer is provided,
+    it adds a bias vector to the output.
+    It then optionally applies an activation function to produce the final output.
 
-  Args:
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: A tuple or list of 2 integers specifying the spatial
-      dimensions of the filters. Can be a single integer to specify the same
-      value for all spatial dimensions.
-    strides: A tuple or list of 2 positive integers specifying the strides
-      of the convolution. Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Specifying any `stride` value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
+    Args:
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: A tuple or list of 2 integers specifying the spatial
+        dimensions of the filters. Can be a single integer to specify the same
+        value for all spatial dimensions.
+      strides: A tuple or list of 2 positive integers specifying the strides
+        of the convolution. Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Specifying any `stride` value != 1 is incompatible with specifying
+        any `dilation_rate` value != 1.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, height, width, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, height, width)`.
 
-    dilation_rate: An integer or tuple/list of 2 integers, specifying
-      the dilation rate to use for dilated convolution.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any stride value != 1.
-    depth_multiplier: The number of depthwise convolution output channels for
-      each input channel. The total number of depthwise convolution output
-      channels will be equal to `num_filters_in * depth_multiplier`.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    depthwise_initializer: An initializer for the depthwise convolution kernel.
-    pointwise_initializer: An initializer for the pointwise convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    depthwise_regularizer: Optional regularizer for the depthwise
-      convolution kernel.
-    pointwise_regularizer: Optional regularizer for the pointwise
-      convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    depthwise_constraint: Optional projection function to be applied to the
-        depthwise kernel after being updated by an `Optimizer` (e.g. used for
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    pointwise_constraint: Optional projection function to be applied to the
-        pointwise kernel after being updated by an `Optimizer`.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.SeparableConv2D`.
+      dilation_rate: An integer or tuple/list of 2 integers, specifying
+        the dilation rate to use for dilated convolution.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Currently, specifying any `dilation_rate` value != 1 is
+        incompatible with specifying any stride value != 1.
+      depth_multiplier: The number of depthwise convolution output channels for
+        each input channel. The total number of depthwise convolution output
+        channels will be equal to `num_filters_in * depth_multiplier`.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      depthwise_initializer: An initializer for the depthwise convolution kernel.
+      pointwise_initializer: An initializer for the pointwise convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      depthwise_regularizer: Optional regularizer for the depthwise
+        convolution kernel.
+      pointwise_regularizer: Optional regularizer for the pointwise
+        convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      depthwise_constraint: Optional projection function to be applied to the
+          depthwise kernel after being updated by an `Optimizer` (e.g. used for
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      pointwise_constraint: Optional projection function to be applied to the
+          pointwise kernel after being updated by an `Optimizer`.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.SeparableConv2D`.
 
-  ```python
-   conv = tf.compat.v1.layers.SeparableConv2D(filters=3, kernel_size=3)
-  ```
 
-  After:
+    #### Structural Mapping to Native TF2
 
-  ```python
-   conv = tf.keras.layers.SeparableConv2D(filters=3, kernels_size=3)
-  ```
-  @end_compatibility
-  """
+    None of the supported arguments have changed name.
 
-  def __init__(self, filters,
-               kernel_size,
-               strides=(1, 1),
-               padding='valid',
-               data_format='channels_last',
-               dilation_rate=(1, 1),
-               depth_multiplier=1,
-               activation=None,
-               use_bias=True,
-               depthwise_initializer=None,
-               pointwise_initializer=None,
-               bias_initializer=tf.compat.v1.zeros_initializer(),
-               depthwise_regularizer=None,
-               pointwise_regularizer=None,
-               bias_regularizer=None,
-               activity_regularizer=None,
-               depthwise_constraint=None,
-               pointwise_constraint=None,
-               bias_constraint=None,
-               trainable=True,
-               name=None,
-               **kwargs):
-    super().__init__(
+    Before:
+
+    ```python
+     conv = tf.compat.v1.layers.SeparableConv2D(filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    ```python
+     conv = tf.keras.layers.SeparableConv2D(filters=3, kernels_size=3)
+    ```
+    @end_compatibility
+    """
+
+    def __init__(
+        self,
+        filters,
+        kernel_size,
+        strides=(1, 1),
+        padding="valid",
+        data_format="channels_last",
+        dilation_rate=(1, 1),
+        depth_multiplier=1,
+        activation=None,
+        use_bias=True,
+        depthwise_initializer=None,
+        pointwise_initializer=None,
+        bias_initializer=tf.compat.v1.zeros_initializer(),
+        depthwise_regularizer=None,
+        pointwise_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        depthwise_constraint=None,
+        pointwise_constraint=None,
+        bias_constraint=None,
+        trainable=True,
+        name=None,
+        **kwargs
+    ):
+        super().__init__(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+            depth_multiplier=depth_multiplier,
+            activation=activation,
+            use_bias=use_bias,
+            depthwise_initializer=depthwise_initializer,
+            pointwise_initializer=pointwise_initializer,
+            bias_initializer=bias_initializer,
+            depthwise_regularizer=depthwise_regularizer,
+            pointwise_regularizer=pointwise_regularizer,
+            bias_regularizer=bias_regularizer,
+            activity_regularizer=activity_regularizer,
+            depthwise_constraint=depthwise_constraint,
+            pointwise_constraint=pointwise_constraint,
+            bias_constraint=bias_constraint,
+            trainable=trainable,
+            name=name,
+            **kwargs
+        )
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.separable_conv1d"])
+@tf_export(v1=["layers.separable_conv1d"])
+def separable_conv1d(
+    inputs,
+    filters,
+    kernel_size,
+    strides=1,
+    padding="valid",
+    data_format="channels_last",
+    dilation_rate=1,
+    depth_multiplier=1,
+    activation=None,
+    use_bias=True,
+    depthwise_initializer=None,
+    pointwise_initializer=None,
+    bias_initializer=tf.compat.v1.zeros_initializer(),
+    depthwise_regularizer=None,
+    pointwise_regularizer=None,
+    bias_regularizer=None,
+    activity_regularizer=None,
+    depthwise_constraint=None,
+    pointwise_constraint=None,
+    bias_constraint=None,
+    trainable=True,
+    name=None,
+    reuse=None,
+):
+    """Functional interface for the depthwise separable 1D convolution layer.
+
+    This layer performs a depthwise convolution that acts separately on
+    channels, followed by a pointwise convolution that mixes channels.
+    If `use_bias` is True and a bias initializer is provided,
+    it adds a bias vector to the output.
+    It then optionally applies an activation function to produce the final output.
+
+    Args:
+      inputs: Input tensor.
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: A single integer specifying the spatial
+        dimensions of the filters.
+      strides: A single integer specifying the strides
+        of the convolution.
+        Specifying any `stride` value != 1 is incompatible with specifying
+        any `dilation_rate` value != 1.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, length, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, length)`.
+      dilation_rate: A single integer, specifying
+        the dilation rate to use for dilated convolution.
+        Currently, specifying any `dilation_rate` value != 1 is
+        incompatible with specifying any stride value != 1.
+      depth_multiplier: The number of depthwise convolution output channels for
+        each input channel. The total number of depthwise convolution output
+        channels will be equal to `num_filters_in * depth_multiplier`.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      depthwise_initializer: An initializer for the depthwise convolution kernel.
+      pointwise_initializer: An initializer for the pointwise convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      depthwise_regularizer: Optional regularizer for the depthwise
+        convolution kernel.
+      pointwise_regularizer: Optional regularizer for the pointwise
+        convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      depthwise_constraint: Optional projection function to be applied to the
+          depthwise kernel after being updated by an `Optimizer` (e.g. used for
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      pointwise_constraint: Optional projection function to be applied to the
+          pointwise kernel after being updated by an `Optimizer`.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
+      reuse: Boolean, whether to reuse the weights of a previous layer
+        by the same name.
+
+    Returns:
+      Output tensor.
+
+    Raises:
+      ValueError: if eager execution is enabled.
+
+
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.SeparableConv1D`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.separable_conv1d(x, filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.SeparableConv1D(filters=3, kernels_size=3)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.separable_conv1d` is deprecated and "
+        "will be removed in a future version. "
+        "Please Use `tf.keras.layers.SeparableConv1D` instead.",
+        stacklevel=2,
+    )
+    layer = SeparableConv1D(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -1144,439 +1342,429 @@ class SeparableConv2D(keras_layers.SeparableConv2D, base.Layer):
         bias_constraint=bias_constraint,
         trainable=trainable,
         name=name,
-        **kwargs)
+        _reuse=reuse,
+        _scope=name,
+    )
+    return layer(inputs)
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.separable_conv1d'])
-@tf_export(v1=['layers.separable_conv1d'])
-def separable_conv1d(inputs,
-                     filters,
-                     kernel_size,
-                     strides=1,
-                     padding='valid',
-                     data_format='channels_last',
-                     dilation_rate=1,
-                     depth_multiplier=1,
-                     activation=None,
-                     use_bias=True,
-                     depthwise_initializer=None,
-                     pointwise_initializer=None,
-                     bias_initializer=tf.compat.v1.zeros_initializer(),
-                     depthwise_regularizer=None,
-                     pointwise_regularizer=None,
-                     bias_regularizer=None,
-                     activity_regularizer=None,
-                     depthwise_constraint=None,
-                     pointwise_constraint=None,
-                     bias_constraint=None,
-                     trainable=True,
-                     name=None,
-                     reuse=None):
-  """Functional interface for the depthwise separable 1D convolution layer.
+@keras_export(v1=["keras.__internal__.legacy.layers.separable_conv2d"])
+@tf_export(v1=["layers.separable_conv2d"])
+def separable_conv2d(
+    inputs,
+    filters,
+    kernel_size,
+    strides=(1, 1),
+    padding="valid",
+    data_format="channels_last",
+    dilation_rate=(1, 1),
+    depth_multiplier=1,
+    activation=None,
+    use_bias=True,
+    depthwise_initializer=None,
+    pointwise_initializer=None,
+    bias_initializer=tf.compat.v1.zeros_initializer(),
+    depthwise_regularizer=None,
+    pointwise_regularizer=None,
+    bias_regularizer=None,
+    activity_regularizer=None,
+    depthwise_constraint=None,
+    pointwise_constraint=None,
+    bias_constraint=None,
+    trainable=True,
+    name=None,
+    reuse=None,
+):
+    """Functional interface for the depthwise separable 2D convolution layer.
 
-  This layer performs a depthwise convolution that acts separately on
-  channels, followed by a pointwise convolution that mixes channels.
-  If `use_bias` is True and a bias initializer is provided,
-  it adds a bias vector to the output.
-  It then optionally applies an activation function to produce the final output.
+    This layer performs a depthwise convolution that acts separately on
+    channels, followed by a pointwise convolution that mixes channels.
+    If `use_bias` is True and a bias initializer is provided,
+    it adds a bias vector to the output.
+    It then optionally applies an activation function to produce the final output.
 
-  Args:
-    inputs: Input tensor.
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: A single integer specifying the spatial
-      dimensions of the filters.
-    strides: A single integer specifying the strides
-      of the convolution.
-      Specifying any `stride` value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, length, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, length)`.
-    dilation_rate: A single integer, specifying
-      the dilation rate to use for dilated convolution.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any stride value != 1.
-    depth_multiplier: The number of depthwise convolution output channels for
-      each input channel. The total number of depthwise convolution output
-      channels will be equal to `num_filters_in * depth_multiplier`.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    depthwise_initializer: An initializer for the depthwise convolution kernel.
-    pointwise_initializer: An initializer for the pointwise convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    depthwise_regularizer: Optional regularizer for the depthwise
-      convolution kernel.
-    pointwise_regularizer: Optional regularizer for the pointwise
-      convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    depthwise_constraint: Optional projection function to be applied to the
-        depthwise kernel after being updated by an `Optimizer` (e.g. used for
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    pointwise_constraint: Optional projection function to be applied to the
-        pointwise kernel after being updated by an `Optimizer`.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-    reuse: Boolean, whether to reuse the weights of a previous layer
-      by the same name.
+    Args:
+      inputs: Input tensor.
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: A tuple or list of 2 integers specifying the spatial
+        dimensions of the filters. Can be a single integer to specify the same
+        value for all spatial dimensions.
+      strides: A tuple or list of 2 positive integers specifying the strides
+        of the convolution. Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Specifying any `stride` value != 1 is incompatible with specifying
+        any `dilation_rate` value != 1.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, height, width, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, height, width)`.
 
-  Returns:
-    Output tensor.
+      dilation_rate: An integer or tuple/list of 2 integers, specifying
+        the dilation rate to use for dilated convolution.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+        Currently, specifying any `dilation_rate` value != 1 is
+        incompatible with specifying any stride value != 1.
+      depth_multiplier: The number of depthwise convolution output channels for
+        each input channel. The total number of depthwise convolution output
+        channels will be equal to `num_filters_in * depth_multiplier`.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      depthwise_initializer: An initializer for the depthwise convolution kernel.
+      pointwise_initializer: An initializer for the pointwise convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      depthwise_regularizer: Optional regularizer for the depthwise
+        convolution kernel.
+      pointwise_regularizer: Optional regularizer for the pointwise
+        convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      depthwise_constraint: Optional projection function to be applied to the
+          depthwise kernel after being updated by an `Optimizer` (e.g. used for
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      pointwise_constraint: Optional projection function to be applied to the
+          pointwise kernel after being updated by an `Optimizer`.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
+      reuse: Boolean, whether to reuse the weights of a previous layer
+        by the same name.
 
-  Raises:
-    ValueError: if eager execution is enabled.
+    Returns:
+      Output tensor.
 
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.SeparableConv1D`.
+    Raises:
+      ValueError: if eager execution is enabled.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
-
-  ```python
-   y = tf.compat.v1.layers.separable_conv1d(x, filters=3, kernel_size=3)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.SeparableConv1D(filters=3, kernels_size=3)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.separable_conv1d` is deprecated and '
-      'will be removed in a future version. '
-      'Please Use `tf.keras.layers.SeparableConv1D` instead.',
-      stacklevel=2)
-  layer = SeparableConv1D(
-      filters=filters,
-      kernel_size=kernel_size,
-      strides=strides,
-      padding=padding,
-      data_format=data_format,
-      dilation_rate=dilation_rate,
-      depth_multiplier=depth_multiplier,
-      activation=activation,
-      use_bias=use_bias,
-      depthwise_initializer=depthwise_initializer,
-      pointwise_initializer=pointwise_initializer,
-      bias_initializer=bias_initializer,
-      depthwise_regularizer=depthwise_regularizer,
-      pointwise_regularizer=pointwise_regularizer,
-      bias_regularizer=bias_regularizer,
-      activity_regularizer=activity_regularizer,
-      depthwise_constraint=depthwise_constraint,
-      pointwise_constraint=pointwise_constraint,
-      bias_constraint=bias_constraint,
-      trainable=trainable,
-      name=name,
-      _reuse=reuse,
-      _scope=name)
-  return layer(inputs)
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.SeparableConv2D`.
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.separable_conv2d'])
-@tf_export(v1=['layers.separable_conv2d'])
-def separable_conv2d(inputs,
-                     filters,
-                     kernel_size,
-                     strides=(1, 1),
-                     padding='valid',
-                     data_format='channels_last',
-                     dilation_rate=(1, 1),
-                     depth_multiplier=1,
-                     activation=None,
-                     use_bias=True,
-                     depthwise_initializer=None,
-                     pointwise_initializer=None,
-                     bias_initializer=tf.compat.v1.zeros_initializer(),
-                     depthwise_regularizer=None,
-                     pointwise_regularizer=None,
-                     bias_regularizer=None,
-                     activity_regularizer=None,
-                     depthwise_constraint=None,
-                     pointwise_constraint=None,
-                     bias_constraint=None,
-                     trainable=True,
-                     name=None,
-                     reuse=None):
-  """Functional interface for the depthwise separable 2D convolution layer.
+    #### Structural Mapping to Native TF2
 
-  This layer performs a depthwise convolution that acts separately on
-  channels, followed by a pointwise convolution that mixes channels.
-  If `use_bias` is True and a bias initializer is provided,
-  it adds a bias vector to the output.
-  It then optionally applies an activation function to produce the final output.
+    None of the supported arguments have changed name.
 
-  Args:
-    inputs: Input tensor.
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: A tuple or list of 2 integers specifying the spatial
-      dimensions of the filters. Can be a single integer to specify the same
-      value for all spatial dimensions.
-    strides: A tuple or list of 2 positive integers specifying the strides
-      of the convolution. Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Specifying any `stride` value != 1 is incompatible with specifying
-      any `dilation_rate` value != 1.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
+    Before:
 
-    dilation_rate: An integer or tuple/list of 2 integers, specifying
-      the dilation rate to use for dilated convolution.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-      Currently, specifying any `dilation_rate` value != 1 is
-      incompatible with specifying any stride value != 1.
-    depth_multiplier: The number of depthwise convolution output channels for
-      each input channel. The total number of depthwise convolution output
-      channels will be equal to `num_filters_in * depth_multiplier`.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    depthwise_initializer: An initializer for the depthwise convolution kernel.
-    pointwise_initializer: An initializer for the pointwise convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    depthwise_regularizer: Optional regularizer for the depthwise
-      convolution kernel.
-    pointwise_regularizer: Optional regularizer for the pointwise
-      convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    depthwise_constraint: Optional projection function to be applied to the
-        depthwise kernel after being updated by an `Optimizer` (e.g. used for
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    pointwise_constraint: Optional projection function to be applied to the
-        pointwise kernel after being updated by an `Optimizer`.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-    reuse: Boolean, whether to reuse the weights of a previous layer
-      by the same name.
+    ```python
+     y = tf.compat.v1.layers.separable_conv2d(x, filters=3, kernel_size=3)
+    ```
 
-  Returns:
-    Output tensor.
+    After:
 
-  Raises:
-    ValueError: if eager execution is enabled.
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.SeparableConv2D(filters=3, kernels_size=3)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.separable_conv2d` is deprecated and "
+        "will be removed in a future version. "
+        "Please Use `tf.keras.layers.SeparableConv2D` instead.",
+        stacklevel=2,
+    )
+    layer = SeparableConv2D(
+        filters=filters,
+        kernel_size=kernel_size,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        dilation_rate=dilation_rate,
+        depth_multiplier=depth_multiplier,
+        activation=activation,
+        use_bias=use_bias,
+        depthwise_initializer=depthwise_initializer,
+        pointwise_initializer=pointwise_initializer,
+        bias_initializer=bias_initializer,
+        depthwise_regularizer=depthwise_regularizer,
+        pointwise_regularizer=pointwise_regularizer,
+        bias_regularizer=bias_regularizer,
+        activity_regularizer=activity_regularizer,
+        depthwise_constraint=depthwise_constraint,
+        pointwise_constraint=pointwise_constraint,
+        bias_constraint=bias_constraint,
+        trainable=trainable,
+        name=name,
+        _reuse=reuse,
+        _scope=name,
+    )
+    return layer(inputs)
 
 
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.SeparableConv2D`.
-
-
-  #### Structural Mapping to Native TF2
-
-  None of the supported arguments have changed name.
-
-  Before:
-
-  ```python
-   y = tf.compat.v1.layers.separable_conv2d(x, filters=3, kernel_size=3)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.SeparableConv2D(filters=3, kernels_size=3)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.separable_conv2d` is deprecated and '
-      'will be removed in a future version. '
-      'Please Use `tf.keras.layers.SeparableConv2D` instead.',
-      stacklevel=2)
-  layer = SeparableConv2D(
-      filters=filters,
-      kernel_size=kernel_size,
-      strides=strides,
-      padding=padding,
-      data_format=data_format,
-      dilation_rate=dilation_rate,
-      depth_multiplier=depth_multiplier,
-      activation=activation,
-      use_bias=use_bias,
-      depthwise_initializer=depthwise_initializer,
-      pointwise_initializer=pointwise_initializer,
-      bias_initializer=bias_initializer,
-      depthwise_regularizer=depthwise_regularizer,
-      pointwise_regularizer=pointwise_regularizer,
-      bias_regularizer=bias_regularizer,
-      activity_regularizer=activity_regularizer,
-      depthwise_constraint=depthwise_constraint,
-      pointwise_constraint=pointwise_constraint,
-      bias_constraint=bias_constraint,
-      trainable=trainable,
-      name=name,
-      _reuse=reuse,
-      _scope=name)
-  return layer(inputs)
-
-
-@keras_export(v1=['keras.__internal__.legacy.layers.Conv2DTranspose'])
-@tf_export(v1=['layers.Conv2DTranspose'])
+@keras_export(v1=["keras.__internal__.legacy.layers.Conv2DTranspose"])
+@tf_export(v1=["layers.Conv2DTranspose"])
 class Conv2DTranspose(keras_layers.Conv2DTranspose, base.Layer):
-  """Transposed 2D convolution layer (sometimes called 2D Deconvolution).
+    """Transposed 2D convolution layer (sometimes called 2D Deconvolution).
 
-  The need for transposed convolutions generally arises
-  from the desire to use a transformation going in the opposite direction
-  of a normal convolution, i.e., from something that has the shape of the
-  output of some convolution to something that has the shape of its input
-  while maintaining a connectivity pattern that is compatible with
-  said convolution.
+    The need for transposed convolutions generally arises
+    from the desire to use a transformation going in the opposite direction
+    of a normal convolution, i.e., from something that has the shape of the
+    output of some convolution to something that has the shape of its input
+    while maintaining a connectivity pattern that is compatible with
+    said convolution.
 
-  Args:
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: A tuple or list of 2 positive integers specifying the spatial
-      dimensions of the filters. Can be a single integer to specify the same
-      value for all spatial dimensions.
-    strides: A tuple or list of 2 positive integers specifying the strides
-      of the convolution. Can be a single integer to specify the same value for
-      all spatial dimensions.
-    padding: one of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    kernel_regularizer: Optional regularizer for the convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    kernel_constraint: Optional projection function to be applied to the
-        kernel after being updated by an `Optimizer` (e.g. used to implement
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.Conv2DTranspose`.
+    Args:
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: A tuple or list of 2 positive integers specifying the spatial
+        dimensions of the filters. Can be a single integer to specify the same
+        value for all spatial dimensions.
+      strides: A tuple or list of 2 positive integers specifying the strides
+        of the convolution. Can be a single integer to specify the same value for
+        all spatial dimensions.
+      padding: one of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, height, width, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, height, width)`.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      kernel_initializer: An initializer for the convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      kernel_regularizer: Optional regularizer for the convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      kernel_constraint: Optional projection function to be applied to the
+          kernel after being updated by an `Optimizer` (e.g. used to implement
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.Conv2DTranspose`.
 
-  ```python
-   conv = tf.compat.v1.layers.Conv2DTranspose(filters=3, kernel_size=3)
-  ```
 
-  After:
+    #### Structural Mapping to Native TF2
 
-  ```python
-   conv = tf.keras.layers.Conv2DTranspose(filters=3, kernels_size=3)
-  ```
-  @end_compatibility
-  """
+    None of the supported arguments have changed name.
 
-  def __init__(self, filters,
-               kernel_size,
-               strides=(1, 1),
-               padding='valid',
-               data_format='channels_last',
-               activation=None,
-               use_bias=True,
-               kernel_initializer=None,
-               bias_initializer=tf.compat.v1.zeros_initializer(),
-               kernel_regularizer=None,
-               bias_regularizer=None,
-               activity_regularizer=None,
-               kernel_constraint=None,
-               bias_constraint=None,
-               trainable=True,
-               name=None,
-               **kwargs):
-    super().__init__(
+    Before:
+
+    ```python
+     conv = tf.compat.v1.layers.Conv2DTranspose(filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    ```python
+     conv = tf.keras.layers.Conv2DTranspose(filters=3, kernels_size=3)
+    ```
+    @end_compatibility
+    """
+
+    def __init__(
+        self,
+        filters,
+        kernel_size,
+        strides=(1, 1),
+        padding="valid",
+        data_format="channels_last",
+        activation=None,
+        use_bias=True,
+        kernel_initializer=None,
+        bias_initializer=tf.compat.v1.zeros_initializer(),
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        trainable=True,
+        name=None,
+        **kwargs
+    ):
+        super().__init__(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            activation=activation,
+            use_bias=use_bias,
+            kernel_initializer=kernel_initializer,
+            bias_initializer=bias_initializer,
+            kernel_regularizer=kernel_regularizer,
+            bias_regularizer=bias_regularizer,
+            activity_regularizer=activity_regularizer,
+            kernel_constraint=kernel_constraint,
+            bias_constraint=bias_constraint,
+            trainable=trainable,
+            name=name,
+            **kwargs
+        )
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.conv2d_transpose"])
+@tf_export(v1=["layers.conv2d_transpose"])
+def conv2d_transpose(
+    inputs,
+    filters,
+    kernel_size,
+    strides=(1, 1),
+    padding="valid",
+    data_format="channels_last",
+    activation=None,
+    use_bias=True,
+    kernel_initializer=None,
+    bias_initializer=tf.compat.v1.zeros_initializer(),
+    kernel_regularizer=None,
+    bias_regularizer=None,
+    activity_regularizer=None,
+    kernel_constraint=None,
+    bias_constraint=None,
+    trainable=True,
+    name=None,
+    reuse=None,
+):
+    """Functional interface for transposed 2D convolution layer.
+
+    The need for transposed convolutions generally arises
+    from the desire to use a transformation going in the opposite direction
+    of a normal convolution, i.e., from something that has the shape of the
+    output of some convolution to something that has the shape of its input
+    while maintaining a connectivity pattern that is compatible with
+    said convolution.
+
+    Args:
+      inputs: Input tensor.
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: A tuple or list of 2 positive integers specifying the spatial
+        dimensions of the filters. Can be a single integer to specify the same
+        value for all spatial dimensions.
+      strides: A tuple or list of 2 positive integers specifying the strides
+        of the convolution. Can be a single integer to specify the same value for
+        all spatial dimensions.
+      padding: one of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, height, width, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, height, width)`.
+      activation: Activation function. Set it to `None` to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      kernel_initializer: An initializer for the convolution kernel.
+      bias_initializer: An initializer for the bias vector. If `None`, the default
+        initializer will be used.
+      kernel_regularizer: Optional regularizer for the convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      kernel_constraint: Optional projection function to be applied to the
+          kernel after being updated by an `Optimizer` (e.g. used to implement
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
+      reuse: Boolean, whether to reuse the weights of a previous layer
+        by the same name.
+
+    Returns:
+      Output tensor.
+
+    Raises:
+      ValueError: if eager execution is enabled.
+
+
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.Conv2DTranspose`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.conv2d_transpose(x, filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.Conv2DTranspose(filters=3, kernels_size=3)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.conv2d_transpose` is deprecated and "
+        "will be removed in a future version. "
+        "Please Use `tf.keras.layers.Conv2DTranspose` instead.",
+        stacklevel=2,
+    )
+    layer = Conv2DTranspose(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -1593,247 +1781,248 @@ class Conv2DTranspose(keras_layers.Conv2DTranspose, base.Layer):
         bias_constraint=bias_constraint,
         trainable=trainable,
         name=name,
-        **kwargs)
+        _reuse=reuse,
+        _scope=name,
+    )
+    return layer(inputs)
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.conv2d_transpose'])
-@tf_export(v1=['layers.conv2d_transpose'])
-def conv2d_transpose(inputs,
-                     filters,
-                     kernel_size,
-                     strides=(1, 1),
-                     padding='valid',
-                     data_format='channels_last',
-                     activation=None,
-                     use_bias=True,
-                     kernel_initializer=None,
-                     bias_initializer=tf.compat.v1.zeros_initializer(),
-                     kernel_regularizer=None,
-                     bias_regularizer=None,
-                     activity_regularizer=None,
-                     kernel_constraint=None,
-                     bias_constraint=None,
-                     trainable=True,
-                     name=None,
-                     reuse=None):
-  """Functional interface for transposed 2D convolution layer.
-
-  The need for transposed convolutions generally arises
-  from the desire to use a transformation going in the opposite direction
-  of a normal convolution, i.e., from something that has the shape of the
-  output of some convolution to something that has the shape of its input
-  while maintaining a connectivity pattern that is compatible with
-  said convolution.
-
-  Args:
-    inputs: Input tensor.
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: A tuple or list of 2 positive integers specifying the spatial
-      dimensions of the filters. Can be a single integer to specify the same
-      value for all spatial dimensions.
-    strides: A tuple or list of 2 positive integers specifying the strides
-      of the convolution. Can be a single integer to specify the same value for
-      all spatial dimensions.
-    padding: one of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
-    activation: Activation function. Set it to `None` to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel.
-    bias_initializer: An initializer for the bias vector. If `None`, the default
-      initializer will be used.
-    kernel_regularizer: Optional regularizer for the convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    kernel_constraint: Optional projection function to be applied to the
-        kernel after being updated by an `Optimizer` (e.g. used to implement
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-    reuse: Boolean, whether to reuse the weights of a previous layer
-      by the same name.
-
-  Returns:
-    Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.Conv2DTranspose`.
-
-
-  #### Structural Mapping to Native TF2
-
-  None of the supported arguments have changed name.
-
-  Before:
-
-  ```python
-   y = tf.compat.v1.layers.conv2d_transpose(x, filters=3, kernel_size=3)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.Conv2DTranspose(filters=3, kernels_size=3)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.conv2d_transpose` is deprecated and '
-      'will be removed in a future version. '
-      'Please Use `tf.keras.layers.Conv2DTranspose` instead.',
-      stacklevel=2)
-  layer = Conv2DTranspose(
-      filters=filters,
-      kernel_size=kernel_size,
-      strides=strides,
-      padding=padding,
-      data_format=data_format,
-      activation=activation,
-      use_bias=use_bias,
-      kernel_initializer=kernel_initializer,
-      bias_initializer=bias_initializer,
-      kernel_regularizer=kernel_regularizer,
-      bias_regularizer=bias_regularizer,
-      activity_regularizer=activity_regularizer,
-      kernel_constraint=kernel_constraint,
-      bias_constraint=bias_constraint,
-      trainable=trainable,
-      name=name,
-      _reuse=reuse,
-      _scope=name)
-  return layer(inputs)
-
-
-@keras_export(v1=['keras.__internal__.legacy.layers.Conv3DTranspose'])
-@tf_export(v1=['layers.Conv3DTranspose'])
+@keras_export(v1=["keras.__internal__.legacy.layers.Conv3DTranspose"])
+@tf_export(v1=["layers.Conv3DTranspose"])
 class Conv3DTranspose(keras_layers.Conv3DTranspose, base.Layer):
-  """Transposed 3D convolution layer (sometimes called 3D Deconvolution).
+    """Transposed 3D convolution layer (sometimes called 3D Deconvolution).
 
-  Args:
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: An integer or tuple/list of 3 integers, specifying the
-      depth, height and width of the 3D convolution window.
-      Can be a single integer to specify the same value for all spatial
-      dimensions.
-    strides: An integer or tuple/list of 3 integers, specifying the strides
-      of the convolution along the depth, height and width.
-      Can be a single integer to specify the same value for all spatial
-      dimensions.
-    padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, depth, height, width, channels)` while `channels_first`
-      corresponds to inputs with shape
-      `(batch, channels, depth, height, width)`.
-    activation: Activation function. Set it to `None` to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel.
-    bias_initializer: An initializer for the bias vector. If `None`, the default
-      initializer will be used.
-    kernel_regularizer: Optional regularizer for the convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    kernel_constraint: Optional projection function to be applied to the
-        kernel after being updated by an `Optimizer` (e.g. used to implement
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.Conv3DTranspose`.
+    Args:
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: An integer or tuple/list of 3 integers, specifying the
+        depth, height and width of the 3D convolution window.
+        Can be a single integer to specify the same value for all spatial
+        dimensions.
+      strides: An integer or tuple/list of 3 integers, specifying the strides
+        of the convolution along the depth, height and width.
+        Can be a single integer to specify the same value for all spatial
+        dimensions.
+      padding: One of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, depth, height, width, channels)` while `channels_first`
+        corresponds to inputs with shape
+        `(batch, channels, depth, height, width)`.
+      activation: Activation function. Set it to `None` to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      kernel_initializer: An initializer for the convolution kernel.
+      bias_initializer: An initializer for the bias vector. If `None`, the default
+        initializer will be used.
+      kernel_regularizer: Optional regularizer for the convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      kernel_constraint: Optional projection function to be applied to the
+          kernel after being updated by an `Optimizer` (e.g. used to implement
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.Conv3DTranspose`.
 
-  ```python
-   conv = tf.compat.v1.layers.Conv3DTranspose(filters=3, kernel_size=3)
-  ```
 
-  After:
+    #### Structural Mapping to Native TF2
 
-  ```python
-   conv = tf.keras.layers.Conv3DTranspose(filters=3, kernels_size=3)
-  ```
-  @end_compatibility
-  """
+    None of the supported arguments have changed name.
 
-  def __init__(self,
-               filters,
-               kernel_size,
-               strides=(1, 1, 1),
-               padding='valid',
-               data_format='channels_last',
-               activation=None,
-               use_bias=True,
-               kernel_initializer=None,
-               bias_initializer=tf.compat.v1.zeros_initializer(),
-               kernel_regularizer=None,
-               bias_regularizer=None,
-               activity_regularizer=None,
-               kernel_constraint=None,
-               bias_constraint=None,
-               trainable=True,
-               name=None,
-               **kwargs):
-    super().__init__(
+    Before:
+
+    ```python
+     conv = tf.compat.v1.layers.Conv3DTranspose(filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    ```python
+     conv = tf.keras.layers.Conv3DTranspose(filters=3, kernels_size=3)
+    ```
+    @end_compatibility
+    """
+
+    def __init__(
+        self,
+        filters,
+        kernel_size,
+        strides=(1, 1, 1),
+        padding="valid",
+        data_format="channels_last",
+        activation=None,
+        use_bias=True,
+        kernel_initializer=None,
+        bias_initializer=tf.compat.v1.zeros_initializer(),
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        trainable=True,
+        name=None,
+        **kwargs
+    ):
+        super().__init__(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            activation=activation,
+            use_bias=use_bias,
+            kernel_initializer=kernel_initializer,
+            bias_initializer=bias_initializer,
+            kernel_regularizer=kernel_regularizer,
+            bias_regularizer=bias_regularizer,
+            activity_regularizer=activity_regularizer,
+            kernel_constraint=kernel_constraint,
+            bias_constraint=bias_constraint,
+            trainable=trainable,
+            name=name,
+            **kwargs
+        )
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.conv3d_transpose"])
+@tf_export(v1=["layers.conv3d_transpose"])
+def conv3d_transpose(
+    inputs,
+    filters,
+    kernel_size,
+    strides=(1, 1, 1),
+    padding="valid",
+    data_format="channels_last",
+    activation=None,
+    use_bias=True,
+    kernel_initializer=None,
+    bias_initializer=tf.compat.v1.zeros_initializer(),
+    kernel_regularizer=None,
+    bias_regularizer=None,
+    activity_regularizer=None,
+    kernel_constraint=None,
+    bias_constraint=None,
+    trainable=True,
+    name=None,
+    reuse=None,
+):
+    """Functional interface for transposed 3D convolution layer.
+
+    Args:
+      inputs: Input tensor.
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of filters in the convolution).
+      kernel_size: A tuple or list of 3 positive integers specifying the spatial
+        dimensions of the filters. Can be a single integer to specify the same
+        value for all spatial dimensions.
+      strides: A tuple or list of 3 positive integers specifying the strides
+        of the convolution. Can be a single integer to specify the same value for
+        all spatial dimensions.
+      padding: one of `"valid"` or `"same"` (case-insensitive).
+        `"valid"` means no padding. `"same"` results in padding evenly to
+        the left/right or up/down of the input such that output has the same
+        height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, depth, height, width, channels)` while `channels_first`
+        corresponds to inputs with shape
+        `(batch, channels, depth, height, width)`.
+      activation: Activation function. Set it to None to maintain a
+        linear activation.
+      use_bias: Boolean, whether the layer uses a bias.
+      kernel_initializer: An initializer for the convolution kernel.
+      bias_initializer: An initializer for the bias vector. If None, the default
+        initializer will be used.
+      kernel_regularizer: Optional regularizer for the convolution kernel.
+      bias_regularizer: Optional regularizer for the bias vector.
+      activity_regularizer: Optional regularizer function for the output.
+      kernel_constraint: Optional projection function to be applied to the
+          kernel after being updated by an `Optimizer` (e.g. used to implement
+          norm constraints or value constraints for layer weights). The function
+          must take as input the unprojected variable and must return the
+          projected variable (which must have the same shape). Constraints are
+          not safe to use when doing asynchronous distributed training.
+      bias_constraint: Optional projection function to be applied to the
+          bias after being updated by an `Optimizer`.
+      trainable: Boolean, if `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: A string, the name of the layer.
+      reuse: Boolean, whether to reuse the weights of a previous layer
+        by the same name.
+
+    Returns:
+      Output tensor.
+
+    Raises:
+      ValueError: if eager execution is enabled.
+
+
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.Conv3DTranspose`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.conv3d_transpose(x, filters=3, kernel_size=3)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.Conv3DTranspose(filters=3, kernels_size=3)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.conv3d_transpose` is deprecated and "
+        "will be removed in a future version. "
+        "Please Use `tf.keras.layers.Conv3DTranspose` instead.",
+        stacklevel=2,
+    )
+    layer = Conv3DTranspose(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
@@ -1850,141 +2039,10 @@ class Conv3DTranspose(keras_layers.Conv3DTranspose, base.Layer):
         bias_constraint=bias_constraint,
         trainable=trainable,
         name=name,
-        **kwargs)
-
-
-@keras_export(v1=['keras.__internal__.legacy.layers.conv3d_transpose'])
-@tf_export(v1=['layers.conv3d_transpose'])
-def conv3d_transpose(inputs,
-                     filters,
-                     kernel_size,
-                     strides=(1, 1, 1),
-                     padding='valid',
-                     data_format='channels_last',
-                     activation=None,
-                     use_bias=True,
-                     kernel_initializer=None,
-                     bias_initializer=tf.compat.v1.zeros_initializer(),
-                     kernel_regularizer=None,
-                     bias_regularizer=None,
-                     activity_regularizer=None,
-                     kernel_constraint=None,
-                     bias_constraint=None,
-                     trainable=True,
-                     name=None,
-                     reuse=None):
-  """Functional interface for transposed 3D convolution layer.
-
-  Args:
-    inputs: Input tensor.
-    filters: Integer, the dimensionality of the output space (i.e. the number
-      of filters in the convolution).
-    kernel_size: A tuple or list of 3 positive integers specifying the spatial
-      dimensions of the filters. Can be a single integer to specify the same
-      value for all spatial dimensions.
-    strides: A tuple or list of 3 positive integers specifying the strides
-      of the convolution. Can be a single integer to specify the same value for
-      all spatial dimensions.
-    padding: one of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to
-      the left/right or up/down of the input such that output has the same
-      height/width dimension as the input.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, depth, height, width, channels)` while `channels_first`
-      corresponds to inputs with shape
-      `(batch, channels, depth, height, width)`.
-    activation: Activation function. Set it to None to maintain a
-      linear activation.
-    use_bias: Boolean, whether the layer uses a bias.
-    kernel_initializer: An initializer for the convolution kernel.
-    bias_initializer: An initializer for the bias vector. If None, the default
-      initializer will be used.
-    kernel_regularizer: Optional regularizer for the convolution kernel.
-    bias_regularizer: Optional regularizer for the bias vector.
-    activity_regularizer: Optional regularizer function for the output.
-    kernel_constraint: Optional projection function to be applied to the
-        kernel after being updated by an `Optimizer` (e.g. used to implement
-        norm constraints or value constraints for layer weights). The function
-        must take as input the unprojected variable and must return the
-        projected variable (which must have the same shape). Constraints are
-        not safe to use when doing asynchronous distributed training.
-    bias_constraint: Optional projection function to be applied to the
-        bias after being updated by an `Optimizer`.
-    trainable: Boolean, if `True` also add variables to the graph collection
-      `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
-    name: A string, the name of the layer.
-    reuse: Boolean, whether to reuse the weights of a previous layer
-      by the same name.
-
-  Returns:
-    Output tensor.
-
-  Raises:
-    ValueError: if eager execution is enabled.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.Conv3DTranspose`.
-
-
-  #### Structural Mapping to Native TF2
-
-  None of the supported arguments have changed name.
-
-  Before:
-
-  ```python
-   y = tf.compat.v1.layers.conv3d_transpose(x, filters=3, kernel_size=3)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.Conv3DTranspose(filters=3, kernels_size=3)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.conv3d_transpose` is deprecated and '
-      'will be removed in a future version. '
-      'Please Use `tf.keras.layers.Conv3DTranspose` instead.',
-      stacklevel=2)
-  layer = Conv3DTranspose(
-      filters=filters,
-      kernel_size=kernel_size,
-      strides=strides,
-      padding=padding,
-      data_format=data_format,
-      activation=activation,
-      use_bias=use_bias,
-      kernel_initializer=kernel_initializer,
-      bias_initializer=bias_initializer,
-      kernel_regularizer=kernel_regularizer,
-      bias_regularizer=bias_regularizer,
-      activity_regularizer=activity_regularizer,
-      kernel_constraint=kernel_constraint,
-      bias_constraint=bias_constraint,
-      trainable=trainable,
-      name=name,
-      _reuse=reuse,
-      _scope=name)
-  return layer(inputs)
+        _reuse=reuse,
+        _scope=name,
+    )
+    return layer(inputs)
 
 
 # Aliases

@@ -20,25 +20,24 @@ import tensorflow.compat.v2 as tf
 
 
 class ExampleWrapper(keras.layers.Wrapper):
-  """Simple Wrapper subclass."""
+    """Simple Wrapper subclass."""
 
-  def call(self, inputs, *args, **kwargs):
-    return self.layer(inputs, *args, **kwargs)
+    def call(self, inputs, *args, **kwargs):
+        return self.layer(inputs, *args, **kwargs)
 
 
 class WrapperTest(parameterized.TestCase):
+    def test_wrapper_from_config_no_mutation(self):
+        wrapper = ExampleWrapper(keras.layers.Dense(1))
+        config = wrapper.get_config()
+        config_copy = config.copy()
+        self.assertEqual(config, config_copy)
 
-  def test_wrapper_from_config_no_mutation(self):
-    wrapper = ExampleWrapper(keras.layers.Dense(1))
-    config = wrapper.get_config()
-    config_copy = config.copy()
-    self.assertEqual(config, config_copy)
-
-    wrapper_from_config = ExampleWrapper.from_config(config)
-    new_config = wrapper_from_config.get_config()
-    self.assertEqual(new_config, config)
-    self.assertEqual(new_config, config_copy)
+        wrapper_from_config = ExampleWrapper.from_config(config)
+        new_config = wrapper_from_config.get_config()
+        self.assertEqual(new_config, config)
+        self.assertEqual(new_config, config_copy)
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

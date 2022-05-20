@@ -25,52 +25,53 @@ from keras.utils import tf_utils
 @test_combinations.run_all_keras_modes
 @test_combinations.run_with_all_model_types
 class SubclassedLayersTest(test_combinations.TestCase):
+    def test_simple_build_with_constant(self):
+        class BuildConstantLayer(keras.layers.Layer):
+            def build(self, input_shape):
+                self.b = tf.convert_to_tensor(2.0)
 
-  def test_simple_build_with_constant(self):
+            def call(self, inputs):
+                return self.b * inputs
 
-    class BuildConstantLayer(keras.layers.Layer):
+        layer = BuildConstantLayer()
+        model = test_utils.get_model_from_layers(
+            [layer, keras.layers.Dense(1)], input_shape=(1,)
+        )
 
-      def build(self, input_shape):
-        self.b = tf.convert_to_tensor(2.0)
+        x = tf.convert_to_tensor([[3.0]])
+        self.assertEqual(
+            tf_utils.is_symbolic_tensor(model(x)), not tf.executing_eagerly()
+        )
+        self.assertEqual(
+            tf_utils.is_symbolic_tensor(layer(x)), not tf.executing_eagerly()
+        )
+        self.assertAllClose(keras.backend.get_value(layer(x)), [[6.0]])
 
-      def call(self, inputs):
-        return self.b * inputs
+    def test_build_with_derived_constant(self):
+        class BuildDerivedConstantLayer(keras.layers.Layer):
+            def build(self, input_shape):
+                a = tf.convert_to_tensor(1.0)
+                b = 2.0 * a
+                self.variable = tf.Variable(b)
+                self.constant = tf.convert_to_tensor(self.variable)
 
-    layer = BuildConstantLayer()
-    model = test_utils.get_model_from_layers(
-        [layer, keras.layers.Dense(1)], input_shape=(1,))
+            def call(self, inputs):
+                return self.variable * self.constant * inputs
 
-    x = tf.convert_to_tensor([[3.0]])
-    self.assertEqual(
-        tf_utils.is_symbolic_tensor(model(x)), not tf.executing_eagerly())
-    self.assertEqual(
-        tf_utils.is_symbolic_tensor(layer(x)), not tf.executing_eagerly())
-    self.assertAllClose(keras.backend.get_value(layer(x)), [[6.0]])
+        layer = BuildDerivedConstantLayer()
+        model = test_utils.get_model_from_layers(
+            [layer, keras.layers.Dense(1)], input_shape=(1,)
+        )
 
-  def test_build_with_derived_constant(self):
-
-    class BuildDerivedConstantLayer(keras.layers.Layer):
-
-      def build(self, input_shape):
-        a = tf.convert_to_tensor(1.0)
-        b = 2.0 * a
-        self.variable = tf.Variable(b)
-        self.constant = tf.convert_to_tensor(self.variable)
-
-      def call(self, inputs):
-        return self.variable * self.constant * inputs
-
-    layer = BuildDerivedConstantLayer()
-    model = test_utils.get_model_from_layers(
-        [layer, keras.layers.Dense(1)], input_shape=(1,))
-
-    x = tf.convert_to_tensor([[3.0]])
-    self.assertEqual(
-        tf_utils.is_symbolic_tensor(model(x)), not tf.executing_eagerly())
-    self.assertEqual(
-        tf_utils.is_symbolic_tensor(layer(x)), not tf.executing_eagerly())
-    self.assertAllClose(keras.backend.get_value(layer(x)), [[12.0]])
+        x = tf.convert_to_tensor([[3.0]])
+        self.assertEqual(
+            tf_utils.is_symbolic_tensor(model(x)), not tf.executing_eagerly()
+        )
+        self.assertEqual(
+            tf_utils.is_symbolic_tensor(layer(x)), not tf.executing_eagerly()
+        )
+        self.assertAllClose(keras.backend.get_value(layer(x)), [[12.0]])
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

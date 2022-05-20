@@ -23,24 +23,31 @@ import tensorflow.compat.v2 as tf
 
 @test_combinations.run_all_keras_modes
 class PermuteTest(test_combinations.TestCase):
+    def test_permute(self):
+        test_utils.layer_test(
+            keras.layers.Permute, kwargs={"dims": (2, 1)}, input_shape=(3, 2, 4)
+        )
 
-  def test_permute(self):
-    test_utils.layer_test(
-        keras.layers.Permute, kwargs={'dims': (2, 1)}, input_shape=(3, 2, 4))
+    def test_permute_errors_on_invalid_starting_dims_index(self):
+        with self.assertRaisesRegex(
+            ValueError, r"Invalid permutation .*dims.*"
+        ):
+            test_utils.layer_test(
+                keras.layers.Permute,
+                kwargs={"dims": (0, 1, 2)},
+                input_shape=(3, 2, 4),
+            )
 
-  def test_permute_errors_on_invalid_starting_dims_index(self):
-    with self.assertRaisesRegex(ValueError, r'Invalid permutation .*dims.*'):
-      test_utils.layer_test(
-          keras.layers.Permute,
-          kwargs={'dims': (0, 1, 2)},
-          input_shape=(3, 2, 4))
+    def test_permute_errors_on_invalid_set_of_dims_indices(self):
+        with self.assertRaisesRegex(
+            ValueError, r"Invalid permutation .*dims.*"
+        ):
+            test_utils.layer_test(
+                keras.layers.Permute,
+                kwargs={"dims": (1, 4, 2)},
+                input_shape=(3, 2, 4),
+            )
 
-  def test_permute_errors_on_invalid_set_of_dims_indices(self):
-    with self.assertRaisesRegex(ValueError, r'Invalid permutation .*dims.*'):
-      test_utils.layer_test(
-          keras.layers.Permute,
-          kwargs={'dims': (1, 4, 2)},
-          input_shape=(3, 2, 4))
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

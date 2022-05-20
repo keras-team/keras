@@ -23,56 +23,57 @@ from keras.testing_infra import test_utils
 
 
 def squared_l2_norm(x):
-  return tf.reduce_sum(x ** 2)
+    return tf.reduce_sum(x**2)
 
 
 @test_utils.run_v2_only
 class UnitNormalizationTest(test_combinations.TestCase):
+    @test_combinations.run_all_keras_modes
+    def test_basics(self):
+        test_utils.layer_test(
+            keras.layers.UnitNormalization,
+            kwargs={"axis": -1},
+            input_shape=(2, 3),
+        )
+        test_utils.layer_test(
+            keras.layers.UnitNormalization,
+            kwargs={"axis": (1, 2)},
+            input_shape=(1, 3, 3),
+        )
 
-  @test_combinations.run_all_keras_modes
-  def test_basics(self):
-    test_utils.layer_test(
-        keras.layers.UnitNormalization,
-        kwargs={'axis': -1},
-        input_shape=(2, 3))
-    test_utils.layer_test(
-        keras.layers.UnitNormalization,
-        kwargs={'axis': (1, 2)},
-        input_shape=(1, 3, 3))
+    def test_correctness(self):
+        layer = keras.layers.UnitNormalization(axis=-1)
+        inputs = tf.random.normal(shape=(2, 3))
+        outputs = layer(inputs).numpy()
+        self.assertAllClose(squared_l2_norm(outputs[0, :]), 1.0)
+        self.assertAllClose(squared_l2_norm(outputs[1, :]), 1.0)
 
-  def test_correctness(self):
-    layer = keras.layers.UnitNormalization(axis=-1)
-    inputs = tf.random.normal(shape=(2, 3))
-    outputs = layer(inputs).numpy()
-    self.assertAllClose(squared_l2_norm(outputs[0, :]), 1.)
-    self.assertAllClose(squared_l2_norm(outputs[1, :]), 1.)
+        layer = keras.layers.UnitNormalization(axis=(1, 2))
+        inputs = tf.random.normal(shape=(2, 3, 3))
+        outputs = layer(inputs).numpy()
+        self.assertAllClose(squared_l2_norm(outputs[0, :, :]), 1.0)
+        self.assertAllClose(squared_l2_norm(outputs[1, :, :]), 1.0)
 
-    layer = keras.layers.UnitNormalization(axis=(1, 2))
-    inputs = tf.random.normal(shape=(2, 3, 3))
-    outputs = layer(inputs).numpy()
-    self.assertAllClose(squared_l2_norm(outputs[0, :, :]), 1.)
-    self.assertAllClose(squared_l2_norm(outputs[1, :, :]), 1.)
+        layer = keras.layers.UnitNormalization(axis=1)
+        inputs = tf.random.normal(shape=(2, 3, 2))
+        outputs = layer(inputs).numpy()
+        self.assertAllClose(squared_l2_norm(outputs[0, :, 0]), 1.0)
+        self.assertAllClose(squared_l2_norm(outputs[1, :, 0]), 1.0)
+        self.assertAllClose(squared_l2_norm(outputs[0, :, 1]), 1.0)
+        self.assertAllClose(squared_l2_norm(outputs[1, :, 1]), 1.0)
 
-    layer = keras.layers.UnitNormalization(axis=1)
-    inputs = tf.random.normal(shape=(2, 3, 2))
-    outputs = layer(inputs).numpy()
-    self.assertAllClose(squared_l2_norm(outputs[0, :, 0]), 1.)
-    self.assertAllClose(squared_l2_norm(outputs[1, :, 0]), 1.)
-    self.assertAllClose(squared_l2_norm(outputs[0, :, 1]), 1.)
-    self.assertAllClose(squared_l2_norm(outputs[1, :, 1]), 1.)
+    def testInvalidAxis(self):
+        with self.assertRaisesRegex(
+            TypeError, r"Invalid value for `axis` argument"
+        ):
+            layer = keras.layers.UnitNormalization(axis=None)
 
-  def testInvalidAxis(self):
-    with self.assertRaisesRegex(
-        TypeError,
-        r'Invalid value for `axis` argument'):
-      layer = keras.layers.UnitNormalization(axis=None)
-
-    with self.assertRaisesRegex(
-        ValueError,
-        r'Invalid value for `axis` argument'):
-      layer = keras.layers.UnitNormalization(axis=3)
-      layer.build(input_shape=(2, 2, 2))
+        with self.assertRaisesRegex(
+            ValueError, r"Invalid value for `axis` argument"
+        ):
+            layer = keras.layers.UnitNormalization(axis=3)
+            layer.build(input_shape=(2, 2, 2))
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+
 ds_combinations = tf.__internal__.distribute.combinations
 
 # Note: Strategy combinations are not (yet) public APIs, so they are subject
@@ -38,39 +39,45 @@ STRATEGIES = [
 
 
 @ds_combinations.generate(
-    tf.__internal__.test.combinations.combine(
-        strategy=STRATEGIES, mode="eager"))
+    tf.__internal__.test.combinations.combine(strategy=STRATEGIES, mode="eager")
+)
 class DistributedTrainingTest(tf.test.TestCase):
-  """Test to demonstrate basic Keras training with a variety of strategies."""
+    """Test to demonstrate basic Keras training with a variety of strategies."""
 
-  def testKerasTrainingAPI(self, strategy):
-    if (not tf.__internal__.tf2.enabled()
-        and isinstance(strategy,
-                       tf.distribute.experimental.ParameterServerStrategy)):
-      self.skipTest(
-          "Parameter Server strategy with dataset creator need to be run when "
-          "eager execution is enabled.")
+    def testKerasTrainingAPI(self, strategy):
+        if not tf.__internal__.tf2.enabled() and isinstance(
+            strategy, tf.distribute.experimental.ParameterServerStrategy
+        ):
+            self.skipTest(
+                "Parameter Server strategy with dataset creator need to be run when "
+                "eager execution is enabled."
+            )
 
-    # A `dataset_fn` is required for `Model.fit` to work across all strategies.
-    def dataset_fn(input_context):
-      batch_size = input_context.get_per_replica_batch_size(
-          global_batch_size=64)
-      x = tf.random.uniform((10, 10))
-      y = tf.random.uniform((10,))
-      dataset = tf.data.Dataset.from_tensor_slices((x, y)).shuffle(10).repeat()
-      dataset = dataset.shard(
-          input_context.num_input_pipelines, input_context.input_pipeline_id)
-      return dataset.batch(batch_size).prefetch(2)
+        # A `dataset_fn` is required for `Model.fit` to work across all strategies.
+        def dataset_fn(input_context):
+            batch_size = input_context.get_per_replica_batch_size(
+                global_batch_size=64
+            )
+            x = tf.random.uniform((10, 10))
+            y = tf.random.uniform((10,))
+            dataset = (
+                tf.data.Dataset.from_tensor_slices((x, y)).shuffle(10).repeat()
+            )
+            dataset = dataset.shard(
+                input_context.num_input_pipelines,
+                input_context.input_pipeline_id,
+            )
+            return dataset.batch(batch_size).prefetch(2)
 
-    with strategy.scope():
-      model = tf.keras.Sequential([tf.keras.layers.Dense(10)])
-      optimizer = tf.keras.optimizers.SGD()
-      model.compile(optimizer, loss="mse", steps_per_execution=10)
+        with strategy.scope():
+            model = tf.keras.Sequential([tf.keras.layers.Dense(10)])
+            optimizer = tf.keras.optimizers.SGD()
+            model.compile(optimizer, loss="mse", steps_per_execution=10)
 
-    x = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
+        x = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
 
-    model.fit(x, epochs=2, steps_per_epoch=10)
+        model.fit(x, epochs=2, steps_per_epoch=10)
 
 
 if __name__ == "__main__":
-  tf.__internal__.distribute.multi_process_runner.test_main()
+    tf.__internal__.distribute.multi_process_runner.test_main()

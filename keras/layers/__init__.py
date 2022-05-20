@@ -91,7 +91,9 @@ from keras.layers.regularization.spatial_dropout2d import SpatialDropout2D
 from keras.layers.regularization.spatial_dropout3d import SpatialDropout3D
 from keras.layers.regularization.gaussian_dropout import GaussianDropout
 from keras.layers.regularization.gaussian_noise import GaussianNoise
-from keras.layers.regularization.activity_regularization import ActivityRegularization
+from keras.layers.regularization.activity_regularization import (
+    ActivityRegularization,
+)
 from keras.layers.regularization.alpha_dropout import AlphaDropout
 
 # Reshaping layers.
@@ -123,8 +125,12 @@ from keras.layers.core.tf_op_layer import SlicingOpLambda
 from keras.layers.core.tf_op_layer import TFOpLambda
 
 # Locally-connected layers.
-from keras.layers.locally_connected.locally_connected1d import LocallyConnected1D
-from keras.layers.locally_connected.locally_connected2d import LocallyConnected2D
+from keras.layers.locally_connected.locally_connected1d import (
+    LocallyConnected1D,
+)
+from keras.layers.locally_connected.locally_connected2d import (
+    LocallyConnected2D,
+)
 
 # Merging layers.
 from keras.layers.merging.add import Add
@@ -148,17 +154,29 @@ from keras.layers.merging.dot import dot
 
 # Normalization layers.
 from keras.layers.normalization.layer_normalization import LayerNormalization
-from keras.layers.normalization.batch_normalization import SyncBatchNormalization
+from keras.layers.normalization.batch_normalization import (
+    SyncBatchNormalization,
+)
 from keras.layers.normalization.unit_normalization import UnitNormalization
 
 if tf.__internal__.tf2.enabled():
-  from keras.layers.normalization.batch_normalization import BatchNormalization
-  from keras.layers.normalization.batch_normalization_v1 import BatchNormalization as BatchNormalizationV1
-  BatchNormalizationV2 = BatchNormalization
+    from keras.layers.normalization.batch_normalization import (
+        BatchNormalization,
+    )
+    from keras.layers.normalization.batch_normalization_v1 import (
+        BatchNormalization as BatchNormalizationV1,
+    )
+
+    BatchNormalizationV2 = BatchNormalization
 else:
-  from keras.layers.normalization.batch_normalization_v1 import BatchNormalization
-  from keras.layers.normalization.batch_normalization import BatchNormalization as BatchNormalizationV2
-  BatchNormalizationV1 = BatchNormalization
+    from keras.layers.normalization.batch_normalization_v1 import (
+        BatchNormalization,
+    )
+    from keras.layers.normalization.batch_normalization import (
+        BatchNormalization as BatchNormalizationV2,
+    )
+
+    BatchNormalizationV1 = BatchNormalization
 
 # Kernelized layers.
 from keras.layers.kernelized import RandomFourierFeatures
@@ -199,31 +217,33 @@ from keras.layers.rnn.simple_rnn import SimpleRNNCell
 from keras.layers.rnn.simple_rnn import SimpleRNN
 
 if tf.__internal__.tf2.enabled():
-  from keras.layers.rnn.gru import GRU
-  from keras.layers.rnn.gru import GRUCell
-  from keras.layers.rnn.lstm import LSTM
-  from keras.layers.rnn.lstm import LSTMCell
-  from keras.layers.rnn.gru_v1 import GRU as GRUV1
-  from keras.layers.rnn.gru_v1 import GRUCell as GRUCellV1
-  from keras.layers.rnn.lstm_v1 import LSTM as LSTMV1
-  from keras.layers.rnn.lstm_v1 import LSTMCell as LSTMCellV1
-  GRUV2 = GRU
-  GRUCellV2 = GRUCell
-  LSTMV2 = LSTM
-  LSTMCellV2 = LSTMCell
+    from keras.layers.rnn.gru import GRU
+    from keras.layers.rnn.gru import GRUCell
+    from keras.layers.rnn.lstm import LSTM
+    from keras.layers.rnn.lstm import LSTMCell
+    from keras.layers.rnn.gru_v1 import GRU as GRUV1
+    from keras.layers.rnn.gru_v1 import GRUCell as GRUCellV1
+    from keras.layers.rnn.lstm_v1 import LSTM as LSTMV1
+    from keras.layers.rnn.lstm_v1 import LSTMCell as LSTMCellV1
+
+    GRUV2 = GRU
+    GRUCellV2 = GRUCell
+    LSTMV2 = LSTM
+    LSTMCellV2 = LSTMCell
 else:
-  from keras.layers.rnn.gru_v1 import GRU
-  from keras.layers.rnn.gru_v1 import GRUCell
-  from keras.layers.rnn.lstm_v1 import LSTM
-  from keras.layers.rnn.lstm_v1 import LSTMCell
-  from keras.layers.rnn.gru import GRU as GRUV2
-  from keras.layers.rnn.gru import GRUCell as GRUCellV2
-  from keras.layers.rnn.lstm import LSTM as LSTMV2
-  from keras.layers.rnn.lstm import LSTMCell as LSTMCellV2
-  GRUV1 = GRU
-  GRUCellV1 = GRUCell
-  LSTMV1 = LSTM
-  LSTMCellV1 = LSTMCell
+    from keras.layers.rnn.gru_v1 import GRU
+    from keras.layers.rnn.gru_v1 import GRUCell
+    from keras.layers.rnn.lstm_v1 import LSTM
+    from keras.layers.rnn.lstm_v1 import LSTMCell
+    from keras.layers.rnn.gru import GRU as GRUV2
+    from keras.layers.rnn.gru import GRUCell as GRUCellV2
+    from keras.layers.rnn.lstm import LSTM as LSTMV2
+    from keras.layers.rnn.lstm import LSTMCell as LSTMCellV2
+
+    GRUV1 = GRU
+    GRUCellV1 = GRUCell
+    LSTMV1 = LSTM
+    LSTMCellV1 = LSTMCell
 
 # Convolutional-recurrent layers.
 from keras.layers.rnn.conv_lstm1d import ConvLSTM1D
@@ -253,18 +273,18 @@ from keras.layers.serialization import get_builtin_layer
 
 
 class VersionAwareLayers:
-  """Utility to be used internally to access layers in a V1/V2-aware fashion.
+    """Utility to be used internally to access layers in a V1/V2-aware fashion.
 
-  When using layers within the Keras codebase, under the constraint that
-  e.g. `layers.BatchNormalization` should be the `BatchNormalization` version
-  corresponding to the current runtime (TF1 or TF2), do not simply access
-  `layers.BatchNormalization` since it would ignore e.g. an early
-  `compat.v2.disable_v2_behavior()` call. Instead, use an instance
-  of `VersionAwareLayers` (which you can use just like the `layers` module).
-  """
+    When using layers within the Keras codebase, under the constraint that
+    e.g. `layers.BatchNormalization` should be the `BatchNormalization` version
+    corresponding to the current runtime (TF1 or TF2), do not simply access
+    `layers.BatchNormalization` since it would ignore e.g. an early
+    `compat.v2.disable_v2_behavior()` call. Instead, use an instance
+    of `VersionAwareLayers` (which you can use just like the `layers` module).
+    """
 
-  def __getattr__(self, name):
-    serialization.populate_deserializable_objects()
-    if name in serialization.LOCAL.ALL_OBJECTS:
-      return serialization.LOCAL.ALL_OBJECTS[name]
-    return super().__getattr__(name)
+    def __getattr__(self, name):
+        serialization.populate_deserializable_objects()
+        if name in serialization.LOCAL.ALL_OBJECTS:
+            return serialization.LOCAL.ALL_OBJECTS[name]
+        return super().__getattr__(name)

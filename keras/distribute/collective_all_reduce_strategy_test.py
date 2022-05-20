@@ -20,7 +20,9 @@ from absl.testing import parameterized
 from keras import layers
 from keras.testing_infra import test_utils
 from keras.engine import training
-from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_keras
+from keras.optimizers.optimizer_v2 import (
+    gradient_descent as gradient_descent_keras,
+)
 
 
 @test_utils.run_v2_only
@@ -30,43 +32,41 @@ from keras.optimizers.optimizer_v2 import gradient_descent as gradient_descent_k
             tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
             tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
         ],
-        mode=['eager']))
+        mode=["eager"],
+    )
+)
 class MultiWorkerMirroredStrategyTest(tf.test.TestCase, parameterized.TestCase):
+    def testFitWithoutStepsPerEpochPartialBatch(self, strategy):
+        def _model_fn():
+            x = layers.Input(shape=(1,), name="input")
+            y = layers.Dense(1, name="dense")(x)
+            model = training.Model(x, y)
+            return model
 
-  def testFitWithoutStepsPerEpochPartialBatch(self, strategy):
+        def _get_dataset():
+            inputs = tf.expand_dims(tf.constant(range(10)), axis=1)
+            targets = tf.expand_dims(tf.constant(range(10)), axis=1)
+            # Make global batch size 12 for 2 replicas and a non-repeated dataset
+            # with 10 elements so that we have partial batch
+            dataset = tf.data.Dataset.from_tensor_slices(
+                (inputs, targets)
+            ).batch(12, drop_remainder=False)
+            return dataset
 
-    def _model_fn():
-      x = layers.Input(shape=(1,), name='input')
-      y = layers.Dense(1, name='dense')(x)
-      model = training.Model(x, y)
-      return model
-
-    def _get_dataset():
-      inputs = tf.expand_dims(
-          tf.constant(range(10)), axis=1)
-      targets = tf.expand_dims(
-          tf.constant(range(10)), axis=1)
-      # Make global batch size 12 for 2 replicas and a non-repeated dataset
-      # with 10 elements so that we have partial batch
-      dataset = tf.data.Dataset.from_tensor_slices(
-          (inputs, targets)).batch(
-              12, drop_remainder=False)
-      return dataset
-
-    with strategy.scope():
-      optimizer_fn = gradient_descent_keras.SGD
-      optimizer = optimizer_fn(0.001)
-      model = _model_fn()
-      loss = 'mse'
-      metrics = ['mae']
-      model.compile(optimizer, loss, metrics=metrics)
-    dataset = _get_dataset()
-    kernel_before = model.get_weights()[0][0]
-    model.fit(dataset, epochs=10)
-    kernel_after = model.get_weights()[0][0]
-    self.assertNotEqual(kernel_before, kernel_after)
-    self.assertGreater(abs(kernel_before - 1), abs(kernel_after - 1))
+        with strategy.scope():
+            optimizer_fn = gradient_descent_keras.SGD
+            optimizer = optimizer_fn(0.001)
+            model = _model_fn()
+            loss = "mse"
+            metrics = ["mae"]
+            model.compile(optimizer, loss, metrics=metrics)
+        dataset = _get_dataset()
+        kernel_before = model.get_weights()[0][0]
+        model.fit(dataset, epochs=10)
+        kernel_after = model.get_weights()[0][0]
+        self.assertNotEqual(kernel_before, kernel_after)
+        self.assertGreater(abs(kernel_before - 1), abs(kernel_after - 1))
 
 
-if __name__ == '__main__':
-  tf.__internal__.distribute.multi_process_runner.test_main()
+if __name__ == "__main__":
+    tf.__internal__.distribute.multi_process_runner.test_main()

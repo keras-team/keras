@@ -14,5 +14,9 @@
 # ==============================================================================
 """Keras locally-connected layers."""
 
-from keras.layers.locally_connected.locally_connected1d import LocallyConnected1D
-from keras.layers.locally_connected.locally_connected2d import LocallyConnected2D
+from keras.layers.locally_connected.locally_connected1d import (
+    LocallyConnected1D,
+)
+from keras.layers.locally_connected.locally_connected2d import (
+    LocallyConnected2D,
+)
