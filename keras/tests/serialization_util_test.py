@@ -27,35 +27,41 @@ from keras.saving.saved_model import json_utils
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class SerializationTests(test_combinations.TestCase):
+    def test_serialize_dense(self):
+        dense = core.Dense(3)
+        dense(tf.constant([[4.0]]))
+        round_trip = json.loads(
+            json.dumps(dense, default=json_utils.get_json_type)
+        )
+        self.assertEqual(3, round_trip["config"]["units"])
 
-  def test_serialize_dense(self):
-    dense = core.Dense(3)
-    dense(tf.constant([[4.]]))
-    round_trip = json.loads(json.dumps(
-        dense, default=json_utils.get_json_type))
-    self.assertEqual(3, round_trip["config"]["units"])
+    def test_serialize_sequential(self):
+        model = sequential.Sequential()
+        model.add(core.Dense(4))
+        model.add(core.Dense(5))
+        model(tf.constant([[1.0]]))
+        sequential_round_trip = json.loads(
+            json.dumps(model, default=json_utils.get_json_type)
+        )
+        self.assertEqual(
+            # Note that `config['layers'][0]` will be an InputLayer in V2
+            # (but not in V1)
+            5,
+            sequential_round_trip["config"]["layers"][-1]["config"]["units"],
+        )
 
-  def test_serialize_sequential(self):
-    model = sequential.Sequential()
-    model.add(core.Dense(4))
-    model.add(core.Dense(5))
-    model(tf.constant([[1.]]))
-    sequential_round_trip = json.loads(
-        json.dumps(model, default=json_utils.get_json_type))
-    self.assertEqual(
-        # Note that `config['layers'][0]` will be an InputLayer in V2
-        # (but not in V1)
-        5, sequential_round_trip["config"]["layers"][-1]["config"]["units"])
+    def test_serialize_model(self):
+        x = input_layer.Input(shape=[3])
+        y = core.Dense(10)(x)
+        model = training.Model(x, y)
+        model(tf.constant([[1.0, 1.0, 1.0]]))
+        model_round_trip = json.loads(
+            json.dumps(model, default=json_utils.get_json_type)
+        )
+        self.assertEqual(
+            10, model_round_trip["config"]["layers"][1]["config"]["units"]
+        )
 
-  def test_serialize_model(self):
-    x = input_layer.Input(shape=[3])
-    y = core.Dense(10)(x)
-    model = training.Model(x, y)
-    model(tf.constant([[1., 1., 1.]]))
-    model_round_trip = json.loads(
-        json.dumps(model, default=json_utils.get_json_type))
-    self.assertEqual(
-        10, model_round_trip["config"]["layers"][1]["config"]["units"])
 
 if __name__ == "__main__":
-  tf.test.main()
+    tf.test.main()

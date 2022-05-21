@@ -19,6 +19,6 @@ from keras.optimizers.optimizer_v2 import adagrad
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.optimizers.legacy.Adagrad')
+@keras_export("keras.optimizers.legacy.Adagrad")
 class Adagrad(adagrad.Adagrad):
-  pass
+    pass

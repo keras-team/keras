@@ -110,78 +110,78 @@ log_cosh = logcosh
 cosine_proximity = cosine_similarity
 
 
-@keras_export('keras.metrics.serialize')
+@keras_export("keras.metrics.serialize")
 def serialize(metric):
-  """Serializes metric function or `Metric` instance.
+    """Serializes metric function or `Metric` instance.
 
-  Args:
-    metric: A Keras `Metric` instance or a metric function.
+    Args:
+      metric: A Keras `Metric` instance or a metric function.
 
-  Returns:
-    Metric configuration dictionary.
-  """
-  return serialize_keras_object(metric)
+    Returns:
+      Metric configuration dictionary.
+    """
+    return serialize_keras_object(metric)
 
 
-@keras_export('keras.metrics.deserialize')
+@keras_export("keras.metrics.deserialize")
 def deserialize(config, custom_objects=None):
-  """Deserializes a serialized metric class/function instance.
+    """Deserializes a serialized metric class/function instance.
 
-  Args:
-    config: Metric configuration.
-    custom_objects: Optional dictionary mapping names (strings) to custom
-      objects (classes and functions) to be considered during deserialization.
+    Args:
+      config: Metric configuration.
+      custom_objects: Optional dictionary mapping names (strings) to custom
+        objects (classes and functions) to be considered during deserialization.
 
-  Returns:
-      A Keras `Metric` instance or a metric function.
-  """
-  return deserialize_keras_object(
-      config,
-      module_objects=globals(),
-      custom_objects=custom_objects,
-      printable_module_name='metric function')
+    Returns:
+        A Keras `Metric` instance or a metric function.
+    """
+    return deserialize_keras_object(
+        config,
+        module_objects=globals(),
+        custom_objects=custom_objects,
+        printable_module_name="metric function",
+    )
 
 
-@keras_export('keras.metrics.get')
+@keras_export("keras.metrics.get")
 def get(identifier):
-  """Retrieves a Keras metric as a `function`/`Metric` class instance.
+    """Retrieves a Keras metric as a `function`/`Metric` class instance.
 
-  The `identifier` may be the string name of a metric function or class.
+    The `identifier` may be the string name of a metric function or class.
 
-  >>> metric = tf.keras.metrics.get("categorical_crossentropy")
-  >>> type(metric)
-  <class 'function'>
-  >>> metric = tf.keras.metrics.get("CategoricalCrossentropy")
-  >>> type(metric)
-  <class '...metrics.CategoricalCrossentropy'>
+    >>> metric = tf.keras.metrics.get("categorical_crossentropy")
+    >>> type(metric)
+    <class 'function'>
+    >>> metric = tf.keras.metrics.get("CategoricalCrossentropy")
+    >>> type(metric)
+    <class '...metrics.CategoricalCrossentropy'>
 
-  You can also specify `config` of the metric to this function by passing dict
-  containing `class_name` and `config` as an identifier. Also note that the
-  `class_name` must map to a `Metric` class
+    You can also specify `config` of the metric to this function by passing dict
+    containing `class_name` and `config` as an identifier. Also note that the
+    `class_name` must map to a `Metric` class
 
-  >>> identifier = {"class_name": "CategoricalCrossentropy",
-  ...               "config": {"from_logits": True}}
-  >>> metric = tf.keras.metrics.get(identifier)
-  >>> type(metric)
-  <class '...metrics.CategoricalCrossentropy'>
+    >>> identifier = {"class_name": "CategoricalCrossentropy",
+    ...               "config": {"from_logits": True}}
+    >>> metric = tf.keras.metrics.get(identifier)
+    >>> type(metric)
+    <class '...metrics.CategoricalCrossentropy'>
 
-  Args:
-    identifier: A metric identifier. One of None or string name of a metric
-      function/class or metric configuration dictionary or a metric function or
-      a metric class instance
+    Args:
+      identifier: A metric identifier. One of None or string name of a metric
+        function/class or metric configuration dictionary or a metric function or
+        a metric class instance
 
-  Returns:
-    A Keras metric as a `function`/ `Metric` class instance.
+    Returns:
+      A Keras metric as a `function`/ `Metric` class instance.
 
-  Raises:
-    ValueError: If `identifier` cannot be interpreted.
-  """
-  if isinstance(identifier, dict):
-    return deserialize(identifier)
-  elif isinstance(identifier, str):
-    return deserialize(str(identifier))
-  elif callable(identifier):
-    return identifier
-  else:
-    raise ValueError(
-        f'Could not interpret metric identifier: {identifier}')
+    Raises:
+      ValueError: If `identifier` cannot be interpreted.
+    """
+    if isinstance(identifier, dict):
+        return deserialize(identifier)
+    elif isinstance(identifier, str):
+        return deserialize(str(identifier))
+    elif callable(identifier):
+        return identifier
+    else:
+        raise ValueError(f"Could not interpret metric identifier: {identifier}")

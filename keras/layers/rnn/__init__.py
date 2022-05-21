@@ -25,31 +25,33 @@ from keras.layers.rnn.simple_rnn import SimpleRNNCell
 from keras.layers.rnn.simple_rnn import SimpleRNN
 
 if tf.__internal__.tf2.enabled():
-  from keras.layers.rnn.gru import GRU
-  from keras.layers.rnn.gru import GRUCell
-  from keras.layers.rnn.lstm import LSTM
-  from keras.layers.rnn.lstm import LSTMCell
-  from keras.layers.rnn.gru_v1 import GRU as GRUV1
-  from keras.layers.rnn.gru_v1 import GRUCell as GRUCellV1
-  from keras.layers.rnn.lstm_v1 import LSTM as LSTMV1
-  from keras.layers.rnn.lstm_v1 import LSTMCell as LSTMCellV1
-  GRUV2 = GRU
-  GRUCellV2 = GRUCell
-  LSTMV2 = LSTM
-  LSTMCellV2 = LSTMCell
+    from keras.layers.rnn.gru import GRU
+    from keras.layers.rnn.gru import GRUCell
+    from keras.layers.rnn.lstm import LSTM
+    from keras.layers.rnn.lstm import LSTMCell
+    from keras.layers.rnn.gru_v1 import GRU as GRUV1
+    from keras.layers.rnn.gru_v1 import GRUCell as GRUCellV1
+    from keras.layers.rnn.lstm_v1 import LSTM as LSTMV1
+    from keras.layers.rnn.lstm_v1 import LSTMCell as LSTMCellV1
+
+    GRUV2 = GRU
+    GRUCellV2 = GRUCell
+    LSTMV2 = LSTM
+    LSTMCellV2 = LSTMCell
 else:
-  from keras.layers.rnn.gru_v1 import GRU
-  from keras.layers.rnn.gru_v1 import GRUCell
-  from keras.layers.rnn.lstm_v1 import LSTM
-  from keras.layers.rnn.lstm_v1 import LSTMCell
-  from keras.layers.rnn.gru import GRU as GRUV2
-  from keras.layers.rnn.gru import GRUCell as GRUCellV2
-  from keras.layers.rnn.lstm import LSTM as LSTMV2
-  from keras.layers.rnn.lstm import LSTMCell as LSTMCellV2
-  GRUV1 = GRU
-  GRUCellV1 = GRUCell
-  LSTMV1 = LSTM
-  LSTMCellV1 = LSTMCell
+    from keras.layers.rnn.gru_v1 import GRU
+    from keras.layers.rnn.gru_v1 import GRUCell
+    from keras.layers.rnn.lstm_v1 import LSTM
+    from keras.layers.rnn.lstm_v1 import LSTMCell
+    from keras.layers.rnn.gru import GRU as GRUV2
+    from keras.layers.rnn.gru import GRUCell as GRUCellV2
+    from keras.layers.rnn.lstm import LSTM as LSTMV2
+    from keras.layers.rnn.lstm import LSTMCell as LSTMCellV2
+
+    GRUV1 = GRU
+    GRUCellV1 = GRUCell
+    LSTMV1 = LSTM
+    LSTMCellV1 = LSTMCell
 
 # Convolutional-recurrent layers.
 from keras.layers.rnn.conv_lstm1d import ConvLSTM1D

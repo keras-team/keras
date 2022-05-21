@@ -23,32 +23,36 @@ import tensorflow.compat.v2 as tf
 
 @test_combinations.run_all_keras_modes
 class AlphaDropoutTest(test_combinations.TestCase):
+    def test_AlphaDropout(self):
+        test_utils.layer_test(
+            keras.layers.AlphaDropout,
+            kwargs={"rate": 0.2},
+            input_shape=(3, 2, 3),
+        )
 
-  def test_AlphaDropout(self):
-    test_utils.layer_test(
-        keras.layers.AlphaDropout, kwargs={'rate': 0.2}, input_shape=(3, 2, 3))
+    def _make_model(self, dtype):
+        assert dtype in (tf.float32, tf.float64)
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(8, input_shape=(32,), dtype=dtype))
+        layer = keras.layers.AlphaDropout(0.5, dtype=dtype)
+        model.add(layer)
+        return model
 
-  def _make_model(self, dtype):
-    assert dtype in (tf.float32, tf.float64)
-    model = keras.Sequential()
-    model.add(keras.layers.Dense(8, input_shape=(32,), dtype=dtype))
-    layer = keras.layers.AlphaDropout(0.5, dtype=dtype)
-    model.add(layer)
-    return model
+    def _train_model(self, dtype):
+        model = self._make_model(dtype)
+        model.compile(
+            optimizer="sgd",
+            loss="mse",
+            run_eagerly=test_utils.should_run_eagerly(),
+        )
+        model.train_on_batch(np.zeros((8, 32)), np.zeros((8, 8)))
 
-  def _train_model(self, dtype):
-    model = self._make_model(dtype)
-    model.compile(
-        optimizer='sgd',
-        loss='mse',
-        run_eagerly=test_utils.should_run_eagerly())
-    model.train_on_batch(np.zeros((8, 32)), np.zeros((8, 8)))
+    def test_alpha_dropout_float32(self):
+        self._train_model(tf.float32)
 
-  def test_alpha_dropout_float32(self):
-    self._train_model(tf.float32)
+    def test_alpha_dropout_float64(self):
+        self._train_model(tf.float64)
 
-  def test_alpha_dropout_float64(self):
-    self._train_model(tf.float64)
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

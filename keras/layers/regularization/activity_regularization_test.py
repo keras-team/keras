@@ -22,13 +22,13 @@ import tensorflow.compat.v2 as tf
 
 @test_combinations.run_all_keras_modes
 class ActivityRegularizationTest(test_combinations.TestCase):
+    def test_activity_regularization(self):
+        layer = keras.layers.ActivityRegularization(l1=0.1)
+        layer(keras.backend.variable(np.ones((2, 4))))
+        self.assertEqual(1, len(layer.losses))
+        config = layer.get_config()
+        self.assertEqual(config.pop("l1"), 0.1)
 
-  def test_activity_regularization(self):
-    layer = keras.layers.ActivityRegularization(l1=0.1)
-    layer(keras.backend.variable(np.ones((2, 4))))
-    self.assertEqual(1, len(layer.losses))
-    config = layer.get_config()
-    self.assertEqual(config.pop('l1'), 0.1)
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

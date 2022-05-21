@@ -19,6 +19,6 @@ from keras.optimizers.optimizer_v2 import ftrl
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.optimizers.legacy.Ftrl')
+@keras_export("keras.optimizers.legacy.Ftrl")
 class Ftrl(ftrl.Ftrl):
-  pass
+    pass

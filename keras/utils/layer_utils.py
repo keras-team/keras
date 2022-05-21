@@ -202,13 +202,13 @@ def print_summary(
         show_trainable: Whether to show if a layer is trainable.
             If not provided, defaults to `False`.
         layer_range: input of type `list` containing two `str` items, which is the
-          starting layer name and ending layer name (both inclusive) indicating
-          the range of layers to be printed in summary. It
-          also accepts regex patterns instead of exact name. In such case, start
-          predicate will be the first element it matches to `layer_range[0]`
-          and the end predicate will be the last element it matches to
-          `layer_range[1]`. By default `None` which considers all layers of
-          model.
+            starting layer name and ending layer name (both inclusive) indicating
+            the range of layers to be printed in summary. It
+            also accepts regex patterns instead of exact name. In such case, start
+            predicate will be the first element it matches to `layer_range[0]`
+            and the end predicate will be the last element it matches to
+            `layer_range[1]`. By default `None` which considers all layers of
+            model.
     """
     if print_fn is None:
         print_fn = io_utils.print_msg
