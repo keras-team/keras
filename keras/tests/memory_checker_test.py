@@ -16,61 +16,67 @@
 import keras
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework.memory_checker import MemoryChecker
+from tensorflow.python.framework.memory_checker import (
+    MemoryChecker,
+)
 
 
 class MemoryCheckerTest(tf.test.TestCase):
+    def testKerasBasic(self):
+        # TODO(kkb): Fix the slowness on Forge.
+        self.skipTest("This test is too slow on Forge so disabled for now.")
 
-  def testKerasBasic(self):
-    # TODO(kkb): Fix the slowness on Forge.
-    self.skipTest('This test is too slow on Forge so disabled for now.')
+        x = tf.zeros([1, 1])
+        y = tf.constant([[3]])
+        model = keras.models.Sequential()
+        model.add(keras.layers.Dense(1, input_dim=1))
+        model.compile(loss="mean_squared_error")
 
-    x = tf.zeros([1, 1])
-    y = tf.constant([[3]])
-    model = keras.models.Sequential()
-    model.add(keras.layers.Dense(1, input_dim=1))
-    model.compile(loss='mean_squared_error')
+        with MemoryChecker() as memory_checker:
+            for _ in range(10):
+                model.fit(x, y)
+                model.evaluate(x, y)
+                memory_checker.record_snapshot()
 
-    with MemoryChecker() as memory_checker:
-      for _ in range(10):
-        model.fit(x, y)
-        model.evaluate(x, y)
-        memory_checker.record_snapshot()
+        memory_checker.report()
+        memory_checker.assert_no_leak_if_all_possibly_except_one()
 
-    memory_checker.report()
-    memory_checker.assert_no_leak_if_all_possibly_except_one()
+    def testKerasAdvanced(self):
+        # TODO(kkb): Fix the slowness on Forge.
+        self.skipTest("This test is too slow on Forge so disabled for now.")
 
-  def testKerasAdvanced(self):
-    # TODO(kkb): Fix the slowness on Forge.
-    self.skipTest('This test is too slow on Forge so disabled for now.')
+        # A real world example taken from the following.
+        # https://github.com/tensorflow/tensorflow/issues/32500
+        # b/142150794
 
-    # A real world example taken from the following.
-    # https://github.com/tensorflow/tensorflow/issues/32500
-    # b/142150794
+        with MemoryChecker() as memory_checker:
+            rows = 6
+            columns = 7
+            model = keras.Sequential(
+                [
+                    keras.layers.Flatten(input_shape=[rows * columns, 3]),
+                    keras.layers.Dense(7, input_shape=[rows * columns * 3]),
+                ]
+            )
 
-    with MemoryChecker() as memory_checker:
-      rows = 6
-      columns = 7
-      model = keras.Sequential([
-          keras.layers.Flatten(input_shape=[rows * columns, 3]),
-          keras.layers.Dense(7, input_shape=[rows * columns * 3]),
-      ])
+            model.compile(
+                optimizer=keras.optimizers.optimizer_v2.gradient_descent.SGD(
+                    lr=0.01
+                ),
+                loss="mean_squared_error",
+                metrics=["accuracy"],
+            )
+            states = [[1] * rows * columns for _ in range(20)]
+            f = tf.one_hot(states, dtype="float32", depth=3)
 
-      model.compile(
-          optimizer=keras.optimizers.optimizer_v2.gradient_descent.SGD(lr=0.01),
-          loss='mean_squared_error',
-          metrics=['accuracy'])
-      states = [[1] * rows * columns for _ in range(20)]
-      f = tf.one_hot(states, dtype='float32', depth=3)
+            for _ in range(20):
+                model.predict(f, steps=10)
+                memory_checker.record_snapshot()
 
-      for _ in range(20):
-        model.predict(f, steps=10)
-        memory_checker.record_snapshot()
-
-    memory_checker.report()
-    memory_checker.assert_no_leak_if_all_possibly_except_one()
+        memory_checker.report()
+        memory_checker.assert_no_leak_if_all_possibly_except_one()
 
 
-if __name__ == '__main__':
-  tf.compat.v1.enable_eager_execution()
-  tf.test.main()
+if __name__ == "__main__":
+    tf.compat.v1.enable_eager_execution()
+    tf.test.main()

@@ -23,33 +23,37 @@ import tensorflow.compat.v2 as tf
 
 @test_combinations.run_all_keras_modes
 class ReshapeTest(test_combinations.TestCase):
+    def test_reshape(self):
+        test_utils.layer_test(
+            keras.layers.Reshape,
+            kwargs={"target_shape": (8, 1)},
+            input_shape=(3, 2, 4),
+        )
 
-  def test_reshape(self):
-    test_utils.layer_test(
-        keras.layers.Reshape,
-        kwargs={'target_shape': (8, 1)},
-        input_shape=(3, 2, 4))
+        test_utils.layer_test(
+            keras.layers.Reshape,
+            kwargs={"target_shape": (-1, 1)},
+            input_shape=(3, 2, 4),
+        )
 
-    test_utils.layer_test(
-        keras.layers.Reshape,
-        kwargs={'target_shape': (-1, 1)},
-        input_shape=(3, 2, 4))
+        test_utils.layer_test(
+            keras.layers.Reshape,
+            kwargs={"target_shape": (1, -1)},
+            input_shape=(3, 2, 4),
+        )
 
-    test_utils.layer_test(
-        keras.layers.Reshape,
-        kwargs={'target_shape': (1, -1)},
-        input_shape=(3, 2, 4))
+        test_utils.layer_test(
+            keras.layers.Reshape,
+            kwargs={"target_shape": (-1, 1)},
+            input_shape=(None, None, 2),
+        )
 
-    test_utils.layer_test(
-        keras.layers.Reshape,
-        kwargs={'target_shape': (-1, 1)},
-        input_shape=(None, None, 2))
+    def test_reshape_set_static_shape(self):
+        input_layer = keras.Input(batch_shape=(1, None))
+        reshaped = keras.layers.Reshape((1, 100))(input_layer)
+        # Make sure the batch dim is not lost after array_ops.reshape.
+        self.assertEqual(reshaped.shape, [1, 1, 100])
 
-  def test_reshape_set_static_shape(self):
-    input_layer = keras.Input(batch_shape=(1, None))
-    reshaped = keras.layers.Reshape((1, 100))(input_layer)
-    # Make sure the batch dim is not lost after array_ops.reshape.
-    self.assertEqual(reshaped.shape, [1, 1, 100])
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

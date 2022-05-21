@@ -22,32 +22,39 @@ import tensorflow.compat.v2 as tf
 
 @test_combinations.run_all_keras_modes
 class ThresholdedReLUTest(test_combinations.TestCase):
+    def test_thresholded_relu(self):
+        test_utils.layer_test(
+            keras.layers.ThresholdedReLU,
+            kwargs={"theta": 0.5},
+            input_shape=(2, 3, 4),
+            supports_masking=True,
+        )
 
-  def test_thresholded_relu(self):
-    test_utils.layer_test(keras.layers.ThresholdedReLU,
-                          kwargs={'theta': 0.5},
-                          input_shape=(2, 3, 4),
-                          supports_masking=True)
+    def test_threshold_relu_with_invalid_theta(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Theta of a Thresholded ReLU layer cannot "
+            "be None, expecting a float. Received: None",
+        ):
+            test_utils.layer_test(
+                keras.layers.ThresholdedReLU,
+                kwargs={"theta": None},
+                input_shape=(2, 3, 4),
+                supports_masking=True,
+            )
 
-  def test_threshold_relu_with_invalid_theta(self):
-    with self.assertRaisesRegex(
-        ValueError, 'Theta of a Thresholded ReLU layer cannot '
-        'be None, expecting a float. Received: None'):
-      test_utils.layer_test(
-          keras.layers.ThresholdedReLU,
-          kwargs={'theta': None},
-          input_shape=(2, 3, 4),
-          supports_masking=True)
-
-    with self.assertRaisesRegex(
-        ValueError, 'The theta value of a Thresholded ReLU '
-        'layer should be >=0. Received: -10'):
-      test_utils.layer_test(
-          keras.layers.ThresholdedReLU,
-          kwargs={'theta': -10},
-          input_shape=(2, 3, 4),
-          supports_masking=True)
+        with self.assertRaisesRegex(
+            ValueError,
+            "The theta value of a Thresholded ReLU "
+            "layer should be >=0. Received: -10",
+        ):
+            test_utils.layer_test(
+                keras.layers.ThresholdedReLU,
+                kwargs={"theta": -10},
+                input_shape=(2, 3, 4),
+                supports_masking=True,
+            )
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

@@ -23,15 +23,17 @@ import tensorflow.compat.v2 as tf
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class RNNCellWrapperV1Test(tf.test.TestCase, parameterized.TestCase):
-
-  @parameterized.parameters([
-      legacy_cell_wrappers.DropoutWrapper, legacy_cell_wrappers.ResidualWrapper
-  ])
-  def testWrapperKerasStyle(self, wrapper):
-    """Tests if wrapper cell is instantiated in keras style scope."""
-    wrapped_cell = wrapper(legacy_cells.BasicRNNCell(1))
-    self.assertFalse(wrapped_cell._keras_style)
+    @parameterized.parameters(
+        [
+            legacy_cell_wrappers.DropoutWrapper,
+            legacy_cell_wrappers.ResidualWrapper,
+        ]
+    )
+    def testWrapperKerasStyle(self, wrapper):
+        """Tests if wrapper cell is instantiated in keras style scope."""
+        wrapped_cell = wrapper(legacy_cells.BasicRNNCell(1))
+        self.assertFalse(wrapped_cell._keras_style)
 
 
 if __name__ == "__main__":
-  tf.test.main()
+    tf.test.main()
