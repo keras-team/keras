@@ -14,12 +14,12 @@
 # ==============================================================================
 """Tests for Keras callbacks in multi-worker training with TF2."""
 
-import tensorflow.compat.v2 as tf
-
 import json
 import os
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras import callbacks
 from keras.distribute import distributed_file_utils
 from keras.distribute import multi_worker_testing_utils

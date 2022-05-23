@@ -16,7 +16,6 @@
 
 import tensorflow.compat.v2 as tf
 
-
 multidevice_strategies = [
     tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
     tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,

@@ -16,8 +16,8 @@
 import os
 
 import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
+
 from keras.optimizers.optimizer_v2 import adam
 
 

@@ -15,9 +15,9 @@
 """Tests for custom training loops that involves advanced optimizer usage."""
 
 import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
 from tensorflow.python.distribute import values
+
 from keras.distribute import (
     strategy_combinations as keras_strategy_combinations,
 )

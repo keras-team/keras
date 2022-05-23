@@ -17,7 +17,16 @@
 
 import copy
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.python.framework import (
+    test_util as tf_test_util,
+)
+from tensorflow.python.training.tracking import (
+    util as trackable_util,
+)
+
 import keras
 from keras.engine import base_layer_utils
 from keras.layers import core
@@ -25,15 +34,6 @@ from keras.layers.rnn.cell_wrappers import ResidualWrapper
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import generic_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.framework import (
-    test_util as tf_test_util,
-)
-from tensorflow.python.training.tracking import (
-    util as trackable_util,
-)
 
 
 class _RNNCellWithConstants(keras.layers.Layer):

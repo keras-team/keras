@@ -14,7 +14,10 @@
 # ==============================================================================
 """Layer serialization/deserialization functions."""
 
+import threading
+
 import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
 
 import threading
 from keras.engine import base_layer
@@ -31,17 +34,14 @@ from keras.layers import pooling
 from keras.layers import regularization
 from keras.layers import reshaping
 from keras.layers import rnn
-from keras.layers.rnn import cell_wrappers
-from keras.layers.rnn import gru
-from keras.layers.rnn import lstm
 from keras.layers.normalization import batch_normalization
 from keras.layers.normalization import batch_normalization_v1
 from keras.layers.normalization import layer_normalization
 from keras.layers.normalization import unit_normalization
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import discretization
-from keras.layers.preprocessing import hashing
 from keras.layers.preprocessing import hashed_crossing
+from keras.layers.preprocessing import hashing
 from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import integer_lookup
 from keras.layers.preprocessing import (
@@ -49,10 +49,12 @@ from keras.layers.preprocessing import (
 )
 from keras.layers.preprocessing import string_lookup
 from keras.layers.preprocessing import text_vectorization
+from keras.layers.rnn import cell_wrappers
+from keras.layers.rnn import gru
+from keras.layers.rnn import lstm
 from keras.saving.saved_model import json_utils
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
-from tensorflow.python.util.tf_export import keras_export
 
 ALL_MODULES = (
     base_layer,
@@ -138,15 +140,15 @@ def populate_deserializable_objects():
 
     # Prevent circular dependencies.
     from keras import models  # pylint: disable=g-import-not-at-top
-    from keras.premade_models.linear import (
-        LinearModel,
-    )  # pylint: disable=g-import-not-at-top
-    from keras.premade_models.wide_deep import (
-        WideDeepModel,
-    )  # pylint: disable=g-import-not-at-top
     from keras.feature_column.sequence_feature_column import (
-        SequenceFeatures,
-    )  # pylint: disable=g-import-not-at-top
+        SequenceFeatures,  # pylint: disable=g-import-not-at-top
+    )
+    from keras.premade_models.linear import (
+        LinearModel,  # pylint: disable=g-import-not-at-top
+    )
+    from keras.premade_models.wide_deep import (
+        WideDeepModel,  # pylint: disable=g-import-not-at-top
+    )
 
     LOCAL.ALL_OBJECTS["Input"] = input_layer.Input
     LOCAL.ALL_OBJECTS["InputSpec"] = input_spec.InputSpec
@@ -159,14 +161,14 @@ def populate_deserializable_objects():
 
     if tf.__internal__.tf2.enabled():
         from keras.feature_column.dense_features_v2 import (
-            DenseFeatures,
-        )  # pylint: disable=g-import-not-at-top
+            DenseFeatures,  # pylint: disable=g-import-not-at-top
+        )
 
         LOCAL.ALL_OBJECTS["DenseFeatures"] = DenseFeatures
     else:
         from keras.feature_column.dense_features import (
-            DenseFeatures,
-        )  # pylint: disable=g-import-not-at-top
+            DenseFeatures,  # pylint: disable=g-import-not-at-top
+        )
 
         LOCAL.ALL_OBJECTS["DenseFeatures"] = DenseFeatures
 

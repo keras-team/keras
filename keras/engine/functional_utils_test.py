@@ -17,14 +17,14 @@
 import collections
 import os
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from keras import layers
 from keras import models
 from keras.engine import functional_utils
 from keras.engine import input_layer as input_layer_lib
 from keras.testing_infra import test_combinations
-
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)

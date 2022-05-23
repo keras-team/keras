@@ -14,15 +14,14 @@
 # ==============================================================================
 """Tests for data_utils."""
 
-import tensorflow.compat.v2 as tf
-
-from itertools import cycle
 import os
 import tarfile
 import urllib
 import zipfile
+from itertools import cycle
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.utils import data_utils

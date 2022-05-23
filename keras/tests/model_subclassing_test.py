@@ -14,24 +14,23 @@
 # ==============================================================================
 """Tests for Model subclassing."""
 
-import tensorflow.compat.v2 as tf
-
 import copy
 import os
 
-from absl.testing import parameterized
 import numpy as np
-
-import keras
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
-from keras.tests import model_subclassing_test_util as model_util
 from tensorflow.python.training.tracking import (
     data_structures,
 )
+
+import keras
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
+from keras.tests import model_subclassing_test_util as model_util
 
 try:
     import h5py  # pylint:disable=g-import-not-at-top

@@ -15,11 +15,11 @@
 """Leaky version of a Rectified Linear Unit activation layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
-
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.LeakyReLU")

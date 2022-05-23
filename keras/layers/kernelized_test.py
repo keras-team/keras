@@ -14,27 +14,27 @@
 # ==============================================================================
 """Tests for kernelized.py."""
 
-import tensorflow.compat.v2 as tf
-
 import functools
 import math
 import os
 import shutil
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
+
 from keras import backend as keras_backend
-from keras.testing_infra import test_combinations
 from keras import initializers
-from keras.testing_infra import test_utils
 from keras.engine import base_layer_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.layers import kernelized as kernel_layers
 from keras.saving import save
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import kernelized_utils
 
 

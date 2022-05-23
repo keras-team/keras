@@ -17,14 +17,15 @@
 import json
 import math
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
+from keras import Model
 from keras import backend
 from keras import layers
 from keras import metrics
-from keras import Model
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

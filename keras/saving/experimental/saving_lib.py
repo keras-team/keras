@@ -17,10 +17,12 @@ import importlib
 import json
 import os
 import types
-from keras.saving.saved_model import json_utils
-from keras.utils import generic_utils
+
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util import tf_export
+
+from keras.saving.saved_model import json_utils
+from keras.utils import generic_utils
 
 _CONFIG_FILE = "config.keras"
 

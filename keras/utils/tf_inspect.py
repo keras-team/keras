@@ -13,12 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """TFDecorator-aware replacements for the inspect module."""
-# pylint: disable=g-classes-have-attributes
-import tensorflow.compat.v2 as tf
-
 import collections
 import functools
 import inspect as _inspect
+
+# pylint: disable=g-classes-have-attributes
+import tensorflow.compat.v2 as tf
 
 ArgSpec = _inspect.ArgSpec
 

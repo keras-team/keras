@@ -18,12 +18,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 from tensorflow.python.eager import backprop
-from keras.testing_infra import test_combinations
+
 from keras.feature_column import dense_features_v2 as df
+from keras.testing_infra import test_combinations
 
 
 def _initialized_session(config=None):

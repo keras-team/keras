@@ -15,6 +15,8 @@
 """Base class for N-D convolutional LSTM layers."""
 # pylint: disable=g-classes-have-attributes
 
+import tensorflow.compat.v2 as tf
+
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -24,7 +26,6 @@ from keras.engine import base_layer
 from keras.layers.rnn.base_conv_rnn import ConvRNN
 from keras.layers.rnn.dropout_rnn_cell_mixin import DropoutRNNCellMixin
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
 
 
 class ConvLSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):

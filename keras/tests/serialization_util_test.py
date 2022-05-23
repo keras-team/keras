@@ -14,15 +14,16 @@
 # ==============================================================================
 """Tests for serialization functions."""
 
+import json
+
 import tensorflow.compat.v2 as tf
 
-import json
-from keras.testing_infra import test_combinations
 from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
 from keras.saving.saved_model import json_utils
+from keras.testing_infra import test_combinations
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

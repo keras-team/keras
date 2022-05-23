@@ -14,14 +14,13 @@
 # ==============================================================================
 """Tests for metrics_utils."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras import backend
 from keras.testing_infra import test_combinations
 from keras.utils import metrics_utils
-
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

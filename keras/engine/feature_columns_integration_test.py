@@ -14,15 +14,14 @@
 # ==============================================================================
 """Tests specific to Feature Columns integration."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
-
 import keras
-from keras.testing_infra import test_combinations
 from keras import metrics as metrics_module
-from keras.testing_infra import test_utils
 from keras.feature_column import dense_features as df
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import np_utils
 
 

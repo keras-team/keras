@@ -15,14 +15,14 @@
 """Tests for CollectiveAllReduceStrategy."""
 
 import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
+
 from keras import layers
-from keras.testing_infra import test_utils
 from keras.engine import training
 from keras.optimizers.optimizer_v2 import (
     gradient_descent as gradient_descent_keras,
 )
+from keras.testing_infra import test_utils
 
 
 @test_utils.run_v2_only

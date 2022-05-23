@@ -14,21 +14,19 @@
 # ==============================================================================
 """Tests for Keras composite tensor support."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
-
 import numpy as np
 import scipy.sparse
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.engine import input_layer
-from keras.layers import core
 from keras.layers import Dense
 from keras.layers import Embedding
 from keras.layers import Layer
+from keras.layers import core
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 # Define test-only Layer classes to validate passing Sparse and Ragged tensors

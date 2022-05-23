@@ -14,12 +14,13 @@
 # ==============================================================================
 """Tests for Keras TF utils."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.testing_infra import test_combinations
 from keras.utils import tf_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 try:
     import attr  # pylint:disable=g-import-not-at-top

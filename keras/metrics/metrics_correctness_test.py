@@ -14,15 +14,14 @@
 # ==============================================================================
 """Tests metrics correctness using Keras model."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
-from keras.testing_infra import test_combinations
 from keras import layers
 from keras import losses
 from keras import metrics
+from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import losses_utils
 

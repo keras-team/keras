@@ -15,6 +15,12 @@
 """The V2 implementation of Normalization layers."""
 
 import tensorflow.compat.v2 as tf
+from tensorflow.python.ops.control_flow_ops import (
+    get_enclosing_xla_context,
+)
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras import constraints
 from keras import initializers
@@ -24,11 +30,6 @@ from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import control_flow_util
 from keras.utils import tf_utils
-from tensorflow.python.ops.control_flow_ops import (
-    get_enclosing_xla_context,
-)
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 
 class BatchNormalizationBase(Layer):

@@ -15,9 +15,10 @@
 """Contains the Activation layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import activations
 from keras.engine.base_layer import Layer
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Activation")

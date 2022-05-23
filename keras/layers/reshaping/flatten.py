@@ -18,13 +18,13 @@
 import functools
 import operator
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Flatten")

@@ -15,7 +15,6 @@
 """Keras estimator API."""
 
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.util.tf_export import keras_export
 
 # Keras has undeclared dependency on tensorflow/estimator:estimator_py.
@@ -164,8 +163,8 @@ def model_to_estimator(
 
     try:
         from tensorflow_estimator.python.estimator import (
-            keras_lib,
-        )  # pylint: disable=g-import-not-at-top
+            keras_lib,  # pylint: disable=g-import-not-at-top
+        )
     except ImportError:
         raise NotImplementedError(
             "tf.keras.estimator.model_to_estimator function not available in your "
@@ -360,8 +359,8 @@ def model_to_estimator_v2(
 
     try:
         from tensorflow_estimator.python.estimator import (
-            keras_lib,
-        )  # pylint: disable=g-import-not-at-top
+            keras_lib,  # pylint: disable=g-import-not-at-top
+        )
     except ImportError:
         raise NotImplementedError(
             "tf.keras.estimator.model_to_estimator function not available in your "

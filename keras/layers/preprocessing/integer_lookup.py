@@ -17,12 +17,13 @@
 # pylint: disable=g-classes-have-attributes
 
 
-from keras.engine import base_preprocessing_layer
-from keras.layers.preprocessing import index_lookup
 import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.engine import base_preprocessing_layer
+from keras.layers.preprocessing import index_lookup
 
 
 @keras_export(

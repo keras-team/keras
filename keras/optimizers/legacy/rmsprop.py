@@ -14,9 +14,9 @@
 # ==============================================================================
 """Legacy RMSprop optimizer implementation."""
 
-from keras.optimizers.optimizer_v2 import rmsprop
-
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.optimizers.optimizer_v2 import rmsprop
 
 
 @keras_export("keras.optimizers.legacy.RMSprop")

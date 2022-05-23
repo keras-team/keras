@@ -15,9 +15,9 @@
 """Layer that adds several inputs."""
 
 
-from keras.layers.merging.base_merge import _Merge
-
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.layers.merging.base_merge import _Merge
 
 
 @keras_export("keras.layers.Add")

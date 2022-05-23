@@ -1,8 +1,9 @@
 """Tests for migration_utils."""
 
+import tensorflow as tf
+
 from keras.initializers import GlorotUniform as V2GlorotUniform
 from keras.legacy_tf_layers import migration_utils
-import tensorflow as tf
 
 
 class DeterministicRandomTestToolTest(tf.test.TestCase):

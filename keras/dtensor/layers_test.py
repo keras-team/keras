@@ -14,14 +14,15 @@
 # ==============================================================================
 """Tests for layers."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras import backend
 from keras import layers
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import test_util
 from keras.utils import tf_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 class LayersTest(test_util.DTensorBaseTest):

@@ -13,12 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for pickling / deepcopying of Keras Models."""
-# pylint: disable=g-bad-import-order
-import tensorflow.compat.v2 as tf
-
 import copy
 import pickle
+
 import numpy as np
+
+# pylint: disable=g-bad-import-order
+import tensorflow.compat.v2 as tf
 
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils

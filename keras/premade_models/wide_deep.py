@@ -15,6 +15,9 @@
 """Built-in WideNDeep model classes."""
 
 import tensorflow.compat.v2 as tf
+from tensorflow.python.util import deprecation
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import activations
 from keras import backend
 from keras import layers as layer_module
@@ -22,8 +25,6 @@ from keras.engine import base_layer
 from keras.engine import data_adapter
 from keras.engine import training as keras_training
 from keras.utils import generic_utils
-from tensorflow.python.util import deprecation
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(

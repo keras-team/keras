@@ -18,16 +18,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
 from keras.feature_column import sequence_feature_column as ksfc
 from keras.saving import model_config
+from keras.testing_infra import test_combinations
 
 
 def _initialized_session(config=None):

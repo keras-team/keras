@@ -14,8 +14,11 @@
 # ==============================================================================
 """Integration tests for Keras applications."""
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras import backend
+from keras import utils
 from keras.applications import convnext
 from keras.applications import densenet
 from keras.applications import efficientnet
@@ -33,8 +36,6 @@ from keras.applications import resnet_v2
 from keras.applications import vgg16
 from keras.applications import vgg19
 from keras.applications import xception
-from keras import utils
-import tensorflow.compat.v2 as tf
 
 MODEL_LIST_NO_NASNET = [
     (resnet.ResNet50, 2048),

@@ -20,6 +20,11 @@ import collections
 import copy
 import itertools
 import warnings
+
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.tools.docs import doc_controls
+
 from keras import backend
 from keras.dtensor import layout_map as layout_map_lib
 from keras.engine import base_layer
@@ -35,9 +40,6 @@ from keras.saving.saved_model import network_serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.tools.docs import doc_controls
 
 
 # pylint: disable=g-classes-have-attributes
@@ -1425,9 +1427,7 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
             layer = created_layers[layer_name]
         else:
             # Instantiate layer.
-            from keras.layers import (
-                deserialize as deserialize_layer,
-            )  # pylint: disable=g-import-not-at-top
+            from keras.layers import deserialize as deserialize_layer
 
             layer = deserialize_layer(layer_data, custom_objects=custom_objects)
             created_layers[layer_name] = layer

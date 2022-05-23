@@ -14,9 +14,8 @@
 # ==============================================================================
 """Tests for KPL + CentralStorageStrategy."""
 
-from absl.testing import parameterized
 import tensorflow.compat.v2 as tf
-
+from absl.testing import parameterized
 from tensorflow.python.distribute import (
     combinations as ds_combinations,
 )

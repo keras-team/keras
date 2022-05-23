@@ -15,13 +15,12 @@
 """Utilities for unit-testing Keras."""
 # pylint: disable=g-bad-import-order
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import functools
 import itertools
 import unittest
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras

@@ -19,19 +19,18 @@ These tests ensure that a model revived from a combination of config and
 SavedModel have the expected structure.
 """
 
-import tensorflow.compat.v2 as tf
-
 # TODO(kathywu): Move relevant tests from saved_model_test to
 import shutil
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras import backend
+from keras.saving.saved_model import load as keras_load
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.saving.saved_model import load as keras_load
 from keras.utils import generic_utils
 
 

@@ -16,9 +16,10 @@
 
 import math
 
-from keras.preprocessing import sequence
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+from keras.preprocessing import sequence
 
 
 class TestSequence(tf.test.TestCase):

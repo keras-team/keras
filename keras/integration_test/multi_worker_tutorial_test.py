@@ -20,10 +20,11 @@ import re
 import unittest
 import uuid
 import zipfile
-from absl import logging
-from absl.testing import parameterized
+
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl import logging
+from absl.testing import parameterized
 
 PER_WORKER_BATCH_SIZE = 64
 NUM_WORKERS = 2

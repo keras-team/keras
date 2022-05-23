@@ -14,8 +14,6 @@
 # ==============================================================================
 """Benchmark for Keras text vectorization preprocessing layer's adapt method."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import itertools
 import random
@@ -23,6 +21,7 @@ import string
 import time
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.layers.preprocessing import index_lookup

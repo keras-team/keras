@@ -14,21 +14,20 @@
 # ,============================================================================
 """Tests for model saving in the HDF5 format."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import shutil
 import uuid
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
-from keras.optimizers import optimizer_v1
-from keras.testing_infra import test_utils
 from keras.engine import training
+from keras.optimizers import optimizer_v1
 from keras.saving import hdf5_format
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 try:
     import h5py  # pylint:disable=g-import-not-at-top

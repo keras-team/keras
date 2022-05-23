@@ -15,18 +15,17 @@
 """Tests for GRU V1 layer."""
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.core.protobuf import rewriter_config_pb2
+
 import keras
 from keras.layers.rnn import gru
 from keras.layers.rnn import gru_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.core.protobuf import rewriter_config_pb2
-
 
 # Global config for grappler setting that is used for graph mode test.
 _rewrites = rewriter_config_pb2.RewriterConfig()

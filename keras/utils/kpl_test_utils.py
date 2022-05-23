@@ -14,10 +14,10 @@
 # ==============================================================================
 """Test related utilities for KPL + tf.distribute."""
 
-import tensorflow.compat.v2 as tf
-
 import random
 import tempfile
+
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.layers.preprocessing import string_lookup

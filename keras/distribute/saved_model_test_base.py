@@ -16,11 +16,11 @@
 
 import os
 
-from absl.testing import parameterized
-from keras.distribute import model_combinations
 import numpy as np
-
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
+from keras.distribute import model_combinations
 
 _RANDOM_SEED = 1337
 _DEFAULT_FUNCTION_KEY = "serving_default"

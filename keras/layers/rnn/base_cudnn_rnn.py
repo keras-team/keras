@@ -15,10 +15,11 @@
 """Base class for recurrent layers backed by cuDNN."""
 # pylint: disable=g-classes-have-attributes
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine.input_spec import InputSpec
 from keras.layers.rnn.base_rnn import RNN
-import tensorflow.compat.v2 as tf
 
 
 class _CuDNNRNN(RNN):

@@ -14,13 +14,13 @@
 # ==============================================================================
 """Tests for AutoCastVariable."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import threading
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras.mixed_precision import autocast_variable
 from keras.optimizers.optimizer_v2 import adadelta
 from keras.optimizers.optimizer_v2 import adagrad

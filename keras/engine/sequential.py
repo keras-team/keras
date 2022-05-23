@@ -15,9 +15,12 @@
 # pylint: disable=protected-access
 """Home of the `Sequential` model."""
 
-import tensorflow.compat.v2 as tf
-
 import copy
+
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import layers as layer_module
 from keras.engine import base_layer
 from keras.engine import functional
@@ -29,9 +32,6 @@ from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils import traceback_utils
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
-
 
 SINGLE_LAYER_OUTPUT_ERROR_MSG = (
     "All layers in a Sequential model should have "

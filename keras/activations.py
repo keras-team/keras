@@ -17,11 +17,11 @@
 import sys
 
 import tensorflow.compat.v2 as tf
-
-from keras import backend
-import keras.layers.activation as activation_layers
-from keras.utils import generic_utils
 from tensorflow.python.util.tf_export import keras_export
+
+import keras.layers.activation as activation_layers
+from keras import backend
+from keras.utils import generic_utils
 
 # b/123041942
 # In TF 2.x, if the `tf.nn.softmax` is used as an activation function in Keras

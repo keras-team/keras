@@ -15,14 +15,14 @@
 """Benchmark for KPL implementation of vocabulary columns from files with
 varying-length inputs."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
-import keras
+import tensorflow.compat.v2 as tf
 from tensorflow.python.eager.def_function import (
     function as tf_function,
 )
+
+import keras
 from keras.layers.preprocessing import string_lookup
 from keras.layers.preprocessing.benchmarks import (
     feature_column_benchmark as fc_bm,

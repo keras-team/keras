@@ -14,9 +14,10 @@
 # ==============================================================================
 """Tests for losses_utils."""
 
+import tensorflow.compat.v2 as tf
+
 from keras.testing_infra import test_combinations
 from keras.utils import losses_utils
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

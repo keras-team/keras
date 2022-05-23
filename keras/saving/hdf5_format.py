@@ -15,12 +15,12 @@
 # pylint: disable=protected-access
 """Functions for saving and loading a Keras Model from HDF5 format."""
 
-import tensorflow.compat.v2 as tf
-
 import json
 import os
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras.optimizers import optimizer_v1
@@ -32,17 +32,13 @@ from keras.saving import saving_utils
 from keras.saving.saved_model import json_utils
 from keras.utils.generic_utils import LazyLoader
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
-from tensorflow.python.platform import tf_logging as logging
 
-
-# pylint: disable=g-import-not-at-top
 try:
     import h5py
 
     HDF5_OBJECT_HEADER_LIMIT = 64512
 except ImportError:
     h5py = None
-# pylint: enable=g-import-not-at-top
 
 # TODO(b/134426265): Switch back to single-quotes to match the rest of the file
 # once the issue with copybara is fixed.
@@ -741,9 +737,7 @@ def save_weights_to_hdf5_group(f, model):
         f: HDF5 group.
         model: Model instance.
     """
-    from keras import (
-        __version__ as keras_version,
-    )  # pylint: disable=g-import-not-at-top
+    from keras import __version__ as keras_version
 
     save_attributes_to_hdf5_group(
         f, "layer_names", [layer.name.encode("utf8") for layer in model.layers]

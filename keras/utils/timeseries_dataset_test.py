@@ -14,9 +14,9 @@
 # ==============================================================================
 """Tests for timeseries_dataset."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
 from keras.testing_infra import test_utils
 from keras.utils import timeseries_dataset
 

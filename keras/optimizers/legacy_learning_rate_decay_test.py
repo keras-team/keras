@@ -14,9 +14,10 @@
 # ==============================================================================
 """Functional test for learning rate decay."""
 
+import math
+
 import tensorflow.compat.v2 as tf
 
-import math
 from keras.testing_infra import test_combinations
 
 

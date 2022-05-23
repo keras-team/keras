@@ -2,12 +2,9 @@
 
 import subprocess
 
-from absl import flags
 import tensorflow.compat.v2 as tf
-
-
+from absl import flags
 from tensorflow.core.protobuf import saved_model_pb2
-
 
 FLAGS = flags.FLAGS
 

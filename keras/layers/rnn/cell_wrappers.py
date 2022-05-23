@@ -27,13 +27,13 @@ import sys
 import types as python_types
 import warnings
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import tf_export
+
 from keras.layers.rnn import lstm
 from keras.layers.rnn.abstract_rnn_cell import AbstractRNNCell
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.util.tf_export import tf_export
 
 
 class _RNNCellWrapper(AbstractRNNCell):
@@ -132,9 +132,7 @@ class _RNNCellWrapper(AbstractRNNCell):
     @classmethod
     def from_config(cls, config, custom_objects=None):
         config = config.copy()
-        from keras.layers.serialization import (
-            deserialize as deserialize_layer,
-        )  # pylint: disable=g-import-not-at-top
+        from keras.layers.serialization import deserialize as deserialize_layer
 
         cell = deserialize_layer(
             config.pop("cell"), custom_objects=custom_objects

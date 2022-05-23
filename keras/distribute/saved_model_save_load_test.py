@@ -14,12 +14,13 @@
 # ==============================================================================
 """Tests for saving and loading using tf's saved_model APIs with DS."""
 
+import os
+
 import tensorflow.compat.v2 as tf
 
-import os
-from keras.testing_infra import test_utils
 from keras.distribute import model_combinations
 from keras.distribute import saved_model_test_base as test_base
+from keras.testing_infra import test_utils
 
 
 @test_utils.run_v2_only

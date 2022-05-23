@@ -14,12 +14,10 @@
 # ==============================================================================
 """Correctness tests for tf.keras RNN models using DistributionStrategy."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
-
 import keras
-from keras.testing_infra import test_utils
 from keras.distribute import keras_correctness_test_base
 from keras.layers.rnn import gru
 from keras.layers.rnn import gru_v1
@@ -29,6 +27,7 @@ from keras.mixed_precision import policy
 from keras.optimizers.optimizer_v2 import (
     gradient_descent as gradient_descent_keras,
 )
+from keras.testing_infra import test_utils
 
 
 class _DistributionStrategyRnnModelCorrectnessTest(

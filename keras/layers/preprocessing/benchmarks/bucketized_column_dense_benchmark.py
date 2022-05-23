@@ -14,14 +14,13 @@
 # ==============================================================================
 """Benchmark for KPL implementation of bucketized columns with dense inputs."""
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
-
-import keras
+import tensorflow.compat.v2 as tf
 from tensorflow.python.eager.def_function import (
     function as tf_function,
 )
+
+import keras
 from keras.layers.preprocessing import discretization
 from keras.layers.preprocessing.benchmarks import (
     feature_column_benchmark as fc_bm,

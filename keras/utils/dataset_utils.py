@@ -14,18 +14,17 @@
 # ==============================================================================
 """Keras image dataset loading utilities."""
 
-import tensorflow.compat.v2 as tf
-
-# pylint: disable=g-classes-have-attributes
-
 import multiprocessing
 import os
+import random
 import time
 import warnings
-import random
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
+
+# pylint: disable=g-classes-have-attributes
 
 
 @keras_export("keras.utils.split_dataset", v1=[])

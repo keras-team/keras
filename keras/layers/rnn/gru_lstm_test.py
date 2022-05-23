@@ -19,14 +19,15 @@ See also: lstm_test.py, gru_test.py.
 
 import os
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.layers.rnn import gru
 from keras.layers.rnn import lstm
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes

@@ -13,17 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 """V1 Training-related part of the Keras engine."""
-# pylint: disable=g-classes-have-attributes
-import tensorflow.compat.v2 as tf
-
 import collections
 import warnings
 
 import numpy as np
+
+# pylint: disable=g-classes-have-attributes
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
+
 from keras import backend
 from keras import losses
 from keras import metrics as metrics_module
-from keras.optimizers import optimizer_v1
 from keras import optimizers
 from keras.distribute import distributed_training_utils
 from keras.distribute import distributed_training_utils_v1
@@ -36,6 +37,7 @@ from keras.engine import training_generator_v1
 from keras.engine import training_utils
 from keras.engine import training_utils_v1
 from keras.mixed_precision import loss_scale_optimizer
+from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.saving import saving_utils
 from keras.saving.saved_model import model_serialization
@@ -45,7 +47,6 @@ from keras.utils import losses_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils.mode_keys import ModeKeys
-from tensorflow.python.platform import tf_logging as logging
 
 try:
     from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top

@@ -14,22 +14,21 @@
 # ==============================================================================
 """Tests for Keras optimizers."""
 
-import tensorflow.compat.v2 as tf
-
 import gc
 import weakref
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.training.adam import AdamOptimizer
+from tensorflow.python.training.experimental.loss_scale_optimizer import (
+    MixedPrecisionLossScaleOptimizer,
+)
 
 import keras
 from keras.optimizers import optimizer_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
-from tensorflow.python.training.adam import AdamOptimizer
-from tensorflow.python.training.experimental.loss_scale_optimizer import (
-    MixedPrecisionLossScaleOptimizer,
-)
 
 
 def _get_model(input_dim, num_hidden, output_dim):

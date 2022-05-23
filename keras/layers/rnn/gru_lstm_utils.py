@@ -18,9 +18,7 @@
 import uuid
 
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.eager.context import get_device_name
-
 
 # The following string constants are used by Defun approach for unified backend
 # of LSTM and GRU.
@@ -74,14 +72,14 @@ class DefunWrapper:
         }
         if self.layer_name == "lstm":
             from keras.layers.rnn import (
-                lstm,
-            )  # pylint: disable=g-import-not-at-top
+                lstm,  # pylint: disable=g-import-not-at-top
+            )
 
             layer_func = lstm.lstm_with_backend_selection
         else:
             from keras.layers.rnn import (
-                gru,
-            )  # pylint: disable=g-import-not-at-top
+                gru,  # pylint: disable=g-import-not-at-top
+            )
 
             layer_func = gru.gru_with_backend_selection
 

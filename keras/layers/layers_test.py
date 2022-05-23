@@ -15,8 +15,9 @@
 # pylint: disable=g-classes-have-attributes
 """Tests for layers.__init__."""
 
-from keras import layers
 import tensorflow.compat.v2 as tf
+
+from keras import layers
 
 
 class LayersTest(tf.test.TestCase):

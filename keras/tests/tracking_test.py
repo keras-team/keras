@@ -15,19 +15,19 @@
 
 import os
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy
-from keras.testing_infra import test_combinations
-from keras.engine import sequential
-from keras.engine import training
-from keras.layers import core
-from keras.layers.normalization import batch_normalization_v1
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 from tensorflow.python.training.tracking import (
     data_structures,
 )
 from tensorflow.python.training.tracking import util
+
+from keras.engine import sequential
+from keras.engine import training
+from keras.layers import core
+from keras.layers.normalization import batch_normalization_v1
+from keras.testing_infra import test_combinations
 
 
 class HasList(training.Model):

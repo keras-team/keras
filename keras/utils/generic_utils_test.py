@@ -15,15 +15,16 @@
 """Tests for Keras generic Python utils."""
 
 
-from functools import partial
 import os
 import sys
+from functools import partial
+
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.utils import generic_utils
 from keras.utils import io_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 class SnakeCaseTest(tf.test.TestCase):

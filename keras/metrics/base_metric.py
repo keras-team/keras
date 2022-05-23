@@ -21,6 +21,11 @@ import copy
 import types
 import warnings
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
+
 from keras import backend
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import utils as dtensor_utils
@@ -32,11 +37,6 @@ from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import metrics_utils
 from keras.utils.tf_utils import is_tensor_or_variable
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 
 @keras_export("keras.metrics.Metric")
@@ -207,8 +207,8 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
                 return result_t
 
         from keras.distribute import (
-            distributed_training_utils,
-        )  # pylint:disable=g-import-not-at-top
+            distributed_training_utils,  # pylint:disable=g-import-not-at-top
+        )
 
         return distributed_training_utils.call_replica_local_fn(
             replica_local_fn, *args, **kwargs

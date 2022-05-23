@@ -14,21 +14,21 @@
 # ==============================================================================
 """Tests for rmsprop."""
 
-import tensorflow.compat.v2 as tf
-
 import copy
 import itertools
 import math
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
+
+from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.optimizers.schedules import learning_rate_schedule
-from keras.optimizers.optimizer_v2 import rmsprop
 
 _DATA_TYPES = [tf.half, tf.float32, tf.float64, tf.complex64, tf.complex128]
 

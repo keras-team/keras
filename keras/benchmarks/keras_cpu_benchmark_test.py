@@ -14,9 +14,8 @@
 # ==============================================================================
 """Benchmark tests for CPU performance of Keras models."""
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 from keras.benchmarks import benchmark_util
 

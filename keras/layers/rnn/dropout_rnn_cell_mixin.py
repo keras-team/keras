@@ -15,10 +15,10 @@
 """Mixin holding dropout fields for RNN cells."""
 
 
-from keras import backend
 import tensorflow.compat.v2 as tf
-
 from tensorflow.tools.docs import doc_controls
+
+from keras import backend
 
 
 @doc_controls.do_not_generate_docs

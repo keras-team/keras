@@ -15,11 +15,12 @@
 """Private base class for pooling 2D layers."""
 # pylint: disable=g-classes-have-attributes
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
 
 
 class Pooling2D(Layer):

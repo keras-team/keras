@@ -15,15 +15,17 @@
 # pylint: disable=protected-access
 """Utils related to keras metrics."""
 
-from enum import Enum
 import functools
 import weakref
+from enum import Enum
+
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.utils import losses_utils
 from keras.utils import tf_utils
 from keras.utils.generic_utils import to_list
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 NEG_INF = -1e10
 

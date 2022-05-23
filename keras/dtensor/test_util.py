@@ -14,15 +14,11 @@
 # ==============================================================================
 """Keras utilities for DTensor unit test."""
 
-from absl.testing import parameterized
 import numpy as np
-
 import tensorflow.compat.v2 as tf
-
-
+from absl.testing import parameterized
 from tensorflow.dtensor.python import api as dtensor_api
 from tensorflow.python.eager import context
-
 
 _DEFAULT_GPU_MEMORY_LIMIT = 200  # MB
 

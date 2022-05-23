@@ -20,7 +20,13 @@ See also: lstm_test.py, gru_test.py, simplernn_test.py.
 
 import collections
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.python.training.tracking import (
+    util as trackable_util,
+)
+
 import keras
 from keras.engine import base_layer_utils
 from keras.layers.rnn import gru
@@ -30,13 +36,6 @@ from keras.layers.rnn import lstm_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import generic_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.training.tracking import (
-    util as trackable_util,
-)
-
 
 # Used for nested input/output/state RNN test.
 NestedInput = collections.namedtuple("NestedInput", ["t1", "t2"])

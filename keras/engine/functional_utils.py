@@ -14,12 +14,12 @@
 # ==============================================================================
 """Utilities for keras functional model."""
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine import input_layer as input_layer_module
 from keras.engine import keras_tensor
 from keras.engine import node as node_module
-
-import tensorflow.compat.v2 as tf
 
 _KERAS_TENSOR_TYPE_CHECK_ERROR_MSG = (
     "Found unexpected instance while processing input tensors for keras "

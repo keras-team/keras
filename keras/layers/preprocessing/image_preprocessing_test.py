@@ -15,17 +15,17 @@
 """Tests for image preprocessing layers."""
 
 import functools
+
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.python.ops import stateless_random_ops
 
 import keras
 from keras.engine import sequential
 from keras.layers.preprocessing import image_preprocessing
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.ops import stateless_random_ops
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)

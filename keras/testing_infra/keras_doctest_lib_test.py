@@ -16,9 +16,10 @@
 
 import doctest
 
-from absl.testing import parameterized
-from keras.testing_infra import keras_doctest_lib
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
+from keras.testing_infra import keras_doctest_lib
 
 
 class KerasDoctestOutputCheckerTest(parameterized.TestCase):

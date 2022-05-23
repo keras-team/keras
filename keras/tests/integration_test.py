@@ -14,19 +14,18 @@
 # ==============================================================================
 """Integration tests for Keras."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import random
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
+from keras import utils
 from keras.layers.rnn import legacy_cells
 from keras.legacy_tf_layers import base as base_layer
-from keras import utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class KerasIntegrationTest(test_combinations.TestCase):

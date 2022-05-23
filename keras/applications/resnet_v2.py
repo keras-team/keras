@@ -20,9 +20,10 @@ Reference:
     (https://arxiv.org/abs/1603.05027) (CVPR 2016)
 """
 
+from tensorflow.python.util.tf_export import keras_export
+
 from keras.applications import imagenet_utils
 from keras.applications import resnet
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(

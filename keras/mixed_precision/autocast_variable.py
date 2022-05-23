@@ -14,11 +14,11 @@
 # ==============================================================================
 """Contains AutoCastVariable, a variable which automatically casts itself."""
 
+import threading
+
 import tensorflow.compat.v2 as tf
 
-import threading
 from keras.distribute import distributed_training_utils
-
 
 # _autocast_dtype.dtype is the dtype AutoCastVariables should be cast to, or
 # None if AutoCastVariables should not be cast.

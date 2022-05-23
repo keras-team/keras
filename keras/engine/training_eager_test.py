@@ -14,16 +14,15 @@
 # ==============================================================================
 """Tests for training routines."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
 from keras import metrics as metrics_module
-from keras.testing_infra import test_utils
 from keras.optimizers.optimizer_v2 import rmsprop
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class TrainingTest(test_combinations.TestCase):

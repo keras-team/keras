@@ -4,12 +4,12 @@ This is used in tests to ensure that model serialization is deterministic across
 different processes.
 """
 
+import tensorflow.compat.v2 as tf
 from absl import app
 from absl import flags
+
 from keras import regularizers
 from keras.testing_infra import test_utils
-
-import tensorflow.compat.v2 as tf
 
 flags.DEFINE_string("output_path", "", "The path to write the SavedModel at.")
 

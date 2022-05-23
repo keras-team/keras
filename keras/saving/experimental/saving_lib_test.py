@@ -16,14 +16,15 @@
 import os
 import sys
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras import backend
 from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import json_utils
 from keras.utils import generic_utils
 from keras.utils import io_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 train_step_message = "This is my training step"
 

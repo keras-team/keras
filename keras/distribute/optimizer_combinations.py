@@ -14,6 +14,8 @@
 # ==============================================================================
 """Strategy and optimizer combinations for combinations.combine()."""
 
+import tensorflow.compat.v2 as tf
+
 from keras.optimizers.optimizer_experimental import adam as adam_experimental
 from keras.optimizers.optimizer_v2 import adadelta as adadelta_keras_v2
 from keras.optimizers.optimizer_v2 import adagrad as adagrad_keras_v2
@@ -25,8 +27,6 @@ from keras.optimizers.optimizer_v2 import (
 )
 from keras.optimizers.optimizer_v2 import nadam as nadam_keras_v2
 from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_keras_v2
-import tensorflow.compat.v2 as tf
-
 
 gradient_descent_optimizer_v1_fn = (
     tf.__internal__.test.combinations.NamedObject(

@@ -14,21 +14,22 @@
 # ==============================================================================
 """Tests for object-based saving which use tf.train.* optimizers."""
 
-import tensorflow.compat.v2 as tf
-
 import functools
 import os
+
+import tensorflow.compat.v2 as tf
 from tensorflow.python.eager import context
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
-from keras.engine import training
-from keras.layers import core
 from tensorflow.python.training.tracking import (
     util as trackable_utils,
 )
+
+from keras.engine import training
+from keras.layers import core
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class NonLayerTrackable(tf.Module):

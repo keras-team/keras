@@ -20,15 +20,14 @@ import itertools
 import threading
 import types
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.utils import control_flow_util
 from keras.utils import layer_utils
 from keras.utils import tf_contextlib
 from keras.utils.generic_utils import LazyLoader
-
-import tensorflow.compat.v2 as tf
-
 
 # pylint:disable=g-inconsistent-quotes
 training_lib = LazyLoader("training_lib", globals(), "keras.engine.training")

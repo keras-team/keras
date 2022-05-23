@@ -14,13 +14,14 @@
 # ==============================================================================
 """Tests AdditiveAttention layer."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.mixed_precision import policy
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

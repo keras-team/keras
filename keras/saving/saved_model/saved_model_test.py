@@ -25,7 +25,12 @@ import os
 import shutil
 import sys
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.core.example import example_pb2
+from tensorflow.core.example import feature_pb2
+
 import keras
 from keras import regularizers
 from keras.feature_column.dense_features import DenseFeatures
@@ -40,11 +45,6 @@ from keras.utils import control_flow_util
 from keras.utils import generic_utils
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.core.example import example_pb2
-from tensorflow.core.example import feature_pb2
 
 
 class LayerWithLearningPhase(keras.engine.base_layer.Layer):

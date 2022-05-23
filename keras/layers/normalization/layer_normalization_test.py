@@ -14,14 +14,13 @@
 # ==============================================================================
 """Tests for normalization layers."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
-
 import keras
+from keras.layers.normalization import layer_normalization
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.layers.normalization import layer_normalization
 
 
 def _run_layernorm_correctness_test(layer, dtype="float32"):

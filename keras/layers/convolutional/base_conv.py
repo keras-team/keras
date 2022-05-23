@@ -15,6 +15,8 @@
 """Keras base class for convolution layers."""
 # pylint: disable=g-classes-have-attributes
 
+import tensorflow.compat.v2 as tf
+
 from keras import activations
 from keras import constraints
 from keras import initializers
@@ -22,7 +24,6 @@ from keras import regularizers
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
 
 
 class Conv(Layer):

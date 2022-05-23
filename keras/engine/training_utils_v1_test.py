@@ -14,20 +14,20 @@
 # ==============================================================================
 """Tests for training utility functions."""
 
-import tensorflow.compat.v2 as tf
-
 import functools
 import multiprocessing.pool
 import time
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+from tensorflow.python.platform import tf_logging as logging
+
 from keras import backend
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.engine import keras_tensor
 from keras.engine import training_utils_v1
-from tensorflow.python.platform import tf_logging as logging
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class ModelInputsTest(tf.test.TestCase):

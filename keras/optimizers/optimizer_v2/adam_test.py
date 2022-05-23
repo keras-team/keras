@@ -14,14 +14,14 @@
 # ==============================================================================
 """Tests for Adam."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import adam
 from keras.optimizers.schedules import learning_rate_schedule
+from keras.testing_infra import test_combinations
 
 
 def adam_update_numpy(

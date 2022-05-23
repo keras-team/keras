@@ -14,14 +14,14 @@
 # ==============================================================================
 """RaggedKerasTensor tests."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras import layers
-from keras.testing_infra import test_utils
 from keras.engine import training
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 @test_utils.run_v2_only

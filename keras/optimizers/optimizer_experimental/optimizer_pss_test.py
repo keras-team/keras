@@ -1,6 +1,8 @@
 """Tests for calling optimizer on ParameterServerStrategy."""
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.optimizers.optimizer_experimental import adadelta
 from keras.optimizers.optimizer_experimental import adagrad
@@ -13,7 +15,6 @@ from keras.optimizers.optimizer_experimental import rmsprop
 from keras.optimizers.optimizer_experimental import sgd
 from keras.utils import dataset_creator
 from keras.utils import losses_utils
-import tensorflow.compat.v2 as tf
 
 ds_combinations = tf.__internal__.distribute.combinations
 

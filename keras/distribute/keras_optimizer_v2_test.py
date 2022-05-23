@@ -14,10 +14,9 @@
 # ==============================================================================
 """Tests that show that DistributionStrategy works with optimizer v2."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras.optimizers.optimizer_v2 import adam

@@ -15,6 +15,8 @@
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 """Locally-connected layer for 1D input."""
 
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -25,8 +27,6 @@ from keras.engine.input_spec import InputSpec
 from keras.layers.locally_connected import locally_connected_utils
 from keras.utils import conv_utils
 from keras.utils import tf_utils
-
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.LocallyConnected1D")

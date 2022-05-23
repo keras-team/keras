@@ -14,12 +14,13 @@
 # ==============================================================================
 """Tests for embedding layer."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras.mixed_precision import policy
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 class EmbeddingTest(test_combinations.TestCase):

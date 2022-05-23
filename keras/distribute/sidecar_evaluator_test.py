@@ -19,14 +19,15 @@ import os
 import threading
 import time
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.python.platform import tf_logging as logging
+
 import keras
 from keras.distribute import sidecar_evaluator as sidecar_evaluator_lib
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 _BATCH_SIZE = 32
 

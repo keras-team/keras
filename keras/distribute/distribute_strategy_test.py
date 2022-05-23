@@ -14,19 +14,17 @@
 # ==============================================================================
 """Tests for tf.keras models using tf.distribute.Strategy."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
-from absl.testing import parameterized
 import numpy as np
-
-import keras
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 from tensorflow.python.distribute.cluster_resolver import (
     SimpleClusterResolver,
 )
+
+import keras
 from keras import backend
-from keras.testing_infra import test_utils
 from keras.distribute import distributed_training_utils
 from keras.distribute import distributed_training_utils_v1
 from keras.distribute import multi_worker_testing_utils
@@ -45,6 +43,7 @@ from keras.mixed_precision import policy
 from keras.optimizers.optimizer_v2 import (
     gradient_descent as gradient_descent_keras,
 )
+from keras.testing_infra import test_utils
 from keras.utils import losses_utils
 from keras.utils import np_utils
 

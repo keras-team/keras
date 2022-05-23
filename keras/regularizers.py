@@ -16,14 +16,14 @@
 # pylint: disable=g-classes-have-attributes
 # pylint: disable=invalid-name
 
-import tensorflow.compat.v2 as tf
-
 import math
+
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
-from tensorflow.python.util.tf_export import keras_export
 
 
 def _check_penalty_number(x):

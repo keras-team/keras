@@ -16,14 +16,15 @@
 inputs."""
 
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.eager.def_function import (
+    function as tf_function,
+)
+
 import keras
 from keras.layers.preprocessing import hashed_crossing
 from keras.layers.preprocessing.benchmarks import (
     feature_column_benchmark as fc_bm,
-)
-import tensorflow.compat.v2 as tf
-from tensorflow.python.eager.def_function import (
-    function as tf_function,
 )
 
 NUM_REPEATS = 10

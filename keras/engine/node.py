@@ -16,12 +16,13 @@
 # pylint: disable=g-classes-have-attributes
 """Contains the `Node` class."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import copy
 import json
+
 import numpy as np
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.saving.saved_model import json_utils

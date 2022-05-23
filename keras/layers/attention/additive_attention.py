@@ -19,10 +19,10 @@ Attention is formed by three tensors: Query, Key and Value.
 """
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from keras.layers.attention.base_dense_attention import BaseDenseAttention
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.layers.attention.base_dense_attention import BaseDenseAttention
 
 
 @keras_export("keras.layers.AdditiveAttention")

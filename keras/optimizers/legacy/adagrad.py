@@ -14,9 +14,9 @@
 # ==============================================================================
 """Legacy Adagrad optimizer implementation."""
 
-from keras.optimizers.optimizer_v2 import adagrad
-
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.optimizers.optimizer_v2 import adagrad
 
 
 @keras_export("keras.optimizers.legacy.Adagrad")

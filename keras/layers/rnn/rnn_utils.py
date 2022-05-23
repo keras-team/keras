@@ -15,10 +15,10 @@
 """Utilities for RNN cells and layers."""
 # pylint: disable=protected-access
 
-from keras.utils import control_flow_util
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.platform import tf_logging as logging
+
+from keras.utils import control_flow_util
 
 
 def standardize_args(inputs, initial_state, constants, num_constants):

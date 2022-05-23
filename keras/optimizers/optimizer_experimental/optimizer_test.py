@@ -6,8 +6,11 @@ More context in go/new-keras-optimizer
 import os
 import re
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl import logging
 from absl.testing import parameterized
+
 import keras
 from keras.optimizers.optimizer_experimental import adadelta as adadelta_new
 from keras.optimizers.optimizer_experimental import adagrad as adagrad_new
@@ -26,8 +29,6 @@ from keras.optimizers.optimizer_v2 import gradient_descent as sgd_old
 from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_old
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.utils import losses_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 ds_combinations = tf.__internal__.distribute.combinations
 

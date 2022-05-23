@@ -14,21 +14,20 @@
 # ==============================================================================
 """Tests for cudnn recurrent layers."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import tempfile
 
-from absl.testing import parameterized
 import numpy as np
-
-import keras
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
+
+import keras
+from keras.optimizers.optimizer_v2.rmsprop import RMSprop
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.optimizers.optimizer_v2.rmsprop import RMSprop
 
 
 @test_combinations.run_all_keras_modes

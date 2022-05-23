@@ -14,20 +14,19 @@
 # ==============================================================================
 """Tests for saving utility functions."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras import backend
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.engine import sequential
 from keras.feature_column import dense_features
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.saving import saving_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class TraceModelCallTest(test_combinations.TestCase):

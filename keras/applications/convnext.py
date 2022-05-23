@@ -24,16 +24,16 @@ References:
   (CVPR 2022)
 """
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras import layers
 from keras import utils
 from keras.applications import imagenet_utils
 from keras.engine import sequential
 from keras.engine import training as training_lib
-import numpy as np
-
-import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHTS_PATH = (
     "https://storage.googleapis.com/tensorflow/keras-applications/convnext/"

@@ -16,13 +16,15 @@
 # pylint: disable=g-bad-import-order
 """Contains the base Layer class, from which all layers inherit."""
 
-import tensorflow.compat.v2 as tf
-
 import functools
 import itertools
 import threading
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging
+from tensorflow.tools.docs import doc_controls
+
 from keras import backend
 from keras import constraints
 from keras import initializers
@@ -42,13 +44,11 @@ from keras.utils import tf_utils
 
 # A module that only depends on `keras.layers` import these from here.
 from keras.utils.generic_utils import (
-    to_snake_case,
-)  # pylint: disable=unused-import
+    to_snake_case,  # pylint: disable=unused-import
+)
 from keras.utils.tf_utils import (
-    is_tensor_or_tensor_list,
-)  # pylint: disable=unused-import
-from tensorflow.python.platform import tf_logging
-from tensorflow.tools.docs import doc_controls
+    is_tensor_or_tensor_list,  # pylint: disable=unused-import
+)
 
 
 # pylint: disable=g-classes-have-attributes
@@ -2367,9 +2367,7 @@ class Layer(base_layer.Layer):
             pass
 
         # Keep track of metric instance created in subclassed layer.
-        from keras import (
-            metrics as metrics_module,
-        )  # pylint: disable=g-import-not-at-top
+        from keras import metrics as metrics_module
 
         for val in tf.nest.flatten(value):
             if isinstance(val, metrics_module.Metric) and hasattr(

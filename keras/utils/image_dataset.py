@@ -14,14 +14,14 @@
 # ==============================================================================
 """Keras image dataset loading utilities."""
 
-import tensorflow.compat.v2 as tf
-
-# pylint: disable=g-classes-have-attributes
-
 import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras.utils import dataset_utils
 from keras.utils import image_utils
-from tensorflow.python.util.tf_export import keras_export
+
+# pylint: disable=g-classes-have-attributes
 
 
 ALLOWLIST_FORMATS = (".bmp", ".gif", ".jpeg", ".jpg", ".png")

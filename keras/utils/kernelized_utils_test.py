@@ -14,11 +14,11 @@
 # ==============================================================================
 """Tests for kernelized_utils.py."""
 
-import tensorflow.compat.v2 as tf
-
 import functools
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras.utils import kernelized_utils
 
 

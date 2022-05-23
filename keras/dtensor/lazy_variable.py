@@ -16,7 +16,6 @@
 
 import threading
 
-
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
@@ -28,7 +27,6 @@ from tensorflow.python.training.tracking import (
 )
 from tensorflow.python.util import compat
 from tensorflow.python.util import tf_contextlib
-
 
 _DISABLE_LAZY_VARIABLE_INIT = threading.local()
 

@@ -14,16 +14,16 @@
 # ==============================================================================
 """Tests for training routines."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras import backend
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.layers.convolutional import Conv2D
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):

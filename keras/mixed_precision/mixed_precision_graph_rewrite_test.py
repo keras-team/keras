@@ -14,11 +14,10 @@
 # ==============================================================================
 """Tests Keras integration with enable_mixed_precision_graph_rewrite()."""
 
+import os
+
 import tensorflow.compat.v2 as tf
 
-import os
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.mixed_precision import (
     loss_scale_optimizer as loss_scale_optimizer_v2,
 )
@@ -26,6 +25,8 @@ from keras.mixed_precision import policy
 from keras.optimizers.optimizer_v2 import (
     gradient_descent as gradient_descent_v2,
 )
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class MixedPrecisionTest(test_combinations.TestCase):

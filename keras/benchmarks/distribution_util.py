@@ -18,10 +18,10 @@ Mostly from
 https://github.com/tensorflow/models/blob/master/official/utils/misc/distribution_utils.py.
 """
 
-import tensorflow.compat.v2 as tf
-
 import json
 import os
+
+import tensorflow.compat.v2 as tf
 
 
 def _collective_communication(all_reduce_alg):

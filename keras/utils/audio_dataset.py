@@ -14,14 +14,14 @@
 # ==============================================================================
 """Keras audio dataset loading utilities."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
+from keras.utils import dataset_utils
 
 # pylint: disable=g-classes-have-attributes
 
-import numpy as np
-
-from keras.utils import dataset_utils
-from tensorflow.python.util.tf_export import keras_export
 
 try:
     import tensorflow_io as tfio

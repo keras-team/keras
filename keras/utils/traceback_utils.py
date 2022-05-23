@@ -19,8 +19,8 @@ import os
 import sys
 import traceback
 import types
-import tensorflow.compat.v2 as tf
 
+import tensorflow.compat.v2 as tf
 
 _EXCLUDED_PATHS = (
     os.path.abspath(os.path.join(__file__, "..", "..")),

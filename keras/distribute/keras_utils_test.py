@@ -14,13 +14,12 @@
 # ==============================================================================
 """Tests for tf.keras models with callbacks, checkpointing with dist strategy."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import tempfile
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras import losses

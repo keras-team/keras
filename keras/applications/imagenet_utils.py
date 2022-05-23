@@ -18,12 +18,11 @@ import json
 import warnings
 
 import numpy as np
+from tensorflow.python.util.tf_export import keras_export
 
 from keras import activations
 from keras import backend
 from keras.utils import data_utils
-from tensorflow.python.util.tf_export import keras_export
-
 
 CLASS_INDEX = None
 CLASS_INDEX_PATH = (

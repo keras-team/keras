@@ -74,15 +74,16 @@ MACs stands for Multiply Adds
       https://arxiv.org/abs/1801.04381) (CVPR 2018)
 """
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras.applications import imagenet_utils
 from keras.engine import training
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
-import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHT_PATH = (
     "https://storage.googleapis.com/tensorflow/"

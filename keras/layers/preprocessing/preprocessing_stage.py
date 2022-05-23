@@ -14,15 +14,15 @@
 # ==============================================================================
 """Preprocessing stage."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-classes-have-attributes
-
-import numpy as np
 from keras.engine import base_preprocessing_layer
 from keras.engine import functional
 from keras.engine import sequential
 from keras.utils import tf_utils
+
+# pylint: disable=g-classes-have-attributes
 
 
 # Sequential methods should take precedence.

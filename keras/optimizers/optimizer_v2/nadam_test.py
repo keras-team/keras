@@ -14,9 +14,9 @@
 # ==============================================================================
 """Tests for Nadam."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
 from keras.optimizers.optimizer_v2 import nadam
 
 

@@ -14,14 +14,13 @@
 # ==============================================================================
 """Tests temporal sample weights correctness using Keras model."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
-
-from keras.testing_infra import test_combinations
 from keras import layers
 from keras import metrics
 from keras.optimizers import optimizer_v2
+from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 
