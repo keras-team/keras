@@ -3324,7 +3324,7 @@ class TestTensorBoardV2NonParameterizedTest(test_combinations.TestCase):
         )
         self.assertEqual(2, self._count_trace_file(logdir=self.logdir))
 
-    # Test case that replicates a Github issue.
+    # Test case that replicates a GitHub issue.
     # https://github.com/tensorflow/tensorflow/issues/37543
     def test_TensorBoard_autoTrace_profileTwiceGraphMode(self):
         tf.compat.v1.disable_eager_execution()

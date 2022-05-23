@@ -506,7 +506,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(len(layer.get_losses_for(x)), 1)
 
     def testNameScopeIsConsistentWithVariableScope(self):
-        # Github issue 13429.
+        # GitHub issue 13429.
 
         class MyLayer(base_tf_layers.Layer):
             def build(self, input_shape):

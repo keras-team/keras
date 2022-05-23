@@ -359,7 +359,7 @@ def EfficientNet(
     if weights == "imagenet":
         # Note that the normaliztion layer uses square value of STDDEV as the
         # variance for the layer: result = (input - mean) / sqrt(var)
-        # However, the orginal implemenetation uses (input - mean) / var to
+        # However, the original implemenetation uses (input - mean) / var to
         # normalize the input, we need to divide another sqrt(var) to match the
         # original implementation.
         # See https://github.com/tensorflow/tensorflow/issues/49930 for more details
