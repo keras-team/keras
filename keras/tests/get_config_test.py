@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#,============================================================================
+# ,============================================================================
 """Tests for `get_config` backwards compatibility."""
 
 from keras.engine import sequential
@@ -23,32 +23,36 @@ import tensorflow.compat.v2 as tf
 
 @test_combinations.run_all_keras_modes
 class TestGetConfigBackwardsCompatible(test_combinations.TestCase):
+    def test_functional_dnn(self):
+        model = training.Model.from_config(get_config_samples.FUNCTIONAL_DNN)
+        self.assertLen(model.layers, 3)
 
-  def test_functional_dnn(self):
-    model = training.Model.from_config(get_config_samples.FUNCTIONAL_DNN)
-    self.assertLen(model.layers, 3)
+    def test_functional_cnn(self):
+        model = training.Model.from_config(get_config_samples.FUNCTIONAL_CNN)
+        self.assertLen(model.layers, 4)
 
-  def test_functional_cnn(self):
-    model = training.Model.from_config(get_config_samples.FUNCTIONAL_CNN)
-    self.assertLen(model.layers, 4)
+    def test_functional_lstm(self):
+        model = training.Model.from_config(get_config_samples.FUNCTIONAL_LSTM)
+        self.assertLen(model.layers, 3)
 
-  def test_functional_lstm(self):
-    model = training.Model.from_config(get_config_samples.FUNCTIONAL_LSTM)
-    self.assertLen(model.layers, 3)
+    def test_sequential_dnn(self):
+        model = sequential.Sequential.from_config(
+            get_config_samples.SEQUENTIAL_DNN
+        )
+        self.assertLen(model.layers, 2)
 
-  def test_sequential_dnn(self):
-    model = sequential.Sequential.from_config(get_config_samples.SEQUENTIAL_DNN)
-    self.assertLen(model.layers, 2)
+    def test_sequential_cnn(self):
+        model = sequential.Sequential.from_config(
+            get_config_samples.SEQUENTIAL_CNN
+        )
+        self.assertLen(model.layers, 3)
 
-  def test_sequential_cnn(self):
-    model = sequential.Sequential.from_config(get_config_samples.SEQUENTIAL_CNN)
-    self.assertLen(model.layers, 3)
-
-  def test_sequential_lstm(self):
-    model = sequential.Sequential.from_config(
-        get_config_samples.SEQUENTIAL_LSTM)
-    self.assertLen(model.layers, 2)
+    def test_sequential_lstm(self):
+        model = sequential.Sequential.from_config(
+            get_config_samples.SEQUENTIAL_LSTM
+        )
+        self.assertLen(model.layers, 2)
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

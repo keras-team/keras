@@ -22,13 +22,14 @@ import tensorflow.compat.v2 as tf
 
 @test_combinations.run_all_keras_modes
 class SoftmaxTest(test_combinations.TestCase):
+    def test_softmax(self):
+        test_utils.layer_test(
+            keras.layers.Softmax,
+            kwargs={"axis": 1},
+            input_shape=(2, 3, 4),
+            supports_masking=True,
+        )
 
-  def test_softmax(self):
-    test_utils.layer_test(keras.layers.Softmax,
-                          kwargs={'axis': 1},
-                          input_shape=(2, 3, 4),
-                          supports_masking=True)
 
-
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

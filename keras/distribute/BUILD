@@ -656,6 +656,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 5,
     tags = [
+        "no_oss",  # TODO(b/226938240): Re-enable this.
         "no_windows",  # TODO(b/184424727): Re-enable this.
     ],
     deps = [
