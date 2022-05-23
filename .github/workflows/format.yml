@@ -25,15 +25,15 @@ jobs:
         run: |
           pip install -r requirements.txt && pip uninstall keras-nightly -y
       - name: Format the code
-        run: black --line-length 80 keras
+        run: sh shell/format.sh
 
       - name: Create Pull Request
         id: cpr
         uses: peter-evans/create-pull-request@v4
         with:
           commit-message: format the code
-          committer: TensorFlower Gardener <tensorflower-gardener@users.noreply.github.com>
-          author: TensorFlower Gardener <tensorflower-gardener@users.noreply.github.com>
+          committer: A. Unique TensorFlower <gardener@tensorflow.org>
+          author: A. Unique TensorFlower <gardener@tensorflow.org>
           branch: format
           delete-branch: true
           title: 'Format the code'
