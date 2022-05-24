@@ -2004,7 +2004,14 @@ class EarlyStopping(Callback):
             io_utils.print_msg(
                 f"Epoch {self.stopped_epoch + 1}: early stopping"
             )
-
+		if self.restore_best_weights and self.best_weights is not None:
+			if self.verbose > 0:
+				io_utils.print_msg(
+					"Restoring model weights from the end of the best epoch: "
+					f"{self.best_epoch + 1}."
+				)
+			self.model.set_weights(self.best_weights)
+            
     def get_monitor_value(self, logs):
         logs = logs or {}
         monitor_value = logs.get(self.monitor)
