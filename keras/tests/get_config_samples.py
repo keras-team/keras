@@ -20,75 +20,69 @@
 # outputs = tf.keras.layers.Dense(1)(x)
 # model = tf.keras.Model(inputs, outputs)
 FUNCTIONAL_DNN = {
-    'input_layers': [['input_1', 0, 0]],
-    'layers': [{
-        'class_name': 'InputLayer',
-        'config': {
-            'batch_input_shape': (None, 10),
-            'dtype': 'float32',
-            'name': 'input_1',
-            'ragged': False,
-            'sparse': False
+    "input_layers": [["input_1", 0, 0]],
+    "layers": [
+        {
+            "class_name": "InputLayer",
+            "config": {
+                "batch_input_shape": (None, 10),
+                "dtype": "float32",
+                "name": "input_1",
+                "ragged": False,
+                "sparse": False,
+            },
+            "inbound_nodes": [],
+            "name": "input_1",
         },
-        'inbound_nodes': [],
-        'name': 'input_1'
-    }, {
-        'class_name': 'Dense',
-        'config': {
-            'activation': 'relu',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
+        {
+            "class_name": "Dense",
+            "config": {
+                "activation": "relu",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "dtype": "float32",
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "name": "dense",
+                "trainable": True,
+                "units": 10,
+                "use_bias": True,
             },
-            'bias_regularizer': None,
-            'dtype': 'float32',
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
-            },
-            'kernel_regularizer': None,
-            'name': 'dense',
-            'trainable': True,
-            'units': 10,
-            'use_bias': True
+            "inbound_nodes": [[["input_1", 0, 0, {}]]],
+            "name": "dense",
         },
-        'inbound_nodes': [[['input_1', 0, 0, {}]]],
-        'name': 'dense'
-    }, {
-        'class_name': 'Dense',
-        'config': {
-            'activation': 'linear',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
+        {
+            "class_name": "Dense",
+            "config": {
+                "activation": "linear",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "dtype": "float32",
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "name": "dense_1",
+                "trainable": True,
+                "units": 1,
+                "use_bias": True,
             },
-            'bias_regularizer': None,
-            'dtype': 'float32',
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
-            },
-            'kernel_regularizer': None,
-            'name': 'dense_1',
-            'trainable': True,
-            'units': 1,
-            'use_bias': True
+            "inbound_nodes": [[["dense", 0, 0, {}]]],
+            "name": "dense_1",
         },
-        'inbound_nodes': [[['dense', 0, 0, {}]]],
-        'name': 'dense_1'
-    }],
-    'name': 'model',
-    'output_layers': [['dense_1', 0, 0]]
+    ],
+    "name": "model",
+    "output_layers": [["dense_1", 0, 0]],
 }
 
 # inputs = tf.keras.Input((256, 256, 3))
@@ -97,90 +91,85 @@ FUNCTIONAL_DNN = {
 # outputs = tf.keras.layers.Dense(1)(x)
 # model = tf.keras.Model(inputs, outputs)
 FUNCTIONAL_CNN = {
-    'input_layers': [['input_2', 0, 0]],
-    'layers': [{
-        'class_name': 'InputLayer',
-        'config': {
-            'batch_input_shape': (None, 256, 256, 3),
-            'dtype': 'float32',
-            'name': 'input_2',
-            'ragged': False,
-            'sparse': False
-        },
-        'inbound_nodes': [],
-        'name': 'input_2'
-    }, {
-        'class_name': 'Conv2D',
-        'config': {
-            'activation': 'linear',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
+    "input_layers": [["input_2", 0, 0]],
+    "layers": [
+        {
+            "class_name": "InputLayer",
+            "config": {
+                "batch_input_shape": (None, 256, 256, 3),
+                "dtype": "float32",
+                "name": "input_2",
+                "ragged": False,
+                "sparse": False,
             },
-            'bias_regularizer': None,
-            'data_format': 'channels_last',
-            'dilation_rate': (1, 1),
-            'dtype': 'float32',
-            'filters': 3,
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
-            },
-            'kernel_regularizer': None,
-            'kernel_size': (3, 3),
-            'name': 'conv2d',
-            'padding': 'valid',
-            'strides': (1, 1),
-            'trainable': True,
-            'use_bias': True
+            "inbound_nodes": [],
+            "name": "input_2",
         },
-        'inbound_nodes': [[['input_2', 0, 0, {}]]],
-        'name': 'conv2d'
-    }, {
-        'class_name': 'Flatten',
-        'config': {
-            'data_format': 'channels_last',
-            'dtype': 'float32',
-            'name': 'flatten',
-            'trainable': True
-        },
-        'inbound_nodes': [[['conv2d', 0, 0, {}]]],
-        'name': 'flatten'
-    }, {
-        'class_name': 'Dense',
-        'config': {
-            'activation': 'linear',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
+        {
+            "class_name": "Conv2D",
+            "config": {
+                "activation": "linear",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "data_format": "channels_last",
+                "dilation_rate": (1, 1),
+                "dtype": "float32",
+                "filters": 3,
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "kernel_size": (3, 3),
+                "name": "conv2d",
+                "padding": "valid",
+                "strides": (1, 1),
+                "trainable": True,
+                "use_bias": True,
             },
-            'bias_regularizer': None,
-            'dtype': 'float32',
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
-            },
-            'kernel_regularizer': None,
-            'name': 'dense_2',
-            'trainable': True,
-            'units': 1,
-            'use_bias': True
+            "inbound_nodes": [[["input_2", 0, 0, {}]]],
+            "name": "conv2d",
         },
-        'inbound_nodes': [[['flatten', 0, 0, {}]]],
-        'name': 'dense_2'
-    }],
-    'name': 'model_1',
-    'output_layers': [['dense_2', 0, 0]]
+        {
+            "class_name": "Flatten",
+            "config": {
+                "data_format": "channels_last",
+                "dtype": "float32",
+                "name": "flatten",
+                "trainable": True,
+            },
+            "inbound_nodes": [[["conv2d", 0, 0, {}]]],
+            "name": "flatten",
+        },
+        {
+            "class_name": "Dense",
+            "config": {
+                "activation": "linear",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "dtype": "float32",
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "name": "dense_2",
+                "trainable": True,
+                "units": 1,
+                "use_bias": True,
+            },
+            "inbound_nodes": [[["flatten", 0, 0, {}]]],
+            "name": "dense_2",
+        },
+    ],
+    "name": "model_1",
+    "output_layers": [["dense_2", 0, 0]],
 }
 
 # inputs = tf.keras.Input((10, 3))
@@ -188,153 +177,137 @@ FUNCTIONAL_CNN = {
 # outputs = tf.keras.layers.Dense(1)(x)
 # model = tf.keras.Model(inputs, outputs)
 FUNCTIONAL_LSTM = {
-    'input_layers': [['input_5', 0, 0]],
-    'layers': [{
-        'class_name': 'InputLayer',
-        'config': {
-            'batch_input_shape': (None, 10, 3),
-            'dtype': 'float32',
-            'name': 'input_5',
-            'ragged': False,
-            'sparse': False
+    "input_layers": [["input_5", 0, 0]],
+    "layers": [
+        {
+            "class_name": "InputLayer",
+            "config": {
+                "batch_input_shape": (None, 10, 3),
+                "dtype": "float32",
+                "name": "input_5",
+                "ragged": False,
+                "sparse": False,
+            },
+            "inbound_nodes": [],
+            "name": "input_5",
         },
-        'inbound_nodes': [],
-        'name': 'input_5'
-    }, {
-        'class_name': 'LSTM',
-        'config': {
-            'activation': 'tanh',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
+        {
+            "class_name": "LSTM",
+            "config": {
+                "activation": "tanh",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "dropout": 0.0,
+                "dtype": "float32",
+                "go_backwards": False,
+                "implementation": 2,
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "name": "lstm_2",
+                "recurrent_activation": "sigmoid",
+                "recurrent_constraint": None,
+                "recurrent_dropout": 0.0,
+                "recurrent_initializer": {
+                    "class_name": "Orthogonal",
+                    "config": {"gain": 1.0, "seed": None},
+                },
+                "recurrent_regularizer": None,
+                "return_sequences": False,
+                "return_state": False,
+                "stateful": False,
+                "time_major": False,
+                "trainable": True,
+                "unit_forget_bias": True,
+                "units": 10,
+                "unroll": False,
+                "use_bias": True,
             },
-            'bias_regularizer': None,
-            'dropout': 0.0,
-            'dtype': 'float32',
-            'go_backwards': False,
-            'implementation': 2,
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
-            },
-            'kernel_regularizer': None,
-            'name': 'lstm_2',
-            'recurrent_activation': 'sigmoid',
-            'recurrent_constraint': None,
-            'recurrent_dropout': 0.0,
-            'recurrent_initializer': {
-                'class_name': 'Orthogonal',
-                'config': {
-                    'gain': 1.0,
-                    'seed': None
-                }
-            },
-            'recurrent_regularizer': None,
-            'return_sequences': False,
-            'return_state': False,
-            'stateful': False,
-            'time_major': False,
-            'trainable': True,
-            'unit_forget_bias': True,
-            'units': 10,
-            'unroll': False,
-            'use_bias': True
+            "inbound_nodes": [[["input_5", 0, 0, {}]]],
+            "name": "lstm_2",
         },
-        'inbound_nodes': [[['input_5', 0, 0, {}]]],
-        'name': 'lstm_2'
-    }, {
-        'class_name': 'Dense',
-        'config': {
-            'activation': 'linear',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
+        {
+            "class_name": "Dense",
+            "config": {
+                "activation": "linear",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "dtype": "float32",
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "name": "dense_4",
+                "trainable": True,
+                "units": 1,
+                "use_bias": True,
             },
-            'bias_regularizer': None,
-            'dtype': 'float32',
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
-            },
-            'kernel_regularizer': None,
-            'name': 'dense_4',
-            'trainable': True,
-            'units': 1,
-            'use_bias': True
+            "inbound_nodes": [[["lstm_2", 0, 0, {}]]],
+            "name": "dense_4",
         },
-        'inbound_nodes': [[['lstm_2', 0, 0, {}]]],
-        'name': 'dense_4'
-    }],
-    'name': 'model_3',
-    'output_layers': [['dense_4', 0, 0]]
+    ],
+    "name": "model_3",
+    "output_layers": [["dense_4", 0, 0]],
 }
 
 # model = tf.keras.Sequential()
 # model.add(tf.keras.layers.Dense(10))
 # model.add(tf.keras.layers.Dense(1))
 SEQUENTIAL_DNN = {
-    'layers': [{
-        'class_name': 'Dense',
-        'config': {
-            'activation': 'linear',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
+    "layers": [
+        {
+            "class_name": "Dense",
+            "config": {
+                "activation": "linear",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "dtype": "float32",
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "name": "dense_2",
+                "trainable": True,
+                "units": 10,
+                "use_bias": True,
             },
-            'bias_regularizer': None,
-            'dtype': 'float32',
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
+        },
+        {
+            "class_name": "Dense",
+            "config": {
+                "activation": "linear",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "dtype": "float32",
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "name": "dense_3",
+                "trainable": True,
+                "units": 1,
+                "use_bias": True,
             },
-            'kernel_regularizer': None,
-            'name': 'dense_2',
-            'trainable': True,
-            'units': 10,
-            'use_bias': True
-        }
-    }, {
-        'class_name': 'Dense',
-        'config': {
-            'activation': 'linear',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
-            },
-            'bias_regularizer': None,
-            'dtype': 'float32',
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
-            },
-            'kernel_regularizer': None,
-            'name': 'dense_3',
-            'trainable': True,
-            'units': 1,
-            'use_bias': True
-        }
-    }],
-    'name': 'sequential_1'
+        },
+    ],
+    "name": "sequential_1",
 }
 
 # model = tf.keras.Sequential()
@@ -342,147 +315,131 @@ SEQUENTIAL_DNN = {
 # model.add(tf.keras.layers.Flatten())
 # model.add(tf.keras.layers.Dense(1))
 SEQUENTIAL_CNN = {
-    'layers': [{
-        'class_name': 'Conv2D',
-        'config': {
-            'activation': 'linear',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
+    "layers": [
+        {
+            "class_name": "Conv2D",
+            "config": {
+                "activation": "linear",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "data_format": "channels_last",
+                "dilation_rate": (1, 1),
+                "dtype": "float32",
+                "filters": 32,
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "kernel_size": (3, 3),
+                "name": "conv2d_1",
+                "padding": "valid",
+                "strides": (1, 1),
+                "trainable": True,
+                "use_bias": True,
             },
-            'bias_regularizer': None,
-            'data_format': 'channels_last',
-            'dilation_rate': (1, 1),
-            'dtype': 'float32',
-            'filters': 32,
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
+        },
+        {
+            "class_name": "Flatten",
+            "config": {
+                "data_format": "channels_last",
+                "dtype": "float32",
+                "name": "flatten_1",
+                "trainable": True,
             },
-            'kernel_regularizer': None,
-            'kernel_size': (3, 3),
-            'name': 'conv2d_1',
-            'padding': 'valid',
-            'strides': (1, 1),
-            'trainable': True,
-            'use_bias': True
-        }
-    }, {
-        'class_name': 'Flatten',
-        'config': {
-            'data_format': 'channels_last',
-            'dtype': 'float32',
-            'name': 'flatten_1',
-            'trainable': True
-        }
-    }, {
-        'class_name': 'Dense',
-        'config': {
-            'activation': 'linear',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
+        },
+        {
+            "class_name": "Dense",
+            "config": {
+                "activation": "linear",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "dtype": "float32",
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "name": "dense_6",
+                "trainable": True,
+                "units": 1,
+                "use_bias": True,
             },
-            'bias_regularizer': None,
-            'dtype': 'float32',
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
-            },
-            'kernel_regularizer': None,
-            'name': 'dense_6',
-            'trainable': True,
-            'units': 1,
-            'use_bias': True
-        }
-    }],
-    'name': 'sequential_4'
+        },
+    ],
+    "name": "sequential_4",
 }
 
 # model = tf.keras.Sequential()
 # model.add(tf.keras.layers.LSTM(10))
 # model.add(tf.keras.layers.Dense(1))
 SEQUENTIAL_LSTM = {
-    'layers': [{
-        'class_name': 'LSTM',
-        'config': {
-            'activation': 'tanh',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
+    "layers": [
+        {
+            "class_name": "LSTM",
+            "config": {
+                "activation": "tanh",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "dropout": 0.0,
+                "dtype": "float32",
+                "go_backwards": False,
+                "implementation": 2,
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "name": "lstm",
+                "recurrent_activation": "sigmoid",
+                "recurrent_constraint": None,
+                "recurrent_dropout": 0.0,
+                "recurrent_initializer": {
+                    "class_name": "Orthogonal",
+                    "config": {"gain": 1.0, "seed": None},
+                },
+                "recurrent_regularizer": None,
+                "return_sequences": False,
+                "return_state": False,
+                "stateful": False,
+                "time_major": False,
+                "trainable": True,
+                "unit_forget_bias": True,
+                "units": 10,
+                "unroll": False,
+                "use_bias": True,
             },
-            'bias_regularizer': None,
-            'dropout': 0.0,
-            'dtype': 'float32',
-            'go_backwards': False,
-            'implementation': 2,
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
+        },
+        {
+            "class_name": "Dense",
+            "config": {
+                "activation": "linear",
+                "activity_regularizer": None,
+                "bias_constraint": None,
+                "bias_initializer": {"class_name": "Zeros", "config": {}},
+                "bias_regularizer": None,
+                "dtype": "float32",
+                "kernel_constraint": None,
+                "kernel_initializer": {
+                    "class_name": "GlorotUniform",
+                    "config": {"seed": None},
+                },
+                "kernel_regularizer": None,
+                "name": "dense_4",
+                "trainable": True,
+                "units": 1,
+                "use_bias": True,
             },
-            'kernel_regularizer': None,
-            'name': 'lstm',
-            'recurrent_activation': 'sigmoid',
-            'recurrent_constraint': None,
-            'recurrent_dropout': 0.0,
-            'recurrent_initializer': {
-                'class_name': 'Orthogonal',
-                'config': {
-                    'gain': 1.0,
-                    'seed': None
-                }
-            },
-            'recurrent_regularizer': None,
-            'return_sequences': False,
-            'return_state': False,
-            'stateful': False,
-            'time_major': False,
-            'trainable': True,
-            'unit_forget_bias': True,
-            'units': 10,
-            'unroll': False,
-            'use_bias': True
-        }
-    }, {
-        'class_name': 'Dense',
-        'config': {
-            'activation': 'linear',
-            'activity_regularizer': None,
-            'bias_constraint': None,
-            'bias_initializer': {
-                'class_name': 'Zeros',
-                'config': {}
-            },
-            'bias_regularizer': None,
-            'dtype': 'float32',
-            'kernel_constraint': None,
-            'kernel_initializer': {
-                'class_name': 'GlorotUniform',
-                'config': {
-                    'seed': None
-                }
-            },
-            'kernel_regularizer': None,
-            'name': 'dense_4',
-            'trainable': True,
-            'units': 1,
-            'use_bias': True
-        }
-    }],
-    'name': 'sequential_2'
+        },
+    ],
+    "name": "sequential_2",
 }

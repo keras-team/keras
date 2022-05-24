@@ -21,6 +21,7 @@ exports_files(
 keras_packages = [
     "keras",
     "keras.activations",
+    "keras.applications.convnext",
     "keras.applications.densenet",
     "keras.applications.efficientnet",
     "keras.applications.efficientnet_v2",

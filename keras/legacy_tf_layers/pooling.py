@@ -26,874 +26,985 @@ from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.AveragePooling1D'])
-@tf_export(v1=['layers.AveragePooling1D'])
+@keras_export(v1=["keras.__internal__.legacy.layers.AveragePooling1D"])
+@tf_export(v1=["layers.AveragePooling1D"])
 class AveragePooling1D(keras_layers.AveragePooling1D, base.Layer):
-  """Average Pooling layer for 1D inputs.
+    """Average Pooling layer for 1D inputs.
 
-  Args:
-    pool_size: An integer or tuple/list of a single integer,
-      representing the size of the pooling window.
-    strides: An integer or tuple/list of a single integer, specifying the
-      strides of the pooling operation.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, length, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, length)`.
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.AveragePooling1D`.
+    Args:
+      pool_size: An integer or tuple/list of a single integer,
+        representing the size of the pooling window.
+      strides: An integer or tuple/list of a single integer, specifying the
+        strides of the pooling operation.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, length, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, length)`.
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.AveragePooling1D`.
 
-  ```python
-   pooling = tf.compat.v1.layers.AveragePooling1D(pool_size=2, strides=2)
-  ```
 
-  After:
+    #### Structural Mapping to Native TF2
 
-  ```python
-   pooling = tf.keras.layers.AveragePooling1D(pool_size=2, strides=2)
-  ```
-  @end_compatibility
-  """
+    None of the supported arguments have changed name.
 
-  def __init__(self, pool_size, strides,
-               padding='valid', data_format='channels_last',
-               name=None, **kwargs):
-    if strides is None:
-      raise ValueError('Argument `strides` must not be None.')
-    super(AveragePooling1D, self).__init__(
+    Before:
+
+    ```python
+     pooling = tf.compat.v1.layers.AveragePooling1D(pool_size=2, strides=2)
+    ```
+
+    After:
+
+    ```python
+     pooling = tf.keras.layers.AveragePooling1D(pool_size=2, strides=2)
+    ```
+    @end_compatibility
+    """
+
+    def __init__(
+        self,
+        pool_size,
+        strides,
+        padding="valid",
+        data_format="channels_last",
+        name=None,
+        **kwargs
+    ):
+        if strides is None:
+            raise ValueError("Argument `strides` must not be None.")
+        super().__init__(
+            pool_size=pool_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            name=name,
+            **kwargs
+        )
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.average_pooling1d"])
+@tf_export(v1=["layers.average_pooling1d"])
+def average_pooling1d(
+    inputs,
+    pool_size,
+    strides,
+    padding="valid",
+    data_format="channels_last",
+    name=None,
+):
+    """Average Pooling layer for 1D inputs.
+
+    Args:
+      inputs: The tensor over which to pool. Must have rank 3.
+      pool_size: An integer or tuple/list of a single integer,
+        representing the size of the pooling window.
+      strides: An integer or tuple/list of a single integer, specifying the
+        strides of the pooling operation.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, length, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, length)`.
+      name: A string, the name of the layer.
+
+    Returns:
+      The output tensor, of rank 3.
+
+    Raises:
+      ValueError: if eager execution is enabled.
+
+
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.AveragePooling1D`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.average_pooling1d(x, pool_size=2, strides=2)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.AveragePooling1D(pool_size=2, strides=2)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.average_pooling1d` is deprecated and "
+        "will be removed in a future version. "
+        "Please use `tf.keras.layers.AveragePooling1D` instead.",
+        stacklevel=2,
+    )
+    layer = AveragePooling1D(
         pool_size=pool_size,
         strides=strides,
         padding=padding,
         data_format=data_format,
         name=name,
-        **kwargs)
+    )
+    return layer(inputs)
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.average_pooling1d'])
-@tf_export(v1=['layers.average_pooling1d'])
-def average_pooling1d(inputs, pool_size, strides,
-                      padding='valid', data_format='channels_last',
-                      name=None):
-  """Average Pooling layer for 1D inputs.
-
-  Args:
-    inputs: The tensor over which to pool. Must have rank 3.
-    pool_size: An integer or tuple/list of a single integer,
-      representing the size of the pooling window.
-    strides: An integer or tuple/list of a single integer, specifying the
-      strides of the pooling operation.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, length, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, length)`.
-    name: A string, the name of the layer.
-
-  Returns:
-    The output tensor, of rank 3.
-
-  Raises:
-    ValueError: if eager execution is enabled.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.AveragePooling1D`.
-
-
-  #### Structural Mapping to Native TF2
-
-  None of the supported arguments have changed name.
-
-  Before:
-
-  ```python
-   y = tf.compat.v1.layers.average_pooling1d(x, pool_size=2, strides=2)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.AveragePooling1D(pool_size=2, strides=2)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.average_pooling1d` is deprecated and '
-      'will be removed in a future version. '
-      'Please use `tf.keras.layers.AveragePooling1D` instead.',
-      stacklevel=2)
-  layer = AveragePooling1D(pool_size=pool_size,
-                           strides=strides,
-                           padding=padding,
-                           data_format=data_format,
-                           name=name)
-  return layer(inputs)
-
-
-@keras_export(v1=['keras.__internal__.legacy.layers.MaxPooling1D'])
-@tf_export(v1=['layers.MaxPooling1D'])
+@keras_export(v1=["keras.__internal__.legacy.layers.MaxPooling1D"])
+@tf_export(v1=["layers.MaxPooling1D"])
 class MaxPooling1D(keras_layers.MaxPooling1D, base.Layer):
-  """Max Pooling layer for 1D inputs.
+    """Max Pooling layer for 1D inputs.
 
-  Args:
-    pool_size: An integer or tuple/list of a single integer,
-      representing the size of the pooling window.
-    strides: An integer or tuple/list of a single integer, specifying the
-      strides of the pooling operation.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, length, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, length)`.
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.MaxPooling1D`.
+    Args:
+      pool_size: An integer or tuple/list of a single integer,
+        representing the size of the pooling window.
+      strides: An integer or tuple/list of a single integer, specifying the
+        strides of the pooling operation.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, length, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, length)`.
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.MaxPooling1D`.
 
-  ```python
-   pooling = tf.compat.v1.layers.MaxPooling1D(pool_size=2, strides=2)
-  ```
 
-  After:
+    #### Structural Mapping to Native TF2
 
-  ```python
-   pooling = tf.keras.layers.MaxPooling1D(pool_size=2, strides=2)
-  ```
-  @end_compatibility
-  """
+    None of the supported arguments have changed name.
 
-  def __init__(self, pool_size, strides,
-               padding='valid', data_format='channels_last',
-               name=None, **kwargs):
-    if strides is None:
-      raise ValueError('Argument `strides` must not be None.')
-    super(MaxPooling1D, self).__init__(
+    Before:
+
+    ```python
+     pooling = tf.compat.v1.layers.MaxPooling1D(pool_size=2, strides=2)
+    ```
+
+    After:
+
+    ```python
+     pooling = tf.keras.layers.MaxPooling1D(pool_size=2, strides=2)
+    ```
+    @end_compatibility
+    """
+
+    def __init__(
+        self,
+        pool_size,
+        strides,
+        padding="valid",
+        data_format="channels_last",
+        name=None,
+        **kwargs
+    ):
+        if strides is None:
+            raise ValueError("Argument `strides` must not be None.")
+        super().__init__(
+            pool_size=pool_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            name=name,
+            **kwargs
+        )
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.max_pooling1d"])
+@tf_export(v1=["layers.max_pooling1d"])
+def max_pooling1d(
+    inputs,
+    pool_size,
+    strides,
+    padding="valid",
+    data_format="channels_last",
+    name=None,
+):
+    """Max Pooling layer for 1D inputs.
+
+    Args:
+      inputs: The tensor over which to pool. Must have rank 3.
+      pool_size: An integer or tuple/list of a single integer,
+        representing the size of the pooling window.
+      strides: An integer or tuple/list of a single integer, specifying the
+        strides of the pooling operation.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape
+        `(batch, length, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, length)`.
+      name: A string, the name of the layer.
+
+    Returns:
+      The output tensor, of rank 3.
+
+    Raises:
+      ValueError: if eager execution is enabled.
+
+
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.MaxPooling1D`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.max_pooling1d(x, pool_size=2, strides=2)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.MaxPooling1D(pool_size=2, strides=2)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.max_pooling1d` is deprecated and "
+        "will be removed in a future version. "
+        "Please use `tf.keras.layers.MaxPooling1D` instead.",
+        stacklevel=2,
+    )
+    layer = MaxPooling1D(
         pool_size=pool_size,
         strides=strides,
         padding=padding,
         data_format=data_format,
         name=name,
-        **kwargs)
+    )
+    return layer(inputs)
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.max_pooling1d'])
-@tf_export(v1=['layers.max_pooling1d'])
-def max_pooling1d(inputs, pool_size, strides,
-                  padding='valid', data_format='channels_last',
-                  name=None):
-  """Max Pooling layer for 1D inputs.
-
-  Args:
-    inputs: The tensor over which to pool. Must have rank 3.
-    pool_size: An integer or tuple/list of a single integer,
-      representing the size of the pooling window.
-    strides: An integer or tuple/list of a single integer, specifying the
-      strides of the pooling operation.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, length, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, length)`.
-    name: A string, the name of the layer.
-
-  Returns:
-    The output tensor, of rank 3.
-
-  Raises:
-    ValueError: if eager execution is enabled.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.MaxPooling1D`.
-
-
-  #### Structural Mapping to Native TF2
-
-  None of the supported arguments have changed name.
-
-  Before:
-
-  ```python
-   y = tf.compat.v1.layers.max_pooling1d(x, pool_size=2, strides=2)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.MaxPooling1D(pool_size=2, strides=2)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.max_pooling1d` is deprecated and '
-      'will be removed in a future version. '
-      'Please use `tf.keras.layers.MaxPooling1D` instead.',
-      stacklevel=2)
-  layer = MaxPooling1D(pool_size=pool_size,
-                       strides=strides,
-                       padding=padding,
-                       data_format=data_format,
-                       name=name)
-  return layer(inputs)
-
-
-@keras_export(v1=['keras.__internal__.legacy.layers.AveragePooling2D'])
-@tf_export(v1=['layers.AveragePooling2D'])
+@keras_export(v1=["keras.__internal__.legacy.layers.AveragePooling2D"])
+@tf_export(v1=["layers.AveragePooling2D"])
 class AveragePooling2D(keras_layers.AveragePooling2D, base.Layer):
-  """Average pooling layer for 2D inputs (e.g. images).
+    """Average pooling layer for 2D inputs (e.g. images).
 
-  Args:
-    pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
-      specifying the size of the pooling window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 2 integers,
-      specifying the strides of the pooling operation.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string. The ordering of the dimensions in the inputs.
-      `channels_last` (default) and `channels_first` are supported.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.AveragePooling2D`.
+    Args:
+      pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
+        specifying the size of the pooling window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 2 integers,
+        specifying the strides of the pooling operation.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string. The ordering of the dimensions in the inputs.
+        `channels_last` (default) and `channels_first` are supported.
+        `channels_last` corresponds to inputs with shape
+        `(batch, height, width, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, height, width)`.
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
-
-  ```python
-   pooling = tf.compat.v1.layers.AveragePooling2D(pool_size=2, strides=2)
-  ```
-
-  After:
-
-  ```python
-   pooling = tf.keras.layers.AveragePooling2D(pool_size=2, strides=2)
-  ```
-  @end_compatibility
-  """
-
-  def __init__(self, pool_size, strides,
-               padding='valid', data_format='channels_last',
-               name=None, **kwargs):
-    if strides is None:
-      raise ValueError('Argument `strides` must not be None.')
-    super(AveragePooling2D, self).__init__(
-        pool_size=pool_size, strides=strides,
-        padding=padding, data_format=data_format, name=name, **kwargs)
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.AveragePooling2D`.
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.average_pooling2d'])
-@tf_export(v1=['layers.average_pooling2d'])
-def average_pooling2d(inputs,
-                      pool_size, strides,
-                      padding='valid', data_format='channels_last',
-                      name=None):
-  """Average pooling layer for 2D inputs (e.g. images).
+    #### Structural Mapping to Native TF2
 
-  Args:
-    inputs: The tensor over which to pool. Must have rank 4.
-    pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
-      specifying the size of the pooling window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 2 integers,
-      specifying the strides of the pooling operation.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string. The ordering of the dimensions in the inputs.
-      `channels_last` (default) and `channels_first` are supported.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
-    name: A string, the name of the layer.
+    None of the supported arguments have changed name.
 
-  Returns:
-    Output tensor.
+    Before:
 
-  Raises:
-    ValueError: if eager execution is enabled.
+    ```python
+     pooling = tf.compat.v1.layers.AveragePooling2D(pool_size=2, strides=2)
+    ```
 
+    After:
 
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
+    ```python
+     pooling = tf.keras.layers.AveragePooling2D(pool_size=2, strides=2)
+    ```
+    @end_compatibility
+    """
 
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.AveragePooling2D`.
+    def __init__(
+        self,
+        pool_size,
+        strides,
+        padding="valid",
+        data_format="channels_last",
+        name=None,
+        **kwargs
+    ):
+        if strides is None:
+            raise ValueError("Argument `strides` must not be None.")
+        super().__init__(
+            pool_size=pool_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            name=name,
+            **kwargs
+        )
 
 
-  #### Structural Mapping to Native TF2
+@keras_export(v1=["keras.__internal__.legacy.layers.average_pooling2d"])
+@tf_export(v1=["layers.average_pooling2d"])
+def average_pooling2d(
+    inputs,
+    pool_size,
+    strides,
+    padding="valid",
+    data_format="channels_last",
+    name=None,
+):
+    """Average pooling layer for 2D inputs (e.g. images).
 
-  None of the supported arguments have changed name.
+    Args:
+      inputs: The tensor over which to pool. Must have rank 4.
+      pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
+        specifying the size of the pooling window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 2 integers,
+        specifying the strides of the pooling operation.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string. The ordering of the dimensions in the inputs.
+        `channels_last` (default) and `channels_first` are supported.
+        `channels_last` corresponds to inputs with shape
+        `(batch, height, width, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, height, width)`.
+      name: A string, the name of the layer.
 
-  Before:
+    Returns:
+      Output tensor.
 
-  ```python
-   y = tf.compat.v1.layers.average_pooling2d(x, pool_size=2, strides=2)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.AveragePooling2D(pool_size=2, strides=2)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.average_pooling2d` is deprecated and '
-      'will be removed in a future version. '
-      'Please use `tf.keras.layers.AveragePooling2D` instead.',
-      stacklevel=2)
-  layer = AveragePooling2D(pool_size=pool_size, strides=strides,
-                           padding=padding, data_format=data_format,
-                           name=name)
-  return layer(inputs)
+    Raises:
+      ValueError: if eager execution is enabled.
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.MaxPooling2D'])
-@tf_export(v1=['layers.MaxPooling2D'])
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.AveragePooling2D`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.average_pooling2d(x, pool_size=2, strides=2)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.AveragePooling2D(pool_size=2, strides=2)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.average_pooling2d` is deprecated and "
+        "will be removed in a future version. "
+        "Please use `tf.keras.layers.AveragePooling2D` instead.",
+        stacklevel=2,
+    )
+    layer = AveragePooling2D(
+        pool_size=pool_size,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        name=name,
+    )
+    return layer(inputs)
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.MaxPooling2D"])
+@tf_export(v1=["layers.MaxPooling2D"])
 class MaxPooling2D(keras_layers.MaxPooling2D, base.Layer):
-  """Max pooling layer for 2D inputs (e.g. images).
+    """Max pooling layer for 2D inputs (e.g. images).
 
-  Args:
-    pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
-      specifying the size of the pooling window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 2 integers,
-      specifying the strides of the pooling operation.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string. The ordering of the dimensions in the inputs.
-      `channels_last` (default) and `channels_first` are supported.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.MaxPooling2D`.
+    Args:
+      pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
+        specifying the size of the pooling window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 2 integers,
+        specifying the strides of the pooling operation.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string. The ordering of the dimensions in the inputs.
+        `channels_last` (default) and `channels_first` are supported.
+        `channels_last` corresponds to inputs with shape
+        `(batch, height, width, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, height, width)`.
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
-
-  ```python
-   pooling = tf.compat.v1.layers.MaxPooling2D(pool_size=2, strides=2)
-  ```
-
-  After:
-
-  ```python
-   pooling = tf.keras.layers.MaxPooling2D(pool_size=2, strides=2)
-  ```
-  @end_compatibility
-  """
-
-  def __init__(self, pool_size, strides,
-               padding='valid', data_format='channels_last',
-               name=None, **kwargs):
-    if strides is None:
-      raise ValueError('Argument `strides` must not be None.')
-    super(MaxPooling2D, self).__init__(
-        pool_size=pool_size, strides=strides,
-        padding=padding, data_format=data_format, name=name, **kwargs)
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.MaxPooling2D`.
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.max_pooling2d'])
-@tf_export(v1=['layers.max_pooling2d'])
-def max_pooling2d(inputs,
-                  pool_size, strides,
-                  padding='valid', data_format='channels_last',
-                  name=None):
-  """Max pooling layer for 2D inputs (e.g. images).
+    #### Structural Mapping to Native TF2
 
-  Args:
-    inputs: The tensor over which to pool. Must have rank 4.
-    pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
-      specifying the size of the pooling window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 2 integers,
-      specifying the strides of the pooling operation.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string. The ordering of the dimensions in the inputs.
-      `channels_last` (default) and `channels_first` are supported.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
-    name: A string, the name of the layer.
+    None of the supported arguments have changed name.
 
-  Returns:
-    Output tensor.
+    Before:
 
-  Raises:
-    ValueError: if eager execution is enabled.
+    ```python
+     pooling = tf.compat.v1.layers.MaxPooling2D(pool_size=2, strides=2)
+    ```
 
+    After:
 
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
+    ```python
+     pooling = tf.keras.layers.MaxPooling2D(pool_size=2, strides=2)
+    ```
+    @end_compatibility
+    """
 
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.MaxPooling2D`.
+    def __init__(
+        self,
+        pool_size,
+        strides,
+        padding="valid",
+        data_format="channels_last",
+        name=None,
+        **kwargs
+    ):
+        if strides is None:
+            raise ValueError("Argument `strides` must not be None.")
+        super().__init__(
+            pool_size=pool_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            name=name,
+            **kwargs
+        )
 
 
-  #### Structural Mapping to Native TF2
+@keras_export(v1=["keras.__internal__.legacy.layers.max_pooling2d"])
+@tf_export(v1=["layers.max_pooling2d"])
+def max_pooling2d(
+    inputs,
+    pool_size,
+    strides,
+    padding="valid",
+    data_format="channels_last",
+    name=None,
+):
+    """Max pooling layer for 2D inputs (e.g. images).
 
-  None of the supported arguments have changed name.
+    Args:
+      inputs: The tensor over which to pool. Must have rank 4.
+      pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
+        specifying the size of the pooling window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 2 integers,
+        specifying the strides of the pooling operation.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string. The ordering of the dimensions in the inputs.
+        `channels_last` (default) and `channels_first` are supported.
+        `channels_last` corresponds to inputs with shape
+        `(batch, height, width, channels)` while `channels_first` corresponds to
+        inputs with shape `(batch, channels, height, width)`.
+      name: A string, the name of the layer.
 
-  Before:
+    Returns:
+      Output tensor.
 
-  ```python
-   y = tf.compat.v1.layers.max_pooling2d(x, pool_size=2, strides=2)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.MaxPooling2D(pool_size=2, strides=2)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.max_pooling2d` is deprecated and '
-      'will be removed in a future version. '
-      'Please use `tf.keras.layers.MaxPooling2D` instead.',
-      stacklevel=2)
-  layer = MaxPooling2D(pool_size=pool_size, strides=strides,
-                       padding=padding, data_format=data_format,
-                       name=name)
-  return layer(inputs)
+    Raises:
+      ValueError: if eager execution is enabled.
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.AveragePooling3D'])
-@tf_export(v1=['layers.AveragePooling3D'])
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.MaxPooling2D`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.max_pooling2d(x, pool_size=2, strides=2)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.MaxPooling2D(pool_size=2, strides=2)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.max_pooling2d` is deprecated and "
+        "will be removed in a future version. "
+        "Please use `tf.keras.layers.MaxPooling2D` instead.",
+        stacklevel=2,
+    )
+    layer = MaxPooling2D(
+        pool_size=pool_size,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        name=name,
+    )
+    return layer(inputs)
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.AveragePooling3D"])
+@tf_export(v1=["layers.AveragePooling3D"])
 class AveragePooling3D(keras_layers.AveragePooling3D, base.Layer):
-  """Average pooling layer for 3D inputs (e.g. volumes).
+    """Average pooling layer for 3D inputs (e.g. volumes).
 
-  Args:
-    pool_size: An integer or tuple/list of 3 integers:
-      (pool_depth, pool_height, pool_width)
-      specifying the size of the pooling window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 3 integers,
-      specifying the strides of the pooling operation.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string. The ordering of the dimensions in the inputs.
-      `channels_last` (default) and `channels_first` are supported.
-      `channels_last` corresponds to inputs with shape
-      `(batch, depth, height, width, channels)` while `channels_first`
-      corresponds to inputs with shape
-      `(batch, channels, depth, height, width)`.
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.AveragePooling3D`.
+    Args:
+      pool_size: An integer or tuple/list of 3 integers:
+        (pool_depth, pool_height, pool_width)
+        specifying the size of the pooling window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 3 integers,
+        specifying the strides of the pooling operation.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string. The ordering of the dimensions in the inputs.
+        `channels_last` (default) and `channels_first` are supported.
+        `channels_last` corresponds to inputs with shape
+        `(batch, depth, height, width, channels)` while `channels_first`
+        corresponds to inputs with shape
+        `(batch, channels, depth, height, width)`.
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
-
-  ```python
-   pooling = tf.compat.v1.layers.AveragePooling3D(pool_size=2, strides=2)
-  ```
-
-  After:
-
-  ```python
-   pooling = tf.keras.layers.AveragePooling3D(pool_size=2, strides=2)
-  ```
-  @end_compatibility
-  """
-
-  def __init__(self, pool_size, strides,
-               padding='valid', data_format='channels_last',
-               name=None, **kwargs):
-    if strides is None:
-      raise ValueError('Argument `strides` must not be None.')
-    super(AveragePooling3D, self).__init__(
-        pool_size=pool_size, strides=strides,
-        padding=padding, data_format=data_format, name=name, **kwargs)
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.AveragePooling3D`.
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.average_pooling3d'])
-@tf_export(v1=['layers.average_pooling3d'])
-def average_pooling3d(inputs,
-                      pool_size, strides,
-                      padding='valid', data_format='channels_last',
-                      name=None):
-  """Average pooling layer for 3D inputs (e.g. volumes).
+    #### Structural Mapping to Native TF2
 
-  Args:
-    inputs: The tensor over which to pool. Must have rank 5.
-    pool_size: An integer or tuple/list of 3 integers:
-      (pool_depth, pool_height, pool_width)
-      specifying the size of the pooling window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 3 integers,
-      specifying the strides of the pooling operation.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string. The ordering of the dimensions in the inputs.
-      `channels_last` (default) and `channels_first` are supported.
-      `channels_last` corresponds to inputs with shape
-      `(batch, depth, height, width, channels)` while `channels_first`
-      corresponds to inputs with shape
-      `(batch, channels, depth, height, width)`.
-    name: A string, the name of the layer.
+    None of the supported arguments have changed name.
 
-  Returns:
-    Output tensor.
+    Before:
 
-  Raises:
-    ValueError: if eager execution is enabled.
+    ```python
+     pooling = tf.compat.v1.layers.AveragePooling3D(pool_size=2, strides=2)
+    ```
 
+    After:
 
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
+    ```python
+     pooling = tf.keras.layers.AveragePooling3D(pool_size=2, strides=2)
+    ```
+    @end_compatibility
+    """
 
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.AveragePooling3D`.
+    def __init__(
+        self,
+        pool_size,
+        strides,
+        padding="valid",
+        data_format="channels_last",
+        name=None,
+        **kwargs
+    ):
+        if strides is None:
+            raise ValueError("Argument `strides` must not be None.")
+        super().__init__(
+            pool_size=pool_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            name=name,
+            **kwargs
+        )
 
 
-  #### Structural Mapping to Native TF2
+@keras_export(v1=["keras.__internal__.legacy.layers.average_pooling3d"])
+@tf_export(v1=["layers.average_pooling3d"])
+def average_pooling3d(
+    inputs,
+    pool_size,
+    strides,
+    padding="valid",
+    data_format="channels_last",
+    name=None,
+):
+    """Average pooling layer for 3D inputs (e.g. volumes).
 
-  None of the supported arguments have changed name.
+    Args:
+      inputs: The tensor over which to pool. Must have rank 5.
+      pool_size: An integer or tuple/list of 3 integers:
+        (pool_depth, pool_height, pool_width)
+        specifying the size of the pooling window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 3 integers,
+        specifying the strides of the pooling operation.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string. The ordering of the dimensions in the inputs.
+        `channels_last` (default) and `channels_first` are supported.
+        `channels_last` corresponds to inputs with shape
+        `(batch, depth, height, width, channels)` while `channels_first`
+        corresponds to inputs with shape
+        `(batch, channels, depth, height, width)`.
+      name: A string, the name of the layer.
 
-  Before:
+    Returns:
+      Output tensor.
 
-  ```python
-   y = tf.compat.v1.layers.average_pooling3d(x, pool_size=2, strides=2)
-  ```
-
-  After:
-
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
-
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.AveragePooling3D(pool_size=2, strides=2)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.average_pooling3d` is deprecated and '
-      'will be removed in a future version. '
-      'Please use `tf.keras.layers.AveragePooling3D` instead.',
-      stacklevel=2)
-  layer = AveragePooling3D(pool_size=pool_size, strides=strides,
-                           padding=padding, data_format=data_format,
-                           name=name)
-  return layer(inputs)
+    Raises:
+      ValueError: if eager execution is enabled.
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.MaxPooling3D'])
-@tf_export(v1=['layers.MaxPooling3D'])
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.AveragePooling3D`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.average_pooling3d(x, pool_size=2, strides=2)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.AveragePooling3D(pool_size=2, strides=2)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.average_pooling3d` is deprecated and "
+        "will be removed in a future version. "
+        "Please use `tf.keras.layers.AveragePooling3D` instead.",
+        stacklevel=2,
+    )
+    layer = AveragePooling3D(
+        pool_size=pool_size,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        name=name,
+    )
+    return layer(inputs)
+
+
+@keras_export(v1=["keras.__internal__.legacy.layers.MaxPooling3D"])
+@tf_export(v1=["layers.MaxPooling3D"])
 class MaxPooling3D(keras_layers.MaxPooling3D, base.Layer):
-  """Max pooling layer for 3D inputs (e.g. volumes).
+    """Max pooling layer for 3D inputs (e.g. volumes).
 
-  Args:
-    pool_size: An integer or tuple/list of 3 integers:
-      (pool_depth, pool_height, pool_width)
-      specifying the size of the pooling window.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    strides: An integer or tuple/list of 3 integers,
-      specifying the strides of the pooling operation.
-      Can be a single integer to specify the same value for
-      all spatial dimensions.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string. The ordering of the dimensions in the inputs.
-      `channels_last` (default) and `channels_first` are supported.
-      `channels_last` corresponds to inputs with shape
-      `(batch, depth, height, width, channels)` while `channels_first`
-      corresponds to inputs with shape
-      `(batch, channels, depth, height, width)`.
-    name: A string, the name of the layer.
-
-
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.MaxPooling3D`.
+    Args:
+      pool_size: An integer or tuple/list of 3 integers:
+        (pool_depth, pool_height, pool_width)
+        specifying the size of the pooling window.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      strides: An integer or tuple/list of 3 integers,
+        specifying the strides of the pooling operation.
+        Can be a single integer to specify the same value for
+        all spatial dimensions.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string. The ordering of the dimensions in the inputs.
+        `channels_last` (default) and `channels_first` are supported.
+        `channels_last` corresponds to inputs with shape
+        `(batch, depth, height, width, channels)` while `channels_first`
+        corresponds to inputs with shape
+        `(batch, channels, depth, height, width)`.
+      name: A string, the name of the layer.
 
 
-  #### Structural Mapping to Native TF2
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
 
-  None of the supported arguments have changed name.
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
 
-  Before:
-
-  ```python
-   pooling = tf.compat.v1.layers.MaxPooling3D(pool_size=2, strides=2)
-  ```
-
-  After:
-
-  ```python
-   pooling = tf.keras.layers.MaxPooling3D(pool_size=2, strides=2)
-  ```
-  @end_compatibility
-  """
-
-  def __init__(self, pool_size, strides,
-               padding='valid', data_format='channels_last',
-               name=None, **kwargs):
-    if strides is None:
-      raise ValueError('Argument `strides` must not be None.')
-    super(MaxPooling3D, self).__init__(
-        pool_size=pool_size, strides=strides,
-        padding=padding, data_format=data_format, name=name, **kwargs)
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.MaxPooling3D`.
 
 
-@keras_export(v1=['keras.__internal__.legacy.layers.max_pooling3d'])
-@tf_export(v1=['layers.max_pooling3d'])
-def max_pooling3d(inputs,
-                  pool_size, strides,
-                  padding='valid', data_format='channels_last',
-                  name=None):
-  """Max pooling layer for 3D inputs (e.g.
+    #### Structural Mapping to Native TF2
 
-  volumes).
+    None of the supported arguments have changed name.
 
-  Args:
-    inputs: The tensor over which to pool. Must have rank 5.
-    pool_size: An integer or tuple/list of 3 integers: (pool_depth, pool_height,
-      pool_width) specifying the size of the pooling window. Can be a single
-      integer to specify the same value for all spatial dimensions.
-    strides: An integer or tuple/list of 3 integers, specifying the strides of
-      the pooling operation. Can be a single integer to specify the same value
-      for all spatial dimensions.
-    padding: A string. The padding method, either 'valid' or 'same'.
-      Case-insensitive.
-    data_format: A string. The ordering of the dimensions in the inputs.
-      `channels_last` (default) and `channels_first` are supported.
-      `channels_last` corresponds to inputs with shape `(batch, depth, height,
-      width, channels)` while `channels_first` corresponds to inputs with shape
-      `(batch, channels, depth, height, width)`.
-    name: A string, the name of the layer.
+    Before:
 
-  Returns:
-    Output tensor.
+    ```python
+     pooling = tf.compat.v1.layers.MaxPooling3D(pool_size=2, strides=2)
+    ```
 
-  Raises:
-    ValueError: if eager execution is enabled.
+    After:
 
+    ```python
+     pooling = tf.keras.layers.MaxPooling3D(pool_size=2, strides=2)
+    ```
+    @end_compatibility
+    """
 
-  @compatibility(TF2)
-  This API is a legacy api that is only compatible with eager execution and
-  `tf.function` if you combine it with
-  `tf.compat.v1.keras.utils.track_tf1_style_variables`
-
-  Please refer to [tf.layers model mapping section of the migration guide]
-  (https://www.tensorflow.org/guide/migrate/model_mapping)
-  to learn how to use your TensorFlow v1 model in TF2 with Keras.
-
-  The corresponding TensorFlow v2 layer is
-  `tf.keras.layers.MaxPooling3D`.
+    def __init__(
+        self,
+        pool_size,
+        strides,
+        padding="valid",
+        data_format="channels_last",
+        name=None,
+        **kwargs
+    ):
+        if strides is None:
+            raise ValueError("Argument `strides` must not be None.")
+        super().__init__(
+            pool_size=pool_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            name=name,
+            **kwargs
+        )
 
 
-  #### Structural Mapping to Native TF2
+@keras_export(v1=["keras.__internal__.legacy.layers.max_pooling3d"])
+@tf_export(v1=["layers.max_pooling3d"])
+def max_pooling3d(
+    inputs,
+    pool_size,
+    strides,
+    padding="valid",
+    data_format="channels_last",
+    name=None,
+):
+    """Max pooling layer for 3D inputs (e.g.
 
-  None of the supported arguments have changed name.
+    volumes).
 
-  Before:
+    Args:
+      inputs: The tensor over which to pool. Must have rank 5.
+      pool_size: An integer or tuple/list of 3 integers: (pool_depth, pool_height,
+        pool_width) specifying the size of the pooling window. Can be a single
+        integer to specify the same value for all spatial dimensions.
+      strides: An integer or tuple/list of 3 integers, specifying the strides of
+        the pooling operation. Can be a single integer to specify the same value
+        for all spatial dimensions.
+      padding: A string. The padding method, either 'valid' or 'same'.
+        Case-insensitive.
+      data_format: A string. The ordering of the dimensions in the inputs.
+        `channels_last` (default) and `channels_first` are supported.
+        `channels_last` corresponds to inputs with shape `(batch, depth, height,
+        width, channels)` while `channels_first` corresponds to inputs with shape
+        `(batch, channels, depth, height, width)`.
+      name: A string, the name of the layer.
 
-  ```python
-   y = tf.compat.v1.layers.max_pooling3d(x, pool_size=2, strides=2)
-  ```
+    Returns:
+      Output tensor.
 
-  After:
+    Raises:
+      ValueError: if eager execution is enabled.
 
-  To migrate code using TF1 functional layers use the [Keras Functional API]
-  (https://www.tensorflow.org/guide/keras/functional):
 
-  ```python
-   x = tf.keras.Input((28, 28, 1))
-   y = tf.keras.layers.MaxPooling3D(pool_size=2, strides=2)(x)
-   model = tf.keras.Model(x, y)
-  ```
-  @end_compatibility
-  """
-  warnings.warn(
-      '`tf.layers.max_pooling3d` is deprecated and '
-      'will be removed in a future version. '
-      'Please use `tf.keras.layers.MaxPooling3D` instead.',
-      stacklevel=2)
-  layer = MaxPooling3D(pool_size=pool_size, strides=strides,
-                       padding=padding, data_format=data_format,
-                       name=name)
-  return layer(inputs)
+    @compatibility(TF2)
+    This API is a legacy api that is only compatible with eager execution and
+    `tf.function` if you combine it with
+    `tf.compat.v1.keras.utils.track_tf1_style_variables`
+
+    Please refer to [tf.layers model mapping section of the migration guide]
+    (https://www.tensorflow.org/guide/migrate/model_mapping)
+    to learn how to use your TensorFlow v1 model in TF2 with Keras.
+
+    The corresponding TensorFlow v2 layer is
+    `tf.keras.layers.MaxPooling3D`.
+
+
+    #### Structural Mapping to Native TF2
+
+    None of the supported arguments have changed name.
+
+    Before:
+
+    ```python
+     y = tf.compat.v1.layers.max_pooling3d(x, pool_size=2, strides=2)
+    ```
+
+    After:
+
+    To migrate code using TF1 functional layers use the [Keras Functional API]
+    (https://www.tensorflow.org/guide/keras/functional):
+
+    ```python
+     x = tf.keras.Input((28, 28, 1))
+     y = tf.keras.layers.MaxPooling3D(pool_size=2, strides=2)(x)
+     model = tf.keras.Model(x, y)
+    ```
+    @end_compatibility
+    """
+    warnings.warn(
+        "`tf.layers.max_pooling3d` is deprecated and "
+        "will be removed in a future version. "
+        "Please use `tf.keras.layers.MaxPooling3D` instead.",
+        stacklevel=2,
+    )
+    layer = MaxPooling3D(
+        pool_size=pool_size,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        name=name,
+    )
+    return layer(inputs)
+
 
 # Aliases
 

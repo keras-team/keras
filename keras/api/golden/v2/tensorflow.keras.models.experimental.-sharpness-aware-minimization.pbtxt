@@ -4,8 +4,8 @@ tf_class {
   is_instance: "<class \'keras.engine.training.Model\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
-  is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"
-  is_instance: "<class \'tensorflow.python.training.tracking.base.Trackable\'>"
+  is_instance: "<class \'tensorflow.python.trackable.autotrackable.AutoTrackable\'>"
+  is_instance: "<class \'tensorflow.python.trackable.base.Trackable\'>"
   is_instance: "<class \'keras.utils.version_utils.LayerVersionSelector\'>"
   is_instance: "<class \'keras.utils.version_utils.ModelVersionSelector\'>"
   is_instance: "<type \'object\'>"
@@ -151,7 +151,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'model\', \'rho\', \'name\'], varargs=None, keywords=None, defaults=[\'0.05\', \'None\'], "
+    argspec: "args=[\'self\', \'model\', \'rho\', \'num_batch_splits\', \'name\'], varargs=None, keywords=None, defaults=[\'0.05\', \'None\', \'None\'], "
   }
   member_method {
     name: "add_loss"

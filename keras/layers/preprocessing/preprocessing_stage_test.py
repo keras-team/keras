@@ -15,6 +15,7 @@
 """Preprocessing stage tests."""
 
 import tensorflow.compat.v2 as tf
+
 # pylint: disable=g-classes-have-attributes
 
 import time
@@ -27,57 +28,60 @@ from keras.layers.preprocessing import preprocessing_test_utils
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class PreprocessingStageTest(
-    test_combinations.TestCase,
-    preprocessing_test_utils.PreprocessingLayerTest):
+    test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
+):
+    def test_adapt(self):
+        class PL(base_preprocessing_layer.PreprocessingLayer):
+            def __init__(self, **kwargs):
+                self.adapt_time = None
+                self.adapt_count = 0
+                super().__init__(**kwargs)
 
-  def test_adapt(self):
+            def adapt(self, data, reset_state=True):
+                self.adapt_time = time.time()
+                self.adapt_count += 1
 
-    class PL(base_preprocessing_layer.PreprocessingLayer):
+            def call(self, inputs):
+                return inputs + 1.0
 
-      def __init__(self, **kwargs):
-        self.adapt_time = None
-        self.adapt_count = 0
-        super(PL, self).__init__(**kwargs)
+        # Test with NumPy array
+        stage = preprocessing_stage.PreprocessingStage(
+            [
+                PL(),
+                PL(),
+                PL(),
+            ]
+        )
+        stage.adapt(np.ones((3, 4)))
+        self.assertEqual(stage.layers[0].adapt_count, 1)
+        self.assertEqual(stage.layers[1].adapt_count, 1)
+        self.assertEqual(stage.layers[2].adapt_count, 1)
+        self.assertLessEqual(
+            stage.layers[0].adapt_time, stage.layers[1].adapt_time
+        )
+        self.assertLessEqual(
+            stage.layers[1].adapt_time, stage.layers[2].adapt_time
+        )
 
-      def adapt(self, data, reset_state=True):
-        self.adapt_time = time.time()
-        self.adapt_count += 1
+        # Check call
+        y = stage(tf.ones((3, 4)))
+        self.assertAllClose(y, np.ones((3, 4)) + 3.0)
 
-      def call(self, inputs):
-        return inputs + 1.
+        # Test with dataset
+        adapt_data = tf.data.Dataset.from_tensor_slices(np.ones((3, 10)))
+        adapt_data = adapt_data.batch(2)  # 5 batches of 2 samples
 
-    # Test with NumPy array
-    stage = preprocessing_stage.PreprocessingStage([
-        PL(),
-        PL(),
-        PL(),
-    ])
-    stage.adapt(np.ones((3, 4)))
-    self.assertEqual(stage.layers[0].adapt_count, 1)
-    self.assertEqual(stage.layers[1].adapt_count, 1)
-    self.assertEqual(stage.layers[2].adapt_count, 1)
-    self.assertLessEqual(stage.layers[0].adapt_time, stage.layers[1].adapt_time)
-    self.assertLessEqual(stage.layers[1].adapt_time, stage.layers[2].adapt_time)
+        stage.adapt(adapt_data)
+        self.assertEqual(stage.layers[0].adapt_count, 2)
+        self.assertEqual(stage.layers[1].adapt_count, 2)
+        self.assertEqual(stage.layers[2].adapt_count, 2)
+        self.assertLess(stage.layers[0].adapt_time, stage.layers[1].adapt_time)
+        self.assertLess(stage.layers[1].adapt_time, stage.layers[2].adapt_time)
 
-    # Check call
-    y = stage(tf.ones((3, 4)))
-    self.assertAllClose(y, np.ones((3, 4)) + 3.)
-
-    # Test with dataset
-    adapt_data = tf.data.Dataset.from_tensor_slices(np.ones((3, 10)))
-    adapt_data = adapt_data.batch(2)  # 5 batches of 2 samples
-
-    stage.adapt(adapt_data)
-    self.assertEqual(stage.layers[0].adapt_count, 2)
-    self.assertEqual(stage.layers[1].adapt_count, 2)
-    self.assertEqual(stage.layers[2].adapt_count, 2)
-    self.assertLess(stage.layers[0].adapt_time, stage.layers[1].adapt_time)
-    self.assertLess(stage.layers[1].adapt_time, stage.layers[2].adapt_time)
-
-    # Test error with bad data
-    with self.assertRaisesRegex(ValueError, 'requires a '):
-      stage.adapt(None)
+        # Test error with bad data
+        with self.assertRaisesRegex(ValueError, "requires a "):
+            stage.adapt(None)
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

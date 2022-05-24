@@ -15,6 +15,12 @@
 """Keras Applications are premade architectures with pre-trained weights."""
 # pylint: disable=g-bad-import-order
 
+from keras.applications.convnext import ConvNeXtTiny
+from keras.applications.convnext import ConvNeXtSmall
+from keras.applications.convnext import ConvNeXtBase
+from keras.applications.convnext import ConvNeXtLarge
+from keras.applications.convnext import ConvNeXtXLarge
+
 from keras.applications.densenet import DenseNet121
 from keras.applications.densenet import DenseNet169
 from keras.applications.densenet import DenseNet201

@@ -38,7 +38,9 @@ pip install -r requirements.txt
 # keras code from local workspace.
 pip uninstall -y keras-nightly
 
-export LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64"
+# LD Library Path needs to be same as TensorFlow Ubuntu Docker build -
+# https://github.com/tensorflow/build/blob/master/tf_sig_build_dockerfiles/Dockerfile
+export LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda-11.1/lib64"
 export TF_CUDA_COMPUTE_CAPABILITIES=6.0
 TF_CUDA_CONFIG_REPO="@ubuntu16.04-py3-gcc7_manylinux2010-cuda10.1-cudnn7-tensorrt6.0_config_cuda"
 

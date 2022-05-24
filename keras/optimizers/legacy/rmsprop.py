@@ -19,6 +19,6 @@ from keras.optimizers.optimizer_v2 import rmsprop
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.optimizers.legacy.RMSprop')
+@keras_export("keras.optimizers.legacy.RMSprop")
 class RMSprop(rmsprop.RMSprop):
-  pass
+    pass

@@ -26,46 +26,50 @@ from keras.utils import generic_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.layers.Wrapper')
+@keras_export("keras.layers.Wrapper")
 class Wrapper(Layer):
-  """Abstract wrapper base class.
+    """Abstract wrapper base class.
 
-  Wrappers take another layer and augment it in various ways.
-  Do not use this class as a layer, it is only an abstract base class.
-  Two usable wrappers are the `TimeDistributed` and `Bidirectional` wrappers.
+    Wrappers take another layer and augment it in various ways.
+    Do not use this class as a layer, it is only an abstract base class.
+    Two usable wrappers are the `TimeDistributed` and `Bidirectional` wrappers.
 
-  Args:
-    layer: The layer to be wrapped.
-  """
+    Args:
+      layer: The layer to be wrapped.
+    """
 
-  def __init__(self, layer, **kwargs):
-    assert isinstance(layer, Layer)
-    self.layer = layer
-    super(Wrapper, self).__init__(**kwargs)
+    def __init__(self, layer, **kwargs):
+        assert isinstance(layer, Layer)
+        self.layer = layer
+        super().__init__(**kwargs)
 
-  def build(self, input_shape=None):
-    if not self.layer.built:
-      self.layer.build(input_shape)
-      self.layer.built = True
-    self.built = True
+    def build(self, input_shape=None):
+        if not self.layer.built:
+            self.layer.build(input_shape)
+            self.layer.built = True
+        self.built = True
 
-  @property
-  def activity_regularizer(self):
-    if hasattr(self.layer, 'activity_regularizer'):
-      return self.layer.activity_regularizer
-    else:
-      return None
+    @property
+    def activity_regularizer(self):
+        if hasattr(self.layer, "activity_regularizer"):
+            return self.layer.activity_regularizer
+        else:
+            return None
 
-  def get_config(self):
-    config = {'layer': generic_utils.serialize_keras_object(self.layer)}
-    base_config = super(Wrapper, self).get_config()
-    return dict(list(base_config.items()) + list(config.items()))
+    def get_config(self):
+        config = {"layer": generic_utils.serialize_keras_object(self.layer)}
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
-  @classmethod
-  def from_config(cls, config, custom_objects=None):
-    from keras.layers import deserialize as deserialize_layer  # pylint: disable=g-import-not-at-top
-    # Avoid mutating the input dict
-    config = copy.deepcopy(config)
-    layer = deserialize_layer(
-        config.pop('layer'), custom_objects=custom_objects)
-    return cls(layer, **config)
+    @classmethod
+    def from_config(cls, config, custom_objects=None):
+        from keras.layers import (
+            deserialize as deserialize_layer,
+        )  # pylint: disable=g-import-not-at-top
+
+        # Avoid mutating the input dict
+        config = copy.deepcopy(config)
+        layer = deserialize_layer(
+            config.pop("layer"), custom_objects=custom_objects
+        )
+        return cls(layer, **config)

@@ -59,7 +59,7 @@ distribute_py_test(
     name = "optimizer_pss_test",
     size = "medium",
     srcs = ["optimizer_pss_test.py"],
-    shard_count = 8,
+    shard_count = 32,
     tags = [
         "multi_gpu",
         "no_oss",
