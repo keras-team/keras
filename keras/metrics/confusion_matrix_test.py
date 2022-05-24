@@ -1296,15 +1296,15 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class AUCTest(tf.test.TestCase, parameterized.TestCase):
-  def setup(self):
-    self.num_thresholds = 3
-    self.y_pred = tf.constant([0, 0.5, 0.3, 0.9], dtype=tf.float32)
-    self.y_pred_multi_label = tf.constant([[0., 0.4], [0.5, 0.7], [0.3, 0.2], [0.9, 0.3]], dtype=tf.float32)
-    epsilon = 1e-12
-    self.y_pred_logits = -tf.math.log(1.0 / (self.y_pred + epsilon) - 1.0)
-    self.y_true = tf.constant([0, 0, 1, 1])
-    self.y_true_multi_label = tf.constant([[0, 0], [1, 1], [1, 1], [1, 0]])
-    self.sample_weight = [1, 2, 3, 4]
+    def setup(self):
+        self.num_thresholds = 3
+        self.y_pred = tf.constant([0, 0.5, 0.3, 0.9], dtype=tf.float32)
+        self.y_pred_multi_label = tf.constant([[0., 0.4], [0.5, 0.7], [0.3, 0.2], [0.9, 0.3]], dtype=tf.float32)
+        epsilon = 1e-12
+        self.y_pred_logits = -tf.math.log(1.0 / (self.y_pred + epsilon) - 1.0)
+        self.y_true = tf.constant([0, 0, 1, 1])
+        self.y_true_multi_label = tf.constant([[0, 0], [1, 1], [1, 1], [1, 0]])
+        self.sample_weight = [1, 2, 3, 4]
 
         # threshold values are [0 - 1e-7, 0.5, 1 + 1e-7]
         # y_pred when threshold = 0 - 1e-7  : [1, 1, 1, 1]
@@ -2080,5 +2080,5 @@ class ThresholdsTest(tf.test.TestCase, parameterized.TestCase):
                 self.assertAllClose(v1, v2)
 
 
-if __name__ == "__main__":
-    tf.test.main()
+if __name__ == '__main__':
+  tf.test.main()
