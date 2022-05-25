@@ -163,8 +163,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     def test_sparse_categorical_crossentropy_loss_with_unknown_rank_tensor(
         self,
     ):
-        # This test only runs in graph because the TF op layer is not supported yet
-        # for sparse ops.
+        # This test only runs in graph because the TF op layer is not supported
+        # yet for sparse ops.
         t = backend.placeholder()
         p = backend.placeholder()
         o = losses.sparse_categorical_crossentropy(t, p)
@@ -191,12 +191,12 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def test_sparse_categorical_crossentropy_with_float16(self):
         # See https://github.com/keras-team/keras/issues/15012 for more details.
-        # we don't cast y_true to have same dtype as y_pred, since y_pred could be
-        # float16 which has a small upbound, and the casting could cause an
+        # we don't cast y_true to have same dtype as y_pred, since y_pred could
+        # be float16 which has a small upbound, and the casting could cause an
         # underflow. The y_true will be used as int64 anyway.
 
-        # create 2 observations with 2049 labels, since 2048 is the largest number
-        # for float16
+        # create 2 observations with 2049 labels, since 2048 is the largest
+        # number for float16
         y_true = [0, 2049]
         # should result in a loss close to 0 since predicting y_true perfectly
         y_pred = np.zeros((2, 2050))
@@ -204,8 +204,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
         y_pred[1][2049] = 1
         y_pred_16 = tf.convert_to_tensor(y_pred, dtype=tf.float16)
 
-        # If we did a cast for y_true to float16 in SparseCategoricalCrossentropy,
-        # then the loss will not be zero.
+        # If we did a cast for y_true to float16 in
+        # SparseCategoricalCrossentropy, then the loss will not be zero.
         scce = losses.SparseCategoricalCrossentropy()
         self.assertAllClose(scce(y_true, y_pred_16).numpy(), 0.0, atol=1e-3)
 
@@ -310,7 +310,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_loss_wrapper_dtype(self):
         # Make sure the loss wrapper doesn't cause any numerical precision loss
-        # during calculation. See https://github.com/keras-team/keras/issues/15791
+        # during calculation. See
+        # https://github.com/keras-team/keras/issues/15791
         x = tf.convert_to_tensor([[2.1]], dtype=tf.float64)
         y_true = tf.square(x)
         y_pred = tf.convert_to_tensor([[3.68]], dtype=tf.float64)
@@ -1128,7 +1129,8 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
         obj = losses.BinaryFocalCrossentropy(gamma=2.0)
         loss = obj(y_true, y_pred)
 
-        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2],
+        #                                                    [0.7, 0.8]]
         # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
 
         # bceLoss = -log(p_t) = [[0.105, 1.609] ,[0.357, 0.223]]
@@ -1167,7 +1169,8 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
         obj = losses.BinaryFocalCrossentropy(gamma=2.0)
         loss = obj(y_true, y_pred, sample_weight=1.23)
 
-        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2],
+        #                                                    [0.7, 0.8]]
         # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
 
         # bceLoss = -log(p_t) = [[0.105, 1.609] ,[0.357, 0.223]] * sample_weight
@@ -1191,10 +1194,12 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
         #       = [[0.006, 0.823, 0.851], [0.00001, 0.0124, 0.000001]]
 
         # bceLoss = -log(p_t) * sample_weight
-        # = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]] * sample_weight
+        # = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]] *
+        # sample_weight
 
         # focalLoss = focal * bceLoss =
-        # [[0.0012, 2.2743, 2.514], [0.0000002, 0.0033, 0.00000001]] * sample_weight
+        # [[0.0012, 2.2743, 2.514], [0.0000002, 0.0033, 0.00000001]] *
+        # sample_weight
         # Reduced loss = 0.799 * 3.21 = 2.565
 
         self.assertAlmostEqual(self.evaluate(loss), 2.565, 3)
@@ -1208,7 +1213,8 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
         obj = losses.BinaryFocalCrossentropy(gamma=2.0)
         loss = obj(y_true, y_pred, sample_weight=sample_weight)
 
-        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7,
+        # 0.8]]
         # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
 
         # bceLoss = -log(p_t) * sample_weight
@@ -1234,10 +1240,12 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
         #       = [[0.006, 0.823, 0.851], [0.00001, 0.0124, 0.000001]]
 
         # bceLoss = -log(p_t) * sample_weight
-        # = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]] * sample_weight
+        # = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]] *
+        # sample_weight
 
         # focalLoss = focal * bceLoss =
-        # [[0.0012, 2.2743, 2.514], [0.0000002, 0.0033, 0.00000001]] * sample_weight
+        # [[0.0012, 2.2743, 2.514], [0.0000002, 0.0033, 0.00000001]] *
+        # sample_weight
         # focalLoss = [[0.00144, 2.72916, 3.0168], [6.8e-7, 0.01122, 3.4e-8]]
         # Reduced loss = 0.799
 
@@ -1254,7 +1262,8 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
         )
         loss = obj(y_true, y_pred)
 
-        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7,
+        # 0.8]]
         # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
 
         # bceLoss = -log(p_t) = [[0.105, 1.609] ,[0.357, 0.223]]
@@ -1269,7 +1278,8 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
         obj = losses.BinaryFocalCrossentropy(gamma=2.0)
         loss = obj(y_true, y_pred)
 
-        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2, 0.7], [0.8]]
+        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2, 0.7],
+        # [0.8]]
         # focal = (1 - p_t) ** gamma = [[0.01, 0.64, 0.09], [0.04]]
 
         # bceLoss = -log(p_t) = [[0.105, 1.609, 0.357], [0.223]]
@@ -1343,7 +1353,8 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
         )
         loss = obj(y_true, y_pred)
 
-        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7,
+        # 0.8]]
         # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
         #              = [[0.4, 0.6], [0.4, 0.6]]
         # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
@@ -1398,7 +1409,8 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
 
         # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
         #              = [[0.6, 0.4], [0.6, 0.4]]
-        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7,
+        # 0.8]]
         # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
 
         # bceLoss = -log(p_t) = [[0.105, 1.609] ,[0.357, 0.223]] * sample_weight
@@ -1429,10 +1441,12 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
         #       = [[0.006, 0.823, 0.851], [0.00001, 0.0124, 0.000001]]
 
         # bceLoss = -log(p_t) * sample_weight
-        # = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]] * sample_weight
+        # = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]] *
+        # sample_weight
 
         # weightedfocalLoss = alpha_weight * focal * bceLoss =
-        # [[0.00024, 0.45486, 2.0112], [0.00000016, 0.00066, 0.000000008]] * 3.21
+        # [[0.00024, 0.45486, 2.0112], [0.00000016, 0.00066, 0.000000008]] *
+        # 3.21
         # Reduced loss = 0.41116 * 3.21 = 1.32
 
         self.assertAlmostEqual(self.evaluate(loss), 1.32, 3)
@@ -1452,7 +1466,8 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
 
         # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
         #              = [[0.1, 0.9], [0.1, 0.9]]
-        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7,
+        # 0.8]]
         # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
 
         # bceLoss = -log(p_t) * sample_weight
@@ -1486,11 +1501,13 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
         #              = [[0.2, 0.2, 0.8], [0.8, 0.2, 0.8]]
 
         # bceLoss = -log(p_t) * sample_weight
-        # = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]] * sample_weight
+        # = [[0.2014, 2.7646 , 2.9527], [0.0221, 0.2633, 0.01106]] *
+        # sample_weight
 
         # focalLoss = alpha_weight * focal * bceLoss =
         # [[0.00024, 0.45486, 2.0112], [1.6e-7, 6.6e-4, 8e-9]] * sample_weight
-        # focalLoss = [[0.000288, 0.5458, 2.41344], [5.44e-7, 2.444e-3, 2.72e-8]]
+        # focalLoss = [[0.000288, 0.5458, 2.41344], [5.44e-7, 2.444e-3,
+        # 2.72e-8]]
         # Reduced loss = 0.49366
 
         self.assertAlmostEqual(self.evaluate(loss), 0.49366, 3)
@@ -1511,7 +1528,8 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
         # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
         #              = [[0.6, 0.4], [0.6, 0.4]]
 
-        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7, 0.8]]
+        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2], [0.7,
+        # 0.8]]
         # focal = (1 - p_t) ** gamma = [[0.01, 0.64], [0.09, 0.04]]
 
         # bceLoss = -log(p_t) = [[0.105, 1.609] ,[0.357, 0.223]]
@@ -1533,7 +1551,8 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
 
         # alpha_weight = alpha y_true + (1 - alpha) (1 - y_true)
         #              = [[0.1, 0.9, 0.1], [0.9]]
-        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2, 0.7], [0.8]]
+        # p_t = y_true y_pred + (1 - y_true) (1 - y_pred) = [[0.9, 0.2, 0.7],
+        # [0.8]]
         # focal = (1 - p_t) ** gamma = [[0.01, 0.64, 0.09], [0.04]]
 
         # bceLoss = -log(p_t) = [[0.105, 1.609, 0.357], [0.223]]
@@ -2021,7 +2040,8 @@ class SquaredHingeTest(tf.test.TestCase):
         # y_true = [[-1, 1, -1, 1], [-1, -1, 1, 1]]
         # y_true * y_pred = [[0.3, 0.2, 0.1, 1.6], [0.25, 1, 0.5, 0.6]]
         # 1 - y_true * y_pred = [[0.7, 0.8, 0.9, -0.6], [0.75, 0, 0.5, 0.4]]
-        # max(0, 1 - y_true * y_pred) = [[0.7, 0.8, 0.9, 0], [0.75, 0, 0.5, 0.4]]
+        # max(0, 1 - y_true * y_pred) = [[0.7, 0.8, 0.9, 0], [0.75, 0, 0.5,
+        # 0.4]]
         # squared(max(0, 1 - y_true * y_pred)) = [[0.49, 0.64, 0.81, 0],
         #                                         [0.5625, 0, 0.25, 0.16]]
         # loss = [(0.49 + 0.64 + 0.81 + 0) / 4, (0.5625 + 0 + 0.25 + 0.16) / 4]
@@ -2041,7 +2061,8 @@ class SquaredHingeTest(tf.test.TestCase):
         # y_true = [[-1, 1, -1, 1], [-1, -1, 1, 1]]
         # y_true * y_pred = [[0.3, 0.2, 0.1, 1.6], [0.25, 1, 0.5, 0.6]]
         # 1 - y_true * y_pred = [[0.7, 0.8, 0.9, -0.6], [0.75, 0, 0.5, 0.4]]
-        # max(0, 1 - y_true * y_pred) = [[0.7, 0.8, 0.9, 0], [0.75, 0, 0.5, 0.4]]
+        # max(0, 1 - y_true * y_pred) = [[0.7, 0.8, 0.9, 0], [0.75, 0, 0.5,
+        # 0.4]]
         # squared(max(0, 1 - y_true * y_pred)) = [[0.49, 0.64, 0.81, 0],
         #                                         [0.5625, 0, 0.25, 0.16]]
         # loss = [(0.49 + 0.64 + 0.81 + 0) / 4, (0.5625 + 0 + 0.25 + 0.16) / 4]
@@ -2066,7 +2087,8 @@ class SquaredHingeTest(tf.test.TestCase):
         # y_true = [[-1, 1, -1, 1], [-1, -1, 1, 1]]
         # y_true * y_pred = [[0.3, 0.2, 0.1, 1.6], [0.25, 1, 0.5, 0.6]]
         # 1 - y_true * y_pred = [[0.7, 0.8, 0.9, -0.6], [0.75, 0, 0.5, 0.4]]
-        # max(0, 1 - y_true * y_pred) = [[0.7, 0.8, 0.9, 0], [0.75, 0, 0.5, 0.4]]
+        # max(0, 1 - y_true * y_pred) = [[0.7, 0.8, 0.9, 0], [0.75, 0, 0.5,
+        # 0.4]]
         # squared(max(0, 1 - y_true * y_pred)) = [[0.49, 0.64, 0.81, 0],
         #                                         [0.5625, 0, 0.25, 0.16]]
         # loss = [(0.49 + 0.64 + 0.81 + 0) / 4, (0.5625 + 0 + 0.25 + 0.16) / 4]
@@ -2124,7 +2146,8 @@ class CategoricalHingeTest(tf.test.TestCase):
         loss = cat_hinge_obj(y_true, y_pred)
 
         # pos = reduce_sum(y_true * y_pred) = [1*4+8*9, 12*2+8*-5] = [76, -16]
-        # neg = reduce_max((1. - y_true) * y_pred) = [[0, -64], [-12, 48]] = [0, 48]
+        # neg = reduce_max((1. - y_true) * y_pred) = [[0, -64], [-12, 48]] = [0,
+        # 48]
         # cat_hinge = max(0., neg - pos + 1.) = [0, 65]
         # reduced_loss = (0 + 65)/2 = 32.5
         self.assertAlmostEqual(self.evaluate(loss), 32.5, 3)
