@@ -165,18 +165,15 @@ pip install --upgrade tf-nightly
 
 ## Code style
 
-The Keras codebase uses the PEP 8 Python style conventions -- with the
-exception that it uses 2 spaces for indentation instead of 4.
-To check code style, please run the `pylint` command from the repo's
-root directory so that the configuration in
-`.pylintrc` is taken into account.
+The Keras uses [Black](https://black.readthedocs.io/en/stable/) and
+[isort](https://pycqa.github.io/isort/) to format the code. Please refer to
+[requirements.txt](https://github.com/keras-team/keras/blob/master/requirements.txt)
+for the required versions. Run the following command
+**at the root directory of the repo** to format your code.
 
-```shell
-pylint path/to/changed_file.py
 ```
-
-Please ignore the errors in the rest of the codebase and only fix the ones
-relevant to your changes.
+sh shell/format.sh
+```
 
 ## Run tests
 
