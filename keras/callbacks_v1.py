@@ -60,30 +60,30 @@ class TensorBoard(callbacks.TensorBoard):
           can become quite large when write_graph is set to True.
         write_grads: whether to visualize gradient histograms in TensorBoard.
           `histogram_freq` must be greater than 0.
-        batch_size: size of batch of inputs to feed to the network for histograms
-          computation.
+        batch_size: size of batch of inputs to feed to the network for
+          histograms computation.
         write_images: whether to write model weights to visualize as image in
           TensorBoard.
-        embeddings_freq: frequency (in epochs) at which selected embedding layers
-          will be saved. If set to 0, embeddings won't be computed. Data to be
-          visualized in TensorBoard's Embedding tab must be passed as
+        embeddings_freq: frequency (in epochs) at which selected embedding
+          layers will be saved. If set to 0, embeddings won't be computed. Data
+          to be visualized in TensorBoard's Embedding tab must be passed as
           `embeddings_data`.
-        embeddings_layer_names: a list of names of layers to keep eye on. If None
-          or empty list all the embedding layer will be watched.
-        embeddings_metadata: a dictionary which maps layer name to a file name in
-          which metadata for this embedding layer is saved.
+        embeddings_layer_names: a list of names of layers to keep eye on. If
+          None or empty list all the embedding layer will be watched.
+        embeddings_metadata: a dictionary which maps layer name to a file name
+          in which metadata for this embedding layer is saved.
             [Here are details](
               https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
               about metadata files format. In case if the same metadata file is
               used for all embedding layers, string can be passed.
         embeddings_data: data to be embedded at layers specified in
-          `embeddings_layer_names`. Numpy array (if the model has a single input)
-          or list of Numpy arrays (if the model has multiple inputs). Learn more
-          about embeddings [in this guide](
-            https://www.tensorflow.org/programmers_guide/embedding).
+          `embeddings_layer_names`. Numpy array (if the model has a single
+          input) or list of Numpy arrays (if the model has multiple inputs).
+          Learn more about embeddings [in this guide](
+          https://www.tensorflow.org/programmers_guide/embedding).
         update_freq: `'batch'` or `'epoch'` or integer. When using `'batch'`,
-          writes the losses and metrics to TensorBoard after each batch. The same
-          applies for `'epoch'`. If using an integer, let's say `1000`, the
+          writes the losses and metrics to TensorBoard after each batch. The
+          same applies for `'epoch'`. If using an integer, let's say `1000`, the
           callback will write the metrics and losses to TensorBoard every 1000
           samples. Note that writing too frequently to TensorBoard can slow down
           your training.
@@ -263,8 +263,8 @@ class TensorBoard(callbacks.TensorBoard):
                 self.embeddings_data, model.input_names
             )
 
-            # If embedding_layer_names are not provided, get all of the embedding
-            # layers from the model.
+            # If embedding_layer_names are not provided, get all of the
+            # embedding layers from the model.
             embeddings_layer_names = self.embeddings_layer_names
             if not embeddings_layer_names:
                 embeddings_layer_names = [
@@ -322,8 +322,9 @@ class TensorBoard(callbacks.TensorBoard):
                 )
 
             # TODO(psv): Add integration tests to test embedding visualization
-            # with TensorBoard callback. We are unable to write a unit test for this
-            # because TensorBoard dependency assumes TensorFlow package is installed.
+            # with TensorBoard callback. We are unable to write a unit test for
+            # this because TensorBoard dependency assumes TensorFlow package is
+            # installed.
             config = projector.ProjectorConfig()
             for layer_name, tensor in embeddings_vars.items():
                 embedding = config.embeddings.add()
@@ -412,7 +413,8 @@ class TensorBoard(callbacks.TensorBoard):
         pass
 
     def on_epoch_begin(self, epoch, logs=None):
-        """Add histogram op to Model eval_function callbacks, reset batch count."""
+        """Add histogram op to Model eval_function callbacks, reset batch
+        count."""
 
         # check if histogram summary should be run for this epoch
         if self.histogram_freq and epoch % self.histogram_freq == 0:
@@ -427,7 +429,8 @@ class TensorBoard(callbacks.TensorBoard):
             # pylint: enable=protected-access
 
     def on_epoch_end(self, epoch, logs=None):
-        """Checks if summary ops should run next epoch, logs scalar summaries."""
+        """Checks if summary ops should run next epoch, logs scalar
+        summaries."""
 
         # don't output batch_size and
         # batch number as TensorBoard summaries

@@ -39,7 +39,8 @@ class Loss:
     """Loss base class.
 
     To be implemented by subclasses:
-    * `call()`: Contains the logic for loss calculation using `y_true`, `y_pred`.
+    * `call()`: Contains the logic for loss calculation using `y_true`,
+      `y_pred`.
 
     Example subclass implementation:
 
@@ -80,10 +81,11 @@ class Loss:
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE`
             will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+              https://www.tensorflow.org/tutorials/distribute/custom_training)
+              for more details.
           name: Optional name for the instance.
         """
         losses_utils.ReductionV2.validate(reduction)
@@ -114,24 +116,26 @@ class Loss:
           y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`
           sample_weight: Optional `sample_weight` acts as a coefficient for the
             loss. If a scalar is provided, then the loss is simply scaled by the
-            given value. If `sample_weight` is a tensor of size `[batch_size]`, then
-            the total loss for each sample of the batch is rescaled by the
+            given value. If `sample_weight` is a tensor of size `[batch_size]`,
+            then the total loss for each sample of the batch is rescaled by the
             corresponding element in the `sample_weight` vector. If the shape of
-            `sample_weight` is `[batch_size, d0, .. dN-1]` (or can be broadcasted to
-            this shape), then each loss element of `y_pred` is scaled
-            by the corresponding value of `sample_weight`. (Note on`dN-1`: all loss
-              functions reduce by 1 dimension, usually axis=-1.)
+            `sample_weight` is `[batch_size, d0, .. dN-1]` (or can be
+            broadcasted to this shape), then each loss element of `y_pred` is
+            scaled by the corresponding value of `sample_weight`. (Note
+            on`dN-1`: all loss functions reduce by 1 dimension, usually
+            axis=-1.)
 
         Returns:
           Weighted loss float `Tensor`. If `reduction` is `NONE`, this has
-            shape `[batch_size, d0, .. dN-1]`; otherwise, it is scalar. (Note `dN-1`
-            because all loss functions reduce by 1 dimension, usually axis=-1.)
+            shape `[batch_size, d0, .. dN-1]`; otherwise, it is scalar. (Note
+            `dN-1` because all loss functions reduce by 1 dimension, usually
+            axis=-1.)
 
         Raises:
           ValueError: If the shape of `sample_weight` is invalid.
         """
-        # If we are wrapping a lambda function strip '<>' from the name as it is not
-        # accepted in scope name.
+        # If we are wrapping a lambda function strip '<>' from the name as it is
+        # not accepted in scope name.
         graph_ctx = tf_utils.graph_context_for_symbolic_tensors(
             y_true, y_pred, sample_weight
         )
@@ -192,16 +196,17 @@ class Loss:
         ):
             raise ValueError(
                 "Please use `tf.keras.losses.Reduction.SUM` or "
-                "`tf.keras.losses.Reduction.NONE` for loss reduction when losses are "
-                "used with `tf.distribute.Strategy` outside of the built-in training "
-                "loops. You can implement "
-                "`tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE` using global batch "
-                "size like:\n```\nwith strategy.scope():\n"
+                "`tf.keras.losses.Reduction.NONE` for loss reduction when "
+                "losses are used with `tf.distribute.Strategy` outside "
+                "of the built-in training loops. You can implement "
+                "`tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE` using "
+                "global batch size like:\n```\nwith strategy.scope():\n"
                 "    loss_obj = tf.keras.losses.CategoricalCrossentropy("
                 "reduction=tf.keras.losses.Reduction.NONE)\n....\n"
                 "    loss = tf.reduce_sum(loss_obj(labels, predictions)) * "
                 "(1. / global_batch_size)\n```\nPlease see "
-                "https://www.tensorflow.org/tutorials/distribute/custom_training"
+                "https://www.tensorflow.org/tutorials"
+                "/distribute/custom_training"
                 " for more details."
             )
 
@@ -226,10 +231,11 @@ class LossFunctionWrapper(Loss):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance.
           **kwargs: The keyword arguments that are passed on to `fn`.
         """
@@ -336,11 +342,13 @@ class MeanSquaredError(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
-          name: Optional name for the instance. Defaults to 'mean_squared_error'.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
+          name: Optional name for the instance. Defaults to
+            'mean_squared_error'.
         """
         super().__init__(mean_squared_error, name=name, reduction=reduction)
 
@@ -396,11 +404,13 @@ class MeanAbsoluteError(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
-          name: Optional name for the instance. Defaults to 'mean_absolute_error'.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
+          name: Optional name for the instance. Defaults to
+            'mean_absolute_error'.
         """
         super().__init__(mean_absolute_error, name=name, reduction=reduction)
 
@@ -462,10 +472,11 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance. Defaults to
             'mean_absolute_percentage_error'.
         """
@@ -526,10 +537,11 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance. Defaults to
             'mean_squared_logarithmic_error'.
         """
@@ -615,22 +627,25 @@ class BinaryCrossentropy(LossFunctionWrapper):
         Args:
           from_logits: Whether to interpret `y_pred` as a tensor of
             [logit](https://en.wikipedia.org/wiki/Logit) values. By default, we
-              assume that `y_pred` contains probabilities (i.e., values in [0, 1]).
-          label_smoothing: Float in [0, 1]. When 0, no smoothing occurs. When > 0,
-            we compute the loss between the predicted labels and a smoothed version
-            of the true labels, where the smoothing squeezes the labels towards 0.5.
-            Larger values of `label_smoothing` correspond to heavier smoothing.
-          axis: The axis along which to compute crossentropy (the features axis).
-            Defaults to -1.
+            assume that `y_pred` contains probabilities (i.e., values in [0,
+            1]).
+          label_smoothing: Float in [0, 1]. When 0, no smoothing occurs. When >
+            0, we compute the loss between the predicted labels and a smoothed
+            version of the true labels, where the smoothing squeezes the labels
+            towards 0.5.  Larger values of `label_smoothing` correspond to
+            heavier smoothing.
+          axis: The axis along which to compute crossentropy (the features
+            axis).  Defaults to -1.
           reduction: Type of `tf.keras.losses.Reduction` to apply to
             loss. Default value is `AUTO`. `AUTO` indicates that the reduction
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Name for the op. Defaults to 'binary_crossentropy'.
         """
         super().__init__(
@@ -659,8 +674,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
       `from_logits=False`).
 
     According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
-    helps to apply a "focal factor" to down-weight easy examples and focus more on
-    hard examples. By default, the focal tensor is computed as follows:
+    helps to apply a "focal factor" to down-weight easy examples and focus more
+    on hard examples. By default, the focal tensor is computed as follows:
 
     `focal_factor = (1 - output) ** gamma` for class 1
     `focal_factor = output ** gamma` for class 0
@@ -681,7 +696,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     >>> # Example 1: (batch_size = 1, number of samples = 4)
     >>> y_true = [0, 1, 0, 0]
     >>> y_pred = [-18.6, 0.51, 2.94, -12.8]
-    >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=2, from_logits=True)
+    >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=2,
+    ...                                                from_logits=True)
     >>> loss(y_true, y_pred).numpy()
     0.691
 
@@ -695,7 +711,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     >>> y_true = [[0, 1], [0, 0]]
     >>> y_pred = [[-18.6, 0.51], [2.94, -12.8]]
     >>> # Using default 'auto'/'sum_over_batch_size' reduction type.
-    >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=3, from_logits=True)
+    >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=3,
+    ...                                                from_logits=True)
     >>> loss(y_true, y_pred).numpy()
     0.647
 
@@ -706,7 +723,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     0.482
 
     >>> # Using 'sample_weight' attribute with focal effect
-    >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=3, from_logits=True)
+    >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=3,
+    ...                                                from_logits=True)
     >>> loss(y_true, y_pred, sample_weight=[0.8, 0.2]).numpy()
     0.133
 
@@ -717,7 +735,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     0.097
 
     >>> # Using 'sum' reduction` type.
-    >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=4, from_logits=True,
+    >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=4,
+    ...                                                from_logits=True,
     ...     reduction=tf.keras.losses.Reduction.SUM)
     >>> loss(y_true, y_pred).numpy()
     1.222
@@ -730,7 +749,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     0.914
 
     >>> # Using 'none' reduction type.
-    >>> loss = tf.keras.losses.BinaryFocalCrossentropy(gamma=5, from_logits=True,
+    >>> loss = tf.keras.losses.BinaryFocalCrossentropy(
+    ...     gamma=5, from_logits=True,
     ...     reduction=tf.keras.losses.Reduction.NONE)
     >>> loss(y_true, y_pred).numpy()
     array([0.0017 1.1561], dtype=float32)
@@ -746,9 +766,10 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     Args:
       apply_class_balancing: A bool, whether to apply weight balancing on the
         binary classes 0 and 1.
-      alpha: A weight balancing factor for class 1, default is `0.25` as mentioned
-        in reference [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf).
-        The weight for class 0 is `1.0 - alpha`.
+      alpha: A weight balancing factor for class 1, default is `0.25` as
+        mentioned in reference [Lin et al., 2018](
+        https://arxiv.org/pdf/1708.02002.pdf).  The weight for class 0 is
+        `1.0 - alpha`.
       gamma: A focusing parameter used to compute the focal factor, default is
         `2.0` as mentioned in the reference
         [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf).
@@ -816,10 +837,11 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
 class CategoricalCrossentropy(LossFunctionWrapper):
     """Computes the crossentropy loss between the labels and predictions.
 
-    Use this crossentropy loss function when there are two or more label classes.
-    We expect labels to be provided in a `one_hot` representation. If you want to
-    provide labels as integers, please use `SparseCategoricalCrossentropy` loss.
-    There should be `# classes` floating point values per feature.
+    Use this crossentropy loss function when there are two or more label
+    classes. We expect labels to be provided in a `one_hot` representation. If
+    you want to provide labels as integers, please use
+    `SparseCategoricalCrossentropy` loss.  There should be `# classes` floating
+    point values per feature.
 
     In the snippet below, there is `# classes` floating pointing values per
     example. The shape of both `y_pred` and `y_true` are
@@ -853,7 +875,8 @@ class CategoricalCrossentropy(LossFunctionWrapper):
     Usage with the `compile()` API:
 
     ```python
-    model.compile(optimizer='sgd', loss=tf.keras.losses.CategoricalCrossentropy())
+    model.compile(optimizer='sgd',
+                  loss=tf.keras.losses.CategoricalCrossentropy())
     ```
     """
 
@@ -874,17 +897,18 @@ class CategoricalCrossentropy(LossFunctionWrapper):
             meaning the confidence on label values are relaxed. For example, if
             `0.1`, use `0.1 / num_classes` for non-target labels and
             `0.9 + 0.1 / num_classes` for target labels.
-          axis: The axis along which to compute crossentropy (the features axis).
-            Defaults to -1.
+          axis: The axis along which to compute crossentropy (the features
+            axis). Defaults to -1.
           reduction: Type of `tf.keras.losses.Reduction` to apply to
             loss. Default value is `AUTO`. `AUTO` indicates that the reduction
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance.
             Defaults to 'categorical_crossentropy'.
         """
@@ -902,11 +926,12 @@ class CategoricalCrossentropy(LossFunctionWrapper):
 class SparseCategoricalCrossentropy(LossFunctionWrapper):
     """Computes the crossentropy loss between the labels and predictions.
 
-    Use this crossentropy loss function when there are two or more label classes.
-    We expect labels to be provided as integers. If you want to provide labels
-    using `one-hot` representation, please use `CategoricalCrossentropy` loss.
-    There should be `# classes` floating point values per feature for `y_pred`
-    and a single floating point value per feature for `y_true`.
+    Use this crossentropy loss function when there are two or more label
+    classes.  We expect labels to be provided as integers. If you want to
+    provide labels using `one-hot` representation, please use
+    `CategoricalCrossentropy` loss.  There should be `# classes` floating point
+    values per feature for `y_pred` and a single floating point value per
+    feature for `y_true`.
 
     In the snippet below, there is a single floating point value per example for
     `y_true` and `# classes` floating pointing values per example for `y_pred`.
@@ -962,10 +987,11 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance. Defaults to
             'sparse_categorical_crossentropy'.
         """
@@ -1027,10 +1053,11 @@ class Hinge(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance. Defaults to 'hinge'.
         """
         super().__init__(hinge, name=name, reduction=reduction)
@@ -1088,10 +1115,11 @@ class SquaredHinge(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance. Defaults to 'squared_hinge'.
         """
         super().__init__(squared_hinge, name=name, reduction=reduction)
@@ -1147,10 +1175,11 @@ class CategoricalHinge(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance. Defaults to 'categorical_hinge'.
         """
         super().__init__(categorical_hinge, name=name, reduction=reduction)
@@ -1203,10 +1232,11 @@ class Poisson(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance. Defaults to 'poisson'.
         """
         super().__init__(poisson, name=name, reduction=reduction)
@@ -1262,10 +1292,11 @@ class LogCosh(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance. Defaults to 'log_cosh'.
         """
         super().__init__(log_cosh, name=name, reduction=reduction)
@@ -1322,10 +1353,11 @@ class KLDivergence(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance. Defaults to 'kl_divergence'.
         """
         super().__init__(kl_divergence, name=name, reduction=reduction)
@@ -1391,10 +1423,11 @@ class Huber(LossFunctionWrapper):
             option will be determined by the usage context. For almost all cases
             this defaults to `SUM_OVER_BATCH_SIZE`. When used with
             `tf.distribute.Strategy`, outside of built-in training loops such as
-            `tf.keras` `compile` and `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-            will raise an error. Please see this custom training [tutorial](
-              https://www.tensorflow.org/tutorials/distribute/custom_training) for
-                more details.
+            `tf.keras` `compile` and `fit`, using `AUTO` or
+            `SUM_OVER_BATCH_SIZE` will raise an error. Please see this custom
+            training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training) for
+            more details.
           name: Optional name for the instance. Defaults to 'huber_loss'.
         """
         super().__init__(huber, name=name, reduction=reduction, delta=delta)
@@ -1615,7 +1648,8 @@ def mean_absolute_percentage_error(y_true, y_pred):
       y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
 
     Returns:
-      Mean absolute percentage error values. shape = `[batch_size, d0, .. dN-1]`.
+      Mean absolute percentage error values. shape = `[batch_size, d0, ..
+      dN-1]`.
     """
     y_pred = tf.convert_to_tensor(y_pred)
     y_true = tf.cast(y_true, y_pred.dtype)
@@ -1665,7 +1699,8 @@ def mean_squared_logarithmic_error(y_true, y_pred):
       y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
 
     Returns:
-      Mean squared logarithmic error values. shape = `[batch_size, d0, .. dN-1]`.
+      Mean squared logarithmic error values. shape = `[batch_size, d0, ..
+      dN-1]`.
     """
     y_pred = tf.convert_to_tensor(y_pred)
     y_true = tf.cast(y_true, y_pred.dtype)
@@ -1718,9 +1753,9 @@ def squared_hinge(y_true, y_pred):
     ...     np.mean(np.square(np.maximum(1. - y_true * y_pred, 0.)), axis=-1))
 
     Args:
-      y_true: The ground truth values. `y_true` values are expected to be -1 or 1.
-        If binary (0 or 1) labels are provided we will convert them to -1 or 1.
-        shape = `[batch_size, d0, .. dN]`.
+      y_true: The ground truth values. `y_true` values are expected to be -1 or
+        1. If binary (0 or 1) labels are provided we will convert them to -1 or
+        1. shape = `[batch_size, d0, .. dN]`.
       y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
 
     Returns:
@@ -1752,9 +1787,9 @@ def hinge(y_true, y_pred):
     ...     np.mean(np.maximum(1. - y_true * y_pred, 0.), axis=-1))
 
     Args:
-      y_true: The ground truth values. `y_true` values are expected to be -1 or 1.
-        If binary (0 or 1) labels are provided they will be converted to -1 or 1.
-        shape = `[batch_size, d0, .. dN]`.
+      y_true: The ground truth values. `y_true` values are expected to be -1 or
+        1. If binary (0 or 1) labels are provided they will be converted to -1
+        or 1. shape = `[batch_size, d0, .. dN]`.
       y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
 
     Returns:
@@ -1863,7 +1898,8 @@ def log_cosh(y_true, y_pred):
     >>> x = y_pred - y_true
     >>> assert np.allclose(
     ...     loss.numpy(),
-    ...     np.mean(x + np.log(np.exp(-2. * x) + 1.) - tf.math.log(2.), axis=-1),
+    ...     np.mean(x + np.log(np.exp(-2. * x) + 1.) - tf.math.log(2.),
+    ...             axis=-1),
     ...     atol=1e-5)
 
     Args:
@@ -1906,8 +1942,8 @@ def categorical_crossentropy(
     Args:
       y_true: Tensor of one-hot true targets.
       y_pred: Tensor of predicted targets.
-      from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
-        we assume that `y_pred` encodes a probability distribution.
+      from_logits: Whether `y_pred` is expected to be a logits tensor. By
+        default, we assume that `y_pred` encodes a probability distribution.
       label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
         example, if `0.1`, use `0.1 / num_classes` for non-target labels
         and `0.9 + 0.1 / num_classes` for target labels.
@@ -1919,7 +1955,8 @@ def categorical_crossentropy(
     """
     if isinstance(axis, bool):
         raise ValueError(
-            f"`axis` must be of type `int`. Received: axis={axis} of type {type(axis)}"
+            f"`axis` must be of type `int`. "
+            f"Received: axis={axis} of type {type(axis)}"
         )
     y_pred = tf.convert_to_tensor(y_pred)
     y_true = tf.cast(y_true, y_pred.dtype)
@@ -1949,8 +1986,8 @@ def _ragged_tensor_categorical_crossentropy(
     Args:
       y_true: Tensor of one-hot true targets.
       y_pred: Tensor of predicted targets.
-      from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
-        we assume that `y_pred` encodes a probability distribution.
+      from_logits: Whether `y_pred` is expected to be a logits tensor. By
+        default, we assume that `y_pred` encodes a probability distribution.
       label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
         example, if `0.1`, use `0.1 / num_classes` for non-target labels
         and `0.9 + 0.1 / num_classes` for target labels.
@@ -1999,8 +2036,8 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
     Args:
       y_true: Ground truth values.
       y_pred: The predicted values.
-      from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
-        we assume that `y_pred` encodes a probability distribution.
+      from_logits: Whether `y_pred` is expected to be a logits tensor. By
+        default, we assume that `y_pred` encodes a probability distribution.
       axis: Defaults to -1. The dimension along which the entropy is
         computed.
 
@@ -2057,11 +2094,12 @@ def binary_crossentropy(
     Args:
       y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
       y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
-      from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
-        we assume that `y_pred` encodes a probability distribution.
+      from_logits: Whether `y_pred` is expected to be a logits tensor. By
+        default, we assume that `y_pred` encodes a probability distribution.
       label_smoothing: Float in [0, 1]. If > `0` then smooth the labels by
         squeezing them towards 0.5 That is, using `1. - 0.5 * label_smoothing`
-        for the target class and `0.5 * label_smoothing` for the non-target class.
+        for the target class and `0.5 * label_smoothing` for the non-target
+        class.
       axis: The axis along which the mean is computed. Defaults to -1.
 
     Returns:
@@ -2093,8 +2131,8 @@ def _ragged_tensor_binary_crossentropy(
     Args:
       y_true: Tensor of one-hot true targets.
       y_pred: Tensor of predicted targets.
-      from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
-        we assume that `y_pred` encodes a probability distribution.
+      from_logits: Whether `y_pred` is expected to be a logits tensor. By
+        default, we assume that `y_pred` encodes a probability distribution.
       label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
         example, if `0.1`, use `0.1 / num_classes` for non-target labels
         and `0.9 + 0.1 / num_classes` for target labels.
@@ -2157,7 +2195,8 @@ def binary_focal_crossentropy(
 
     >>> y_true = [[0, 1], [0, 0]]
     >>> y_pred = [[0.6, 0.4], [0.4, 0.6]]
-    >>> loss = tf.keras.losses.binary_focal_crossentropy(y_true, y_pred, gamma=2)
+    >>> loss = tf.keras.losses.binary_focal_crossentropy(y_true, y_pred,
+    ...                                                  gamma=2)
     >>> assert loss.shape == (2,)
     >>> loss.numpy()
     array([0.330, 0.206], dtype=float32)
@@ -2167,14 +2206,16 @@ def binary_focal_crossentropy(
       y_pred: The predicted values, of shape `(batch_size, d0, .. dN)`.
       apply_class_balancing: A bool, whether to apply weight balancing on the
         binary classes 0 and 1.
-      alpha: A weight balancing factor for class 1, default is `0.25` as mentioned
-      in the reference. The weight for class 0 is `1.0 - alpha`.
-      gamma: A focusing parameter, default is `2.0` as mentioned in the reference.
-      from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
-        we assume that `y_pred` encodes a probability distribution.
-      label_smoothing: Float in `[0, 1]`. If higher than 0 then smooth the labels
-        by squeezing them towards `0.5`, i.e., using `1. - 0.5 * label_smoothing`
-        for the target class and `0.5 * label_smoothing` for the non-target class.
+      alpha: A weight balancing factor for class 1, default is `0.25` as
+        mentioned in the reference. The weight for class 0 is `1.0 - alpha`.
+      gamma: A focusing parameter, default is `2.0` as mentioned in the
+        reference.
+      from_logits: Whether `y_pred` is expected to be a logits tensor. By
+        default, we assume that `y_pred` encodes a probability distribution.
+      label_smoothing: Float in `[0, 1]`. If higher than 0 then smooth the
+        labels by squeezing them towards `0.5`, i.e., using `1. - 0.5 *
+        label_smoothing` for the target class and `0.5 * label_smoothing` for
+        the non-target class.
       axis: The axis along which the mean is computed. Defaults to `-1`.
 
     Returns:
@@ -2230,12 +2271,14 @@ def _ragged_tensor_binary_focal_crossentropy(
       y_pred: Tensor of predicted targets.
       apply_class_balancing: A bool, whether to apply weight balancing on the
         binary classes 0 and 1.
-      alpha: A weight balancing factor for class 1, default is `0.25` as mentioned
-        in the reference [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf).
-        The weight for class 0 is `1.0 - alpha`.
-      gamma: A focusing parameter, default is `2.0` as mentioned in the reference.
-      from_logits: Whether `y_pred` is expected to be a logits tensor. By default,
-        we assume that `y_pred` encodes a probability distribution.
+      alpha: A weight balancing factor for class 1, default is `0.25` as
+        mentioned in the reference [Lin et al., 2018](
+        https://arxiv.org/pdf/1708.02002.pdf). The weight for class 0 is
+        `1.0 - alpha`.
+      gamma: A focusing parameter, default is `2.0` as mentioned in the
+        reference.
+      from_logits: Whether `y_pred` is expected to be a logits tensor. By
+        default, we assume that `y_pred` encodes a probability distribution.
       label_smoothing: Float in `[0, 1]`. If > `0` then smooth the labels. For
         example, if `0.1`, use `0.1 / num_classes` for non-target labels
         and `0.9 + 0.1 / num_classes` for target labels.
@@ -2431,7 +2474,8 @@ class CosineSimilarity(LossFunctionWrapper):
     Usage with the `compile()` API:
 
     ```python
-    model.compile(optimizer='sgd', loss=tf.keras.losses.CosineSimilarity(axis=1))
+    model.compile(optimizer='sgd',
+                  loss=tf.keras.losses.CosineSimilarity(axis=1))
     ```
 
     Args:
@@ -2439,13 +2483,13 @@ class CosineSimilarity(LossFunctionWrapper):
         (the features axis). Defaults to -1.
       reduction: Type of `tf.keras.losses.Reduction` to apply to loss.
         Default value is `AUTO`. `AUTO` indicates that the reduction option will
-        be determined by the usage context. For almost all cases this defaults to
-        `SUM_OVER_BATCH_SIZE`. When used with `tf.distribute.Strategy`, outside of
-        built-in training loops such as `tf.keras` `compile` and `fit`, using
-        `AUTO` or `SUM_OVER_BATCH_SIZE` will raise an error. Please see this
-        custom training [tutorial]
-        (https://www.tensorflow.org/tutorials/distribute/custom_training) for more
-          details.
+        be determined by the usage context. For almost all cases this defaults
+        to `SUM_OVER_BATCH_SIZE`. When used with `tf.distribute.Strategy`,
+        outside of built-in training loops such as `tf.keras` `compile` and
+        `fit`, using `AUTO` or `SUM_OVER_BATCH_SIZE` will raise an error. Please
+        see this custom training [tutorial](
+        https://www.tensorflow.org/tutorials/distribute/custom_training) for
+        more details.
       name: Optional name for the instance.
     """
 
@@ -2508,7 +2552,8 @@ def deserialize(name, custom_objects=None):
     Args:
         name: Loss configuration.
         custom_objects: Optional dictionary mapping names (strings) to custom
-          objects (classes and functions) to be considered during deserialization.
+          objects (classes and functions) to be considered during
+          deserialization.
 
     Returns:
         A Keras `Loss` instance or a loss function.

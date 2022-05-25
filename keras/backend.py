@@ -105,10 +105,11 @@ class _DummyEagerGraph(threading.local):
     class _WeakReferencableClass:
         """This dummy class is needed for two reasons.
 
-        - We need something that supports weak references. Basic types like string
-        and ints don't.
+        - We need something that supports weak references. Basic types like
+        string and ints don't.
         - We need something whose hash and equality are based on object identity
-        to make sure they are treated as different keys to _GRAPH_LEARNING_PHASES.
+        to make sure they are treated as different keys to
+        _GRAPH_LEARNING_PHASES.
 
         An empty Python class satisfies both of these requirements.
         """
@@ -168,8 +169,8 @@ def cast_to_floatx(x):
         x: Numpy array or TensorFlow tensor.
 
     Returns:
-        The same array (Numpy array if `x` was a Numpy array, or TensorFlow tensor
-        if `x` was a tensor), cast to its new type.
+        The same array (Numpy array if `x` was a Numpy array, or TensorFlow
+        tensor if `x` was a tensor), cast to its new type.
 
     Example:
 
@@ -233,8 +234,8 @@ def clear_session():
 
     If you are creating many models in a loop, this global state will consume
     an increasing amount of memory over time, and you may want to clear it.
-    Calling `clear_session()` releases the global state: this helps avoid clutter
-    from old models and layers, especially when memory is limited.
+    Calling `clear_session()` releases the global state: this helps avoid
+    clutter from old models and layers, especially when memory is limited.
 
     Example 1: calling `clear_session()` when creating models in a loop
 
@@ -242,14 +243,16 @@ def clear_session():
     for _ in range(100):
       # Without `clear_session()`, each iteration of this loop will
       # slightly increase the size of the global state managed by Keras
-      model = tf.keras.Sequential([tf.keras.layers.Dense(10) for _ in range(10)])
+      model = tf.keras.Sequential([
+          tf.keras.layers.Dense(10) for _ in range(10)])
 
     for _ in range(100):
       # With `clear_session()` called at the beginning,
       # Keras starts with a blank state at each iteration
       # and memory consumption is constant over time.
       tf.keras.backend.clear_session()
-      model = tf.keras.Sequential([tf.keras.layers.Dense(10) for _ in range(10)])
+      model = tf.keras.Sequential([
+          tf.keras.layers.Dense(10) for _ in range(10)])
     ```
 
     Example 2: resetting the layer name generation counter
@@ -268,9 +271,9 @@ def clear_session():
     dense
     """
     global _SESSION
-    global _GRAPH_LEARNING_PHASES  # pylint: disable=global-variable-not-assigned
-    global _GRAPH_VARIABLES  # pylint: disable=global-variable-not-assigned
-    global _GRAPH_TF_OPTIMIZERS  # pylint: disable=global-variable-not-assigned
+    global _GRAPH_LEARNING_PHASES
+    global _GRAPH_VARIABLES
+    global _GRAPH_TF_OPTIMIZERS
     global _GRAPH
     _GRAPH.graph = None
     tf.compat.v1.reset_default_graph()
@@ -283,14 +286,16 @@ def clear_session():
         _DUMMY_EAGER_GRAPH.learning_phase_is_set = False
 
         _GRAPH_LEARNING_PHASES = {}
-        # Create the learning phase placeholder in graph using the default factory
+        # Create the learning phase placeholder in graph using the default
+        # factory
         phase = _default_learning_phase()
         _internal_set_learning_phase(graph, phase)
 
         _GRAPH_VARIABLES.pop(graph, None)
         _GRAPH_TF_OPTIMIZERS.pop(graph, None)
     if tf.executing_eagerly():
-        # Clear pending nodes in eager executors, kernel caches and step_containers.
+        # Clear pending nodes in eager executors, kernel caches and
+        # step_containers.
         context.context().clear_kernel_cache()
 
 
@@ -337,8 +342,8 @@ def learning_phase():
     else:
         with tf.init_scope():
             # We always check & set the learning phase inside the init_scope,
-            # otherwise the wrong default_graph will be used to look up the learning
-            # phase inside of functions & defuns.
+            # otherwise the wrong default_graph will be used to look up the
+            # learning phase inside of functions & defuns.
             #
             # This is because functions & defuns (both in graph & in eager mode)
             # will always execute non-eagerly using a function-specific default
@@ -363,8 +368,8 @@ def _mark_func_graph_as_unsaveable(graph, learning_phase):
     """Mark func graph as unsaveable due to use of symbolic keras learning phase.
 
     Functions that capture the symbolic learning phase cannot be exported to
-    SavedModel. Mark the funcgraph as unsaveable, so that an error will be raised
-    if it is exported.
+    SavedModel. Mark the funcgraph as unsaveable, so that an error will be
+    raised if it is exported.
 
     Args:
       graph: Graph or FuncGraph object.
@@ -373,9 +378,9 @@ def _mark_func_graph_as_unsaveable(graph, learning_phase):
     if graph.building_function and is_placeholder(learning_phase):
         graph.mark_as_unsaveable(
             "The keras learning phase placeholder was used inside a function. "
-            "Exporting placeholders is not supported when saving out a SavedModel. "
-            "Please call `tf.keras.backend.set_learning_phase(0)` in the function "
-            "to set the learning phase to a constant value."
+            "Exporting placeholders is not supported when saving out a "
+            "SavedModel. Please call `tf.keras.backend.set_learning_phase(0)` "
+            "in the function to set the learning phase to a constant value."
         )
 
 
@@ -390,13 +395,13 @@ def symbolic_learning_phase():
 
 
 def _internal_set_learning_phase(graph, value):
-    global _GRAPH_LEARNING_PHASES  # pylint: disable=global-variable-not-assigned
+    global _GRAPH_LEARNING_PHASES
 
     if isinstance(value, tf.Tensor):
         # The 'value' here is a tf.Tensor with attribute 'graph'.
-        # There is a circular reference between key 'graph' and attribute 'graph'.
-        # So we need use a weakref.ref to refer to the 'value' tensor here.
-        # Otherwise, it would lead to memory leak.
+        # There is a circular reference between key 'graph' and attribute
+        # 'graph'.  So we need use a weakref.ref to refer to the 'value' tensor
+        # here.  Otherwise, it would lead to memory leak.
         value_ref = weakref.ref(value)
         _GRAPH_LEARNING_PHASES[graph] = value_ref
     else:
@@ -428,8 +433,8 @@ def set_learning_phase(value):
 
     The backend learning phase affects any code that calls
     `backend.learning_phase()`
-    In particular, all Keras built-in layers use the learning phase as the default
-    for the `training` arg to `Layer.__call__`.
+    In particular, all Keras built-in layers use the learning phase as the
+    default for the `training` arg to `Layer.__call__`.
 
     User-written layers and models can achieve the same behavior with code that
     looks like:
@@ -462,7 +467,8 @@ def deprecated_internal_set_learning_phase(value):
     This method is an internal-only version of `set_learning_phase` that
     does not raise a deprecation error. It is required because
     saved_model needs to keep working with user code that uses the deprecated
-    learning phase methods until those APIs are fully removed from the public API.
+    learning phase methods until those APIs are fully removed from the public
+    API.
 
     Specifically SavedModel saving needs to make sure the learning phase is 0
     during tracing even if users overwrote it to a different value.
@@ -472,7 +478,8 @@ def deprecated_internal_set_learning_phase(value):
     explicitly setting the learning phase for other values.
 
     Args:
-        value: Learning phase value, either 0 or 1 (integers). 0 = test, 1 = train
+        value: Learning phase value, either 0 or 1 (integers).
+            0 = test, 1 = train
 
     Raises:
         ValueError: if `value` is neither `0` nor `1`.
@@ -481,8 +488,8 @@ def deprecated_internal_set_learning_phase(value):
         raise ValueError("Expected learning phase to be 0 or 1.")
     with tf.init_scope():
         if tf.executing_eagerly():
-            # In an eager context, the learning phase values applies to both the eager
-            # context and the internal Keras graph.
+            # In an eager context, the learning phase values applies to both the
+            # eager context and the internal Keras graph.
             _DUMMY_EAGER_GRAPH.learning_phase_is_set = True
             _internal_set_learning_phase(_DUMMY_EAGER_GRAPH.key, value)
 
@@ -495,7 +502,8 @@ def deprecated_internal_set_learning_phase(value):
 def learning_phase_scope(value):
     """Provides a scope within which the learning phase is equal to `value`.
 
-    The learning phase gets restored to its original value upon exiting the scope.
+    The learning phase gets restored to its original value upon exiting the
+    scope.
 
     Args:
        value: Learning phase value, either 0 or 1 (integers).
@@ -535,15 +543,16 @@ def deprecated_internal_learning_phase_scope(value):
     removed.
 
     Args:
-       value: Learning phase value, either 0 or 1 (integers). 0 = test, 1 = train
+        value: Learning phase value, either 0 or 1 (integers).
+            0 = test, 1 = train
 
     Yields:
-      None.
+        None.
 
     Raises:
-       ValueError: if `value` is neither `0` nor `1`.
+        ValueError: if `value` is neither `0` nor `1`.
     """
-    global _GRAPH_LEARNING_PHASES  # pylint: disable=global-variable-not-assigned
+    global _GRAPH_LEARNING_PHASES
     if value not in {0, 1}:
         raise ValueError("Expected learning phase to be 0 or 1.")
 
@@ -592,7 +601,7 @@ def eager_learning_phase_scope(value):
     Raises:
        ValueError: if `value` is neither `0` nor `1`.
     """
-    global _GRAPH_LEARNING_PHASES  # pylint: disable=global-variable-not-assigned
+    global _GRAPH_LEARNING_PHASES
     assert value in {0, 1}
     assert tf.compat.v1.executing_eagerly_outside_functions()
     global_learning_phase_was_set = global_learning_phase_is_set()
@@ -652,8 +661,8 @@ def _current_graph(op_input_list, graph=None):
 
     1. If the default graph is being used to construct a function, we
        use the default graph.
-    2. If the "graph" is specified explicitly, we validate that all of the inputs
-       in "op_input_list" are compatible with that graph.
+    2. If the "graph" is specified explicitly, we validate that all of the
+       inputs in "op_input_list" are compatible with that graph.
     3. Otherwise, we attempt to select a graph from the first Operation-
        or Tensor-valued input in "op_input_list", and validate that all other
        such inputs are in the same graph.
@@ -661,16 +670,17 @@ def _current_graph(op_input_list, graph=None):
        "op_input_list", we attempt to use the default graph.
 
     Args:
-      op_input_list: A list of inputs to an operation, which may include `Tensor`,
-        `Operation`, and other objects that may be converted to a graph element.
+      op_input_list: A list of inputs to an operation, which may include
+        `Tensor`, `Operation`, and other objects that may be converted to a
+        graph element.
       graph: (Optional) The explicit graph to use.
 
     Raises:
       TypeError: If op_input_list is not a list or tuple, or if graph is not a
         Graph.
-      ValueError: If a graph is explicitly passed and not all inputs are from it,
-        or if the inputs are from multiple graphs, or we could not find a graph
-        and there was no default graph.
+      ValueError: If a graph is explicitly passed and not all inputs are from
+        it, or if the inputs are from multiple graphs, or we could not find a
+        graph and there was no default graph.
 
     Returns:
       The appropriate graph to use for the given inputs.
@@ -692,8 +702,8 @@ def _current_graph(op_input_list, graph=None):
     original_graph_element = None
     for op_input in op_input_list:
         # Determine if this is a valid graph_element.
-        # TODO(joshl): Note that we exclude subclasses of Tensor. Need to clean this
-        # up.
+        # TODO(joshl): Note that we exclude subclasses of Tensor. Need to clean
+        # this up.
         if isinstance(
             op_input, (tf.Operation, tf.Tensor, tf.__internal__.CompositeTensor)
         ) and (
@@ -736,8 +746,8 @@ def _get_session(op_input_list=()):
         ) is None or _SESSION.session.graph is not _current_graph(
             op_input_list
         ):
-            # If we are creating the Session inside a tf.distribute.Strategy scope,
-            # we ask the strategy for the right session options to use.
+            # If we are creating the Session inside a tf.distribute.Strategy
+            # scope, we ask the strategy for the right session options to use.
             if tf.distribute.has_strategy():
                 configure_and_create_distributed_session(
                     tf.distribute.get_strategy()
@@ -914,8 +924,8 @@ def _is_current_explicit_device(device_type):
         device_type: A string containing `GPU` or `CPU` (case-insensitive).
 
     Returns:
-        A boolean indicating if the current device scope is explicitly set on the
-        device type.
+        A boolean indicating if the current device scope is explicitly set on
+        the device type.
 
     Raises:
         ValueError: If the `device_type` string indicates an unsupported device.
@@ -1178,12 +1188,12 @@ def unique_object_name(
       name: String name to make unique.
       name_uid_map: An optional defaultdict(int) to use when creating unique
         names. If None (default), uses a per-Graph dictionary.
-      avoid_names: An optional set or dict with names which should not be used. If
-        None (default), don't avoid any names unless `avoid_observed_names` is
-        True.
-      namespace: Gets a name which is unique within the (graph, namespace). Layers
-        which are not Networks use a blank namespace and so get graph-global
-        names.
+      avoid_names: An optional set or dict with names which should not be used.
+        If None (default), don't avoid any names unless `avoid_observed_names`
+        is True.
+      namespace: Gets a name which is unique within the (graph, namespace).
+        Layers which are not Networks use a blank namespace and so get
+        graph-global names.
       zero_based: If True, name sequences start with no suffix (e.g. "dense",
         "dense_1"). If False, naming is one-based ("dense_1", "dense_2").
       avoid_observed_names: If True, avoid any names that have been observed by
@@ -1304,7 +1314,8 @@ def is_keras_tensor(x):
     >>> tf.keras.backend.is_keras_tensor(np_var)
     Traceback (most recent call last):
     ...
-    ValueError: Unexpectedly found an instance of type `<class 'numpy.ndarray'>`.
+    ValueError: Unexpectedly found an instance of type
+    `<class 'numpy.ndarray'>`.
     Expected a symbolic tensor instance.
     >>> keras_var = tf.keras.backend.variable(np_var)
     >>> # A variable created with the keras backend is not a Keras tensor.
@@ -1362,8 +1373,8 @@ def placeholder(
         name: Optional name string for the placeholder.
         ragged: Boolean, whether the placeholder should have a ragged type.
             In this case, values of 'None' in the 'shape' argument represent
-            ragged dimensions. For more information about RaggedTensors, see this
-            [guide](https://www.tensorflow.org/guide/ragged_tensors).
+            ragged dimensions. For more information about RaggedTensors, see
+            this [guide](https://www.tensorflow.org/guide/ragged_tensors).
 
     Raises:
         ValueError: If called with sparse = True and ragged = True.
@@ -1381,7 +1392,8 @@ def placeholder(
     """
     if sparse and ragged:
         raise ValueError(
-            "Cannot set both sparse and ragged to True when creating a placeholder."
+            "Cannot set both sparse and ragged to "
+            "True when creating a placeholder."
         )
     if dtype is None:
         dtype = floatx()
@@ -1835,18 +1847,18 @@ def is_tf_random_generator_enabled():
     usage of `tf.random.Generator`, please use
     `tf.keras.backend.experimental.disable_random_generator`.
 
-    We expect the `tf.random.Generator` code path to become the default, and will
-    remove the legacy stateful random ops such as `tf.random.uniform` in the
-    future (see the
-    [TF RNG guide](https://www.tensorflow.org/guide/random_numbers)).
+    We expect the `tf.random.Generator` code path to become the default, and
+    will remove the legacy stateful random ops such as `tf.random.uniform` in
+    the future (see the [TF RNG guide](
+    https://www.tensorflow.org/guide/random_numbers)).
 
     This API will also be removed in a future release as well, together with
     `tf.keras.backend.experimental.enable_tf_random_generator()` and
     `tf.keras.backend.experimental.disable_tf_random_generator()`
 
     Returns:
-      boolean: whether `tf.random.Generator` is used for random number generation
-        in Keras.
+      boolean: whether `tf.random.Generator` is used for random number
+        generation in Keras.
     """
     return _USE_GENERATOR_FOR_RNG
 
@@ -1914,8 +1926,8 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         self._built = False
 
     def _set_rng_type(self, rng_type, **kwargs):
-        # Only supported kwargs is "force_generator", which we will remove once we
-        # clean up all the caller.
+        # Only supported kwargs is "force_generator", which we will remove once
+        # we clean up all the caller.
         # TODO(scottzhu): Remove the kwargs for force_generator.
         if kwargs.get("force_generator", False):
             rng_type = self.RNG_STATEFUL
@@ -1932,7 +1944,8 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             ]:
                 raise ValueError(
                     "Invalid `rng_type` received. "
-                    'Valid `rng_type` are ["stateless", "stateful", "legacy_stateful"].'
+                    'Valid `rng_type` are ["stateless", '
+                    '"stateful", "legacy_stateful"].'
                     f" Got: {rng_type}"
                 )
             self._rng_type = rng_type
@@ -1940,13 +1953,14 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
     def _maybe_init(self):
         """Lazily init the RandomGenerator.
 
-        The TF API executing_eagerly_outside_functions() has some side effect, and
-        couldn't be used before API like tf.enable_eager_execution(). Some of the
-        client side code was creating the initializer at the code load time, which
-        triggers the creation of RandomGenerator. Lazy init this class to walkaround
-        this issue until it is resolved on TF side.
+        The TF API executing_eagerly_outside_functions() has some side effect,
+        and couldn't be used before API like tf.enable_eager_execution(). Some
+        of the client side code was creating the initializer at the code load
+        time, which triggers the creation of RandomGenerator. Lazy init this
+        class to walkaround this issue until it is resolved on TF side.
         """
-        # TODO(b/167482354): Change this back to normal init when the bug is fixed.
+        # TODO(b/167482354): Change this back to normal init when the bug is
+        # fixed.
         if self._built:
             return
 
@@ -1954,7 +1968,8 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             self._rng_type == self.RNG_STATEFUL
             and not tf.compat.v1.executing_eagerly_outside_functions()
         ):
-            # Fall back to legacy stateful since the generator need to work in tf2.
+            # Fall back to legacy stateful since the generator need to work in
+            # tf2.
             self._rng_type = self.RNG_LEGACY_STATEFUL
 
         if self._rng_type == self.RNG_STATELESS:
@@ -1969,17 +1984,18 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
                 seed = self._create_seed(self._seed)
                 self._generator = tf.random.Generator.from_seed(seed)
         else:
-            # In legacy stateful, we use stateful op, regardless whether user provide
-            # seed or not. Seeded stateful op will ensure generating same sequences.
+            # In legacy stateful, we use stateful op, regardless whether user
+            # provide seed or not. Seeded stateful op will ensure generating
+            # same sequences.
             self._generator = None
         self._built = True
 
     def make_seed_for_stateless_op(self):
         """Generate a new seed based on the init config.
 
-        Note that this will not return python ints which will be frozen in the graph
-        and cause stateless op to return the same value. It will only return value
-        when generator is used, otherwise it will return None.
+        Note that this will not return python ints which will be frozen in the
+        graph and cause stateless op to return the same value. It will only
+        return value when generator is used, otherwise it will return None.
 
         Returns:
           A tensor with shape [2,].
@@ -1994,12 +2010,13 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
     def make_legacy_seed(self):
         """Create a new seed for the legacy stateful ops to use.
 
-        When user didn't provide any original seed, this method will return None.
-        Otherwise it will increment the counter and return as the new seed.
+        When user didn't provide any original seed, this method will return
+        None.  Otherwise it will increment the counter and return as the new
+        seed.
 
         Note that it is important to generate different seed for stateful ops in
-        the `tf.function`. The random ops will return same value when same seed is
-        provided in the `tf.function`.
+        the `tf.function`. The random ops will return same value when same seed
+        is provided in the `tf.function`.
 
         Returns:
           int as new seed, or None.
@@ -2026,14 +2043,14 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         Args:
           shape: The shape of the random values to generate.
           mean: Floats, default to 0. Mean of the random values to generate.
-          stddev: Floats, default to 1. Standard deviation of the random values to
-            generate.
+          stddev: Floats, default to 1. Standard deviation of the random values
+            to generate.
           dtype: Optional dtype of the tensor. Only floating point types are
-            supported. If not specified, `tf.keras.backend.floatx()` is used, which
-            default to `float32` unless you configured it otherwise (via
+            supported. If not specified, `tf.keras.backend.floatx()` is used,
+            which default to `float32` unless you configured it otherwise (via
             `tf.keras.backend.set_floatx(float_dtype)`)
-          nonce: Optional integer scalar, that will be folded into the seed in the
-            stateless mode.
+          nonce: Optional integer scalar, that will be folded into the seed in
+            the stateless mode.
         """
         self._maybe_init()
         dtype = dtype or floatx()
@@ -2068,11 +2085,11 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
           minval: Floats, default to None. Upper bound of the range of
             random values to generate (exclusive).
           dtype: Optional dtype of the tensor. Only floating point types are
-            supported. If not specified, `tf.keras.backend.floatx()` is used, which
-            default to `float32` unless you configured it otherwise (via
+            supported. If not specified, `tf.keras.backend.floatx()` is used,
+            which default to `float32` unless you configured it otherwise (via
             `tf.keras.backend.set_floatx(float_dtype)`)
-          nonce: Optional integer scalar, that will be folded into the seed in the
-            stateless mode.
+          nonce: Optional integer scalar, that will be folded into the seed in
+            the stateless mode.
         """
         self._maybe_init()
         dtype = dtype or floatx()
@@ -2107,14 +2124,14 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         Args:
           shape: The shape of the random values to generate.
           mean: Floats, default to 0. Mean of the random values to generate.
-          stddev: Floats, default to 1. Standard deviation of the random values to
-            generate.
+          stddev: Floats, default to 1. Standard deviation of the random values
+            to generate.
           dtype: Optional dtype of the tensor. Only floating point types are
-            supported. If not specified, `tf.keras.backend.floatx()` is used, which
-            default to `float32` unless you configured it otherwise (via
+            supported. If not specified, `tf.keras.backend.floatx()` is used,
+            which default to `float32` unless you configured it otherwise (via
             `tf.keras.backend.set_floatx(float_dtype)`)
-          nonce: Optional integer scalar, that will be folded into the seed in the
-            stateless mode.
+          nonce: Optional integer scalar, that will be folded into the seed in
+            the stateless mode.
         """
         self._maybe_init()
         dtype = dtype or floatx()
@@ -2868,8 +2885,8 @@ def std(x, axis=None, keepdims=False):
           `[-rank(x), rank(x))`.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
-            by 1. If `keepdims` is `True`, the reduced dimension is retained with
-            length 1.
+            by 1. If `keepdims` is `True`, the reduced dimension is retained
+            with length 1.
 
     Returns:
         A tensor with the standard deviation of elements of `x` with same dtype.
@@ -4259,10 +4276,11 @@ def set_value(x, value):
                 assign_placeholder = x._assign_placeholder
                 assign_op = x._assign_op
             else:
-                # In order to support assigning weights to resizable variables in
-                # Keras, we make a placeholder with the correct number of dimensions
-                # but with None in each dimension. This way, we can assign weights
-                # of any size (as long as they have the correct dimensionality).
+                # In order to support assigning weights to resizable variables
+                # in Keras, we make a placeholder with the correct number of
+                # dimensions but with None in each dimension. This way, we can
+                # assign weights of any size (as long as they have the correct
+                # dimensionality).
                 placeholder_shape = tf.TensorShape([None] * value.ndim)
                 assign_placeholder = tf.compat.v1.placeholder(
                     tf_dtype, shape=placeholder_shape
@@ -4298,10 +4316,11 @@ def batch_set_value(tuples):
                         assign_placeholder = x._assign_placeholder
                         assign_op = x._assign_op
                     else:
-                        # In order to support assigning weights to resizable variables in
-                        # Keras, we make a placeholder with the correct number of dimensions
-                        # but with None in each dimension. This way, we can assign weights
-                        # of any size (as long as they have the correct dimensionality).
+                        # In order to support assigning weights to resizable
+                        # variables in Keras, we make a placeholder with the
+                        # correct number of dimensions but with None in each
+                        # dimension. This way, we can assign weights of any size
+                        # (as long as they have the correct dimensionality).
                         placeholder_shape = tf.TensorShape([None] * value.ndim)
                         assign_placeholder = tf.compat.v1.placeholder(
                             tf_dtype, shape=placeholder_shape
@@ -4340,9 +4359,9 @@ def print_tensor(x, message="", summarize=3):
         x: Tensor to print.
         message: Message to print jointly with the tensor.
         summarize: The first and last `summarize` elements within each dimension
-            are recursively printed per Tensor. If None, then the first 3 and last
-            3 elements of each dimension are printed for each tensor. If set to
-            -1, it will print all elements of every tensor.
+            are recursively printed per Tensor. If None, then the first 3 and
+            last 3 elements of each dimension are printed for each tensor. If
+            set to -1, it will print all elements of every tensor.
 
     Returns:
         The same tensor `x`, unchanged.
@@ -4449,7 +4468,8 @@ class GraphExecutionFunction:
 
         Args:
           feed_arrays: List of input tensors to be fed Numpy arrays at runtime.
-          feed_symbols: List of input tensors to be fed symbolic tensors at runtime.
+          feed_symbols: List of input tensors to be fed symbolic tensors at
+            runtime.
           symbol_vals: List of symbolic tensors to be fed to `feed_symbols`.
           session: Session to use to generate the callable.
 
@@ -4501,11 +4521,11 @@ class GraphExecutionFunction:
     def _eval_if_composite(self, tensor):
         """Helper method which evaluates any CompositeTensors passed to it."""
         # We need to evaluate any composite tensor objects that have been
-        # reconstructed in 'pack_sequence_as', since otherwise they'll be output as
-        # actual CompositeTensor objects instead of the value(s) contained in the
-        # CompositeTensors. E.g., if output_structure contains a SparseTensor, then
-        # this ensures that we return its value as a SparseTensorValue rather than
-        # a SparseTensor.
+        # reconstructed in 'pack_sequence_as', since otherwise they'll be output
+        # as actual CompositeTensor objects instead of the value(s) contained in
+        # the CompositeTensors. E.g., if output_structure contains a
+        # SparseTensor, then this ensures that we return its value as a
+        # SparseTensorValue rather than a SparseTensor.
         from keras.utils import tf_utils  # pylint: disable=g-import-not-at-top
 
         if tf_utils.is_extension_type(tensor):
@@ -4532,8 +4552,8 @@ class GraphExecutionFunction:
             else:
                 # Case: feeding Numpy array.
                 feed_arrays.append(tensor)
-                # We need to do array conversion and type casting at this level, since
-                # `callable_fn` only supports exact matches.
+                # We need to do array conversion and type casting at this level,
+                # since `callable_fn` only supports exact matches.
                 tensor_type = tf.as_dtype(tensor.dtype)
                 array_vals.append(
                     np.asarray(value, dtype=tensor_type.as_numpy_dtype)
@@ -4566,11 +4586,11 @@ class GraphExecutionFunction:
             expand_composites=True,
         )
         # We need to evaluate any composite tensor objects that have been
-        # reconstructed in 'pack_sequence_as', since otherwise they'll be output as
-        # actual CompositeTensor objects instead of the value(s) contained in the
-        # CompositeTensors. E.g., if output_structure contains a SparseTensor, then
-        # this ensures that we return its value as a SparseTensorValue rather than
-        # a SparseTensor.
+        # reconstructed in 'pack_sequence_as', since otherwise they'll be output
+        # as actual CompositeTensor objects instead of the value(s) contained in
+        # the CompositeTensors. E.g., if output_structure contains a
+        # SparseTensor, then this ensures that we return its value as a
+        # SparseTensorValue rather than a SparseTensor.
         return tf.nest.map_structure(self._eval_if_composite, output_structure)
 
 
@@ -4624,8 +4644,8 @@ def function(inputs, outputs, updates=None, name=None, **kwargs):
                 0
             ] and key not in ["inputs", "outputs", "updates", "name"]:
                 msg = (
-                    'Invalid argument "%s" passed to K.function with TensorFlow '
-                    "backend"
+                    'Invalid argument "%s" passed to K.function with '
+                    "TensorFlow backend"
                 ) % key
                 raise ValueError(msg)
     return GraphExecutionFunction(
@@ -4707,10 +4727,10 @@ def rnn(
             (at least 3D), or nested tensors, and each of which has shape
             `(samples, time, ...)`.
         initial_states: Tensor with shape `(samples, state_size)`
-            (no time dimension), containing the initial values for the states used
-            in the step function. In the case that state_size is in a nested
-            shape, the shape of initial_states will also follow the nested
-            structure.
+            (no time dimension), containing the initial values for the states
+            used in the step function. In the case that state_size is in a
+            nested shape, the shape of initial_states will also follow the
+            nested structure.
         go_backwards: Boolean. If True, do the iteration over the time
             dimension in reverse order and return the reversed sequence.
         mask: Binary tensor with shape `(samples, time, 1)`,
@@ -4718,21 +4738,22 @@ def rnn(
         constants: List of constant values passed at each step.
         unroll: Whether to unroll the RNN or to use a symbolic `while_loop`.
         input_length: An integer or a 1-D Tensor, depending on whether
-            the time dimension is fixed-length or not. In case of variable length
-            input, it is used for masking in case there's no mask specified.
+            the time dimension is fixed-length or not. In case of variable
+            length input, it is used for masking in case there's no mask
+            specified.
         time_major: Boolean. If true, the inputs and outputs will be in shape
             `(timesteps, batch, ...)`, whereas in the False case, it will be
             `(batch, timesteps, ...)`. Using `time_major = True` is a bit more
-            efficient because it avoids transposes at the beginning and end of the
-            RNN calculation. However, most TensorFlow data is batch-major, so by
-            default this function accepts input and emits output in batch-major
-            form.
+            efficient because it avoids transposes at the beginning and end of
+            the RNN calculation. However, most TensorFlow data is batch-major,
+            so by default this function accepts input and emits output in
+            batch-major form.
         zero_output_for_mask: Boolean. If True, the output for masked timestep
             will be zeros, whereas in the False case, output from previous
             timestep is returned.
-        return_all_outputs: Boolean. If True, return the recurrent outputs for all
-            timesteps in the sequence. If False, only return the output for the
-            last timestep (which consumes less memory).
+        return_all_outputs: Boolean. If True, return the recurrent outputs for
+            all timesteps in the sequence. If False, only return the output for
+            the last timestep (which consumes less memory).
 
     Returns:
         A tuple, `(last_output, outputs, new_states)`.
@@ -4749,9 +4770,9 @@ def rnn(
     Raises:
         ValueError: if input dimension is less than 3.
         ValueError: if `unroll` is `True` but input timestep is not a fixed
-        number.
-        ValueError: if `mask` is provided (not `None`) but states is not provided
-            (`len(states)` == 0).
+            number.
+        ValueError: if `mask` is provided (not `None`) but states is not
+            provided (`len(states)` == 0).
     """
     if not tf.__internal__.tf2.enabled():
         return_all_outputs = True  # Not supported in TF1.
@@ -4813,10 +4834,10 @@ def rnn(
         successive_outputs = []
 
         # Process the input tensors. The input tensor need to be split on the
-        # time_step dim, and reverse if go_backwards is True. In the case of nested
-        # input, the input is flattened and then transformed individually.
-        # The result of this will be a tuple of lists, each of the item in tuple is
-        # list of the tensor with shape (batch, feature)
+        # time_step dim, and reverse if go_backwards is True. In the case of
+        # nested input, the input is flattened and then transformed
+        # individually.  The result of this will be a tuple of lists, each of
+        # the item in tuple is list of the tensor with shape (batch, feature)
         def _process_single_input_t(input_t):
             input_t = tf.unstack(input_t)  # unstack for time_step dim
             if go_backwards:
@@ -4908,9 +4929,9 @@ def rnn(
     else:  # Unroll == False
         states = tuple(initial_states)
 
-        # Create input tensor array, if the inputs is nested tensors, then it will
-        # be flattened first, and tensor array will be created one per flattened
-        # tensor.
+        # Create input tensor array, if the inputs is nested tensors, then it
+        # will be flattened first, and tensor array will be created one per
+        # flattened tensor.
         input_ta = tuple(
             tf.TensorArray(
                 dtype=inp.dtype,
@@ -4926,14 +4947,14 @@ def rnn(
             for ta, input_ in zip(input_ta, flatted_inputs)
         )
 
-        # Get the time(0) input and compute the output for that, the output will be
-        # used to determine the dtype of output tensor array. Don't read from
+        # Get the time(0) input and compute the output for that, the output will
+        # be used to determine the dtype of output tensor array. Don't read from
         # input_ta due to TensorArray clear_after_read default to True.
         input_time_zero = tf.nest.pack_sequence_as(
             inputs, [inp[0] for inp in flatted_inputs]
         )
-        # output_time_zero is used to determine the cell output shape and its dtype.
-        # the value is discarded.
+        # output_time_zero is used to determine the cell output shape and its
+        # dtype.  the value is discarded.
         output_time_zero, _ = step_function(
             input_time_zero, tuple(initial_states) + tuple(constants)
         )
@@ -4951,8 +4972,8 @@ def rnn(
 
         time = tf.constant(0, dtype="int32", name="time")
 
-        # We only specify the 'maximum_iterations' when building for XLA since that
-        # causes slowdowns on GPU in TF.
+        # We only specify the 'maximum_iterations' when building for XLA since
+        # that causes slowdowns on GPU in TF.
         if (
             not tf.executing_eagerly()
             and control_flow_util.GraphOrParentsInXlaContext(
@@ -5014,8 +5035,8 @@ def rnn(
             masking_fn = None
 
         if masking_fn is not None:
-            # Mask for the T output will be base on the output of T - 1. In the case
-            # T = 0, a zero filled tensor will be used.
+            # Mask for the T output will be base on the output of T - 1. In the
+            # case T = 0, a zero filled tensor will be used.
             flat_zero_output = tuple(
                 tf.zeros_like(o) for o in tf.nest.flatten(output_time_zero)
             )
@@ -5454,7 +5475,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
       [[1. 0. 0.]
        [0. 1. 0.]
        [0. 0. 1.]], shape=(3, 3), dtype=float32)
-    >>> b = tf.constant([.9, .05, .05, .05, .89, .06, .05, .01, .94], shape=[3,3])
+    >>> b = tf.constant([.9, .05, .05, .05, .89, .06, .05, .01, .94],
+    ...                 shape=[3, 3])
     >>> print(b)
     tf.Tensor(
       [[0.9  0.05 0.05]
@@ -5480,7 +5502,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
             warnings.warn(
                 '"`categorical_crossentropy` received `from_logits=True`, but '
                 "the `output` argument was produced by a sigmoid or softmax "
-                'activation and thus does not represent logits. Was this intended?"',
+                "activation and thus does not represent logits. "
+                "Was this intended?",
                 stacklevel=2,
             )
         from_logits = True
@@ -5544,9 +5567,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         output = output._keras_logits  # pylint: disable=protected-access
         if from_logits:
             warnings.warn(
-                '"`sparse_categorical_crossentropy` received `from_logits=True`, but '
-                "the `output` argument was produced by a sigmoid or softmax "
-                'activation and thus does not represent logits. Was this intended?"',
+                '"`sparse_categorical_crossentropy` received '
+                "`from_logits=True`, but the `output` argument "
+                "was produced by a sigmoid or softmax activation "
+                'and thus does not represent logits. Was this intended?"',
                 stacklevel=2,
             )
         from_logits = True
@@ -5582,8 +5606,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             output = tf.compat.v1.transpose(output, perm=permutation)
     elif axis != -1:
         raise ValueError(
-            "Cannot compute sparse categorical crossentropy with `axis={}` on an "
-            "output tensor with unknown rank".format(axis)
+            "Cannot compute sparse categorical crossentropy with `axis={}` "
+            "on an output tensor with unknown rank".format(axis)
         )
 
     target = cast(target, "int64")
@@ -5612,7 +5636,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         )
 
     if update_shape and output_rank >= 3:
-        # If our output includes timesteps or spatial dimensions we need to reshape
+        # If our output includes timesteps or spatial dimensions we need to
+        # reshape
         return tf.reshape(res, output_shape[:-1])
     else:
         return res
@@ -5643,8 +5668,9 @@ def binary_crossentropy(target, output, from_logits=False):
         output = output._keras_logits  # pylint: disable=protected-access
         if from_logits:
             warnings.warn(
-                '"`binary_crossentropy` received `from_logits=True`, but the `output`'
-                " argument was produced by a sigmoid or softmax activation and thus "
+                '"`binary_crossentropy` received `from_logits=True`, '
+                "but the `output` argument was produced by a sigmoid "
+                "or softmax activation and thus "
                 'does not represent logits. Was this intended?"',
                 stacklevel=2,
             )
@@ -5711,11 +5737,12 @@ def binary_focal_crossentropy(
       output: A tensor.
       apply_class_balancing: A bool, whether to apply weight balancing on the
         binary classes 0 and 1.
-      alpha: A weight balancing factor for class 1, default is `0.25` as mentioned
-        in the reference. The weight for class 0 is `1.0 - alpha`.
-      gamma: A focusing parameter, default is `2.0` as mentioned in the reference.
-      from_logits: Whether `output` is expected to be a logits tensor. By default,
-        we consider that `output` encodes a probability distribution.
+      alpha: A weight balancing factor for class 1, default is `0.25` as
+        mentioned in the reference. The weight for class 0 is `1.0 - alpha`.
+      gamma: A focusing parameter, default is `2.0` as mentioned in the
+        reference.
+      from_logits: Whether `output` is expected to be a logits tensor. By
+        default, we consider that `output` encodes a probability distribution.
 
     Returns:
       A tensor.
@@ -5842,7 +5869,8 @@ def in_top_k(predictions, targets, k):
     """Returns whether the `targets` are in the top `k` `predictions`.
 
     Args:
-        predictions: A tensor of shape `(batch_size, classes)` and type `float32`.
+        predictions: A tensor of shape `(batch_size, classes)` and type
+          `float32`.
         targets: A 1D tensor of length `batch_size` and type `int32` or `int64`.
         k: An `int`, number of top elements to consider.
 
@@ -6758,8 +6786,8 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
     Args:
         shape: A tuple of integers, the shape of tensor to create.
-        mean: A float, the mean value of the normal distribution to draw samples.
-          Default to 0.0.
+        mean: A float, the mean value of the normal distribution to draw
+          samples. Default to 0.0.
         stddev: A float, the standard deviation of the normal distribution
           to draw samples. Default to 1.0.
         dtype: `tf.dtypes.DType`, dtype of returned tensor. Default to use Keras
@@ -7181,16 +7209,16 @@ def configure_and_create_distributed_session(distribution_strategy):
         """Create the Distributed Strategy session."""
         session_config = get_default_session_config()
 
-        # If a session already exists, merge in its config; in the case there is a
-        # conflict, take values of the existing config.
+        # If a session already exists, merge in its config; in the case there is
+        # a conflict, take values of the existing config.
         global _SESSION
         if getattr(_SESSION, "session", None) and _SESSION.session._config:
             session_config.MergeFrom(_SESSION.session._config)
 
         if is_tpu_strategy(distribution_strategy):
             # TODO(priyag, yuefengz): Remove this workaround when Distribute
-            # Coordinator is integrated with keras and we can create a session from
-            # there.
+            # Coordinator is integrated with keras and we can create a session
+            # from there.
             distribution_strategy.configure(session_config)
             master = (
                 distribution_strategy.extended._tpu_cluster_resolver.master()
@@ -7278,8 +7306,8 @@ def maybe_convert_to_ragged(
         return output
 
     if go_backwards:
-        # Reverse based on the timestep dim, so that nested_row_lengths will mask
-        # from the correct direction. Return the reverse ragged tensor.
+        # Reverse based on the timestep dim, so that nested_row_lengths will
+        # mask from the correct direction. Return the reverse ragged tensor.
         output = reverse(output, [1])
         ragged = tf.RaggedTensor.from_tensor(output, nested_row_lengths)
         return reverse(ragged, [1])
@@ -7291,14 +7319,16 @@ class ContextValueCache(weakref.WeakKeyDictionary):
     """Container that caches (possibly tensor) values based on the context.
 
     This class is similar to defaultdict, where values may be produced by the
-    default factory specified during initialization. This class also has a default
-    value for the key (when key is `None`) -- the key is set to the current graph
-    or eager context. The default factories for key and value are only used in
-    `__getitem__` and `setdefault`. The `.get()` behavior remains the same.
+    default factory specified during initialization. This class also has a
+    default value for the key (when key is `None`) -- the key is set to the
+    current graph or eager context. The default factories for key and value are
+    only used in `__getitem__` and `setdefault`. The `.get()` behavior remains
+    the same.
 
-    This object will return the value of the current graph or closest parent graph
-    if the current graph is a function. This is to reflect the fact that if a
-    tensor is created in eager/graph, child functions may capture that tensor.
+    This object will return the value of the current graph or closest parent
+    graph if the current graph is a function. This is to reflect the fact that
+    if a tensor is created in eager/graph, child functions may capture that
+    tensor.
 
     The default factory method may accept keyword arguments (unlike defaultdict,
     which only accepts callables with 0 arguments). To pass keyword arguments to
@@ -7345,11 +7375,11 @@ class ContextValueCache(weakref.WeakKeyDictionary):
 
     def _get_parent_graph(self, graph):
         """Returns the parent graph or dummy eager object."""
-        # TODO(b/149317164): Currently FuncGraphs use ops.get_default_graph() as the
-        # outer graph. This results in outer_graph always being a Graph,
+        # TODO(b/149317164): Currently FuncGraphs use ops.get_default_graph() as
+        # the outer graph. This results in outer_graph always being a Graph,
         # even in eager mode (get_default_graph will create a new Graph if there
-        # isn't a default graph). Because of this bug, we have to specially set the
-        # key when eager execution is enabled.
+        # isn't a default graph). Because of this bug, we have to specially set
+        # the key when eager execution is enabled.
         parent_graph = graph.outer_graph
         if (
             not isinstance(parent_graph, tf.__internal__.FuncGraph)
@@ -7365,8 +7395,8 @@ class ContextValueCache(weakref.WeakKeyDictionary):
             return value
 
         # Since FuncGraphs are able to capture tensors and variables from their
-        # parent graphs, recursively search to see if there is a value stored for
-        # one of the parent graphs.
+        # parent graphs, recursively search to see if there is a value stored
+        # for one of the parent graphs.
         if isinstance(key, tf.__internal__.FuncGraph):
             return self._get_recursive(self._get_parent_graph(key))
         return None
@@ -7375,8 +7405,8 @@ class ContextValueCache(weakref.WeakKeyDictionary):
         """Gets the value at key (or current context), or sets default value.
 
         Args:
-          key: May be `None` or `Graph`object. When `None`, the key is set to the
-            current context.
+          key: May be `None` or `Graph`object. When `None`, the key is set to
+            the current context.
 
         Returns:
           Either the cached or default value.
@@ -7392,7 +7422,8 @@ class ContextValueCache(weakref.WeakKeyDictionary):
         return value
 
     def setdefault(self, key=None, default=None, kwargs=None):
-        """Sets the default value if key is not in dict, and returns the value."""
+        """Sets the default value if key is not in dict, and returns the
+        value."""
         if key is None:
             key = self._key()
         kwargs = kwargs or {}

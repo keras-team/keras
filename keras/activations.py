@@ -74,7 +74,8 @@ def softmax(x, axis=-1):
 
     **Example 2: usage in a `Dense` layer**
 
-    >>> layer = tf.keras.layers.Dense(32, activation=tf.keras.activations.softmax)
+    >>> layer = tf.keras.layers.Dense(32,
+    ...                               activation=tf.keras.activations.softmax)
     """
     if x.shape.rank > 1:
         if isinstance(axis, int):
@@ -130,12 +131,12 @@ def elu(x, alpha=1.0):
 
     Args:
         x: Input tensor.
-        alpha: A scalar, slope of negative section. `alpha` controls the value to
-          which an ELU saturates for negative net inputs.
+        alpha: A scalar, slope of negative section. `alpha` controls the value
+          to which an ELU saturates for negative net inputs.
 
     Returns:
-        The exponential linear unit (ELU) activation function: `x` if `x > 0` and
-        `alpha * (exp(x) - 1)` if `x < 0`.
+        The exponential linear unit (ELU) activation function: `x` if `x > 0`
+          and `alpha * (exp(x) - 1)` if `x < 0`.
 
 
     Reference:
@@ -301,10 +302,10 @@ def relu(x, alpha=0.0, max_value=None, threshold=0.0):
         x: Input `tensor` or `variable`.
         alpha: A `float` that governs the slope for values lower than the
           threshold.
-        max_value: A `float` that sets the saturation threshold (the largest value
-          the function will return).
-        threshold: A `float` giving the threshold value of the activation function
-          below which values will be damped or set to zero.
+        max_value: A `float` that sets the saturation threshold (the largest
+          value the function will return).
+        threshold: A `float` giving the threshold value of the activation
+          function below which values will be damped or set to zero.
 
     Returns:
         A `Tensor` representing the input tensor,

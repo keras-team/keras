@@ -178,7 +178,8 @@ class BackendUtilsTest(tf.test.TestCase):
 
     def test_learning_phase_name(self):
         with backend.name_scope("test_scope"):
-            # Test that outer name scopes do not affect the learning phase's name.
+            # Test that outer name scopes do not affect the learning phase's
+            # name.
             lp = backend.symbolic_learning_phase()
         self.assertEqual(lp.name, "keras_learning_phase:0")
 
@@ -1614,8 +1615,8 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
 
         # outputs expected to be same as inputs for the first sample
         expected_outputs = inputs_vals.copy()
-        # but for the second sample all outputs in masked region should be the same
-        # as last output before masked region
+        # but for the second sample all outputs in masked region should be the
+        # same as last output before masked region
         expected_outputs[1, -mask_last_num_timesteps:] = expected_outputs[
             1, -(mask_last_num_timesteps + 1)
         ]
@@ -1654,8 +1655,9 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
             outputs = backend.tile(backend.expand_dims(inputs), [1, 1, 2])
             return outputs, [backend.identity(s) for s in states]
             # Note: cannot just return states (which can be a problem) ->
-            # tensorflow/python/ops/resource_variable_ops.py", line 824, in set_shape
-            # NotImplementedError: ResourceVariable does not implement set_shape()
+            # tensorflow/python/ops/resource_variable_ops.py", line 824, in
+            # set_shape NotImplementedError: ResourceVariable does not implement
+            # set_shape()
 
         inputs_vals = np.random.random(
             (num_samples, num_timesteps, num_features)
@@ -1665,8 +1667,8 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
         mask_vals[-1, -1] = 0  # final timestep masked for last sample
 
         expected_outputs = np.repeat(inputs_vals[..., None], repeats=2, axis=-1)
-        # for the last sample, the final timestep (in masked region) should be the
-        # same as the second to final output (before masked region)
+        # for the last sample, the final timestep (in masked region) should be
+        # the same as the second to final output (before masked region)
         expected_outputs[-1, -1] = expected_outputs[-1, -2]
 
         inputs = backend.variable(inputs_vals)
@@ -1969,8 +1971,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     def test_sparse_categorical_crossentropy_loss_with_unknown_rank_tensor(
         self,
     ):
-        # This test only runs in graph because the TF op layer is not supported yet
-        # for sparse ops.
+        # This test only runs in graph because the TF op layer is not supported
+        # yet for sparse ops.
         t = backend.placeholder()
         p = backend.placeholder()
         o = backend.sparse_categorical_crossentropy(t, p)
@@ -2552,11 +2554,11 @@ class BackendGraphTests(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(outs, [11.0, 2.0])
 
     def test_function_tf_fetches(self):
-        # Additional operations can be passed to tf.compat.v1.Session().run() via
-        # its `fetches` arguments. In contrast to `updates` argument of
+        # Additional operations can be passed to tf.compat.v1.Session().run()
+        # via its `fetches` arguments. In contrast to `updates` argument of
         # backend.function() these do not have control dependency on `outputs`
-        # so they can run in parallel. Also they should not contribute to output of
-        # backend.function().
+        # so they can run in parallel. Also they should not contribute to output
+        # of backend.function().
         with tf.Graph().as_default(), self.cached_session():
             x = backend.variable(0.0)
             y = backend.variable(0.0)
@@ -2576,11 +2578,11 @@ class BackendGraphTests(tf.test.TestCase, parameterized.TestCase):
             )
 
     def test_function_tf_feed_dict(self):
-        # Additional substitutions can be passed to `tf.compat.v1.Session().run()`
-        # via its `feed_dict` arguments. Note that the feed_dict is passed once in
-        # the constructor but we can modify the values in the dictionary. Through
-        # this feed_dict we can provide additional substitutions besides Keras
-        # inputs.
+        # Additional substitutions can be passed to
+        # `tf.compat.v1.Session().run()` via its `feed_dict` arguments. Note
+        # that the feed_dict is passed once in the constructor but we can modify
+        # the values in the dictionary. Through this feed_dict we can provide
+        # additional substitutions besides Keras inputs.
         with tf.Graph().as_default(), self.cached_session():
             x = backend.variable(0.0)
             y = backend.variable(0.0)
@@ -2602,7 +2604,8 @@ class BackendGraphTests(tf.test.TestCase, parameterized.TestCase):
                 backend.get_session().run(fetches=[x, y]), [20.0, 30.0]
             )
 
-            # updated value in feed_dict will be modified within the K.function()
+            # updated value in feed_dict will be modified within the
+            # K.function()
             feed_dict[y_placeholder] = 4.0
             output = f([20.0])
             self.assertEqual(output, [21.0])
@@ -2746,8 +2749,8 @@ class ContextValueCacheTest(tf.test.TestCase):
         cache.setdefault(None, backend.constant(5))
 
         with tf.Graph().as_default() as g:
-            # g is not a child graph of the default test context, so the recursive
-            # lookup will create a new default value.
+            # g is not a child graph of the default test context, so the
+            # recursive lookup will create a new default value.
             self.assertAllEqual(cache[g], 0)
 
         @tf.function
@@ -2799,8 +2802,8 @@ class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
             self.assertIsNotNone(seeded._generator)
             self.assertIsNotNone(unseeded._generator)
         else:
-            # In v1, we can't use tf.random.Generator since it is not compatible with
-            # graph mode.
+            # In v1, we can't use tf.random.Generator since it is not compatible
+            # with graph mode.
             self.assertIsNone(seeded._generator)
             self.assertIsNone(unseeded._generator)
 
@@ -2815,8 +2818,8 @@ class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
 
         # Make sure even with unseeded backend generator, as long as we set the
         # keras random seed, it will make the generator to produce the same
-        # sequence. This will ensure all the client are in sync in the multi-client
-        # setting, when they all set the keras seed.
+        # sequence. This will ensure all the client are in sync in the
+        # multi-client setting, when they all set the keras seed.
         tf_utils.set_random_seed(keras_seed)
         gen2 = backend.RandomGenerator(seed=None, rng_type="stateful")
         output3 = gen2.random_normal(shape=[2, 3])

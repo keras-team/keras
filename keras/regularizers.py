@@ -53,22 +53,23 @@ class Regularizer:
     activity during optimization. These penalties are summed into the loss
     function that the network optimizes.
 
-    Regularization penalties are applied on a per-layer basis. The exact API will
-    depend on the layer, but many layers (e.g. `Dense`, `Conv1D`, `Conv2D` and
-    `Conv3D`) have a unified API.
+    Regularization penalties are applied on a per-layer basis. The exact API
+    will depend on the layer, but many layers (e.g. `Dense`, `Conv1D`, `Conv2D`
+    and `Conv3D`) have a unified API.
 
     These layers expose 3 keyword arguments:
 
     - `kernel_regularizer`: Regularizer to apply a penalty on the layer's kernel
     - `bias_regularizer`: Regularizer to apply a penalty on the layer's bias
-    - `activity_regularizer`: Regularizer to apply a penalty on the layer's output
+    - `activity_regularizer`: Regularizer to apply a penalty on the layer's
+    output
 
     All layers (including custom layers) expose `activity_regularizer` as a
     settable property, whether or not it is in the constructor arguments.
 
     The value returned by the `activity_regularizer` is divided by the input
-    batch size so that the relative weighting between the weight regularizers and
-    the activity regularizers does not change with the batch size.
+    batch size so that the relative weighting between the weight regularizers
+    and the activity regularizers does not change with the batch size.
 
     You can access a layer's regularization penalties by calling `layer.losses`
     after calling the layer on inputs.
@@ -84,7 +85,8 @@ class Regularizer:
     >>> out = layer(tensor)
 
     >>> # The kernel regularization term is 0.25
-    >>> # The activity regularization term (after dividing by the batch size) is 5
+    >>> # The activity regularization term (after dividing by the batch size)
+    >>> # is 5
     >>> tf.math.reduce_sum(layer.losses)
     <tf.Tensor: shape=(), dtype=float32, numpy=5.25>
 
@@ -155,9 +157,9 @@ class Regularizer:
 
     Registration is required for saving and
     loading models to HDF5 format, Keras model cloning, some visualization
-    utilities, and exporting models to and from JSON. If using this functionality,
-    you must make sure any python process running your model has also defined
-    and registered your custom regularizer.
+    utilities, and exporting models to and from JSON. If using this
+    functionality, you must make sure any python process running your model has
+    also defined and registered your custom regularizer.
     """
 
     def __call__(self, x):
@@ -338,9 +340,9 @@ class OrthogonalRegularizer(Regularizer):
     Arguments:
       factor: Float. The regularization factor. The regularization penalty will
         be proportional to `factor` times the mean of the dot products between
-        the L2-normalized rows (if `mode="rows"`, or columns if `mode="columns"`)
-        of the inputs, excluding the product of each row/column with itself.
-        Defaults to 0.01.
+        the L2-normalized rows (if `mode="rows"`, or columns if
+        `mode="columns"`) of the inputs, excluding the product of each
+        row/column with itself.  Defaults to 0.01.
       mode: String, one of `{"rows", "columns"}`. Defaults to `"rows"`. In rows
         mode, the regularization effect seeks to make the rows of the input
         orthogonal to each other. In columns mode, it seeks to make the columns

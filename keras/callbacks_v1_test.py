@@ -215,7 +215,8 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
                 metrics=["accuracy"],
             )
 
-            # we must generate new callbacks for each test, as they aren't stateless
+            # we must generate new callbacks for each test, as they aren't
+            # stateless
             def callbacks_factory(histogram_freq):
                 return [
                     callbacks_v1.TensorBoard(

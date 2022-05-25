@@ -374,7 +374,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
         cbk = BackupAndRestore(self.get_temp_dir())
 
         class InterruptingCallback(keras.callbacks.Callback):
-            """A callback to intentionally introduce interruption to training."""
+            """A callback to intentionally introduce interruption to
+            training."""
 
             def on_epoch_end(self, epoch, log=None):
                 logging.info(f"counter: {model._train_counter}")
@@ -413,7 +414,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
             )
 
         class InterruptingCallback(keras.callbacks.Callback):
-            """A callback to intentionally introduce interruption to training."""
+            """A callback to intentionally introduce interruption to
+            training."""
 
             def on_epoch_end(self, epoch, log=None):
                 if epoch == 15:
@@ -666,7 +668,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
 
         model_type = test_utils.get_model_type()
         if model_type == "subclass":
-            return  # Skip test since subclassed models cannot be saved in .h5 format.
+            # Skip test since subclassed models cannot be saved in .h5 format.
+            return
         if not tf.__internal__.tf2.enabled():
             self.skipTest("Checkpoint callback only available in v2.")
 
@@ -845,8 +848,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
             mode="unknown",
         )
 
-        # Case 7: `ModelCheckpoint` with a combination of `save_freq` and `period`.
-        # Though `period` is deprecated, we're testing it for
+        # Case 7: `ModelCheckpoint` with a combination of `save_freq` and
+        # `period`.  Though `period` is deprecated, we're testing it for
         # backward-compatibility.
         filepath = os.path.join(temp_dir, "checkpoint.epoch{epoch:02d}.h5")
         cbks = [
@@ -1026,7 +1029,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
         os.remove(filepath.format(epoch=5, batch=1))
         os.remove(filepath.format(epoch=5, batch=2))
 
-        # Case 12: ModelCheckpoint saves model with initial_value_threshold param
+        # Case 12: ModelCheckpoint saves model with initial_value_threshold
+        # param
         mode = "max"
         monitor = "val_acc"
         initial_value_threshold = 0
@@ -1053,7 +1057,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
         assert os.path.exists(filepath)
         os.remove(filepath)
 
-        # Case 13: ModelCheckpoint saves model with initial_value_threshold param
+        # Case 13: ModelCheckpoint saves model with initial_value_threshold
+        # param
         mode = "auto"
         monitor = "val_loss"
         initial_value_threshold = None
@@ -1104,8 +1109,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
         )
         assert not os.path.exists(filepath)
 
-        # Case 15: ModelCheckpoint doesnt save model if loss was min earlier in auto
-        # mode
+        # Case 15: ModelCheckpoint doesnt save model if loss was min earlier in
+        # auto mode
         mode = "auto"
         monitor = "val_loss"
         initial_value_threshold = 0
@@ -1228,8 +1233,9 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 weights_after_one_more_epoch,
             ) = self._run_load_weights_on_restart_test_common_iterations()
 
-            # Sleep for some short time period ensuring the files are created with
-            # a different time (in MacOS OSS the granularity is only 1 second).
+            # Sleep for some short time period ensuring the files are created
+            # with a different time (in MacOS OSS the granularity is only 1
+            # second).
             time.sleep(2)
             callback = keras.callbacks.ModelCheckpoint(
                 filepath=filepath,
@@ -1261,10 +1267,10 @@ class KerasCallbacksTest(test_combinations.TestCase):
             )
             weights_with_one_final_extra_epoch = model.get_weights()
 
-            # Asserting the weights one epoch after initial fitting and another epoch
-            # after that are closed, if a ModelCheckpoint with
-            # load_weights_on_restart=True is given (so the model is restored at the
-            # beginning of training).
+            # Asserting the weights one epoch after initial fitting and another
+            # epoch after that are closed, if a ModelCheckpoint with
+            # load_weights_on_restart=True is given (so the model is restored at
+            # the beginning of training).
             self.assertAllClose(
                 weights_after_one_more_epoch,
                 weights_after_model_restoring_and_one_more_epoch,
@@ -1301,10 +1307,10 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 model.get_weights()
             )
 
-            # Asserting the weights one epoch after initial fitting and another epoch
-            # after that are different, if a ModelCheckpoint with
-            # load_weights_on_restart=False is given (so the model is not restored at
-            # the beginning of training).
+            # Asserting the weights one epoch after initial fitting and another
+            # epoch after that are different, if a ModelCheckpoint with
+            # load_weights_on_restart=False is given (so the model is not
+            # restored at the beginning of training).
             self.assertNotAllClose(
                 weights_after_one_more_epoch,
                 weights_after_model_restoring_and_one_more_epoch,
@@ -1671,8 +1677,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
             early_stop.on_epoch_end(epoch, logs={"val_loss": losses[epoch]})
             if early_stop.model.stop_training:
                 break
-        # No epoch improves on the baseline, so we should train for only 5 epochs,
-        # and restore the second model.
+        # No epoch improves on the baseline, so we should train for only 5
+        # epochs, and restore the second model.
         self.assertEqual(epochs_trained, 5)
         self.assertEqual(early_stop.model.get_weights(), 2)
 
@@ -1805,9 +1811,9 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 )
                 return model
 
-            # TODO(psv): Make sure the callback works correctly when min_delta is
-            # set as 0. Test fails when the order of this callback and assertion is
-            # interchanged.
+            # TODO(psv): Make sure the callback works correctly when min_delta
+            # is set as 0. Test fails when the order of this callback and
+            # assertion is interchanged.
             model = make_model()
             cbks = [
                 keras.callbacks.ReduceLROnPlateau(
@@ -1834,7 +1840,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
             )
 
             model = make_model()
-            # This should reduce the LR after the first epoch (due to high epsilon).
+            # This should reduce the LR after the first epoch (due to high
+            # epsilon).
             cbks = [
                 keras.callbacks.ReduceLROnPlateau(
                     monitor="val_loss",
@@ -1989,8 +1996,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
             os.remove(filepath)
 
     def test_stop_training_csv(self):
-        # Test that using the CSVLogger callback with the TerminateOnNaN callback
-        # does not result in invalid CSVs.
+        # Test that using the CSVLogger callback with the TerminateOnNaN
+        # callback does not result in invalid CSVs.
         np.random.seed(1337)
         tmpdir = self.get_temp_dir()
         self.addCleanup(shutil.rmtree, tmpdir, ignore_errors=True)
@@ -2052,8 +2059,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
 
             values = []
             with open(fp) as f:
-                # On Windows, due to \r\n line ends, we may end up reading empty lines
-                # after each line. Skip empty lines.
+                # On Windows, due to \r\n line ends, we may end up reading empty
+                # lines after each line. Skip empty lines.
                 values = [x for x in csv.reader(f) if x]
 
             assert "nan" in values[-1], "The last epoch was not logged."
@@ -2583,9 +2590,9 @@ def list_summaries(logdir):
                     continue
                 for value in event.summary.value:
                     tag = value.tag
-                    # Case on the `value` rather than the summary metadata because
-                    # the Keras callback uses `summary_ops_v2` to emit old-style
-                    # summaries. See b/124535134.
+                    # Case on the `value` rather than the summary metadata
+                    # because the Keras callback uses `summary_ops_v2` to emit
+                    # old-style summaries. See b/124535134.
                     kind = value.WhichOneof("value")
                     container = {
                         "simple_value": result.scalars,
@@ -2599,7 +2606,8 @@ def list_summaries(logdir):
                             % (kind, path, event)
                         )
                     elif kind == "tensor" and tag != "keras":
-                        # Convert the tf2 summary proto to old style for type checking.
+                        # Convert the tf2 summary proto to old style for type
+                        # checking.
                         plugin_name = value.metadata.plugin_data.plugin_name
                         container = {
                             "images": result.images,
@@ -2962,7 +2970,8 @@ class TestTensorBoardV2(test_combinations.TestCase):
                     "embeddings {\n",
                     (
                         "  tensor_name: "
-                        '"layer_with_weights-0/embeddings/.ATTRIBUTES/VARIABLE_VALUE"\n'
+                        '"layer_with_weights-0/embeddings/.ATTRIBUTES/'
+                        'VARIABLE_VALUE"\n'
                     ),
                     '  metadata_path: "metadata.tsv"\n',
                     "}\n",
@@ -2974,7 +2983,8 @@ class TestTensorBoardV2(test_combinations.TestCase):
             self.skipTest("Custom summaries only supported in V2 code path.")
 
         def scalar_v2_mock(name, data, step=None):
-            """A reimplementation of the scalar plugin to avoid circular deps."""
+            """A reimplementation of the scalar plugin to avoid circular
+            deps."""
             metadata = tf.compat.v1.SummaryMetadata()
             # Should match value in tensorboard/plugins/scalar/metadata.py.
             metadata.plugin_data.plugin_name = "scalars"
@@ -3210,8 +3220,8 @@ class TestTensorBoardV2NonParameterizedTest(test_combinations.TestCase):
     def test_TensorBoard_autoTrace_outerProfiler(self):
         """Runs a profiler session that interferes with the one from the callback.
 
-        The callback will not generate a profile but execution will proceed without
-        crashing due to unhandled exceptions.
+        The callback will not generate a profile but execution will proceed
+        without crashing due to unhandled exceptions.
         """
         tf.profiler.experimental.start(logdir="")
         model = self._get_seq_model()
@@ -3546,7 +3556,8 @@ class MostRecentlyModifiedFileMatchingPatternTest(tf.test.TestCase):
                 f.write("foo bar")
 
         # The result returned from checkpoint_management.latest_checkpoint takes
-        # priority, so even if it was written earlier, we should still return that.
+        # priority, so even if it was written earlier, we should still return
+        # that.
         self.assertEqual(
             keras.callbacks.ModelCheckpoint(
                 None
@@ -3567,8 +3578,8 @@ class SummaryOpsTest(tf.test.TestCase):
             keras.callbacks.keras_model_summary(*args, **kwargs)
         writer.close()
         events = events_from_logdir(logdir)
-        # The first event contains no summary values. The written content goes to
-        # the second event.
+        # The first event contains no summary values. The written content goes
+        # to the second event.
         return events[1]
 
     @test_utils.run_v2_only
@@ -3607,7 +3618,8 @@ class SummaryOpsTest(tf.test.TestCase):
                 x = self.dense(inputs)
                 return self.activation(x)
 
-            # Intentionally erroring out at json serialization to test the warning.
+            # Intentionally erroring out at json serialization to test the
+            # warning.
             def get_config(self):
                 raise NotImplementedError
 
