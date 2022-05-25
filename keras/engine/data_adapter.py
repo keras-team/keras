@@ -54,10 +54,10 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
     to simplify the training code path, all the input data object will be
     converted to `tf.data.Dataset` if possible.
 
-    Note that since this class is mainly targeted for TF 2.0, it might have a lot
-    of assumptions under the hood, e.g. eager context by default, distribution
-    strategy, etc. In the meantime, some legacy feature support might be dropped,
-    eg, Iterator from dataset API in v1, etc.
+    Note that since this class is mainly targeted for TF 2.0, it might have a
+    lot of assumptions under the hood, e.g. eager context by default,
+    distribution strategy, etc. In the meantime, some legacy feature support
+    might be dropped, eg, Iterator from dataset API in v1, etc.
 
     The sample usage of this class is like:
 
@@ -78,9 +78,9 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
     def can_handle(x, y=None):
         """Whether the current DataAdapter could handle the input x and y.
 
-        Structure wise, x and y can be single object, or list of objects if there
-        multiple input/output, or dictionary of objects when the input/output are
-        named.
+        Structure wise, x and y can be single object, or list of objects if
+        there multiple input/output, or dictionary of objects when the
+        input/output are named.
 
         Args:
           x: input features.
@@ -95,23 +95,25 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
     def __init__(self, x, y=None, **kwargs):
         """Create a DataAdapter based on data inputs.
 
-        The caller must make sure to call `can_handle()` first before invoking this
-        method. Provide unsupported data type will result into unexpected behavior.
+        The caller must make sure to call `can_handle()` first before invoking
+        this method. Provide unsupported data type will result into unexpected
+        behavior.
 
         Args:
           x: input features.
           y: target labels. Note that y could be None in the case of prediction.
-          **kwargs: Other keyword arguments for DataAdapter during the construction
-            of the tf.dataset.Dataset. For example:
+          **kwargs: Other keyword arguments for DataAdapter during the
+            construction of the tf.dataset.Dataset. For example:
             - Numpy data might have `sample_weights` which will be used for
               weighting the loss function during training.
-            - Numpy data might need to have `batch_size` parameter when constructing
-              the dataset and iterator.
+            - Numpy data might need to have `batch_size` parameter when
+              constructing the dataset and iterator.
             - Certain input might need to be distribution strategy aware. When
-              `distribution_strategy` is passed, the created dataset need to respect
-              the strategy.
-            DataAdapter might choose to ignore any keyword argument if it doesn't
-            use it, or raise exception if any required argument is not provided.
+              `distribution_strategy` is passed, the created dataset need to
+              respect the strategy.
+            DataAdapter might choose to ignore any keyword argument if it
+            doesn't use it, or raise exception if any required argument is not
+            provided.
         """
         if not self.can_handle(x, y):
             raise ValueError(
@@ -122,9 +124,9 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
     def get_dataset(self):
         """Get a dataset instance for the current DataAdapter.
 
-        Note that the dataset returned does not repeat for epoch, so caller might
-        need to create new iterator for the same dataset at the beginning of the
-        epoch. This behavior might change in the future.
+        Note that the dataset returned does not repeat for epoch, so caller
+        might need to create new iterator for the same dataset at the beginning
+        of the epoch. This behavior might change in the future.
 
         Returns:
           A `tf.data.Dataset`. Caller might use the dataset in different
@@ -137,15 +139,15 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
     def get_size(self):
         """Return the size (number of batches) for the dataset created.
 
-        For certain type of the data input, the number of batches is known, eg for
-        Numpy data, the size is same as (number_of_element / batch_size). Whereas
-        for dataset or python generator, the size is unknown since it may or may not
-        have an end state.
+        For certain type of the data input, the number of batches is known, eg
+        for Numpy data, the size is same as (number_of_element / batch_size).
+        Whereas for dataset or python generator, the size is unknown since it
+        may or may not have an end state.
 
         Returns:
-          int, the number of batches for the dataset, or None if it is unknown. The
-          caller could use this to control the loop of training, show progress bar,
-          or handle unexpected StopIteration error.
+          int, the number of batches for the dataset, or None if it is unknown.
+          The caller could use this to control the loop of training, show
+          progress bar, or handle unexpected StopIteration error.
         """
         raise NotImplementedError
 
@@ -257,8 +259,8 @@ class TensorLikeDataAdapter(DataAdapter):
         ).pop()
         _check_data_cardinality(inputs)
 
-        # If batch_size is not passed but steps is, calculate from the input data.
-        # Default to 32 for backwards compat.
+        # If batch_size is not passed but steps is, calculate from the input
+        # data.  Default to 32 for backwards compat.
         if not batch_size:
             batch_size = int(math.ceil(num_samples / steps)) if steps else 32
 
@@ -288,32 +290,34 @@ class TensorLikeDataAdapter(DataAdapter):
             indices_dataset = indices_dataset.repeat(epochs)
 
         def permutation(_):
-            # It turns out to be more performant to make a new set of indices rather
-            # than reusing the same range Tensor. (presumably because of buffer
-            # forwarding.)
+            # It turns out to be more performant to make a new set of indices
+            # rather than reusing the same range Tensor. (presumably because of
+            # buffer forwarding.)
             indices = tf.range(num_samples, dtype=tf.int64)
             if shuffle and shuffle != "batch":
                 indices = tf.random.shuffle(indices)
             return indices
 
-        # We prefetch a single element. Computing large permutations can take quite
-        # a while so we don't want to wait for prefetching over an epoch boundary to
-        # trigger the next permutation. On the other hand, too many simultaneous
-        # shuffles can contend on a hardware level and degrade all performance.
+        # We prefetch a single element. Computing large permutations can take
+        # quite a while so we don't want to wait for prefetching over an epoch
+        # boundary to trigger the next permutation. On the other hand, too many
+        # simultaneous shuffles can contend on a hardware level and degrade all
+        # performance.
         indices_dataset = indices_dataset.map(permutation).prefetch(1)
 
         def slice_batch_indices(indices):
             """Convert a Tensor of indices into a dataset of batched indices.
 
-            This step can be accomplished in several ways. The most natural is to
-            slice the Tensor in a Dataset map. (With a condition on the upper index to
-            handle the partial batch.) However it turns out that coercing the Tensor
-            into a shape which is divisible by the batch size (and handling the last
-            partial batch separately) allows for a much more favorable memory access
-            pattern and improved performance.
+            This step can be accomplished in several ways. The most natural is
+            to slice the Tensor in a Dataset map. (With a condition on the upper
+            index to handle the partial batch.) However it turns out that
+            coercing the Tensor into a shape which is divisible by the batch
+            size (and handling the last partial batch separately) allows for a
+            much more favorable memory access pattern and improved performance.
 
             Args:
-              indices: Tensor which determines the data order for an entire epoch.
+              indices: Tensor which determines the data order for an entire
+                epoch.
 
             Returns:
               A Dataset of batched indices.
@@ -377,8 +381,8 @@ class TensorLikeDataAdapter(DataAdapter):
 
         dataset = dataset.map(grab_batch, num_parallel_calls=tf.data.AUTOTUNE)
 
-        # Default optimizations are disabled to avoid the overhead of (unnecessary)
-        # input pipeline graph serialization and deserialization
+        # Default optimizations are disabled to avoid the overhead of
+        # (unnecessary) input pipeline graph serialization and deserialization
         options = tf.data.Options()
         options.experimental_optimization.apply_default_optimizations = False
         if self._shuffle:
@@ -451,10 +455,11 @@ class GenericArrayLikeDataAdapter(TensorLikeDataAdapter):
 
     def __init__(self, *args, **kwargs):
         logging.warning(
-            "Keras is training/fitting/evaluating on array-like data. Keras may "
-            "not be optimized for this format, so if your input data format is "
-            "supported by TensorFlow I/O (https://github.com/tensorflow/io) we "
-            "recommend using that to load a Dataset instead."
+            "Keras is training/fitting/evaluating on array-like data. Keras "
+            "may not be optimized for this format, so if your input data "
+            "format is supported by TensorFlow I/O "
+            "(https://github.com/tensorflow/io) we recommend using that to "
+            "load a Dataset instead."
         )
 
         super().__init__(*args, **kwargs)
@@ -541,9 +546,10 @@ class DatasetCreatorAdapter(DataAdapter):
             return True
 
     def should_recreate_iterator(self):
-        # We expect users to shuffle the dataset in their `dataset_fn` supplied to
-        # `DatasetCreator`. Since that is a buffered shuffle, we intend to not reset
-        # the dataset so the batches that are not shuffled can still be pulled.
+        # We expect users to shuffle the dataset in their `dataset_fn` supplied
+        # to `DatasetCreator`. Since that is a buffered shuffle, we intend to
+        # not reset the dataset so the batches that are not shuffled can still
+        # be pulled.
         return False
 
     def get_size(self):
@@ -574,8 +580,8 @@ class CompositeTensorDataAdapter(DataAdapter):
             flat_inputs += tf.nest.flatten(y)
 
         def _is_composite(v):
-            # Dataset/iterator/DistributedDataset inherits from CompositeTensor but
-            # should be handled by DatasetAdapter and GeneratorAdapter.
+            # Dataset/iterator/DistributedDataset inherits from CompositeTensor
+            # but should be handled by DatasetAdapter and GeneratorAdapter.
             if (
                 tf_utils.is_extension_type(v)
                 and not isinstance(v, (tf.data.Dataset, tf.data.Iterator))
@@ -623,8 +629,8 @@ class CompositeTensorDataAdapter(DataAdapter):
         if shuffle:
             dataset = dataset.shuffle(num_samples)
 
-        # If batch_size is not passed but steps is, calculate from the input data.
-        # Default to 32 for backwards compatibility.
+        # If batch_size is not passed but steps is, calculate from the input
+        # data.  Default to 32 for backwards compatibility.
         if not batch_size:
             batch_size = int(math.ceil(num_samples / steps)) if steps else 32
 
@@ -739,8 +745,8 @@ class DatasetAdapter(DataAdapter):
 
     def __init__(self, x, y=None, sample_weights=None, steps=None, **kwargs):
         super().__init__(x, y, **kwargs)
-        # Note that the dataset instance is immutable, its fine to reuse the user
-        # provided dataset.
+        # Note that the dataset instance is immutable, its fine to reuse the
+        # user provided dataset.
         self._dataset = x
 
         # The user-provided steps.
@@ -833,8 +839,8 @@ class GeneratorDataAdapter(DataAdapter):
         model=None,
         **kwargs
     ):
-        # Generators should never shuffle as exhausting the generator in order to
-        # shuffle the batches is inefficient.
+        # Generators should never shuffle as exhausting the generator in order
+        # to shuffle the batches is inefficient.
         kwargs.pop("shuffle", None)
 
         if not is_none_or_empty(y):
@@ -850,8 +856,8 @@ class GeneratorDataAdapter(DataAdapter):
 
         super().__init__(x, y, **kwargs)
 
-        # Since we have to know the dtype of the python generator when we build the
-        # dataset, we have to look at a batch to infer the structure.
+        # Since we have to know the dtype of the python generator when we build
+        # the dataset, we have to look at a batch to infer the structure.
         peek, x = self._peek_and_restore(x)
         peek = self._standardize_batch(peek)
         peek = _process_tensorlike(peek)
@@ -864,10 +870,10 @@ class GeneratorDataAdapter(DataAdapter):
                     lambda x: model(x, training=False), args=(concrete_x,)
                 )
             except NotImplementedError:
-                # The above call may fail if the model is a container-like class that
-                # does not implement its own forward pass (e.g. a GAN or VAE where the
-                # forward pass is handled by subcomponents).
-                # Such a model does not need to be built.
+                # The above call may fail if the model is a container-like class
+                # that does not implement its own forward pass (e.g. a GAN or
+                # VAE where the forward pass is handled by subcomponents).  Such
+                # a model does not need to be built.
                 pass
 
         self._first_batch_size = int(tf.nest.flatten(peek)[0].shape[0])
@@ -880,8 +886,9 @@ class GeneratorDataAdapter(DataAdapter):
 
         output_signature = tf.nest.map_structure(_get_tensor_spec, peek)
 
-        # Note that dataset API takes a callable that creates a generator object,
-        # rather than generator itself, which is why we define a function here.
+        # Note that dataset API takes a callable that creates a generator
+        # object, rather than generator itself, which is why we define a
+        # function here.
         generator_fn = self._handle_multiprocessing(
             x, workers, use_multiprocessing, max_queue_size
         )
@@ -1163,17 +1170,16 @@ def broadcast_sample_weight_modes(target_structure, sample_weight_modes):
                 tf.nest.map_structure(lambda _: "...", sample_weight_modes)
             )
 
-            # Attempt to coerce sample_weight_modes to the target structure. This
-            # implicitly depends on the fact that Model flattens outputs for its
-            # internal representation.
+            # Attempt to coerce sample_weight_modes to the target structure.
+            # This implicitly depends on the fact that Model flattens outputs
+            # for its internal representation.
             try:
                 sample_weight_modes = tf.nest.pack_sequence_as(
                     target_structure, tf.nest.flatten(sample_weight_modes)
                 )
                 logging.warning(
-                    "sample_weight modes were coerced from\n  {}\n    to  \n  {}".format(
-                        target_str, mode_str
-                    )
+                    "sample_weight modes were coerced from\n  "
+                    "{}\n    to  \n  {}".format(target_str, mode_str)
                 )
             except (ValueError, TypeError):
                 raise ValueError(
@@ -1389,7 +1395,7 @@ class DataHandler:
 
         This will be `None` in the case where:
 
-        (1) A `Dataset` of unknown cardinality was passed to the `DataHandler`, and
+        (1) A `Dataset` of unknown cardinality was passed to the `DataHandler`,
         (2) `steps_per_epoch` was not provided, and
         (3) The first epoch of iteration has not yet completed.
 
@@ -1429,10 +1435,10 @@ class DataHandler:
         size = tf.data.experimental.cardinality(dataset)
         if size == tf.data.experimental.INFINITE_CARDINALITY and steps is None:
             raise ValueError(
-                "When passing an infinitely repeating dataset, please specify a "
-                "`steps_per_epoch` value so that epoch level "
-                "callbacks continue to work. The value can be arbitrary, or a number "
-                "that you think correctly defines the size of an epoch. "
+                "When passing an infinitely repeating dataset, please specify "
+                "a `steps_per_epoch` value so that epoch level "
+                "callbacks continue to work. The value can be arbitrary, or a "
+                "number that you think correctly defines the size of an epoch. "
                 "Epoch-level callbacks will then be called at this interval."
             )
         if size >= 0:
@@ -1451,8 +1457,8 @@ class DataHandler:
         ):
             raise ValueError(
                 "Could not infer the size of the data. With "
-                "`steps_per_execution > 1`, you must specify the number of steps "
-                "to run."
+                "`steps_per_execution > 1`, you must specify the number of "
+                "steps to run."
             )
 
 
@@ -1475,17 +1481,17 @@ class _ClusterCoordinatorDataHandler(DataHandler):
             data_adapter_cls = select_data_adapter(x, y)
             return data_adapter_cls(x=x, y=y, **kwargs).get_dataset()
 
-        # This check is needed because types like `tf.data.Dataset` don't work with
-        # PSS yet. So only apply this logic to the types we can support.
+        # This check is needed because types like `tf.data.Dataset` don't work
+        # with PSS yet. So only apply this logic to the types we can support.
         if isinstance(x, _get_tensor_types()) and isinstance(
             y, _get_tensor_types()
         ):
             return dataset_creator.DatasetCreator(_dataset_fn)
         else:
             raise NotImplementedError(
-                "Only `tf.keras.utils.experimental.DatasetCreator`, `tf.Tensor`, "
-                "numpy arrays and pandas dataframes are supported types at this "
-                "time."
+                "Only `tf.keras.utils.experimental.DatasetCreator`, "
+                "`tf.Tensor`, numpy arrays and pandas dataframes are "
+                "supported types at this time."
             )
 
     def _configure_dataset_and_inferred_steps(
@@ -1499,7 +1505,8 @@ class _ClusterCoordinatorDataHandler(DataHandler):
                     x, options=x.input_options
                 )
 
-            self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
+            coordinator = self._model._cluster_coordinator
+            self._dataset = coordinator.create_per_worker_dataset(
                 per_worker_dataset_fn
             )
         else:
@@ -1507,9 +1514,8 @@ class _ClusterCoordinatorDataHandler(DataHandler):
             if not _is_distributed_dataset(x):
                 x = strategy.experimental_distribute_dataset(x)
 
-            self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
-                x
-            )
+            coordinator = self._model._cluster_coordinator
+            self._dataset = coordinator.create_per_worker_dataset(x)
 
         if steps_per_epoch == -1:
             self._inferred_steps = None
@@ -1518,7 +1524,7 @@ class _ClusterCoordinatorDataHandler(DataHandler):
             self._inferred_steps = steps_per_epoch
 
     def sync(self):
-        self._model._cluster_coordinator.join()  # pylint: disable=protected-access
+        self._model._cluster_coordinator.join()
 
 
 @keras_export("keras.__internal__.utils.get_data_handler", v1=[])
@@ -1541,8 +1547,10 @@ def get_data_handler(*args, **kwargs):
 
       # Assume x is a tf.data Dataset.
       data_handler = data_adapter.get_data_handler(x=x)
-      for epo_idx, iterator in data_handler.enumerate_epochs():  # Epoch iteration
-          with data_handler.catch_stop_iteration(): # Stop on dataset exhaustion.
+      # Epoch iteration
+      for epo_idx, iterator in data_handler.enumerate_epochs():
+          # Stop on dataset exhaustion.
+          with data_handler.catch_stop_iteration():
             for step in data_handler.steps(): # Step iteration
                 step_result = step(iterator)
     ```
@@ -1595,7 +1603,8 @@ def _make_class_weight_map_fn(class_weight):
 
         if tf.nest.is_nested(y):
             raise ValueError(
-                "`class_weight` is only supported for Models with a single output."
+                "`class_weight` is only supported for Models with a single "
+                "output."
             )
 
         if y.shape.rank > 2:
@@ -1630,8 +1639,8 @@ def train_validation_split(arrays, validation_split):
       arrays: Tensors to split. Allowed inputs are arbitrarily nested structures
         of Tensors and NumPy arrays.
       validation_split: Float between 0 and 1. The proportion of the dataset to
-        include in the validation split. The rest of the dataset will be included
-        in the training split.
+        include in the validation split. The rest of the dataset will be
+        included in the training split.
     Returns:
       `(train_arrays, validation_arrays)`
     """
@@ -1663,10 +1672,11 @@ def train_validation_split(arrays, validation_split):
 
     if split_at == 0 or split_at == batch_dim:
         raise ValueError(
-            "Training data contains {batch_dim} samples, which is not sufficient "
-            "to split it into a validation and training set as specified by "
-            "`validation_split={validation_split}`. Either provide more data, or a "
-            "different value for the `validation_split` argument.".format(
+            "Training data contains {batch_dim} samples, which is not "
+            "sufficient to split it into a validation and training set as "
+            "specified by `validation_split={validation_split}`. Either "
+            "provide more data, or a different value for the "
+            "`validation_split` argument.".format(
                 batch_dim=batch_dim, validation_split=validation_split
             )
         )
@@ -1731,8 +1741,8 @@ def unpack_x_y_sample_weight(data):
       data: A tuple of the form `(x,)`, `(x, y)`, or `(x, y, sample_weight)`.
 
     Returns:
-      The unpacked tuple, with `None`s for `y` and `sample_weight` if they are not
-      provided.
+      The unpacked tuple, with `None`s for `y` and `sample_weight` if they are
+      not provided.
     """
     if isinstance(data, list):
         data = tuple(data)

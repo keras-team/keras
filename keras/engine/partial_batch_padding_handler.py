@@ -59,7 +59,7 @@ class PartialBatchPaddingHandler:
         return backend.concatenate([padding_mask, mask], axis=0)
 
     def pad_batch(self, *dataset_batch_elements):
-        """Pads out the batch dimension of a tensor to the complete batch size."""
+        """Pads the batch dimension of a tensor to the complete batch size."""
 
         def _pad(batch):
             """Helper function to pad nested data within each batch elements."""

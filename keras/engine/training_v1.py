@@ -130,8 +130,8 @@ class Model(training_lib.Model):
             self._set_strategy(tf.distribute.get_strategy())
 
         # This flag is used to track if the user is using the deprecated path of
-        # passing distribution strategy to compile rather than creating the model
-        # under distribution strategy scope.
+        # passing distribution strategy to compile rather than creating the
+        # model under distribution strategy scope.
         self._compile_distribution = False
 
         self._run_eagerly = None
@@ -167,39 +167,40 @@ class Model(training_lib.Model):
         """Loads all layer weights, either from a TensorFlow or an HDF5 weight file.
 
         If `by_name` is False weights are loaded based on the network's
-        topology. This means the architecture should be the same as when the weights
-        were saved.  Note that layers that don't have weights are not taken into
-        account in the topological ordering, so adding or removing layers is fine as
-        long as they don't have weights.
+        topology. This means the architecture should be the same as when the
+        weights were saved.  Note that layers that don't have weights are not
+        taken into account in the topological ordering, so adding or removing
+        layers is fine as long as they don't have weights.
 
-        If `by_name` is True, weights are loaded into layers only if they share the
-        same name. This is useful for fine-tuning or transfer-learning models where
-        some of the layers have changed.
+        If `by_name` is True, weights are loaded into layers only if they share
+        the same name. This is useful for fine-tuning or transfer-learning
+        models where some of the layers have changed.
 
-        Only topological loading (`by_name=False`) is supported when loading weights
-        from the TensorFlow format. Note that topological loading differs slightly
-        between TensorFlow and HDF5 formats for user-defined classes inheriting from
-        `tf.keras.Model`: HDF5 loads based on a flattened list of weights, while the
-        TensorFlow format loads based on the object-local names of attributes to
-        which layers are assigned in the `Model`'s constructor.
+        Only topological loading (`by_name=False`) is supported when loading
+        weights from the TensorFlow format. Note that topological loading
+        differs slightly between TensorFlow and HDF5 formats for user-defined
+        classes inheriting from `tf.keras.Model`: HDF5 loads based on a
+        flattened list of weights, while the TensorFlow format loads based on
+        the object-local names of attributes to which layers are assigned in the
+        `Model`'s constructor.
 
         Args:
-            filepath: String, path to the weights file to load. For weight files in
-                TensorFlow format, this is the file prefix (the same as was passed
-                to `save_weights`).
+            filepath: String, path to the weights file to load. For weight files
+                in TensorFlow format, this is the file prefix (the same as was
+                passed to `save_weights`).
             by_name: Boolean, whether to load weights by name or by topological
                 order. Only topological loading is supported for weight files in
                 TensorFlow format.
-            skip_mismatch: Boolean, whether to skip loading of layers where there is
-                a mismatch in the number of weights, or a mismatch in the shape of
-                the weight (only valid when `by_name=True`).
+            skip_mismatch: Boolean, whether to skip loading of layers where
+                there is a mismatch in the number of weights, or a mismatch in
+                the shape of the weight (only valid when `by_name=True`).
 
         Returns:
-            When loading a weight file in TensorFlow format, returns the same status
-            object as `tf.train.Checkpoint.restore`. When graph building, restore
-            ops are run automatically as soon as the network is built (on first call
-            for user-defined classes inheriting from `Model`, immediately if it is
-            already built).
+            When loading a weight file in TensorFlow format, returns the same
+            status object as `tf.train.Checkpoint.restore`. When graph building,
+            restore ops are run automatically as soon as the network is built
+            (on first call for user-defined classes inheriting from `Model`,
+            immediately if it is already built).
 
             When loading weights in HDF5 format, returns `None`.
 
@@ -238,20 +239,21 @@ class Model(training_lib.Model):
             optimizer: String (name of optimizer) or optimizer instance.
                 See `tf.keras.optimizers`.
             loss: String (name of objective function), objective function or
-                `tf.keras.losses.Loss` instance. See `tf.keras.losses`. An objective
-                function is any callable with the signature
+                `tf.keras.losses.Loss` instance. See `tf.keras.losses`. An
+                objective function is any callable with the signature
                 `scalar_loss = fn(y_true, y_pred)`. If the model has multiple
-                outputs, you can use a different loss on each output by passing a
-                dictionary or a list of losses. The loss value that will be
+                outputs, you can use a different loss on each output by passing
+                a dictionary or a list of losses. The loss value that will be
                 minimized by the model will then be the sum of all individual
                 losses.
-            metrics: List of metrics to be evaluated by the model during training
-                and testing. Typically you will use `metrics=['accuracy']`.
-                To specify different metrics for different outputs of a
-                multi-output model, you could also pass a dictionary, such as
-                `metrics={'output_a': 'accuracy', 'output_b': ['accuracy', 'mse']}`.
-                You can also pass a list (len = len(outputs)) of lists of metrics
-                such as `metrics=[['accuracy'], ['accuracy', 'mse']]` or
+            metrics: List of metrics to be evaluated by the model during
+                training and testing. Typically you will use
+                `metrics=['accuracy']`.  To specify different metrics for
+                different outputs of a multi-output model, you could also pass a
+                dictionary, such as `metrics={'output_a': 'accuracy',
+                'output_b': ['accuracy', 'mse']}`.  You can also pass a list
+                (len = len(outputs)) of lists of metrics such as
+                `metrics=[['accuracy'], ['accuracy', 'mse']]` or
                 `metrics=['accuracy', ['accuracy', 'mse']]`.
             loss_weights: Optional list or dictionary specifying scalar
                 coefficients (Python floats) to weight the loss contributions
@@ -348,8 +350,9 @@ class Model(training_lib.Model):
                 or self._experimental_run_tf_function
             ):
                 raise ValueError(
-                    "Distribute argument in compile is not available in TF 2.0 please "
-                    "create the model under the distribution strategy scope."
+                    "Distribute argument in compile is not available in TF 2.0 "
+                    "please create the model under the distribution strategy "
+                    "scope."
                 )
             logging.warning(
                 "Distribute argument in compile is deprecated please "
@@ -359,10 +362,11 @@ class Model(training_lib.Model):
             self._compile_distribution = True
         else:
             if tf.distribute.has_strategy():
-                # When the user builds the model in the DS scope and cross replica
-                # context we want distribution strategy to be set but when building the
-                # replica copies of the models internally we should not be compiling
-                # with distribution strategy and use the default compilation path.
+                # When the user builds the model in the DS scope and cross
+                # replica context we want distribution strategy to be set but
+                # when building the replica copies of the models internally we
+                # should not be compiling with distribution strategy and use the
+                # default compilation path.
                 if tf.distribute.in_cross_replica_context():
                     self._distribution_strategy = tf.distribute.get_strategy()
 
@@ -371,8 +375,8 @@ class Model(training_lib.Model):
             tf.compat.v1.distribute.experimental.ParameterServerStrategy,
         ):
             raise NotImplementedError(
-                "`tf.compat.v1.distribute.experimental.ParameterServerStrategy` "
-                "currently only works with the tf.Estimator API"
+                "`tf.compat.v1.distribute.experimental.ParameterServerStrategy`"
+                " currently only works with the tf.Estimator API"
             )
 
         if isinstance(
@@ -391,8 +395,9 @@ class Model(training_lib.Model):
                 target_tensors,
                 weighted_metrics,
             )
-        # We've disabled automatic dependency tracking for this method, but do want
-        # to add a checkpoint dependency on the optimizer if it's trackable.
+        # We've disabled automatic dependency tracking for this method, but do
+        # want to add a checkpoint dependency on the optimizer if it's
+        # trackable.
         if isinstance(self.optimizer, tf.__internal__.tracking.Trackable):
             self._track_trackable(
                 self.optimizer, name="optimizer", overwrite=True
@@ -408,11 +413,12 @@ class Model(training_lib.Model):
                 "running a model eagerly."
             )
 
-        # _training_endpoints contains a list of _TrainingEndpoint object, which has
-        # all the model output/target/loss and related metadata.
+        # _training_endpoints contains a list of _TrainingEndpoint object, which
+        # has all the model output/target/loss and related metadata.
         self._training_endpoints = []
 
-        # Used to freeze the behavior of the Model once `compile` has been called.
+        # Used to freeze the behavior of the Model once `compile` has been
+        # called.
         self._compiled_trainable_state = self._get_trainable_state()
 
         # Set tf.distribute.Strategy specific parameters.
@@ -426,17 +432,17 @@ class Model(training_lib.Model):
             not tf.executing_eagerly()
             and self._distribution_strategy is not None
         ):
-            # Ensures a Session is created and configured correctly for Distribution
-            # Strategy.
+            # Ensures a Session is created and configured correctly for
+            # Distribution Strategy.
             backend.configure_and_create_distributed_session(
                 self._distribution_strategy
             )
         # Initialize model metric attributes.
         self._init_metric_attributes()
         if not self.built or not self.inputs or not self.outputs:
-            # Model is not compilable because it does not know its number of inputs
-            # and outputs, nor their shapes and names. We will compile after the first
-            # time the model gets called on training data.
+            # Model is not compilable because it does not know its number of
+            # inputs and outputs, nor their shapes and names. We will compile
+            # after the first time the model gets called on training data.
             return
         self._is_compiled = True
         base_layer.keras_api_gauge.get_cell("compile").set(True)
@@ -480,7 +486,8 @@ class Model(training_lib.Model):
                 masks=self._prepare_output_masks(),
             )
 
-            # Prepare sample weight modes. List with the same length as model outputs.
+            # Prepare sample weight modes. List with the same length as model
+            # outputs.
             training_utils_v1.prepare_sample_weight_modes(
                 self._training_endpoints, sample_weight_mode
             )
@@ -498,16 +505,18 @@ class Model(training_lib.Model):
             # Collected trainable weights, sorted in topological order.
             self._collected_trainable_weights = self.trainable_weights
 
-            # Validate all variables were correctly created in distribution scope.
+            # Validate all variables were correctly created in distribution
+            # scope.
             if self._distribution_strategy and not self._compile_distribution:
                 for v in self.variables:
                     strategy = self._distribution_strategy
                     if not strategy.extended.variable_created_in_scope(v):
                         raise ValueError(
-                            "Variable (%s) was not created in the distribution strategy "
-                            "scope of (%s). It is most likely due to not all layers or "
-                            "the model or optimizer being created outside the distribution "
-                            "strategy scope. Try to make sure your code looks similar "
+                            "Variable (%s) was not created in the distribution "
+                            "strategy scope of (%s). It is most likely due to "
+                            "not all layers or the model or optimizer being "
+                            "created outside the distribution strategy scope. "
+                            "Try to make sure your code looks similar "
                             "to the following.\n"
                             "with strategy.scope():\n"
                             "  model=_create_model()\n"
@@ -521,13 +530,14 @@ class Model(training_lib.Model):
 
     @property
     def metrics(self):
-        """Returns the model's metrics added using `compile`, `add_metric` APIs."""
+        """Returns the model's metrics added using `compile`, `add_metric`
+        APIs."""
         metrics = []
         if self._is_compiled:
             if not hasattr(self, "_v1_compile_was_called"):
                 # See b/155687393 for more details, the model is created as a v2
-                # instance but converted to v1. Fallback to use base Model to retrieve
-                # the metrics.
+                # instance but converted to v1. Fallback to use base Model to
+                # retrieve the metrics.
                 return super().metrics
             metrics += self._compile_metric_functions
         metrics.extend(self._metrics)
@@ -542,14 +552,14 @@ class Model(training_lib.Model):
     def metrics_names(self):
         """Returns the model's display labels for all outputs."""
 
-        # This property includes all output names including `loss` and per-output
-        # losses for backward compatibility.
+        # This property includes all output names including `loss` and
+        # per-output losses for backward compatibility.
         metrics_names = ["loss"]
         if self._is_compiled:
             if not hasattr(self, "_v1_compile_was_called"):
                 # See b/155687393 for more details, the model is created as a v2
-                # instance but converted to v1. Fallback to use base Model to retrieve
-                # the metrics name
+                # instance but converted to v1. Fallback to use base Model to
+                # retrieve the metrics name
                 return super().metrics_names
 
             # Add output loss metric names to the metric names list.
@@ -571,8 +581,8 @@ class Model(training_lib.Model):
         """Settable attribute indicating whether the model should run eagerly.
 
         Running eagerly means that your model will be run step by step,
-        like Python code. Your model might run slower, but it should become easier
-        for you to debug it by stepping into individual layer calls.
+        like Python code. Your model might run slower, but it should become
+        easier for you to debug it by stepping into individual layer calls.
 
         By default, we will attempt to compile your model to a static graph to
         deliver the best execution performance.
@@ -618,8 +628,8 @@ class Model(training_lib.Model):
     def _select_training_loop(self, inputs):
         """Select training loop for fit/eval/predict based on the inputs."""
         # TODO(kaftan) or TODO(scottzhu): This check should eventually be nicely
-        #  integrated into the data adapters in the v2 loop. We can't do this yet
-        #  because we currently have to fall back for unhandled data types.
+        # integrated into the data adapters in the v2 loop. We can't do this yet
+        # because we currently have to fall back for unhandled data types.
         if isinstance(inputs, (tf.compat.v1.data.Iterator, tf.data.Iterator)):
             raise ValueError(
                 "For performance reasons Keras `fit`, `evaluate` and"
@@ -691,8 +701,8 @@ class Model(training_lib.Model):
               - A `tf.data` dataset. Should return a tuple
                 of either `(inputs, targets)` or
                 `(inputs, targets, sample_weights)`.
-              - A generator or `keras.utils.Sequence` returning `(inputs, targets)`
-                or `(inputs, targets, sample weights)`.
+              - A generator or `keras.utils.Sequence` returning `(inputs,
+                targets)` or `(inputs, targets, sample weights)`.
             y: Target data. Like the input data `x`,
               it could be either Numpy array(s) or TensorFlow tensor(s).
               It should be consistent with `x` (you cannot have Numpy inputs and
@@ -704,8 +714,8 @@ class Model(training_lib.Model):
                 If unspecified, `batch_size` will default to 32.
                 Do not specify the `batch_size` if your data is in the
                 form of symbolic tensors, datasets,
-                generators, or `keras.utils.Sequence` instances (since they generate
-                batches).
+                generators, or `keras.utils.Sequence` instances (since they
+                generate batches).
             epochs: Integer. Number of epochs to train the model.
                 An epoch is an iteration over the entire `x` and `y`
                 data provided.
@@ -729,8 +739,8 @@ class Model(training_lib.Model):
                 the loss and any model metrics
                 on this data at the end of each epoch.
                 The validation data is selected from the last samples
-                in the `x` and `y` data provided, before shuffling. This argument is
-                not supported when `x` is a dataset, generator or
+                in the `x` and `y` data provided, before shuffling. This
+                argument is not supported when `x` is a dataset, generator or
                `keras.utils.Sequence` instance.
             validation_data: Data on which to evaluate
                 the loss and any model metrics at the end of each epoch.
@@ -763,10 +773,10 @@ class Model(training_lib.Model):
                 `(samples, sequence_length)`,
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
-                `sample_weight_mode="temporal"` in `compile()`. This argument is not
-                supported when `x` is a dataset, generator, or
-               `keras.utils.Sequence` instance, instead provide the sample_weights
-                as the third element of `x`.
+                `sample_weight_mode="temporal"` in `compile()`. This argument is
+                not supported when `x` is a dataset, generator, or
+                `keras.utils.Sequence` instance, instead provide the
+                sample_weights as the third element of `x`.
             initial_epoch: Integer.
                 Epoch at which to start training
                 (useful for resuming a previous training run).
@@ -778,28 +788,30 @@ class Model(training_lib.Model):
                 the number of samples in your dataset divided by
                 the batch size, or 1 if that cannot be determined. If x is a
                 `tf.data` dataset, and 'steps_per_epoch'
-                is None, the epoch will run until the input dataset is exhausted.
-                This argument is not supported with array inputs.
+                is None, the epoch will run until the input dataset is
+                exhausted.  This argument is not supported with array inputs.
             validation_steps: Only relevant if `validation_data` is provided and
                 is a `tf.data` dataset. Total number of steps (batches of
-                samples) to draw before stopping when performing validation
-                at the end of every epoch. If 'validation_steps' is None, validation
-                will run until the `validation_data` dataset is exhausted. In the
-                case of a infinite dataset, it will run into a infinite loop.
-                If 'validation_steps' is specified and only part of the dataset
-                will be consumed, the evaluation will start from the beginning of
-                the dataset at each epoch. This ensures that the same validation
-                samples are used every time.
-            validation_freq: Only relevant if validation data is provided. Integer
-                or `collections.abc.Container` instance (e.g. list, tuple, etc.).
-                If an integer, specifies how many training epochs to run before a
-                new validation run is performed, e.g. `validation_freq=2` runs
-                validation every 2 epochs. If a Container, specifies the epochs on
-                which to run validation, e.g. `validation_freq=[1, 2, 10]` runs
-                validation at the end of the 1st, 2nd, and 10th epochs.
-            max_queue_size: Integer. Used for generator or `keras.utils.Sequence`
-                input only. Maximum size for the generator queue.
-                If unspecified, `max_queue_size` will default to 10.
+                samples) to draw before stopping when performing validation at
+                the end of every epoch. If 'validation_steps' is None,
+                validation will run until the `validation_data` dataset is
+                exhausted. In the case of a infinite dataset, it will run into a
+                infinite loop.  If 'validation_steps' is specified and only part
+                of the dataset will be consumed, the evaluation will start from
+                the beginning of the dataset at each epoch. This ensures that
+                the same validation samples are used every time.
+            validation_freq: Only relevant if validation data is provided.
+                Integer or `collections.abc.Container` instance (e.g. list,
+                tuple, etc.).  If an integer, specifies how many training epochs
+                to run before a new validation run is performed, e.g.
+                `validation_freq=2` runs validation every 2 epochs. If a
+                Container, specifies the epochs on which to run validation, e.g.
+                `validation_freq=[1, 2, 10]` runs validation at the end of the
+                1st, 2nd, and 10th epochs.
+            max_queue_size: Integer. Used for generator or
+                `keras.utils.Sequence` input only. Maximum size for the
+                generator queue.  If unspecified, `max_queue_size` will default
+                to 10.
             workers: Integer. Used for generator or `keras.utils.Sequence` input
                 only. Maximum number of processes to spin up
                 when using process-based threading. If unspecified, `workers`
@@ -810,7 +822,8 @@ class Model(training_lib.Model):
                 threading. If unspecified, `use_multiprocessing` will default to
                 `False`. Note that because this implementation relies on
                 multiprocessing, you should not pass non-picklable arguments to
-                the generator as they can't be passed easily to children processes.
+                the generator as they can't be passed easily to children
+                processes.
             **kwargs: Used for backwards compatibility.
 
         Returns:
@@ -892,15 +905,15 @@ class Model(training_lib.Model):
               It should be consistent with `x` (you cannot have Numpy inputs and
               tensor targets, or inversely).
               If `x` is a dataset, generator or
-              `keras.utils.Sequence` instance, `y` should not be specified (since
-              targets will be obtained from the iterator/dataset).
+              `keras.utils.Sequence` instance, `y` should not be specified
+              (since targets will be obtained from the iterator/dataset).
             batch_size: Integer or `None`.
                 Number of samples per batch of computation.
                 If unspecified, `batch_size` will default to 32.
                 Do not specify the `batch_size` if your data is in the
                 form of symbolic tensors, dataset,
-                generators, or `keras.utils.Sequence` instances (since they generate
-                batches).
+                generators, or `keras.utils.Sequence` instances (since they
+                generate batches).
             verbose: 0 or 1. Verbosity mode.
                 0 = silent, 1 = progress bar.
             sample_weight: Optional Numpy array of weights for
@@ -913,9 +926,9 @@ class Model(training_lib.Model):
                 `(samples, sequence_length)`,
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
-                `sample_weight_mode="temporal"` in `compile()`. This argument is not
-                supported when `x` is a dataset, instead pass
-                sample weights as the third element of `x`.
+                `sample_weight_mode="temporal"` in `compile()`. This argument is
+                not supported when `x` is a dataset, instead pass sample weights
+                as the third element of `x`.
             steps: Integer or `None`.
                 Total number of steps (batches of samples)
                 before declaring the evaluation round finished.
@@ -926,9 +939,10 @@ class Model(training_lib.Model):
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during evaluation.
                 See [callbacks](/api_docs/python/tf/keras/callbacks).
-            max_queue_size: Integer. Used for generator or `keras.utils.Sequence`
-                input only. Maximum size for the generator queue.
-                If unspecified, `max_queue_size` will default to 10.
+            max_queue_size: Integer. Used for generator or
+                `keras.utils.Sequence` input only. Maximum size for the
+                generator queue.  If unspecified, `max_queue_size` will default
+                to 10.
             workers: Integer. Used for generator or `keras.utils.Sequence` input
                 only. Maximum number of processes to spin up when using
                 process-based threading. If unspecified, `workers` will default
@@ -938,7 +952,8 @@ class Model(training_lib.Model):
                 threading. If unspecified, `use_multiprocessing` will default to
                 `False`. Note that because this implementation relies on
                 multiprocessing, you should not pass non-picklable arguments to
-                the generator as they can't be passed easily to children processes.
+                the generator as they can't be passed easily to children
+                processes.
 
         Returns:
             Scalar test loss (if the model has a single output and no metrics)
@@ -997,8 +1012,8 @@ class Model(training_lib.Model):
                 If unspecified, `batch_size` will default to 32.
                 Do not specify the `batch_size` if your data is in the
                 form of symbolic tensors, dataset,
-                generators, or `keras.utils.Sequence` instances (since they generate
-                batches).
+                generators, or `keras.utils.Sequence` instances (since they
+                generate batches).
             verbose: Verbosity mode, 0 or 1.
             steps: Total number of steps (batches of samples)
                 before declaring the prediction round finished.
@@ -1008,9 +1023,10 @@ class Model(training_lib.Model):
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during prediction.
                 See [callbacks](/api_docs/python/tf/keras/callbacks).
-            max_queue_size: Integer. Used for generator or `keras.utils.Sequence`
-                input only. Maximum size for the generator queue.
-                If unspecified, `max_queue_size` will default to 10.
+            max_queue_size: Integer. Used for generator or
+                `keras.utils.Sequence` input only. Maximum size for the
+                generator queue. If unspecified, `max_queue_size` will default
+                to 10.
             workers: Integer. Used for generator or `keras.utils.Sequence` input
                 only. Maximum number of processes to spin up when using
                 process-based threading. If unspecified, `workers` will default
@@ -1020,7 +1036,8 @@ class Model(training_lib.Model):
                 threading. If unspecified, `use_multiprocessing` will default to
                 `False`. Note that because this implementation relies on
                 multiprocessing, you should not pass non-picklable arguments to
-                the generator as they can't be passed easily to children processes.
+                the generator as they can't be passed easily to children
+                processes.
 
 
         Returns:
@@ -1082,23 +1099,24 @@ class Model(training_lib.Model):
               - A `tf.data` dataset.
             y: Target data. Like the input data `x`, it could be either Numpy
               array(s) or TensorFlow tensor(s). It should be consistent with `x`
-              (you cannot have Numpy inputs and tensor targets, or inversely). If
-              `x` is a dataset, `y` should not be specified
+              (you cannot have Numpy inputs and tensor targets, or inversely).
+              If `x` is a dataset, `y` should not be specified
               (since targets will be obtained from the iterator).
             sample_weight: Optional array of the same length as x, containing
-              weights to apply to the model's loss for each sample. In the case of
-              temporal data, you can pass a 2D array with shape (samples,
+              weights to apply to the model's loss for each sample. In the case
+              of temporal data, you can pass a 2D array with shape (samples,
               sequence_length), to apply a different weight to every timestep of
               every sample. In this case you should make sure to specify
               sample_weight_mode="temporal" in compile(). This argument is not
               supported when `x` is a dataset.
-            class_weight: Optional dictionary mapping class indices (integers) to a
-              weight (float) to apply to the model's loss for the samples from this
-              class during training. This can be useful to tell the model to "pay
-              more attention" to samples from an under-represented class.
+            class_weight: Optional dictionary mapping class indices (integers)
+              to a weight (float) to apply to the model's loss for the samples
+              from this class during training. This can be useful to tell the
+              model to "pay more attention" to samples from an under-represented
+              class.
             reset_metrics: If `True`, the metrics returned will be only for this
-              batch. If `False`, the metrics will be statefully accumulated across
-              batches.
+              batch. If `False`, the metrics will be statefully accumulated
+              across batches.
 
         Returns:
             Scalar training loss
@@ -1113,9 +1131,9 @@ class Model(training_lib.Model):
         self._assert_compile_was_called()
         self._check_call_args("train_on_batch")
 
-        # If at this point we are in the replica context, then it is okay to execute
-        # the Eager code path.  The expected way to get here is to call `fit` that
-        # calls `train_on_batch` on each replica.
+        # If at this point we are in the replica context, then it is okay to
+        # execute the Eager code path.  The expected way to get here is to call
+        # `fit` that calls `train_on_batch` on each replica.
         if (
             self._distribution_strategy
             and tf.distribute.in_cross_replica_context()
@@ -1133,10 +1151,10 @@ class Model(training_lib.Model):
             extract_tensors_from_dataset=True,
         )
 
-        # If `self._distribution_strategy` is True, then we are in a replica context
-        # at this point because of the check above.  `train_on_batch` is being run
-        # for each replica by `self._distribution_strategy` and the same code path
-        # as Eager is expected to be taken.
+        # If `self._distribution_strategy` is True, then we are in a replica
+        # context at this point because of the check above.  `train_on_batch` is
+        # being run for each replica by `self._distribution_strategy` and the
+        # same code path as Eager is expected to be taken.
         if self.run_eagerly or self._distribution_strategy:
             output_dict = training_eager_v1.train_on_batch(
                 self,
@@ -1187,7 +1205,8 @@ class Model(training_lib.Model):
               it could be either Numpy array(s) or TensorFlow tensor(s).
               It should be consistent with `x` (you cannot have Numpy inputs and
               tensor targets, or inversely). If `x` is a dataset `y` should
-              not be specified (since targets will be obtained from the iterator).
+              not be specified (since targets will be obtained from the
+              iterator).
             sample_weight: Optional array of the same length as x, containing
                 weights to apply to the model's loss for each sample.
                 In the case of temporal data, you can pass a 2D array
@@ -1197,8 +1216,8 @@ class Model(training_lib.Model):
                 sample_weight_mode="temporal" in compile(). This argument is not
                 supported when `x` is a dataset.
             reset_metrics: If `True`, the metrics returned will be only for this
-              batch. If `False`, the metrics will be statefully accumulated across
-              batches.
+              batch. If `False`, the metrics will be statefully accumulated
+              across batches.
 
         Returns:
             Scalar test loss (if the model has a single output and no metrics)
@@ -1225,8 +1244,8 @@ class Model(training_lib.Model):
             x, y, sample_weight=sample_weight, extract_tensors_from_dataset=True
         )
 
-        # If `self._distribution_strategy` is True, then we are in a replica context
-        # at this point.
+        # If `self._distribution_strategy` is True, then we are in a replica
+        # context at this point.
         if self.run_eagerly or self._distribution_strategy:
             output_dict = training_eager_v1.test_on_batch(
                 self,
@@ -1283,19 +1302,20 @@ class Model(training_lib.Model):
             and tf.distribute.in_cross_replica_context()
         ):
             raise NotImplementedError(
-                "`predict_on_batch` is not supported for models distributed with"
-                " tf.distribute.Strategy."
+                "`predict_on_batch` is not supported for models distributed "
+                "with tf.distribute.Strategy."
             )
         # Validate and standardize user data.
         inputs, _, _ = self._standardize_user_data(
             x, extract_tensors_from_dataset=True
         )
-        # If `self._distribution_strategy` is True, then we are in a replica context
-        # at this point.
+        # If `self._distribution_strategy` is True, then we are in a replica
+        # context at this point.
         if self.run_eagerly or self._distribution_strategy:
             inputs = training_utils_v1.cast_if_floating_dtype(inputs)
             if isinstance(inputs, collections.abc.Sequence):
-                # Unwrap lists with only one input, as we do when training on batch
+                # Unwrap lists with only one input, as we do when training on
+                # batch
                 if len(inputs) == 1:
                     inputs = inputs[0]
 
@@ -1328,8 +1348,8 @@ class Model(training_lib.Model):
         """Fits the model on data yielded batch-by-batch by a Python generator.
 
         DEPRECATED:
-          `Model.fit` now supports generators, so there is no longer any need to use
-          this endpoint.
+          `Model.fit` now supports generators, so there is no longer any need to
+          use this endpoint.
         """
         warnings.warn(
             "`model.fit_generator` is deprecated and "
@@ -1367,8 +1387,8 @@ class Model(training_lib.Model):
         """Evaluates the model on a data generator.
 
         DEPRECATED:
-          `Model.evaluate` now supports generators, so there is no longer any need
-          to use this endpoint.
+          `Model.evaluate` now supports generators, so there is no longer any
+          need to use this endpoint.
         """
         warnings.warn(
             "`Model.evaluate_generator` is deprecated and "
@@ -1401,8 +1421,8 @@ class Model(training_lib.Model):
         """Generates predictions for the input samples from a data generator.
 
         DEPRECATED:
-          `Model.predict` now supports generators, so there is no longer any need
-          to use this endpoint.
+          `Model.predict` now supports generators, so there is no longer any
+          need to use this endpoint.
         """
         warnings.warn(
             "`Model.predict_generator` is deprecated and "
@@ -1498,8 +1518,8 @@ class Model(training_lib.Model):
     def _validate_compile_param_for_distribution_strategy(
         self, run_eagerly, sample_weight_mode, target_tensors, weighted_metrics
     ):
-        # Validate that arguments passed by the user to `compile` are supported by
-        # tf.distribute.Strategy.
+        # Validate that arguments passed by the user to `compile` are supported
+        # by tf.distribute.Strategy.
         if self._distribution_strategy:
             if sample_weight_mode:
                 raise NotImplementedError(
@@ -1534,8 +1554,8 @@ class Model(training_lib.Model):
 
     def _process_target_tensor_for_compile(self, target_tensors):
         if self.run_eagerly:
-            # target tensor is not supported with run_eagerly. Create a list with None
-            # as placeholder for each output.
+            # target tensor is not supported with run_eagerly. Create a list
+            # with None as placeholder for each output.
             return [None for _ in self.output_names]
 
         if target_tensors is not None and not (
@@ -1546,7 +1566,8 @@ class Model(training_lib.Model):
                     raise ValueError(
                         "When passing a list as `target_tensors`, "
                         "it should have one entry per model output. "
-                        "The model has %s outputs, but you passed target_tensors=%s"
+                        "The model has %s outputs, "
+                        "but you passed target_tensors=%s"
                         % (len(self.outputs), target_tensors)
                     )
             elif isinstance(target_tensors, dict):
@@ -1555,7 +1576,8 @@ class Model(training_lib.Model):
                 ).difference(self.output_names)
                 if unexpected_target_tensor_names:
                     raise ValueError(
-                        'Unknown entry in `target_tensors` dictionary: "{name}". '
+                        "Unknown entry in `target_tensors` dictionary: "
+                        '"{name}". '
                         "Only expected the following keys: {keys}".format(
                             name=unexpected_target_tensor_names,
                             keys=str(self.output_names),
@@ -1575,13 +1597,14 @@ class Model(training_lib.Model):
                 )
         else:
             # In case target tensor is empty or None, create a list with Nones
-            # that has same length as self.output_names. With that, the None check of
-            # target tensor can be skipped downstream.
+            # that has same length as self.output_names. With that, the None
+            # check of target tensor can be skipped downstream.
             target_tensors = [None for _ in self.output_names]
         return target_tensors
 
     def _compile_eagerly(self, metrics, weighted_metrics, sample_weight_mode):
-        # Prepare sample weight modes. List with the same length as model outputs.
+        # Prepare sample weight modes. List with the same length as model
+        # outputs.
         training_utils_v1.prepare_sample_weight_modes(
             self._training_endpoints, sample_weight_mode
         )
@@ -1606,15 +1629,15 @@ class Model(training_lib.Model):
           1. Set sample weight mode to be 'temporal' for output i, if `compile`
             sample_weight_mode was set to `temporal` and sample weight inputs
             are given for one or more outputs.
-          2. Set sample weight mode to be 'samplewise' for output i, if `compile`
-            sample_weight_mode was not set and sample weight inputs are given for
-            one or more outputs.
+          2. Set sample weight mode to be 'samplewise' for output i, if
+            `compile` sample_weight_mode was not set and sample weight inputs
+            are given for one or more outputs.
           3. Reset sample weight mode to None for output i if sample weight mode
             was set but there is no sample weight input.
 
         Args:
-          sample_weights: List of sample weights of the same length as model outputs
-            or None.
+          sample_weights: List of sample weights of the same length as model
+            outputs or None.
         """
         if not self._is_compiled:
             return
@@ -1642,15 +1665,16 @@ class Model(training_lib.Model):
     def _compile_weights_loss_and_weighted_metrics(self, sample_weights=None):
         """Compiles the model loss and weighted metric sub-graphs.
 
-        This may be used to set graph tensors as sample weights (instead of creating
-        placeholders). This functionality is necessary for
-        `tf.keras.estimator.model_to_estimator`, which calls Keras models in a v1
-        graph, and creates iterator tensors for inputs, targets, and sample weights.
+        This may be used to set graph tensors as sample weights (instead of
+        creating placeholders). This functionality is necessary for
+        `tf.keras.estimator.model_to_estimator`, which calls Keras models in a
+        v1 graph, and creates iterator tensors for inputs, targets, and sample
+        weights.
 
         Args:
-          sample_weights: List of tensors to use as the sample weights. Must be the
-            same length as the number of outputs. If left as `None`, placeholders
-            are used instead.
+          sample_weights: List of tensors to use as the sample weights. Must be
+            the same length as the number of outputs. If left as `None`,
+            placeholders are used instead.
         """
         with backend.get_graph().as_default():
             if sample_weights is not None:
@@ -1729,7 +1753,8 @@ class Model(training_lib.Model):
                         if sample_weight is None:
                             sample_weight = mask
                         else:
-                            # Update dimensions of weights to match with mask if possible.
+                            # Update dimensions of weights to match with mask if
+                            # possible.
                             (
                                 mask,
                                 _,
@@ -1748,8 +1773,8 @@ class Model(training_lib.Model):
                         )
                         loss_reduction = loss_fn.reduction
 
-                        # `AUTO` loss reduction defaults to `SUM_OVER_BATCH_SIZE` for all
-                        # compile use cases.
+                        # `AUTO` loss reduction defaults to
+                        # `SUM_OVER_BATCH_SIZE` for all compile use cases.
                         if loss_reduction == losses_utils.ReductionV2.AUTO:
                             loss_reduction = (
                                 losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE
@@ -1760,11 +1785,12 @@ class Model(training_lib.Model):
                             weighted_losses, reduction=loss_reduction
                         )
                     else:
-                        # Compute the stateless loss value for a custom loss class.
-                        # Here we assume that the class takes care of loss reduction
-                        # because if this class returns a vector value we cannot
-                        # differentiate between use case where a custom optimizer
-                        # expects a vector loss value vs unreduced per-sample loss value.
+                        # Compute the stateless loss value for a custom loss
+                        # class.  Here we assume that the class takes care of
+                        # loss reduction because if this class returns a vector
+                        # value we cannot differentiate between use case where a
+                        # custom optimizer expects a vector loss value vs
+                        # unreduced per-sample loss value.
                         output_loss = loss_fn(
                             y_true, y_pred, sample_weight=sample_weight
                         )
@@ -1776,8 +1802,8 @@ class Model(training_lib.Model):
                     # Keep track of stateful result tensor for the loss.
                     endpoint.output_loss_metric(output_loss)
 
-                # Scale output loss for distribution. For custom losses we assume
-                # reduction was mean.
+                # Scale output loss for distribution. For custom losses we
+                # assume reduction was mean.
                 if (
                     loss_reduction
                     == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE
@@ -1864,10 +1890,9 @@ class Model(training_lib.Model):
         ) or tf_inspect.isgenerator(x):
             if batch_size is not None:
                 raise ValueError(
-                    "The `batch_size` argument must not be specified for the given "
-                    "input type. Received input: {}, batch_size: {}".format(
-                        x, batch_size
-                    )
+                    "The `batch_size` argument must not be specified for the "
+                    "given input type. Received input: "
+                    "{}, batch_size: {}".format(x, batch_size)
                 )
             return
 
@@ -1882,7 +1907,8 @@ class Model(training_lib.Model):
             )
             if static_batch_size is not None:
 
-                # Determine number of times the user-supplied batch size will be split.
+                # Determine number of times the user-supplied batch size will be
+                # split.
                 if (
                     self._distribution_strategy
                     and distributed_training_utils.global_batch_size_supported(
@@ -1915,7 +1941,8 @@ class Model(training_lib.Model):
                             )
                         )
 
-                # Check Dataset/Iterator batch size is consistent with InputLayer.
+                # Check Dataset/Iterator batch size is consistent with
+                # InputLayer.
                 if isinstance(
                     x,
                     (
@@ -1933,7 +1960,8 @@ class Model(training_lib.Model):
                         if ds_batch_size % num_splits_for_ds != 0:
                             raise ValueError(
                                 "The batch output shape of your `Dataset` {} "
-                                "cannot be divisible by number of replicas {}".format(
+                                "cannot be divisible by number of "
+                                "replicas {}".format(
                                     ds_batch_size, num_splits_for_ds
                                 )
                             )
@@ -2006,15 +2034,15 @@ class Model(training_lib.Model):
     def _add_unique_metric_name(self, metric_name, metric_fn, output_index):
         """Makes the metric name unique.
 
-          If there are multiple outputs for which the metrics are calculated, the
-          metric names have to be made unique by appending an integer.
+          If there are multiple outputs for which the metrics are calculated,
+          the metric names have to be made unique by appending an integer.
 
         Args:
-          metric_name: Metric name that corresponds to the metric specified by the
-              user. For example: 'acc'.
+          metric_name: Metric name that corresponds to the metric specified by
+            the user. For example: 'acc'.
           metric_fn: The Metric object.
-          output_index: The index of the model output for which the metric name is
-            being added.
+          output_index: The index of the model output for which the metric name
+            is being added.
 
         Returns:
           string, name of the model's unique metric name
@@ -2024,9 +2052,10 @@ class Model(training_lib.Model):
             # If we're loading from an already-serialized model, we've already
             # prepended the output name, and we don't want to do it again.
             #
-            # Alternatively, we may be receiving a stateless metric (e.g. the string
-            # "accuracy") rather than a `Metric` object, in which case we want to
-            # prepend the output name even if we are loading a serialized model.
+            # Alternatively, we may be receiving a stateless metric (e.g. the
+            # string "accuracy") rather than a `Metric` object, in which case we
+            # want to prepend the output name even if we are loading a
+            # serialized model.
             if not getattr(metric_fn, "_from_serialized", False):
                 metric_name = "%s_%s" % (
                     self.output_names[output_index],
@@ -2043,15 +2072,16 @@ class Model(training_lib.Model):
 
     def _init_metric_attributes(self):
         """Initialized model metric attributes."""
-        # List of stateful metric functions. Used for resetting metric state during
-        # training/eval.
+        # List of stateful metric functions. Used for resetting metric state
+        # during training/eval.
         self._compile_metric_functions = []
 
     def _set_per_output_metric_attributes(self, metrics_dict, output_index):
         """Sets the metric attributes on the model for the given output.
 
         Args:
-          metrics_dict: A dict with metric names as keys and metric fns as values.
+          metrics_dict: A dict with metric names as keys and metric fns as
+            values.
           output_index: The index of the model output for which the metric
             attributes are added.
 
@@ -2064,7 +2094,8 @@ class Model(training_lib.Model):
                 metric_name, metric_fn, output_index
             )
 
-            # Update the name on the metric class to be the unique generated name.
+            # Update the name on the metric class to be the unique generated
+            # name.
             metric_fn._name = metric_name  # pylint: disable=protected-access
             updated_metrics_dict[metric_name] = metric_fn
             # Keep track of metric name and function.
@@ -2094,8 +2125,8 @@ class Model(training_lib.Model):
             )
 
         # Create a metric wrapper for each output loss. This computes mean of an
-        # output loss across mini-batches (irrespective of how we reduce within a
-        # batch).
+        # output loss across mini-batches (irrespective of how we reduce within
+        # a batch).
         if len(self._training_endpoints) > 1:
             for endpoint in self._training_endpoints:
                 if not endpoint.should_skip_target():
@@ -2112,7 +2143,8 @@ class Model(training_lib.Model):
         """Calls metric functions for a single output.
 
         Args:
-          metrics_dict: A dict with metric names as keys and metric fns as values.
+          metrics_dict: A dict with metric names as keys and metric fns as
+            values.
           y_true: Target output.
           y_pred: Predicted output.
           mask: Computed mask value for the current output.
@@ -2145,23 +2177,23 @@ class Model(training_lib.Model):
         Args:
           outputs: List of outputs (predictions).
           targets: List of targets.
-          skip_target_masks: Optional. List of boolean for whether the corresponding
-            target should be ignored or not.
+          skip_target_masks: Optional. List of boolean for whether the
+            corresponding target should be ignored or not.
           sample_weights: Optional list of sample weight arrays.
           masks: List of computed output mask values.
           return_weighted_metrics: Flag that indicates whether weighted metrics
-            should be computed instead of unweighted metrics. This flag is ignored
-            when `return_weighted_and_unweighted_metrics` is enabled.
+            should be computed instead of unweighted metrics. This flag is
+            ignored when `return_weighted_and_unweighted_metrics` is enabled.
           return_weighted_and_unweighted_metrics: Flag that is used to indicate
-            whether both weighted and unweighted metrics should be computed. When
-            this is not enabled, we use `return_weighted_metrics` param to indicate
-            whether weighted or unweighted metrics should be returned.
+            whether both weighted and unweighted metrics should be computed.
+            When this is not enabled, we use `return_weighted_metrics` param to
+            indicate whether weighted or unweighted metrics should be returned.
 
         Returns:
           A list of metric result tensors.
         """
-        # TODO(scottzhu): Update this to use the new training_endpoints. Currently
-        # the eager and graph logic is bit different.
+        # TODO(scottzhu): Update this to use the new training_endpoints.
+        # Currently the eager and graph logic is bit different.
         skip_target_masks = skip_target_masks or [False] * len(outputs)
         metric_results = []
         with backend.name_scope("metrics"):
@@ -2360,8 +2392,8 @@ class Model(training_lib.Model):
     ):
         """Runs validation checks on input and target data passed by the user.
 
-        This is called when using tf.distribute.Strategy to train, evaluate or serve
-        the model.
+        This is called when using tf.distribute.Strategy to train, evaluate or
+        serve the model.
 
         Args:
           x: Input data. A numpy array or `tf.data` dataset.
@@ -2369,17 +2401,18 @@ class Model(training_lib.Model):
           sample_weight: An optional sample-weight array passed by the user to
             weight the importance of each sample in `x`.
           class_weight: An optional class-weight array by the user to
-            weight the importance of samples in `x` based on the class they belong
-            to, as conveyed by `y`.
-          batch_size: Integer batch size. If provided, it is used to run additional
-            validation checks on stateful models.
+            weight the importance of samples in `x` based on the class they
+            belong to, as conveyed by `y`.
+          batch_size: Integer batch size. If provided, it is used to run
+            additional validation checks on stateful models.
           validation_split: Float between 0 and 1.
             Fraction of the training data to be used as validation data.
-          shuffle: Boolean whether to shuffle the training data before each epoch.
+          shuffle: Boolean whether to shuffle the training data before each
+            epoch.
           epochs: Integer epochs. If > 1, repeat the numpy training data epochs
             times when converting to training dataset.
-          allow_partial_batch: Boolean whether to enforce that all batches have the
-            same size.
+          allow_partial_batch: Boolean whether to enforce that all batches have
+            the same size.
 
         Returns:
           Dataset instance.
@@ -2407,16 +2440,16 @@ class Model(training_lib.Model):
         # Validates `steps` and `shuffle` arguments right at the beginning
         # since we use it to construct the dataset object.
         # TODO(anjalisridhar): Remove this check once we refactor the
-        # _standardize_user_data code path. This check is already present elsewhere
-        # in the codebase.
+        # _standardize_user_data code path. This check is already present
+        # elsewhere in the codebase.
         if isinstance(x, tf.data.Dataset):
             if shuffle:
                 training_utils_v1.verify_dataset_shuffled(x)
 
         strategy = self._distribution_strategy
         with strategy.scope():
-            # We should be sure to call get_session() inside the strategy.scope()
-            # so the strategy can affect the session options.
+            # We should be sure to call get_session() inside the
+            # strategy.scope() so the strategy can affect the session options.
             if tf.compat.v1.executing_eagerly_outside_functions():
                 session = None
             else:
@@ -2441,24 +2474,25 @@ class Model(training_lib.Model):
                     in_tuple, session=session
                 )
                 if shuffle:
-                    # We want a buffer size that is larger than the batch size provided by
-                    # the user and provides sufficient randomness. Note that larger
-                    # numbers introduce more memory usage based on the size of each
-                    # sample.
+                    # We want a buffer size that is larger than the batch size
+                    # provided by the user and provides sufficient randomness.
+                    # Note that larger numbers introduce more memory usage based
+                    # on the size of each sample.
                     ds = ds.shuffle(max(1024, batch_size * 8))
                 if epochs > 1:
                     ds = ds.repeat(epochs)
 
-                # We need to use the drop_remainder argument to get a known static
-                # input shape which is required for TPUs.
+                # We need to use the drop_remainder argument to get a known
+                # static input shape which is required for TPUs.
                 drop_remainder = (
                     not allow_partial_batch
                     and strategy.extended.experimental_require_static_shapes
                 )
 
-                # TODO(b/131720208): We still drop remainder here if number of examples
-                # is divisible by batch size, as sometimes dynamic padder will time out
-                # with keras.metrics.CategoricalAccuracy() metric.
+                # TODO(b/131720208): We still drop remainder here if number of
+                # examples is divisible by batch size, as sometimes dynamic
+                # padder will time out with keras.metrics.CategoricalAccuracy()
+                # metric.
                 if backend.is_tpu_strategy(strategy) and not drop_remainder:
                     dataset_size = first_x_value.shape[0]
                     if dataset_size % batch_size == 0:
@@ -2490,8 +2524,9 @@ class Model(training_lib.Model):
 
         Also standardizes the data to lists of arrays, in order.
 
-        Also builds and compiles the model on the fly if it is a subclassed model
-        that has never been called before (and thus has no inputs/outputs).
+        Also builds and compiles the model on the fly if it is a subclassed
+        model that has never been called before (and thus has no
+        inputs/outputs).
 
         This is a purely internal method, subject to refactoring at any time.
 
@@ -2507,38 +2542,39 @@ class Model(training_lib.Model):
           y: Target data. Like the input data `x`,
             it could be either Numpy array(s) or TensorFlow tensor(s).
             It should be consistent with `x` (you cannot have Numpy inputs and
-            tensor targets, or inversely). If `x` is a dataset, `y` should not be
-            specified (since targets will be obtained from the iterator).
+            tensor targets, or inversely). If `x` is a dataset, `y` should not
+            be specified (since targets will be obtained from the iterator).
           sample_weight: An optional sample-weight array passed by the user to
             weight the importance of each sample in `x`.
           class_weight: An optional class-weight array by the user to
-            weight the importance of samples in `x` based on the class they belong
-            to, as conveyed by `y`. If both `sample_weight` and `class_weight` are
-            provided, the weights are multiplied.
-          batch_size: Integer batch size. If provided, it is used to run additional
-            validation checks on stateful models.
-          check_steps: boolean, True if we want to check for validity of `steps` and
-            False, otherwise. For example, when we are standardizing one batch of
-            data for train_on_batch/predict_on_batch/test_on_batch APIs, `steps`
-            value is not required and we should not check for its validity in these
-            cases.
+            weight the importance of samples in `x` based on the class they
+            belong to, as conveyed by `y`. If both `sample_weight` and
+            `class_weight` are provided, the weights are multiplied.
+          batch_size: Integer batch size. If provided, it is used to run
+            additional validation checks on stateful models.
+          check_steps: boolean, True if we want to check for validity of `steps`
+            and False, otherwise. For example, when we are standardizing one
+            batch of data for train_on_batch/predict_on_batch/test_on_batch
+            APIs, `steps` value is not required and we should not check for its
+            validity in these cases.
           steps_name: The public API's parameter name for `steps`.
-          steps: Integer or `None`. Total number of steps (batches of samples) to
-            execute.
+          steps: Integer or `None`. Total number of steps (batches of samples)
+            to execute.
           validation_split: Float between 0 and 1.
             Fraction of the training data to be used as validation data.
-          shuffle: Boolean whether to shuffle the training data before each epoch.
+          shuffle: Boolean whether to shuffle the training data before each
+            epoch.
           extract_tensors_from_dataset: Boolean. When `x` is a dataset instance,
             this indicates whether to extract actual tensors from the dataset or
             instead output the dataset instance itself.
             Set to True when calling from `train_on_batch`/etc.
 
         Returns:
-          A tuple of 3: inputs (arrays or dicts, depending on whether `x` was a dict
-          or not), target arrays, sample-weight arrays.
-          If the model's input and targets are symbolic, these lists are empty
-          (since the model takes no user-provided data, instead the data comes
-          from the symbolic inputs/targets).
+          A tuple of 3: inputs (arrays or dicts, depending on whether `x` was a
+          dict or not), target arrays, sample-weight arrays.  If the model's
+          input and targets are symbolic, these lists are empty (since the model
+          takes no user-provided data, instead the data comes from the symbolic
+          inputs/targets).
 
         Raises:
           ValueError: In case of invalid user-provided data.
@@ -2593,21 +2629,21 @@ class Model(training_lib.Model):
             is_build_called = False
             y_input = y
 
-        # Second, we compile the model on the fly if necessary, mostly for subclass
-        # models.
+        # Second, we compile the model on the fly if necessary, mostly for
+        # subclass models.
         is_compile_called = False
         if not self._is_compiled and self.optimizer:
             self._compile_from_inputs(all_inputs, y_input, x, y)
             is_compile_called = True
 
-        # In graph mode, if we had just set inputs and targets as symbolic tensors
-        # by invoking build and compile on the model respectively, we do not have to
-        # feed anything to the model. Model already has input and target data as
-        # part of the graph.
-        # Note: in this case, `any` and `all` are equivalent since we disallow
-        # mixed symbolic/value inputs.
+        # In graph mode, if we had just set inputs and targets as symbolic
+        # tensors by invoking build and compile on the model respectively, we do
+        # not have to feed anything to the model. Model already has input and
+        # target data as part of the graph.  Note: in this case, `any` and `all`
+        # are equivalent since we disallow mixed symbolic/value inputs.
 
-        # self.run_eagerly is not free to compute, so we want to reuse the value.
+        # self.run_eagerly is not free to compute, so we want to reuse the
+        # value.
         run_eagerly = self.run_eagerly
 
         if (
@@ -2647,7 +2683,8 @@ class Model(training_lib.Model):
             feed_input_names = self.input_names
             feed_input_shapes = None
         elif not self._is_graph_network:
-            # Case: symbolic-mode subclassed network. Do not do shape validation.
+            # Case: symbolic-mode subclassed network. Do not do shape
+            # validation.
             feed_input_names = self._feed_input_names
             feed_input_shapes = None
         else:
@@ -2669,14 +2706,15 @@ class Model(training_lib.Model):
 
         # Get typespecs for the input data and sanitize it if necessary.
         # TODO(momernick): This should be capable of doing full input validation
-        # at all times - validate that this is so and refactor the standardization
-        # code.
+        # at all times - validate that this is so and refactor the
+        # standardization code.
         if isinstance(x, tf.data.Dataset):
             x_shapes = tf.data.experimental.get_structure(x)
             if isinstance(x_shapes, tuple):
-                # If the output of a Dataset is a tuple, we assume it's either of the
-                # form (x_data, y_data) or (x_data, y_data, sample_weights). In either
-                # case, we only care about x_data here.
+                # If the output of a Dataset is a tuple, we assume it's either
+                # of the form (x_data, y_data) or (x_data, y_data,
+                # sample_weights). In either case, we only care about x_data
+                # here.
                 x_shapes = x_shapes[0]
         else:
             flat_inputs = tf.nest.flatten(x, expand_composites=False)
@@ -2728,7 +2766,8 @@ class Model(training_lib.Model):
                 y,
                 feed_output_names,
                 # Don't enforce target shapes to match output shapes.
-                # Precise checks will be run in `check_loss_and_target_compatibility`.
+                # Precise checks will be run in
+                # `check_loss_and_target_compatibility`.
                 shapes=None,
                 check_batch_axis=False,  # Don't enforce the batch size.
                 exception_prefix="target",
@@ -2753,7 +2792,8 @@ class Model(training_lib.Model):
             if not self._distribution_strategy:
                 training_utils_v1.check_array_lengths(x, y, sample_weights)
                 if self._is_graph_network and not run_eagerly:
-                    # Additional checks to avoid users mistakenly using improper loss fns.
+                    # Additional checks to avoid users mistakenly using improper
+                    # loss fns.
                     training_utils_v1.check_loss_and_target_compatibility(
                         y, self._feed_loss_fns, feed_output_shapes
                     )
@@ -2786,7 +2826,8 @@ class Model(training_lib.Model):
         return x, y, sample_weights
 
     def _build_model_with_inputs(self, inputs, targets):
-        """Build the model (set model inputs/outputs), mainly for subclass model."""
+        """Build the model (set model inputs/outputs), mainly for subclass
+        model."""
         processed_inputs = []
         is_dict_inputs = False
         orig_inputs = inputs
@@ -2813,21 +2854,22 @@ class Model(training_lib.Model):
             processed_inputs.append(inputs)
         # Now that we have a flat set of inputs, we make sure that none of them
         # are CompositeTensors or CompositeTensorValues of any type (or scipy
-        # sparse arrays, which we treat as SparseTensor values). We cannot safely
-        # infer input data from an arbitrary composite tensor, so we don't try -
-        # users should explicitly add composite tensor inputs to their subclassed
-        # models.
+        # sparse arrays, which we treat as SparseTensor values). We cannot
+        # safely infer input data from an arbitrary composite tensor, so we
+        # don't try - users should explicitly add composite tensor inputs to
+        # their subclassed models.
         for input_tensor in processed_inputs:
             if training_utils_v1.is_composite_or_composite_value(input_tensor):
                 # TODO(b/132691975): Document subclass-model CT input handling.
                 raise ValueError(
-                    "All SparseTensor and RaggedTensor inputs must be explicitly "
-                    "declared using a keras.Input() with sparse=True or ragged=True. "
-                    "We found an undeclared input %s. For Sequential models, please "
-                    "add a keras.Input() as your first Layer. For subclassed models, "
-                    "please call self._set_inputs() on your input set, which you can "
-                    "create using keras.Input() for each input to your model."
-                    % (input_tensor,)
+                    "All SparseTensor and RaggedTensor inputs must be "
+                    "explicitly declared using a keras.Input() with "
+                    "sparse=True or ragged=True. We found an undeclared "
+                    "input %s. For Sequential models, please add a "
+                    "keras.Input() as your first Layer. For subclassed models, "
+                    "please call self._set_inputs() on your input set, which "
+                    "you can create using keras.Input() for each input to your "
+                    "model." % (input_tensor,)
                 )
         # Build the model using the retrieved inputs (value or symbolic).
         # If values are generated from a dataset, then in symbolic-mode
@@ -2841,8 +2883,8 @@ class Model(training_lib.Model):
             ),
         ):
             if not self.inputs:
-                # For subclassed models, a robust input spec is not available so we
-                # must cast to the model dtype.
+                # For subclassed models, a robust input spec is not available so
+                # we must cast to the model dtype.
                 inputs = training_utils_v1.cast_if_floating_dtype(
                     inputs, self.dtype
                 )
@@ -2921,25 +2963,27 @@ class Model(training_lib.Model):
     def _set_inputs(self, inputs, outputs=None, training=None):
         """Set model's input and output specs based on the input data received.
 
-        This is to be used for Model subclasses, which do not know at instantiation
-        time what their inputs look like.
+        This is to be used for Model subclasses, which do not know at
+        instantiation time what their inputs look like.
 
         Args:
-          inputs: Single array, or list of arrays. The arrays could be placeholders,
-            Numpy arrays, data tensors, or TensorSpecs.
+          inputs: Single array, or list of arrays. The arrays could be
+            placeholders, Numpy arrays, data tensors, or TensorSpecs.
             - if placeholders: the model is built on top of these placeholders,
-              and we expect Numpy data to be fed for them when calling `fit`/etc.
+              and we expect Numpy data to be fed for them when calling
+              `fit`/etc.
             - if Numpy data or TensorShapes: we create placeholders matching the
-              TensorShapes or shapes of the Numpy arrays. We expect Numpy data to be
-              fed for these placeholders when calling `fit`/etc.
+              TensorShapes or shapes of the Numpy arrays. We expect Numpy data
+              to be fed for these placeholders when calling `fit`/etc.
             - if data tensors: the model is built on top of these tensors.
-              We do not expect any Numpy data to be provided when calling `fit`/etc.
+              We do not expect any Numpy data to be provided when calling
+              `fit`/etc.
           outputs: None, a data tensor, or a list of tensors. If None, the
             outputs will be determined by invoking `self.call()`, otherwise the
             provided value will be used.
           training: Boolean or None. Only relevant in symbolic mode. Specifies
-            whether to build the model's graph in inference mode (False), training
-            mode (True), or using the Keras learning phase (None).
+            whether to build the model's graph in inference mode (False),
+            training mode (True), or using the Keras learning phase (None).
         Raises:
           ValueError: If dict inputs are passed to a Sequential Model where the
             first layer isn't FeatureLayer.
@@ -2950,8 +2994,9 @@ class Model(training_lib.Model):
         if outputs is None:
             kwargs = {}
             if self._expects_training_arg:
-                # In V2 mode, feeding `training=None` is not allowed because any value
-                # explicitly passed by the user is respected, even `None`.`
+                # In V2 mode, feeding `training=None` is not allowed because any
+                # value explicitly passed by the user is respected, even
+                # `None`.`
                 if (
                     training is None
                     and not tf.compat.v1.executing_eagerly_outside_functions()
@@ -2996,8 +3041,9 @@ class Model(training_lib.Model):
         # when saving to determine the correct dtype in the input signature.
         inputs = self._maybe_cast_inputs(inputs)
 
-        # On-the-fly setting of symbolic model inputs (either by using the tensor
-        # provided, or by creating a placeholder if Numpy data was provided).
+        # On-the-fly setting of symbolic model inputs (either by using the
+        # tensor provided, or by creating a placeholder if Numpy data was
+        # provided).
         model_inputs = training_utils_v1.ModelInputs(inputs)
         inputs = model_inputs.get_symbolic_inputs()
         self.inputs = model_inputs.get_symbolic_inputs(
@@ -3020,8 +3066,8 @@ class Model(training_lib.Model):
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _set_output_attrs(self, outputs):
         """Sets attributes related to the outputs of the Model."""
-        # NOTE(taylorrobie): This convention cannot be changed without updating the
-        #                    data adapter since it assumes nest.flatten ordering.
+        # NOTE(taylorrobie): This convention cannot be changed without updating
+        # the data adapter since it assumes nest.flatten ordering.
         outputs = tf.nest.flatten(outputs)
         self.outputs = outputs
         self.output_names = training_utils_v1.generic_output_names(outputs)
@@ -3111,8 +3157,8 @@ class Model(training_lib.Model):
 
         Returns:
           If the training is recovering from previous failure under multi-worker
-          training setting, return the epoch the training is supposed to continue
-          at. Otherwise, return the `initial_epoch` the user passes in.
+          training setting, return the epoch the training is supposed to
+          continue at. Otherwise, return the `initial_epoch` the user passes in.
         """
         if self._training_state is not None:
             return self._training_state.maybe_load_initial_epoch_from_ckpt(
@@ -3216,7 +3262,8 @@ class DistributedCallbackModel(Model):
 
     def load_weights(self, filepath, by_name=False):
         self._original_model.load_weights(filepath, by_name=False)
-        # Copy the weights from the original model to each of the replicated models.
+        # Copy the weights from the original model to each of the replicated
+        # models.
         orig_model_weights = self._original_model.get_weights()
         distributed_training_utils_v1.set_weights(
             self._original_model._distribution_strategy,
@@ -3242,8 +3289,8 @@ class _TrainingEndpoint:
     In the case of model with multiple outputs, there is a one-to-one mapping
     between model output (y_pred), model target (y_true), loss, metrics etc.
     By unifying these entities into one class, different entity can access
-    information between each other, rather than currently access different list of
-    attributes of the model.
+    information between each other, rather than currently access different list
+    of attributes of the model.
     """
 
     def __init__(
@@ -3259,9 +3306,9 @@ class _TrainingEndpoint:
     ):
         """Initialize the _TrainingEndpoint.
 
-        Note that the output and output_name should be stable as long as the model
-        structure doesn't change. The training_target suppose to be mutable since
-        the information is provided via `compile()`
+        Note that the output and output_name should be stable as long as the
+        model structure doesn't change. The training_target suppose to be
+        mutable since the information is provided via `compile()`
 
         Args:
           output: the output tensor of the model.
@@ -3270,10 +3317,10 @@ class _TrainingEndpoint:
           loss_weight: float, the weights for the loss.
           training_target: the _TrainingTarget for the model.
           output_loss_metric: the metric object for the loss function.
-          sample_weight: the weights for how a sample is weighted during metric and
-            loss calculation. Could be None.
-          sample_weight_mode: string, 'temporal', 'samplewise' or None. The mode for
-            how the sample_weight is populated.
+          sample_weight: the weights for how a sample is weighted during metric
+            and loss calculation. Could be None.
+          sample_weight_mode: string, 'temporal', 'samplewise' or None. The mode
+            for how the sample_weight is populated.
         """
         self._output = output
         self._output_name = output_name
@@ -3337,8 +3384,8 @@ class _TrainingEndpoint:
                 "instance has already been populated"
             )
         if run_eagerly:
-            # When run_eagerly, the target tensor is ignored, and the None placeholder
-            # is created instead.
+            # When run_eagerly, the target tensor is ignored, and the None
+            # placeholder is created instead.
             self.training_target = _TrainingTarget(
                 None, feedable=True, skip_target_weights=False
             )
@@ -3585,7 +3632,8 @@ def _get_metrics_from_layers(layers):
     for layer in layers:
         if isinstance(layer, Model):
             # We cannot call 'metrics' on the model because we do not want to
-            # include the metrics that were added in compile API of a nested model.
+            # include the metrics that were added in compile API of a nested
+            # model.
             metrics.extend(layer._metrics)  # pylint: disable=protected-access
             metrics.extend(_get_metrics_from_layers(layer.layers))
         else:

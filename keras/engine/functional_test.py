@@ -1082,12 +1082,12 @@ class NetworkConstructionTest(test_combinations.TestCase):
 
         if share_already_used_layer:
             # We have had model serialization/deserialization break in the past:
-            # when a layer was previously used to construct other functional models
-            # and had a non-empty list of inbound nodes before being used to define
-            # the model being serialized/deserialized.
-            # (The serialization/deserialization was not correctly adjusting
-            # the node_index serialization/deserialization).
-            # So, we explicitly test this case.
+            # when a layer was previously used to construct other functional
+            # models and had a non-empty list of inbound nodes before being used
+            # to define the model being serialized/deserialized. (The
+            # serialization/deserialization was not correctly adjusting the
+            # node_index serialization/deserialization). So, we explicitly test
+            # this case.
             training_lib.Model([input1], identity_layer(input1))
 
         outputs = MaybeAdd()(input1, x2=identity_layer(input2))
@@ -1197,12 +1197,12 @@ class NetworkConstructionTest(test_combinations.TestCase):
         identity_layer = IdentityLayer()
         if share_already_used_layer:
             # We have had model serialization/deserialization break in the past:
-            # when a layer was previously used to construct other functional models
-            # and had a non-empty list of inbound nodes before being used to define
-            # the model being serialized/deserialized.
-            # (The serialization/deserialization was not correctly adjusting
-            # the node_index serialization/deserialization).
-            # So, we explicitly test this case.
+            # when a layer was previously used to construct other functional
+            # models and had a non-empty list of inbound nodes before being used
+            # to define the model being serialized/deserialized. (The
+            # serialization/deserialization was not correctly adjusting the
+            # node_index serialization/deserialization). So, we explicitly test
+            # this case.
             training_lib.Model([input2], identity_layer(input2))
 
         outputs = MaybeAdd()(3.0, x2=identity_layer(input2))
@@ -1231,13 +1231,14 @@ class NetworkConstructionTest(test_combinations.TestCase):
     @test_combinations.generate(test_combinations.keras_mode_combinations())
     def test_dont_cast_composite_unless_necessary(self):
         if not tf.executing_eagerly():
-            return  # Creating Keras inputs from a type_spec only supported in eager.
+            # Creating Keras inputs from a type_spec only supported in eager.
+            return
 
         # TODO(edloper): Change this to tf.experimental.ExtensionTyep once
         # it's been released.
         class MyType(extension_type.ExtensionType):
-            # TODO(edloper) Remove _shape and _dtype once Keras has been switched
-            # to use .shape and .dtype instead.
+            # TODO(edloper) Remove _shape and _dtype once Keras has been
+            # switched to use .shape and .dtype instead.
             value: tf.Tensor
             _shape = property(lambda self: self.value.shape)
             shape = property(lambda self: self.value.shape)
@@ -1629,8 +1630,8 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
             )
             # As a side-effect, compute_output_shape builds the layer.
             self.assertTrue(layer.built)
-            # We can still query the layer's compute_output_shape with compatible
-            # input shapes.
+            # We can still query the layer's compute_output_shape with
+            # compatible input shapes.
             self.assertEqual(
                 layer.compute_output_shape((6, 3)).as_list(), [6, 4]
             )
@@ -1802,8 +1803,8 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         )
 
         if not tf.executing_eagerly():
-            # Note: this doesn't work in eager due to DeferredTensor/ops compatibility
-            # issue.
+            # Note: this doesn't work in eager due to DeferredTensor/ops
+            # compatibility issue.
             mask_outputs = [model.layers[1].compute_mask(model.layers[1].input)]
             mask_outputs += [
                 model.layers[2].compute_mask(
@@ -1827,9 +1828,10 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         outputs = layers.Dense(1)(inputs)
         model = training_lib.Model(inputs, outputs)
         config = model.get_config()
-        # Checks that single inputs and outputs are still saved as 1-element lists.
-        # Saving as 1-element lists or not is equivalent in TF Keras, but only the
-        # 1-element list format is supported in TF.js and keras-team/Keras.
+        # Checks that single inputs and outputs are still saved as 1-element
+        # lists.  Saving as 1-element lists or not is equivalent in TF Keras,
+        # but only the 1-element list format is supported in TF.js and
+        # keras-team/Keras.
         self.assertLen(config["input_layers"], 1)
         self.assertLen(config["output_layers"], 1)
 
@@ -1964,7 +1966,8 @@ class NestedNetworkTest(test_combinations.TestCase):
         result = self.evaluate(result_tensor)
         self.assertAllEqual(result, [[2.0]])
 
-        # TODO(b/122726584): Investigate why concrete batch is flaky in some builds.
+        # TODO(b/122726584): Investigate why concrete batch is flaky in some
+        # builds.
         output_shape = network.compute_output_shape(
             {"x1": (None, 1), "x2": (None, 1)}
         )
@@ -2343,8 +2346,8 @@ class CacheCorrectnessTest(test_combinations.TestCase):
 
         network.sub_network = sub_network
 
-        # Adding to the topology should invalidate the cache and reflect in the top
-        # level network.
+        # Adding to the topology should invalidate the cache and reflect in the
+        # top level network.
         self.assertEqual(network.dynamic, True)
         self.assertEqual(layer_0.dynamic_count, 2)
         self.assertEqual(layer_1.dynamic_count, 1)
@@ -2355,8 +2358,8 @@ class CacheCorrectnessTest(test_combinations.TestCase):
         self.assertEqual(layer_0.dynamic_count, 3)
         self.assertEqual(layer_1.dynamic_count, 2)
 
-        # Now that we've removed the dynamic layer deep in the layer hierarchy, we
-        # need to make sure that that bubbles up through all the levels.
+        # Now that we've removed the dynamic layer deep in the layer hierarchy,
+        # we need to make sure that that bubbles up through all the levels.
         sub_network.sub_layers.pop()
         self.assertEqual(network.dynamic, False)
         self.assertEqual(layer_0.dynamic_count, 4)
@@ -2469,7 +2472,8 @@ class CacheCorrectnessTest(test_combinations.TestCase):
 
         if tf.executing_eagerly():
             # In v2, construction still works when no `training` is specified
-            # When no value passed during construction, it uses the local default.
+            # When no value passed during construction, it uses the local
+            # default.
             inputs = input_layer_lib.Input(10)
             outputs = my_layer(inputs)
             network = functional.Functional(inputs, outputs)
@@ -2477,7 +2481,8 @@ class CacheCorrectnessTest(test_combinations.TestCase):
             self.assertAllEqual(network(x, training=False), _call(x, False))
             self.assertAllEqual(network(x), _call(x, True))  # Use local default
 
-        # `None` value passed positionally during construction is ignored at runtime
+        # `None` value passed positionally during construction is ignored at
+        # runtime
         inputs = input_layer_lib.Input(10)
         outputs = my_layer(inputs, None)
         network = functional.Functional(inputs, outputs)
@@ -2486,11 +2491,12 @@ class CacheCorrectnessTest(test_combinations.TestCase):
         if tf.executing_eagerly():
             self.assertAllEqual(network(x), _call(x, True))  # Use local default
         else:
-            # in v1 training would have defaulted to using the `None` inside the layer
-            # if training is not passed at runtime
+            # in v1 training would have defaulted to using the `None` inside the
+            # layer if training is not passed at runtime
             self.assertAllEqual(network(x), _call(x, None))
 
-        # `None` value passed as kwarg during construction is ignored at runtime.
+        # `None` value passed as kwarg during construction is ignored at
+        # runtime.
         inputs = input_layer_lib.Input(10)
         outputs = my_layer(inputs, training=None)
         network = functional.Functional(inputs, outputs)
@@ -2499,8 +2505,8 @@ class CacheCorrectnessTest(test_combinations.TestCase):
         if tf.executing_eagerly():
             self.assertAllEqual(network(x), _call(x, True))  # Use local default
         else:
-            # in v1 training would have defaulted to using the `None` inside the layer
-            # if training is not passed at runtime
+            # in v1 training would have defaulted to using the `None` inside the
+            # layer if training is not passed at runtime
             self.assertAllEqual(network(x), _call(x, None))
 
 
@@ -2613,7 +2619,8 @@ class MultipleInheritanceModelTest(test_combinations.TestCase):
         self.assertEqual(m.get_foo(), "123")
 
     def testFunctionalSubclassPostMixin(self):
-        # Make sure the the mixin class is also init correct when the order changed.
+        # Make sure the the mixin class is also init correct when the order
+        # changed.
 
         class MixedFunctionalSubclassModel(FunctionalSubclassModel, MixinClass):
             pass

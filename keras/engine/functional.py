@@ -68,9 +68,9 @@ class Functional(training_lib.Model):
     model = keras.Model(inputs, outputs)
     ```
 
-    A `Functional` model constructed using the Functional API can also include raw
-    TensorFlow functions, with the exception of functions that create Variables
-    or assign ops.
+    A `Functional` model constructed using the Functional API can also include
+    raw TensorFlow functions, with the exception of functions that create
+    Variables or assign ops.
 
     Example:
 
@@ -113,12 +113,14 @@ class Functional(training_lib.Model):
         originated from `tf.keras.Input()`).
       outputs: List of output tensors.
       name: String, optional. Name of the model.
-      trainable: Boolean, optional. If the model's variables should be trainable.
+      trainable: Boolean, optional. If the model's variables should be
+        trainable.
     """
 
     # See tf.Module for the usage of this property.
-    # The key of _layer_call_argspecs is a layer. tf.Module._flatten will fail to
-    # flatten the key since it is trying to convert Trackable/Layer to a string.
+    # The key of _layer_call_argspecs is a layer. tf.Module._flatten will fail
+    # to flatten the key since it is trying to convert Trackable/Layer to a
+    # string.
     _TF_MODULE_IGNORED_PROPERTIES = frozenset(
         itertools.chain(
             (
@@ -136,17 +138,17 @@ class Functional(training_lib.Model):
     def __init__(self, inputs, outputs, name=None, trainable=True, **kwargs):
         # This is used by the Model class, since we have some logic to swap the
         # class in the __new__ method, which will lead to __init__ get invoked
-        # twice. Using the skip_init to skip one of the invocation of __init__ to
-        # avoid any side effects
+        # twice. Using the skip_init to skip one of the invocation of __init__
+        # to avoid any side effects
         skip_init = kwargs.pop("skip_init", False)
         if skip_init:
             return
         generic_utils.validate_kwargs(kwargs, {})
         super().__init__(name=name, trainable=trainable)
-        # Check if the inputs contain any intermediate `KerasTensor` (not created
-        # by tf.keras.Input()). In this case we need to clone the `Node` and
-        # `KerasTensor` objects to mimic rebuilding a new model from new inputs.
-        # This feature is only enabled in TF2 not in v1 graph mode.
+        # Check if the inputs contain any intermediate `KerasTensor` (not
+        # created by tf.keras.Input()). In this case we need to clone the `Node`
+        # and `KerasTensor` objects to mimic rebuilding a new model from new
+        # inputs.  This feature is only enabled in TF2 not in v1 graph mode.
         if tf.compat.v1.executing_eagerly_outside_functions():
             if not all(
                 [
@@ -161,8 +163,8 @@ class Functional(training_lib.Model):
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _init_graph_network(self, inputs, outputs):
-        # This method is needed for Sequential to reinitialize graph network when
-        # layer is added or removed.
+        # This method is needed for Sequential to reinitialize graph network
+        # when layer is added or removed.
 
         base_layer.keras_api_gauge.get_cell("Functional").set(True)
         self._is_graph_network = True
@@ -208,8 +210,9 @@ class Functional(training_lib.Model):
             lambda x: x.shape, inputs
         )
         self._compute_output_and_mask_jointly = True
-        # `_expects_training_arg` is True since the `training` argument is always
-        # present in the signature of the `call` method of a graph network.
+        # `_expects_training_arg` is True since the `training` argument is
+        # always present in the signature of the `call` method of a graph
+        # network.
         self._call_spec.expects_training_arg = True
         self._call_spec.expects_mask_arg = True
         # A graph network does not autocast inputs, as its layers will cast them
@@ -222,10 +225,10 @@ class Functional(training_lib.Model):
         self._output_coordinates = []
 
         # This is for performance optimization when calling the Network on new
-        # inputs. Every time the Network is called on a set on input tensors,
-        # we compute the output tensors, output masks and output shapes in one pass,
-        # then cache them here. When any of these outputs is queried later, we
-        # retrieve it from there instead of recomputing it.
+        # inputs. Every time the Network is called on a set on input tensors, we
+        # compute the output tensors, output masks and output shapes in one
+        # pass, then cache them here. When any of these outputs is queried
+        # later, we retrieve it from there instead of recomputing it.
         self._output_mask_cache = {}
         self._output_tensor_cache = {}
         self._output_shape_cache = {}
@@ -277,11 +280,12 @@ class Functional(training_lib.Model):
             self.input_names.append(layer.name)
             if layer.is_placeholder:
                 self._feed_input_names.append(layer.name)
-                # Use batch_input_shape here because non-eager composite tensors may not
-                # have a shape attribute that's meaningful (sparse, for instance, has
-                # a tensor that's non-constant and needs to be fed). This means that
-                # input layers that create placeholders will need to have the
-                # batch_input_shape attr to allow for input shape validation.
+                # Use batch_input_shape here because non-eager composite tensors
+                # may not have a shape attribute that's meaningful (sparse, for
+                # instance, has a tensor that's non-constant and needs to be
+                # fed). This means that input layers that create placeholders
+                # will need to have the batch_input_shape attr to allow for
+                # input shape validation.
                 self._feed_input_shapes.append(layer._batch_input_shape)
                 self._feed_inputs.append(layer.input)
 
@@ -289,9 +293,9 @@ class Functional(training_lib.Model):
         self._set_save_spec(self._nested_inputs)
         tf_utils.assert_no_legacy_layers(self.layers)
 
-        # Note that this method is used by both functional and sequential models,
-        # so we can't just have this method in functional.__init__, which will miss
-        #  the coverage of sequential model.
+        # Note that this method is used by both functional and sequential
+        # models, so we can't just have this method in functional.__init__,
+        # which will miss the coverage of sequential model.
         if self._layout_map is not None:
             layout_map_lib._map_functional_model_variable(
                 self, self._layout_map
@@ -405,8 +409,8 @@ class Functional(training_lib.Model):
     def _set_output_names(self):
         """Assigns unique names to the Network's outputs.
 
-        Output layers with multiple output tensors would otherwise lead to duplicate
-        names in self.output_names.
+        Output layers with multiple output tensors would otherwise lead to
+        duplicate names in self.output_names.
         """
         uniquified = []
         output_names = set()
@@ -430,20 +434,20 @@ class Functional(training_lib.Model):
         for layer_index, layer in enumerate(self.layers):
             try:
                 if layer.weights:
-                    # Keep a separate index for layers which have weights. This allows
-                    # users to insert Layers without weights anywhere in the network
-                    # without breaking checkpoints.
+                    # Keep a separate index for layers which have weights. This
+                    # allows users to insert Layers without weights anywhere in
+                    # the network without breaking checkpoints.
                     dependencies[
                         "layer_with_weights-%d" % weight_layer_index
                     ] = layer
                     weight_layer_index += 1
             except ValueError:
-                # The layer might have weights, but may not be built yet. We just treat
-                # it as layer without weight.
+                # The layer might have weights, but may not be built yet. We
+                # just treat it as layer without weight.
                 pass
 
-            # Even if it doesn't have weights, we should still track everything in
-            # case it has/will have Trackable dependencies.
+            # Even if it doesn't have weights, we should still track everything
+            # in case it has/will have Trackable dependencies.
             dependencies["layer-%d" % layer_index] = layer
         return dependencies
 
@@ -491,8 +495,8 @@ class Functional(training_lib.Model):
 
         Args:
             inputs: A tensor or list of tensors.
-            training: Boolean or boolean scalar tensor, indicating whether to run
-              the `Network` in training mode or inference mode.
+            training: Boolean or boolean scalar tensor, indicating whether to
+                run the `Network` in training mode or inference mode.
             mask: A mask or list of masks. A mask can be
                 either a tensor or None (no mask).
 
@@ -565,7 +569,8 @@ class Functional(training_lib.Model):
                     layer_input_shapes = tf.nest.pack_sequence_as(
                         layer_inputs, layer_input_shapes
                     )
-                    # Layers expect shapes to be tuples for `compute_output_shape`.
+                    # Layers expect shapes to be tuples for
+                    # `compute_output_shape`.
                     layer_input_shapes = tf_utils.convert_shapes(
                         layer_input_shapes, to_tuples=True
                     )
@@ -605,8 +610,8 @@ class Functional(training_lib.Model):
         if not name:
             cls_name = self.__class__.__name__
             if self.__class__ == Functional:
-                # Hide the functional class name from user, since its not a public
-                # visible class. Use "Model" instead,
+                # Hide the functional class name from user, since its not a
+                # public visible class. Use "Model" instead,
                 cls_name = "Model"
             self._name = backend.unique_object_name(
                 generic_utils.to_snake_case(cls_name), zero_based=zero_based
@@ -681,29 +686,31 @@ class Functional(training_lib.Model):
             if not tf.nest.is_nested(ref_inputs):
                 ref_inputs = [self._nested_inputs]
             if isinstance(ref_inputs, dict):
-                # In the case that the graph is constructed with dict input tensors,
-                # We will use the original dict key to map with the keys in the input
-                # data. Note that the model.inputs is using nest.flatten to process the
-                # input tensors, which means the dict input tensors are ordered by their
-                # keys.
+                # In the case that the graph is constructed with dict input
+                # tensors, We will use the original dict key to map with the
+                # keys in the input data. Note that the model.inputs is using
+                # nest.flatten to process the input tensors, which means the
+                # dict input tensors are ordered by their keys.
                 ref_input_names = sorted(ref_inputs.keys())
             else:
                 ref_input_names = [
                     inp._keras_history.layer.name for inp in ref_inputs
                 ]
 
-            # Raise an warning if there are more input data comparing to input tensor
+            # Raise an warning if there are more input data comparing to input
+            # tensor
             if len(tensors) > len(ref_input_names):
                 warnings.warn(
-                    "Input dict contained keys {} which did not match any model input. "
-                    "They will be ignored by the model.".format(
+                    "Input dict contained keys {} which did not match any "
+                    "model input. They will be ignored by the model.".format(
                         [n for n in tensors.keys() if n not in ref_input_names]
                     ),
                     stacklevel=2,
                 )
 
             try:
-                # Flatten in the order `Input`s were passed during Model construction.
+                # Flatten in the order `Input`s were passed during Model
+                # construction.
                 return [tensors[n] for n in ref_input_names]
             except KeyError:
                 # TODO(b/151582614)
@@ -715,34 +722,36 @@ class Functional(training_lib.Model):
     def _conform_to_reference_input(self, tensor, ref_input):
         """Set shape and dtype based on `keras.Input`s."""
         if isinstance(tensor, tf.Tensor):
-            # Allow (None,) and (None, 1) Tensors to be passed interchangeably. Use
-            # the shape specified by the `keras.Input`.
+            # Allow (None,) and (None, 1) Tensors to be passed interchangeably.
+            # Use the shape specified by the `keras.Input`.
             t_shape = tensor.shape
             t_rank = t_shape.rank
             ref_shape = ref_input.shape
             ref_rank = ref_shape.rank
             keras_history = getattr(tensor, "_keras_history", None)
             if t_rank is not None and ref_rank is not None:
-                # Should squeeze last dimension.
-                # True if tensor is (BATCH, ..., 1) and reference is (BATCH, ...).
+                # Should squeeze last dimension.  True if tensor is (BATCH, ...,
+                # 1) and reference is (BATCH, ...).
                 if t_rank == ref_rank + 1 and t_shape[-1] == 1:
                     tensor = tf.squeeze(tensor, axis=-1)
-                # Should expand last_dimension.
-                # True if tensor is (BATCH, ...) and reference is (BATCH, ..., 1).
+                # Should expand last_dimension.  True if tensor is (BATCH, ...)
+                # and reference is (BATCH, ..., 1).
                 elif t_rank == ref_rank - 1 and ref_shape[-1] == 1:
                     tensor = tf.expand_dims(tensor, axis=-1)
             if keras_history is not None:  # Restore keras history.
                 tensor._keras_history = keras_history
 
-            # Add shape hints to Tensors that may have None shape dims but have shapes
-            # defined by the `keras.Input` (not applicable in eager mode).
+            # Add shape hints to Tensors that may have None shape dims but have
+            # shapes defined by the `keras.Input` (not applicable in eager
+            # mode).
             if not tf.executing_eagerly():
                 try:
                     tensor.set_shape(tensor.shape.merge_with(ref_input.shape))
                 except ValueError:
                     logging.warning(
-                        "Model was constructed with shape {} for input {}, but it was "
-                        "called on an input with incompatible shape {}.".format(
+                        "Model was constructed with shape {} for input {}, "
+                        "but it was called on an input with incompatible "
+                        "shape {}.".format(
                             ref_input.shape, ref_input, tensor.shape
                         )
                     )
@@ -751,8 +760,8 @@ class Functional(training_lib.Model):
             tensor = tf.cast(tensor, dtype=ref_input.dtype)
         elif tf_utils.is_extension_type(tensor):
             # Dtype casting (If the extension type has a non-variant dtype and
-            # supports being cast).  Only cast if necessary (since some extension
-            # types may not implement tf.cast).
+            # supports being cast).  Only cast if necessary (since some
+            # extension types may not implement tf.cast).
             tensor_dtype = getattr(tensor, "dtype", None)
             ref_input_dtype = getattr(ref_input, "dtype", None)
             if (
@@ -834,17 +843,17 @@ class Functional(training_lib.Model):
     def _insert_layers(self, layers, relevant_nodes=None):
         """Inserts Layers into the Network after Network creation.
 
-        This is only valid for Keras Graph Networks.  Layers added via this function
-        will be included in the `call` computation and `get_config` of this Network.
-        They will not be added to the Network's outputs.
+        This is only valid for Keras Graph Networks.  Layers added via this
+        function will be included in the `call` computation and `get_config` of
+        this Network.  They will not be added to the Network's outputs.
 
         Args:
           layers: Arbitrary nested structure of Layers. Layers must be reachable
-            from one or more of the `keras.Input` Tensors that correspond to this
-            Network's inputs.
-          relevant_nodes: Nodes from the Layers that should be considered part of
-            this Network. If `None`, all Nodes will be considered part of this
-            Network.
+            from one or more of the `keras.Input` Tensors that correspond to
+            this Network's inputs.
+          relevant_nodes: Nodes from the Layers that should be considered part
+            of this Network. If `None`, all Nodes will be considered part of
+            this Network.
 
         Raises:
           ValueError: If the layers depend on `Input`s not found in this Model.
@@ -882,8 +891,8 @@ class Functional(training_lib.Model):
         i = 0
         while unprocessed_nodes:
             i += 1
-            # Do a sanity check. This can occur if `Input`s from outside this Model
-            # are being relied on.
+            # Do a sanity check. This can occur if `Input`s from outside this
+            # Model are being relied on.
             if i > 10000:
                 raise ValueError(
                     "Layers could not be added due to missing " "dependencies."
@@ -920,8 +929,8 @@ class Functional(training_lib.Model):
     def _compute_tensor_usage_count(self):
         """Compute the #. of tensor usages for all the output tensors of layers.
 
-        The computed tensor usage count is saved as `self._tensor_usage_count`. This
-        is later used for saving memory in eager computation by releasing
+        The computed tensor usage count is saved as `self._tensor_usage_count`.
+        This is later used for saving memory in eager computation by releasing
         no-longer-needed tensors as early as possible.
         """
         tensor_usage_count = collections.Counter()
@@ -958,8 +967,8 @@ class Functional(training_lib.Model):
         new_nodes, new_layers = _map_subgraph_network(
             self.inputs, [symbolic_loss]
         )
-        # Losses must be keyed on inputs no matter what in order to be supported in
-        # DistributionStrategy.
+        # Losses must be keyed on inputs no matter what in order to be supported
+        # in DistributionStrategy.
         add_loss_layer = base_layer.AddLoss(
             unconditional=False, dtype=symbolic_loss.dtype
         )
@@ -984,8 +993,8 @@ class Functional(training_lib.Model):
 
     def _get_save_spec(self, dynamic_batch=True, inputs_only=True):
         if getattr(self, "_has_explicit_input_shape", True):
-            # Functional models and Sequential models that have an explicit input
-            # shape should use the batch size set by the input layer.
+            # Functional models and Sequential models that have an explicit
+            # input shape should use the batch size set by the input layer.
             dynamic_batch = False
         return super()._get_save_spec(dynamic_batch, inputs_only)
 
@@ -1096,9 +1105,10 @@ def _map_graph_network(inputs, outputs):
                 for x in tf.nest.flatten(node.keras_inputs):
                     if id(x) not in computable_tensors:
                         raise ValueError(
-                            f"Graph disconnected: cannot obtain value for tensor {x} "
-                            f'at layer "{layer.name}". The following previous layers '
-                            f"were accessed without issue: {layers_with_complete_input}"
+                            f"Graph disconnected: cannot obtain value for "
+                            f'tensor {x} at layer "{layer.name}". '
+                            "The following previous layers were accessed "
+                            f"without issue: {layers_with_complete_input}"
                         )
                 for x in tf.nest.flatten(node.outputs):
                     computable_tensors.add(id(x))
@@ -1123,8 +1133,8 @@ def _build_map(outputs):
     _keras_history connectivity metadata of `outputs`.
 
     Args:
-      outputs: the output tensors whose _keras_history metadata should be walked.
-      This may be an arbitrary nested structure.
+      outputs: the output tensors whose _keras_history metadata should be
+        walked. This may be an arbitrary nested structure.
 
     Returns:
       A tuple like (ordered_nodes, layer_to_first_traversal_index)
@@ -1218,8 +1228,8 @@ def _map_subgraph_network(inputs, outputs):
 def _should_skip_first_node(layer):
     """Returns True if the first layer node should not be saved or loaded."""
     # Networks that are constructed with an Input layer/shape start with a
-    # pre-existing node linking their input to output. This node is excluded from
-    # the network config.
+    # pre-existing node linking their input to output. This node is excluded
+    # from the network config.
     if layer._self_tracked_trackables:
         return (
             isinstance(layer, Functional)
@@ -1327,8 +1337,8 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
             node_data: Nested structure of `ListWrapper`.
 
         Returns:
-            Whether the node was processed (i.e. the layer was called on the inputs
-            specified by the node data)
+            Whether the node was processed (i.e. the layer was called on the
+            inputs specified by the node data)
 
         Raises:
             ValueError: In case of improperly formatted `node_data`.
@@ -1453,8 +1463,8 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
                     if process_node(layer, node_data):
                         layer_nodes.pop(0)
                     else:
-                        # If a node can't be processed, stop processing the nodes of
-                        # the current layer to maintain node ordering.
+                        # If a node can't be processed, stop processing the
+                        # nodes of the current layer to maintain node ordering.
                         unprocessed_nodes[layer] = layer_nodes
                         break
 
@@ -1595,9 +1605,9 @@ class ModuleWrapper(base_layer.Layer):
 
         Args:
           module: The `tf.Module` instance to be wrapped.
-          method_name: (Optional) str. The name of the method to use as the forward
-            pass of the module. If not set, defaults to '__call__' if defined, or
-            'call'.
+          method_name: (Optional) str. The name of the method to use as the
+            forward pass of the module. If not set, defaults to '__call__' if
+            defined, or 'call'.
           **kwargs: Additional keywrod arguments. See `tf.keras.layers.Layer`.
 
         Raises:

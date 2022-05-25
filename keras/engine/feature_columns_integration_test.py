@@ -200,8 +200,8 @@ class FeatureColumnsIntegrationTest(test_combinations.TestCase):
         feature_layer = df.DenseFeatures([col_a, col_b], name="fc")
         dense = keras.layers.Dense(4)
 
-        # This seems problematic.... We probably need something for DenseFeatures
-        # the way Input is for InputLayer.
+        # This seems problematic.... We probably need something for
+        # DenseFeatures the way Input is for InputLayer.
         output = dense(feature_layer)
 
         model = keras.models.Model([feature_layer], [output])
@@ -230,8 +230,8 @@ class FeatureColumnsIntegrationTest(test_combinations.TestCase):
         fc2 = df.DenseFeatures([col_b, col_c], name="fc2")
         dense = keras.layers.Dense(4)
 
-        # This seems problematic.... We probably need something for DenseFeatures
-        # the way Input is for InputLayer.
+        # This seems problematic.... We probably need something for
+        # DenseFeatures the way Input is for InputLayer.
         output = dense(fc1) + dense(fc2)
 
         model = keras.models.Model([fc1, fc2], [output])

@@ -68,12 +68,13 @@ def find_nodes_by_inputs_and_outputs(inputs, outputs):
     """
     # We walk the graph bottom up, starting from output nodes, and keep tracing
     # the upstream node, until we find all the inputs nodes. We don't use top
-    # down search here since we don't know whether a certain node is in the graph
-    # between inputs and outputs, e.g. a functional graph could have multiple
-    # outputs, and the user could choose a subset of them to build the model.
-    # The bottom up approach will ensure all the nodes we visit are actually
-    # in use. If we reach the top and didn't find the nodes in the `inputs`,
-    # that's an error, since the user didn't specify the correct inputs.
+    # down search here since we don't know whether a certain node is in the
+    # graph between inputs and outputs, e.g. a functional graph could have
+    # multiple outputs, and the user could choose a subset of them to build the
+    # model. The bottom up approach will ensure all the nodes we visit are
+    # actually in use. If we reach the top and didn't find the nodes in the
+    # `inputs`, that's an error, since the user didn't specify the correct
+    # inputs.
     start_keras_tensors = tf.nest.flatten(outputs)
     end_keras_tensors = tf.nest.flatten(inputs)
 
@@ -106,10 +107,10 @@ def find_nodes_by_inputs_and_outputs(inputs, outputs):
                 continue
 
             inbound_node = kt.node
-            # In case this is the tf.keras.Input node, we have reached the end of the
-            # tracing of upstream nodes. Any further tracing will just be an
-            # infinite loop. we should raise an error here since we didn't find the
-            # input in the user-specified inputs.
+            # In case this is the tf.keras.Input node, we have reached the end
+            # of the tracing of upstream nodes. Any further tracing will just be
+            # an infinite loop. we should raise an error here since we didn't
+            # find the input in the user-specified inputs.
             if inbound_node.is_input:
                 raise ValueError(
                     "Found input tensor cannot be reached given provided "
@@ -119,7 +120,8 @@ def find_nodes_by_inputs_and_outputs(inputs, outputs):
                 )
             nodes_to_visit.append(inbound_node)
 
-    # Do a final check and make sure we have reached all the user-specified inputs
+    # Do a final check and make sure we have reached all the user-specified
+    # inputs
     if end_ids != end_ids_found:
         unvisited_inputs = [
             kt for kt in end_keras_tensors if id(kt) not in end_ids_found
@@ -135,37 +137,40 @@ def clone_graph_nodes(inputs, outputs):
     """Clone the `Node` between the inputs and output tensors.
 
     This function is used to create a new functional model from any intermediate
-    keras tensors. The clone of the nodes mimic the behavior of reconstructing the
-    functional graph network by re-executing all the __call__ methods. The cloned
-    nodes will be appended to the layers.
+    keras tensors. The clone of the nodes mimic the behavior of reconstructing
+    the functional graph network by re-executing all the __call__ methods. The
+    cloned nodes will be appended to the layers.
 
-    Note that a new tf.keras.Inputs will be created for any items in the `inputs`
+    Note that a new tf.keras.Inputs will be created for any items in the
+    `inputs`
 
     Args:
       inputs: A nested structure of keras_tensors.
       outputs: A nested structure of keras_tensors.
 
     Returns:
-      A pair of inputs and outputs, with cloned keras_tensors. They can be used to
-      create a new functional model.
+      A pair of inputs and outputs, with cloned keras_tensors. They can be used
+      to create a new functional model.
     """
     nodes_to_clone = find_nodes_by_inputs_and_outputs(inputs, outputs)
     cloned_inputs = []
     cloned_outputs = []
     # We not only need to create copies of Nodes (mimic the calls), also need to
-    # clone keras_tensors to avoid the override of _keras_history attached on the
-    # keras_tensor. The following dict is used to track any keras tensor we cloned
-    # The key is the string ID of the original keras tensor, and value is the
-    # cloned keras_tensor instance.
+    # clone keras_tensors to avoid the override of _keras_history attached on
+    # the keras_tensor. The following dict is used to track any keras tensor we
+    # cloned The key is the string ID of the original keras tensor, and value is
+    # the cloned keras_tensor instance.
     kt_id_mapping = {}
 
     for kt_input in tf.nest.flatten(inputs):
         if kt_input.node.is_input:
-            # For any existing keras_tensor from tf.keras.Input, we leave them as is.
+            # For any existing keras_tensor from tf.keras.Input, we leave them
+            # as is.
             cloned_inputs.append(kt_input)
             kt_id_mapping[id(kt_input)] = kt_input
         else:
-            # We need to create a new tf.keras.Input for any intermediate keras_tensor
+            # We need to create a new tf.keras.Input for any intermediate
+            # keras_tensor
             cpy = _clone_keras_tensor(kt_input)
             cloned_input = input_layer_module.Input(tensor=cpy)
             cloned_inputs.append(cloned_input)
@@ -174,10 +179,10 @@ def clone_graph_nodes(inputs, outputs):
 
     for kt_output in tf.nest.flatten(outputs):
         cpy = _clone_keras_tensor(kt_output)
-        # We reuse the _keras_history here, which contains the old information. It
-        # is used in the Node constructor to check if the tensor "is_keras_tensor()"
-        # The history will be override by the Node constructor anyway for the
-        # corresponding layer output anyway.
+        # We reuse the _keras_history here, which contains the old information.
+        # It is used in the Node constructor to check if the tensor
+        # "is_keras_tensor()" The history will be override by the Node
+        # constructor anyway for the corresponding layer output anyway.
         cpy._keras_history = (
             kt_output._keras_history
         )  # pylint: disable=protected-access
@@ -191,12 +196,11 @@ def clone_graph_nodes(inputs, outputs):
         output_copy = clone_keras_tensors(node.output_tensors, kt_id_mapping)
         call_args_copy = clone_keras_tensors(node.call_args, kt_id_mapping)
         call_kwargs_copy = clone_keras_tensors(node.call_kwargs, kt_id_mapping)
-        # Creating new nodes based on the existing node information.
-        # Node wires itself to inbound and outbound layers.
-        # The Node constructor actually updates this layer's self._inbound_nodes,
-        # sets _keras_history on the outputs, and adds itself to the
-        # `_outbound_nodes` of the layers that produced the inputs to this
-        # layer call.
+        # Creating new nodes based on the existing node information.  Node wires
+        # itself to inbound and outbound layers.  The Node constructor actually
+        # updates this layer's self._inbound_nodes, sets _keras_history on the
+        # outputs, and adds itself to the `_outbound_nodes` of the layers that
+        # produced the inputs to this layer call.
         node_module.Node(
             node.layer,
             call_args=call_args_copy,
@@ -211,9 +215,9 @@ def clone_keras_tensors(args, keras_tensor_mapping):
 
     For any KerasTensor instance in the `args`, a new copy of KerasTensor will
     be created if it has not been cloned yet (by checking the
-    `keras_tensor_mapping`). For any other types, the instance will be unchanged.
-    This function is useful for cloning the Nodes since KerasTensor can't be
-    reused across the models.
+    `keras_tensor_mapping`). For any other types, the instance will be
+    unchanged. This function is useful for cloning the Nodes since KerasTensor
+    can't be reused across the models.
 
     Args:
       args: A nested structure of objects, which could contain KerasTensor.
@@ -254,7 +258,7 @@ def _clone_keras_tensor(kt):
       An identical copy of the input KerasTensor.
     """
     # Create a scratch graph since we don't intend to use the placeholders.
-    with backend._scratch_graph() as scratch_graph:  # pylint: disable=protected-access
+    with backend._scratch_graph() as scratch_graph:
         with scratch_graph.as_default():
             placeholder = keras_tensor.keras_tensor_to_placeholder(kt)
             return keras_tensor.keras_tensor_from_tensor(placeholder)

@@ -76,19 +76,20 @@ def model_iteration(
           `keras.utils.data_utils.Sequence` object or Eager Iterator or Dataset.
         validation_steps: Total number of steps (batches of samples) before
           declaring validation finished.
-        validation_freq: Only relevant if validation data is provided. Integer or
-          `collections.abc.Container` instance (e.g. list, tuple, etc.). If an
-          integer, specifies how many training epochs to run before a new
-          validation run is performed, e.g. `validation_freq=2` runs
-          validation every 2 epochs. If a Container, specifies the epochs on
-          which to run validation, e.g. `validation_freq=[1, 2, 10]` runs
-          validation at the end of the 1st, 2nd, and 10th epochs.
-        class_weight: Dictionary mapping class indices to a weight for the class.
+        validation_freq: Only relevant if validation data is provided. Integer
+          or `collections.abc.Container` instance (e.g. list, tuple, etc.). If
+          an integer, specifies how many training epochs to run before a new
+          validation run is performed, e.g. `validation_freq=2` runs validation
+          every 2 epochs. If a Container, specifies the epochs on which to run
+          validation, e.g. `validation_freq=[1, 2, 10]` runs validation at the
+          end of the 1st, 2nd, and 10th epochs.
+        class_weight: Dictionary mapping class indices to a weight for the
+            class.
         max_queue_size: Integer. Maximum size for the generator queue. If
           unspecified, `max_queue_size` will default to 10.
         workers: Integer. Maximum number of processes to spin up when using
-          process-based threading. If unspecified, `workers` will default to 1. If
-          0, will execute the generator on the main thread.
+          process-based threading. If unspecified, `workers` will default to 1.
+          If 0, will execute the generator on the main thread.
         use_multiprocessing: Boolean. If `True`, use process-based threading. If
           unspecified, `use_multiprocessing` will default to `False`. Note that
           because this implementation relies on multiprocessing, you should not
@@ -238,25 +239,26 @@ def model_iteration(
             batch_data = _get_next_batch(generator)
             if batch_data is None:
                 if is_dataset:
-                    # The dataset passed by the user ran out of batches.
-                    # Now we know the cardinality of the dataset.
-                    # If steps_per_epoch was specified, then running out of data is
-                    # unexpected, so we stop training and inform the user.
+                    # The dataset passed by the user ran out of batches.  Now we
+                    # know the cardinality of the dataset.  If steps_per_epoch
+                    # was specified, then running out of data is unexpected, so
+                    # we stop training and inform the user.
                     if steps_per_epoch:
                         callbacks.model.stop_training = True
                         logging.warning(
-                            "Your dataset ran out of data; interrupting training. "
-                            "Make sure that your dataset can generate at least "
-                            "`%s * epochs` batches (in this case, %d batches). "
-                            "You may need to use the repeat() function when "
-                            "building your dataset."
+                            "Your dataset ran out of data; interrupting "
+                            "training. Make sure that your dataset can "
+                            "generate at least `%s * epochs` batches (in "
+                            "this case, %d batches). You may need to use "
+                            "the repeat() function when building your dataset."
                             % (steps_name, steps_per_epoch * epochs)
                         )
                     elif step > 0:
                         steps_per_epoch = step
                         aggregator.steps = steps_per_epoch
                 else:
-                    # We ran out of batches while the user passed an iterator (legacy).
+                    # We ran out of batches while the user passed an iterator
+                    # (legacy).
                     callbacks.model.stop_training = True
                     logging.warning(
                         "Your dataset iterator ran out of data; "
@@ -285,8 +287,9 @@ def model_iteration(
                 aggregator.create(batch_outs)
 
                 if is_deferred:
-                    # Set callbacks params. We do this here when model is compiled only
-                    # in the first iteration of this loop (deferred build scenario).
+                    # Set callbacks params. We do this here when model is
+                    # compiled only in the first iteration of this loop
+                    # (deferred build scenario).
                     cbks.set_callback_parameters(
                         callbacks,
                         model,
@@ -417,17 +420,17 @@ def _validate_arguments(
       is_dataset: Boolean, whether data is a dataset instance.
       use_multiprocessing: Boolean. If `True`, use process-based threading. If
         unspecified, `use_multiprocessing` will default to `False`. Note that
-        because this implementation relies on multiprocessing, you should not pass
-        non-picklable arguments to the generator as they can't be passed easily to
-        children processes.
+        because this implementation relies on multiprocessing, you should not
+        pass non-picklable arguments to the generator as they can't be passed
+        easily to children processes.
       workers: Integer. Maximum number of processes to spin up when using
         process-based threading. If unspecified, `workers` will default to 1. If
         0, will execute the generator on the main thread.
-      steps_per_epoch: Total number of steps (batches of samples) before declaring
-        one epoch finished and starting the next epoch. Ignored with the default
-        value of `None`.
-      validation_data: Either a tuple of NumPy/Tensor inputs (i.e. `(x,)` or `(x,
-        y)` or `(x, y, sample_weights)`) or a generator or
+      steps_per_epoch: Total number of steps (batches of samples) before
+        declaring one epoch finished and starting the next epoch. Ignored with
+        the default value of `None`.
+      validation_data: Either a tuple of NumPy/Tensor inputs (i.e. `(x,)` or
+        `(x, y)` or `(x, y, sample_weights)`) or a generator or
         `keras.utils.data_utils.Sequence` object or Eager Iterator or Dataset.
       validation_steps: Total number of steps (batches of samples) before
         declaring validation finished.
@@ -481,11 +484,11 @@ def convert_to_generator_like(
 
     Args:
       data: Either a generator or `keras.utils.data_utils.Sequence` object or
-        `Dataset`, `Iterator`, or a {1,2,3}-tuple of NumPy arrays or EagerTensors.
-        If a tuple, the elements represent `(x, y, sample_weights)` and may be
-        `None` or `[None]`.
-      batch_size: Used when creating a generator out of tuples of NumPy arrays or
-        EagerTensors.
+        `Dataset`, `Iterator`, or a {1,2,3}-tuple of NumPy arrays or
+        EagerTensors.  If a tuple, the elements represent `(x, y,
+        sample_weights)` and may be `None` or `[None]`.
+      batch_size: Used when creating a generator out of tuples of NumPy arrays
+        or EagerTensors.
       steps_per_epoch: Steps of the generator to run each epoch. If `None` the
         number of steps will be read from the data (for
         `keras.utils.data_utils.Sequence` types).
@@ -500,7 +503,8 @@ def convert_to_generator_like(
         inputs.
     """
     if isinstance(data, tuple):
-        # Scrub `Nones` that might have been passed for `targets`, `sample_weights`.
+        # Scrub `Nones` that might have been passed for `targets`,
+        # `sample_weights`.
         data = tuple(
             ele
             for ele in data
@@ -522,7 +526,8 @@ def convert_to_generator_like(
     if batch_size is None:
         raise ValueError(
             "When passing input data as arrays, do not specify "
-            "`steps_per_epoch`/`steps` argument. Please use `batch_size` instead."
+            "`steps_per_epoch`/`steps` argument. "
+            "Please use `batch_size` instead."
         )
     steps_per_epoch = int(math.ceil(num_samples / batch_size))
 
@@ -598,7 +603,8 @@ def _make_execution_function(model, mode, class_weight=None):
 
 
 def _get_num_samples_or_steps(data, steps_per_epoch):
-    """Returns number of samples or steps, and whether to use steps count mode."""
+    """Returns number of samples or steps, and whether to use steps count
+    mode."""
     flat_inputs = tf.nest.flatten(data)
     if hasattr(flat_inputs[0], "shape"):
         return int(flat_inputs[0].shape[0]), False
@@ -610,9 +616,9 @@ class GeneratorOrSequenceTrainingLoop(training_utils_v1.TrainingLoop):
 
     Input is Python generator, or Sequence object.
 
-    The difference between this class and `GeneratorLikeTrainingFunction` is that
-    this class only handles inputs that with x, y and sample_weight fused into one
-    param.
+    The difference between this class and `GeneratorLikeTrainingFunction` is
+    that this class only handles inputs that with x, y and sample_weight fused
+    into one param.
     """
 
     def fit(
@@ -813,8 +819,8 @@ class GeneratorLikeTrainingLoop(training_utils_v1.TrainingLoop):
 
     This is the default handler for most of the input data types, includes
     symbolic tensors or Numpy array-like, Datasets and iterators in graph mode
-    (since they generate symbolic tensors). This Function is used to handle model
-    with `run_eagerly` = True.
+    (since they generate symbolic tensors). This Function is used to handle
+    model with `run_eagerly` = True.
     """
 
     def fit(

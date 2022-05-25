@@ -105,9 +105,9 @@ class KerasTensorTest(test_combinations.TestCase):
 
         kt = tf.reshape(kt, shape=(3, 5, 2))
         expected_str = (
-            "KerasTensor(type_spec=TensorSpec(shape=(3, 5, 2), dtype=tf.float32, "
-            "name=None), name='tf.reshape/Reshape:0', description=\"created "
-            "by layer 'tf.reshape'\")"
+            "KerasTensor(type_spec=TensorSpec(shape=(3, 5, 2), "
+            "dtype=tf.float32, name=None), name='tf.reshape/Reshape:0', "
+            "description=\"created by layer 'tf.reshape'\")"
         )
         expected_repr = (
             "<KerasTensor: shape=(3, 5, 2) dtype=float32 (created "
@@ -119,9 +119,9 @@ class KerasTensorTest(test_combinations.TestCase):
         kts = tf.unstack(kt)
         for i in range(3):
             expected_str = (
-                "KerasTensor(type_spec=TensorSpec(shape=(5, 2), dtype=tf.float32, "
-                "name=None), name='tf.unstack/unstack:%s', description=\"created "
-                "by layer 'tf.unstack'\")" % (i,)
+                "KerasTensor(type_spec=TensorSpec(shape=(5, 2), "
+                "dtype=tf.float32, name=None), name='tf.unstack/unstack:%s', "
+                "description=\"created by layer 'tf.unstack'\")" % (i,)
             )
             expected_repr = (
                 "<KerasTensor: shape=(5, 2) dtype=float32 "
@@ -194,15 +194,15 @@ class KerasTensorTest(test_combinations.TestCase):
             kt.set_shape([3, 3])
 
     def test_set_shape_equals_expected_shape(self):
-        # Tests b/203201161: DenseSpec has both a _shape and a _shape_tuple field,
-        # and we need to be sure both get updated.
+        # Tests b/203201161: DenseSpec has both a _shape and a _shape_tuple
+        # field, and we need to be sure both get updated.
         kt = keras_tensor.KerasTensor(tf.TensorSpec([8, None], tf.int32))
         kt.set_shape([8, 3])
         self.assertEqual(kt.type_spec, tf.TensorSpec([8, 3], tf.int32))
 
     def test_type_spec_with_shape_equals_expected_shape(self):
-        # Tests b/203201161: DenseSpec has both a _shape and a _shape_tuple field,
-        # and we need to be sure both get updated.
+        # Tests b/203201161: DenseSpec has both a _shape and a _shape_tuple
+        # field, and we need to be sure both get updated.
         spec1 = tf.TensorSpec([8, None], tf.int32)
         spec2 = keras_tensor.type_spec_with_shape(spec1, [8, 3])
         expected = tf.TensorSpec([8, 3], tf.int32)

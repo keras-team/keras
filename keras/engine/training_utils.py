@@ -31,8 +31,8 @@ def slice_arrays(arrays, indices, contiguous=True):
 
     Args:
       arrays: Single array or list of arrays.
-      indices: List of indices in the array that should be included in the output
-        batch.
+      indices: List of indices in the array that should be included in the
+        output batch.
       contiguous: Boolean flag indicating whether the indices are contiguous.
 
     Returns:
@@ -136,8 +136,8 @@ class RespectCompiledTrainableState:
     respect this requirement, it may be necessary to set the trainable value of
     layers to their compile time values before beginning a training endpoint and
     restore the values before returning from said endpoint. This scope checks if
-    any layer's trainable state has changed since Model compile, and performs this
-    set and un-set bookkeeping.
+    any layer's trainable state has changed since Model compile, and performs
+    this set and un-set bookkeeping.
 
     However, the trainable state of a layer changes quite infrequently, if ever,
     for many kinds of workflows. Moreover, updating every layer in a model is an
@@ -159,7 +159,8 @@ class RespectCompiledTrainableState:
             self._model._compiled_trainable_state
         )  # pylint: disable=protected-access
 
-        # Check to see if any layer's trainable state has changed since `compile`.
+        # Check to see if any layer's trainable state has changed since
+        # `compile`.
         for layer, trainable in self._compiled_trainable_state.items():
             if (
                 layer in self._current_trainable_state

@@ -26,10 +26,10 @@ from keras.engine import base_layer_utils
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class TrackableWeightHandlerTest(test_combinations.TestCase):
     def get_table_handler(self):
-        # Note: There is some repetition in these tests' setup. However, Tensorflow
-        # does not play nicely with a separate setUp() call (causing errors related
-        # to graph building), so we have to use a called setup instead of a setUp()
-        # call.
+        # Note: There is some repetition in these tests' setup. However,
+        # Tensorflow does not play nicely with a separate setUp() call (causing
+        # errors related to graph building), so we have to use a called setup
+        # instead of a setUp() call.
         table = tf.lookup.experimental.MutableHashTable(
             key_dtype=tf.string, value_dtype=tf.int32, default_value=0
         )

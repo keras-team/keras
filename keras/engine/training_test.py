@@ -162,8 +162,8 @@ class TrainingTest(test_combinations.TestCase):
                 "sgd", loss="mse", run_eagerly=False, jit_compile=True
             )
             # Added a string op unsupported by XLA compiler to make sure that an
-            # error is thrown, This ensures that the graph is indeed being compiled
-            # using XLA
+            # error is thrown, This ensures that the graph is indeed being
+            # compiled using XLA
             with self.assertRaisesRegex(
                 tf.errors.InvalidArgumentError, "Graph execution error"
             ):
@@ -627,7 +627,8 @@ class TrainingTest(test_combinations.TestCase):
         if tf.executing_eagerly():
             # In TF2 to avoid any ambiguity when there are nested lists
             # the entire input gets converted to a
-            # single numpy array (& it only works in the case of a single io model)
+            # single numpy array (& it only works in the case of a single io
+            # model)
             model.fit(
                 np.ndarray.tolist(input_a_np),
                 np.ndarray.tolist(input_b_np),
@@ -636,13 +637,14 @@ class TrainingTest(test_combinations.TestCase):
                 verbose=2,
             )
         else:
-            # In TF1 there was logic to try disambiguating between the individual
-            # inputs when lists are nested. This allowed multi-io functional models
-            # to support lists of scalars as input, but it caused ambiguity issues
-            # for subclass models & made it trickier to pass multi-dimensional inputs
-            # as lists of scalars to single io models. This was an excessive amount
-            # of complexity for what boiled down to a convenience method we were
-            # mainly just using for writing tests.
+            # In TF1 there was logic to try disambiguating between the
+            # individual inputs when lists are nested. This allowed multi-io
+            # functional models to support lists of scalars as input, but it
+            # caused ambiguity issues for subclass models & made it trickier to
+            # pass multi-dimensional inputs as lists of scalars to single io
+            # models. This was an excessive amount of complexity for what boiled
+            # down to a convenience method we were mainly just using for writing
+            # tests.
             model.fit(
                 [np.ndarray.tolist(input_a_np)],
                 [np.ndarray.tolist(input_b_np)],
@@ -971,8 +973,9 @@ class TrainingTest(test_combinations.TestCase):
     def test_weight_deduplication(self):
         class WatchingLayer(layers_module.Layer):
             def __init__(self, dense_to_track):
-                # This will cause the kernel and bias to be double counted, effectively
-                # doubling the learning rate if weights are not deduped.
+                # This will cause the kernel and bias to be double counted,
+                # effectively doubling the learning rate if weights are not
+                # deduped.
                 self._kernel = dense_to_track.kernel
                 self._bias = dense_to_track.bias
                 super().__init__()
@@ -987,9 +990,9 @@ class TrainingTest(test_combinations.TestCase):
 
         model = training_module.Model(inp, output)
 
-        # 0.25 is the edge of the radius of convergence for the double apply case.
-        # At lr=0.24, the double apply case will very slowly descend while the
-        # correct case will drop very quickly.
+        # 0.25 is the edge of the radius of convergence for the double apply
+        # case. At lr=0.24, the double apply case will very slowly descend
+        # while the correct case will drop very quickly.
         model.compile(
             loss="mse",
             optimizer=optimizer_v2.gradient_descent.SGD(0.24),
@@ -1101,8 +1104,8 @@ class TrainingTest(test_combinations.TestCase):
         for v, w in zip(model.trainable_variables, [v1, v2, v5, v6]):
             self.assertIs(v, w)
         self.assertEqual(len(model.non_trainable_variables), 0)
-        # Make sure losses, layers, and updates aren't broken by having a Template
-        # in the mix, which does not expose any updates or losses.
+        # Make sure losses, layers, and updates aren't broken by having a
+        # Template in the mix, which does not expose any updates or losses.
         self.assertEqual([], model.layers)
         self.assertEqual([], model.updates)
         self.assertEqual([], model.losses)
@@ -1524,8 +1527,8 @@ class TrainingTest(test_combinations.TestCase):
         class AssertTypeLayer(layers_module.Layer):
             def call(self, inputs):
                 assert inputs.dtype.name == self.dtype, (
-                    "Input tensor has type %s which does not match assert type %s"
-                    % (inputs.dtype.name, self.assert_type)
+                    "Input tensor has type %s which does not match assert "
+                    "type %s" % (inputs.dtype.name, self.assert_type)
                 )
                 return inputs + 1.0
 
@@ -2151,8 +2154,8 @@ class TrainingTest(test_combinations.TestCase):
         input_3 = layers_module.Input((3,), batch_size=3)
         output = model(input_1, input_2, keyword_input=input_3, training=True)
         functional = training_module.Model([input_1, input_2, input_3], output)
-        # Functional models should ignore dynamic_batch if the input layers have a
-        # known batch size.
+        # Functional models should ignore dynamic_batch if the input layers have
+        # a known batch size.
         spec = functional.save_spec(dynamic_batch=True)
         input_specs = spec[0][0]
         self.assertEqual(input_specs[0].shape.as_list(), [1, 1])
@@ -2561,7 +2564,8 @@ class LossWeightingTest(test_combinations.TestCase):
             )
             model.fit(x, y, epochs=1, batch_size=10)
 
-            # sample_weight_mode is a not a list/dict and mode value is `temporal`
+            # sample_weight_mode is a not a list/dict and mode value is
+            # `temporal`
             model.compile(
                 optimizer,
                 loss="mse",
@@ -4164,8 +4168,8 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
                 eval_result = self.model.evaluate(val_ds_2)
                 if abs(eval_result) > 1e-7:
                     raise AssertionError(
-                        "Expected to hit the zeros dataset but got high loss value of %s"
-                        % eval_result
+                        "Expected to hit the zeros dataset but got high loss "
+                        "value of %s" % eval_result
                     )
 
         history = model.fit(
