@@ -36,7 +36,8 @@ class PreprocessingStage(
     a single `adapt()` call on the preprocessing stage.
 
     Args:
-      layers: List of layers. Can include layers that aren't preprocessing layers.
+      layers: List of layers. Can include layers that aren't preprocessing
+        layers.
       name: String. Optional name for the preprocessing stage object.
     """
 
@@ -54,12 +55,12 @@ class PreprocessingStage(
             data, (tf.data.Dataset, np.ndarray, tf.__internal__.EagerTensor)
         ):
             raise ValueError(
-                f"`adapt()` requires a batched Dataset, an EagerTensor, or a Numpy "
-                f"array as input. Received data={data}"
+                f"`adapt()` requires a batched Dataset, an EagerTensor, or a "
+                f"Numpy array as input. Received data={data}"
             )
         if isinstance(data, tf.data.Dataset):
-            # Validate the datasets to try and ensure we haven't been passed one with
-            # infinite size. That would cause an infinite loop here.
+            # Validate the datasets to try and ensure we haven't been passed one
+            # with infinite size. That would cause an infinite loop here.
             if tf_utils.dataset_is_infinite(data):
                 raise ValueError(
                     "The dataset passed to `adapt()` has an infinite number of "
@@ -76,7 +77,8 @@ class PreprocessingStage(
                 """Maps `PreprocessingStage` inputs to inputs at `current_layer_index`.
 
                 Args:
-                  x: Batch of inputs seen in entry of the `PreprocessingStage` instance.
+                  x: Batch of inputs seen in entry of the `PreprocessingStage`
+                    instance.
 
                 Returns:
                   Batch of inputs to be processed by layer
@@ -133,17 +135,17 @@ class FunctionalPreprocessingStage(
     >>> stage = FunctionalPreprocessingStage(inputs, outputs)
 
     Args:
-      inputs: An input tensor (must be created via `tf.keras.Input()`), or a list,
-        a dict, or a nested structure of input tensors.
-      outputs: An output tensor, or a list, a dict or a nested structure of output
-        tensors.
+      inputs: An input tensor (must be created via `tf.keras.Input()`), or a
+        list, a dict, or a nested structure of input tensors.
+      outputs: An output tensor, or a list, a dict or a nested structure of
+        output tensors.
       name: String, optional. Name of the preprocessing stage.
     """
 
     def fit(self, *args, **kwargs):
         raise ValueError(
-            "Preprocessing stage is not a complete model, and hence should not be "
-            "`fit`. Instead, you may feed data to `adapt` the stage to set "
+            "Preprocessing stage is not a complete model, and hence should not "
+            "be `fit`. Instead, you may feed data to `adapt` the stage to set "
             "appropriate states of the layers in the stage."
         )
 
@@ -151,14 +153,14 @@ class FunctionalPreprocessingStage(
         """Adapt the state of the layers of the preprocessing stage to the data.
 
         Args:
-          data: A batched Dataset object, a NumPy array, an EagerTensor, or a list,
-            dict or nested structure of Numpy Arrays or EagerTensors. The elements
-            of Dataset object need to conform with inputs of the stage. The first
-            dimension of NumPy arrays or EagerTensors are understood to be batch
-            dimension. Data to be iterated over to adapt the state of the layers in
-            this preprocessing stage.
-          reset_state: Whether this call to `adapt` should reset the state of the
-            layers in this preprocessing stage.
+          data: A batched Dataset object, a NumPy array, an EagerTensor, or a
+            list, dict or nested structure of Numpy Arrays or EagerTensors. The
+            elements of Dataset object need to conform with inputs of the stage.
+            The first dimension of NumPy arrays or EagerTensors are understood
+            to be batch dimension. Data to be iterated over to adapt the state
+            of the layers in this preprocessing stage.
+          reset_state: Whether this call to `adapt` should reset the state of
+            the layers in this preprocessing stage.
 
         Examples:
 
@@ -184,16 +186,16 @@ class FunctionalPreprocessingStage(
                 for datum in data
             ):
                 raise ValueError(
-                    "`adapt()` requires a batched Dataset, a list of EagerTensors "
-                    "or Numpy arrays as input, got {}".format(type(data))
+                    "`adapt()` requires a batched Dataset, a list of "
+                    f"EagerTensors or Numpy arrays as input, got {type(data)}"
                 )
             ds_input = [
                 tf.data.Dataset.from_tensor_slices(x).batch(1) for x in data
             ]
 
         if isinstance(data, tf.data.Dataset):
-            # Validate the datasets to try and ensure we haven't been passed one with
-            # infinite size. That would cause an infinite loop here.
+            # Validate the datasets to try and ensure we haven't been passed one
+            # with infinite size. That would cause an infinite loop here.
             if tf_utils.dataset_is_infinite(data):
                 raise ValueError(
                     "The dataset passed to `adapt()` has an infinite number of "

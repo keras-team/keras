@@ -58,7 +58,7 @@ class BatchNormalizationBase(Layer):
     default), the layer normalizes its output using a moving average of the
     mean and standard deviation of the batches it has seen during training. That
     is to say, it returns
-    `gamma * (batch - self.moving_mean) / sqrt(self.moving_var + epsilon) + beta`.
+    `gamma * (batch - self.moving_mean) / sqrt(self.moving_var+epsilon) + beta`.
 
     `self.moving_mean` and `self.moving_var` are non-trainable variables that
     are updated each time the layer in called in training mode, as such:
@@ -76,11 +76,11 @@ class BatchNormalizationBase(Layer):
         `data_format="channels_first"`, set `axis=1` in `BatchNormalization`.
       momentum: Momentum for the moving average.
       epsilon: Small float added to variance to avoid dividing by zero.
-      center: If True, add offset of `beta` to normalized tensor. If False, `beta`
-        is ignored.
-      scale: If True, multiply by `gamma`. If False, `gamma` is not used. When the
-        next layer is linear (also e.g. `nn.relu`), this can be disabled since the
-        scaling will be done by the next layer.
+      center: If True, add offset of `beta` to normalized tensor. If False,
+        `beta` is ignored.
+      scale: If True, multiply by `gamma`. If False, `gamma` is not used. When
+        the next layer is linear (also e.g. `nn.relu`), this can be disabled
+        since the scaling will be done by the next layer.
       beta_initializer: Initializer for the beta weight.
       gamma_initializer: Initializer for the gamma weight.
       moving_mean_initializer: Initializer for the moving mean.
@@ -91,7 +91,8 @@ class BatchNormalizationBase(Layer):
       gamma_constraint: Optional constraint for the gamma weight.
       renorm: Whether to use [Batch Renormalization](
         https://arxiv.org/abs/1702.03275). This adds extra variables during
-          training. The inference is the same for either value of this parameter.
+          training. The inference is the same for either value of this
+          parameter.
       renorm_clipping: A dictionary that may map keys 'rmax', 'rmin', 'dmax' to
         scalar `Tensors` used to clip the renorm correction. The correction `(r,
         d)` is used as `corrected_value = normalized_value * r + d`, with `r`
@@ -100,23 +101,23 @@ class BatchNormalizationBase(Layer):
       renorm_momentum: Momentum used to update the moving means and standard
         deviations with renorm. Unlike `momentum`, this affects training and
         should be neither too small (which would add noise) nor too large (which
-        would give stale estimates). Note that `momentum` is still applied to get
-        the means and variances for inference.
-      fused: if `True`, use a faster, fused implementation, or raise a ValueError
-        if the fused implementation cannot be used. If `None`, use the faster
-        implementation if possible. If False, do not used the fused
-        implementation.
-        Note that in TensorFlow 1.x, the meaning of `fused=True` is different: if
-          `False`, the layer uses the system-recommended implementation.
+        would give stale estimates). Note that `momentum` is still applied to
+        get the means and variances for inference.
+      fused: if `True`, use a faster, fused implementation, or raise a
+        ValueError if the fused implementation cannot be used. If `None`, use
+        the faster implementation if possible. If False, do not used the fused
+        implementation. Note that in TensorFlow 1.x, the meaning of
+        `fused=True` is different: if `False`, the layer uses the
+        system-recommended implementation.
       trainable: Boolean, if `True` the variables will be marked as trainable.
       virtual_batch_size: An `int`. By default, `virtual_batch_size` is `None`,
-        which means batch normalization is performed across the whole batch. When
-        `virtual_batch_size` is not `None`, instead perform "Ghost Batch
+        which means batch normalization is performed across the whole batch.
+        When `virtual_batch_size` is not `None`, instead perform "Ghost Batch
         Normalization", which creates virtual sub-batches which are each
         normalized separately (with shared gamma, beta, and moving statistics).
         Must divide the actual batch size during execution.
-      adjustment: A function taking the `Tensor` containing the (dynamic) shape of
-        the input tensor and returning a pair (scale, bias) to apply to the
+      adjustment: A function taking the `Tensor` containing the (dynamic) shape
+        of the input tensor and returning a pair (scale, bias) to apply to the
         normalized values (before gamma and beta), only during training. For
         example, if `axis=-1`,
           `adjustment = lambda shape: (
@@ -132,10 +133,10 @@ class BatchNormalizationBase(Layer):
       inputs: Input tensor (of any rank).
       training: Python boolean indicating whether the layer should behave in
         training mode or in inference mode.
-        - `training=True`: The layer will normalize its inputs using the mean and
-          variance of the current batch of inputs.
-        - `training=False`: The layer will normalize its inputs using the mean and
-          variance of its moving statistics, learned during training.
+        - `training=True`: The layer will normalize its inputs using the mean
+          and variance of the current batch of inputs.
+        - `training=False`: The layer will normalize its inputs using the mean
+          and variance of its moving statistics, learned during training.
 
     Input shape: Arbitrary. Use the keyword argument `input_shape` (tuple of
       integers, does not include the samples axis) when using this layer as the
@@ -206,8 +207,9 @@ class BatchNormalizationBase(Layer):
         if self._USE_V2_BEHAVIOR:
             if fused:
                 self._raise_if_fused_cannot_be_used()
-            # We leave fused as None if self._fused_can_be_used()==True, since we
-            # still may set it to False in self.build() if the input rank is not 4.
+            # We leave fused as None if self._fused_can_be_used()==True, since
+            # we still may set it to False in self.build() if the input rank is
+            # not 4.
             elif fused is None and not self._fused_can_be_used():
                 fused = False
         elif fused is None:
@@ -232,17 +234,17 @@ class BatchNormalizationBase(Layer):
     def _raise_if_fused_cannot_be_used(self):
         """Raises a ValueError if fused implementation cannot be used.
 
-        In addition to the checks done in this function, the input tensors rank must
-        be 4 or 5. The input rank check can only be done once the input shape is
-        known.
+        In addition to the checks done in this function, the input tensors rank
+        must be 4 or 5. The input rank check can only be done once the input
+        shape is known.
         """
         # Note the ValueErrors in this function are caught and not reraised in
         # _fused_can_be_used(). No other exception besides ValueError should be
         # raised here.
 
-        # Currently fused batch norm doesn't support renorm. It also only supports a
-        # channel dimension on axis 1 or 3 (rank=4) / 1 or 4 (rank5), when no
-        # virtual batch size or adjustment is used.
+        # Currently fused batch norm doesn't support renorm. It also only
+        # supports a channel dimension on axis 1 or 3 (rank=4) / 1 or 4 (rank5),
+        # when no virtual batch size or adjustment is used.
         if self.renorm:
             raise ValueError(
                 "Passing both `fused=True` and `renorm=True` is "
@@ -250,8 +252,8 @@ class BatchNormalizationBase(Layer):
             )
         axis = [self.axis] if isinstance(self.axis, int) else self.axis
         # Axis -3 is equivalent to 1, and axis -1 is equivalent to 3, when the
-        # input rank is 4. Similarly, the valid axis is -4, -1, 1, 4 when the rank
-        # is 5. The combination of ranks and axes will be checked later.
+        # input rank is 4. Similarly, the valid axis is -4, -1, 1, 4 when the
+        # rank is 5. The combination of ranks and axes will be checked later.
         if len(axis) > 1 or axis[0] not in (-4, -3, -1, 1, 3, 4):
             raise ValueError(
                 "Passing `fused=True` is only supported when axis is 1 "
@@ -303,8 +305,8 @@ class BatchNormalizationBase(Layer):
         if not tf.distribute.has_strategy():
             return False
         strategy = tf.distribute.get_strategy()
-        # TODO(b/195085185): remove experimental_enable_get_next_as_optional after
-        # migrating all users.
+        # TODO(b/195085185): remove experimental_enable_get_next_as_optional
+        # after migrating all users.
         return getattr(
             strategy.extended,
             "enable_partial_batch_handling",
@@ -323,9 +325,9 @@ class BatchNormalizationBase(Layer):
         if self.virtual_batch_size is not None:
             if self.virtual_batch_size <= 0:
                 raise ValueError(
-                    f"`virtual_batch_size` must be a positive integer that divides the "
-                    f"true batch size of the input tensor. Received: "
-                    f"virtual_batch_size={self.virtual_batch_size}"
+                    f"`virtual_batch_size` must be a positive integer that "
+                    f"divides the true batch size of the input tensor. "
+                    f"Received: virtual_batch_size={self.virtual_batch_size}"
                 )
             # If using virtual batches, the first dimension must be the batch
             # dimension and cannot be the batch norm axis
@@ -342,8 +344,8 @@ class BatchNormalizationBase(Layer):
                 )
 
         if self.fused in (None, True):
-            # TODO(yaozhang): if input is not 4D, reshape it to 4D and reshape the
-            # output back to its original shape accordingly.
+            # TODO(yaozhang): if input is not 4D, reshape it to 4D and reshape
+            # the output back to its original shape accordingly.
             if self._USE_V2_BEHAVIOR:
                 if self.fused is None:
                     self.fused = rank in (4, 5)
@@ -357,11 +359,12 @@ class BatchNormalizationBase(Layer):
                 assert self.fused is not None
                 self.fused = rank in (4, 5) and self._fused_can_be_used()
             # TODO(chrisying): fused batch norm is currently not supported for
-            # multi-axis batch norm and by extension virtual batches. In some cases,
-            # it might be possible to use fused batch norm but would require reshaping
-            # the Tensor to 4D with the axis in 1 or 3 (preferred 1) which is
-            # particularly tricky. A compromise might be to just support the most
-            # common use case (turning 5D w/ virtual batch to NCHW)
+            # multi-axis batch norm and by extension virtual batches. In some
+            # cases, it might be possible to use fused batch norm but would
+            # require reshaping the Tensor to 4D with the axis in 1 or 3
+            # (preferred 1) which is particularly tricky. A compromise might be
+            # to just support the most common use case (turning 5D w/ virtual
+            # batch to NCHW)
 
         if self.fused:
             if self.axis == [1] and rank == 4:
@@ -373,21 +376,21 @@ class BatchNormalizationBase(Layer):
             elif self.axis == [4] and rank == 5:
                 self._data_format = "NDHWC"
             elif rank == 5:
-                # 5D tensors that can be passed in but should not use fused batch norm
-                # due to unsupported axis.
+                # 5D tensors that can be passed in but should not use fused
+                # batch norm due to unsupported axis.
                 self.fused = False
             else:
                 if rank == 4:
                     raise ValueError(
-                        "Unsupported axis. The use of `fused=True` is only possible with "
-                        "`axis=1` or `axis=3` for 4D input tensors. Received: "
-                        f"axis={tuple(self.axis)}"
+                        "Unsupported axis. The use of `fused=True` is only "
+                        "possible with `axis=1` or `axis=3` for 4D input "
+                        f"tensors. Received: axis={tuple(self.axis)}"
                     )
                 else:
                     raise ValueError(
-                        "Unsupported axis. The use of `fused=True` is only possible with "
-                        "`axis=1` or `axis=4` for 5D input tensors. Received: "
-                        f"axis={tuple(self.axis)}"
+                        "Unsupported axis. The use of `fused=True` is only "
+                        "possible with `axis=1` or `axis=4` for 5D input "
+                        f"tensors. Received: axis={tuple(self.axis)}"
                     )
 
         axis_to_dim = {x: input_shape.dims[x].value for x in self.axis}
@@ -404,7 +407,8 @@ class BatchNormalizationBase(Layer):
             # Single axis batch norm (most common/default use-case)
             param_shape = (list(axis_to_dim.values())[0],)
         else:
-            # Parameter shape is the original shape but with 1 in all non-axis dims
+            # Parameter shape is the original shape but with 1 in all non-axis
+            # dims
             param_shape = [
                 axis_to_dim[i] if i in axis_to_dim else 1 for i in range(rank)
             ]
@@ -451,7 +455,8 @@ class BatchNormalizationBase(Layer):
                 )
 
         try:
-            # Disable variable partitioning when creating the moving mean and variance
+            # Disable variable partitioning when creating the moving mean and
+            # variance
             if hasattr(self, "_scope") and self._scope:
                 partitioner = self._scope.partitioner
                 self._scope.set_partitioner(None)
@@ -480,8 +485,9 @@ class BatchNormalizationBase(Layer):
             )
 
             if self.renorm:
-                # In batch renormalization we track the inference moving stddev instead
-                # of the moving variance to more closely align with the paper.
+                # In batch renormalization we track the inference moving stddev
+                # instead of the moving variance to more closely align with the
+                # paper.
                 def moving_stddev_initializer(*args, **kwargs):
                     return tf.sqrt(
                         self.moving_variance_initializer(*args, **kwargs)
@@ -501,13 +507,14 @@ class BatchNormalizationBase(Layer):
                         experimental_autocast=False,
                     )
 
-                # Create variables to maintain the moving mean and standard deviation.
-                # These are used in training and thus are different from the moving
-                # averages above. The renorm variables are colocated with moving_mean
-                # and moving_stddev.
-                # NOTE: below, the outer `with device` block causes the current device
-                # stack to be cleared. The nested ones use a `lambda` to set the desired
-                # device and ignore any devices that may be set by the custom getter.
+                # Create variables to maintain the moving mean and standard
+                # deviation.  These are used in training and thus are different
+                # from the moving averages above. The renorm variables are
+                # colocated with moving_mean and moving_stddev.
+                # NOTE: below, the outer `with device` block causes the current
+                # device stack to be cleared. The nested ones use a `lambda` to
+                # set the desired device and ignore any devices that may be set
+                # by the custom getter.
                 def _renorm_variable(name, shape, initializer="zeros"):
                     """Create a renorm variable."""
                     var = self.add_weight(
@@ -579,18 +586,18 @@ class BatchNormalizationBase(Layer):
         beta = self.beta if self.center else self._beta_const
         gamma = self.gamma if self.scale else self._gamma_const
 
-        # TODO(b/129279393): Support zero batch input in non DistributionStrategy
-        # code as well.
+        # TODO(b/129279393): Support zero batch input in non
+        # DistributionStrategy code as well.
         if self._support_zero_size_input():
-            # Keras assumes that batch dimension is the first dimension for Batch
-            # Normalization.
+            # Keras assumes that batch dimension is the first dimension for
+            # Batch Normalization.
             input_batch_size = tf.shape(inputs)[0]
         else:
             input_batch_size = None
 
-        # TODO(rmlarsen): Support using fused avg updates for non-eager execution
-        # after fixing graph pattern matching and enabling fused_batch_norm to
-        # take exponential_avg_factor as a tensor input.
+        # TODO(rmlarsen): Support using fused avg updates for non-eager
+        # execution after fixing graph pattern matching and enabling
+        # fused_batch_norm to take exponential_avg_factor as a tensor input.
         use_fused_avg_updates = (
             tf.compat.v1.executing_eagerly_outside_functions()
             and isinstance(self.momentum, (float, int))
@@ -684,7 +691,8 @@ class BatchNormalizationBase(Layer):
                     )
 
             def variance_update():
-                """Update self.moving_variance with the most recent data point."""
+                """Update self.moving_variance with the most recent data
+                point."""
                 if use_fused_avg_updates:
                     if input_batch_size is not None:
                         new_variance = control_flow_util.smart_cond(
@@ -746,7 +754,8 @@ class BatchNormalizationBase(Layer):
         )
 
         def _update_renorm_variable(var, value, inputs_size):
-            """Updates a moving average and weight, returns the unbiased value."""
+            """Updates a moving average and weight, returns the unbiased
+            value."""
             value = tf.identity(value)
 
             def _do_update():
@@ -785,8 +794,8 @@ class BatchNormalizationBase(Layer):
         mean, variance = self._calculate_mean_and_var(
             inputs, reduction_axes, keep_dims
         )
-        # TODO(b/129279393): Support zero batch input in non DistributionStrategy
-        # code as well.
+        # TODO(b/129279393): Support zero batch input in non
+        # DistributionStrategy code as well.
         if self._support_zero_size_input():
             input_batch_size = tf.shape(inputs)[0]
             mean = tf.where(
@@ -804,8 +813,8 @@ class BatchNormalizationBase(Layer):
             if isinstance(training, int):
                 training = bool(training)
             if not self.trainable:
-                # When the layer is not trainable, it overrides the value passed from
-                # model.
+                # When the layer is not trainable, it overrides the value passed
+                # from model.
                 training = False
         return training
 
@@ -814,8 +823,8 @@ class BatchNormalizationBase(Layer):
         training = self._get_training_value(training)
 
         if self.virtual_batch_size is not None:
-            # Virtual batches (aka ghost batches) can be simulated by reshaping the
-            # Tensor and reusing the existing batch norm implementation
+            # Virtual batches (aka ghost batches) can be simulated by reshaping
+            # the Tensor and reusing the existing batch norm implementation
             original_shape = tf.shape(inputs)
             original_shape = tf.concat(
                 [tf.constant([-1]), original_shape[1:]], axis=0
@@ -828,7 +837,8 @@ class BatchNormalizationBase(Layer):
                 axis=0,
             )
 
-            # Will cause errors if virtual_batch_size does not divide the batch size
+            # Will cause errors if virtual_batch_size does not divide the batch
+            # size
             inputs = tf.reshape(inputs, expanded_shape)
 
             def undo_virtual_batching(outputs):
@@ -838,16 +848,17 @@ class BatchNormalizationBase(Layer):
         if self.fused:
             outputs = self._fused_batch_norm(inputs, training=training)
             if self.virtual_batch_size is not None:
-                # Currently never reaches here since fused_batch_norm does not support
-                # virtual batching
+                # Currently never reaches here since fused_batch_norm does not
+                # support virtual batching
                 outputs = undo_virtual_batching(outputs)
             return outputs
 
         inputs_dtype = inputs.dtype.base_dtype
         if inputs_dtype in (tf.float16, tf.bfloat16):
-            # Do all math in float32 if given 16-bit inputs for numeric stability.
-            # In particular, it's very easy for variance to overflow in float16 and
-            # for safety we also choose to cast bfloat16 to float32.
+            # Do all math in float32 if given 16-bit inputs for numeric
+            # stability.  In particular, it's very easy for variance to overflow
+            # in float16 and for safety we also choose to cast bfloat16 to
+            # float32.
             inputs = tf.cast(inputs, tf.float32)
 
         # Compute the axes along which to reduce the mean / variance
@@ -857,8 +868,8 @@ class BatchNormalizationBase(Layer):
         if self.virtual_batch_size is not None:
             del reduction_axes[1]  # Do not reduce along virtual batch dim
 
-        # Broadcasting only necessary for single-axis batch norm where the axis is
-        # not the last dimension
+        # Broadcasting only necessary for single-axis batch norm where the axis
+        # is not the last dimension
         broadcast_shape = [1] * ndims
         broadcast_shape[self.axis[0]] = input_shape.dims[self.axis[0]].value
 
@@ -881,7 +892,8 @@ class BatchNormalizationBase(Layer):
                 offset += then_offset
             return (scale, offset)
 
-        # Determine a boolean value for `training`: could be True, False, or None.
+        # Determine a boolean value for `training`: could be True, False, or
+        # None.
         training_value = control_flow_util.constant_value(training)
         if (
             training_value == False
@@ -901,8 +913,9 @@ class BatchNormalizationBase(Layer):
                     adj_scale, adj_bias, scale, offset
                 )
 
-            # Some of the computations here are not necessary when training==False
-            # but not a constant. However, this makes the code simpler.
+            # Some of the computations here are not necessary when
+            # training==False but not a constant. However, this makes the code
+            # simpler.
             keep_dims = (
                 self.virtual_batch_size is not None or len(self.axis) > 1
             )
@@ -928,18 +941,19 @@ class BatchNormalizationBase(Layer):
 
             if self.virtual_batch_size is not None:
                 # This isn't strictly correct since in ghost batch norm, you are
-                # supposed to sequentially update the moving_mean and moving_variance
-                # with each sub-batch. However, since the moving statistics are only
-                # used during evaluation, it is more efficient to just update in one
-                # step and should not make a significant difference in the result.
+                # supposed to sequentially update the moving_mean and
+                # moving_variance with each sub-batch. However, since the moving
+                # statistics are only used during evaluation, it is more
+                # efficient to just update in one step and should not make a
+                # significant difference in the result.
                 new_mean = tf.reduce_mean(mean, axis=1, keepdims=True)
                 new_variance = tf.reduce_mean(variance, axis=1, keepdims=True)
             else:
                 new_mean, new_variance = mean, variance
 
             if self._support_zero_size_input():
-                # Keras assumes that batch dimension is the first dimension for Batch
-                # Normalization.
+                # Keras assumes that batch dimension is the first dimension for
+                # Batch Normalization.
                 input_batch_size = tf.shape(inputs)[0]
             else:
                 input_batch_size = None
@@ -953,9 +967,10 @@ class BatchNormalizationBase(Layer):
                 ) = self._renorm_correction_and_moments(
                     new_mean, new_variance, training, input_batch_size
                 )
-                # When training, the normalized values (say, x) will be transformed as
-                # x * gamma + beta without renorm, and (x * r + d) * gamma + beta
-                # = x * (r * gamma) + (d * gamma + beta) with renorm.
+                # When training, the normalized values (say, x) will be
+                # transformed as x * gamma + beta without renorm, and (x * r +
+                # d) * gamma + beta = x * (r * gamma) + (d * gamma + beta) with
+                # renorm.
                 r = _broadcast(tf.stop_gradient(r, name="renorm_r"))
                 d = _broadcast(tf.stop_gradient(d, name="renorm_d"))
                 scale, offset = _compose_transforms(r, d, scale, offset)
@@ -977,15 +992,15 @@ class BatchNormalizationBase(Layer):
                 """Update the moving variance."""
 
                 def true_branch_renorm():
-                    # We apply epsilon as part of the moving_stddev to mirror the training
-                    # code path.
+                    # We apply epsilon as part of the moving_stddev to mirror
+                    # the training code path.
                     moving_stddev = _do_update(
                         self.moving_stddev, tf.sqrt(new_variance + self.epsilon)
                     )
                     return self._assign_new_value(
                         self.moving_variance,
-                        # Apply relu in case floating point rounding causes it to go
-                        # negative.
+                        # Apply relu in case floating point rounding causes it
+                        # to go negative.
                         backend.relu(
                             moving_stddev * moving_stddev - self.epsilon
                         ),
@@ -1053,8 +1068,8 @@ class BatchNormalizationBase(Layer):
             "beta_constraint": constraints.serialize(self.beta_constraint),
             "gamma_constraint": constraints.serialize(self.gamma_constraint),
         }
-        # Only add TensorFlow-specific parameters if they are set, so as to preserve
-        # model compatibility with external Keras.
+        # Only add TensorFlow-specific parameters if they are set, so as to
+        # preserve model compatibility with external Keras.
         if self.renorm:
             config["renorm"] = True
             config["renorm_clipping"] = self.renorm_clipping
@@ -1078,16 +1093,16 @@ class BatchNormalizationBase(Layer):
 class SyncBatchNormalization(BatchNormalizationBase):
     r"""Normalize and scale inputs or activations synchronously across replicas.
 
-    Applies batch normalization to activations of the previous layer at each batch
-    by synchronizing the global batch statistics across all devices that are
-    training the model. For specific details about batch normalization please
-    refer to the `tf.keras.layers.BatchNormalization` layer docs.
+    Applies batch normalization to activations of the previous layer at each
+    batch by synchronizing the global batch statistics across all devices that
+    are training the model. For specific details about batch normalization
+    please refer to the `tf.keras.layers.BatchNormalization` layer docs.
 
     If this layer is used when using tf.distribute strategy to train models
     across devices/workers, there will be an allreduce call to aggregate batch
     statistics across all replicas at every training step. Without tf.distribute
-    strategy, this layer behaves as a regular `tf.keras.layers.BatchNormalization`
-    layer.
+    strategy, this layer behaves as a regular
+    `tf.keras.layers.BatchNormalization` layer.
 
     Example usage:
 
@@ -1187,9 +1202,10 @@ class SyncBatchNormalization(BatchNormalizationBase):
     def _calculate_mean_and_var(self, x, axes, keep_dims):
 
         with backend.name_scope("moments"):
-            # The dynamic range of fp16 is too limited to support the collection of
-            # sufficient statistics. As a workaround we simply perform the operations
-            # on 32-bit floats before converting the mean and variance back to fp16
+            # The dynamic range of fp16 is too limited to support the collection
+            # of sufficient statistics. As a workaround we simply perform the
+            # operations on 32-bit floats before converting the mean and
+            # variance back to fp16
             y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
             replica_ctx = tf.distribute.get_replica_context()
             if replica_ctx:
@@ -1198,9 +1214,10 @@ class SyncBatchNormalization(BatchNormalizationBase):
                     tf.square(y), axis=axes, keepdims=True
                 )
                 batch_size = tf.cast(tf.shape(y)[axes[0]], tf.float32)
-                # TODO(b/163099951): batch the all-reduces once we sort out the ordering
-                # issue for NCCL. We don't have a mechanism to launch NCCL in the same
-                # order in each replica nowadays, so we limit NCCL to batch all-reduces.
+                # TODO(b/163099951): batch the all-reduces once we sort out the
+                # ordering issue for NCCL. We don't have a mechanism to launch
+                # NCCL in the same order in each replica nowadays, so we limit
+                # NCCL to batch all-reduces.
                 y_sum = replica_ctx.all_reduce(
                     tf.distribute.ReduceOp.SUM, local_sum
                 )
@@ -1222,12 +1239,13 @@ class SyncBatchNormalization(BatchNormalizationBase):
                 # var = E(x^2) - E(x)^2
                 variance = y_squared_mean - tf.square(mean)
             else:
-                # Compute true mean while keeping the dims for proper broadcasting.
+                # Compute true mean while keeping the dims for proper
+                # broadcasting.
                 mean = tf.reduce_mean(y, axes, keepdims=True, name="mean")
                 # sample variance, not unbiased variance
                 # Note: stop_gradient does not change the gradient that gets
-                #       backpropagated to the mean from the variance calculation,
-                #       because that gradient is zero
+                # backpropagated to the mean from the variance calculation,
+                # because that gradient is zero
                 variance = tf.reduce_mean(
                     tf.math.squared_difference(y, tf.stop_gradient(mean)),
                     axes,
@@ -1274,7 +1292,7 @@ class BatchNormalization(BatchNormalizationBase):
     default), the layer normalizes its output using a moving average of the
     mean and standard deviation of the batches it has seen during training. That
     is to say, it returns
-    `gamma * (batch - self.moving_mean) / sqrt(self.moving_var + epsilon) + beta`.
+    `gamma * (batch - self.moving_mean) / sqrt(self.moving_var+epsilon) + beta`.
 
     `self.moving_mean` and `self.moving_var` are non-trainable variables that
     are updated each time the layer in called in training mode, as such:
@@ -1292,11 +1310,11 @@ class BatchNormalization(BatchNormalizationBase):
         `data_format="channels_first"`, set `axis=1` in `BatchNormalization`.
       momentum: Momentum for the moving average.
       epsilon: Small float added to variance to avoid dividing by zero.
-      center: If True, add offset of `beta` to normalized tensor. If False, `beta`
-        is ignored.
-      scale: If True, multiply by `gamma`. If False, `gamma` is not used. When the
-        next layer is linear (also e.g. `nn.relu`), this can be disabled since the
-        scaling will be done by the next layer.
+      center: If True, add offset of `beta` to normalized tensor. If False,
+        `beta` is ignored.
+      scale: If True, multiply by `gamma`. If False, `gamma` is not used. When
+        the next layer is linear (also e.g. `nn.relu`), this can be disabled
+        since the scaling will be done by the next layer.
       beta_initializer: Initializer for the beta weight.
       gamma_initializer: Initializer for the gamma weight.
       moving_mean_initializer: Initializer for the moving mean.
@@ -1310,10 +1328,10 @@ class BatchNormalization(BatchNormalizationBase):
       inputs: Input tensor (of any rank).
       training: Python boolean indicating whether the layer should behave in
         training mode or in inference mode.
-        - `training=True`: The layer will normalize its inputs using the mean and
-          variance of the current batch of inputs.
-        - `training=False`: The layer will normalize its inputs using the mean and
-          variance of its moving statistics, learned during training.
+        - `training=True`: The layer will normalize its inputs using the mean
+          and variance of the current batch of inputs.
+        - `training=False`: The layer will normalize its inputs using the mean
+          and variance of its moving statistics, learned during training.
 
     Input shape:
       Arbitrary. Use the keyword argument `input_shape` (tuple of

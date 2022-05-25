@@ -60,8 +60,8 @@ class GRUCell(gru.GRUCell):
       recurrent_constraint: Constraint function applied to
         the `recurrent_kernel` weights matrix.
       bias_constraint: Constraint function applied to the bias vector.
-      dropout: Float between 0 and 1.
-        Fraction of the units to drop for the linear transformation of the inputs.
+      dropout: Float between 0 and 1. Fraction of the units to drop for the
+        linear transformation of the inputs.
       recurrent_dropout: Float between 0 and 1.
         Fraction of the units to drop for
         the linear transformation of the recurrent state.
@@ -146,8 +146,8 @@ class GRU(RNN):
       use_bias: Boolean, whether the layer uses a bias vector.
       kernel_initializer: Initializer for the `kernel` weights matrix,
         used for the linear transformation of the inputs.
-      recurrent_initializer: Initializer for the `recurrent_kernel`
-        weights matrix, used for the linear transformation of the recurrent state.
+      recurrent_initializer: Initializer for the `recurrent_kernel` weights
+        matrix, used for the linear transformation of the recurrent state.
       bias_initializer: Initializer for the bias vector.
       kernel_regularizer: Regularizer function applied to
         the `kernel` weights matrix.

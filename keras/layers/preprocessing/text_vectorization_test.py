@@ -37,9 +37,9 @@ def _get_end_to_end_test_cases():
     test_cases = (
         {
             "testcase_name": "test_simple_tokens_int_mode",
-            # Create an array where 'earth' is the most frequent term, followed by
-            # 'wind', then 'and', then 'fire'. This ensures that the vocab
-            # is sorting by frequency.
+            # Create an array where 'earth' is the most frequent term, followed
+            # by 'wind', then 'and', then 'fire'. This ensures that the vocab is
+            # sorting by frequency.
             "vocab_data": np.array(
                 [
                     ["fire"],
@@ -76,9 +76,9 @@ def _get_end_to_end_test_cases():
         },
         {
             "testcase_name": "test_simple_tokens_int_mode_hard_cap",
-            # Create an array where 'earth' is the most frequent term, followed by
-            # 'wind', then 'and', then 'fire'. This ensures that the vocab
-            # is sorting by frequency.
+            # Create an array where 'earth' is the most frequent term, followed
+            # by 'wind', then 'and', then 'fire'. This ensures that the vocab is
+            # sorting by frequency.
             "vocab_data": np.array(
                 [
                     ["fire"],
@@ -115,8 +115,8 @@ def _get_end_to_end_test_cases():
         },
         {
             "testcase_name": "test_special_tokens_int_mode",
-            # Mask tokens in the vocab data should be ignored, and mapped to 0 in
-            # from the input data.
+            # Mask tokens in the vocab data should be ignored, and mapped to 0
+            # in from the input data.
             "vocab_data": np.array(
                 [
                     ["fire"],
@@ -463,13 +463,14 @@ class TextVectorizationLayerTest(
             # dataset batch separately, then tries to concatenate the results
             # together. When the results have different shapes on the non-concat
             # axis (which can happen in the output_mode = INT case for
-            # TextVectorization), the concatenation fails. In real use cases, this may
-            # not be an issue because users are likely to pipe the preprocessing layer
-            # into other keras layers instead of predicting it directly. A workaround
-            # for these unit tests is to have the dataset only contain one batch, so
-            # no concatenation needs to happen with the result. For consistency with
-            # numpy input, we should make `predict` join differently shaped results
-            # together sensibly, with 0 padding.
+            # TextVectorization), the concatenation fails. In real use cases,
+            # this may not be an issue because users are likely to pipe the
+            # preprocessing layer into other keras layers instead of predicting
+            # it directly. A workaround for these unit tests is to have the
+            # dataset only contain one batch, so no concatenation needs to
+            # happen with the result. For consistency with numpy input, we
+            # should make `predict` join differently shaped results together
+            # sensibly, with 0 padding.
             input_data = tf.data.Dataset.from_tensor_slices(input_data).batch(
                 input_shape[0]
             )
@@ -738,8 +739,8 @@ class TextVectorizationPreprocessingTest(
         )
         int_data = layer(input_data)
         model = keras.Model(inputs=input_data, outputs=int_data)
-        # We are testing that model.summary() can be called without erroring out.
-        # (b/145726907)
+        # We are testing that model.summary() can be called without erroring
+        # out. (b/145726907)
         model.summary()
 
     @parameterized.parameters([list, np.array, tf.constant, tf.ragged.constant])
@@ -1291,9 +1292,9 @@ class TextVectorizationOutputTest(
 
     def test_int_output_densifies_with_zeros(self):
         vocab_data = ["earth", "wind", "and", "fire"]
-        # Create an input array that has 5 elements in the first example and 4 in
-        # the second. This should output a 2x5 tensor with a padding value in the
-        # second example.
+        # Create an input array that has 5 elements in the first example and 4
+        # in the second. This should output a 2x5 tensor with a padding value in
+        # the second example.
         input_array = np.array(
             [["earth wind and also fire"], ["fire and earth michigan"]]
         )
@@ -1321,8 +1322,8 @@ class TextVectorizationOutputTest(
 
     def test_int_output_ragged(self):
         vocab_data = ["earth", "wind", "and", "fire"]
-        # Create an input array that has 5 elements in the first example and 4 in
-        # the second.
+        # Create an input array that has 5 elements in the first example and 4
+        # in the second.
         input_array = np.array(
             [["earth wind and also fire"], ["fire and earth michigan"]]
         )
@@ -1348,9 +1349,9 @@ class TextVectorizationOutputTest(
 
     def test_int_output_densifies_with_zeros_and_pads(self):
         vocab_data = ["earth", "wind", "and", "fire"]
-        # Create an input array that has 5 elements in the first example and 4 in
-        # the second. This should output a 2x6 tensor with a padding value in the
-        # second example, since output_sequence_length is set to 6.
+        # Create an input array that has 5 elements in the first example and 4
+        # in the second. This should output a 2x6 tensor with a padding value in
+        # the second example, since output_sequence_length is set to 6.
         input_array = np.array(
             [["earth wind and also fire"], ["fire and earth michigan"]]
         )
@@ -1378,9 +1379,9 @@ class TextVectorizationOutputTest(
 
     def test_int_output_densifies_with_zeros_and_strips(self):
         vocab_data = ["earth", "wind", "and", "fire"]
-        # Create an input array that has 5 elements in the first example and 4 in
-        # the second. This should output a 2x3 tensor with a padding value in the
-        # second example, since output_sequence_length is set to 3.
+        # Create an input array that has 5 elements in the first example and 4
+        # in the second. This should output a 2x3 tensor with a padding value in
+        # the second example, since output_sequence_length is set to 3.
         input_array = np.array(
             [["earth wind and also fire"], ["fire and earth michigan"]]
         )
@@ -1407,9 +1408,9 @@ class TextVectorizationOutputTest(
 
     def test_int_output_dynamically_strips_and_pads(self):
         vocab_data = ["earth", "wind", "and", "fire"]
-        # Create an input array that has 5 elements in the first example and 4 in
-        # the second. This should output a 2x3 tensor with a padding value in the
-        # second example, since output_sequence_length is set to 3.
+        # Create an input array that has 5 elements in the first example and 4
+        # in the second. This should output a 2x3 tensor with a padding value in
+        # the second example, since output_sequence_length is set to 3.
         input_array = np.array(
             [["earth wind and also fire"], ["fire and earth michigan"]]
         )
@@ -1435,8 +1436,8 @@ class TextVectorizationOutputTest(
         self.assertAllEqual(expected_output, output_dataset)
 
         # Create an input array that has 1 element in the first example and 2 in
-        # the second. This should output a 2x3 tensor with a padding value in the
-        # second example, since output_sequence_length is set to 3.
+        # the second. This should output a 2x3 tensor with a padding value in
+        # the second example, since output_sequence_length is set to 3.
         input_array_2 = np.array([["wind"], ["fire and"]])
         expected_output_2 = [[3, 0, 0], [5, 4, 0]]
         output_dataset = model.predict(input_array_2)
@@ -2241,8 +2242,8 @@ class TextVectorizationSavingTest(
 
         model.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
 
         loaded_model = keras.models.load_model(output_path)
@@ -2285,8 +2286,8 @@ class TextVectorizationSavingTest(
         output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
         outer_model.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
 
         loaded_model = keras.models.load_model(output_path)
@@ -2330,8 +2331,8 @@ class TextVectorizationSavingTest(
 
         model.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
 
         loaded_model = keras.models.load_model(output_path)

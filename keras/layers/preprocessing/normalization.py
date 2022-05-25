@@ -33,8 +33,9 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     """A preprocessing layer which normalizes continuous features.
 
     This layer will shift and scale inputs into a distribution centered around
-    0 with standard deviation 1. It accomplishes this by precomputing the mean and
-    variance of the data, and calling `(input - mean) / sqrt(var)` at runtime.
+    0 with standard deviation 1. It accomplishes this by precomputing the mean
+    and variance of the data, and calling `(input - mean) / sqrt(var)` at
+    runtime.
 
     The mean and variance values for the layer must be either supplied on
     construction or learned via `adapt()`. `adapt()` will compute the mean and
@@ -48,21 +49,21 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         axis: Integer, tuple of integers, or None. The axis or axes that should
           have a separate mean and variance for each index in the shape. For
           example, if shape is `(None, 5)` and `axis=1`, the layer will track 5
-          separate mean and variance values for the last axis. If `axis` is set to
-          `None`, the layer will normalize all elements in the input by a scalar
-          mean and variance. Defaults to -1, where the last axis of the input is
-          assumed to be a feature dimension and is normalized per index. Note that
-          in the specific case of batched scalar inputs where the only axis is the
-          batch axis, the default will normalize each index in the batch
-          separately. In this case, consider passing `axis=None`.
+          separate mean and variance values for the last axis. If `axis` is set
+          to `None`, the layer will normalize all elements in the input by a
+          scalar mean and variance. Defaults to -1, where the last axis of the
+          input is assumed to be a feature dimension and is normalized per
+          index. Note that in the specific case of batched scalar inputs where
+          the only axis is the batch axis, the default will normalize each index
+          in the batch separately. In this case, consider passing `axis=None`.
         mean: The mean value(s) to use during normalization. The passed value(s)
           will be broadcast to the shape of the kept axes above; if the value(s)
-          cannot be broadcast, an error will be raised when this layer's `build()`
-          method is called.
+          cannot be broadcast, an error will be raised when this layer's
+          `build()` method is called.
         variance: The variance value(s) to use during normalization. The passed
           value(s) will be broadcast to the shape of the kept axes above; if the
-          value(s) cannot be broadcast, an error will be raised when this layer's
-          `build()` method is called.
+          value(s) cannot be broadcast, an error will be raised when this
+          layer's `build()` method is called.
         invert: If True, this layer will apply the inverse transformation
           to its inputs: it would turn a normalized input back into its
           original form.
@@ -183,7 +184,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         for d in self._keep_axis:
             if input_shape[d] is None:
                 raise ValueError(
-                    "All `axis` values to be kept must have known shape. Got axis: {}, "
+                    "All `axis` values to be kept must have known shape. "
+                    "Got axis: {}, "
                     "input shape: {}, with unknown axis at index: {}".format(
                         self.axis, input_shape, d
                     )
@@ -224,8 +226,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
             )
             self.finalize_state()
         else:
-            # In the no adapt case, make constant tensors for mean and variance with
-            # proper broadcast shape for use during call.
+            # In the no adapt case, make constant tensors for mean and variance
+            # with proper broadcast shape for use during call.
             mean = self.input_mean * np.ones(mean_and_var_shape)
             variance = self.input_variance * np.ones(mean_and_var_shape)
             mean = tf.reshape(mean, self._broadcast_shape)
@@ -237,26 +239,27 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     def adapt(self, data, batch_size=None, steps=None):
         """Computes the mean and variance of values in a dataset.
 
-        Calling `adapt()` on a `Normalization` layer is an alternative to passing in
-        `mean` and `variance` arguments during layer construction. A `Normalization`
-        layer should always either be adapted over a dataset or passed `mean` and
-        `variance`.
+        Calling `adapt()` on a `Normalization` layer is an alternative to
+        passing in `mean` and `variance` arguments during layer construction. A
+        `Normalization` layer should always either be adapted over a dataset or
+        passed `mean` and `variance`.
 
-        During `adapt()`, the layer will compute a `mean` and `variance` separately
-        for each position in each axis specified by the `axis` argument. To
-        calculate a single `mean` and `variance` over the input data, simply pass
-        `axis=None`.
+        During `adapt()`, the layer will compute a `mean` and `variance`
+        separately for each position in each axis specified by the `axis`
+        argument. To calculate a single `mean` and `variance` over the input
+        data, simply pass `axis=None`.
 
-        In order to make `Normalization` efficient in any distribution context, the
-        computed mean and variance are kept static with respect to any compiled
-        `tf.Graph`s that call the layer. As a consequence, if the layer is adapted a
-        second time, any models using the layer should be re-compiled. For more
-        information see
+        In order to make `Normalization` efficient in any distribution context,
+        the computed mean and variance are kept static with respect to any
+        compiled `tf.Graph`s that call the layer. As a consequence, if the layer
+        is adapted a second time, any models using the layer should be
+        re-compiled. For more information see
         `tf.keras.layers.experimental.preprocessing.PreprocessingLayer.adapt`.
 
-        `adapt()` is meant only as a single machine utility to compute layer state.
-        To analyze a dataset that cannot fit on a single machine, see
-        [Tensorflow Transform](https://www.tensorflow.org/tfx/transform/get_started)
+        `adapt()` is meant only as a single machine utility to compute layer
+        state.  To analyze a dataset that cannot fit on a single machine, see
+        [Tensorflow Transform](
+        https://www.tensorflow.org/tfx/transform/get_started)
         for a multi-machine, map-reduce solution.
 
         Arguments:
@@ -285,7 +288,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         if self.input_mean is not None:
             raise ValueError(
                 "Cannot `adapt` a Normalization layer that is initialized with "
-                "static `mean` and `variance`, you passed mean {} and variance {}.".format(
+                "static `mean` and `variance`, "
+                "you passed mean {} and variance {}.".format(
                     self.input_mean, self.input_variance
                 )
             )
@@ -313,7 +317,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
             self.adapt_mean * existing_weight + batch_mean * batch_weight
         )
         # The variance is computed using the lack-of-fit sum of squares
-        # formula (see https://en.wikipedia.org/wiki/Lack-of-fit_sum_of_squares).
+        # formula (see
+        # https://en.wikipedia.org/wiki/Lack-of-fit_sum_of_squares).
         total_variance = (
             self.adapt_variance + (self.adapt_mean - total_mean) ** 2
         ) * existing_weight + (

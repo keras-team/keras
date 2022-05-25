@@ -81,34 +81,34 @@ class GRUCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         used for the linear transformation of the inputs. Default:
         `glorot_uniform`.
       recurrent_initializer: Initializer for the `recurrent_kernel`
-        weights matrix, used for the linear transformation of the recurrent state.
-        Default: `orthogonal`.
+        weights matrix, used for the linear transformation of the recurrent
+        state.  Default: `orthogonal`.
       bias_initializer: Initializer for the bias vector. Default: `zeros`.
       kernel_regularizer: Regularizer function applied to the `kernel` weights
         matrix. Default: `None`.
       recurrent_regularizer: Regularizer function applied to the
         `recurrent_kernel` weights matrix. Default: `None`.
-      bias_regularizer: Regularizer function applied to the bias vector. Default:
-        `None`.
+      bias_regularizer: Regularizer function applied to the bias vector.
+        Default: `None`.
       kernel_constraint: Constraint function applied to the `kernel` weights
         matrix. Default: `None`.
-      recurrent_constraint: Constraint function applied to the `recurrent_kernel`
-        weights matrix. Default: `None`.
+      recurrent_constraint: Constraint function applied to the
+        `recurrent_kernel` weights matrix. Default: `None`.
       bias_constraint: Constraint function applied to the bias vector. Default:
         `None`.
       dropout: Float between 0 and 1. Fraction of the units to drop for the
         linear transformation of the inputs. Default: 0.
-      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop for
-        the linear transformation of the recurrent state. Default: 0.
+      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop
+        for the linear transformation of the recurrent state. Default: 0.
       reset_after: GRU convention (whether to apply reset gate after or
         before matrix multiplication). False = "before",
         True = "after" (default and cuDNN compatible).
 
     Call arguments:
       inputs: A 2D tensor, with shape of `[batch, feature]`.
-      states: A 2D tensor with shape of `[batch, units]`, which is the state from
-        the previous time step. For timestep 0, the initial state provided by user
-        will be feed to cell.
+      states: A 2D tensor with shape of `[batch, units]`, which is the state
+        from the previous time step. For timestep 0, the initial state provided
+        by user will be feed to cell.
       training: Python boolean indicating whether the layer should behave in
         training mode or in inference mode. Only relevant when `dropout` or
         `recurrent_dropout` is used.
@@ -205,9 +205,9 @@ class GRUCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
                 bias_shape = (3 * self.units,)
             else:
                 # separate biases for input and recurrent kernels
-                # Note: the shape is intentionally different from CuDNNGRU biases
-                # `(2 * 3 * self.units,)`, so that we can distinguish the classes
-                # when loading and converting saved weights.
+                # Note: the shape is intentionally different from CuDNNGRU
+                # biases `(2 * 3 * self.units,)`, so that we can distinguish the
+                # classes when loading and converting saved weights.
                 bias_shape = (2, 3 * self.units)
             self.bias = self.add_weight(
                 shape=bias_shape,
@@ -413,9 +413,9 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
     7. Inputs, if use masking, are strictly right-padded.
     8. Eager execution is enabled in the outermost context.
 
-    There are two variants of the GRU implementation. The default one is based on
-    [v3](https://arxiv.org/abs/1406.1078v3) and has reset gate applied to hidden
-    state before matrix multiplication. The other one is based on
+    There are two variants of the GRU implementation. The default one is based
+    on [v3](https://arxiv.org/abs/1406.1078v3) and has reset gate applied to
+    hidden state before matrix multiplication. The other one is based on
     [original](https://arxiv.org/abs/1406.1078v1) and has the order reversed.
 
     The second variant is compatible with CuDNNGRU (GPU-only) and allows
@@ -460,20 +460,20 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
         matrix. Default: `None`.
       recurrent_regularizer: Regularizer function applied to the
         `recurrent_kernel` weights matrix. Default: `None`.
-      bias_regularizer: Regularizer function applied to the bias vector. Default:
-        `None`.
+      bias_regularizer: Regularizer function applied to the bias vector.
+        Default: `None`.
       activity_regularizer: Regularizer function applied to the output of the
         layer (its "activation"). Default: `None`.
       kernel_constraint: Constraint function applied to the `kernel` weights
         matrix. Default: `None`.
-      recurrent_constraint: Constraint function applied to the `recurrent_kernel`
-        weights matrix. Default: `None`.
+      recurrent_constraint: Constraint function applied to the
+        `recurrent_kernel` weights matrix. Default: `None`.
       bias_constraint: Constraint function applied to the bias vector. Default:
         `None`.
-      dropout: Float between 0 and 1. Fraction of the units to drop for the linear
-        transformation of the inputs. Default: 0.
-      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop for
-        the linear transformation of the recurrent state. Default: 0.
+      dropout: Float between 0 and 1. Fraction of the units to drop for the
+        linear transformation of the inputs. Default: 0.
+      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop
+        for the linear transformation of the recurrent state. Default: 0.
       return_sequences: Boolean. Whether to return the last output
         in the output sequence, or the full sequence. Default: `False`.
       return_state: Boolean. Whether to return the last state in addition to the
@@ -607,8 +607,8 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
             and tf.compat.v1.executing_eagerly_outside_functions()
         )
         if tf.config.list_logical_devices("GPU"):
-            # Only show the message when there is GPU available, user will not care
-            # about the cuDNN if there isn't any GPU.
+            # Only show the message when there is GPU available, user will not
+            # care about the cuDNN if there isn't any GPU.
             if self._could_use_gpu_kernel:
                 logging.debug(gru_lstm_utils.CUDNN_AVAILABLE_MSG % self.name)
             else:
@@ -812,7 +812,8 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
     ):
         # Use the new defun approach for backend implementation swap.
         # Note that different implementations need to have same function
-        # signature, eg, the tensor parameters need to have same shape and dtypes.
+        # signature, eg, the tensor parameters need to have same shape and
+        # dtypes.
 
         self.reset_dropout_mask()
         dropout_mask = self.get_dropout_mask_for_cell(inputs, training, count=3)
@@ -865,7 +866,8 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
             if tf.executing_eagerly():
                 device_type = gru_lstm_utils.get_context_device_type()
                 can_use_gpu = (
-                    # Either user specified GPU or unspecified but GPU is available.
+                    # Either user specified GPU or unspecified but GPU is
+                    # available.
                     (
                         device_type == gru_lstm_utils.GPU_DEVICE_NAME
                         or (
@@ -928,19 +930,19 @@ def standard_gru(
       init_h: Initial state tensor for the cell output.
       kernel: Weights for cell kernel.
       recurrent_kernel: Weights for cell recurrent kernel.
-      bias: Weights for cell kernel bias and recurrent bias. The bias contains the
-        combined input_bias and recurrent_bias.
+      bias: Weights for cell kernel bias and recurrent bias. The bias contains
+        the combined input_bias and recurrent_bias.
       mask: Binary tensor of shape `(samples, timesteps)` indicating whether
         a given timestep should be masked. An individual `True` entry indicates
-        that the corresponding timestep should be utilized, while a `False` entry
-        indicates that the corresponding timestep should be ignored.
+        that the corresponding timestep should be utilized, while a `False`
+        entry indicates that the corresponding timestep should be ignored.
       time_major: Boolean, whether the inputs are in the format of
         [time, batch, feature] or [batch, time, feature].
       go_backwards: Boolean (default False). If True, process the input sequence
         backwards and return the reversed sequence.
-      sequence_lengths: The lengths of all sequences coming from a variable length
-        input, such as ragged tensors. If the input has a fixed timestep size,
-        this should be None.
+      sequence_lengths: The lengths of all sequences coming from a variable
+        length input, such as ragged tensors. If the input has a fixed timestep
+        size, this should be None.
       zero_output_for_mask: Boolean, whether to output zero for masked timestep.
       return_sequences: Boolean. If True, return the recurrent outputs for all
         timesteps in the sequence. If False, only return the output for the
@@ -1044,9 +1046,10 @@ def gpu_gru(
     bias = tf.split(backend.flatten(bias), 6)
 
     if tf.sysconfig.get_build_info()["is_cuda_build"]:
-        # Note that the gate order for cuDNN is different from the canonical format.
-        # canonical format is [z, r, h], whereas cuDNN is [r, z, h]. The swap need
-        # to be done for kernel, recurrent_kernel, input_bias, recurrent_bias.
+        # Note that the gate order for cuDNN is different from the canonical
+        # format.  canonical format is [z, r, h], whereas cuDNN is [r, z, h].
+        # The swap need to be done for kernel, recurrent_kernel, input_bias,
+        # recurrent_bias.
         # z is update gate weights.
         # r is reset gate weights.
         # h is output gate weights.
@@ -1112,11 +1115,11 @@ def gpu_gru(
     h = tf.squeeze(h, axis=seq_axis)
 
     # In the case of variable length input, the cudnn kernel will fill zeros for
-    # the output, whereas the default keras behavior is to bring over the previous
-    # output for t-1, so that in the return_sequence=False case, user can quickly
-    # get the final effect output instead just 0s at the last timestep.
-    # In order to mimic the default keras behavior, we copy the final h state as
-    # the last_output, since it is numerically same as the output.
+    # the output, whereas the default keras behavior is to bring over the
+    # previous output for t-1, so that in the return_sequence=False case, user
+    # can quickly get the final effect output instead just 0s at the last
+    # timestep.  In order to mimic the default keras behavior, we copy the final
+    # h state as the last_output, since it is numerically same as the output.
     if sequence_lengths is not None:
         last_output = h
 
@@ -1165,15 +1168,15 @@ def gru_with_backend_selection(
         is used in this case.
       mask: Boolean tensor for mask out the steps within sequence.
         An individual `True` entry indicates that the corresponding timestep
-        should be utilized, while a `False` entry indicates that the corresponding
-        timestep should be ignored.
+        should be utilized, while a `False` entry indicates that the
+        corresponding timestep should be ignored.
       time_major: Boolean, whether the inputs are in the format of
         [time, batch, feature] or [batch, time, feature].
       go_backwards: Boolean (default False). If True, process the input sequence
         backwards and return the reversed sequence.
-      sequence_lengths: The lengths of all sequences coming from a variable length
-        input, such as ragged tensors. If the input has a fixed timestep size,
-        this should be None.
+      sequence_lengths: The lengths of all sequences coming from a variable
+        length input, such as ragged tensors. If the input has a fixed timestep
+        size, this should be None.
       zero_output_for_mask: Boolean, whether to output zero for masked timestep.
       return_sequences: Boolean. If True, return the recurrent outputs for all
         timesteps in the sequence. If False, only return the output for the

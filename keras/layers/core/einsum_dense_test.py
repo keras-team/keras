@@ -277,7 +277,8 @@ class TestEinsumDenseLayer(test_combinations.TestCase):
         expected_bias_shape,
         expected_output_shape,
     ):
-        # Keras elides the 0-dimension of the input shape when constructing inputs.
+        # Keras elides the 0-dimension of the input shape when constructing
+        # inputs.
         non_batch_input_shape = list(input_shape)[1:]
 
         input_tensor = keras.Input(shape=non_batch_input_shape)

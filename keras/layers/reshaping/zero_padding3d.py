@@ -62,17 +62,17 @@ class ZeroPadding3D(Layer):
     Input shape:
       5D tensor with shape:
       - If `data_format` is `"channels_last"`:
-          `(batch_size, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad,
-            depth)`
+          `(batch_size, first_axis_to_pad, second_axis_to_pad,
+          third_axis_to_pad, depth)`
       - If `data_format` is `"channels_first"`:
           `(batch_size, depth, first_axis_to_pad, second_axis_to_pad,
-            third_axis_to_pad)`
+          third_axis_to_pad)`
 
     Output shape:
       5D tensor with shape:
       - If `data_format` is `"channels_last"`:
-          `(batch_size, first_padded_axis, second_padded_axis, third_axis_to_pad,
-            depth)`
+          `(batch_size, first_padded_axis, second_padded_axis,
+          third_axis_to_pad, depth)`
       - If `data_format` is `"channels_first"`:
           `(batch_size, depth, first_padded_axis, second_padded_axis,
             third_axis_to_pad)`

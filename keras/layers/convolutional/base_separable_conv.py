@@ -31,26 +31,28 @@ class SeparableConv(Conv):
     channels, followed by a pointwise convolution that mixes channels.
     If `use_bias` is True and a bias initializer is provided,
     it adds a bias vector to the output.
-    It then optionally applies an activation function to produce the final output.
+    It then optionally applies an activation function to produce the final
+    output.
 
     Args:
-      rank: An integer, the rank of the convolution, e.g. "2" for 2D convolution.
+      rank: An integer, the rank of the convolution, e.g. "2" for 2D
+        convolution.
       filters: Integer, the dimensionality of the output space (i.e. the number
         of filters in the convolution).
       kernel_size: A tuple or list of integers specifying the spatial
         dimensions of the filters. Can be a single integer to specify the same
         value for all spatial dimensions.
       strides: A tuple or list of integers specifying the strides
-        of the convolution. Can be a single integer to specify the same value for
-        all spatial dimensions.
+        of the convolution. Can be a single integer to specify the same value
+        for all spatial dimensions.
         Specifying any `stride` value != 1 is incompatible with specifying
         any `dilation_rate` value != 1.
       padding: One of `"valid"` or `"same"` (case-insensitive).
-        `"valid"` means no padding. `"same"` results in padding with zeros evenly
-        to the left/right or up/down of the input such that output has the same
-        height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+        `"valid"` means no padding. `"same"` results in padding with zeros
+        evenly to the left/right or up/down of the input such that output has
+        the same height/width dimension as the input.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`.  The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch_size, ..., channels)` while `channels_first` corresponds to
         inputs with shape `(batch_size, channels, ...)`.

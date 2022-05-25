@@ -32,21 +32,21 @@ class ConvLSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
 
     Args:
       rank: Integer, rank of the convolution, e.g. "2" for 2D convolutions.
-      filters: Integer, the dimensionality of the output space (i.e. the number of
-        output filters in the convolution).
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of output filters in the convolution).
       kernel_size: An integer or tuple/list of n integers, specifying the
         dimensions of the convolution window.
       strides: An integer or tuple/list of n integers, specifying the strides of
         the convolution. Specifying any stride value != 1 is incompatible with
         specifying any `dilation_rate` value != 1.
-      padding: One of `"valid"` or `"same"` (case-insensitive). `"valid"` means no
-        padding. `"same"` results in padding evenly to the left/right or up/down
-        of the input such that output has the same height/width dimension as the
-        input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        It defaults to the `image_data_format` value found in your Keras config
-        file at `~/.keras/keras.json`. If you never set it, then it will be
-        "channels_last".
+      padding: One of `"valid"` or `"same"` (case-insensitive). `"valid"` means
+        no padding. `"same"` results in padding evenly to the left/right or
+        up/down of the input such that output has the same height/width
+        dimension as the input.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`.  It defaults to the `image_data_format` value found in
+        your Keras config file at `~/.keras/keras.json`. If you never set it,
+        then it will be "channels_last".
       dilation_rate: An integer or tuple/list of n integers, specifying the
         dilation rate to use for dilated convolution. Currently, specifying any
         `dilation_rate` value != 1 is incompatible with specifying any `strides`
@@ -61,10 +61,10 @@ class ConvLSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
       recurrent_initializer: Initializer for the `recurrent_kernel` weights
         matrix, used for the linear transformation of the recurrent state.
       bias_initializer: Initializer for the bias vector.
-      unit_forget_bias: Boolean. If True, add 1 to the bias of the forget gate at
-        initialization. Use in combination with `bias_initializer="zeros"`. This
-        is recommended in [Jozefowicz et al., 2015](
-          http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+      unit_forget_bias: Boolean. If True, add 1 to the bias of the forget gate
+      at initialization. Use in combination with `bias_initializer="zeros"`.
+      This is recommended in [Jozefowicz et al., 2015](
+      http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
       kernel_regularizer: Regularizer function applied to the `kernel` weights
         matrix.
       recurrent_regularizer: Regularizer function applied to the
@@ -72,13 +72,13 @@ class ConvLSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
       bias_regularizer: Regularizer function applied to the bias vector.
       kernel_constraint: Constraint function applied to the `kernel` weights
         matrix.
-      recurrent_constraint: Constraint function applied to the `recurrent_kernel`
-        weights matrix.
+      recurrent_constraint: Constraint function applied to the
+        `recurrent_kernel` weights matrix.
       bias_constraint: Constraint function applied to the bias vector.
-      dropout: Float between 0 and 1. Fraction of the units to drop for the linear
-        transformation of the inputs.
-      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop for
-        the linear transformation of the recurrent state.
+      dropout: Float between 0 and 1. Fraction of the units to drop for the
+        linear transformation of the inputs.
+      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop
+        for the linear transformation of the recurrent state.
     Call arguments:
       inputs: A (2+ `rank`)D tensor.
       states:  List of state tensors corresponding to the previous timestep.
@@ -161,8 +161,9 @@ class ConvLSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
             channel_axis = -1
         if input_shape[channel_axis] is None:
             raise ValueError(
-                "The channel dimension of the inputs (last axis) should be defined. "
-                f"Found None. Full input shape received: input_shape={input_shape}"
+                "The channel dimension of the inputs (last axis) should be "
+                "defined. Found None. Full input shape received: "
+                f"input_shape={input_shape}"
             )
         input_dim = input_shape[channel_axis]
         self.kernel_shape = self.kernel_size + (input_dim, self.filters * 4)

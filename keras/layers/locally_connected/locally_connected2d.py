@@ -58,27 +58,27 @@ class LocallyConnected2D(Layer):
     ```
 
     Args:
-        filters: Integer, the dimensionality of the output space (i.e. the number
-          of output filters in the convolution).
-        kernel_size: An integer or tuple/list of 2 integers, specifying the width
-          and height of the 2D convolution window. Can be a single integer to
-          specify the same value for all spatial dimensions.
-        strides: An integer or tuple/list of 2 integers, specifying the strides of
-          the convolution along the width and height. Can be a single integer to
-          specify the same value for all spatial dimensions.
+        filters: Integer, the dimensionality of the output space (i.e. the
+          number of output filters in the convolution).
+        kernel_size: An integer or tuple/list of 2 integers, specifying the
+          width and height of the 2D convolution window. Can be a single integer
+          to specify the same value for all spatial dimensions.
+        strides: An integer or tuple/list of 2 integers, specifying the strides
+          of the convolution along the width and height. Can be a single integer
+          to specify the same value for all spatial dimensions.
         padding: Currently only support `"valid"` (case-insensitive). `"same"`
           will be supported in future. `"valid"` means no padding.
         data_format: A string, one of `channels_last` (default) or
           `channels_first`. The ordering of the dimensions in the inputs.
-          `channels_last` corresponds to inputs with shape `(batch, height, width,
-          channels)` while `channels_first` corresponds to inputs with shape
+          `channels_last` corresponds to inputs with shape `(batch, height,
+            width, channels)` while `channels_first` corresponds to inputs with
+            shape
           `(batch, channels, height, width)`. It defaults to the
           `image_data_format` value found in your Keras config file at
           `~/.keras/keras.json`. If you never set it, then it will be
           "channels_last".
-        activation: Activation function to use. If you don't specify anything, no
-          activation is applied
-            (ie. "linear" activation: `a(x) = x`).
+        activation: Activation function to use. If you don't specify anything,
+          no activation is applied (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix.
         bias_initializer: Initializer for the bias vector.
@@ -106,12 +106,12 @@ class LocallyConnected2D(Layer):
               ratio `filters * input_filters * np.prod(kernel_size) /
               (np.prod(input_size) * np.prod(strides))`, where inputs to and
               outputs of the layer are assumed to have shapes `input_size +
-              (input_filters,)`, `output_size + (filters,)` respectively.  It is
-              recommended to benchmark each in the setting of interest to pick the
-              most efficient one (in terms of speed and memory usage). Correct
-              choice of implementation can lead to dramatic speed improvements
-              (e.g. 50X), potentially at the expense of RAM.  Also, only
-              `padding="valid"` is supported by `implementation=1`.
+              (input_filters,)`, `output_size + (filters,)` respectively. It is
+              recommended to benchmark each in the setting of interest to pick
+              the most efficient one (in terms of speed and memory usage).
+              Correct choice of implementation can lead to dramatic speed
+              improvements (e.g. 50X), potentially at the expense of RAM. Also,
+              only `padding="valid"` is supported by `implementation=1`.
     Input shape:
         4D tensor with shape: `(samples, channels, rows, cols)` if
           data_format='channels_first'
@@ -121,8 +121,8 @@ class LocallyConnected2D(Layer):
         4D tensor with shape: `(samples, filters, new_rows, new_cols)` if
           data_format='channels_first'
         or 4D tensor with shape: `(samples, new_rows, new_cols, filters)` if
-          data_format='channels_last'. `rows` and `cols` values might have changed
-          due to padding.
+          data_format='channels_last'. `rows` and `cols` values might have
+          changed due to padding.
     """
 
     def __init__(

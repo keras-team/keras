@@ -30,7 +30,8 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         ("key_value_different_proj", 32, 60, [40, 60]),
     )
     def test_non_masked_attention(self, value_dim, output_shape, output_dims):
-        """Test that the attention layer can be created without a mask tensor."""
+        """Test that the attention layer can be created without a mask
+        tensor."""
         test_layer = keras.layers.MultiHeadAttention(
             num_heads=12,
             key_dim=64,
@@ -92,19 +93,20 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         from_data = 10 * np.random.random_sample((batch_size, 4, 8))
         to_data = 10 * np.random.random_sample((batch_size, 2, 8))
 
-        # Invoke the data with a random set of mask data. This should mask at least
-        # one element.
+        # Invoke the data with a random set of mask data. This should mask at
+        # least one element.
         mask_data = np.random.randint(2, size=(batch_size, 4, 2))
         masked_output_data = model.predict([from_data, to_data, mask_data])
 
-        # Invoke the same data, but with a null mask (where no elements are masked).
+        # Invoke the same data, but with a null mask (where no elements are
+        # masked).
         null_mask_data = np.ones((batch_size, 4, 2))
         unmasked_output_data = model.predict(
             [from_data, to_data, null_mask_data]
         )
 
-        # Because one data is masked and one is not, the outputs should not be the
-        # same.
+        # Because one data is masked and one is not, the outputs should not be
+        # the same.
         self.assertNotAllClose(masked_output_data, unmasked_output_data)
 
         # Tests the layer with three inputs: Q, K, V.
@@ -120,8 +122,8 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         unmasked_output_data = model.predict(
             [from_data, to_data, to_data, null_mask_data]
         )
-        # Because one data is masked and one is not, the outputs should not be the
-        # same.
+        # Because one data is masked and one is not, the outputs should not be
+        # the same.
         self.assertNotAllClose(masked_output_data, unmasked_output_data)
 
         if use_bias:
@@ -143,8 +145,8 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         output = test_layer(query, query)
         self.assertEqual(output.shape.as_list(), [None, 40, 80])
 
-        # Make sure the sub layers have different kernel init value, and not reusing
-        # the initializers.
+        # Make sure the sub layers have different kernel init value, and not
+        # reusing the initializers.
         self.assertNotAllClose(
             keras.backend.eval(test_layer._query_dense.kernel),
             keras.backend.eval(test_layer._key_dense.kernel),
@@ -177,19 +179,20 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         from_data = 10 * np.random.random_sample((batch_size, 4, 8))
         to_data = 10 * np.random.random_sample((batch_size, 2, 8))
 
-        # Invoke the data with a random set of mask data. This should mask at least
-        # one element.
+        # Invoke the data with a random set of mask data. This should mask at
+        # least one element.
         mask_data = np.random.randint(2, size=(batch_size, 4, 2))
         masked_output_data = model.predict([from_data, to_data, mask_data])
 
-        # Invoke the same data, but with a null mask (where no elements are masked).
+        # Invoke the same data, but with a null mask (where no elements are
+        # masked).
         null_mask_data = np.ones((batch_size, 4, 2))
         unmasked_output_data = model.predict(
             [from_data, to_data, null_mask_data]
         )
 
-        # Because one data is masked and one is not, the outputs should not be the
-        # same.
+        # Because one data is masked and one is not, the outputs should not be
+        # the same.
         self.assertNotAllClose(masked_output_data, unmasked_output_data)
 
         # Create a model containing attention scores.
@@ -242,13 +245,14 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         query = 10 * np.random.random_sample(query_shape)
         value = 10 * np.random.random_sample(value_shape)
 
-        # Invoke the data with a random set of mask data. This should mask at least
-        # one element.
+        # Invoke the data with a random set of mask data. This should mask at
+        # least one element.
         mask_data = np.random.randint(2, size=mask_shape).astype("bool")
-        # Invoke the same data, but with a null mask (where no elements are masked).
+        # Invoke the same data, but with a null mask (where no elements are
+        # masked).
         null_mask_data = np.ones(mask_shape)
-        # Because one data is masked and one is not, the outputs should not be the
-        # same.
+        # Because one data is masked and one is not, the outputs should not be
+        # the same.
         query_tensor = keras.Input(query_shape[1:], name="query")
         value_tensor = keras.Input(value_shape[1:], name="value")
         mask_tensor = keras.Input(mask_shape[1:], name="mask")

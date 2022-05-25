@@ -54,10 +54,10 @@ class LocallyConnected1D(Layer):
     ```
 
     Args:
-        filters: Integer, the dimensionality of the output space (i.e. the number
-          of output filters in the convolution).
-        kernel_size: An integer or tuple/list of a single integer, specifying the
-          length of the 1D convolution window.
+        filters: Integer, the dimensionality of the output space (i.e. the
+          number of output filters in the convolution).
+        kernel_size: An integer or tuple/list of a single integer, specifying
+          the length of the 1D convolution window.
         strides: An integer or tuple/list of a single integer, specifying the
           stride length of the convolution.
         padding: Currently only supports `"valid"` (case-insensitive). `"same"`
@@ -69,9 +69,8 @@ class LocallyConnected1D(Layer):
           `(batch, channels, length)`. It defaults to the `image_data_format`
           value found in your Keras config file at `~/.keras/keras.json`. If you
           never set it, then it will be "channels_last".
-        activation: Activation function to use. If you don't specify anything, no
-          activation is applied
-            (ie. "linear" activation: `a(x) = x`).
+        activation: Activation function to use. If you don't specify anything,
+          no activation is applied (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix.
         bias_initializer: Initializer for the bias vector.
@@ -95,15 +94,16 @@ class LocallyConnected1D(Layer):
             `3`: large, sparse models,  where "large" stands for large
               input/output activations (i.e. many `filters`, `input_filters`,
               large `input_size`, `output_size`), and "sparse" stands for few
-              connections between inputs and outputs, i.e. small ratio `filters *
-              input_filters * kernel_size / (input_size * strides)`, where inputs
-              to and outputs of the layer are assumed to have shapes `(input_size,
-              input_filters)`, `(output_size, filters)` respectively.  It is
-              recommended to benchmark each in the setting of interest to pick the
-              most efficient one (in terms of speed and memory usage). Correct
-              choice of implementation can lead to dramatic speed improvements
-              (e.g. 50X), potentially at the expense of RAM.  Also, only
-              `padding="valid"` is supported by `implementation=1`.
+              connections between inputs and outputs, i.e. small ratio
+              `filters * input_filters * kernel_size / (input_size * strides)`,
+              where inputs to and outputs of the layer are assumed to have
+              shapes `(input_size, input_filters)`, `(output_size, filters)`
+              respectively.  It is recommended to benchmark each in the setting
+              of interest to pick the most efficient one (in terms of speed and
+              memory usage). Correct choice of implementation can lead to
+              dramatic speed improvements (e.g. 50X), potentially at the expense
+              of RAM.  Also, only `padding="valid"` is supported by
+              `implementation=1`.
     Input shape:
         3D tensor with shape: `(batch_size, steps, input_dim)`
     Output shape:

@@ -67,8 +67,8 @@ class HashingTest(test_combinations.TestCase):
         )
         empty_mask_output = empty_mask_layer(inp)
         omar_mask_output = omar_mask_layer(inp)
-        # Outputs should be one more than test_hash_dense_input_farmhash (the zeroth
-        # bin is now reserved for masks).
+        # Outputs should be one more than test_hash_dense_input_farmhash (the
+        # zeroth bin is now reserved for masks).
         self.assertAllClose([[1], [1], [2], [1], [1]], empty_mask_output)
         # 'omar' should map to 0.
         self.assertAllClose([[0], [1], [2], [1], [1]], omar_mask_output)

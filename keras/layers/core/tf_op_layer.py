@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the TFOpLambda layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import,g-bad-import-order
 import tensorflow.compat.v2 as tf
 
 # pylint: enable=g-bad-import-order
@@ -109,7 +108,8 @@ class ClassMethod(Layer):
 
 
 class KerasOpDispatcher(tf.__internal__.dispatch.GlobalOpDispatcher):
-    """A global dispatcher that allows building a functional model with TF Ops."""
+    """A global dispatcher that allows building a functional model with TF
+    Ops."""
 
     def handle(self, op, args, kwargs):
         """Handle the specified operation with the specified arguments."""
@@ -283,9 +283,9 @@ class TFOpLambda(Layer):
 
     def _check_variables(self, created_variables, accessed_variables):
         if not created_variables and not accessed_variables:
-            # In the common case that a Lambda layer does not touch a Variable, we
-            # don't want to incur the runtime cost of assembling any state used for
-            # checking only to immediately discard it.
+            # In the common case that a Lambda layer does not touch a Variable,
+            # we don't want to incur the runtime cost of assembling any state
+            # used for checking only to immediately discard it.
             return
 
         tracked_weights = set(v.ref() for v in self.weights)
@@ -298,11 +298,13 @@ class TFOpLambda(Layer):
             )
             raise ValueError(
                 "The following Variables were created within a Lambda layer "
-                f"({self.name}) but are not tracked by said layer: {variable_str}\n"
+                f"({self.name}) but are not tracked by said layer: "
+                f"{variable_str}\n"
                 "The layer cannot safely ensure proper Variable reuse "
-                "across multiple calls, and consequently this behavior is disallowed "
-                "for safety reasons. Lambda layers are not well suited for stateful "
-                "computation; instead, writing a subclassed Layer is the recommend "
+                "across multiple calls, and consequently this behavior "
+                "is disallowed for safety reasons. Lambda layers are "
+                "not well suited for stateful computation; instead, "
+                "writing a subclassed Layer is the recommend "
                 "way to define layers with Variables."
             )
 
@@ -316,22 +318,22 @@ class TFOpLambda(Layer):
             self._warn(
                 "The following Variables were used in a Lambda layer's call "
                 f"({self.name}), but are not present in its tracked objects: "
-                f"{variable_str}. This is a strong indication that the Lambda layer "
-                "should be rewritten as a subclassed Layer."
+                f"{variable_str}. This is a strong indication that the Lambda "
+                "layer should be rewritten as a subclassed Layer."
             )
             self._already_warned = True
 
     def _warn(self, msg):
-        # This method will be overridden in a unit test to raise an error, because
-        # self.assertWarns is not universally implemented.
+        # This method will be overridden in a unit test to raise an error,
+        # because self.assertWarns is not universally implemented.
         return tf_logging.warning(msg)
 
     def get_config(self):
         if not self.symbol:
             raise ValueError(
-                f"This Keras op layer was generated from {self.function}, a method "
-                "that is not publicly exposed in the TensorFlow API. This "
-                "may have happened if the method was explicitly "
+                f"This Keras op layer was generated from {self.function}, a "
+                "method that is not publicly exposed in the TensorFlow API. "
+                "This may have happened if the method was explicitly "
                 "decorated to add dispatching support, and it was used "
                 "during Functional model construction. "
                 "To ensure cross-version compatibility of Keras models "
@@ -368,7 +370,8 @@ def _delegate_property(
     intermediate values in the model.
 
     Args:
-      keras_tensor_cls: The KerasTensor subclass that should expose the property.
+      keras_tensor_cls: The KerasTensor subclass that should expose the
+        property.
       property_name: The name of the property to expose and delegate to the
         represented (Composite)Tensor.
     """
@@ -387,12 +390,13 @@ def _delegate_method(
 
     Calling this function times with the same arguments should be a no-op.
 
-    This method exposes an instance method on the KerasTensor class that will use
-    an `InstanceMethod` layer to run the desired method on the represented
+    This method exposes an instance method on the KerasTensor class that will
+    use an `InstanceMethod` layer to run the desired method on the represented
     intermediate values in the model.
 
     Args:
-      keras_tensor_cls: The KerasTensor subclass that should expose the property.
+      keras_tensor_cls: The KerasTensor subclass that should expose the
+        property.
       method_name: The name of the method to expose and delegate to the
         represented (Composite)Tensor.
     """
@@ -449,7 +453,8 @@ for sparse_method in [
 
 
 class TFClassMethodDispatcher(tf.__internal__.dispatch.OpDispatcher):
-    """A class method dispatcher that allows building a functional model with TF class methods."""
+    """A class method dispatcher that allows building a functional model with TF
+    class methods."""
 
     def __init__(self, cls, method_name):
         self.cls = cls
@@ -513,9 +518,9 @@ class SlicingOpLambda(TFOpLambda):
             # because dicts are flattened by nest while slices aren't.
             # So, map_structure would only see the individual elements in the
             # dict.
-            # This can't use map_structure_up_to either because the 'shallowness' of
-            # the shallow tree would have to vary depending on if only one dim or
-            # multiple are being sliced.
+            # This can't use map_structure_up_to either because the
+            # 'shallowness' of the shallow tree would have to vary depending on
+            # if only one dim or multiple are being sliced.
             new_args = []
             for arg in args:
                 arg = _dict_to_slice(arg)
@@ -557,7 +562,8 @@ def _dict_to_slice(x):
 
 
 class TFSlicingOpDispatcher(tf.__internal__.dispatch.OpDispatcher):
-    """A global dispatcher that allows building a functional model with TF Ops."""
+    """A global dispatcher that allows building a functional model with TF
+    Ops."""
 
     def __init__(self, op):
         self.op = op

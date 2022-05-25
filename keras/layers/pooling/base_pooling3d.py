@@ -40,7 +40,8 @@ class Pooling3D(Layer):
         all spatial dimensions.
       padding: A string. The padding method, either 'valid' or 'same'.
         Case-insensitive.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`.
         The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, depth, height, width, channels)`

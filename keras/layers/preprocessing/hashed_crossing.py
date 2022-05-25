@@ -33,8 +33,8 @@ ONE_HOT = utils.ONE_HOT
 class HashedCrossing(base_layer.Layer):
     """A preprocessing layer which crosses features using the "hashing trick".
 
-    This layer performs crosses of categorical features using the "hasing trick".
-    Conceptually, the transformation can be thought of as:
+    This layer performs crosses of categorical features using the "hasing
+    trick".  Conceptually, the transformation can be thought of as:
     hash(concatenation of features) % `num_bins`.
 
     This layer currently only performs crosses of scalar inputs and batches of
@@ -46,8 +46,9 @@ class HashedCrossing(base_layer.Layer):
 
     Args:
       num_bins: Number of hash bins.
-      output_mode: Specification for the output of the layer. Defaults to `"int"`.
-        Values can be `"int"`, or `"one_hot"` configuring the layer as follows:
+      output_mode: Specification for the output of the layer. Defaults to
+        `"int"`.  Values can be `"int"`, or `"one_hot"` configuring the layer as
+        follows:
           - `"int"`: Return the integer bin indices directly.
           - `"one_hot"`: Encodes each individual element in the input into an
             array the same size as `num_bins`, containing a 1 at the input's bin
@@ -118,8 +119,8 @@ class HashedCrossing(base_layer.Layer):
         self.sparse = sparse
 
     def call(self, inputs):
-        # Convert all inputs to tensors and check shape. This layer only supports
-        # sclars and batches of scalars for the initial version.
+        # Convert all inputs to tensors and check shape. This layer only
+        # supports sclars and batches of scalars for the initial version.
         self._check_at_least_two_inputs(inputs)
         inputs = [utils.ensure_tensor(x) for x in inputs]
         self._check_input_shape_and_type(inputs)
@@ -137,9 +138,9 @@ class HashedCrossing(base_layer.Layer):
 
         # Fix output shape and downrank to match input rank.
         if rank == 2:
-            # tf.sparse.cross_hashed output shape will always be None on the last
-            # dimension. Given our input shape restrictions, we want to force shape 1
-            # instead.
+            # tf.sparse.cross_hashed output shape will always be None on the
+            # last dimension. Given our input shape restrictions, we want to
+            # force shape 1 instead.
             outputs = tf.reshape(outputs, [-1, 1])
         elif rank == 1:
             outputs = tf.reshape(outputs, [-1])
@@ -184,8 +185,8 @@ class HashedCrossing(base_layer.Layer):
     def _check_at_least_two_inputs(self, inputs):
         if not isinstance(inputs, (list, tuple)):
             raise ValueError(
-                "`HashedCrossing` should be called on a list or tuple of inputs. "
-                f"Received: inputs={inputs}"
+                "`HashedCrossing` should be called on a list or tuple of "
+                f"inputs. Received: inputs={inputs}"
             )
         if len(inputs) < 2:
             raise ValueError(
@@ -198,8 +199,9 @@ class HashedCrossing(base_layer.Layer):
         rank = len(first_shape)
         if rank > 2 or (rank == 2 and first_shape[-1] != 1):
             raise ValueError(
-                "All `HashedCrossing` inputs should have shape `[]`, `[batch_size]` "
-                f"or `[batch_size, 1]`. Received: inputs={inputs}"
+                "All `HashedCrossing` inputs should have shape `[]`, "
+                "`[batch_size]` or `[batch_size, 1]`. "
+                f"Received: inputs={inputs}"
             )
         if not all(x.shape.as_list() == first_shape for x in inputs[1:]):
             raise ValueError(

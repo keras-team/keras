@@ -76,7 +76,8 @@ class Flatten(Layer):
 
         if tf.executing_eagerly():
             # Full static shape is guaranteed to be available.
-            # Performance: Using `constant_op` is much faster than passing a list.
+            # Performance: Using `constant_op` is much faster than passing a
+            # list.
             flattened_shape = tf.constant([inputs.shape[0], -1])
             return tf.reshape(inputs, flattened_shape)
         else:
@@ -87,7 +88,8 @@ class Flatten(Layer):
             else:
                 batch_dim = tf.compat.dimension_value(input_shape[0])
                 non_batch_dims = input_shape[1:]
-                # Reshape in a way that preserves as much shape info as possible.
+                # Reshape in a way that preserves as much shape info as
+                # possible.
                 if non_batch_dims.is_fully_defined():
                     last_dim = int(
                         functools.reduce(operator.mul, non_batch_dims)

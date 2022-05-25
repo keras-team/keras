@@ -169,10 +169,11 @@ class RNNCell(base_layer.Layer):
 
     def __init__(self, trainable=True, name=None, dtype=None, **kwargs):
         super().__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
-        # Attribute that indicates whether the cell is a TF RNN cell, due the slight
-        # difference between TF and Keras RNN cell. Notably the state is not wrapped
-        # in a list for TF cell where they are single tensor state, whereas keras
-        # cell will wrap the state into a list, and call() will have to unwrap them.
+        # Attribute that indicates whether the cell is a TF RNN cell, due the
+        # slight difference between TF and Keras RNN cell. Notably the state is
+        # not wrapped in a list for TF cell where they are single tensor state,
+        # whereas keras cell will wrap the state into a list, and call() will
+        # have to unwrap them.
         self._is_tf_rnn_cell = True
 
     def __call__(self, inputs, state, scope=None):
@@ -180,18 +181,18 @@ class RNNCell(base_layer.Layer):
 
         Args:
           inputs: `2-D` tensor with shape `[batch_size, input_size]`.
-          state: if `self.state_size` is an integer, this should be a `2-D Tensor`
-            with shape `[batch_size, self.state_size]`.  Otherwise, if
-            `self.state_size` is a tuple of integers, this should be a tuple with
-            shapes `[batch_size, s] for s in self.state_size`.
+          state: if `self.state_size` is an integer, this should be a
+            `2-D Tensor` with shape `[batch_size, self.state_size]`. Otherwise,
+            if `self.state_size` is a tuple of integers, this should be a tuple
+            with shapes `[batch_size, s] for s in self.state_size`.
           scope: VariableScope for the created subgraph; defaults to class name.
 
         Returns:
           A pair containing:
 
           - Output: A `2-D` tensor with shape `[batch_size, self.output_size]`.
-          - New state: Either a single `2-D` tensor, or a tuple of tensors matching
-            the arity and shapes of `state`.
+          - New state: Either a single `2-D` tensor, or a tuple of tensors
+            matching the arity and shapes of `state`.
         """
         if scope is not None:
             with tf.compat.v1.variable_scope(
@@ -233,8 +234,8 @@ class RNNCell(base_layer.Layer):
     def state_size(self):
         """size(s) of state(s) used by this cell.
 
-        It can be represented by an Integer, a TensorShape or a tuple of Integers
-        or TensorShapes.
+        It can be represented by an Integer, a TensorShape or a tuple of
+        Integers or TensorShapes.
         """
         raise NotImplementedError("Abstract method")
 
@@ -250,7 +251,8 @@ class RNNCell(base_layer.Layer):
 
     def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
         if inputs is not None:
-            # Validate the given batch_size and dtype against inputs if provided.
+            # Validate the given batch_size and dtype against inputs if
+            # provided.
             inputs = tf.convert_to_tensor(inputs, name="inputs")
             if batch_size is not None:
                 if tf.is_tensor(batch_size):
@@ -262,14 +264,16 @@ class RNNCell(base_layer.Layer):
                 if inputs.shape.dims[0].value != static_batch_size:
                     raise ValueError(
                         "batch size from input tensor is different from the "
-                        f"input param. Input tensor batch: {inputs.shape.dims[0].value}, "
+                        f"input param. Input tensor batch: "
+                        f"{inputs.shape.dims[0].value}, "
                         f"batch_size: {batch_size}"
                     )
 
             if dtype is not None and inputs.dtype != dtype:
                 raise ValueError(
                     "dtype from input tensor is different from the "
-                    f"input param. Input tensor dtype: {inputs.dtype}, dtype: {dtype}"
+                    f"input param. Input tensor dtype: {inputs.dtype}, "
+                    f"dtype: {dtype}"
                 )
 
             batch_size = (
@@ -278,8 +282,8 @@ class RNNCell(base_layer.Layer):
             dtype = inputs.dtype
         if batch_size is None or dtype is None:
             raise ValueError(
-                "batch_size and dtype cannot be None while constructing initial "
-                f"state: batch_size={batch_size}, dtype={dtype}"
+                "batch_size and dtype cannot be None while constructing "
+                f"initial state: batch_size={batch_size}, dtype={dtype}"
             )
         return self.zero_state(batch_size, dtype)
 
@@ -298,8 +302,8 @@ class RNNCell(base_layer.Layer):
           a nested list or tuple (of the same structure) of `2-D` tensors with
           the shapes `[batch_size, s]` for each s in `state_size`.
         """
-        # Try to use the last cached zero_state. This is done to avoid recreating
-        # zeros, especially when eager execution is enabled.
+        # Try to use the last cached zero_state. This is done to avoid
+        # recreating zeros, especially when eager execution is enabled.
         state_size = self.state_size
         is_eager = tf.executing_eagerly()
         if is_eager and _hasattr(self, "_last_zero_state"):
@@ -327,8 +331,9 @@ class RNNCell(base_layer.Layer):
 
     @property
     def _use_input_spec_as_call_signature(self):
-        # We do not store the shape information for the state argument in the call
-        # function for legacy RNN cells, so do not generate an input signature.
+        # We do not store the shape information for the state argument in the
+        # call function for legacy RNN cells, so do not generate an input
+        # signature.
         return False
 
 
@@ -336,11 +341,11 @@ class LayerRNNCell(RNNCell):
     """Subclass of RNNCells that act like proper `tf.Layer` objects.
 
     For backwards compatibility purposes, most `RNNCell` instances allow their
-    `call` methods to instantiate variables via `tf.compat.v1.get_variable`.  The
-    underlying
-    variable scope thus keeps track of any variables, and returning cached
-    versions.  This is atypical of `tf.layer` objects, which separate this
-    part of layer building into a `build` method that is only called once.
+    `call` methods to instantiate variables via `tf.compat.v1.get_variable`.
+    The underlying variable scope thus keeps track of any variables, and
+    returning cached versions.  This is atypical of `tf.layer` objects, which
+    separate this part of layer building into a `build` method that is only
+    called once.
 
     Here we provide a subclass for `RNNCell` objects that act exactly as
     `Layer` objects do.  They must provide a `build` method and their
@@ -352,10 +357,10 @@ class LayerRNNCell(RNNCell):
 
         Args:
           inputs: `2-D` tensor with shape `[batch_size, input_size]`.
-          state: if `self.state_size` is an integer, this should be a `2-D Tensor`
-            with shape `[batch_size, self.state_size]`.  Otherwise, if
-            `self.state_size` is a tuple of integers, this should be a tuple with
-            shapes `[batch_size, s] for s in self.state_size`.
+          state: if `self.state_size` is an integer, this should be a `2-D
+            Tensor` with shape `[batch_size, self.state_size]`.  Otherwise, if
+            `self.state_size` is a tuple of integers, this should be a tuple
+            with shapes `[batch_size, s] for s in self.state_size`.
           scope: optional cell scope.
           *args: Additional positional arguments.
           **kwargs: Additional keyword arguments.
@@ -364,8 +369,8 @@ class LayerRNNCell(RNNCell):
           A pair containing:
 
           - Output: A `2-D` tensor with shape `[batch_size, self.output_size]`.
-          - New state: Either a single `2-D` tensor, or a tuple of tensors matching
-            the arity and shapes of `state`.
+          - New state: Either a single `2-D` tensor, or a tuple of tensors
+            matching the arity and shapes of `state`.
         """
         # Bypass RNNCell's variable capturing semantics for LayerRNNCell.
         # Instead, it is up to subclasses to provide a proper build
@@ -387,8 +392,8 @@ class BasicRNNCell(LayerRNNCell):
       num_units: int, The number of units in the RNN cell.
       activation: Nonlinearity to use.  Default: `tanh`. It could also be string
         that is within Keras activation function names.
-      reuse: (optional) Python boolean describing whether to reuse variables in an
-        existing scope.  If not `True`, and the existing scope already has the
+      reuse: (optional) Python boolean describing whether to reuse variables in
+        an existing scope. If not `True`, and the existing scope already has the
         given variables, an error is raised.
       name: String, the name of the layer. Layers with the same name will share
         weights, but to avoid mistakes we require reuse=True in such cases.
@@ -464,7 +469,8 @@ class BasicRNNCell(LayerRNNCell):
         self.built = True
 
     def call(self, inputs, state):
-        """Most basic RNN: output = new_state = act(W * input + U * state + B)."""
+        """Most basic RNN: output = new_state = act(W * input + U * state +
+        B)."""
         _check_rnn_cell_input_dtypes([inputs, state])
         gate_inputs = tf.matmul(tf.concat([inputs, state], 1), self._kernel)
         gate_inputs = tf.nn.bias_add(gate_inputs, self._bias)
@@ -493,9 +499,9 @@ class GRUCell(LayerRNNCell):
     Args:
       num_units: int, The number of units in the GRU cell.
       activation: Nonlinearity to use.  Default: `tanh`.
-      reuse: (optional) Python boolean describing whether to reuse variables in an
-        existing scope.  If not `True`, and the existing scope already has the
-        given variables, an error is raised.
+      reuse: (optional) Python boolean describing whether to reuse variables in
+        an existing scope. If not `True`, and the existing scope already has
+        the given variables, an error is raised.
       kernel_initializer: (optional) The initializer to use for the weight and
         projection matrices.
       bias_initializer: (optional) The initializer to use for the bias.
@@ -505,9 +511,8 @@ class GRUCell(LayerRNNCell):
         the first input). Required when `build` is called before `call`.
       **kwargs: Dict, keyword named properties for common layer attributes, like
         `trainable` etc when constructing the cell from configs of get_config().
-        References: Learning Phrase Representations using RNN Encoder Decoder for
-          Statistical
-      Machine Translation: [Cho et al., 2014]
+        References: Learning Phrase Representations using RNN Encoder Decoder
+        for Statistical Machine Translation: [Cho et al., 2014]
         (https://aclanthology.coli.uni-saarland.de/papers/D14-1179/d14-1179)
         ([pdf](http://emnlp2014.org/papers/pdf/EMNLP2014179.pdf))
     """
@@ -702,24 +707,28 @@ class BasicLSTMCell(LayerRNNCell):
 
         Args:
           num_units: int, The number of units in the LSTM cell.
-          forget_bias: float, The bias added to forget gates (see above). Must set
-            to `0.0` manually when restoring from CudnnLSTM-trained checkpoints.
-          state_is_tuple: If True, accepted and returned states are 2-tuples of the
-            `c_state` and `m_state`.  If False, they are concatenated along the
-            column axis.  The latter behavior will soon be deprecated.
-          activation: Activation function of the inner states.  Default: `tanh`. It
-            could also be string that is within Keras activation function names.
-          reuse: (optional) Python boolean describing whether to reuse variables in
-            an existing scope.  If not `True`, and the existing scope already has
-            the given variables, an error is raised.
-          name: String, the name of the layer. Layers with the same name will share
-            weights, but to avoid mistakes we require reuse=True in such cases.
-          dtype: Default dtype of the layer (default of `None` means use the type of
-            the first input). Required when `build` is called before `call`.
-          **kwargs: Dict, keyword named properties for common layer attributes, like
-            `trainable` etc when constructing the cell from configs of get_config().
-            When restoring from CudnnLSTM-trained checkpoints, must use
-            `CudnnCompatibleLSTMCell` instead.
+          forget_bias: float, The bias added to forget gates (see above). Must
+            set to `0.0` manually when restoring from CudnnLSTM-trained
+            checkpoints.
+          state_is_tuple: If True, accepted and returned states are 2-tuples of
+            the `c_state` and `m_state`.  If False, they are concatenated along
+            the column axis.  The latter behavior will soon be deprecated.
+          activation: Activation function of the inner states.  Default: `tanh`.
+            It could also be string that is within Keras activation function
+            names.
+          reuse: (optional) Python boolean describing whether to reuse variables
+            in an existing scope.  If not `True`, and the existing scope already
+            has the given variables, an error is raised.
+          name: String, the name of the layer. Layers with the same name will
+            share weights, but to avoid mistakes we require reuse=True in such
+            cases.
+          dtype: Default dtype of the layer (default of `None` means use the
+            type of the first input). Required when `build` is called before
+            `call`.
+          **kwargs: Dict, keyword named properties for common layer attributes,
+            like `trainable` etc when constructing the cell from configs of
+            get_config().  When restoring from CudnnLSTM-trained checkpoints,
+            must use `CudnnCompatibleLSTMCell` instead.
         """
         warnings.warn(
             "`tf.nn.rnn_cell.BasicLSTMCell` is deprecated and will be "
@@ -795,8 +804,8 @@ class BasicLSTMCell(LayerRNNCell):
         Args:
           inputs: `2-D` tensor with shape `[batch_size, input_size]`.
           state: An `LSTMStateTuple` of state tensors, each shaped `[batch_size,
-            num_units]`, if `state_is_tuple` has been set to `True`.  Otherwise, a
-            `Tensor` shaped `[batch_size, 2 * num_units]`.
+            num_units]`, if `state_is_tuple` has been set to `True`.  Otherwise,
+            a `Tensor` shaped `[batch_size, 2 * num_units]`.
 
         Returns:
           A pair containing the new hidden state, and the new state (either a
@@ -903,39 +912,42 @@ class LSTMCell(LayerRNNCell):
         Args:
           num_units: int, The number of units in the LSTM cell.
           use_peepholes: bool, set True to enable diagonal/peephole connections.
-          cell_clip: (optional) A float value, if provided the cell state is clipped
-            by this value prior to the cell output activation.
+          cell_clip: (optional) A float value, if provided the cell state is
+            clipped by this value prior to the cell output activation.
           initializer: (optional) The initializer to use for the weight and
             projection matrices.
           num_proj: (optional) int, The output dimensionality for the projection
             matrices.  If None, no projection is performed.
-          proj_clip: (optional) A float value.  If `num_proj > 0` and `proj_clip` is
-            provided, then the projected values are clipped elementwise to within
-            `[-proj_clip, proj_clip]`.
+          proj_clip: (optional) A float value.  If `num_proj > 0` and
+            `proj_clip` is provided, then the projected values are clipped
+            elementwise to within `[-proj_clip, proj_clip]`.
           num_unit_shards: Deprecated, will be removed by Jan. 2017. Use a
             variable_scope partitioner instead.
           num_proj_shards: Deprecated, will be removed by Jan. 2017. Use a
             variable_scope partitioner instead.
-          forget_bias: Biases of the forget gate are initialized by default to 1 in
-            order to reduce the scale of forgetting at the beginning of the
-            training. Must set it manually to `0.0` when restoring from CudnnLSTM
-            trained checkpoints.
-          state_is_tuple: If True, accepted and returned states are 2-tuples of the
-            `c_state` and `m_state`.  If False, they are concatenated along the
-            column axis.  This latter behavior will soon be deprecated.
-          activation: Activation function of the inner states.  Default: `tanh`. It
-            could also be string that is within Keras activation function names.
-          reuse: (optional) Python boolean describing whether to reuse variables in
-            an existing scope.  If not `True`, and the existing scope already has
-            the given variables, an error is raised.
-          name: String, the name of the layer. Layers with the same name will share
-            weights, but to avoid mistakes we require reuse=True in such cases.
-          dtype: Default dtype of the layer (default of `None` means use the type of
-            the first input). Required when `build` is called before `call`.
-          **kwargs: Dict, keyword named properties for common layer attributes, like
-            `trainable` etc when constructing the cell from configs of get_config().
-            When restoring from CudnnLSTM-trained checkpoints, use
-            `CudnnCompatibleLSTMCell` instead.
+          forget_bias: Biases of the forget gate are initialized by default to 1
+            in order to reduce the scale of forgetting at the beginning of the
+            training. Must set it manually to `0.0` when restoring from
+            CudnnLSTM trained checkpoints.
+          state_is_tuple: If True, accepted and returned states are 2-tuples of
+            the `c_state` and `m_state`.  If False, they are concatenated along
+            the column axis.  This latter behavior will soon be deprecated.
+          activation: Activation function of the inner states.  Default: `tanh`.
+            It could also be string that is within Keras activation function
+            names.
+          reuse: (optional) Python boolean describing whether to reuse variables
+            in an existing scope.  If not `True`, and the existing scope already
+            has the given variables, an error is raised.
+          name: String, the name of the layer. Layers with the same name will
+            share weights, but to avoid mistakes we require reuse=True in such
+            cases.
+          dtype: Default dtype of the layer (default of `None` means use the
+            type of the first input). Required when `build` is called before
+            `call`.
+          **kwargs: Dict, keyword named properties for common layer attributes,
+            like `trainable` etc when constructing the cell from configs of
+            get_config().  When restoring from CudnnLSTM-trained checkpoints,
+            use `CudnnCompatibleLSTMCell` instead.
         """
         warnings.warn(
             "`tf.nn.rnn_cell.LSTMCell` is deprecated and will be "
@@ -1075,9 +1087,10 @@ class LSTMCell(LayerRNNCell):
 
         Args:
           inputs: input Tensor, must be 2-D, `[batch, input_size]`.
-          state: if `state_is_tuple` is False, this must be a state Tensor, `2-D,
-            [batch, state_size]`.  If `state_is_tuple` is True, this must be a tuple
-            of state Tensors, both `2-D`, with column sizes `c_state` and `m_state`.
+          state: if `state_is_tuple` is False, this must be a state Tensor,
+            `2-D, [batch, state_size]`.  If `state_is_tuple` is True, this must
+            be a tuple of state Tensors, both `2-D`, with column sizes `c_state`
+            and `m_state`.
 
         Returns:
           A tuple containing:
@@ -1087,8 +1100,9 @@ class LSTMCell(LayerRNNCell):
             Here output_dim is:
                num_proj if num_proj was set,
                num_units otherwise.
-          - Tensor(s) representing the new state of LSTM after reading `inputs` when
-            the previous state was `state`.  Same type and shape(s) as `state`.
+          - Tensor(s) representing the new state of LSTM after reading `inputs`
+            when the previous state was `state`.  Same type and shape(s) as
+            `state`.
 
         Raises:
           ValueError: If input size cannot be inferred from inputs via
@@ -1193,13 +1207,15 @@ class MultiRNNCell(RNNCell):
 
         Args:
           cells: list of RNNCells that will be composed in this order.
-          state_is_tuple: If True, accepted and returned states are n-tuples, where
-            `n = len(cells)`.  If False, the states are all concatenated along the
-            column axis.  This latter behavior will soon be deprecated.
+          state_is_tuple: If True, accepted and returned states are n-tuples,
+            where `n = len(cells)`.  If False, the states are all concatenated
+            along the column axis.  This latter behavior will soon be
+            deprecated.
 
         Raises:
-          ValueError: if cells is empty (not allowed), or at least one of the cells
-            returns a state tuple but the flag `state_is_tuple` is `False`.
+          ValueError: if cells is empty (not allowed), or at least one of the
+            cells returns a state tuple but the flag `state_is_tuple` is
+            `False`.
         """
         logging.warning(
             "`tf.nn.rnn_cell.MultiRNNCell` is deprecated. This class "
@@ -1257,7 +1273,8 @@ class MultiRNNCell(RNNCell):
                 )
             else:
                 # We know here that state_size of each cell is not a tuple and
-                # presumably does not contain TensorArrays or anything else fancy
+                # presumably does not contain TensorArrays or anything else
+                # fancy
                 return super().zero_state(batch_size, dtype)
 
     @property
@@ -1294,7 +1311,8 @@ class MultiRNNCell(RNNCell):
                 if self._state_is_tuple:
                     if not tf.nest.is_nested(state):
                         raise ValueError(
-                            f"Expected state to be a tuple of length {len(self.state_size)}"
+                            f"Expected state to be a tuple of length "
+                            f"{len(self.state_size)}"
                             f", but received: {state}"
                         )
                     cur_state = state[i]

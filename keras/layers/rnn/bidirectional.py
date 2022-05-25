@@ -46,9 +46,9 @@ class Bidirectional(Wrapper):
         Note that the recommended way to create new RNN layers is to write a
         custom RNN cell and use it with `keras.layers.RNN`, instead of
         subclassing `keras.layers.Layer` directly.
-        - When the `returns_sequences` is true, the output of the masked timestep
-        will be zero regardless of the layer's original `zero_output_for_mask`
-        value.
+        - When the `returns_sequences` is true, the output of the masked
+        timestep will be zero regardless of the layer's original
+        `zero_output_for_mask` value.
       merge_mode: Mode by which outputs of the forward and backward RNNs will be
         combined. One of {'sum', 'mul', 'concat', 'ave', None}. If None, the
         outputs will not be combined, they will be returned as a list. Default
@@ -83,22 +83,23 @@ class Bidirectional(Wrapper):
 
     ```python
     model = Sequential()
-    model.add(Bidirectional(LSTM(10, return_sequences=True), input_shape=(5, 10)))
+    model.add(Bidirectional(LSTM(10, return_sequences=True),
+                                 input_shape=(5, 10)))
     model.add(Bidirectional(LSTM(10)))
     model.add(Dense(5))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-     # With custom backward layer
-     model = Sequential()
-     forward_layer = LSTM(10, return_sequences=True)
-     backward_layer = LSTM(10, activation='relu', return_sequences=True,
-                           go_backwards=True)
-     model.add(Bidirectional(forward_layer, backward_layer=backward_layer,
-                             input_shape=(5, 10)))
-     model.add(Dense(5))
-     model.add(Activation('softmax'))
-     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    # With custom backward layer
+    model = Sequential()
+    forward_layer = LSTM(10, return_sequences=True)
+    backward_layer = LSTM(10, activation='relu', return_sequences=True,
+                          go_backwards=True)
+    model.add(Bidirectional(forward_layer, backward_layer=backward_layer,
+                            input_shape=(5, 10)))
+    model.add(Dense(5))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
     ```
     """
 
@@ -117,8 +118,8 @@ class Bidirectional(Wrapper):
             )
         if backward_layer is not None and not isinstance(backward_layer, Layer):
             raise ValueError(
-                "`backward_layer` need to be a `tf.keras.layers.Layer` instance. "
-                f"Received: {backward_layer}"
+                "`backward_layer` need to be a `tf.keras.layers.Layer` "
+                f"instance. Received: {backward_layer}"
             )
         if merge_mode not in ["sum", "mul", "ave", "concat", None]:
             raise ValueError(
@@ -126,14 +127,14 @@ class Bidirectional(Wrapper):
                 "Merge mode should be one of "
                 '{"sum", "mul", "ave", "concat", None}'
             )
-        # We don't want to track `layer` since we're already tracking the two copies
-        # of it we actually run.
+        # We don't want to track `layer` since we're already tracking the two
+        # copies of it we actually run.
         self._setattr_tracking = False
         super().__init__(layer, **kwargs)
         self._setattr_tracking = True
 
-        # Recreate the forward layer from the original layer config, so that it will
-        # not carry over any state from the layer.
+        # Recreate the forward layer from the original layer config, so that it
+        # will not carry over any state from the layer.
         self.forward_layer = self._recreate_layer_from_config(layer)
 
         if backward_layer is None:
@@ -142,9 +143,9 @@ class Bidirectional(Wrapper):
             )
         else:
             self.backward_layer = backward_layer
-            # Keep the custom backward layer config, so that we can save it later. The
-            # layer's name might be updated below with prefix 'backward_', and we want
-            # to preserve the original config.
+            # Keep the custom backward layer config, so that we can save it
+            # later. The layer's name might be updated below with prefix
+            # 'backward_', and we want to preserve the original config.
             self._backward_layer_config = generic_utils.serialize_keras_object(
                 backward_layer
             )
@@ -187,8 +188,10 @@ class Bidirectional(Wrapper):
             raise ValueError(
                 "Forward layer and backward layer should have different "
                 "`go_backwards` value."
-                f"forward_layer.go_backwards = {self.forward_layer.go_backwards},"
-                f"backward_layer.go_backwards = {self.backward_layer.go_backwards}"
+                f"forward_layer.go_backwards = "
+                f"{self.forward_layer.go_backwards},"
+                f"backward_layer.go_backwards = "
+                f"{self.backward_layer.go_backwards}"
             )
 
         common_attributes = ("stateful", "return_sequences", "return_state")
@@ -197,17 +200,18 @@ class Bidirectional(Wrapper):
             backward_value = getattr(self.backward_layer, a)
             if forward_value != backward_value:
                 raise ValueError(
-                    "Forward layer and backward layer are expected to have the same "
-                    f'value for attribute "{a}", got "{forward_value}" for forward '
-                    f'layer and "{backward_value}" for backward layer'
+                    "Forward layer and backward layer are expected to have "
+                    f'the same value for attribute "{a}", got '
+                    f'"{forward_value}" for forward layer and '
+                    f'"{backward_value}" for backward layer'
                 )
 
     def _recreate_layer_from_config(self, layer, go_backwards=False):
-        # When recreating the layer from its config, it is possible that the layer
-        # is a RNN layer that contains custom cells. In this case we inspect the
-        # layer and pass the custom cell class as part of the `custom_objects`
-        # argument when calling `from_config`.
-        # See https://github.com/tensorflow/tensorflow/issues/26581 for more detail.
+        # When recreating the layer from its config, it is possible that the
+        # layer is a RNN layer that contains custom cells. In this case we
+        # inspect the layer and pass the custom cell class as part of the
+        # `custom_objects` argument when calling `from_config`.  See
+        # https://github.com/tensorflow/tensorflow/issues/26581 for more detail.
         config = layer.get_config()
         if go_backwards:
             config["go_backwards"] = not config["go_backwards"]
@@ -258,7 +262,8 @@ class Bidirectional(Wrapper):
         return output_shape
 
     def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
-        """`Bidirectional.__call__` implements the same API as the wrapped `RNN`."""
+        """`Bidirectional.__call__` implements the same API as the wrapped
+        `RNN`."""
         inputs, initial_state, constants = rnn_utils.standardize_args(
             inputs, initial_state, constants, self._num_constants
         )
@@ -325,8 +330,8 @@ class Bidirectional(Wrapper):
         if is_keras_tensor:
             # Compute the full input spec, including state
             full_input = [inputs] + additional_inputs
-            # The original input_spec is None since there could be a nested tensor
-            # input. Update the input_spec to match the inputs.
+            # The original input_spec is None since there could be a nested
+            # tensor input. Update the input_spec to match the inputs.
             full_input_spec = [
                 None for _ in range(len(tf.nest.flatten(inputs)))
             ] + additional_specs
@@ -362,9 +367,10 @@ class Bidirectional(Wrapper):
 
         if generic_utils.has_arg(self.layer.call, "initial_state"):
             if isinstance(inputs, list) and len(inputs) > 1:
-                # initial_states are keras tensors, which means they are passed in
-                # together with inputs as list. The initial_states need to be split into
-                # forward and backward section, and be feed to layers accordingly.
+                # initial_states are keras tensors, which means they are passed
+                # in together with inputs as list. The initial_states need to be
+                # split into forward and backward section, and be feed to layers
+                # accordingly.
                 forward_inputs = [inputs[0]]
                 backward_inputs = [inputs[0]]
                 pivot = (len(inputs) - self._num_constants) // 2 + 1
@@ -383,9 +389,10 @@ class Bidirectional(Wrapper):
                 if "constants" in kwargs:
                     kwargs["constants"] = None
             elif initial_state is not None:
-                # initial_states are not keras tensors, eg eager tensor from np array.
-                # They are only passed in from kwarg initial_state, and should be passed
-                # to forward/backward layer via kwarg initial_state as well.
+                # initial_states are not keras tensors, eg eager tensor from np
+                # array.  They are only passed in from kwarg initial_state, and
+                # should be passed to forward/backward layer via kwarg
+                # initial_state as well.
                 forward_inputs, backward_inputs = inputs, inputs
                 half = len(initial_state) // 2
                 forward_state = initial_state[:half]
@@ -426,7 +433,8 @@ class Bidirectional(Wrapper):
             output = [y, y_rev]
         else:
             raise ValueError(
-                f"Unrecognized value for `merge_mode`. Received: {self.merge_mode}"
+                "Unrecognized value for `merge_mode`. "
+                f"Received: {self.merge_mode}"
                 'Expected values are ["concat", "sum", "ave", "mul"]'
             )
 

@@ -16,8 +16,6 @@
 
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-bad-import-order,g-direct-tensorflow-import,unused-import,wildcard-import
-
 import threading
 from keras.engine import base_layer
 from keras.engine import input_layer

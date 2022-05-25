@@ -141,7 +141,8 @@ class _Merge(Layer):
                 return self._merge_function(reshaped_inputs)
             else:
                 # Transpose all inputs so that batch size is the last dimension.
-                # (batch_size, dim1, dim2, ... ) -> (dim1, dim2, ... , batch_size)
+                # (batch_size, dim1, dim2, ... ) -> (dim1, dim2, ... ,
+                # batch_size)
                 transposed = False
                 for x in inputs:
                     x_ndim = backend.ndim(x)
@@ -167,12 +168,14 @@ class _Merge(Layer):
                         reshaped_inputs.append(tf.transpose(x, perm=dims))
                         transposed = True
                     else:
-                        # We don't transpose inputs if they are 1D vectors or scalars.
+                        # We don't transpose inputs if they are 1D vectors or
+                        # scalars.
                         reshaped_inputs.append(x)
                 y = self._merge_function(reshaped_inputs)
                 y_ndim = backend.ndim(y)
                 if transposed:
-                    # If inputs have been transposed, we have to transpose the output too.
+                    # If inputs have been transposed, we have to transpose the
+                    # output too.
                     if y_ndim is None:
                         y_shape = tf.shape(y)
                         y_ndim = tf.shape(y_shape)[0]

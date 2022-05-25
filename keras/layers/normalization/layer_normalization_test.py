@@ -191,7 +191,8 @@ class LayerNormalizationTest(test_combinations.TestCase):
     def testInvalidAxis(self):
         with self.assertRaisesRegex(
             ValueError,
-            r"Invalid value for `axis` argument. Expected 0 <= axis < inputs.rank",
+            r"Invalid value for `axis` argument. "
+            r"Expected 0 <= axis < inputs.rank",
         ):
             layer_norm = layer_normalization.LayerNormalization(axis=3)
             layer_norm.build(input_shape=(2, 2, 2))
@@ -242,10 +243,10 @@ class LayerNormalizationNumericsTest(test_combinations.TestCase):
         """Tests the forward pass of layer layer_normalization.
 
         Args:
-          batch_input_shape: The input shape that will be used to test, including
-            the batch dimension.
-          axis: A list of axes to normalize. Will be passed to the `axis` argument
-            of Layerlayer_normalization.
+          batch_input_shape: The input shape that will be used to test,
+            including the batch dimension.
+          axis: A list of axes to normalize. Will be passed to the `axis`
+            argument of Layerlayer_normalization.
           fp64_tol: The relative and absolute tolerance for float64.
           fp32_tol: The relative and absolute tolerance for float32.
           fp16_tol: The relative and absolute tolerance for float16.
@@ -284,16 +285,16 @@ class LayerNormalizationNumericsTest(test_combinations.TestCase):
                     assert dtype == "float16"
                     tol = fp16_tol
 
-                # We use absolute tolerances in addition to relative tolerances, because
-                # some of the values are very close to zero.
+                # We use absolute tolerances in addition to relative tolerances,
+                # because some of the values are very close to zero.
                 self.assertAllClose(expected, actual, rtol=tol, atol=tol)
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
     )
     def test_forward(self):
-        # For numeric stability, we ensure the axis's dimension(s) have at least 4
-        # elements.
+        # For numeric stability, we ensure the axis's dimension(s) have at least
+        # 4 elements.
         self._test_forward_pass((4, 3), (0,))
         self._test_forward_pass((3, 4), (1,))
         self._test_forward_pass((4, 3, 2), (0,))
@@ -315,10 +316,10 @@ class LayerNormalizationNumericsTest(test_combinations.TestCase):
         """Tests the backwards pass of layer layer_normalization.
 
         Args:
-          batch_input_shape: The input shape that will be used to test, including
-            the batch dimension.
-          axis: A list of axes to normalize. Will be passed to the `axis` argument
-            of Layerlayer_normalization.
+          batch_input_shape: The input shape that will be used to test,
+            including the batch dimension.
+          axis: A list of axes to normalize. Will be passed to the `axis`
+            argument of Layerlayer_normalization.
           fp64_tol: The relative and absolute tolerance for float64.
           fp32_tol: The relative and absolute tolerance for float32.
           fp16_tol: The relative and absolute tolerance for float16.
@@ -334,10 +335,10 @@ class LayerNormalizationNumericsTest(test_combinations.TestCase):
         x = np.random.normal(size=batch_input_shape)
 
         for epsilon in 1e-12, 1e-3:
-            # Float64 must come first in this list, as we use the float64 numerical
-            # gradients to compare to the float32 and float16 symbolic gradients as
-            # well. Computing float32/float16 numerical gradients is too numerically
-            # unstable.
+            # Float64 must come first in this list, as we use the float64
+            # numerical gradients to compare to the float32 and float16 symbolic
+            # gradients as well. Computing float32/float16 numerical gradients
+            # is too numerically unstable.
             for dtype in "float64", "float32", "float16":
                 norm = layer_normalization.LayerNormalization(
                     axis=axis,
@@ -351,10 +352,11 @@ class LayerNormalizationNumericsTest(test_combinations.TestCase):
 
                 # pylint: disable=cell-var-from-loop
                 def forward_fn(x, beta, gamma):
-                    # We must monkey-patch the attributes of `norm` with the function
-                    # arguments, so that the gradient checker will properly compute their
-                    # gradients. The gradient checker computes gradients with respect to
-                    # the input arguments of `f`.
+                    # We must monkey-patch the attributes of `norm` with the
+                    # function arguments, so that the gradient checker will
+                    # properly compute their gradients. The gradient checker
+                    # computes gradients with respect to the input arguments of
+                    # `f`.
                     with tf.compat.v1.test.mock.patch.object(
                         norm, "beta", beta
                     ):
@@ -374,8 +376,8 @@ class LayerNormalizationNumericsTest(test_combinations.TestCase):
                 ) = results
 
                 if dtype == "float64":
-                    # We use the float64 numeric gradients as the reference, to compare
-                    # against the symbolic gradients for all dtypes.
+                    # We use the float64 numeric gradients as the reference, to
+                    # compare against the symbolic gradients for all dtypes.
                     x_grad_ref = x_grad_n
                     beta_grad_ref = beta_grad_n
                     gamma_grad_ref = gamma_grad_n
@@ -386,8 +388,8 @@ class LayerNormalizationNumericsTest(test_combinations.TestCase):
                     assert dtype == "float16"
                     tol = fp16_tol
 
-                # We use absolute tolerances in addition to relative tolerances, because
-                # some of the values are very close to zero.
+                # We use absolute tolerances in addition to relative tolerances,
+                # because some of the values are very close to zero.
                 self.assertAllClose(x_grad_t, x_grad_ref, rtol=tol, atol=tol)
                 self.assertAllClose(
                     beta_grad_t, beta_grad_ref, rtol=tol, atol=tol
@@ -396,11 +398,12 @@ class LayerNormalizationNumericsTest(test_combinations.TestCase):
                     gamma_grad_t, gamma_grad_ref, rtol=tol, atol=tol
                 )
 
-    # The gradient_checker_v2 does not work properly with LayerNorm in graph mode.
+    # The gradient_checker_v2 does not work properly with LayerNorm in graph
+    # mode.
     @test_utils.run_v2_only
     def test_backward(self):
-        # For numeric stability, we ensure the axis's dimension(s) have at least 4
-        # elements.
+        # For numeric stability, we ensure the axis's dimension(s) have at least
+        # 4 elements.
         self._test_backward_pass((4, 3), (0,))
         self._test_backward_pass((2, 4, 2), (1,))
         self._test_backward_pass((2, 3, 4), (2,))

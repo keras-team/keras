@@ -849,8 +849,9 @@ class RNNTest(test_combinations.TestCase):
 
     def test_dropout_mask_reuse(self):
         # The layer is created with recurrent_initializer = zero, so that the
-        # the recurrent state won't affect the output. By doing this, we can verify
-        # the output and see if the same mask is applied to for each timestep.
+        # the recurrent state won't affect the output. By doing this, we can
+        # verify the output and see if the same mask is applied to for each
+        # timestep.
         layer_1 = keras.layers.SimpleRNN(
             3,
             dropout=0.5,
@@ -1516,7 +1517,8 @@ class RNNTest(test_combinations.TestCase):
             self.assertAllClose(result_1, result_2)
 
     def test_unroll_single_step(self):
-        """Even if the time dimension is only one, we should be able to unroll."""
+        """Even if the time dimension is only one, we should be able to
+        unroll."""
         cell = keras.layers.SimpleRNNCell(5)
         x = keras.Input((1, 5))
         layer = keras.layers.RNN(cell, return_sequences=True, unroll=True)
@@ -1656,13 +1658,14 @@ class RNNTest(test_combinations.TestCase):
         model.reset_states()
         predict_3 = model.predict(test_inputs)
 
-        # predict 1 and 2 should be different since the batch 2 should use the state
-        # from batch 1 as the initial state.
+        # predict 1 and 2 should be different since the batch 2 should use the
+        # state from batch 1 as the initial state.
         self.assertNotAllClose(predict_1, predict_2)
         self.assertAllClose(predict_1, predict_3)
 
-        # Create a new model with same weights but without initial states. Make sure
-        # the predict value is different from the model with non-zero initial state.
+        # Create a new model with same weights but without initial states. Make
+        # sure the predict value is different from the model with non-zero
+        # initial state.
         model_2 = make_model(stateful=True, with_initial_state=False)
         model_2.layers[1].set_weights(layer_weights)
 
@@ -1672,8 +1675,8 @@ class RNNTest(test_combinations.TestCase):
         self.assertNotAllClose(predict_1, predict_4)
         self.assertNotAllClose(predict_4, predict_5)
 
-        # Create models with stateful=False, and make sure they handle init state
-        # correctly.
+        # Create models with stateful=False, and make sure they handle init
+        # state correctly.
         model_3 = make_model(stateful=False, with_initial_state=True)
         model_3.layers[1].set_weights(layer_weights)
 
@@ -1723,7 +1726,8 @@ class RNNTest(test_combinations.TestCase):
         ]
     )
     def test_state_spec_with_stack_cell(self, cell):
-        # See https://github.com/tensorflow/tensorflow/issues/27817 for more detail.
+        # See https://github.com/tensorflow/tensorflow/issues/27817 for more
+        # detail.
         batch = 12
         timesteps = 10
         input_dim = 8
@@ -1899,16 +1903,17 @@ class RNNTest(test_combinations.TestCase):
         dense_data = ragged_data.to_tensor()
         output_dense = model_2.predict(dense_data, steps=1)
 
-        # Note that the raw output for dense and ragged input when go_backward=True
-        # will be different. Consider following input
+        # Note that the raw output for dense and ragged input when
+        # go_backward=True will be different. Consider following input
         # [[a, b, 0], [c, 0, 0], [d, e, f]] where 0s are masked value.
-        # The dense output will be [[0, b, a], [0, 0, c], [f, e, d]] since it will
-        # process the whole sequence from the end.
-        # While ragged output will be [[b, a], [c], [f, e, d]] since it just ignore
-        # the 0s. And if we densify the ragged output, it will by default inserting
-        # 0s to the end (rather than from the beginning), which make the output to
-        # be [[b, a, 0], [c, 0, 0], [f, e, d]]. With this, we need to verify that
-        # reverse(ragged_output.to_tensor()) == reverse(dense_output)
+        # The dense output will be [[0, b, a], [0, 0, c], [f, e, d]] since it
+        # will process the whole sequence from the end.
+        # While ragged output will be [[b, a], [c], [f, e, d]] since it just
+        # ignore the 0s. And if we densify the ragged output, it will by default
+        # inserting 0s to the end (rather than from the beginning), which make
+        # the output to be [[b, a, 0], [c, 0, 0], [f, e, d]]. With this, we need
+        # to verify that reverse(ragged_output.to_tensor()) ==
+        # reverse(dense_output)
         output_dense = keras.backend.reverse(output_dense, [1])
         output_dense = tf.RaggedTensor.from_tensor(
             output_dense, lengths=row_lengths

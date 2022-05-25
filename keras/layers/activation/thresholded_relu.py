@@ -50,8 +50,8 @@ class ThresholdedReLU(Layer):
         super().__init__(**kwargs)
         if theta is None:
             raise ValueError(
-                "Theta of a Thresholded ReLU layer cannot be None, expecting a float."
-                f" Received: {theta}"
+                "Theta of a Thresholded ReLU layer cannot be None, expecting a "
+                f"float. Received: {theta}"
             )
         if theta < 0:
             raise ValueError(

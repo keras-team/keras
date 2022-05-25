@@ -95,9 +95,9 @@ class DropoutLayersTest(test_combinations.TestCase):
         model = keras.Model(inputs, outputs)
         train = model(np.ones((20, 5, 10)), training=True)
         predict = model(np.ones((20, 5, 10)))
-        # Make sure the weights from tf.random.Generator is not present in the model
-        # which will cause weight loading issue for existing application models if
-        # it contains dropout layer.
+        # Make sure the weights from tf.random.Generator is not present in the
+        # model which will cause weight loading issue for existing application
+        # models if it contains dropout layer.
         self.assertEmpty(layer.get_weights())
         self.assertEmpty(model.get_weights())
 
@@ -321,8 +321,8 @@ class TestStatefulLambda(test_combinations.TestCase):
         def lambda_fn(x, v):
             return x * v
 
-        # While it is generally not advised to mix Variables with Lambda layers, if
-        # the variables are explicitly set as attributes then they are still
+        # While it is generally not advised to mix Variables with Lambda layers,
+        # if the variables are explicitly set as attributes then they are still
         # tracked. This is consistent with the base Layer behavior.
         layer = keras.layers.Lambda(lambda_fn, arguments={"v": v})
         self.assertLen(layer.trainable_weights, 0)
@@ -415,8 +415,8 @@ class TestStatefulLambda(test_combinations.TestCase):
     @test_combinations.run_all_keras_modes
     @test_combinations.run_with_all_model_types
     def test_lambda_skip_state_variable_from_initializer(self):
-        # Force the initializers to use the tf.random.Generator, which will contain
-        # the state variable.
+        # Force the initializers to use the tf.random.Generator, which will
+        # contain the state variable.
         kernel_initializer = initializers.RandomNormalV2()
         kernel_initializer._random_generator._rng_type = (
             kernel_initializer._random_generator.RNG_STATEFUL
@@ -428,8 +428,8 @@ class TestStatefulLambda(test_combinations.TestCase):
         def lambda_fn(x):
             return dense(x + 1)  # Dense layer is built on first call
 
-        # While it is generally not advised to mix Variables with Lambda layers, if
-        # the variables are explicitly set as attributes then they are still
+        # While it is generally not advised to mix Variables with Lambda layers,
+        # if the variables are explicitly set as attributes then they are still
         # tracked. This is consistent with the base Layer behavior.
         layer = keras.layers.Lambda(lambda_fn)
         layer.dense = dense

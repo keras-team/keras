@@ -642,7 +642,8 @@ class ConvSequentialTest(test_combinations.TestCase):
             input_shape = (5, None, None, 2)
             inputs = keras.Input(shape=input_shape)
             x = layer(inputs)
-            # Won't raise error here with None values in input shape (b/144282043).
+            # Won't raise error here with None values in input shape
+            # (b/144282043).
             layer(x)
 
 

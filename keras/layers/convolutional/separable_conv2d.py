@@ -58,9 +58,9 @@ class SeparableConv2D(SeparableConv):
         Specifying any stride value != 1 is incompatible with specifying
         any `dilation_rate` value != 1.
       padding: one of `"valid"` or `"same"` (case-insensitive).
-        `"valid"` means no padding. `"same"` results in padding with zeros evenly
-        to the left/right or up/down of the input such that output has the same
-        height/width dimension as the input.
+        `"valid"` means no padding. `"same"` results in padding with zeros
+        evenly to the left/right or up/down of the input such that output has
+        the same height/width dimension as the input.
       data_format: A string,
         one of `channels_last` (default) or `channels_first`.
         The ordering of the dimensions in the inputs.
@@ -115,10 +115,12 @@ class SeparableConv2D(SeparableConv):
 
     Output shape:
       4D tensor with shape:
-      `(batch_size, filters, new_rows, new_cols)` if data_format='channels_first'
+      `(batch_size, filters, new_rows, new_cols)` if
+      data_format='channels_first'
       or 4D tensor with shape:
-      `(batch_size, new_rows, new_cols, filters)` if data_format='channels_last'.
-      `rows` and `cols` values might have changed due to padding.
+      `(batch_size, new_rows, new_cols, filters)` if
+      data_format='channels_last'.  `rows` and `cols` values might have changed
+      due to padding.
 
     Returns:
       A tensor of rank 4 representing

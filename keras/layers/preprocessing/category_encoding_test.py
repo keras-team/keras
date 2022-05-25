@@ -297,7 +297,8 @@ class CategoryEncodingInputTest(
         int_data = encoder_layer(input_data)
         self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
         model = keras.Model(inputs=input_data, outputs=int_data)
-        # Call predict once on valid input to compile a graph and test control flow.
+        # Call predict once on valid input to compile a graph and test control
+        # flow.
         _ = model.predict(valid_array, steps=1)
         with self.assertRaisesRegex(
             tf.errors.InvalidArgumentError,
@@ -315,7 +316,8 @@ class CategoryEncodingInputTest(
         int_data = encoder_layer(input_data)
         self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
         model = keras.Model(inputs=input_data, outputs=int_data)
-        # Call predict once on valid input to compile a graph and test control flow.
+        # Call predict once on valid input to compile a graph and test control
+        # flow.
         _ = model.predict(valid_array, steps=1)
         with self.assertRaisesRegex(
             tf.errors.InvalidArgumentError,

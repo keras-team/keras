@@ -81,8 +81,8 @@ class AbstractRNNCell(base_layer.Layer):
         """The function that contains the logic for one RNN step calculation.
 
         Args:
-          inputs: the input tensor, which is a slide from the overall RNN input by
-            the time dimension (usually the second dimension).
+          inputs: the input tensor, which is a slide from the overall RNN input
+            by the time dimension (usually the second dimension).
           states: the state tensor from previous step, which has the same shape
             as `(batch, state_size)`. In the case of timestep 0, it will be the
             initial state user specified, or zero filled tensor otherwise.
@@ -98,8 +98,8 @@ class AbstractRNNCell(base_layer.Layer):
     def state_size(self):
         """size(s) of state(s) used by this cell.
 
-        It can be represented by an Integer, a TensorShape or a tuple of Integers
-        or TensorShapes.
+        It can be represented by an Integer, a TensorShape or a tuple of
+        Integers or TensorShapes.
         """
         raise NotImplementedError
 

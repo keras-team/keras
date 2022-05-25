@@ -80,9 +80,9 @@ class Dot(_Merge):
         Args:
           axes: Integer or tuple of integers,
             axis or axes along which to take the dot product. If a tuple, should
-            be two integers corresponding to the desired axis from the first input
-            and the desired axis from the second input, respectively. Note that the
-            size of the two selected axes must match.
+            be two integers corresponding to the desired axis from the first
+            input and the desired axis from the second input, respectively. Note
+            that the size of the two selected axes must match.
           normalize: Whether to L2-normalize samples along the
             dot product axis before taking the dot product.
             If set to True, then the output of the dot product
@@ -103,8 +103,8 @@ class Dot(_Merge):
                 )
             if not isinstance(axes[0], int) or not isinstance(axes[1], int):
                 raise ValueError(
-                    "Invalid format for argument `axes`: list elements should be "
-                    f"integers. Received: axes={axes}"
+                    "Invalid format for argument `axes`: list elements should "
+                    f"be integers. Received: axes={axes}"
                 )
         self.axes = axes
         self.normalize = normalize

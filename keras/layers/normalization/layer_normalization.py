@@ -120,24 +120,26 @@ class LayerNormalization(Layer):
     Normalization layer with group size set to 1.
 
     Args:
-      axis: Integer or List/Tuple. The axis or axes to normalize across. Typically
-        this is the features axis/axes. The left-out axes are typically the batch
-        axis/axes. This argument defaults to `-1`, the last dimension in the
-        input.
+      axis: Integer or List/Tuple. The axis or axes to normalize across.
+        Typically this is the features axis/axes. The left-out axes are
+        typically the batch axis/axes. This argument defaults to `-1`, the last
+        dimension in the input.
       epsilon: Small float added to variance to avoid dividing by zero. Defaults
         to 1e-3
-      center: If True, add offset of `beta` to normalized tensor. If False, `beta`
-        is ignored. Defaults to True.
-      scale: If True, multiply by `gamma`. If False, `gamma` is not used. Defaults
-        to True. When the next layer is linear (also e.g. `nn.relu`), this can be
-        disabled since the scaling will be done by the next layer.
+      center: If True, add offset of `beta` to normalized tensor. If False,
+        `beta` is ignored. Defaults to True.
+      scale: If True, multiply by `gamma`. If False, `gamma` is not used.
+        Defaults to True. When the next layer is linear (also e.g. `nn.relu`),
+        this can be disabled since the scaling will be done by the next layer.
       beta_initializer: Initializer for the beta weight. Defaults to zeros.
       gamma_initializer: Initializer for the gamma weight. Defaults to ones.
-      beta_regularizer: Optional regularizer for the beta weight. None by default.
+      beta_regularizer: Optional regularizer for the beta weight. None by
+        default.
       gamma_regularizer: Optional regularizer for the gamma weight. None by
         default.
       beta_constraint: Optional constraint for the beta weight. None by default.
-      gamma_constraint: Optional constraint for the gamma weight. None by default.
+      gamma_constraint: Optional constraint for the gamma weight. None by
+        default.
 
     Input shape:
       Arbitrary. Use the keyword argument `input_shape` (tuple of
@@ -189,8 +191,8 @@ class LayerNormalization(Layer):
 
         self.supports_masking = True
 
-        # Indicates whether a faster fused implementation can be used. This will be
-        # set to True or False in build()"
+        # Indicates whether a faster fused implementation can be used. This will
+        # be set to True or False in build()"
         self._fused = None
 
     def _fused_can_be_used(self, ndims):
@@ -205,10 +207,10 @@ class LayerNormalization(Layer):
         if axis[-1] == ndims - 1 and axis[-1] - axis[0] == len(axis) - 1:
             can_use_fused = True
 
-        # fused_batch_norm will silently raise epsilon to be at least 1.001e-5, so
-        # we cannot used the fused version if epsilon is below that value. Also, the
-        # variable dtype must be float32, as fused_batch_norm only supports float32
-        # variables.
+        # fused_batch_norm will silently raise epsilon to be at least 1.001e-5,
+        # so we cannot used the fused version if epsilon is below that value.
+        # Also, the variable dtype must be float32, as fused_batch_norm only
+        # supports float32 variables.
         if self.epsilon < 1.001e-5 or self.dtype != "float32":
             can_use_fused = False
 
@@ -281,8 +283,8 @@ class LayerNormalization(Layer):
                 input_dtype in ("float16", "bfloat16")
                 and self.dtype == "float32"
             ):
-                # If mixed precision is used, cast inputs to float32 so that this is at
-                # least as numerically stable as the fused version.
+                # If mixed precision is used, cast inputs to float32 so that
+                # this is at least as numerically stable as the fused version.
                 inputs = tf.cast(inputs, "float32")
 
             # Calculate the moments on the last axis (layer activations).
@@ -290,7 +292,8 @@ class LayerNormalization(Layer):
 
             scale, offset = _broadcast(self.gamma), _broadcast(self.beta)
 
-            # Compute layer normalization using the batch_normalization function.
+            # Compute layer normalization using the batch_normalization
+            # function.
             outputs = tf.nn.batch_normalization(
                 inputs,
                 mean,
@@ -319,10 +322,11 @@ class LayerNormalization(Layer):
 
             inputs = tf.reshape(inputs, squeezed_shape)
 
-            # self.gamma and self.beta have the wrong shape for fused_batch_norm, so
-            # we cannot pass them as the scale and offset parameters. Therefore, we
-            # create two constant tensors in correct shapes for fused_batch_norm and
-            # later construct a separate calculation on the scale and offset.
+            # self.gamma and self.beta have the wrong shape for
+            # fused_batch_norm, so we cannot pass them as the scale and offset
+            # parameters. Therefore, we create two constant tensors in correct
+            # shapes for fused_batch_norm and later construct a separate
+            # calculation on the scale and offset.
             scale = tf.ones([pre_dim], dtype=self.dtype)
             offset = tf.zeros([pre_dim], dtype=self.dtype)
 

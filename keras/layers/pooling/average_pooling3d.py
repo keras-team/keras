@@ -25,8 +25,8 @@ from tensorflow.python.util.tf_export import keras_export
 class AveragePooling3D(Pooling3D):
     """Average pooling operation for 3D data (spatial or spatio-temporal).
 
-    Downsamples the input along its spatial dimensions (depth, height, and width)
-    by taking the average value over an input window
+    Downsamples the input along its spatial dimensions (depth, height, and
+    width) by taking the average value over an input window
     (of size defined by `pool_size`) for each channel of the input.
     The window is shifted by `strides` along each dimension.
 

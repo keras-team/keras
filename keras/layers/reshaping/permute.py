@@ -61,8 +61,8 @@ class Permute(Layer):
         if sorted(dims) != list(range(1, len(dims) + 1)):
             raise ValueError(
                 "Invalid permutation argument `dims` for Permute Layer. "
-                "The set of indices in `dims` must be consecutive and start from 1. "
-                f"Received dims={dims}"
+                "The set of indices in `dims` must be consecutive and start "
+                f"from 1. Received dims={dims}"
             )
         self.input_spec = InputSpec(ndim=len(self.dims) + 1)
 

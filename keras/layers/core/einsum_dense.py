@@ -38,8 +38,8 @@ class EinsumDense(Layer):
     Args:
       equation: An equation describing the einsum to perform. This equation must
         be a valid einsum string of the form `ab,bc->ac`, `...ab,bc->...ac`, or
-        `ab...,bc->ac...` where 'ab', 'bc', and 'ac' can be any valid einsum axis
-        expression sequence.
+        `ab...,bc->ac...` where 'ab', 'bc', and 'ac' can be any valid einsum
+        axis expression sequence.
       output_shape: The expected shape of the output tensor (excluding the batch
         dimension and any dimensions represented by ellipses). You can specify
         None for any dimension that is unknown or can be inferred from the input
@@ -47,8 +47,8 @@ class EinsumDense(Layer):
       activation: Activation function to use. If you don't specify anything, no
         activation is applied (that is, a "linear" activation: `a(x) = x`).
       bias_axes: A string containing the output dimension(s) to apply a bias to.
-        Each character in the `bias_axes` string should correspond to a character
-        in the output portion of the `equation` string.
+        Each character in the `bias_axes` string should correspond to a
+        character in the output portion of the `equation` string.
       kernel_initializer: Initializer for the `kernel` weights matrix.
       bias_initializer: Initializer for the bias vector.
       kernel_regularizer: Regularizer function applied to the `kernel` weights
@@ -81,8 +81,8 @@ class EinsumDense(Layer):
     This example shows how to instantiate a layer that applies the same dense
     operation to every element in a sequence. Here, the `output_shape` has two
     values (since there are two non-batch dimensions in the output); the first
-    dimension in the `output_shape` is `None`, because the sequence dimension `b`
-    has an unknown shape.
+    dimension in the `output_shape` is `None`, because the sequence dimension
+    `b` has an unknown shape.
 
     >>> layer = tf.keras.layers.EinsumDense("abc,cd->abd",
     ...                                     output_shape=(None, 64),
@@ -99,9 +99,9 @@ class EinsumDense(Layer):
     instead of specifying the batch and sequence dimensions.
 
     Because we are using ellipsis notation and have specified only one axis, the
-    `output_shape` arg is a single value. When instantiated in this way, the layer
-    can handle any number of sequence dimensions - including the case where no
-    sequence dimension exists.
+    `output_shape` arg is a single value. When instantiated in this way, the
+    layer can handle any number of sequence dimensions - including the case
+    where no sequence dimension exists.
 
     >>> layer = tf.keras.layers.EinsumDense("...x,xy->...y",
     ...                                     output_shape=64,
@@ -266,16 +266,16 @@ def _analyze_split_string(
 
     if elided > 0 and left_elided:
         for i in range(1, elided):
-            # We already inserted the 0th input dimension at dim 0, so we need to
-            # start at location 1 here.
+            # We already inserted the 0th input dimension at dim 0, so we need
+            # to start at location 1 here.
             output_shape.insert(1, input_shape[i])
     elif elided > 0 and not left_elided:
         for i in range(len(input_shape) - elided, len(input_shape)):
             output_shape.append(input_shape[i])
 
     if left_elided:
-        # If we have beginning dimensions elided, we need to use negative indexing
-        # to determine where in the input dimension our values are.
+        # If we have beginning dimensions elided, we need to use negative
+        # indexing to determine where in the input dimension our values are.
         input_dim_map = {
             dim: (i + elided) - len(input_shape)
             for i, dim in enumerate(input_spec)
@@ -307,9 +307,9 @@ def _analyze_split_string(
     for dim in output_spec:
         if dim not in input_spec and dim not in weight_spec:
             raise ValueError(
-                f"Dimension '{dim}' was specified in the output '{output_spec}' but "
-                f"has no corresponding dim in the input spec '{input_spec}' or "
-                f"weight spec '{output_spec}'"
+                f"Dimension '{dim}' was specified in the output "
+                f"'{output_spec}' but has no corresponding dim in the input "
+                f"spec '{input_spec}' or weight spec '{output_spec}'"
             )
 
     weight_shape = []
@@ -321,8 +321,9 @@ def _analyze_split_string(
         else:
             raise ValueError(
                 f"Weight dimension '{dim}' did not have a match in either "
-                f"the input spec '{input_spec}' or the output spec '{output_spec}'. "
-                "For this layer, the weight must be fully specified."
+                f"the input spec '{input_spec}' or the output "
+                f"spec '{output_spec}'. For this layer, the weight must "
+                "be fully specified."
             )
 
     if bias_axes is not None:

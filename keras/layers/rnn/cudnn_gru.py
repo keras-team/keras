@@ -37,8 +37,8 @@ class CuDNNGRU(_CuDNNRNN):
 
     Args:
         units: Positive integer, dimensionality of the output space.
-        kernel_initializer: Initializer for the `kernel` weights matrix, used for
-          the linear transformation of the inputs.
+        kernel_initializer: Initializer for the `kernel` weights matrix, used
+          for the linear transformation of the inputs.
         recurrent_initializer: Initializer for the `recurrent_kernel` weights
           matrix, used for the linear transformation of the recurrent state.
         bias_initializer: Initializer for the bias vector.
@@ -54,15 +54,15 @@ class CuDNNGRU(_CuDNNRNN):
         recurrent_constraint: Constraint function applied to the
           `recurrent_kernel` weights matrix.
         bias_constraint: Constraint function applied to the bias vector.
-        return_sequences: Boolean. Whether to return the last output in the output
-          sequence, or the full sequence.
-        return_state: Boolean. Whether to return the last state in addition to the
-          output.
-        go_backwards: Boolean (default False). If True, process the input sequence
-          backwards and return the reversed sequence.
-        stateful: Boolean (default False). If True, the last state for each sample
-          at index i in a batch will be used as initial state for the sample of
-          index i in the following batch.
+        return_sequences: Boolean. Whether to return the last output in the
+          output sequence, or the full sequence.
+        return_state: Boolean. Whether to return the last state in addition to
+          the output.
+        go_backwards: Boolean (default False). If True, process the input
+          sequence backwards and return the reversed sequence.
+        stateful: Boolean (default False). If True, the last state for each
+          sample at index i in a batch will be used as initial state for the
+          sample of index i in the following batch.
     """
 
     def __init__(

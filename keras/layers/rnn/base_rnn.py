@@ -87,8 +87,8 @@ class RNN(base_layer.Layer):
         for each sample at index i in a batch will be used as initial
         state for the sample of index i in the following batch.
       unroll: Boolean (default `False`).
-        If True, the network will be unrolled, else a symbolic loop will be used.
-        Unrolling can speed-up a RNN, although it tends to be more
+        If True, the network will be unrolled, else a symbolic loop will be
+        used. Unrolling can speed-up a RNN, although it tends to be more
         memory-intensive. Unrolling is only suitable for short sequences.
       time_major: The shape format of the `inputs` and `outputs` tensors.
         If True, the inputs and outputs will be in shape
@@ -250,7 +250,8 @@ class RNN(base_layer.Layer):
                 f"Received: cell={cell}"
             )
         # If True, the output for masked timestep will be zeros, whereas in the
-        # False case, output from previous timestep is returned for masked timestep.
+        # False case, output from previous timestep is returned for masked
+        # timestep.
         self.zero_output_for_mask = kwargs.pop("zero_output_for_mask", False)
 
         if "input_shape" not in kwargs and (
@@ -272,9 +273,9 @@ class RNN(base_layer.Layer):
         self.time_major = time_major
 
         self.supports_masking = True
-        # The input shape is unknown yet, it could have nested tensor inputs, and
-        # the input spec will be the list of specs for nested inputs, the structure
-        # of the input_spec will be the same as the input.
+        # The input shape is unknown yet, it could have nested tensor inputs,
+        # and the input spec will be the list of specs for nested inputs, the
+        # structure of the input_spec will be the same as the input.
         self.input_spec = None
         self.state_spec = None
         self._states = None
@@ -291,10 +292,11 @@ class RNN(base_layer.Layer):
     @property
     def _use_input_spec_as_call_signature(self):
         if self.unroll:
-            # When the RNN layer is unrolled, the time step shape cannot be unknown.
-            # The input spec does not define the time step (because this layer can be
-            # called with any time step value, as long as it is not None), so it
-            # cannot be used as the call function signature when saving to SavedModel.
+            # When the RNN layer is unrolled, the time step shape cannot be
+            # unknown.  The input spec does not define the time step (because
+            # this layer can be called with any time step value, as long as it
+            # is not None), so it cannot be used as the call function signature
+            # when saving to SavedModel.
             return False
         return super()._use_input_spec_as_call_signature
 
@@ -316,8 +318,8 @@ class RNN(base_layer.Layer):
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
         # Check whether the input shape contains any nested shapes. It could be
-        # (tensor_shape(1, 2), tensor_shape(3, 4)) or (1, 2, 3) which is from numpy
-        # inputs.
+        # (tensor_shape(1, 2), tensor_shape(3, 4)) or (1, 2, 3) which is from
+        # numpy inputs.
         try:
             input_shape = tf.TensorShape(input_shape)
         except (ValueError, TypeError):
@@ -393,8 +395,8 @@ class RNN(base_layer.Layer):
             input_shape = input_shape[0]
             # The input_shape here could be a nest structure.
 
-        # do the tensor_shape to shapes here. The input could be single tensor, or a
-        # nested structure of tensors.
+        # do the tensor_shape to shapes here. The input could be single tensor,
+        # or a nested structure of tensors.
         def get_input_spec(shape):
             """Convert input shape to InputSpec."""
             if isinstance(shape, tf.TensorShape):
@@ -420,8 +422,8 @@ class RNN(base_layer.Layer):
             return InputSpec(shape=tuple(state_spec_shape))
 
         # Check whether the input shape contains any nested shapes. It could be
-        # (tensor_shape(1, 2), tensor_shape(3, 4)) or (1, 2, 3) which is from numpy
-        # inputs.
+        # (tensor_shape(1, 2), tensor_shape(3, 4)) or (1, 2, 3) which is from
+        # numpy inputs.
         try:
             input_shape = tf.TensorShape(input_shape)
         except (ValueError, TypeError):
@@ -485,11 +487,12 @@ class RNN(base_layer.Layer):
 
         Args:
           cell_state_sizes: list, the `state_size` attribute from the cell.
-          init_state_specs: list, the `state_spec` from the initial_state that is
-            passed in `call()`.
+          init_state_specs: list, the `state_spec` from the initial_state that
+            is passed in `call()`.
 
         Raises:
-          ValueError: When initial state spec is not compatible with the state size.
+          ValueError: When initial state spec is not compatible with the state
+            size.
         """
         validation_error = ValueError(
             "An `initial_state` was passed that is not compatible with "
@@ -516,8 +519,8 @@ class RNN(base_layer.Layer):
         get_initial_state_fn = getattr(self.cell, "get_initial_state", None)
 
         if tf.nest.is_nested(inputs):
-            # The input are nested sequences. Use the first element in the seq to get
-            # batch size and dtype.
+            # The input are nested sequences. Use the first element in the seq
+            # to get batch size and dtype.
             inputs = tf.nest.flatten(inputs)[0]
 
         input_shape = tf.shape(inputs)
@@ -531,10 +534,12 @@ class RNN(base_layer.Layer):
             init_state = rnn_utils.generate_zero_filled_state(
                 batch_size, self.cell.state_size, dtype
             )
-        # Keras RNN expect the states in a list, even if it's a single state tensor.
+        # Keras RNN expect the states in a list, even if it's a single state
+        # tensor.
         if not tf.nest.is_nested(init_state):
             init_state = [init_state]
-        # Force the state to be a list in case it is a namedtuple eg LSTMStateTuple.
+        # Force the state to be a list in case it is a namedtuple eg
+        # LSTMStateTuple.
         return list(init_state)
 
     def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
@@ -565,8 +570,8 @@ class RNN(base_layer.Layer):
             ]
             self._num_constants = len(constants)
             additional_specs += self.constants_spec
-        # additional_inputs can be empty if initial_state or constants are provided
-        # but empty (e.g. the cell is stateless).
+        # additional_inputs can be empty if initial_state or constants are
+        # provided but empty (e.g. the cell is stateless).
         flat_additional_inputs = tf.nest.flatten(additional_inputs)
         is_keras_tensor = (
             backend.is_keras_tensor(flat_additional_inputs[0])
@@ -577,21 +582,23 @@ class RNN(base_layer.Layer):
             if backend.is_keras_tensor(tensor) != is_keras_tensor:
                 raise ValueError(
                     "The initial state or constants of an RNN layer cannot be "
-                    "specified via a mix of Keras tensors and non-Keras tensors "
-                    '(a "Keras tensor" is a tensor that was returned by a Keras layer '
-                    " or by `Input` during Functional model construction). "
-                    f"Received: initial_state={initial_state}, constants={constants}"
+                    "specified via a mix of Keras tensors and non-Keras "
+                    'tensors (a "Keras tensor" is a tensor that was returned '
+                    "by a Keras layer  or by `Input` during Functional "
+                    "model construction). Received: "
+                    f"initial_state={initial_state}, constants={constants}"
                 )
 
         if is_keras_tensor:
             # Compute the full input spec, including state and constants
             full_input = [inputs] + additional_inputs
             if self.built:
-                # Keep the input_spec since it has been populated in build() method.
+                # Keep the input_spec since it has been populated in build()
+                # method.
                 full_input_spec = self.input_spec + additional_specs
             else:
-                # The original input_spec is None since there could be a nested tensor
-                # input. Update the input_spec to match the inputs.
+                # The original input_spec is None since there could be a nested
+                # tensor input. Update the input_spec to match the inputs.
                 full_input_spec = (
                     generic_utils.to_list(
                         tf.nest.map_structure(lambda _: None, inputs)
@@ -601,9 +608,9 @@ class RNN(base_layer.Layer):
             # Perform the call with temporarily replaced input_spec
             self.input_spec = full_input_spec
             output = super().__call__(full_input, **kwargs)
-            # Remove the additional_specs from input spec and keep the rest. It is
-            # important to keep since the input spec was populated by build(), and
-            # will be reused in the stateful=True.
+            # Remove the additional_specs from input spec and keep the rest. It
+            # is important to keep since the input spec was populated by
+            # build(), and will be reused in the stateful=True.
             self.input_spec = self.input_spec[: -len(additional_specs)]
             return output
         else:
@@ -642,7 +649,8 @@ class RNN(base_layer.Layer):
             mask = tf.nest.flatten(mask)[0]
 
         if tf.nest.is_nested(inputs):
-            # In the case of nested input, use the first element for shape check.
+            # In the case of nested input, use the first element for shape
+            # check.
             input_shape = backend.int_shape(tf.nest.flatten(inputs)[0])
         else:
             input_shape = backend.int_shape(inputs)
@@ -666,7 +674,8 @@ class RNN(base_layer.Layer):
         if generic_utils.has_arg(self.cell.call, "training"):
             kwargs["training"] = training
 
-        # TF RNN cells expect single tensor as state instead of list wrapped tensor.
+        # TF RNN cells expect single tensor as state instead of list wrapped
+        # tensor.
         is_tf_rnn_cell = getattr(self.cell, "_is_tf_rnn_cell", None) is not None
         # Use the __call__ function for callable objects, eg layers, so that it
         # will have the proper name scopes for the ops, etc.
@@ -773,9 +782,9 @@ class RNN(base_layer.Layer):
 
         if self.stateful:
             if initial_state is not None:
-                # When layer is stateful and initial_state is provided, check if the
-                # recorded state is same as the default value (zeros). Use the recorded
-                # state if it is not same as the default.
+                # When layer is stateful and initial_state is provided, check if
+                # the recorded state is same as the default value (zeros). Use
+                # the recorded state if it is not same as the default.
                 non_zero_count = tf.add_n(
                     [
                         tf.math.count_nonzero(s)
@@ -792,7 +801,8 @@ class RNN(base_layer.Layer):
             else:
                 initial_state = self.states
             initial_state = tf.nest.map_structure(
-                # When the layer has a inferred dtype, use the dtype from the cell.
+                # When the layer has a inferred dtype, use the dtype from the
+                # cell.
                 lambda v: tf.cast(
                     v, self.compute_dtype or self.cell.compute_dtype
                 ),
@@ -837,9 +847,10 @@ class RNN(base_layer.Layer):
 
         Can only be used when RNN layer is constructed with `stateful` = `True`.
         Args:
-          states: Numpy arrays that contains the value for the initial state, which
-            will be feed to cell at the first time step. When the value is None,
-            zero filled numpy array will be created based on the cell state size.
+          states: Numpy arrays that contains the value for the initial state,
+            which will be feed to cell at the first time step. When the value is
+            None, zero filled numpy array will be created based on the cell
+            state size.
 
         Raises:
           AttributeError: When the RNN layer is not stateful.
@@ -853,9 +864,10 @@ class RNN(base_layer.Layer):
         if self.input_spec is not None:
             spec_shape = tf.nest.flatten(self.input_spec[0])[0].shape
         if spec_shape is None:
-            # It is possible to have spec shape to be None, eg when construct a RNN
-            # with a custom cell, or standard RNN layers (LSTM/GRU) which we only know
-            # it has 3 dim input, but not its full shape spec before build().
+            # It is possible to have spec shape to be None, eg when construct a
+            # RNN with a custom cell, or standard RNN layers (LSTM/GRU) which we
+            # only know it has 3 dim input, but not its full shape spec before
+            # build().
             batch_size = None
         else:
             batch_size = spec_shape[1] if self.time_major else spec_shape[0]
@@ -879,8 +891,8 @@ class RNN(base_layer.Layer):
                     self.cell.get_initial_state(
                         inputs=None,
                         batch_size=batch_size,
-                        # Use variable_dtype instead of compute_dtype, since the state is
-                        # stored in a variable
+                        # Use variable_dtype instead of compute_dtype, since the
+                        # state is stored in a variable
                         dtype=self.variable_dtype or backend.floatx(),
                     )
                 )

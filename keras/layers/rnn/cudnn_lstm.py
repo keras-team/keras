@@ -37,8 +37,8 @@ class CuDNNLSTM(_CuDNNRNN):
 
     Args:
         units: Positive integer, dimensionality of the output space.
-        kernel_initializer: Initializer for the `kernel` weights matrix, used for
-          the linear transformation of the inputs.
+        kernel_initializer: Initializer for the `kernel` weights matrix, used
+          for the linear transformation of the inputs.
         unit_forget_bias: Boolean. If True, add 1 to the bias of the forget gate
           at initialization. Setting it to true will also force
           `bias_initializer="zeros"`. This is recommended in [Jozefowicz et
@@ -60,13 +60,13 @@ class CuDNNLSTM(_CuDNNRNN):
         bias_constraint: Constraint function applied to the bias vector.
         return_sequences: Boolean. Whether to return the last output. in the
           output sequence, or the full sequence.
-        return_state: Boolean. Whether to return the last state in addition to the
-          output.
-        go_backwards: Boolean (default False). If True, process the input sequence
-          backwards and return the reversed sequence.
-        stateful: Boolean (default False). If True, the last state for each sample
-          at index i in a batch will be used as initial state for the sample of
-          index i in the following batch.
+        return_state: Boolean. Whether to return the last state in addition to
+          the output.
+        go_backwards: Boolean (default False). If True, process the input
+          sequence backwards and return the reversed sequence.
+        stateful: Boolean (default False). If True, the last state for each
+          sample at index i in a batch will be used as initial state for the
+          sample of index i in the following batch.
     """
 
     def __init__(

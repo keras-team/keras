@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Benchmark for KPL implementation of categorical hash columns with dense inputs."""
+"""Benchmark for KPL implementation of categorical hash columns with dense
+inputs."""
 
 import tensorflow.compat.v2 as tf
 

@@ -25,9 +25,9 @@ from tensorflow.tools.docs import doc_controls
 class DropoutRNNCellMixin:
     """Object that hold dropout related fields for RNN Cell.
 
-    This class is not a standalone RNN cell. It suppose to be used with a RNN cell
-    by multiple inheritance. Any cell that mix with class should have following
-    fields:
+    This class is not a standalone RNN cell. It suppose to be used with a RNN
+    cell by multiple inheritance. Any cell that mix with class should have
+    following fields:
       dropout: a float number within range [0, 1). The ratio that the input
         tensor need to dropout.
       recurrent_dropout: a float number within range [0, 1). The ratio that the
@@ -51,14 +51,14 @@ class DropoutRNNCellMixin:
         tensors will be generated differently than in the "graph function" case,
         and they will be cached.
 
-        Also note that in graph mode, we still cache those masks only because the
-        RNN could be created with `unroll=True`. In that case, the `cell.call()`
-        function will be invoked multiple times, and we want to ensure same mask
-        is used every time.
+        Also note that in graph mode, we still cache those masks only because
+        the RNN could be created with `unroll=True`. In that case, the
+        `cell.call()` function will be invoked multiple times, and we want to
+        ensure same mask is used every time.
 
-        Also the caches are created without tracking. Since they are not picklable
-        by python when deepcopy, we don't want `layer._obj_reference_counts_dict`
-        to track it by default.
+        Also the caches are created without tracking. Since they are not
+        picklable by python when deepcopy, we don't want
+        `layer._obj_reference_counts_dict` to track it by default.
         """
         self._dropout_mask_cache = backend.ContextValueCache(
             self._create_dropout_mask
@@ -70,22 +70,22 @@ class DropoutRNNCellMixin:
     def reset_dropout_mask(self):
         """Reset the cached dropout masks if any.
 
-        This is important for the RNN layer to invoke this in it `call()` method so
-        that the cached mask is cleared before calling the `cell.call()`. The mask
-        should be cached across the timestep within the same batch, but shouldn't
-        be cached between batches. Otherwise it will introduce unreasonable bias
-        against certain index of data within the batch.
+        This is important for the RNN layer to invoke this in it `call()` method
+        so that the cached mask is cleared before calling the `cell.call()`. The
+        mask should be cached across the timestep within the same batch, but
+        shouldn't be cached between batches. Otherwise it will introduce
+        unreasonable bias against certain index of data within the batch.
         """
         self._dropout_mask_cache.clear()
 
     def reset_recurrent_dropout_mask(self):
         """Reset the cached recurrent dropout masks if any.
 
-        This is important for the RNN layer to invoke this in it call() method so
-        that the cached mask is cleared before calling the cell.call(). The mask
-        should be cached across the timestep within the same batch, but shouldn't
-        be cached between batches. Otherwise it will introduce unreasonable bias
-        against certain index of data within the batch.
+        This is important for the RNN layer to invoke this in it call() method
+        so that the cached mask is cleared before calling the cell.call(). The
+        mask should be cached across the timestep within the same batch, but
+        shouldn't be cached between batches. Otherwise it will introduce
+        unreasonable bias against certain index of data within the batch.
         """
         self._recurrent_dropout_mask_cache.clear()
 
@@ -116,10 +116,10 @@ class DropoutRNNCellMixin:
         Args:
           inputs: The input tensor whose shape will be used to generate dropout
             mask.
-          training: Boolean tensor, whether its in training mode, dropout will be
-            ignored in non-training mode.
-          count: Int, how many dropout mask will be generated. It is useful for cell
-            that has internal weights fused together.
+          training: Boolean tensor, whether its in training mode, dropout will
+            be ignored in non-training mode.
+          count: Int, how many dropout mask will be generated. It is useful for
+            cell that has internal weights fused together.
         Returns:
           List of mask tensor, generated or cached mask based on context.
         """
@@ -137,10 +137,10 @@ class DropoutRNNCellMixin:
         Args:
           inputs: The input tensor whose shape will be used to generate dropout
             mask.
-          training: Boolean tensor, whether its in training mode, dropout will be
-            ignored in non-training mode.
-          count: Int, how many dropout mask will be generated. It is useful for cell
-            that has internal weights fused together.
+          training: Boolean tensor, whether its in training mode, dropout will
+            be ignored in non-training mode.
+          count: Int, how many dropout mask will be generated. It is useful for
+            cell that has internal weights fused together.
         Returns:
           List of mask tensor, generated or cached mask based on context.
         """
@@ -150,8 +150,8 @@ class DropoutRNNCellMixin:
         return self._recurrent_dropout_mask_cache.setdefault(kwargs=init_kwargs)
 
     def __getstate__(self):
-        # Used for deepcopy. The caching can't be pickled by python, since it will
-        # contain tensor and graph.
+        # Used for deepcopy. The caching can't be pickled by python, since it
+        # will contain tensor and graph.
         state = super().__getstate__()
         state.pop("_dropout_mask_cache", None)
         state.pop("_recurrent_dropout_mask_cache", None)

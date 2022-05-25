@@ -57,9 +57,9 @@ class DropoutTest(test_combinations.TestCase):
         model = keras.Model(inputs, outputs)
         train = model(np.ones((20, 5, 10)), training=True)
         predict = model(np.ones((20, 5, 10)))
-        # Make sure the weights from tf.random.Generator is not present in the model
-        # which will cause weight loading issue for existing application models if
-        # it contains dropout layer.
+        # Make sure the weights from tf.random.Generator is not present in the
+        # model which will cause weight loading issue for existing application
+        # models if it contains dropout layer.
         self.assertEmpty(layer.get_weights())
         self.assertEmpty(model.get_weights())
 

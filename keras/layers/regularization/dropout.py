@@ -90,9 +90,9 @@ class Dropout(base_layer.BaseRandomLayer):
         self._random_generator._maybe_init()  # pylint: disable=protected-access
 
     def _get_noise_shape(self, inputs):
-        # Subclasses of `Dropout` may implement `_get_noise_shape(self, inputs)`,
-        # which will override `self.noise_shape`, and allows for custom noise
-        # shapes with dynamically sized inputs.
+        # Subclasses of `Dropout` may implement `_get_noise_shape(self,
+        # inputs)`, which will override `self.noise_shape`, and allows for
+        # custom noise shapes with dynamically sized inputs.
         if self.noise_shape is None:
             return None
 

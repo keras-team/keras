@@ -67,15 +67,13 @@ class Embedding(Layer):
         the `embeddings` matrix (see `keras.regularizers`).
       embeddings_constraint: Constraint function applied to
         the `embeddings` matrix (see `keras.constraints`).
-      mask_zero: Boolean, whether or not the input value 0 is a special "padding"
-        value that should be masked out.
-        This is useful when using recurrent layers
-        which may take variable length input.
-        If this is `True`, then all subsequent layers
-        in the model need to support masking or an exception will be raised.
-        If mask_zero is set to True, as a consequence, index 0 cannot be
-        used in the vocabulary (input_dim should equal size of
-        vocabulary + 1).
+      mask_zero: Boolean, whether or not the input value 0 is a special
+        "padding" value that should be masked out. This is useful when using
+        recurrent layers which may take variable length input. If this is
+        `True`, then all subsequent layers in the model need to support masking
+        or an exception will be raised. If mask_zero is set to True, as a
+        consequence, index 0 cannot be used in the vocabulary (input_dim should
+        equal size of vocabulary + 1).
       input_length: Length of input sequences, when it is constant.
         This argument is required if you are going to connect
         `Flatten` then `Dense` layers upstream
@@ -131,19 +129,20 @@ class Embedding(Layer):
         if input_dim <= 0 or output_dim <= 0:
             raise ValueError(
                 "Both `input_dim` and `output_dim` should be positive, "
-                f"Received input_dim = {input_dim} and output_dim = {output_dim}"
+                f"Received input_dim = {input_dim} "
+                f"and output_dim = {output_dim}"
             )
         if (
             not base_layer_utils.v2_dtype_behavior_enabled()
             and "dtype" not in kwargs
         ):
-            # In TF1, the dtype defaults to the input dtype which is typically int32,
-            # so explicitly set it to floatx
+            # In TF1, the dtype defaults to the input dtype which is typically
+            # int32, so explicitly set it to floatx
             kwargs["dtype"] = backend.floatx()
-        # We set autocast to False, as we do not want to cast floating- point inputs
-        # to self.dtype. In call(), we cast to int32, and casting to self.dtype
-        # before casting to int32 might cause the int32 values to be different due
-        # to a loss of precision.
+        # We set autocast to False, as we do not want to cast floating- point
+        # inputs to self.dtype. In call(), we cast to int32, and casting to
+        # self.dtype before casting to int32 might cause the int32 values to be
+        # different due to a loss of precision.
         kwargs["autocast"] = False
         super().__init__(**kwargs)
 
@@ -186,15 +185,15 @@ class Embedding(Layer):
                 in_lens = [self.input_length]
             if len(in_lens) != len(input_shape) - 1:
                 raise ValueError(
-                    f'"input_length" is {self.input_length}, but received input has '
-                    f"shape {input_shape}"
+                    f'"input_length" is {self.input_length}, but received '
+                    f"input has shape {input_shape}"
                 )
             else:
                 for i, (s1, s2) in enumerate(zip(in_lens, input_shape[1:])):
                     if s1 is not None and s2 is not None and s1 != s2:
                         raise ValueError(
-                            f'"input_length" is {self.input_length}, but received input '
-                            f"has shape {input_shape}"
+                            f'"input_length" is {self.input_length}, but '
+                            f"received input has shape {input_shape}"
                         )
                     elif s1 is None:
                         in_lens[i] = s2
@@ -209,8 +208,8 @@ class Embedding(Layer):
             self._dtype_policy.compute_dtype
             != self._dtype_policy.variable_dtype
         ):
-            # Instead of casting the variable as in most layers, cast the output, as
-            # this is mathematically equivalent but is faster.
+            # Instead of casting the variable as in most layers, cast the
+            # output, as this is mathematically equivalent but is faster.
             out = tf.cast(out, self._dtype_policy.compute_dtype)
         return out
 

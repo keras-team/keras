@@ -44,8 +44,8 @@ class Conv3DTranspose(Conv3D):
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
     (tuple of integers or `None`, does not include the sample axis),
-    e.g. `input_shape=(128, 128, 128, 3)` for a 128x128x128 volume with 3 channels
-    if `data_format="channels_last"`.
+    e.g. `input_shape=(128, 128, 128, 3)` for a 128x128x128 volume with 3
+    channels if `data_format="channels_last"`.
 
     Args:
       filters: Integer, the dimensionality of the output space
@@ -62,9 +62,9 @@ class Conv3DTranspose(Conv3D):
         Specifying any stride value != 1 is incompatible with specifying
         any `dilation_rate` value != 1.
       padding: one of `"valid"` or `"same"` (case-insensitive).
-        `"valid"` means no padding. `"same"` results in padding with zeros evenly
-        to the left/right or up/down of the input such that output has the same
-        height/width dimension as the input.
+        `"valid"` means no padding. `"same"` results in padding with zeros
+        evenly to the left/right or up/down of the input such that output has
+        the same height/width dimension as the input.
       output_padding: An integer or tuple/list of 3 integers,
         specifying the amount of padding along the depth, height, and
         width.
@@ -112,9 +112,11 @@ class Conv3DTranspose(Conv3D):
 
     Input shape:
       5D tensor with shape:
-      `(batch_size, channels, depth, rows, cols)` if data_format='channels_first'
+      `(batch_size, channels, depth, rows, cols)` if
+      data_format='channels_first'
       or 5D tensor with shape:
-      `(batch_size, depth, rows, cols, channels)` if data_format='channels_last'.
+      `(batch_size, depth, rows, cols, channels)` if
+      data_format='channels_last'.
 
     Output shape:
       5D tensor with shape:

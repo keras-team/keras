@@ -46,7 +46,8 @@ def summarize(values, epsilon):
 
     Args:
         values: 1D `np.ndarray` to be summarized.
-        epsilon: A `'float32'` that determines the approximate desired precision.
+        epsilon: A `'float32'` that determines the approximate desired
+          precision.
 
     Returns:
         A 2D `np.ndarray` that is a summary of the inputs. First column is the
@@ -69,15 +70,16 @@ def summarize(values, epsilon):
 def compress(summary, epsilon):
     """Compress a summary to within `epsilon` accuracy.
 
-    The compression step is needed to keep the summary sizes small after merging,
-    and also used to return the final target boundaries. It finds the new bins
-    based on interpolating cumulative weight percentages from the large summary.
-    Taking the difference of the cumulative weights from the previous bin's
-    cumulative weight will give the new weight for that bin.
+    The compression step is needed to keep the summary sizes small after
+    merging, and also used to return the final target boundaries. It finds the
+    new bins based on interpolating cumulative weight percentages from the large
+    summary.  Taking the difference of the cumulative weights from the previous
+    bin's cumulative weight will give the new weight for that bin.
 
     Args:
         summary: 2D `np.ndarray` summary to be compressed.
-        epsilon: A `'float32'` that determines the approxmiate desired precision.
+        epsilon: A `'float32'` that determines the approxmiate desired
+          precision.
 
     Returns:
         A 2D `np.ndarray` that is a compressed summary. First column is the
@@ -153,30 +155,30 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     Arguments:
       bin_boundaries: A list of bin boundaries. The leftmost and rightmost bins
         will always extend to `-inf` and `inf`, so `bin_boundaries=[0., 1., 2.]`
-        generates bins `(-inf, 0.)`, `[0., 1.)`, `[1., 2.)`, and `[2., +inf)`. If
-        this option is set, `adapt()` should not be called.
+        generates bins `(-inf, 0.)`, `[0., 1.)`, `[1., 2.)`, and `[2., +inf)`.
+        If this option is set, `adapt()` should not be called.
       num_bins: The integer number of bins to compute. If this option is set,
         `adapt()` should be called to learn the bin boundaries.
       epsilon: Error tolerance, typically a small fraction close to zero (e.g.
         0.01). Higher values of epsilon increase the quantile approximation, and
         hence result in more unequal buckets, but could improve performance
         and resource consumption.
-      output_mode: Specification for the output of the layer. Defaults to `"int"`.
-        Values can be `"int"`, `"one_hot"`, `"multi_hot"`, or `"count"`
-        configuring the layer as follows:
+      output_mode: Specification for the output of the layer. Defaults to
+        `"int"`.  Values can be `"int"`, `"one_hot"`, `"multi_hot"`, or
+        `"count"` configuring the layer as follows:
           - `"int"`: Return the discritized bin indices directly.
           - `"one_hot"`: Encodes each individual element in the input into an
             array the same size as `num_bins`, containing a 1 at the input's bin
-            index. If the last dimension is size 1, will encode on that dimension.
-            If the last dimension is not size 1, will append a new dimension for
-            the encoded output.
+            index. If the last dimension is size 1, will encode on that
+            dimension.  If the last dimension is not size 1, will append a new
+            dimension for the encoded output.
           - `"multi_hot"`: Encodes each sample in the input into a single array
             the same size as `num_bins`, containing a 1 for each bin index
             index present in the sample. Treats the last dimension as the sample
-            dimension, if input shape is `(..., sample_length)`, output shape will
-            be `(..., num_tokens)`.
-          - `"count"`: As `"multi_hot"`, but the int array contains a count of the
-            number of times the bin index appeared in the sample.
+            dimension, if input shape is `(..., sample_length)`, output shape
+            will be `(..., num_tokens)`.
+          - `"count"`: As `"multi_hot"`, but the int array contains a count of
+            the number of times the bin index appeared in the sample.
       sparse: Boolean. Only applicable to `"one_hot"`, `"multi_hot"`,
         and `"count"` output modes. If True, returns a `SparseTensor` instead of
         a dense `Tensor`. Defaults to False.
@@ -210,11 +212,12 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
         sparse=False,
         **kwargs,
     ):
-        # bins is a deprecated arg for setting bin_boundaries or num_bins that still
-        # has some usage.
+        # bins is a deprecated arg for setting bin_boundaries or num_bins that
+        # still has some usage.
         if "bins" in kwargs:
             logging.warning(
-                "bins is deprecated, please use bin_boundaries or num_bins instead."
+                "bins is deprecated, "
+                "please use bin_boundaries or num_bins instead."
             )
             if isinstance(kwargs["bins"], int) and num_bins is None:
                 num_bins = kwargs["bins"]
@@ -230,7 +233,8 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
         elif (
             output_mode == "int" and not tf.as_dtype(kwargs["dtype"]).is_integer
         ):
-            # Compat for when dtype was always floating and ignored by the layer.
+            # Compat for when dtype was always floating and ignored by the
+            # layer.
             kwargs["dtype"] = tf.int64
 
         super().__init__(**kwargs)
@@ -292,8 +296,8 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
         if self.input_bin_boundaries is not None:
             return
 
-        # Summary contains two equal length vectors of bins at index 0 and weights
-        # at index 1.
+        # Summary contains two equal length vectors of bins at index 0 and
+        # weights at index 1.
         self.summary = self.add_weight(
             name="summary",
             shape=(2, None),
@@ -309,25 +313,28 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     def adapt(self, data, batch_size=None, steps=None):
         """Computes bin boundaries from quantiles in a input dataset.
 
-        Calling `adapt()` on a `Discretization` layer is an alternative to passing
-        in a `bin_boundaries` argument during construction. A `Discretization` layer
-        should always be either adapted over a dataset or passed `bin_boundaries`.
+        Calling `adapt()` on a `Discretization` layer is an alternative to
+        passing in a `bin_boundaries` argument during construction. A
+        `Discretization` layer should always be either adapted over a dataset or
+        passed `bin_boundaries`.
 
         During `adapt()`, the layer will estimate the quantile boundaries of the
-        input dataset. The number of quantiles can be controlled via the `num_bins`
-        argument, and the error tolerance for quantile boundaries can be controlled
-        via the `epsilon` argument.
+        input dataset. The number of quantiles can be controlled via the
+        `num_bins` argument, and the error tolerance for quantile boundaries can
+        be controlled via the `epsilon` argument.
 
-        In order to make `Discretization` efficient in any distribution context, the
-        computed boundaries are kept static with respect to any compiled `tf.Graph`s
-        that call the layer. As a consequence, if the layer is adapted a second
-        time, any models using the layer should be re-compiled. For more information
-        see `tf.keras.layers.experimental.preprocessing.PreprocessingLayer.adapt`.
+        In order to make `Discretization` efficient in any distribution context,
+        the computed boundaries are kept static with respect to any compiled
+        `tf.Graph`s that call the layer. As a consequence, if the layer is
+        adapted a second time, any models using the layer should be re-compiled.
+        For more information see
+        `tf.keras.layers.experimental.preprocessing.PreprocessingLayer.adapt`.
 
-        `adapt()` is meant only as a single machine utility to compute layer state.
-        To analyze a dataset that cannot fit on a single machine, see
-        [Tensorflow Transform](https://www.tensorflow.org/tfx/transform/get_started)
-        for a multi-machine, map-reduce solution.
+        `adapt()` is meant only as a single machine utility to compute layer
+        state.  To analyze a dataset that cannot fit on a single machine, see
+        [Tensorflow Transform](
+        https://www.tensorflow.org/tfx/transform/get_started) for a
+        multi-machine, map-reduce solution.
 
         Arguments:
           data: The data to train on. It can be passed either as a
@@ -354,8 +361,8 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     def update_state(self, data):
         if self.input_bin_boundaries is not None:
             raise ValueError(
-                "Cannot adapt a Discretization layer that has been initialized with "
-                "`bin_boundaries`, use `num_bins` instead. You passed "
+                "Cannot adapt a Discretization layer that has been initialized "
+                "with `bin_boundaries`, use `num_bins` instead. You passed "
                 "`bin_boundaries={}`.".format(self.input_bin_boundaries)
             )
 

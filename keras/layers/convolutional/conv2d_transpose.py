@@ -62,9 +62,9 @@ class Conv2DTranspose(Conv2D):
         Specifying any stride value != 1 is incompatible with specifying
         any `dilation_rate` value != 1.
       padding: one of `"valid"` or `"same"` (case-insensitive).
-        `"valid"` means no padding. `"same"` results in padding with zeros evenly
-        to the left/right or up/down of the input such that output has the same
-        height/width dimension as the input.
+        `"valid"` means no padding. `"same"` results in padding with zeros
+        evenly to the left/right or up/down of the input such that output has
+        the same height/width dimension as the input.
       output_padding: An integer or tuple/list of 2 integers,
         specifying the amount of padding along the height and width
         of the output tensor.
@@ -115,10 +115,12 @@ class Conv2DTranspose(Conv2D):
 
     Output shape:
       4D tensor with shape:
-      `(batch_size, filters, new_rows, new_cols)` if data_format='channels_first'
+      `(batch_size, filters, new_rows, new_cols)` if
+      data_format='channels_first'
       or 4D tensor with shape:
-      `(batch_size, new_rows, new_cols, filters)` if data_format='channels_last'.
-      `rows` and `cols` values might have changed due to padding.
+      `(batch_size, new_rows, new_cols, filters)` if
+      data_format='channels_last'.  `rows` and `cols` values might have changed
+      due to padding.
       If `output_padding` is specified:
       ```
       new_rows = ((rows - 1) * strides[0] + kernel_size[0] - 2 * padding[0] +
@@ -247,9 +249,9 @@ class Conv2DTranspose(Conv2D):
             h_axis, w_axis = 1, 2
 
         # Use the constant height and weight when possible.
-        # TODO(scottzhu): Extract this into a utility function that can be applied
-        # to all convolutional layers, which currently lost the static shape
-        # information due to tf.shape().
+        # TODO(scottzhu): Extract this into a utility function that can be
+        # applied to all convolutional layers, which currently lost the static
+        # shape information due to tf.shape().
         height, width = None, None
         if inputs.shape.rank is not None:
             dims = inputs.shape.as_list()

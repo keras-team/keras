@@ -296,7 +296,8 @@ class TimeDistributedTest(test_combinations.TestCase):
         td1 = keras.layers.TimeDistributed(keras.layers.Dense(5))
         self.assertTrue(td1._always_use_reshape)
 
-        # Built-in layers that are stateful don't use the reshape implementation.
+        # Built-in layers that are stateful don't use the reshape
+        # implementation.
         td2 = keras.layers.TimeDistributed(
             keras.layers.RNN(keras.layers.SimpleRNNCell(10), stateful=True)
         )

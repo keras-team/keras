@@ -30,22 +30,22 @@ _SUPPORTED_RBF_KERNEL_TYPES = ["gaussian", "laplacian"]
 class RandomFourierFeatures(base_layer.Layer):
     r"""Layer that projects its inputs into a random feature space.
 
-    This layer implements a mapping from input space to a space with `output_dim`
-    dimensions, which approximates shift-invariant kernels. A kernel function
-    `K(x, y)` is shift-invariant if `K(x, y) == k(x - y)` for some function `k`.
-    Many popular Radial Basis Functions (RBF), including Gaussian and
-    Laplacian kernels, are shift-invariant.
+    This layer implements a mapping from input space to a space with
+    `output_dim` dimensions, which approximates shift-invariant kernels. A
+    kernel function `K(x, y)` is shift-invariant if `K(x, y) == k(x - y)` for
+    some function `k`.  Many popular Radial Basis Functions (RBF), including
+    Gaussian and Laplacian kernels, are shift-invariant.
 
     The implementation of this layer is based on the following paper:
     ["Random Features for Large-Scale Kernel Machines"](
       https://people.eecs.berkeley.edu/~brecht/papers/07.rah.rec.nips.pdf)
     by Ali Rahimi and Ben Recht.
 
-    The distribution from which the parameters of the random features map (layer)
-    are sampled determines which shift-invariant kernel the layer approximates
-    (see paper for more details). You can use the distribution of your
-    choice. The layer supports out-of-the-box
-    approximations of the following two RBF kernels:
+    The distribution from which the parameters of the random features map
+    (layer) are sampled determines which shift-invariant kernel the layer
+    approximates (see paper for more details). You can use the distribution of
+    your choice. The layer supports out-of-the-box approximations of the
+    following two RBF kernels:
 
     - Gaussian: `K(x, y) == exp(- square(x - y) / (2 * square(scale)))`
     - Laplacian: `K(x, y) = exp(-abs(x - y) / scale))`
@@ -56,15 +56,16 @@ class RandomFourierFeatures(base_layer.Layer):
 
     **Usage:** Typically, this layer is used to "kernelize" linear models by
     applying a non-linear transformation (this layer) to the input features and
-    then training a linear model on top of the transformed features. Depending on
-    the loss function of the linear model, the composition of this layer and the
-    linear model results to models that are equivalent (up to approximation) to
-    kernel SVMs (for hinge loss), kernel logistic regression (for logistic loss),
-    kernel linear regression (for squared loss), etc.
+    then training a linear model on top of the transformed features. Depending
+    on the loss function of the linear model, the composition of this layer and
+    the linear model results to models that are equivalent (up to approximation)
+    to kernel SVMs (for hinge loss), kernel logistic regression (for logistic
+    loss), kernel linear regression (for squared loss), etc.
 
     Examples:
 
-    A kernel multinomial logistic regression model with Gaussian kernel for MNIST:
+    A kernel multinomial logistic regression model with Gaussian kernel for
+    MNIST:
 
     ```python
     model = keras.Sequential([
@@ -111,23 +112,23 @@ class RandomFourierFeatures(base_layer.Layer):
     ```
 
     Args:
-      output_dim: Positive integer, the dimension of the layer's output, i.e., the
-        number of random features used to approximate the kernel.
+      output_dim: Positive integer, the dimension of the layer's output, i.e.,
+        the number of random features used to approximate the kernel.
       kernel_initializer: Determines the distribution of the parameters of the
-        random features map (and therefore the kernel approximated by the layer).
-        It can be either a string identifier or a Keras `Initializer` instance.
-        Currently only 'gaussian' and 'laplacian' are supported string
-        identifiers (case insensitive). Note that the kernel matrix is not
-        trainable.
+        random features map (and therefore the kernel approximated by the
+        layer).  It can be either a string identifier or a Keras `Initializer`
+        instance.  Currently only 'gaussian' and 'laplacian' are supported
+        string identifiers (case insensitive). Note that the kernel matrix is
+        not trainable.
       scale: For Gaussian and Laplacian kernels, this corresponds to a scaling
-        factor of the corresponding kernel approximated by the layer (see concrete
-        definitions above). When provided, it should be a positive float. If None,
-        a default value is used: if the kernel initializer is set to "gaussian",
-        `scale` defaults to `sqrt(input_dim / 2)`, otherwise, it defaults to 1.0.
-        Both the approximation error of the kernel and the classification quality
-        are sensitive to this parameter. If `trainable` is set to `True`, this
-        parameter is learned end-to-end during training and the provided value
-        serves as the initial value.
+        factor of the corresponding kernel approximated by the layer (see
+        concrete definitions above). When provided, it should be a positive
+        float. If None, a default value is used: if the kernel initializer is
+        set to "gaussian", `scale` defaults to `sqrt(input_dim / 2)`, otherwise,
+        it defaults to 1.0.  Both the approximation error of the kernel and the
+        classification quality are sensitive to this parameter. If `trainable`
+        is set to `True`, this parameter is learned end-to-end during training
+        and the provided value serves as the initial value.
         **Note:** When features from this layer are fed to a linear model,
           by making `scale` trainable, the resulting optimization problem is
           no longer convex (even if the loss function used by the linear model
@@ -148,7 +149,8 @@ class RandomFourierFeatures(base_layer.Layer):
     ):
         if output_dim <= 0:
             raise ValueError(
-                f"`output_dim` should be a positive integer. Received: {output_dim}"
+                "`output_dim` should be a positive integer. "
+                f"Received: {output_dim}"
             )
         if isinstance(kernel_initializer, str):
             if kernel_initializer.lower() not in _SUPPORTED_RBF_KERNEL_TYPES:
@@ -168,8 +170,8 @@ class RandomFourierFeatures(base_layer.Layer):
 
     def build(self, input_shape):
         input_shape = tf.TensorShape(input_shape)
-        # TODO(pmol): Allow higher dimension inputs. Currently the input is expected
-        # to have shape [batch_size, dimension].
+        # TODO(pmol): Allow higher dimension inputs. Currently the input is
+        # expected to have shape [batch_size, dimension].
         if input_shape.rank != 2:
             raise ValueError(
                 "The rank of the input tensor should be 2. "

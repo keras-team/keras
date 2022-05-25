@@ -45,17 +45,19 @@ def standardize_args(inputs, initial_state, constants, num_constants):
     """
     if isinstance(inputs, list):
         # There are several situations here:
-        # In the graph mode, __call__ will be only called once. The initial_state
-        # and constants could be in inputs (from file loading).
+        # In the graph mode, __call__ will be only called once. The
+        # initial_state and constants could be in inputs (from file loading).
         # In the eager mode, __call__ will be called twice, once during
         # rnn_layer(inputs=input_t, constants=c_t, ...), and second time will be
-        # model.fit/train_on_batch/predict with real np data. In the second case,
-        # the inputs will contain initial_state and constants as eager tensor.
+        # model.fit/train_on_batch/predict with real np data. In the second
+        # case, the inputs will contain initial_state and constants as eager
+        # tensor.
         #
         # For either case, the real input is the first item in the list, which
-        # could be a nested structure itself. Then followed by initial_states, which
-        # could be a list of items, or list of list if the initial_state is complex
-        # structure, and finally followed by constants which is a flat list.
+        # could be a nested structure itself. Then followed by initial_states,
+        # which could be a list of items, or list of list if the initial_state
+        # is complex structure, and finally followed by constants which is a
+        # flat list.
         assert initial_state is None and constants is None
         if num_constants:
             constants = inputs[-num_constants:]
@@ -100,8 +102,8 @@ def generate_zero_filled_state(batch_size_tensor, state_size, dtype):
     """Generate a zero filled tensor with shape [batch_size, state_size]."""
     if batch_size_tensor is None or dtype is None:
         raise ValueError(
-            "batch_size and dtype cannot be None while constructing initial state. "
-            f"Received: batch_size={batch_size_tensor}, dtype={dtype}"
+            "batch_size and dtype cannot be None while constructing initial "
+            f"state. Received: batch_size={batch_size_tensor}, dtype={dtype}"
         )
 
     def create_zeros(unnested_state_size):
@@ -118,15 +120,15 @@ def generate_zero_filled_state(batch_size_tensor, state_size, dtype):
 def caching_device(rnn_cell):
     """Returns the caching device for the RNN variable.
 
-    This is useful for distributed training, when variable is not located as same
-    device as the training worker. By enabling the device cache, this allows
-    worker to read the variable once and cache locally, rather than read it every
-    time step from remote when it is needed.
+    This is useful for distributed training, when variable is not located as
+    same device as the training worker. By enabling the device cache, this
+    allows worker to read the variable once and cache locally, rather than read
+    it every time step from remote when it is needed.
 
-    Note that this is assuming the variable that cell needs for each time step is
-    having the same value in the forward path, and only gets updated in the
-    backprop. It is true for all the default cells (SimpleRNN, GRU, LSTM). If the
-    cell body relies on any variable that gets updated every time step, then
+    Note that this is assuming the variable that cell needs for each time step
+    is having the same value in the forward path, and only gets updated in the
+    backprop. It is true for all the default cells (SimpleRNN, GRU, LSTM). If
+    the cell body relies on any variable that gets updated every time step, then
     caching device will cause it to read the stall value.
 
     Args:
@@ -137,10 +139,10 @@ def caching_device(rnn_cell):
         return None
     if not getattr(rnn_cell, "_enable_caching_device", False):
         return None
-    # Don't set a caching device when running in a loop, since it is possible that
-    # train steps could be wrapped in a tf.while_loop. In that scenario caching
-    # prevents forward computations in loop iterations from re-reading the
-    # updated weights.
+    # Don't set a caching device when running in a loop, since it is possible
+    # that train steps could be wrapped in a tf.while_loop. In that scenario
+    # caching prevents forward computations in loop iterations from re-reading
+    # the updated weights.
     if control_flow_util.IsInWhileLoop(tf.compat.v1.get_default_graph()):
         logging.warning(
             "Variable read device caching has been disabled because the "
@@ -180,7 +182,8 @@ def config_for_enable_caching_device(rnn_cell):
 
     Returns:
       A dict which contains the JSON config for enable_caching_device value or
-      empty dict if the enable_caching_device value is same as the default value.
+      empty dict if the enable_caching_device value is same as the default
+      value.
     """
     default_enable_caching_device = (
         tf.compat.v1.executing_eagerly_outside_functions()
