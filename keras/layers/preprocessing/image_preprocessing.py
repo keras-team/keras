@@ -1934,12 +1934,22 @@ class RandomHeight(BaseImageAugmentationLayer):
         return {"height": adjusted_height}
 
     def _batch_augment(self, inputs):
+        transformation = self.get_random_transformation(image=inputs[IMAGES])
+        result = {}
+        if BOUNDING_BOXES in inputs:
+
+            def augment_batch(input):
+                augmented_bbox = self.augment_bounding_boxes(
+                    input[IMAGES], input[BOUNDING_BOXES], transformation
+                )
+                return {IMAGES: input[IMAGES], BOUNDING_BOXES: augmented_bbox}
+
+            bbox_out = tf.map_fn(augment_batch, inputs)
+            result[BOUNDING_BOXES] = bbox_out[BOUNDING_BOXES]
         images = self.augment_image(
-            inputs[IMAGES],
-            transformation=self.get_random_transformation(image=inputs[IMAGES]),
+            inputs[IMAGES], transformation=transformation
         )
-        result = {IMAGES: images}
-        # to-do augment bbox to clip bbox to resized height value
+        result[IMAGES] = images
         return result
 
     def augment_image(self, image, transformation):
@@ -1958,6 +1968,29 @@ class RandomHeight(BaseImageAugmentationLayer):
         output_shape[H_AXIS] = None
         output.set_shape(output_shape)
         return output
+
+    def augment_bounding_boxes(self, image, bounding_boxes, transformation):
+        image = tf.expand_dims(image, 0)
+        image_shape = tf.shape(image)
+        bbox_dtype = bounding_boxes.dtype
+        h = image_shape[H_AXIS]
+        height_factor = transformation["height"] / h
+        height_cols = tf.cast(
+            tf.gather(bounding_boxes, [1, 3], axis=1), dtype=tf.float64
+        )
+        new_height_cols = tf.cast(
+            tf.scalar_mul(height_factor, height_cols), dtype=bbox_dtype
+        )
+        bboxes_out = tf.stack(
+            [
+                bounding_boxes[:, 0],
+                new_height_cols[:, 0],
+                bounding_boxes[:, 2],
+                new_height_cols[:, 1],
+            ],
+            axis=1,
+        )
+        return bboxes_out
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
