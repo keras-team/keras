@@ -338,7 +338,7 @@ def _init_state_variable_for_rng(model, layout_map):
     Since the BaseRandomLayer in keras explicitly untrack the tf.random.Generator,
     the variable in it will stay as LazyInitVariable, which cause runtime error if
     we don't replace them with proper DVariable. Since user usually are not
-    aware the existance of those variable, we will just give them replicated
+    aware the existence of those variable, we will just give them replicated
     layout since they are tiny.
 
     Args:

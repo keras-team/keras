@@ -87,7 +87,7 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
         self.assertTrue(layer._could_use_gpu_kernel)
 
     def test_static_shape_inference_LSTM(self):
-        # Github issue: 15165
+        # GitHub issue: 15165
         timesteps = 3
         embedding_dim = 4
         units = 2
@@ -954,7 +954,7 @@ class LSTMLayerTest(test_combinations.TestCase):
         )
 
     def test_static_shape_inference_LSTM(self):
-        # Github issue: 15165
+        # GitHub issue: 15165
         timesteps = 3
         embedding_dim = 4
         units = 2

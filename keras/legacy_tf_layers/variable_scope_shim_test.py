@@ -683,7 +683,7 @@ class VariableScopeTest(tf.test.TestCase):
     @tf_test_utils.run_in_graph_and_eager_modes
     @run_inside_wrap_function_in_eager_mode
     def testReuseScopeWithoutNameScopeCollision(self):
-        # Github issue: #13429
+        # GitHub issue: #13429
         with self.cached_session():
             with tf.compat.v1.variable_scope("outer"):
                 with tf.compat.v1.variable_scope("inner") as inner:

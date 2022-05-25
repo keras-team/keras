@@ -186,7 +186,7 @@ To run benchmarks in
 [keras/benchmarks](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/python/keras/benchmarks),
 please take the following steps:
 
-1.  Pull the latest tensorflow repo from github.
+1.  Pull the latest tensorflow repo from GitHub.
 2.  Install the Bazel tool which works with tensorflow, please take a look for
     the [Install bazel](#install-bazel) section.
 3.  To run benchmarks with Bazel, use the `--benchmarks=.` flags to specify the
