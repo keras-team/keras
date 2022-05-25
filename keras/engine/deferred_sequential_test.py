@@ -80,9 +80,10 @@ class TestDeferredSequential(test_combinations.TestCase):
         self.assertLen(model.inputs, 1)
         self.assertLen(model.outputs, 1)
         # Inconsistency here: with eager `fit`, the model is built with shape
-        # (2, 6), but with graph function `fit`, it is built with shape `(None, 6)`.
-        # This is likely due to our assumption "the batch size should be dynamic"
-        # at the level of `Model`. TODO(fchollet): investigate and resolve.
+        # (2, 6), but with graph function `fit`, it is built with shape `(None,
+        # 6)`.  This is likely due to our assumption "the batch size should be
+        # dynamic" at the level of `Model`. TODO(fchollet): investigate and
+        # resolve.
         self.assertEqual(model.inputs[0].shape.as_list()[-1], 6)
         self.assertEqual(model.outputs[0].shape.as_list()[-1], 2)
 

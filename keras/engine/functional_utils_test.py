@@ -157,7 +157,8 @@ class FunctionalModelSlideTest(test_combinations.TestCase):
         loaded_model = models.load_model(output_path)
         self.assertEqual(model.summary(), loaded_model.summary())
 
-        # Also make sure the original inputs and y can still be used to build model
+        # Also make sure the original inputs and y can still be used to build
+        # model
         new_model = models.Model(inputs, y)
         # Make sure no new node is attached to layer2
         self.assertLen(layer2.inbound_nodes, 2)
@@ -195,8 +196,8 @@ class FunctionalModelSlideTest(test_combinations.TestCase):
         # Make sure we have 8 layers, 3 for inputs, 2 for dense and 3 for Add.
         # Note that dense1 is still in use by input1.
         self.assertLen(model.layers, 8)
-        # Since the layers are not ordered, let's check class of the layers to make
-        # sure it match the expectation.
+        # Since the layers are not ordered, let's check class of the layers to
+        # make sure it match the expectation.
         class_count = collections.Counter([l.__class__ for l in model.layers])
         self.assertEqual(class_count[input_layer_lib.InputLayer], 3)
         self.assertEqual(class_count[layers.Dense], 2)

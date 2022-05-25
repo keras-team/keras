@@ -547,7 +547,8 @@ class TestSequential(test_combinations.TestCase):
 class TestSequentialEagerIntegration(test_combinations.TestCase):
     @test_combinations.run_all_keras_modes
     def test_defun_on_call(self):
-        # Check that one can subclass Sequential and place the `call` in a `defun`.
+        # Check that one can subclass Sequential and place the `call` in a
+        # `defun`.
 
         class MySequential(keras.Sequential):
             def __init__(self, name=None):

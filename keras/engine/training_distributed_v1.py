@@ -73,11 +73,12 @@ def _make_train_step_fn(model, mode, strategy, output_labels):
         else:
             targets = None
 
-        # When input feature is a dictionary of tensors, dictionary is flattended
-        # to an array and passed as a model input. This results in input mismatch
-        # when model input layer names are not sorted in alphabetical order as
-        # `nest.flatten()`sorts dictionary elements by keys. As so, transform input
-        # tensors into an array and order it along `model._feed_input_names`.
+        # When input feature is a dictionary of tensors, dictionary is
+        # flattended to an array and passed as a model input. This results in
+        # input mismatch when model input layer names are not sorted in
+        # alphabetical order as `nest.flatten()`sorts dictionary elements by
+        # keys. As so, transform input tensors into an array and order it along
+        # `model._feed_input_names`.
         if isinstance(inputs, dict):
             inputs = [
                 inputs[input_name] for input_name in model._feed_input_names
@@ -118,14 +119,14 @@ def _make_train_step_fn(model, mode, strategy, output_labels):
             if label == "loss":
                 reduce_op = tf.distribute.ReduceOp.SUM
             else:
-                # We reduce all other metrics using mean for now. This is temporary
-                # workaround until new metrics are in place.
+                # We reduce all other metrics using mean for now. This is
+                # temporary workaround until new metrics are in place.
                 reduce_op = tf.distribute.ReduceOp.MEAN
             ctx.set_last_step_output(label, output, reduce_op)
 
-        # TODO(priyag, sourabhbajaj): Ignoring these things from the combined_fn:
-        # feed_dict, session kwargs, run options, run_metadata for now. These should
-        # be handled appropriately
+        # TODO(priyag, sourabhbajaj): Ignoring these things from the
+        # combined_fn: feed_dict, session kwargs, run options, run_metadata for
+        # now. These should be handled appropriately
         return combined_fn.updates_op
 
     return _step_fn
@@ -160,9 +161,9 @@ def experimental_tpu_fit_loop(
         validation_steps: Number of steps to run validation for
             (only if doing validation from data tensors).
             Ignored with the default value of `None`.
-        validation_freq: Only relevant if validation data is provided. Integer or
-            `collections.abc.Container` instance (e.g. list, tuple, etc.). If an
-            integer, specifies how many training epochs to run before a new
+        validation_freq: Only relevant if validation data is provided. Integer
+            or `collections.abc.Container` instance (e.g. list, tuple, etc.). If
+            an integer, specifies how many training epochs to run before a new
             validation run is performed, e.g. `validation_freq=2` runs
             validation every 2 epochs. If a Container, specifies the epochs on
             which to run validation, e.g. `validation_freq=[1, 2, 10]` runs
@@ -291,13 +292,14 @@ def experimental_tpu_fit_loop(
             logging.info("Running validation at fit epoch: %s", epoch)
 
             if model._compile_distribution:
-                # Since we create a new clone from the original model we need to copy
-                # the weights back to the original model before we can run validation.
+                # Since we create a new clone from the original model we need to
+                # copy the weights back to the original model before we can run
+                # validation.
                 dist_utils._copy_weights_to_original_model(
                     model, ModeKeys.TRAIN
                 )
 
-            val_outs = experimental_tpu_test_loop(  # pylint: disable=undefined-variable
+            val_outs = experimental_tpu_test_loop(
                 model,
                 val_dataset,
                 steps=validation_steps,
@@ -442,7 +444,8 @@ def experimental_tpu_test_loop(
                 # Loss is stateless metrics.
                 outs[i] += batch_outs[label]
             else:
-                # For all stateful metrics, the aggregation is handled by mirrored vars.
+                # For all stateful metrics, the aggregation is handled by
+                # mirrored vars.
                 outs[i] = batch_outs[label]
 
         batch_logs = cbks.make_logs(model, batch_logs, outs, mode)
@@ -602,7 +605,8 @@ def experimental_tpu_predict_loop(
             )
             break
 
-        # TODO(priyag): maybe need to unwrap the outputs first for MirroredStrategy.
+        # TODO(priyag): maybe need to unwrap the outputs first for
+        # MirroredStrategy.
         for i in range(num_model_outputs):
             output_start_index = i * current_strategy.num_replicas_in_sync
             output_end_index = (
@@ -880,7 +884,7 @@ class DistributionSingleWorkerTrainingLoop(training_utils_v1.TrainingLoop):
 
 
 def _train_with_multi_worker(method):
-    """Decorator that handles multi worker training with distribution strategy."""
+    """Decorator handles multi worker training with distribution strategy."""
 
     def wrapper(model, **kwargs):
         def _worker_fn(_):

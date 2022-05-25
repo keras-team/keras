@@ -35,18 +35,19 @@ _COMPOSITE_TYPE = {"_TYPE": "COMPOSITE"}
 class Node:
     """A `Node` describes a layer `__call__()` event.
 
-    A Functional model is a DAG with `Node` instances as nodes, and `KerasTensor`
-    instances as edges. Nodes aren't `Layer` instances, because a single layer
-    could be called multiple times, which would result in graph cycles.
+    A Functional model is a DAG with `Node` instances as nodes, and
+    `KerasTensor` instances as edges. Nodes aren't `Layer` instances, because a
+    single layer could be called multiple times, which would result in graph
+    cycles.
 
     A `__call__()` event involves input tensors (and other input arguments),
     the layer that was called, and the resulting output tensors.
     A `Node` will include all this information.
 
     Since a single `Layer` could be called multiple times, the `Node` instances
-    are stored on layers as a list. Each time a layer is called
-    a node is added to `layer._inbound_nodes`. Each time the output of a layer is
-    used by another layer, a node is added to `layer._outbound_nodes`.
+    are stored on layers as a list. Each time a layer is called a node is added
+    to `layer._inbound_nodes`. Each time the output of a layer is used by
+    another layer, a node is added to `layer._outbound_nodes`.
 
     Every `KerasTensor` instance has a `KerasHistory` object attached,
     which tracks the `Node` that records the `__call__()` event that created
@@ -134,12 +135,14 @@ class Node:
 
     @property
     def keras_inputs(self):
-        """Tensors input to this node that can be traced back to a `keras.Input`."""
+        """Tensors input to this node that can be traced back to a
+        `keras.Input`."""
         return self._keras_inputs
 
     @property
     def parent_nodes(self):
-        """Returns all the `Node`s whose output this node immediately depends on."""
+        """Returns all the `Node`s whose output this node immediately depends
+        on."""
         node_deps = []
         for kt in self.keras_inputs:
             layer = kt._keras_history.layer
@@ -205,8 +208,8 @@ class Node:
             if isinstance(t, tf.Tensor):
                 return backend.get_value(t).tolist()
 
-            # Not using json_utils to serialize both constant Tensor and constant
-            # CompositeTensor for saving format backward compatibility.
+            # Not using json_utils to serialize both constant Tensor and
+            # constant CompositeTensor for saving format backward compatibility.
             if isinstance(t, tf.__internal__.CompositeTensor):
                 return (_COMPOSITE_TYPE, json_utils.Encoder().encode(t))
 
@@ -237,10 +240,11 @@ class Node:
                 new_node_index = node_conversion_map.get(node_key, 0)
                 data = [kh.layer.name, new_node_index, kh.tensor_index, kwargs]
             else:
-                # If an element in the first call argument did not originate as a
-                # keras tensor and is a constant value, we save it using the format
-                # ['_CONSTANT_VALUE', -1, serialized_tensor_or_python_constant]
-                # (potentially including serialized kwargs in an optional 4th argument).
+                # If an element in the first call argument did not originate as
+                # a keras tensor and is a constant value, we save it using the
+                # format ['_CONSTANT_VALUE', -1,
+                # serialized_tensor_or_python_constant] (potentially including
+                # serialized kwargs in an optional 4th argument).
                 data = [_CONSTANT_VALUE, -1, _serialize_keras_tensor(t), kwargs]
             return tf_utils.ListWrapper(data)
 
@@ -321,10 +325,10 @@ class KerasHistory(
 
     Attributes:
       layer: The Layer that produced the Tensor.
-      node_index: The specific call to the Layer that produced this Tensor. Layers
-        can be called multiple times in order to share weights. A new node is
-        created every time a Layer is called. The corresponding node that
-        represents the call event that produced the Tensor can be found at
+      node_index: The specific call to the Layer that produced this Tensor.
+        Layers can be called multiple times in order to share weights. A new
+        node is created every time a Layer is called. The corresponding node
+        that represents the call event that produced the Tensor can be found at
         `layer._inbound_nodes[node_index]`.
       tensor_index: The output index for this Tensor. Always zero if the Layer
         that produced this Tensor only has one output. Nested structures of

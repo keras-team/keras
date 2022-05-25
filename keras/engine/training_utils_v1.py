@@ -57,8 +57,8 @@ class Aggregator(object, metaclass=abc.ABCMeta):
       use_steps: Whether the loop is using `step` or `batch_size`.
       num_samples: Total number of samples: `batch_size * num_batches`.
       steps: Total number of steps.
-      batch_size: Batch size. It is used for validation checks between inputs and
-        outputs.
+      batch_size: Batch size. It is used for validation checks between inputs
+        and outputs.
       results: What to return at the end of the aggregation loop.
     """
 
@@ -86,10 +86,10 @@ class Aggregator(object, metaclass=abc.ABCMeta):
 
         Args:
           batch_outs: A list of batch-level outputs.
-          batch_start: The start index of this batch. Always `None` if `use_steps`
+          batch_start: The start index of this batch. Always `None` if
+            `use_steps` is `True`.
+          batch_end: The end index of this batch. Always `None` if `use_steps`
             is `True`.
-          batch_end: The end index of this batch. Always `None` if `use_steps` is
-            `True`.
         """
         raise NotImplementedError("Must be implemented in subclasses.")
 
@@ -137,7 +137,8 @@ class MetricsAggregator(Aggregator):
 
 def _append_sparse_tensor_value(target, to_append):
     """Append sparse tensor value objects."""
-    # Make sure the sparse tensors are of the same size (except for the 0th dim).
+    # Make sure the sparse tensors are of the same size (except for the 0th
+    # dim).
     if len(target.dense_shape) != len(to_append.dense_shape):
         raise RuntimeError(
             "Unable to concatenate %s and %s. The inner dense shapes do not "
@@ -163,11 +164,11 @@ def _append_sparse_tensor_value(target, to_append):
     max_dim0_value = target.dense_shape[0]
     new_indices = target.indices
     for index in to_append.indices:
-        # Here, we iterate through the sparse indices of the tensor to append. For
-        # each index, we update its zeroth value (the batch index) by adding the
-        # number of batch items in the tensor we are appending to (so an index
-        # of [0, 0, 1] for a value that is being appended to a tensor with 0th dim
-        # size 3 would become [3, 0, 1].)
+        # Here, we iterate through the sparse indices of the tensor to append.
+        # For each index, we update its zeroth value (the batch index) by adding
+        # the number of batch items in the tensor we are appending to (so an
+        # index of [0, 0, 1] for a value that is being appended to a tensor with
+        # 0th dim size 3 would become [3, 0, 1].)
         index[0] += base_dim0_value
         max_dim0_value = max(max_dim0_value, index[0])
         new_indices = np.append(new_indices, [index], axis=0)
@@ -286,8 +287,9 @@ class ConcatAggregator(Aggregator):
         # #samples is < batch size and != input batch #samples.
         if self.batch_size and self.batch_size < batch_element.shape[0]:
             raise ValueError(
-                "Mismatch between expected batch size and model output batch size. "
-                "Output shape = {}, expected output shape = shape {}".format(
+                "Mismatch between expected batch size and model output batch "
+                "size. Output shape = {}, "
+                "expected output shape = shape {}".format(
                     batch_element.shape,
                     (self.batch_size,) + batch_element.shape[1:],
                 )
@@ -337,19 +339,20 @@ class SliceAggregator(Aggregator):
     structure of tensor-likes.
 
     NumPy copies are an operation that threads handle quite well because all of
-    the heavy lifting is in c and does not need the GIL. Moreover, we can perform
-    lock-free writes to the same buffer in multiple threads because the nature of
-    result aggregation guarantees that either the indices are disjoint or the
-    aggregator will throw an exception in finalize. Moreover, because aggregation
-    is performed on the slowest varying dimension, assignments for a given batch
-    will write to contiguous blocks of memory, further minimizing contention.
+    the heavy lifting is in c and does not need the GIL. Moreover, we can
+    perform lock-free writes to the same buffer in multiple threads because the
+    nature of result aggregation guarantees that either the indices are disjoint
+    or the aggregator will throw an exception in finalize. Moreover, because
+    aggregation is performed on the slowest varying dimension, assignments for a
+    given batch will write to contiguous blocks of memory, further minimizing
+    contention.
 
     There is, however, some scheduling and context switching overhead which will
-    offset the gains from pipelining the slice assignment. Below a given threshold
-    it is faster to simply assign in the main thread rather than enqueue the
-    assignment in a side thread. The exact threshold will vary from system to
-    system, but the time is not very sensitive to the exact transition so a value
-    of 2 ** 14 was chosen which should be reasonable on most systems.
+    offset the gains from pipelining the slice assignment. Below a given
+    threshold it is faster to simply assign in the main thread rather than
+    enqueue the assignment in a side thread. The exact threshold will vary from
+    system to system, but the time is not very sensitive to the exact transition
+    so a value of 2 ** 14 was chosen which should be reasonable on most systems.
     """
 
     _BINARY_SIZE_THRESHOLD = 2**14
@@ -383,8 +386,9 @@ class SliceAggregator(Aggregator):
         if batch_end - batch_start == self.num_samples:
             if self.num_samples != batch_element.shape[0]:
                 raise ValueError(
-                    "Mismatch between expected batch size and model output batch size. "
-                    "Output shape = {}, expected output shape = shape {}".format(
+                    "Mismatch between expected batch size and model "
+                    "output batch size. Output shape = {}, "
+                    "expected output shape = shape {}".format(
                         batch_element.shape, self.results.shape
                     )
                 )
@@ -392,8 +396,8 @@ class SliceAggregator(Aggregator):
             self.results = batch_element
             return
 
-        # This is an approximate threshold, so we don't need to consider the number
-        # of bytes per element.
+        # This is an approximate threshold, so we don't need to consider the
+        # number of bytes per element.
         num_elements = np.prod(batch_element.shape)
         if num_elements < self._BINARY_SIZE_THRESHOLD:
             self.results[batch_start:batch_end] = batch_element
@@ -411,10 +415,10 @@ class SliceAggregator(Aggregator):
             self.results[batch_start:batch_end] = batch_element
 
         except Exception as e:  # pylint: disable=broad-except
-            # `_slice_assign` should only be called in threads and exceptions raised
-            # in threads do not carry over to the main thread. So instead we perform a
-            # a broad catch in the thread and then store the exception to be re-raised
-            # in the main thread.
+            # `_slice_assign` should only be called in threads and exceptions
+            # raised in threads do not carry over to the main thread. So instead
+            # we perform a a broad catch in the thread and then store the
+            # exception to be re-raised in the main thread.
             self._errors.append(e)
 
         finally:
@@ -450,9 +454,10 @@ class OutputsAggregator(Aggregator):
 
         for batch_element in batch_outs:
             if is_composite_or_composite_value(batch_element):
-                # If the output is not a ndarray, it will be either a composite tensor
-                # or a composite tensor's Value object. In either case, we can't
-                # allocate an array to hold the object - we'll handle it later.
+                # If the output is not a ndarray, it will be either a composite
+                # tensor or a composite tensor's Value object. In either case,
+                # we can't allocate an array to hold the object - we'll handle
+                # it later.
                 self.results.append(ConcatAggregator(self.batch_size))
             elif isinstance(batch_element, np.ndarray):
                 self.results.append(
@@ -463,8 +468,9 @@ class OutputsAggregator(Aggregator):
                     )
                 )
             else:
-                # This is not a ndarray, a CompositeTensor, or a CompositeTensorValue.
-                # Fail fast rather than trying to concatenate it.
+                # This is not a ndarray, a CompositeTensor, or a
+                # CompositeTensorValue.  Fail fast rather than trying to
+                # concatenate it.
                 raise RuntimeError(
                     "Attempted to aggregate unsupported object {}.".format(
                         batch_element
@@ -960,7 +966,8 @@ def collect_per_output_metric_info(
         metrics: a list or a list of lists or a dict of metric functions.
         output_names: a list of the names (strings) of model outputs.
         output_shapes: a list of the shapes (strings) of model outputs.
-        loss_fns: a list of the loss functions corresponding to the model outputs.
+        loss_fns: a list of the loss functions corresponding to the model
+          outputs.
         from_serialized: whether the model the metrics are being sourced from is
           being initialized from a serialized format.
         is_weighted: Boolean indicating whether the given metrics are weighted.
@@ -1033,14 +1040,15 @@ def collect_per_output_metric_info(
                 from_serialized  # pylint: disable=protected-access
             )
 
-            # If the metric function is not stateful, we create a stateful version.
+            # If the metric function is not stateful, we create a stateful
+            # version.
             if not isinstance(metric_fn, metrics_module.Metric):
                 metric_fn = metrics_module.MeanMetricWrapper(
                     metric_fn, name=metric_name
                 )
-                # If the metric is being revived from something stateless, such as a
-                # string (e.g. "accuracy"), we may need to later reapply transformations
-                # such as renaming.
+                # If the metric is being revived from something stateless, such
+                # as a string (e.g. "accuracy"), we may need to later reapply
+                # transformations such as renaming.
                 metric_fn._from_serialized = (
                     False  # pylint: disable=protected-access
                 )
@@ -1087,9 +1095,9 @@ def standardize_weights(
         y: Numpy array or Tensor of model targets to be weighted.
         sample_weight: User-provided `sample_weight` argument.
         class_weight: User-provided `class_weight` argument.
-        sample_weight_mode: One of `None` or `"temporal"`. `"temporal"` indicated
-          that we expect 2D weight data that will be applied to the last 2
-          dimensions of the targets (i.e. we are weighting timesteps, not
+        sample_weight_mode: One of `None` or `"temporal"`. `"temporal"`
+          indicated that we expect 2D weight data that will be applied to the
+          last 2 dimensions of the targets (i.e. we are weighting timesteps, not
           samples).
 
     Returns:
@@ -1184,8 +1192,9 @@ def standardize_weights(
             class_sample_weight = tf.compat.v1.gather(weight_vector, y_classes)
             tf.debugging.check_numerics(
                 class_sample_weight,
-                "Invalid classes or class weights detected. NaN values indicate that "
-                "an appropriate class weight could not be determined.",
+                "Invalid classes or class weights detected. NaN values "
+                "indicate that an appropriate class weight could not be "
+                "determined.",
             )
             class_sample_weight = tf.cast(class_sample_weight, backend.floatx())
             if sample_weight is not None:
@@ -1233,9 +1242,9 @@ def has_symbolic_tensors(ls):
 
 def has_tensors(ls):
     """Returns true if `ls` contains tensors."""
-    # Note: at some point in time ragged tensors didn't count as tensors, so this
-    # returned false for ragged tensors. Making this return true fails some tests
-    # which would then require a steps_per_epoch argument.
+    # Note: at some point in time ragged tensors didn't count as tensors, so
+    # this returned false for ragged tensors. Making this return true fails some
+    # tests which would then require a steps_per_epoch argument.
     if isinstance(ls, (list, tuple)):
         return any(
             tf.is_tensor(v) and not isinstance(v, tf.RaggedTensor) for v in ls
@@ -1259,7 +1268,8 @@ def get_metric_name(metric, weighted=False):
         The metric name.
     """
     if tf.__internal__.tf2.enabled():
-        # We keep the string that the user has set in compile as the metric name.
+        # We keep the string that the user has set in compile as the metric
+        # name.
         if isinstance(metric, str):
             return metric
 
@@ -1288,8 +1298,8 @@ def get_metric_function(metric, output_shape=None, loss_fn=None):
 
     Args:
         metric: Metric function name or reference.
-        output_shape: The shape of the output that this metric will be calculated
-          for.
+        output_shape: The shape of the output that this metric will be
+          calculated for.
         loss_fn: The loss function used.
 
     Returns:
@@ -1315,9 +1325,9 @@ def get_metric_function(metric, output_shape=None, loss_fn=None):
             return metrics_module.binary_accuracy
         elif is_sparse_categorical_crossentropy:
             return metrics_module.sparse_categorical_accuracy
-        # If the output_shape[-1] is not 1, then we know output is `categorical`.
-        # We assume it is sparse categorical only if loss is explicitly given
-        # as sparse categorical crossentropy loss.
+        # If the output_shape[-1] is not 1, then we know output is
+        # `categorical`.  We assume it is sparse categorical only if loss is
+        # explicitly given as sparse categorical crossentropy loss.
         return metrics_module.categorical_accuracy
     else:
         if output_shape[-1] == 1 or is_binary_crossentropy:
@@ -1358,7 +1368,8 @@ def get_loss_function(loss):
     if tf_inspect.isclass(loss) and issubclass(loss, losses.Loss):
         # It is not safe to assume that the loss takes no constructor arguments.
         raise ValueError(
-            'Received uninstantiated Loss class: {}\nPlease call loss ""classes '
+            "Received uninstantiated Loss class: {}\n"
+            "Please call loss classes "
             "before passing them to Model.compile.".format(loss)
         )
 
@@ -1391,11 +1402,11 @@ def validate_dataset_input(x, y, sample_weight, validation_split=None):
       x: Input data. A `tf.data` dataset or iterator.
       y: Target data. It could be either Numpy array(s) or TensorFlow tensor(s).
         Expected to be `None` when `x` is a dataset iterator.
-      sample_weight: An optional sample-weight array passed by the user to weight
-        the importance of each sample in `x`. Expected to be `None` when `x` is a
-        dataset iterator
-      validation_split: Float between 0 and 1. Fraction of the training data to be
-        used as validation data. Expected to be `None` when `x` is a dataset
+      sample_weight: An optional sample-weight array passed by the user to
+        weight the importance of each sample in `x`. Expected to be `None` when
+        `x` is a dataset iterator
+      validation_split: Float between 0 and 1. Fraction of the training data to
+        be used as validation data. Expected to be `None` when `x` is a dataset
         iterator.
 
     Raises:
@@ -1432,8 +1443,8 @@ def validate_input_types(inp, orig_inp, allow_dict=True, field_name="inputs"):
     if isinstance(inp, (list, tuple)):
         if not all(isinstance(v, np.ndarray) or tf.is_tensor(v) for v in inp):
             raise ValueError(
-                "Please provide as model inputs either a single array or a list of "
-                "arrays. You passed: {}={}".format(field_name, str(orig_inp))
+                "Please provide as model inputs either a single array or a "
+                f"list of arrays. You passed: {field_name}={str(orig_inp)}"
             )
     elif isinstance(inp, dict):
         if not allow_dict:
@@ -1655,8 +1666,8 @@ def prepare_loss_functions(loss, output_names):
         loss: String (name of objective function), objective function or
           `tf.losses.Loss` instance. See `tf.losses`. If the model has multiple
           outputs, you can use a different loss on each output by passing a
-          dictionary or a list of losses. The loss value that will be minimized by
-          the model will then be the sum of all individual losses.
+          dictionary or a list of losses. The loss value that will be minimized
+          by the model will then be the sum of all individual losses.
         output_names: List of model output names.
 
     Returns:
@@ -1673,8 +1684,8 @@ def prepare_loss_functions(loss, output_names):
             if name not in loss:
                 logging.warning(
                     "Output {0} missing from loss dictionary. We assume "
-                    "this was done on purpose. The fit and evaluate APIs will not be "
-                    "expecting any data to be passed to {0}.".format(name)
+                    "this was done on purpose. The fit and evaluate APIs will "
+                    f"not be expecting any data to be passed to {name}."
                 )
             loss_functions.append(get_loss_function(loss.get(name, None)))
     elif isinstance(loss, str):
@@ -1704,11 +1715,11 @@ def prepare_loss_weights(training_endpoints, loss_weights=None):
         training_endpoints: List of model training endpoints.
         loss_weights: Optional list or dictionary specifying scalar coefficients
           (Python floats) to weight the loss contributions of different model
-          outputs. The loss value that will be minimized by the model will then be
-          the *weighted sum* of all individual losses, weighted by the
-            `loss_weights` coefficients. If a list, it is expected to have a 1:1
-              mapping to the model's outputs. If a dict, it is expected to map
-              output names (strings) to scalar coefficients.
+          outputs. The loss value that will be minimized by the model will then
+          be the *weighted sum* of all individual losses, weighted by the
+          `loss_weights` coefficients. If a list, it is expected to have a 1:1
+          mapping to the model's outputs. If a dict, it is expected to map
+          output names (strings) to scalar coefficients.
 
     Raises:
         ValueError: If loss weight is a dict with key not in model output names,
@@ -1880,7 +1891,8 @@ def infer_steps_for_dataset(
     Args:
         model: Keras model instance.
         dataset: Input data of type tf.data.Dataset.
-        steps: Number of steps to draw from the dataset (may be None if unknown).
+        steps: Number of steps to draw from the dataset (may be None if
+          unknown).
         epochs: Number of times to iterate over the dataset.
         steps_name: The string name of the steps argument, either `steps`,
           `validation_steps`, or `steps_per_epoch`. Only used for error message
@@ -1888,9 +1900,9 @@ def infer_steps_for_dataset(
 
     Returns:
       Integer or `None`. Inferred number of steps to loop through the dataset.
-      `None` is returned if 1) the size of the dataset is unknown and `steps` was
-      not specified, or 2) this is multi-worker training and auto sharding is
-      enabled.
+      `None` is returned if 1) the size of the dataset is unknown and `steps`
+      was not specified, or 2) this is multi-worker training and auto sharding
+      is enabled.
 
     Raises:
       ValueError: In case of invalid argument values.
@@ -1901,7 +1913,8 @@ def infer_steps_for_dataset(
         != tf.data.experimental.AutoShardPolicy.OFF
     ):
         # If the dataset would be auto-sharded, we should not infer a local
-        # steps_per_epoch due to the possible imbalanced sharding between workers.
+        # steps_per_epoch due to the possible imbalanced sharding between
+        # workers.
         return None
 
     size = backend.get_value(tf.data.experimental.cardinality(dataset))
@@ -1992,8 +2005,9 @@ class ModelInputs:
             if isinstance(v, np.ndarray):
                 # We fix the placeholder shape except the batch size.
                 # This is suboptimal, but it is the best we can do with the info
-                # we have. The user should call `model._set_inputs(placeholders)`
-                # to specify custom placeholders if the need arises.
+                # we have. The user should call
+                # `model._set_inputs(placeholders)` to specify custom
+                # placeholders if the need arises.
                 shape = (None,) + tuple(v.shape[1:])
                 if shape == (None,):
                     shape = (None, 1)
@@ -2040,9 +2054,9 @@ def should_run_validation(validation_freq, epoch):
     """Checks if validation should be run this epoch.
 
     Args:
-      validation_freq: Integer or list. If an integer, specifies how many training
-        epochs to run before a new validation run is performed. If a list,
-        specifies the epochs on which to run validation.
+      validation_freq: Integer or list. If an integer, specifies how many
+        training epochs to run before a new validation run is performed. If a
+        list, specifies the epochs on which to run validation.
       epoch: Integer, the number of the training epoch just completed.
 
     Returns:
@@ -2106,9 +2120,9 @@ def unpack_validation_data(validation_data, raise_if_ambiguous=True):
 
     Args:
       validation_data: dataset, dataset iterator, or numpy, tensor tuple.
-      raise_if_ambiguous: boolean on whether to fail if validation_data cannot be
-        parsed. Otherwise simply return validation_data, None, None and defer the
-        decision to the caller.
+      raise_if_ambiguous: boolean on whether to fail if validation_data cannot
+        be parsed. Otherwise simply return validation_data, None, None and defer
+        the decision to the caller.
 
     Returns:
       tuple of 3, (x, y, sample_weights) for numpy and tensor input.
@@ -2185,7 +2199,7 @@ class TrainingLoop:
         steps_per_epoch=None,
         validation_steps=None,
         validation_freq=1,
-        **kwargs
+        **kwargs,
     ):
         """Train the model with the inputs and targets."""
         raise NotImplementedError()
@@ -2200,9 +2214,10 @@ class TrainingLoop:
         sample_weight=None,
         steps=None,
         callbacks=None,
-        **kwargs
+        **kwargs,
     ):
-        """Returns the loss value & metrics values for the model in test mode."""
+        """Returns the loss value & metrics values for the model in test
+        mode."""
         raise NotImplementedError()
 
     def predict(
@@ -2213,6 +2228,6 @@ class TrainingLoop:
         verbose=0,
         steps=None,
         callbacks=None,
-        **kwargs
+        **kwargs,
     ):
         raise NotImplementedError()

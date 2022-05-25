@@ -75,7 +75,8 @@ def model_iteration(
           logged to a file, so verbose=2 is recommended when not running
           interactively (eg, in a production environment).
         callbacks: List of callbacks to be called during training
-        val_inputs: Either a list or dictionary of arrays, or a dataset instance.
+        val_inputs: Either a list or dictionary of arrays, or a dataset
+          instance.
         val_targets: List/dictionary of target arrays.
         val_sample_weights: Optional list of sample weight arrays.
         shuffle: Whether to shuffle the data at the beginning of each epoch
@@ -89,13 +90,13 @@ def model_iteration(
         validation_steps: Number of steps to run validation for (only if doing
           validation from data tensors). Ignored with the default value of
           `None`.
-        validation_freq: Only relevant if validation data is provided. Integer or
-          `collections.abc.Container` instance (e.g. list, tuple, etc.). If an
-          integer, specifies how many training epochs to run before a new
-          validation run is performed, e.g. `validation_freq=2` runs
-          validation every 2 epochs. If a Container, specifies the epochs on
-          which to run validation, e.g. `validation_freq=[1, 2, 10]` runs
-          validation at the end of the 1st, 2nd, and 10th epochs.
+        validation_freq: Only relevant if validation data is provided. Integer
+          or `collections.abc.Container` instance (e.g. list, tuple, etc.). If
+          an integer, specifies how many training epochs to run before a new
+          validation run is performed, e.g. `validation_freq=2` runs validation
+          every 2 epochs. If a Container, specifies the epochs on which to run
+          validation, e.g. `validation_freq=[1, 2, 10]` runs validation at the
+          end of the 1st, 2nd, and 10th epochs.
         mode: One of ModeKeys.TRAIN/ModeKeys.TEST/ModeKeys.PREDICT.
         validation_in_fit: if true, then this method is invoked from within
           training iteration (for validation). In the case where `val_inputs` is
@@ -160,15 +161,16 @@ def model_iteration(
     inputs = input_iterator or inputs
     if validation_in_fit and prepared_feed_values_from_dataset:
         # When invoking validation in training loop, avoid creating iterator and
-        # list of feed values for the same validation dataset multiple times (which
-        # essentially would call `iterator.get_next()` that slows down execution and
-        # leads to OOM errors eventually.
+        # list of feed values for the same validation dataset multiple times
+        # (which essentially would call `iterator.get_next()` that slows down
+        # execution and leads to OOM errors eventually.
         ins = inputs
     else:
         ins = _prepare_feed_values(model, inputs, targets, sample_weights, mode)
-        # `ins` is a function when a distribute strategy is used in Eager mode.  In
-        # that case `is_dataset` is True.  The code branches that have requirements
-        # about the type of `ins` do not trigger in the distributed case.
+        # `ins` is a function when a distribute strategy is used in Eager mode.
+        # In that case `is_dataset` is True.  The code branches that have
+        # requirements about the type of `ins` do not trigger in the distributed
+        # case.
 
     if not is_dataset:
         num_samples_or_steps = _get_num_samples_or_steps(
@@ -177,10 +179,10 @@ def model_iteration(
     else:
         num_samples_or_steps = steps_per_epoch
 
-    # Update sample_weight_mode of the model if sample_weights is specified by the
-    # user. We need to call this function after we have a handle on the inputs
-    # (both numpy arrays and datasets) in order to determine if the user has
-    # specified sample_weights.
+    # Update sample_weight_mode of the model if sample_weights is specified by
+    # the user. We need to call this function after we have a handle on the
+    # inputs (both numpy arrays and datasets) in order to determine if the user
+    # has specified sample_weights.
     _update_sample_weight_mode(model, mode, ins)
 
     # Get step function and loop type. As part of building the execution
@@ -188,8 +190,8 @@ def model_iteration(
     # sample_weight_mode value.
     f = _make_execution_function(model, mode)
 
-    # Prepare validation data. Hold references to the iterator and the input list
-    # to properly reinitialize and reuse in multiple validation passes.
+    # Prepare validation data. Hold references to the iterator and the input
+    # list to properly reinitialize and reuse in multiple validation passes.
     val_iterator = None
     if isinstance(val_inputs, (tf.compat.v1.data.Dataset, tf.data.Dataset)):
         if validation_steps is None:
@@ -277,8 +279,8 @@ def model_iteration(
         # Setup work for each epoch
         epoch_logs = {}
         if mode != ModeKeys.PREDICT:
-            # Collecting and resetting metrics has non-zero cost and will needlessly
-            # slow down model.predict.
+            # Collecting and resetting metrics has non-zero cost and will
+            # needlessly slow down model.predict.
             model.reset_metrics()
         if mode == ModeKeys.TRAIN:
             callbacks.on_epoch_begin(epoch, epoch_logs)
@@ -299,7 +301,8 @@ def model_iteration(
 
                 # Get outputs.
                 try:
-                    # `ins` can be callable in tf.distribute.Strategy + eager case.
+                    # `ins` can be callable in tf.distribute.Strategy + eager
+                    # case.
                     if not callable(ins) or (
                         model._distribution_strategy
                         and not distributed_training_utils_v1.is_distributing_by_cloning(
@@ -313,31 +316,34 @@ def model_iteration(
                 except tf.errors.OutOfRangeError:
                     if is_dataset:
                         # The dataset passed by the user ran out of batches.
-                        # Now we know the cardinality of the dataset.
-                        # If steps_per_epoch was specified, then running out of data is
-                        # unexpected, so we stop training and inform the user.
+                        # Now we know the cardinality of the dataset.  If
+                        # steps_per_epoch was specified, then running out of
+                        # data is unexpected, so we stop training and inform the
+                        # user.
                         if steps_per_epoch:
                             callbacks.model.stop_training = True
                             logging.warning(
-                                "Your dataset ran out of data; interrupting training. "
-                                "Make sure that your dataset can generate at least "
-                                "`%s * epochs` batches (in this case, %d batches). "
-                                "You may need to use the repeat() function when "
-                                "building your dataset."
+                                "Your dataset ran out of data; interrupting "
+                                "training. Make sure that your dataset can "
+                                "generate at least `%s * epochs` batches (in "
+                                "this case, %d batches). You may need to use "
+                                "the repeat() function when building your "
+                                "dataset."
                                 % (steps_name, steps_per_epoch * epochs)
                             )
                         elif step > 0:
                             steps_per_epoch = step
                             aggregator.steps = steps_per_epoch
                     else:
-                        # We ran out of batches while the user passed an iterator (legacy).
+                        # We ran out of batches while the user passed an
+                        # iterator (legacy).
                         callbacks.model.stop_training = True
                         logging.warning(
                             "Your dataset iterator ran out of data; "
-                            "interrupting training. Make sure that your iterator "
-                            "can generate at least `%s * epochs` "
-                            "batches (in this case, %d batches). You may need to"
-                            "use the repeat() function when building your "
+                            "interrupting training. Make sure that your "
+                            "iterator can generate at least `%s * epochs` "
+                            "batches (in this case, %d batches). You may need "
+                            "to use the repeat() function when building your "
                             "dataset." % (steps_name, steps_per_epoch * epochs)
                         )
                     break
@@ -376,9 +382,9 @@ def model_iteration(
                 batch_ids = index_array[batch_start:batch_end]
                 # Slice into a batch.
                 if len(batches) == 1:
-                    # If we only have one batch, do not slice. This takes care of
-                    # composite tensors in non-Dataset modes; we currently don't support
-                    # slicing them.
+                    # If we only have one batch, do not slice. This takes care
+                    # of composite tensors in non-Dataset modes; we currently
+                    # don't support slicing them.
                     # TODO(b/133517906): Add slicing support.
                     ins_batch = ins
                 else:
@@ -439,8 +445,9 @@ def model_iteration(
         ):
 
             if model._compile_distribution:
-                # Since we create a new clone from the original model we need to copy
-                # the weights back to the original model before we can run validation.
+                # Since we create a new clone from the original model we need to
+                # copy the weights back to the original model before we can run
+                # validation.
                 distributed_training_utils_v1._copy_weights_to_original_model(
                     model, ModeKeys.TRAIN
                 )
@@ -482,7 +489,8 @@ def model_iteration(
 
     if model._distribution_strategy:
         if model._compile_distribution:
-            # TODO(priyag, psv): Copy back metrics to the original model as well?
+            # TODO(priyag, psv): Copy back metrics to the original model as
+            # well?
             distributed_training_utils_v1._copy_weights_to_original_model(
                 model, mode
             )
@@ -518,7 +526,7 @@ def _print_train_info(num_samples_or_steps, val_samples_or_steps, is_dataset):
 
 
 def _get_num_samples_or_steps(ins, batch_size, steps_per_epoch):
-    """Returns total number of samples (when training in batch mode) or steps."""
+    """Returns total number of samples when training in batch mode or steps."""
     if steps_per_epoch:
         return steps_per_epoch
     return training_utils_v1.check_num_samples(
@@ -550,10 +558,10 @@ def _prepare_feed_values(model, inputs, targets, sample_weights, mode):
                 model, inputs, targets, sample_weights, mode
             )
 
-        # In the eager case, we want to call the input method per step, so return
-        # a lambda from here that can be called. Note that this is applicable only
-        # in Distribution Strategy case as it follows the same code path for both
-        # eager and graph modes.
+        # In the eager case, we want to call the input method per step, so
+        # return a lambda from here that can be called. Note that this is
+        # applicable only in Distribution Strategy case as it follows the same
+        # code path for both eager and graph modes.
         # TODO(priyag,omalleyt): Either we should move the training DS with
         # IteratorBase to use training_generator code path, or figure out how to
         # set a symbolic Iterator out of a Dataset when in eager mode.
@@ -614,7 +622,8 @@ def _make_execution_function(model, mode):
 def _update_sample_weight_mode(model, mode, inputs):
     """Updates the sample_weight_mode of a given model."""
     # Add a quick return to prevent us from calling model._feed_targets that
-    # accesses certain model properties that may not be set in the `PREDICT` mode.
+    # accesses certain model properties that may not be set in the `PREDICT`
+    # mode.
     if mode == ModeKeys.PREDICT:
         return
 
@@ -657,8 +666,8 @@ class ArrayLikeTrainingLoop(training_utils_v1.TrainingLoop):
 
     This is the default handler for most of the input data types, includes
     symbolic tensors or Numpy array-like, Datasets and iterators in graph mode
-    (since they generate symbolic tensors). This Function is used to handle model
-    with `run_eagerly` = False.
+    (since they generate symbolic tensors). This Function is used to handle
+    model with `run_eagerly` = False.
     """
 
     def fit(

@@ -35,8 +35,8 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
 
         Tests `sparse_categorical_crossentropy`, `categorical_crossentropy`,
         and `binary_crossentropy`.
-        Verifies that evaluate gives the same result with either `channels_first`
-        or `channels_last` image_data_format.
+        Verifies that evaluate gives the same result with either
+        `channels_first` or `channels_last` image_data_format.
         """
 
         def prepare_simple_model(input_tensor, loss_name, target):
@@ -45,19 +45,19 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
             num_channels = None
             activation = None
             if loss_name == "sparse_categorical_crossentropy":
-                loss = lambda y_true, y_pred: backend.sparse_categorical_crossentropy(  # pylint: disable=g-long-lambda
+                loss = lambda y_true, y_pred: backend.sparse_categorical_crossentropy(
                     y_true, y_pred, axis=axis
                 )
                 num_channels = int(np.amax(target) + 1)
                 activation = "softmax"
             elif loss_name == "categorical_crossentropy":
-                loss = lambda y_true, y_pred: backend.categorical_crossentropy(  # pylint: disable=g-long-lambda
+                loss = lambda y_true, y_pred: backend.categorical_crossentropy(
                     y_true, y_pred, axis=axis
                 )
                 num_channels = target.shape[axis]
                 activation = "softmax"
             elif loss_name == "binary_crossentropy":
-                loss = lambda y_true, y_pred: backend.binary_crossentropy(  # pylint: disable=g-long-lambda, unnecessary-lambda
+                loss = lambda y_true, y_pred: backend.binary_crossentropy(
                     y_true, y_pred
                 )
                 num_channels = target.shape[axis]
@@ -88,8 +88,9 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
                     [[[[8.0, 7.1, 0.0], [4.5, 2.6, 0.55], [0.9, 4.2, 11.2]]]],
                     dtype=np.float32,
                 )
-                # Labels for testing 4-class sparse_categorical_crossentropy, 4-class
-                # categorical_crossentropy, and 2-class binary_crossentropy:
+                # Labels for testing 4-class sparse_categorical_crossentropy,
+                # 4-class categorical_crossentropy, and 2-class
+                # binary_crossentropy:
                 labels_channels_first = [
                     np.array(
                         [[[[0, 1, 3], [2, 1, 0], [2, 2, 1]]]], dtype=np.float32
@@ -115,14 +116,15 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
                         dtype=np.float32,
                     ),
                 ]  # pylint: disable=line-too-long
-                # Compute one loss for each loss function in the list `losses_to_test`:
+                # Compute one loss for each loss function in the list
+                # `losses_to_test`:
                 loss_channels_last = [0.0, 0.0, 0.0]
                 loss_channels_first = [0.0, 0.0, 0.0]
 
                 old_data_format = backend.image_data_format()
 
-                # Evaluate a simple network with channels last, with all three loss
-                # functions:
+                # Evaluate a simple network with channels last, with all three
+                # loss functions:
                 backend.set_image_data_format("channels_last")
                 data = np.moveaxis(data_channels_first, 1, -1)
                 for index, loss_function in enumerate(losses_to_test):
@@ -133,8 +135,8 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
                         x=data, y=labels, batch_size=1, verbose=0
                     )
 
-                # Evaluate the same network with channels first, with all three loss
-                # functions:
+                # Evaluate the same network with channels first, with all three
+                # loss functions:
                 backend.set_image_data_format("channels_first")
                 data = data_channels_first
                 for index, loss_function in enumerate(losses_to_test):

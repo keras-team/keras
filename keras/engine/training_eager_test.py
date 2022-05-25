@@ -30,7 +30,8 @@ class TrainingTest(test_combinations.TestCase):
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_dynamic_model_has_trainable_weights(self):
         if not tf.executing_eagerly():
-            # Only test Eager modes, as Graph mode is not relevant for dynamic models.
+            # Only test Eager modes, as Graph mode is not relevant for dynamic
+            # models.
             return
 
         class DynamicModel(keras.Model):
@@ -49,8 +50,8 @@ class TrainingTest(test_combinations.TestCase):
         self.assertEqual(hist.history["loss"][-1], 1)
         self.assertEqual(len(model.trainable_weights), 2)
         loss = model.train_on_batch(np.zeros((1, 1)), np.zeros((1, 1)))
-        # The loss must have been updated if the trainable weights are taken into
-        # account during tracking.
+        # The loss must have been updated if the trainable weights are taken
+        # into account during tracking.
         self.assertLess(loss, 1)
 
     @test_combinations.run_with_all_model_types(exclude_models="sequential")
@@ -354,7 +355,7 @@ class CorrectnessTest(test_combinations.TestCase):
     def test_nested_model_learning_phase(
         self, training, expected_training_loss, expected_validation_loss
     ):
-        """Tests that learning phase is correctly set in an intermediate layer."""
+        """Tests learning phase is correctly set in an intermediate layer."""
 
         def _make_unregularized_model():
             inputs = keras.Input((4,))

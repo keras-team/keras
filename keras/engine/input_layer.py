@@ -47,8 +47,9 @@ class InputLayer(base_layer.Layer):
     It is generally recommend to use the Keras Functional model via `Input`,
     (which creates an `InputLayer`) without directly using `InputLayer`.
 
-    When using `InputLayer` with the Keras Sequential model, it can be skipped by
-    moving the `input_shape` parameter to the first layer after the `InputLayer`.
+    When using `InputLayer` with the Keras Sequential model, it can be skipped
+    by moving the `input_shape` parameter to the first layer after the
+    `InputLayer`.
 
     This class can create placeholders for `tf.Tensors`, `tf.SparseTensors`, and
     `tf.RaggedTensors` by choosing `sparse=True` or `ragged=True`. Note that
@@ -74,8 +75,8 @@ class InputLayer(base_layer.Layer):
     ```
 
     Args:
-        input_shape: Shape tuple (not including the batch axis), or `TensorShape`
-          instance (not including the batch axis).
+        input_shape: Shape tuple (not including the batch axis), or
+            `TensorShape` instance (not including the batch axis).
         batch_size: Optional input batch size (integer or `None`).
         dtype: Optional datatype of the input. When not provided, the Keras
             default `float` type will be used.
@@ -89,9 +90,9 @@ class InputLayer(base_layer.Layer):
             ragged dimensions. For more information about `tf.RaggedTensor`, see
             [this guide](https://www.tensorflow.org/guide/ragged_tensor).
             Default to `False`.
-        type_spec: A `tf.TypeSpec` object to create Input from. This `tf.TypeSpec`
-            represents the entire batch. When provided, all other args except
-            name must be `None`.
+        type_spec: A `tf.TypeSpec` object to create Input from. This
+            `tf.TypeSpec` represents the entire batch. When provided, all other
+            args except name must be `None`.
         name: Optional name of the layer (string).
     """
 
@@ -139,8 +140,8 @@ class InputLayer(base_layer.Layer):
                     "InputLayer, not both at the same time."
                 )
             # Set the input shape and batch size from the batch_input_shape.
-            # Note that batch_input_shape can be None (unknown rank) or [] (scalar),
-            # in which case the batch size must be None.
+            # Note that batch_input_shape can be None (unknown rank) or []
+            # (scalar), in which case the batch size must be None.
             if batch_input_shape:
                 batch_size = batch_input_shape[0]
                 input_shape = batch_input_shape[1:]
@@ -206,7 +207,8 @@ class InputLayer(base_layer.Layer):
             try:
                 self._batch_input_shape = tuple(input_tensor.shape.as_list())
             except ValueError:
-                # If the shape cannot be represented as a tuple (e.g. unknown rank)
+                # If the shape cannot be represented as a tuple (e.g. unknown
+                # rank)
                 self._batch_input_shape = None
         elif input_tensor is None:
             if input_shape is not None:
@@ -243,7 +245,8 @@ class InputLayer(base_layer.Layer):
             try:
                 self._batch_input_shape = tuple(input_tensor.shape.as_list())
             except ValueError:
-                # If the shape cannot be represented as a tuple (e.g. unknown rank)
+                # If the shape cannot be represented as a tuple (e.g. unknown
+                # rank)
                 self._batch_input_shape = None
         # Create an input node.
         input_tensor._keras_mask = None
@@ -296,9 +299,9 @@ def Input(  # pylint: disable=invalid-name
 ):
     """`Input()` is used to instantiate a Keras tensor.
 
-    A Keras tensor is a symbolic tensor-like object,
-    which we augment with certain attributes that allow us to build a Keras model
-    just by knowing the inputs and outputs of the model.
+    A Keras tensor is a symbolic tensor-like object, which we augment with
+    certain attributes that allow us to build a Keras model just by knowing the
+    inputs and outputs of the model.
 
     For instance, if `a`, `b` and `c` are Keras tensors,
     it becomes possible to do:
@@ -325,8 +328,8 @@ def Input(  # pylint: disable=invalid-name
             than creating a new placeholder tensor.
         ragged: A boolean specifying whether the placeholder to be created is
             ragged. Only one of 'ragged' and 'sparse' can be True. In this case,
-            values of 'None' in the 'shape' argument represent ragged dimensions.
-            For more information about RaggedTensors, see
+            values of 'None' in the 'shape' argument represent ragged
+            dimensions.  For more information about RaggedTensors, see
             [this guide](https://www.tensorflow.org/guide/ragged_tensors).
         type_spec: A `tf.TypeSpec` object to create the input placeholder from.
             When provided, all other args except name must be None.
@@ -363,8 +366,8 @@ def Input(  # pylint: disable=invalid-name
     used as inputs to TensorFlow ops. All variable usages must happen within
     Keras layers to make sure they will be tracked by the model's weights.
 
-    The Keras Input can also create a placeholder from an arbitrary `tf.TypeSpec`,
-    e.g:
+    The Keras Input can also create a placeholder from an arbitrary
+    `tf.TypeSpec`, e.g:
 
     ```python
     x = Input(type_spec=tf.RaggedTensorSpec(shape=[None, None],
@@ -372,21 +375,22 @@ def Input(  # pylint: disable=invalid-name
     y = x.values
     model = Model(x, y)
     ```
-    When passing an arbitrary `tf.TypeSpec`, it must represent the signature of an
-    entire batch instead of just one example.
+    When passing an arbitrary `tf.TypeSpec`, it must represent the signature of
+    an entire batch instead of just one example.
 
     Raises:
       ValueError: If both `sparse` and `ragged` are provided.
       ValueError: If both `shape` and (`batch_input_shape` or `batch_shape`) are
         provided.
       ValueError: If `shape`, `tensor` and `type_spec` are None.
-      ValueError: If arguments besides `type_spec` are non-None while `type_spec`
-                  is passed.
+      ValueError: If arguments besides `type_spec` are non-None while
+        `type_spec` is passed.
       ValueError: if any unrecognized parameters are provided.
     """
     if sparse and ragged:
         raise ValueError(
-            "Cannot set both `sparse` and `ragged` to `True` in a Keras `Input`."
+            "Cannot set both `sparse` and `ragged` to `True` in a "
+            "Keras `Input`."
         )
 
     input_layer_config = {

@@ -43,8 +43,8 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
     instead.
 
     Preprocessing layers are layers whose state gets computed before model
-    training starts. They do not get updated during training.
-    Most preprocessing layers implement an `adapt()` method for state computation.
+    training starts. They do not get updated during training. Most
+    preprocessing layers implement an `adapt()` method for state computation.
 
     The `PreprocessingLayer` class is the base class you would subclass to
     implement your own preprocessing layers.
@@ -86,9 +86,10 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
     def finalize_state(self):
         """Finalize the statistics for the preprocessing layer.
 
-        This method is called at the end of `adapt` or after restoring a serialized
-        preprocessing layer's state. This method handles any one-time operations
-        that should occur on the layer's state before `Layer.__call__`.
+        This method is called at the end of `adapt` or after restoring a
+        serialized preprocessing layer's state. This method handles any one-time
+        operations that should occur on the layer's state before
+        `Layer.__call__`.
         """
         pass
 
@@ -138,13 +139,14 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
         """Configures the layer for `adapt`.
 
         Arguments:
-          run_eagerly: Bool. Defaults to `False`. If `True`, this `Model`'s logic
-            will not be wrapped in a `tf.function`. Recommended to leave this as
-            `None` unless your `Model` cannot be run inside a `tf.function`.
-            steps_per_execution: Int. Defaults to 1. The number of batches to run
-              during each `tf.function` call. Running multiple batches inside a
-              single `tf.function` call can greatly improve performance on TPUs or
-              small models with a large Python overhead.
+          run_eagerly: Bool. Defaults to `False`. If `True`, this `Model`'s
+            logic will not be wrapped in a `tf.function`. Recommended to leave
+            this as `None` unless your `Model` cannot be run inside a
+            `tf.function`.
+          steps_per_execution: Int. Defaults to 1. The number of batches to run
+            during each `tf.function` call. Running multiple batches inside a
+            single `tf.function` call can greatly improve performance on TPUs or
+            small models with a large Python overhead.
         """
         if steps_per_execution is None:
             steps_per_execution = 1
@@ -160,17 +162,18 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
         """Fits the state of the preprocessing layer to the data being passed.
 
         After calling `adapt` on a layer, a preprocessing layer's state will not
-        update during training. In order to make preprocessing layers efficient in
-        any distribution context, they are kept constant with respect to any
-        compiled `tf.Graph`s that call the layer. This does not affect the layer use
-        when adapting each layer only once, but if you adapt a layer multiple times
-        you will need to take care to re-compile any compiled functions as follows:
+        update during training. In order to make preprocessing layers efficient
+        in any distribution context, they are kept constant with respect to any
+        compiled `tf.Graph`s that call the layer. This does not affect the layer
+        use when adapting each layer only once, but if you adapt a layer
+        multiple times you will need to take care to re-compile any compiled
+        functions as follows:
 
-         * If you are adding a preprocessing layer to a `keras.Model`, you need to
-           call `model.compile` after each subsequent call to `adapt`.
-         * If you are calling a preprocessing layer inside `tf.data.Dataset.map`,
-           you should call `map` again on the input `tf.data.Dataset` after each
-           `adapt`.
+         * If you are adding a preprocessing layer to a `keras.Model`, you need
+           to call `model.compile` after each subsequent call to `adapt`.
+         * If you are calling a preprocessing layer inside
+          `tf.data.Dataset.map`, you should call `map` again on the input
+          `tf.data.Dataset` after each `adapt`.
          * If you are using a `tf.function` directly which calls a preprocessing
            layer, you need to call `tf.function` again on your callable after
            each subsequent call to `adapt`.
@@ -206,20 +209,21 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
          array([1.], dtype=float32),
          array([2.], dtype=float32)]
 
-        `adapt()` is meant only as a single machine utility to compute layer state.
-        To analyze a dataset that cannot fit on a single machine, see
-        [Tensorflow Transform](https://www.tensorflow.org/tfx/transform/get_started)
+        `adapt()` is meant only as a single machine utility to compute layer
+        state.  To analyze a dataset that cannot fit on a single machine, see
+        [Tensorflow Transform](
+        https://www.tensorflow.org/tfx/transform/get_started)
         for a multi-machine, map-reduce solution.
 
         Arguments:
             data: The data to train on. It can be passed either as a tf.data
               Dataset, or as a numpy array.
             batch_size: Integer or `None`.
-                Number of samples per state update.
-                If unspecified, `batch_size` will default to 32.
-                Do not specify the `batch_size` if your data is in the
-                form of datasets, generators, or `keras.utils.Sequence` instances
-                (since they generate batches).
+                Number of samples per state update. If unspecified,
+                `batch_size` will default to 32.  Do not specify the
+                `batch_size` if your data is in the form of datasets,
+                generators, or `keras.utils.Sequence` instances (since they
+                generate batches).
             steps: Integer or `None`.
                 Total number of steps (batches of samples)
                 When training with input tensors such as
@@ -275,8 +279,8 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
     def _adapt_maybe_build(self, data):
         if not self.built:
             try:
-                # If this is a Numpy array or tensor, we can get shape from .shape.
-                # If not, an attribute error will be thrown.
+                # If this is a Numpy array or tensor, we can get shape from
+                # .shape.  If not, an attribute error will be thrown.
                 data_shape = data.shape
                 data_shape_nones = tuple([None] * len(data.shape))
             except AttributeError:

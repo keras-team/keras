@@ -71,7 +71,8 @@ class ValidationDatasetAndValidationSplit(
         train_dataset = _create_dataset(num_samples=200, batch_size=10)
         eval_dataset = _create_dataset(num_samples=50, batch_size=25)
 
-        # Make sure model.fit doesn't raise an error because of the mocking alone.
+        # Make sure model.fit doesn't raise an error because of the mocking
+        # alone.
         mock_train_validation_split_return = (
             (train_dataset, None, None),
             eval_dataset,
@@ -123,8 +124,8 @@ class ValidationDatasetNoLimitTest(test_combinations.TestCase):
         evaluation = model.evaluate(x=eval_dataset)
 
         # If the fit call used the entire dataset, then the final val MAE error
-        # from the fit history should be equal to the final element in the output
-        # of evaluating the model on the same eval dataset.
+        # from the fit history should be equal to the final element in the
+        # output of evaluating the model on the same eval dataset.
         self.assertAlmostEqual(
             history.history["val_mean_absolute_error"][-1],
             evaluation[-1],

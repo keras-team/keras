@@ -356,14 +356,14 @@ class LossesContainerTest(test_combinations.TestCase):
         self.assertEqual(loss_container._losses[1].name, "custom_loss_class")
 
     def test_ragged_tensor_output(self):
-        """Ensure that ragged tensors can be passed as targets and predictions."""
+        """Ensure ragged tensors can be passed as targets and predictions."""
 
         def custom_loss_fn(y_true, y_pred):
             """MSE supports RaggedTensors directly."""
             return losses_mod.mse(y_true, y_pred)
 
         class CustomLossClass(losses_mod.Loss):
-            """User defined loss function must implement RaggedTensor support."""
+            """User defined loss func must implement RaggedTensor support."""
 
             def call(self, y_true, y_pred):
                 losses = tf.ragged.map_flat_values(

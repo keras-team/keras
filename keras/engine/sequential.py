@@ -107,7 +107,8 @@ class Sequential(functional.Functional):
           layers: Optional list of layers to add to the model.
           name: Optional name for the model.
         """
-        # Skip the init in FunctionalModel since model doesn't have input/output yet
+        # Skip the init in FunctionalModel since model doesn't have input/output
+        # yet
         super(
             functional.Functional, self
         ).__init__(  # pylint: disable=bad-super-call
@@ -127,10 +128,10 @@ class Sequential(functional.Functional):
         # have an input shape.
         self._graph_initialized = False
 
-        # Unfortunately some Sequential models using custom layers or FeatureColumn
-        # layers have multiple inputs. This is fundamentally incompatible with
-        # most of the Sequential API, and we have to disable a number of features
-        # for such models.
+        # Unfortunately some Sequential models using custom layers or
+        # FeatureColumn layers have multiple inputs. This is fundamentally
+        # incompatible with most of the Sequential API, and we have to disable a
+        # number of features for such models.
         self._use_legacy_deferred_behavior = False
 
         # Add to the model any layers passed to the constructor.
@@ -168,8 +169,9 @@ class Sequential(functional.Functional):
                 multiple output tensors, or is already connected
                 somewhere else (forbidden in `Sequential` models).
         """
-        # If we are passed a Keras tensor created by keras.Input(), we can extract
-        # the input layer from its keras history and use that without any loss of
+        # If we are passed a Keras tensor created by keras.Input(), we can
+        # extract the input layer from its keras history and use that without
+        # any loss of
         # generality.
         if hasattr(layer, "_keras_history"):
             origin_layer = layer._keras_history[0]
@@ -189,8 +191,8 @@ class Sequential(functional.Functional):
         if not self._is_layer_name_unique(layer):
             raise ValueError(
                 "All layers added to a Sequential model "
-                f'should have unique names. Name "{layer.name}" is already the name '
-                "of a layer in this model. Update the `name` argument "
+                f'should have unique names. Name "{layer.name}" is already '
+                "the name of a layer in this model. Update the `name` argument "
                 "to pass a unique name."
             )
 
@@ -199,7 +201,8 @@ class Sequential(functional.Functional):
         self._maybe_create_attribute("_self_tracked_trackables", [])
         if not self._self_tracked_trackables:
             if isinstance(layer, input_layer.InputLayer):
-                # Case where the user passes an Input or InputLayer layer via `add`.
+                # Case where the user passes an Input or InputLayer layer via
+                # `add`.
                 set_inputs = True
             else:
                 batch_shape, dtype = training_utils.get_input_shape_and_dtype(
@@ -281,7 +284,8 @@ class Sequential(functional.Functional):
             not tf.__internal__.tf2.enabled()
             or not tf.compat.v1.executing_eagerly_outside_functions()
         ):
-            # This behavior is disabled in V1 or when eager execution is disabled.
+            # This behavior is disabled in V1 or when eager execution is
+            # disabled.
             return
         if (
             not self._has_explicit_input_shape
@@ -311,33 +315,36 @@ class Sequential(functional.Functional):
                     layer_input = inputs
                     created_nodes = set()
                     for layer in self.layers:
-                        # Clear nodes previously created via this method. This prevents
-                        # node accumulation and ensures that e.g. `layer.output` is
-                        # always connected to `model.inputs`
-                        # (this is important e.g. for the feature extraction use case).
-                        # We don't just do `layer._inbound_nodes = []` in order
-                        # not to break shared layers added to Sequential models (which is
-                        # technically illegal as per the `add()` docstring,
-                        # but wasn't previously disabled).
+                        # Clear nodes previously created via this method. This
+                        # prevents node accumulation and ensures that e.g.
+                        # `layer.output` is always connected to `model.inputs`
+                        # (this is important e.g. for the feature extraction use
+                        # case).  We don't just do `layer._inbound_nodes = []`
+                        # in order not to break shared layers added to
+                        # Sequential models (which is technically illegal as per
+                        # the `add()` docstring, but wasn't previously
+                        # disabled).
                         clear_previously_created_nodes(
                             layer, self._created_nodes
                         )
                         try:
-                            # Create Functional API connection by calling the current layer
+                            # Create Functional API connection by calling the
+                            # current layer
                             layer_output = layer(layer_input)
                         except:  # pylint:disable=bare-except
-                            # Functional API calls may fail for a number of reasons:
-                            # 1) The layer may be buggy. In this case it will be easier for
-                            # the user to debug if we fail on the first call on concrete data,
-                            # instead of our own call on a symbolic input.
-                            # 2) The layer is dynamic (graph-incompatible) and hasn't
-                            # overridden `compute_output_shape`. In this case, it is
-                            # impossible to build a graph network.
-                            # 3) The layer is otherwise incompatible with the Functional API
-                            # (e.g. this is the case for some probabilistic layers that rely
-                            # on hacks and that do not return tensors).
-                            # In all these cases, we should avoid creating a graph network
-                            # (or we simply can't).
+                            # Functional API calls may fail for a number of
+                            # reasons: 1) The layer may be buggy. In this case
+                            # it will be easier for the user to debug if we fail
+                            # on the first call on concrete data, instead of our
+                            # own call on a symbolic input. 2) The layer is
+                            # dynamic (graph-incompatible) and hasn't overridden
+                            # `compute_output_shape`. In this case, it is
+                            # impossible to build a graph network. 3) The layer
+                            # is otherwise incompatible with the Functional API
+                            # (e.g. this is the case for some probabilistic
+                            # layers that rely on hacks and that do not return
+                            # tensors). In all these cases, we should avoid
+                            # creating a graph network (or we simply can't).
                             self._use_legacy_deferred_behavior = True
                             return
                         if len(tf.nest.flatten(layer_output)) != 1:
@@ -348,13 +355,14 @@ class Sequential(functional.Functional):
                         outputs = layer_output
                     self._created_nodes = created_nodes
                     try:
-                        # Initialize a graph Network. This call will never fail for
-                        # a stack of valid Keras layers.
-                        # However some users have layers that are fundamentally incompatible
-                        # with the Functional API, which do not return tensors. In this
-                        # case, we fall back to the legacy deferred behavior.
-                        # TODO(fchollet): consider raising here, as we should not be
-                        # supporting such layers.
+                        # Initialize a graph Network. This call will never fail
+                        # for a stack of valid Keras layers. However some users
+                        # have layers that are fundamentally incompatible with
+                        # the Functional API, which do not return tensors. In
+                        # this case, we fall back to the legacy deferred
+                        # behavior.
+                        # TODO(fchollet): consider raising here, as we should
+                        # not be supporting such layers.
                         self._init_graph_network(inputs, outputs)
                         self._graph_initialized = True
                     except:  # pylint:disable=bare-except
@@ -381,9 +389,9 @@ class Sequential(functional.Functional):
         # If applicable, update the static input shape of the model.
         if not self._has_explicit_input_shape:
             if not tf.is_tensor(inputs) and not isinstance(inputs, tf.Tensor):
-                # This is a Sequential with multiple inputs. This is technically an
-                # invalid use case of Sequential, but we tolerate it for backwards
-                # compatibility.
+                # This is a Sequential with multiple inputs. This is technically
+                # an invalid use case of Sequential, but we tolerate it for
+                # backwards compatibility.
                 self._use_legacy_deferred_behavior = True
                 self._build_input_shape = tf.nest.map_structure(
                     _get_shape_tuple, inputs
@@ -407,9 +415,10 @@ class Sequential(functional.Functional):
 
         outputs = inputs  # handle the corner case where self.layers is empty
         for layer in self.layers:
-            # During each iteration, `inputs` are the inputs to `layer`, and `outputs`
-            # are the outputs of `layer` applied to `inputs`. At the end of each
-            # iteration `inputs` is set to `outputs` to prepare for the next layer.
+            # During each iteration, `inputs` are the inputs to `layer`, and
+            # `outputs` are the outputs of `layer` applied to `inputs`. At the
+            # end of each iteration `inputs` is set to `outputs` to prepare for
+            # the next layer.
             kwargs = {}
             argspec = self._layer_call_argspecs[layer].args
             if "mask" in argspec:
@@ -444,9 +453,10 @@ class Sequential(functional.Functional):
     def get_config(self):
         layer_configs = []
         for layer in super().layers:
-            # `super().layers` include the InputLayer if available (it is filtered out
-            # of `self.layers`). Note that `self._self_tracked_trackables` is managed
-            # by the tracking infrastructure and should not be used.
+            # `super().layers` include the InputLayer if available (it is
+            # filtered out of `self.layers`). Note that
+            # `self._self_tracked_trackables` is managed by the tracking
+            # infrastructure and should not be used.
             layer_configs.append(generic_utils.serialize_keras_object(layer))
         config = {"name": self.name, "layers": copy.deepcopy(layer_configs)}
         if not self._is_graph_network and self._build_input_shape is not None:
@@ -502,8 +512,8 @@ class Sequential(functional.Functional):
     def _assert_weights_created(self):
         if self._graph_initialized:
             return
-        # When the graph has not been initialized, use the Model's implementation to
-        # to check if the weights has been created.
+        # When the graph has not been initialized, use the Model's
+        # implementation to to check if the weights has been created.
         super(
             functional.Functional, self
         )._assert_weights_created()  # pylint: disable=bad-super-call

@@ -28,7 +28,7 @@ from keras.testing_infra import test_utils
 
 
 def _conv2d_filter(**kwargs):
-    """Convolution with non-default strides and dilation rate is not supported."""
+    """Conv with non-default strides and dilation rate is not supported."""
     return kwargs["strides"] <= 1 or kwargs["dilation_rate"] <= 1
 
 

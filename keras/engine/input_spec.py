@@ -60,7 +60,8 @@ class InputSpec:
     class MyLayer(Layer):
         def __init__(self):
             super(MyLayer, self).__init__()
-            # The layer will accept inputs with shape (?, 28, 28) & (?, 28, 28, 1)
+            # The layer will accept inputs with
+            # shape (?, 28, 28) & (?, 28, 28, 1)
             # and raise an appropriate error message otherwise.
             self.input_spec = InputSpec(
                 shape=(None, 28, 28, 1),
@@ -109,9 +110,8 @@ class InputSpec:
             max_axis = max(self.axes)
             if max_axis > max_dim:
                 raise ValueError(
-                    "Axis {} is greater than the maximum allowed value: {}".format(
-                        max_axis, max_dim
-                    )
+                    "Axis {} is greater than the maximum "
+                    "allowed value: {}".format(max_axis, max_dim)
                 )
 
     def __repr__(self):
@@ -202,10 +202,10 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
 
     inputs = tf.nest.flatten(inputs)
     for x in inputs:
-        # Having a shape/dtype is the only commonality of the various tensor-like
-        # objects that may be passed. The most common kind of invalid type we are
-        # guarding for is a Layer instance (Functional API), which does not
-        # have a `shape` attribute.
+        # Having a shape/dtype is the only commonality of the various
+        # tensor-like objects that may be passed. The most common kind of
+        # invalid type we are guarding for is a Layer instance (Functional API),
+        # which does not have a `shape` attribute.
         if not hasattr(x, "shape"):
             raise TypeError(f"Inputs to a layer should be tensors. Got: {x}")
 
@@ -275,7 +275,8 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
                         f'Input {input_index} of layer "{layer_name}" is '
                         f"incompatible with the layer: expected axis {axis} "
                         f"of input shape to have value {value}, "
-                        f"but received input with shape {display_shape(x.shape)}"
+                        "but received input with "
+                        f"shape {display_shape(x.shape)}"
                     )
         # Check shape.
         if spec.shape is not None and shape.rank is not None:

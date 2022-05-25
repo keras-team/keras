@@ -15,6 +15,7 @@
 """Contains private utilities used mainly by the base Layer class."""
 
 import tensorflow.compat.v2 as tf
+import tensorflow.compat.v1 as tf1
 
 import functools
 import threading
@@ -29,8 +30,8 @@ _call_context = threading.local()
 
 
 def create_mean_metric(value, name=None):
-    # import keras will import base_layer and then this module, and metric relies
-    # on base_layer, which result into a cyclic dependency.
+    # import keras will import base_layer and then this module, and metric
+    # relies on base_layer, which result into a cyclic dependency.
     from keras import (
         metrics as metrics_module,
     )  # pylint: disable=g-import-not-at-top
@@ -61,8 +62,8 @@ def make_variable(
     `variable_scope.get_variable()` directly, so we use a subcomponent
     that has fewer constraints (`variable_scope.variable()`).
 
-    In the longer term, it seems like a similar "default variable creator" method
-    should exist in `Trackable` instead. When this happens, we can get
+    In the longer term, it seems like a similar "default variable creator"
+    method should exist in `Trackable` instead. When this happens, we can get
     rid of this temporary solution.
 
     TODO(fchollet): remove this method when no longer needed.
@@ -129,7 +130,7 @@ def make_variable(
         # (that is to say, in TF2), we can use tf.Variable.
         # However, this breaks legacy (Estimator) checkpoints because
         # it changes variable names. Remove this when V1 is fully deprecated.
-        return tf.compat.v1.Variable(
+        return tf1.Variable(
             initial_value=init_val,
             name=name,
             trainable=trainable,
@@ -180,7 +181,7 @@ def have_all_keras_metadata(tensors):
 
 
 def generate_placeholders_from_shape(shape):
-    return tf.compat.v1.placeholder(shape=shape, dtype=backend.floatx())
+    return tf1.placeholder(shape=shape, dtype=backend.floatx())
 
 
 def create_keras_history(tensors):
@@ -224,8 +225,8 @@ def _create_keras_history_helper(tensors, processed_ops, created_layers):
 
     Args:
       tensors: A structure of Tensors for which to create Keras metadata.
-      processed_ops: Set. TensorFlow operations that have already been wrapped in
-        `TensorFlowOpLayer` instances.
+      processed_ops: Set. TensorFlow operations that have already been wrapped
+        in `TensorFlowOpLayer` instances.
       created_layers: List. The `TensorFlowOpLayer` instances created.
 
     Returns:
@@ -233,7 +234,7 @@ def _create_keras_history_helper(tensors, processed_ops, created_layers):
       have been wrapped in `TensorFlowOpLayer` instances. Second element is
       a list of the `TensorFlowOpLayer` instances created.
     """
-    if tf.compat.v1.executing_eagerly_outside_functions():
+    if tf1.executing_eagerly_outside_functions():
         raise ValueError(
             "`create_keras_history` should only be called if eager is disabled!"
         )
@@ -248,9 +249,7 @@ def _create_keras_history_helper(tensors, processed_ops, created_layers):
     for tensor in tensor_list:
         if getattr(tensor, "_keras_history", None) is not None:
             continue
-        if isinstance(
-            tensor, (tf.SparseTensor, tf.compat.v1.SparseTensorValue)
-        ):
+        if isinstance(tensor, (tf.SparseTensor, tf1.SparseTensorValue)):
             sparse_ops.append(tensor.op)
             continue
         if tf_utils.is_ragged(tensor):
@@ -271,10 +270,10 @@ def _create_keras_history_helper(tensors, processed_ops, created_layers):
                     # a constant. Variables cannot be supported.
                     ds_with_session = (
                         tf.distribute.in_cross_replica_context()
-                        and not tf.compat.v1.executing_eagerly_outside_functions()
+                        and not tf1.executing_eagerly_outside_functions()
                     )
                     using_xla = control_flow_util.GraphOrParentsInXlaContext(
-                        tf.compat.v1.get_default_graph()
+                        tf1.get_default_graph()
                     )
                     if (
                         ds_with_session
@@ -282,8 +281,9 @@ def _create_keras_history_helper(tensors, processed_ops, created_layers):
                         or _UNSAFE_GRAPH_OP_LAYER_CREATION
                     ):
                         # In Legacy Graph mode, evaluating here makes Session be
-                        # configured improperly. The downside of this is that saving
-                        # via `get_config` breaks, but SavedModel still works.
+                        # configured improperly. The downside of this is that
+                        # saving via `get_config` breaks, but SavedModel still
+                        # works.
                         constants[i] = op_input
                     else:
                         with tf.init_scope():
@@ -298,7 +298,7 @@ def _create_keras_history_helper(tensors, processed_ops, created_layers):
                 node_def, constants=constants, name=name
             )
             created_layers.append(op_layer)
-            op_layer._set_connectivity_metadata(  # pylint: disable=protected-access
+            op_layer._set_connectivity_metadata(
                 args=(layer_inputs,), kwargs={}, outputs=op.outputs
             )
             processed_ops.update([op])
@@ -376,7 +376,7 @@ def is_in_eager_or_tf_function():
 def is_in_tf_function():
     """Returns if inside of a tf.function."""
     # Check if running in V1 graph mode.
-    if not tf.compat.v1.executing_eagerly_outside_functions():
+    if not tf1.executing_eagerly_outside_functions():
         return False
     if not tf.inside_function():
         return False
@@ -384,7 +384,7 @@ def is_in_tf_function():
     if is_in_keras_graph():
         return False
     # Check for a v1 `wrap_function` FuncGraph.
-    graph = tf.compat.v1.get_default_graph()
+    graph = tf1.get_default_graph()
     if getattr(graph, "name", False) and graph.name.startswith(
         "wrapped_function"
     ):
@@ -477,14 +477,14 @@ class CallContext:
       build_graph: Whether currently inside a Graph or FuncGraph.
       training: Whether currently executing in training or inference mode.
       saving: Whether currently saving to SavedModel.
-      frozen: Whether currently executing inside a `Layer` with `trainable` set to
-        `False`.
+      frozen: Whether currently executing inside a `Layer` with `trainable` set
+        to `False`.
       in_keras_graph: Whether executing inside the Keras Graph.
     """
 
     def __init__(self):
-        # Handle `in_call` separately as it is the most-read attr and reading it is
-        # on the hot path.
+        # Handle `in_call` separately as it is the most-read attr and reading it
+        # is on the hot path.
         self.in_call = False
         self._state = {
             "layer": None,
@@ -616,8 +616,8 @@ def from_saved_model(layer):
 def check_graph_consistency(tensor=None, method="add_loss", force_raise=False):
     """Checks that tensors passed to `add_*` method match the Keras graph.
 
-    When one of the `add_*` method is called inside a V2 conditional branch,
-    the underlying tensor gets created in a FuncGraph managed by control_flow_v2.
+    When one of the `add_*` method is called inside a V2 conditional branch, the
+    underlying tensor gets created in a FuncGraph managed by control_flow_v2.
     We need to raise clear error messages in such cases.
 
     Args:
@@ -630,7 +630,7 @@ def check_graph_consistency(tensor=None, method="add_loss", force_raise=False):
       RuntimeError: In case of an out-of-graph tensor.
     """
     if force_raise or (
-        tf.compat.v1.executing_eagerly_outside_functions()
+        tf1.executing_eagerly_outside_functions()
         and hasattr(tensor, "graph")
         and tensor.graph.is_control_flow_graph
     ):
@@ -659,18 +659,17 @@ def check_graph_consistency(tensor=None, method="add_loss", force_raise=False):
           return self.dense(x)
       """
             raise RuntimeError(
-                "You are using a layer with `activity_regularizer` in a control flow "
-                "branch, e.g.:\n{bad_example}\nThis is currently not supported. "
-                "Please move your call to the layer with `activity_regularizer` out "
-                "of the control flow branch, e.g.:\n{correct_example}\n"
-                "You can also resolve this by marking your outer model/layer dynamic"
-                " (eager-only) by passing `dynamic=True` to the layer constructor. "
-                "Any kind of control flow is supported with dynamic layers. "
-                "Note that using `dynamic=True` requires you to implement static "
-                "shape inference in the `compute_output_shape(input_shape)` "
-                "method.".format(
-                    bad_example=bad_example, correct_example=correct_example
-                )
+                "You are using a layer with `activity_regularizer` in a "
+                f"control flow branch, e.g.:\n{bad_example}\nThis is currently "
+                "not supported. Please move your call to the layer with "
+                "`activity_regularizer` out of the control flow branch, "
+                f"e.g.:\n{correct_example}\nYou can also resolve this by "
+                "marking your outer model/layer dynamic (eager-only) by "
+                "passing `dynamic=True` to the layer constructor. Any kind of "
+                "control flow is supported with dynamic layers. Note that "
+                "using `dynamic=True` requires you to implement static shape "
+                "inference in the `compute_output_shape(input_shape)` "
+                "method."
             )
 
         if method == "add_metric":
@@ -776,15 +775,15 @@ V2_DTYPE_BEHAVIOR = None
 def enable_v2_dtype_behavior():
     """Enable the V2 dtype behavior for Keras layers.
 
-    By default, the V2 dtype behavior is enabled in TensorFlow 2, so this function
-    is only useful if `tf.compat.v1.disable_v2_behavior` has been called. Since
-    mixed precision requires V2 dtype behavior to be enabled, this function allows
-    you to use mixed precision in Keras layers if `disable_v2_behavior` has been
-    called.
+    By default, the V2 dtype behavior is enabled in TensorFlow 2, so this
+    function is only useful if `tf.compat.v1.disable_v2_behavior` has been
+    called. Since mixed precision requires V2 dtype behavior to be enabled, this
+    function allows you to use mixed precision in Keras layers if
+    `disable_v2_behavior` has been called.
 
-    When enabled, the dtype of Keras layers defaults to floatx (which is typically
-    float32) instead of None. In addition, layers will automatically cast
-    floating-point inputs to the layer's dtype.
+    When enabled, the dtype of Keras layers defaults to floatx (which is
+    typically float32) instead of None. In addition, layers will automatically
+    cast floating-point inputs to the layer's dtype.
 
     >>> x = tf.ones((4, 4, 4, 4), dtype='float64')
     >>> layer = tf.keras.layers.Conv2D(filters=4, kernel_size=2)
@@ -796,12 +795,12 @@ def enable_v2_dtype_behavior():
 
     A layer author can opt-out their layer from the automatic input casting by
     passing `autocast=False` to the base Layer's constructor. This disables the
-    autocasting part of the V2 behavior for that layer, but not the defaulting to
-    floatx part of the V2 behavior.
+    autocasting part of the V2 behavior for that layer, but not the defaulting
+    to floatx part of the V2 behavior.
 
-    When a global `tf.keras.mixed_precision.Policy` is set, a Keras layer's dtype
-    will default to the global policy instead of floatx. Layers will automatically
-    cast inputs to the policy's compute_dtype.
+    When a global `tf.keras.mixed_precision.Policy` is set, a Keras layer's
+    dtype will default to the global policy instead of floatx. Layers will
+    automatically cast inputs to the policy's compute_dtype.
     """
     global V2_DTYPE_BEHAVIOR
     V2_DTYPE_BEHAVIOR = True
@@ -827,13 +826,14 @@ def v2_dtype_behavior_enabled():
 class TrackableWeightHandler:
     """Keras wrapper for handling tracking.Trackable object saving and restoring.
 
-    This class handles Trackables in both V1 and V2 modes, ensuring that they can
-    be saved and restored with the correct data and without adding additional ops
-    on every save.
+    This class handles Trackables in both V1 and V2 modes, ensuring that they
+    can be saved and restored with the correct data and without adding
+    additional ops on every save.
 
     Attributes:
       trackable: The trackable to wrap.
-      num_tensors: The number of tensors that this trackable requires for saving.
+      num_tensors: The number of tensors that this trackable requires for
+        saving.
     """
 
     def __init__(self, trackable):
@@ -855,12 +855,12 @@ class TrackableWeightHandler:
         elif len(saveables) == 1:
             saveable = list(saveables)[0]
 
-            if tf.compat.v1.executing_eagerly_outside_functions():
-                # If we're in eager mode, we need to defer calling the Trackable's
-                # saveable() callable until data export time.
-                # However, it is safe to call the saveable as many times as we want, so
-                # we will call it now to figure out how many tensors this Trackable will
-                # produce.
+            if tf1.executing_eagerly_outside_functions():
+                # If we're in eager mode, we need to defer calling the
+                # Trackable's saveable() callable until data export time.
+                # However, it is safe to call the saveable as many times as we
+                # want, so we will call it now to figure out how many tensors
+                # this Trackable will produce.
                 self._saveable = saveable
                 self._num_tensors = len(self._saveable().specs)
                 self._setter = lambda weights: self._saveable().restore(
@@ -870,17 +870,17 @@ class TrackableWeightHandler:
                     spec.tensor for spec in self._saveable().specs
                 ]
             else:
-                # If we're in Graph mode, we need to evaluate the Saveable only once and
-                # cache the resulting restore graph. Failing to do this will result in
-                # new assignment ops being added to the graph each time set_weights() is
-                # called.
+                # If we're in Graph mode, we need to evaluate the Saveable only
+                # once and cache the resulting restore graph. Failing to do this
+                # will result in new assignment ops being added to the graph
+                # each time set_weights() is called.
                 self._placeholder_tensors = []
                 self._saveable = saveable()
                 self._num_tensors = len(self._saveable.specs)
                 for spec in self._saveable.specs:
                     tensor = spec.tensor
                     self._placeholder_tensors.append(
-                        tf.compat.v1.placeholder(tensor.dtype, tensor.shape)
+                        tf1.placeholder(tensor.dtype, tensor.shape)
                     )
                 self._assign_op = self._saveable.restore(
                     self._placeholder_tensors, None
@@ -891,8 +891,8 @@ class TrackableWeightHandler:
                 ]
         else:
             raise ValueError(
-                "Only Trackables with one Saveable are supported. The Trackable "
-                f"{trackable} has {len(saveables)} Saveables."
+                "Only Trackables with one Saveable are supported. "
+                f"The Trackable {trackable} has {len(saveables)} Saveables."
             )
 
     @property
@@ -904,7 +904,8 @@ class TrackableWeightHandler:
             raise ValueError(
                 f"Weight handler for trackable {self._trackable} received "
                 "an incorrect number of weights: "
-                f"expected {self._num_tensors} weights, got {len(weights)} weights."
+                f"expected {self._num_tensors} weights, "
+                f"got {len(weights)} weights."
             )
         self._setter(weights)
 
@@ -929,7 +930,7 @@ def no_ragged_support(inputs, layer_name):
 
 
 def is_split_variable(v):
-    """Returns True if `v` is either a PartionedVariable or a ShardedVariable."""
+    """Returns True if `v` is a PartionedVariable or a ShardedVariable."""
     return hasattr(v, "_variable_list") or hasattr(v, "_variables")
 
 

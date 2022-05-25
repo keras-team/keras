@@ -1056,13 +1056,15 @@ class SymbolicSupportTest(test_combinations.TestCase):
         x1, x2 = input_layer.Input((3,)), input_layer.Input((3,))
         tf.concat([x1, x2], axis=1)
 
-        # Mixing Keras symbolic tensors and graph tensors from the same graph works.
+        # Mixing Keras symbolic tensors and graph tensors from the same graph
+        # works.
         with backend.get_graph().as_default():
             x1 = input_layer.Input((3,))
         x2 = input_layer.Input((3,))
         tf.matmul(x1, x2)
 
-        # Creating same op type (matmul) multiple times in the Keras graph works.
+        # Creating same op type (matmul) multiple times in the Keras graph
+        # works.
         x1 = input_layer.Input((3,))
         x2 = input_layer.Input((3,))
         tf.matmul(x1, x2)
@@ -1111,11 +1113,12 @@ class SymbolicSupportTest(test_combinations.TestCase):
         test_combinations.combine(mode=["graph", "eager"])
     )
     def test_reraising_exception(self):
-        # When layer is not dynamic, we have some pattern matching during exception
-        # handling to detect when the user is trying to use python control flow.
-        # When an exception is thrown but the pattern doesn't match, we want to
-        # preserve the originating stack trace. An early implementation of this
-        # logic lost the stack trace. We test the correct behavior here.
+        # When layer is not dynamic, we have some pattern matching during
+        # exception handling to detect when the user is trying to use python
+        # control flow.  When an exception is thrown but the pattern doesn't
+        # match, we want to preserve the originating stack trace. An early
+        # implementation of this logic lost the stack trace. We test the correct
+        # behavior here.
 
         class TypeErrorLayer(base_layer.Layer):
             def call(self, inputs):
@@ -1445,10 +1448,12 @@ class NameScopingTest(test_combinations.TestCase):
                 "call_scope/model/outer/Dense2/BiasAdd/ReadVariableOp/resource",
                 "call_scope/model/outer/Dense2/BiasAdd/ReadVariableOp",
                 "call_scope/model/outer/Dense2/BiasAdd",
-                "call_scope/model/outer/inner/Dense3/MatMul/ReadVariableOp/resource",
+                "call_scope/model/outer/inner/Dense3/MatMul/ReadVariableOp/"
+                "resource",
                 "call_scope/model/outer/inner/Dense3/MatMul/ReadVariableOp",
                 "call_scope/model/outer/inner/Dense3/MatMul",
-                "call_scope/model/outer/inner/Dense3/BiasAdd/ReadVariableOp/resource",
+                "call_scope/model/outer/inner/Dense3/BiasAdd/ReadVariableOp/"
+                "resource",
                 "call_scope/model/outer/inner/Dense3/BiasAdd/ReadVariableOp",
                 "call_scope/model/outer/inner/Dense3/BiasAdd",
                 "call_scope/model/outer/Dense4/MatMul/ReadVariableOp/resource",
@@ -1508,24 +1513,38 @@ class NameScopingTest(test_combinations.TestCase):
             [
                 "call_scope/Const",
                 "call_scope/model/Cast",
-                "call_scope/model/outer/ThreeDenses/NestedDense1/MatMul/ReadVariableOp/resource",
-                "call_scope/model/outer/ThreeDenses/NestedDense1/MatMul/ReadVariableOp",
+                "call_scope/model/outer/ThreeDenses/NestedDense1/MatMul/"
+                "ReadVariableOp/resource",
+                "call_scope/model/outer/ThreeDenses/NestedDense1/MatMul/"
+                "ReadVariableOp",
                 "call_scope/model/outer/ThreeDenses/NestedDense1/MatMul",
-                "call_scope/model/outer/ThreeDenses/NestedDense1/BiasAdd/ReadVariableOp/resource",
-                "call_scope/model/outer/ThreeDenses/NestedDense1/BiasAdd/ReadVariableOp",
+                "call_scope/model/outer/ThreeDenses/NestedDense1/BiasAdd/"
+                "ReadVariableOp/resource",
+                "call_scope/model/outer/ThreeDenses/NestedDense1/BiasAdd/"
+                "ReadVariableOp",
                 "call_scope/model/outer/ThreeDenses/NestedDense1/BiasAdd",
-                "call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/MatMul/ReadVariableOp/resource",
-                "call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/MatMul/ReadVariableOp",
-                "call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/MatMul",
-                "call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/BiasAdd/ReadVariableOp/resource",
-                "call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/BiasAdd/ReadVariableOp",
-                "call_scope/model/outer/ThreeDenses/inner1/inner2/NestedDense2/BiasAdd",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/MatMul/ReadVariableOp/resource",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/MatMul/ReadVariableOp",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/MatMul",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/BiasAdd/ReadVariableOp/resource",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/BiasAdd/ReadVariableOp",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/BiasAdd",
+                "call_scope/model/outer/ThreeDenses/inner1/inner2/"
+                "NestedDense2/MatMul/ReadVariableOp/resource",
+                "call_scope/model/outer/ThreeDenses/inner1/inner2/"
+                "NestedDense2/MatMul/ReadVariableOp",
+                "call_scope/model/outer/ThreeDenses/inner1/inner2/"
+                "NestedDense2/MatMul",
+                "call_scope/model/outer/ThreeDenses/inner1/inner2/"
+                "NestedDense2/BiasAdd/ReadVariableOp/resource",
+                "call_scope/model/outer/ThreeDenses/inner1/inner2/"
+                "NestedDense2/BiasAdd/ReadVariableOp",
+                "call_scope/model/outer/ThreeDenses/inner1/inner2/"
+                "NestedDense2/BiasAdd",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/"
+                "MatMul/ReadVariableOp/resource",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/"
+                "MatMul/ReadVariableOp",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/" "MatMul",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/"
+                "BiasAdd/ReadVariableOp/resource",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/"
+                "BiasAdd/ReadVariableOp",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/" "BiasAdd",
                 "call_scope/model/OuterDense/MatMul/ReadVariableOp/resource",
                 "call_scope/model/OuterDense/MatMul/ReadVariableOp",
                 "call_scope/model/OuterDense/MatMul",
@@ -1855,7 +1874,8 @@ class DTypeTest(test_combinations.TestCase):
     def input_cast_to_dtype(self):
         layer = AddLayer()
 
-        # Input should be cast to layer.dtype, so output should also be layer.dtype
+        # Input should be cast to layer.dtype, so output should also be
+        # layer.dtype
         self.assertEqual(layer(self._const("float64")).dtype, "float32")
 
         layer = AddLayer(dtype="float64")

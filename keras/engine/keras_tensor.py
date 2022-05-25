@@ -55,7 +55,8 @@ class KerasTensor:
       * creating a scratch `FuncGraph`
       * making placeholders in the scratch graph that match the input typespecs
       * Calling `layer.call` on these placeholders
-      * extracting the signatures of the outputs before clearing the scratch graph
+      * extracting the signatures of the outputs before clearing the scratch
+        graph
 
     (Note: names assigned to KerasTensors by this process are not guaranteed to
     be unique, and are subject to implementation details).
@@ -64,9 +65,9 @@ class KerasTensor:
     structures get maintained, with elements swapped between KerasTensors and
     placeholders.
 
-    In rare cases (such as when directly manipulating shapes using Keras layers),
-    the layer may be able to partially infer the value of the output in addition
-    to just inferring the signature.
+    In rare cases (such as when directly manipulating shapes using Keras
+    layers), the layer may be able to partially infer the value of the output in
+    addition to just inferring the signature.
     When this happens, the returned KerasTensor will also contain the inferred
     value information. Follow-on layers can use this information.
     during their own output signature inference.
@@ -89,8 +90,8 @@ class KerasTensor:
     Higher-order APIs that take methods which produce tensors (e.g. `tf.while`,
     `tf.map_fn`, `tf.cond`) also do not currently support dispatching. So, you
     cannot directly pass KerasTensors as inputs to these APIs either. If you
-    want to use these APIs inside of a Functional model, you must put them inside
-    of a custom layer.
+    want to use these APIs inside of a Functional model, you must put them
+    inside of a custom layer.
 
     Args:
       type_spec: The `tf.TypeSpec` for the symbolic input created by
@@ -123,30 +124,32 @@ class KerasTensor:
         if not isinstance(type_spec, structure.NoneTensorSpec):
             if not hasattr(type_spec, "shape"):
                 raise ValueError(
-                    "KerasTensor only supports TypeSpecs that have a shape field; got "
-                    f"{type(type_spec).__qualname__}, which does not have a shape."
+                    "KerasTensor only supports TypeSpecs that have a shape "
+                    f"field; got {type(type_spec).__qualname__}, "
+                    "which does not have a shape."
                 )
             if not isinstance(type_spec.shape, tf.TensorShape):
                 raise TypeError(
                     "KerasTensor requires that wrapped TypeSpec's shape is a "
-                    f"TensorShape; got TypeSpec {type(type_spec).__qualname__}, whose "
-                    "shape field has unexpected type "
+                    f"TensorShape; got TypeSpec {type(type_spec).__qualname__}"
+                    ", whose shape field has unexpected type "
                     f"{type(type_spec.dtype).__qualname__}."
                 )
 
     @property
     def type_spec(self):
-        """Returns the `tf.TypeSpec` symbolically inferred for this Keras output."""
+        """Returns the `tf.TypeSpec` symbolically inferred for Keras output."""
         return self._type_spec
 
     @property
     def shape(self):
-        """Returns the `TensorShape` symbolically inferred for this Keras output."""
+        """Returns the `TensorShape` symbolically inferred for Keras output."""
         return self._type_spec.shape
 
     @classmethod
     def from_tensor(cls, tensor):
-        """Convert a traced (composite)tensor to a representative KerasTensor."""
+        """Convert a traced (composite)tensor to a representative
+        KerasTensor."""
         if isinstance(tensor, tf.Tensor):
             name = getattr(tensor, "name", None)
             type_spec = tf.type_spec_from_value(tensor)
@@ -157,23 +160,28 @@ class KerasTensor:
                 and type_spec.shape.rank < 2
             ):
                 # If this tensor might be representing shape information,
-                # (dtype=int32, rank of 0 or 1, not too large to represent a shape)
-                # we attempt to capture any value information tensorflow's
-                # shape handling can extract from the current scratch graph.
+                # (dtype=int32, rank of 0 or 1, not too large to represent a
+                # shape) we attempt to capture any value information
+                # tensorflow's shape handling can extract from the current
+                # scratch graph.
                 #
                 # Even though keras layers each trace in their own scratch
-                # graph, this shape value info extraction allows us to capture
-                # a sizable and useful subset of the C++ shape value inference TF can do
-                # if all tf ops appear in the same graph when using shape ops.
+                # graph, this shape value info extraction allows us to capture a
+                # sizable and useful subset of the C++ shape value inference TF
+                # can do if all tf ops appear in the same graph when using shape
+                # ops.
                 #
                 # Examples of things this cannot infer concrete dimensions for
-                # that the full single-graph C++ shape inference sometimes can are:
-                # * cases where the shape tensor is cast out of int32 before being
-                #   manipulated w/ floating point numbers then converted back
-                # * cases where int32 tensors w/ rank >= 2 are manipulated before being
-                #   used as a shape tensor
+                # that the full single-graph C++ shape inference sometimes can
+                # are:
+                # * cases where the shape tensor is cast out of int32 before
+                #   being manipulated w/ floating point numbers then converted
+                #   back
+                # * cases where int32 tensors w/ rank >= 2 are manipulated
+                #   before being used as a shape tensor
                 # * cases where int32 tensors too large to represent shapes are
-                #   manipulated to a smaller size before being used as a shape tensor
+                #   manipulated to a smaller size before being used as a shape
+                #   tensor
                 inferred_value = tf.ones(shape=tensor).shape
                 if inferred_value.dims:
                     inferred_value = inferred_value.as_list()
@@ -197,24 +205,27 @@ class KerasTensor:
 
     def _to_placeholder(self):
         """Convert this KerasTensor to a placeholder in a graph."""
-        # If there is an inferred value for this tensor, inject the inferred value
+        # If there is an inferred value for this tensor, inject the inferred
+        # value
         if self._inferred_value is not None:
-            # If we suspect this KerasTensor might be representing a shape tensor,
-            # and we were able to extract value information with TensorFlow's shape
-            # handling when making the KerasTensor, we construct the placeholder by
-            # re-injecting the inferred value information into the graph. We
-            # do this injection through the shape of a placeholder, because that
-            # allows us to specify partially-unspecified shape values.
+            # If we suspect this KerasTensor might be representing a shape
+            # tensor, and we were able to extract value information with
+            # TensorFlow's shape handling when making the KerasTensor, we
+            # construct the placeholder by re-injecting the inferred value
+            # information into the graph. We do this injection through the shape
+            # of a placeholder, because that allows us to specify
+            # partially-unspecified shape values.
             #
-            # See the comment on value extraction inside `from_tensor` for more info.
+            # See the comment on value extraction inside `from_tensor` for more
+            # info.
             inferred_value = tf.shape(
                 tf.compat.v1.placeholder(
                     shape=self._inferred_value, dtype=tf.int32
                 )
             )
             if self.type_spec.shape.rank == 0:
-                # `tf.shape` always returns a rank-1, we may need to turn it back to a
-                # scalar.
+                # `tf.shape` always returns a rank-1, we may need to turn it
+                # back to a scalar.
                 inferred_value = inferred_value[0]
             return inferred_value
 
@@ -270,12 +281,12 @@ class KerasTensor:
 
     def __array__(self, dtype=None):
         raise TypeError(
-            f"You are passing {self}, an intermediate Keras symbolic input/output, "
-            "to a TF API that does not allow registering custom dispatchers, such "
-            "as `tf.cond`, `tf.function`, gradient tapes, or `tf.map_fn`. "
-            "Keras Functional model construction only supports "
-            "TF API calls that *do* support dispatching, such as `tf.math.add` or "
-            "`tf.reshape`. "
+            f"You are passing {self}, an intermediate Keras symbolic "
+            "input/output, to a TF API that does not allow registering custom "
+            "dispatchers, such as `tf.cond`, `tf.function`, gradient tapes, "
+            "or `tf.map_fn`. Keras Functional model construction only supports "
+            "TF API calls that *do* support dispatching, such as `tf.math.add` "
+            "or `tf.reshape`. "
             "Other APIs cannot be called directly on symbolic Keras"
             "inputs/outputs. You can work around "
             "this limitation by putting the operation in a custom Keras layer "
@@ -288,7 +299,8 @@ class KerasTensor:
         return True
 
     def set_shape(self, shape):
-        """Updates the shape of this KerasTensor. Mimics `tf.Tensor.set_shape()`."""
+        """Updates the shape of this KerasTensor. Mimics
+        `tf.Tensor.set_shape()`."""
         if not isinstance(shape, tf.TensorShape):
             shape = tf.TensorShape(shape)
         if not self.shape.is_compatible_with(shape):
@@ -354,9 +366,10 @@ class KerasTensor:
             )
         if not isinstance(type_spec.dtype, tf.DType):
             raise TypeError(
-                "KerasTensor requires that wrapped TypeSpec's dtype is a DType; got "
-                f"TypeSpec {type(type_spec).__qualname__}, whose dtype field has "
-                f"unexpected type {type(type_spec.dtype).__qualname__}."
+                "KerasTensor requires that wrapped TypeSpec's dtype is a "
+                f"DType; got TypeSpec {type(type_spec).__qualname__}, whose "
+                "dtype field has unexpected type "
+                f"{type(type_spec.dtype).__qualname__}."
             )
         return type_spec.dtype
 
@@ -365,8 +378,8 @@ class KerasTensor:
 
         The primary use case for this API is to put KerasTensors in a
         set/dictionary. We can't put tensors in a set/dictionary as
-        `tensor.__hash__()` is not available and tensor equality (`==`) is supposed
-        to produce a tensor representing if the two inputs are equal.
+        `tensor.__hash__()` is not available and tensor equality (`==`) is
+        supposed to produce a tensor representing if the two inputs are equal.
 
         See the documentation of `tf.Tensor.ref()` for more info.
         """
@@ -376,9 +389,9 @@ class KerasTensor:
     def node(self):
         """Find the corresponding `Node` that produce this keras_tensor.
 
-        During functional model construction, Keras will attach `KerasHistory` to
-        keras tensor to track the connectivity between calls of layers. Return
-        None if there isn't any KerasHistory attached to this tensor.
+        During functional model construction, Keras will attach `KerasHistory`
+        to keras tensor to track the connectivity between calls of layers.
+        Return None if there isn't any KerasHistory attached to this tensor.
         """
         if hasattr(self, "_keras_history"):
             layer, node_index, _ = self._keras_history
@@ -402,7 +415,8 @@ class KerasTensor:
 
     @property
     def name(self):
-        """Returns the (non-unique, optional) name of this symbolic Keras value."""
+        """Returns the (non-unique, optional) name of this symbolic Keras
+        value."""
         return self._name
 
     @classmethod
@@ -424,7 +438,8 @@ class KerasTensor:
     ):  # pylint: disable=invalid-name
         """Overload an operator with the same implementation as a base Tensor class.
 
-        We pull the operator out of the class dynamically to avoid ordering issues.
+        We pull the operator out of the class dynamically to avoid ordering
+        issues.
 
         Args:
           tensor_class: The (Composite)Tensor to get the method from.
@@ -605,7 +620,8 @@ class UserRegisteredTypeKerasTensor(KerasTensor):
 
 
 class _KerasTensorIterator:
-    """Iterates over the leading dim of a KerasTensor. Performs 0 error checks."""
+    """Iterates over the leading dim of a KerasTensor. Performs 0 error
+    checks."""
 
     def __init__(self, tensor, dim0):
         self._tensor = tensor
@@ -690,9 +706,9 @@ def type_spec_with_shape(spec, shape):
     """Returns a copy of TypeSpec `spec` with its shape set to `shape`."""
     if isinstance(spec, tf.TensorSpec):
         # pylint: disable=protected-access
-        # TODO(b/203201161) Figure out why mutation is needed here, and remove it.
-        # (TensorSpec objects should be immutable; and we should not be modifying
-        # private fields.)
+        # TODO(b/203201161) Figure out why mutation is needed here, and remove
+        # it. (TensorSpec objects should be immutable; and we should not be
+        # modifying private fields.)
         shape = tf.TensorShape(shape)
         spec._shape = shape
         return spec
@@ -711,7 +727,8 @@ def type_spec_with_shape(spec, shape):
         # RaggedTensorSpec, and SparseTensorSpec.
         return spec.with_shape(shape)
     else:
-        # TODO(edloper): Consider moving this check to the KerasTensor constructor.
+        # TODO(edloper): Consider moving this check to the KerasTensor
+        # constructor.
         raise ValueError(
             "Keras requires TypeSpec to have a `with_shape` method "
             "that returns a copy of `self` with an updated shape."
