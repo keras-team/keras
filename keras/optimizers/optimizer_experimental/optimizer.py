@@ -586,35 +586,35 @@ class _BaseOptimizer(tf.Module):
 
 
 base_optimizer_keyword_args = """name: String. The name to use
-      for momentum accumulator weights created by
-      the optimizer.
-    clipnorm: Float. If set, the gradient of each weight is individually
-      clipped so that its norm is no higher than this value.
-    clipvalue: Float. If set, the gradient of each weight is clipped to be no
-      higher than this value.
-    global_clipnorm: Float. If set, the gradient of all weights is clipped so
-      that their global norm is no higher than this value.
-    use_ema: Boolean, defaults to False. If True, exponential moving average
-      (EMA) is applied. EMA consists of computing an exponential moving
-      average of the weights of the model (as the weight values change after
-      each training batch), and periodically overwriting the weights with
-      their moving average.
-    ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`. This is
-      the momentum to use when computing the EMA of the model's weights:
-      `new_average = ema_momentum * old_average + (1 - ema_momentum) *
-      current_variable_value`.
-    ema_overwrite_frequency: Int or None, defaults to None. Only used if
-      `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations, we
-      overwrite the model variable by its moving average. If None, the optimizer
-       does not overwrite model variables in the middle of training, and you
-      need to explicitly overwrite the variables at the end of training
-      by calling `optimizer.finalize_variable_values()` (which updates the model
-      variables in-place). When using the built-in `fit()` training loop, this
-      happens automatically after the last epoch, and you don't need to do
-      anything.
-    jit_compile: Boolean, defaults to True. If True, the optimizer will use XLA
-      compilation. If no GPU device is found, this flag will be ignored.
-    **kwargs: keyword arguments only used for backward compatibility."""
+        for momentum accumulator weights created by
+        the optimizer.
+      clipnorm: Float. If set, the gradient of each weight is individually
+        clipped so that its norm is no higher than this value.
+      clipvalue: Float. If set, the gradient of each weight is clipped to be no
+        higher than this value.
+      global_clipnorm: Float. If set, the gradient of all weights is clipped so
+        that their global norm is no higher than this value.
+      use_ema: Boolean, defaults to False. If True, exponential moving average
+        (EMA) is applied. EMA consists of computing an exponential moving
+        average of the weights of the model (as the weight values change after
+        each training batch), and periodically overwriting the weights with
+        their moving average.
+      ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`. This is
+        the momentum to use when computing the EMA of the model's weights:
+        `new_average = ema_momentum * old_average + (1 - ema_momentum) *
+        current_variable_value`.
+      ema_overwrite_frequency: Int or None, defaults to None. Only used if
+        `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations, we
+        overwrite the model variable by its moving average. If None, the optimizer
+         does not overwrite model variables in the middle of training, and you
+        need to explicitly overwrite the variables at the end of training
+        by calling `optimizer.finalize_variable_values()` (which updates the model
+        variables in-place). When using the built-in `fit()` training loop, this
+        happens automatically after the last epoch, and you don't need to do
+        anything.
+      jit_compile: Boolean, defaults to True. If True, the optimizer will use XLA
+        compilation. If no GPU device is found, this flag will be ignored.
+      **kwargs: keyword arguments only used for backward compatibility."""
 
 
 # pylint: disable=g-classes-have-attributes
