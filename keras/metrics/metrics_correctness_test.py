@@ -118,7 +118,8 @@ class TestMetricsCorrectnessMultiIO(test_combinations.TestCase):
         #   Result = 56
 
         # Loss `output_1` without weights/Metric `output_1`:
-        #   Total = ((3 - 2)^2 + (6 - 4)^2) + ((9 - 6)^2 + (12 - 8)^2) + (15 - 10)^2
+        #   Total = ((3 - 2)^2 + (6 - 4)^2) + ((9 - 6)^2 + \
+        #           (12 - 8)^2) + (15 - 10)^2
         #         = 55
         #   Count = 2 + 2 + 1
         #   Result = 11
@@ -132,7 +133,8 @@ class TestMetricsCorrectnessMultiIO(test_combinations.TestCase):
         #   Result = 88
 
         # Loss `output_2` without weights/Metric `output_2`:
-        #   Total = ((3 - 1)^2 + (6 - 2)^2) + ((9 - 3)^2 + (12 - 4)^2) + (15 - 5)^2
+        #   Total = ((3 - 1)^2 + (6 - 2)^2) + ((9 - 3)^2 + \
+        #           (12 - 4)^2) + (15 - 5)^2
         #         = 220
         #   Count = 2 + 2 + 1
         #   Result = 44
@@ -266,7 +268,8 @@ class TestMetricsCorrectnessMultiIO(test_combinations.TestCase):
             eval_result, self.expected_batch_result_with_weights_output_2, 1e-3
         )
 
-        # Verify that metric value is same with arbitrary weights and batch size.
+        # Verify that metric value is same with arbitrary weights and batch
+        # size.
         x = np.random.random((50, 1))
         y = np.random.random((50, 1))
         w = np.random.random((50,))
@@ -545,7 +548,8 @@ class TestMetricsCorrectnessSingleIO(test_combinations.TestCase):
             eval_result, self.expected_batch_result_with_weights, 1e-3
         )
 
-        # Verify that metric value is same with arbitrary weights and batch size.
+        # Verify that metric value is same with arbitrary weights and batch
+        # size.
         x = np.random.random((50, 1))
         y = np.random.random((50, 1))
         w = np.random.random((50,))
@@ -686,9 +690,9 @@ class TestOutputLossMetrics(test_combinations.TestCase):
         #   Result (reduction=SUM) = ((14 + 40)*2 + (54 + 32)*2 + 300) / 5 = 116
         #   Result (reduction=SUM_OVER_BATCH_SIZE/AUTO/NONE) = 440 / 5 = 88
 
-        # When reduction is 'NONE' loss value that is passed to the optimizer will
-        # be vector loss but what is reported is a scalar, which is an average of
-        # all the values in all the batch vectors.
+        # When reduction is 'NONE' loss value that is passed to the optimizer
+        # will be vector loss but what is reported is a scalar, which is an
+        # average of all the values in all the batch vectors.
 
         # Total loss = Output_loss_1 + Output_loss_2
 

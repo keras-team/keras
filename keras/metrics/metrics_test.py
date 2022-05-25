@@ -598,10 +598,12 @@ class SquaredHingeTest(tf.test.TestCase):
         # y_true = [[-1, 1, -1, 1], [-1, -1, 1, 1]]
         # y_true * y_pred = [[0.3, 0.2, 0.1, 1.6], [0.25, 1, 0.5, 0.6]]
         # 1 - y_true * y_pred = [[0.7, 0.8, 0.9, -0.6], [0.75, 0, 0.5, 0.4]]
-        # max(0, 1 - y_true * y_pred) = [[0.7, 0.8, 0.9, 0], [0.75, 0, 0.5, 0.4]]
+        # max(0, 1 - y_true * y_pred) = [[0.7, 0.8, 0.9, 0], [0.75, 0, 0.5,
+        # 0.4]]
         # squared(max(0, 1 - y_true * y_pred)) = [[0.49, 0.64, 0.81, 0],
         #                                         [0.5625, 0, 0.25, 0.16]]
-        # metric = [(0.49 + 0.64 + 0.81 + 0) / 4, (0.5625 + 0 + 0.25 + 0.16) / 4]
+        # metric = [(0.49 + 0.64 + 0.81 + 0) / 4, (0.5625 + 0 + 0.25 + 0.16) /
+        # 4]
         #        = [0.485, 0.2431]
         # reduced metric = (0.485 + 0.2431) / 2
 
@@ -623,10 +625,12 @@ class SquaredHingeTest(tf.test.TestCase):
 
         # y_true * y_pred = [[0.3, 0.2, 0.1, 1.6], [0.25, 1, 0.5, 0.6]]
         # 1 - y_true * y_pred = [[0.7, 0.8, 0.9, -0.6], [0.75, 0, 0.5, 0.4]]
-        # max(0, 1 - y_true * y_pred) = [[0.7, 0.8, 0.9, 0], [0.75, 0, 0.5, 0.4]]
+        # max(0, 1 - y_true * y_pred) = [[0.7, 0.8, 0.9, 0], [0.75, 0, 0.5,
+        # 0.4]]
         # squared(max(0, 1 - y_true * y_pred)) = [[0.49, 0.64, 0.81, 0],
         #                                         [0.5625, 0, 0.25, 0.16]]
-        # metric = [(0.49 + 0.64 + 0.81 + 0) / 4, (0.5625 + 0 + 0.25 + 0.16) / 4]
+        # metric = [(0.49 + 0.64 + 0.81 + 0) / 4, (0.5625 + 0 + 0.25 + 0.16) /
+        # 4]
         #        = [0.485, 0.2431]
         # weighted metric = [0.485 * 1.5, 0.2431 * 2]
         # reduced metric = (0.485 * 1.5 + 0.2431 * 2) / (1.5 + 2)
@@ -816,8 +820,9 @@ class SparseTopKCategoricalAccuracyTest(tf.test.TestCase):
     def test_sparse_top_k_categorical_accuracy_mismatched_dims_dynamic(self):
 
         if not tf.compat.v1.executing_eagerly():
-            # Test will fail in v1 graph mode since the metric is not a normal layer.
-            # It will aggregate the output by batch dim, which failed on v1 code.
+            # Test will fail in v1 graph mode since the metric is not a normal
+            # layer.  It will aggregate the output by batch dim, which failed on
+            # v1 code.
             self.skipTest("v2 eager mode only")
 
         class AccLayer(layers.Layer):
@@ -1085,7 +1090,8 @@ class IoUTest(tf.test.TestCase):
 
         # cm = [[0.2, 0.3],
         #       [0.4, 0.1]]
-        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2,
+        # 0.1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (
             0.1 / (0.4 + 0.5 - 0.1) + 0.2 / (0.6 + 0.5 - 0.2)
@@ -1104,7 +1110,8 @@ class IoUTest(tf.test.TestCase):
 
         # cm = [[0.2, 0.3],
         #       [0.4, 0.1]]
-        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2,
+        # 0.1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (
             0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)
@@ -1155,7 +1162,8 @@ class BinaryIoUTest(tf.test.TestCase):
         # with threshold = 0.3, y_pred will be converted to [0, 0, 1, 1]
         # cm = [[0.2, 0.4],
         #       [0.3, 0.1]]
-        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2,
+        # 0.1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (
             0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)
@@ -1169,7 +1177,8 @@ class BinaryIoUTest(tf.test.TestCase):
         # with threshold = 0.5, y_pred will be converted to [0, 0, 0, 1]
         # cm = [[0.1+0.4, 0],
         #       [0.2, 0.3]]
-        # sum_row = [0.5, 0.5], sum_col = [0.7, 0.3], true_positives = [0.5, 0.3]
+        # sum_row = [0.5, 0.5], sum_col = [0.7, 0.3], true_positives = [0.5,
+        # 0.3]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (
             0.5 / (0.5 + 0.7 - 0.5) + 0.3 / (0.5 + 0.3 - 0.3)
@@ -1212,7 +1221,8 @@ class BinaryIoUTest(tf.test.TestCase):
         sample_weight = tf.constant([[0.2, 0.3], [0.4, 0.1]])
         # cm = [[0.2, 0.4],
         #       [0.1, 0.3]]
-        # sum_row = [0.6, 0.4], sum_col = [0.3, 0.7], true_positives = [0.2, 0.3]
+        # sum_row = [0.6, 0.4], sum_col = [0.3, 0.7], true_positives = [0.2,
+        # 0.3]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (
             0.2 / (0.6 + 0.3 - 0.2) + 0.3 / (0.4 + 0.7 - 0.3)
@@ -1283,7 +1293,8 @@ class MeanIoUTest(tf.test.TestCase):
 
         # cm = [[0.2, 0.3],
         #       [0.4, 0.1]]
-        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2,
+        # 0.1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (
             0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)
@@ -1302,7 +1313,8 @@ class MeanIoUTest(tf.test.TestCase):
 
         # cm = [[0.2, 0.3],
         #       [0.4, 0.1]]
-        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2,
+        # 0.1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (
             0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)
@@ -1946,7 +1958,8 @@ class ResetStatesTest(test_combinations.TestCase):
 
     def test_precision_update_state_with_logits(self):
         p_obj = metrics.Precision()
-        # Update state with logits (not in range (0, 1)) should not an raise error.
+        # Update state with logits (not in range (0, 1)) should not an raise
+        # error.
         p_obj.update_state([-0.5, 0.5], [-2.0, 2.0])
 
     def test_reset_state_recall(self):

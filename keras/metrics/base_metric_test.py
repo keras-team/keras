@@ -49,7 +49,8 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(self.evaluate(m(100)), 100)
             self.assertEqual(self.evaluate(m.total), 100)
 
-            # check update_state() and result() + state accumulation + tensor input
+            # check update_state() and result() + state accumulation + tensor
+            # input
             update_op = m.update_state(tf.convert_to_tensor([1, 5]))
             self.evaluate(update_op)
             self.assertAlmostEqual(self.evaluate(m.result()), 106)
@@ -411,7 +412,8 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
             self.assertAllClose(self.evaluate(m.total), [100, 40])
             self.assertAllClose(self.evaluate(m.count), [1, 1])
 
-            # check update_state() and result() + state accumulation + tensor input
+            # check update_state() and result() + state accumulation + tensor
+            # input
             update_op = m.update_state(
                 [tf.convert_to_tensor(1), tf.convert_to_tensor(5)]
             )
