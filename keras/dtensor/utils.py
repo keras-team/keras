@@ -16,9 +16,9 @@
 
 import inspect
 
-from keras.dtensor import dtensor_api as dtensor
 import tensorflow.compat.v2 as tf
 
+from keras.dtensor import dtensor_api as dtensor
 
 # All the variable names in the default keras layers. We will use those to map
 # against the args in the __init__ method to find corresponding layout args.

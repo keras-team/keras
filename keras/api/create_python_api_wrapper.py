@@ -23,10 +23,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import keras  # pylint: disable=unused-import
 from tensorflow.python.tools.api.generator import (
     create_python_api,
 )
+
+import keras  # pylint: disable=unused-import
 
 if __name__ == "__main__":
     create_python_api.main()

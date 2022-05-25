@@ -15,10 +15,6 @@
 # pylint: disable=g-import-not-at-top
 """Utilities for file download and caching."""
 
-import tensorflow.compat.v2 as tf
-
-from abc import abstractmethod
-from contextlib import closing
 import functools
 import hashlib
 import multiprocessing.dummy
@@ -34,14 +30,18 @@ import typing
 import urllib
 import weakref
 import zipfile
-from six.moves.urllib.parse import urlsplit
+from abc import abstractmethod
+from contextlib import closing
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+from six.moves.urllib.parse import urlsplit
+
 from six.moves.urllib.request import urlopen
+from keras.utils import io_utils
 from keras.utils import tf_inspect
 from keras.utils.generic_utils import Progbar
-from keras.utils import io_utils
-from tensorflow.python.util.tf_export import keras_export
 
 # Required to support google internal urlretrieve
 if (

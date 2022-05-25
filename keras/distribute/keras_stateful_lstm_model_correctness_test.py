@@ -14,9 +14,8 @@
 # ==============================================================================
 """Tests for stateful tf.keras LSTM models using DistributionStrategy."""
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.distribute import keras_correctness_test_base

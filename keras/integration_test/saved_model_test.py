@@ -16,9 +16,8 @@
 import os
 import tempfile
 
-from absl.testing import parameterized
-
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 
 def cycle(obj, cycles, signatures=None):

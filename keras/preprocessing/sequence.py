@@ -27,10 +27,10 @@ for more details.
 import json
 import random
 
-from keras.utils import data_utils
 import numpy as np
-
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.utils import data_utils
 
 
 def _remove_long_seq(maxlen, seq, label):

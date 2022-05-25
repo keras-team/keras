@@ -14,11 +14,11 @@
 # ==============================================================================
 """Utilities used by convolution layers."""
 
-import tensorflow.compat.v2 as tf
-
 import itertools
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 
 

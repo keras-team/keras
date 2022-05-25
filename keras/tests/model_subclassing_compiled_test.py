@@ -14,11 +14,10 @@
 # ==============================================================================
 """Tests for compiled Model subclassing."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.testing_infra import test_combinations

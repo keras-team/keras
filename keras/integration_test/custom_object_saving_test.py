@@ -16,14 +16,17 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+
 import os
 import sys
+
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras.saving.experimental import saving_lib
 from keras.testing_infra import test_utils
 from keras.utils import generic_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 # `tf.print` message is only available in stderr in TF2, which this test checks.

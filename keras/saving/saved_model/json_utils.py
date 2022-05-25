@@ -21,20 +21,17 @@ separate inputs if the given input_shape is a list, and will create a single
 input if the given shape is a tuple.
 """
 
-import tensorflow.compat.v2 as tf
-
 import collections
-import functools
 import enum
+import functools
 import json
+
 import numpy as np
+import tensorflow.compat.v2 as tf
 import wrapt
-
-from keras.utils import generic_utils
-
-
 from tensorflow.python.framework import type_spec
 
+from keras.utils import generic_utils
 
 _EXTENSION_TYPE_SPEC = "_EXTENSION_TYPE_SPEC"
 

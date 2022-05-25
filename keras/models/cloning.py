@@ -16,9 +16,11 @@
 """Code for model cloning, plus model-related API entries."""
 
 import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras import metrics as metrics_module
-from keras.optimizers import optimizer_v1
 from keras.engine import functional
 from keras.engine import sequential
 from keras.engine import training
@@ -27,12 +29,10 @@ from keras.engine.base_layer import AddMetric
 from keras.engine.base_layer import Layer
 from keras.engine.input_layer import Input
 from keras.engine.input_layer import InputLayer
+from keras.optimizers import optimizer_v1
 from keras.utils import generic_utils
 from keras.utils import version_utils
 from keras.utils.generic_utils import CustomObjectScope
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
-
 
 # API entries importable from `keras.models`:
 Model = training.Model  # pylint: disable=invalid-name

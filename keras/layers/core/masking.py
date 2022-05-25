@@ -15,9 +15,10 @@
 """Contains the Masking layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from keras.engine.base_layer import Layer
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.engine.base_layer import Layer
 
 
 @keras_export("keras.layers.Masking")

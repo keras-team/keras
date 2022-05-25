@@ -14,19 +14,18 @@
 # ==============================================================================
 """Test for allowing TF ops to work with Keras Functional API."""
 
-import tensorflow.compat.v2 as tf
-
 import time
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.engine import keras_tensor
 from keras.optimizers.optimizer_v2 import adam
 from keras.saving import model_config
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 def _single_op_at_end():

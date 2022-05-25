@@ -27,18 +27,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import argparse
 import os
 import re
 import sys
 
 import six
-
+import tensorflow as tf
 from google.protobuf import message
 from google.protobuf import text_format
-
 from tensorflow.python.lib.io import file_io
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.tools.api.lib import api_objects_pb2
@@ -47,7 +44,6 @@ from tensorflow.tools.api.lib import (
 )
 from tensorflow.tools.common import public_api
 from tensorflow.tools.common import traverse
-
 
 # FLAGS defined at the bottom:
 FLAGS = None

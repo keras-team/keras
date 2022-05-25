@@ -15,10 +15,10 @@
 """Layer that computes the maximum (element-wise) of several inputs."""
 
 
-from keras.layers.merging.base_merge import _Merge
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.layers.merging.base_merge import _Merge
 
 
 @keras_export("keras.layers.Maximum")

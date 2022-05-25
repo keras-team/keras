@@ -17,21 +17,9 @@
 import collections
 import os
 
-from absl import flags
-from keras import callbacks
-from keras.distribute import distribute_strategy_test
-from keras.engine import base_layer
-from keras.engine import sequential as sequential_model_lib
-from keras.engine import training
-from keras.layers import convolutional as conv_layer_lib
-from keras.layers import core as layer_lib
-from keras.layers import pooling as pool_layer_lib
-from keras.layers import regularization as regularization_layer_lib
-from keras.layers import reshaping as reshaping_layer_lib
-from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-
+from absl import flags
 from tensorboard.plugins.histogram import (
     summary_v2 as histogram_summary_v2,
 )
@@ -47,6 +35,18 @@ from tensorflow.python.eager.context import (
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
+
+from keras import callbacks
+from keras.distribute import distribute_strategy_test
+from keras.engine import base_layer
+from keras.engine import sequential as sequential_model_lib
+from keras.engine import training
+from keras.layers import convolutional as conv_layer_lib
+from keras.layers import core as layer_lib
+from keras.layers import pooling as pool_layer_lib
+from keras.layers import regularization as regularization_layer_lib
+from keras.layers import reshaping as reshaping_layer_lib
+from keras.testing_infra import test_utils
 
 NUM_CLASSES = 4
 

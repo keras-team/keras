@@ -13,14 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 """Saving utilities to support Python's Pickle protocol."""
-# pylint: disable=g-bad-import-order
-import tensorflow.compat.v2 as tf
-
+import io
 import os
 import tarfile
-import io
 import uuid
+
 import numpy
+
+# pylint: disable=g-bad-import-order
+import tensorflow.compat.v2 as tf
 
 from keras.saving import save as save_module
 

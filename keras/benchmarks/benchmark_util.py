@@ -14,10 +14,10 @@
 # ==============================================================================
 """Common utils for benchmarks."""
 
-import tensorflow.compat.v2 as tf
-
 import timeit
+
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 from keras.benchmarks import distribution_util
 

@@ -14,9 +14,10 @@
 # ==============================================================================
 """Tests for traceback_utils."""
 
+import tensorflow.compat.v2 as tf
+
 from keras import layers
 from keras.utils import traceback_utils
-import tensorflow.compat.v2 as tf
 
 
 class TracebackUtilsTest(tf.test.TestCase):

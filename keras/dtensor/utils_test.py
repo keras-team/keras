@@ -14,14 +14,14 @@
 # ==============================================================================
 """Tests for utils."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras import layers
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import test_util
 from keras.dtensor import utils
-
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 class UtilsTest(test_util.DTensorBaseTest):

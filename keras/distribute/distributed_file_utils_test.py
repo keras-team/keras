@@ -14,9 +14,9 @@
 # ==============================================================================
 """Tests for distributed_file_utils."""
 
-import tensorflow.compat.v2 as tf
-
 import os
+
+import tensorflow.compat.v2 as tf
 
 from keras.distribute import distributed_file_utils
 

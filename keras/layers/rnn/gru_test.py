@@ -19,20 +19,19 @@ import copy
 import os
 import shutil
 
-from absl.testing import parameterized
-import keras
-from keras.layers.rnn import gru_lstm_utils
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
-from keras.utils import np_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-
+from absl.testing import parameterized
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.framework import (
     test_util as tf_test_util,
 )
 
+import keras
+from keras.layers.rnn import gru_lstm_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
+from keras.utils import np_utils
 
 # Global config for grappler setting that is used for graph mode test.
 _rewrites = rewriter_config_pb2.RewriterConfig()

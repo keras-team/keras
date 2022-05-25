@@ -16,10 +16,12 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+
 import multiprocessing
-from absl import logging
+
 import portpicker
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 NUM_EPOCHS = 10
 NUM_STEPS = 100

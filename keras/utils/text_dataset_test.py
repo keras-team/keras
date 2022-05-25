@@ -14,12 +14,13 @@
 # ==============================================================================
 """Tests for text_dataset."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import random
 import shutil
 import string
+
+import tensorflow.compat.v2 as tf
+
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import text_dataset

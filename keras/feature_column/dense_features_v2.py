@@ -19,10 +19,11 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras.feature_column import base_feature_layer as kfc
 from keras.feature_column import dense_features
 from keras.utils import tf_contextlib
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.DenseFeatures", v1=[])

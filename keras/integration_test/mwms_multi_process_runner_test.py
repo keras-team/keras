@@ -18,8 +18,9 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-from absl import logging
+
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 NUM_WORKERS = 2
 NUM_EPOCHS = 2

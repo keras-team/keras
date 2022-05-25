@@ -29,6 +29,11 @@ from __future__ import print_function
 import collections
 import warnings
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.util.tf_export import tf_export
+
 from keras import activations
 from keras import backend
 from keras import initializers
@@ -36,12 +41,6 @@ from keras.engine import base_layer_utils
 from keras.engine import input_spec
 from keras.legacy_tf_layers import base as base_layer
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.python.util.tf_export import tf_export
-
 
 _BIAS_VARIABLE_NAME = "bias"
 _WEIGHTS_VARIABLE_NAME = "kernel"

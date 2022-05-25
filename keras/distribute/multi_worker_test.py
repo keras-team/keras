@@ -14,8 +14,6 @@
 # ==============================================================================
 """Test multi-worker Keras."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import copy
 import functools
@@ -24,16 +22,16 @@ import os
 import sys
 import threading
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-
 
 import keras
 from keras import backend
 from keras import callbacks
 from keras import metrics as metrics_module
 from keras import models
-from keras.optimizers import optimizer_v1
 from keras.distribute import multi_worker_testing_utils
+from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import rmsprop
 from keras.utils import kpl_test_utils
 

@@ -18,7 +18,6 @@
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
-
 _v1_zeros_initializer = tf.compat.v1.zeros_initializer
 _v1_ones_initializer = tf.compat.v1.ones_initializer
 _v1_constant_initializer = tf.compat.v1.constant_initializer

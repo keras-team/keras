@@ -19,10 +19,11 @@ Attention is formed by three tensors: Query, Key and Value.
 """
 # pylint: disable=g-classes-have-attributes
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine import base_layer
 from keras.utils import control_flow_util
-import tensorflow.compat.v2 as tf
 
 
 class BaseDenseAttention(base_layer.BaseRandomLayer):

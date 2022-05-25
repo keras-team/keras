@@ -16,10 +16,9 @@
 import os
 import tempfile
 
-from absl import flags
-
 import tensorflow.compat.v2 as tf
 import tensorflow_text as tf_text
+from absl import flags
 
 
 class ConvertResource(tf.test.TestCase):

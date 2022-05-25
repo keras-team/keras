@@ -15,15 +15,15 @@
 """Keras depthwise separable 1D convolution."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import activations
 from keras import constraints
 from keras import initializers
 from keras import regularizers
 from keras.layers.convolutional.base_separable_conv import SeparableConv
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(

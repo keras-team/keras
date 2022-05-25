@@ -18,16 +18,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import os
 
 import numpy as np
-
+import tensorflow.compat.v2 as tf
 from tensorflow.core.protobuf import saver_pb2
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
+
 from keras.legacy_tf_layers import convolutional as conv_layers
 from keras.legacy_tf_layers import normalization as normalization_layers
 

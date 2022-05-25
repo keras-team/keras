@@ -14,8 +14,6 @@
 # ==============================================================================
 """Python utilities required by Keras."""
 
-import tensorflow.compat.v2 as tf
-
 import binascii
 import codecs
 import importlib
@@ -30,11 +28,12 @@ import warnings
 import weakref
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils import io_utils
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
-from tensorflow.python.util.tf_export import keras_export
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 _GLOBAL_CUSTOM_NAMES = {}

@@ -16,12 +16,13 @@
 
 import os
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras.engine import base_preprocessing_layer
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 # Define a test-only implementation of BasePreprocessingLayer to validate

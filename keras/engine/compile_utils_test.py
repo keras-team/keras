@@ -15,11 +15,12 @@
 """Tests for compile utitilies."""
 
 import tensorflow.compat.v2 as tf
+
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras import losses as losses_mod
 from keras import metrics as metrics_mod
 from keras.engine import compile_utils
+from keras.testing_infra import test_combinations
 
 
 class LossesContainerTest(test_combinations.TestCase):

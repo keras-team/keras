@@ -15,11 +15,11 @@
 """Contains the SpatialDropout1D layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras.engine.input_spec import InputSpec
 from keras.layers.regularization.dropout import Dropout
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.SpatialDropout1D")

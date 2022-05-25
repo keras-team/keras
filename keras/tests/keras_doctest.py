@@ -21,12 +21,13 @@ from __future__ import print_function
 import os
 import sys
 
-from absl import flags
-from absl.testing import absltest
-from keras.testing_infra import keras_doctest_lib
 import numpy as np
 import tensorflow as tf
 import tensorflow.compat.v2 as tf
+from absl import flags
+from absl.testing import absltest
+
+from keras.testing_infra import keras_doctest_lib
 
 tf.compat.v1.enable_v2_behavior()
 

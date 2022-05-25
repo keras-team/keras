@@ -16,10 +16,11 @@
 """Utilities related to loss functions."""
 
 import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras.engine import keras_tensor
 from keras.utils import tf_utils
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.losses.Reduction", v1=[])

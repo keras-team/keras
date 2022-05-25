@@ -16,14 +16,15 @@
 
 import abc
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras.engine import base_layer
 from keras.engine import base_layer_v1
 from keras.engine import training
 from keras.engine import training_v1
 from keras.testing_infra import test_combinations
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes

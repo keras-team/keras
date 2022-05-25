@@ -14,13 +14,12 @@
 # ==============================================================================
 
 import numpy as np
-
 import tensorflow.compat.v2 as tf
 
 import keras
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras.engine import base_layer_utils
+from keras.testing_infra import test_combinations
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

@@ -16,6 +16,7 @@
 """Utilities for Keras classes with v1 and v2 versions."""
 
 import tensorflow.compat.v2 as tf
+
 from keras.utils.generic_utils import LazyLoader
 
 # TODO(b/134426265): Switch back to single-quotes once the issue

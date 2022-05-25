@@ -16,7 +16,6 @@
 import gc
 
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )

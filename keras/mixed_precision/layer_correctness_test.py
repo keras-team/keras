@@ -14,14 +14,12 @@
 # ==============================================================================
 """Tests various Layer subclasses have correct outputs with mixed precision."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras import layers
 from keras import models
-from keras.testing_infra import test_utils
 from keras.layers import activation
 from keras.layers import attention
 from keras.layers import convolutional
@@ -31,19 +29,21 @@ from keras.layers import merging
 from keras.layers import pooling
 from keras.layers import regularization
 from keras.layers import reshaping
-from keras.layers.rnn import bidirectional
-from keras.layers.rnn import conv_lstm2d
-from keras.layers.rnn import simple_rnn
-from keras.layers.rnn import gru
-from keras.layers.rnn import gru_v1
-from keras.layers.rnn import lstm
-from keras.layers.rnn import lstm_v1
-from keras.layers.rnn import time_distributed
 from keras.layers.normalization import batch_normalization
 from keras.layers.normalization import layer_normalization
 from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import normalization
+from keras.layers.rnn import bidirectional
+from keras.layers.rnn import conv_lstm2d
+from keras.layers.rnn import gru
+from keras.layers.rnn import gru_v1
+from keras.layers.rnn import lstm
+from keras.layers.rnn import lstm_v1
+from keras.layers.rnn import simple_rnn
+from keras.layers.rnn import time_distributed
 from keras.mixed_precision import policy
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 def create_mirrored_strategy():

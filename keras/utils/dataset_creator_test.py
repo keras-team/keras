@@ -15,22 +15,22 @@
 """Tests for dataset_creator."""
 
 import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
 from tensorflow.python.distribute.cluster_resolver import (
     SimpleClusterResolver,
 )
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
+from tensorflow.python.training.server_lib import (
+    ClusterSpec,
+)
+
 from keras.distribute import multi_worker_testing_utils
 from keras.engine import data_adapter
 from keras.engine import sequential
 from keras.layers import core as core_layers
 from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import dataset_creator
-from tensorflow.python.training.server_lib import (
-    ClusterSpec,
-)
 
 
 @test_utils.run_v2_only

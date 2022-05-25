@@ -14,11 +14,11 @@
 # ==============================================================================
 """A simple network to use in tests and examples."""
 
+import tensorflow.compat.v2 as tf
+
 from keras.legacy_tf_layers import core
 from keras.legacy_tf_layers import normalization
 from keras.optimizers.optimizer_v2 import optimizer_v2
-
-import tensorflow.compat.v2 as tf
 
 
 def minimize_loss_example(optimizer, use_bias=False, use_callable_loss=True):

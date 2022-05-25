@@ -14,12 +14,12 @@
 # ==============================================================================
 """Microbenchmarks for Keras components in eager mode."""
 
-import tensorflow.compat.v2 as tf
-
 import time
 
+import tensorflow.compat.v2 as tf
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_executor
+
 from keras.utils import tf_inspect
 
 

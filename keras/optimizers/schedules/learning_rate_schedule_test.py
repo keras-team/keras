@@ -16,14 +16,13 @@
 
 import math
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
-import numpy as np
-
-import tensorflow.compat.v2 as tf
 
 
 def _maybe_serialized(lr_decay, serialize_and_deserialize):

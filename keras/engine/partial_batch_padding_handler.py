@@ -14,12 +14,12 @@
 # ==============================================================================
 """Utility object to handler partial batches for TPUStrategy."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=protected-access
-
-import numpy as np
 from keras import backend
+
+# pylint: disable=protected-access
 
 
 class PartialBatchPaddingHandler:

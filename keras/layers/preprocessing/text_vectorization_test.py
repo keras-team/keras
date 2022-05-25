@@ -14,22 +14,21 @@
 # ==============================================================================
 """Tests for Keras text vectorization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
-
 import gc
 import os
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras import backend
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.layers import convolutional
 from keras.layers import core
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import text_vectorization
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 
 

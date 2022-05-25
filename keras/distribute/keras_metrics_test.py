@@ -14,10 +14,11 @@
 # ==============================================================================
 """Tests for Keras metrics."""
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras import metrics
 from keras.engine import base_layer
-import tensorflow.compat.v2 as tf
 
 combinations = tf.__internal__.distribute.combinations
 

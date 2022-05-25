@@ -15,12 +15,12 @@
 """Benchmark tests for Keras optimizers."""
 
 import tensorflow.compat.v2 as tf
-
-from keras.benchmarks import benchmark_util
-from keras.optimizers.optimizer_v2 import adam
 from tensorflow.python.platform.benchmark import (
     ParameterizedBenchmark,
 )
+
+from keras.benchmarks import benchmark_util
+from keras.optimizers.optimizer_v2 import adam
 
 
 def bidirect_imdb_lstm_config():

@@ -14,10 +14,11 @@
 # ==============================================================================
 """Tests for activity regularization layer."""
 
-import keras
-from keras.testing_infra import test_combinations
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+import keras
+from keras.testing_infra import test_combinations
 
 
 @test_combinations.run_all_keras_modes

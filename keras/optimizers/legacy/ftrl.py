@@ -14,9 +14,9 @@
 # ==============================================================================
 """Legacy Ftrl optimizer implementation."""
 
-from keras.optimizers.optimizer_v2 import ftrl
-
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.optimizers.optimizer_v2 import ftrl
 
 
 @keras_export("keras.optimizers.legacy.Ftrl")

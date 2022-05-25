@@ -14,10 +14,11 @@
 # ==============================================================================
 """Private utilities for locally-connected layers."""
 
-from keras import backend
-from keras.utils import conv_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+from keras import backend
+from keras.utils import conv_utils
 
 
 def get_locallyconnected_mask(

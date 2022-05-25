@@ -14,20 +14,18 @@
 # ==============================================================================
 """Tests for keras.layers.preprocessing.normalization."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
-import numpy as np
-
 import keras
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.layers.preprocessing import normalization
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.mixed_precision import policy
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 def _get_layer_computation_test_cases():

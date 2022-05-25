@@ -14,12 +14,12 @@
 # ==============================================================================
 """Tests for audio_dataset."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import shutil
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import audio_dataset

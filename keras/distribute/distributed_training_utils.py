@@ -14,10 +14,10 @@
 # ==============================================================================
 """Utilities related to distributed training."""
 
-from absl import flags
-from keras import backend
-
 import tensorflow.compat.v2 as tf
+from absl import flags
+
+from keras import backend
 
 FLAGS = flags.FLAGS
 

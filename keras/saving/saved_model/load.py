@@ -18,6 +18,10 @@ import re
 import types
 import warnings
 
+import tensorflow.compat.v1.logging as logging
+import tensorflow.compat.v2 as tf
+from google.protobuf import message
+
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
@@ -29,15 +33,11 @@ from keras.saving.saved_model import constants
 from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import utils
 from keras.saving.saved_model.serialized_attributes import CommonEndpoints
-from keras.utils import layer_utils
 from keras.utils import generic_utils
+from keras.utils import layer_utils
 from keras.utils import metrics_utils
 from keras.utils import tf_inspect
 from keras.utils.generic_utils import LazyLoader
-import tensorflow.compat.v1.logging as logging
-import tensorflow.compat.v2 as tf
-
-from google.protobuf import message
 
 # To avoid circular dependencies between keras/engine and keras/saving,
 # code in keras/saving must delay imports.

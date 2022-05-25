@@ -14,23 +14,22 @@
 # ==============================================================================
 """Tests for model.fit calls with a Dataset object passed as validation_data."""
 
-import tensorflow.compat.v2 as tf
-
 import io
 import sys
 from unittest import mock
 
-from absl.testing import parameterized
 import numpy as np
-
-import keras
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
+
+import keras
 from keras.engine import data_adapter
+from keras.layers import core
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.layers import core
 from keras.utils import io_utils
 
 

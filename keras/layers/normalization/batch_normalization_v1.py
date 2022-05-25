@@ -15,8 +15,9 @@
 """Batch Normalization V1 layer."""
 # pylint: disable=g-classes-have-attributes
 
-from keras.layers.normalization import batch_normalization
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.layers.normalization import batch_normalization
 
 
 # pylint: disable=missing-docstring

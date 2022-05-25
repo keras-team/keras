@@ -15,12 +15,13 @@
 """Tests for io_utils."""
 
 import builtins
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import tensorflow.compat.v2 as tf
 
 from keras.testing_infra import test_combinations
 from keras.utils import io_utils
-import tensorflow.compat.v2 as tf
 
 
 class TestIOUtils(test_combinations.TestCase):

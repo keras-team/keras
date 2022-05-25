@@ -15,6 +15,7 @@
 """Strategy and optimizer combinations for combinations.combine()."""
 
 import tensorflow.compat.v2 as tf
+
 from keras.distribute import simple_models
 
 simple_functional_model = tf.__internal__.test.combinations.NamedObject(

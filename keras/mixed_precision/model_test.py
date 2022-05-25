@@ -14,19 +14,16 @@
 # ==============================================================================
 """Tests keras.Model works properly with mixed precision."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl import flags
 from absl.testing import parameterized
-import numpy as np
+
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras import layers
 from keras import models
-from keras.optimizers import optimizer_v1
-from keras.testing_infra import test_utils
 from keras.applications import densenet
 from keras.applications import efficientnet
 from keras.applications import inception_resnet_v2
@@ -43,10 +40,12 @@ from keras.layers import core
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
 from keras.mixed_precision import test_util as mp_test_util
+from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.saving import save
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import generic_utils
-
 
 # If called outside any strategy.scope() calls, this will return the default
 # strategy.

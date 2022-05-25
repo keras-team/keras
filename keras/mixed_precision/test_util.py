@@ -15,6 +15,7 @@
 """Contains testing utilities related to mixed precision."""
 
 import tensorflow.compat.v2 as tf
+
 from keras import regularizers
 from keras.engine import base_layer
 

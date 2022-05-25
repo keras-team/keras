@@ -16,15 +16,14 @@
 # pylint: disable=g-import-not-at-top
 """Utilities related to model visualization."""
 
-import tensorflow.compat.v2 as tf
-
 import os
-import sys
 import re
+import sys
 
-from keras.utils import io_utils
+import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
+from keras.utils import io_utils
 
 try:
     # pydot-ng is a fork of pydot that is better maintained.
@@ -156,9 +155,9 @@ def model_to_dot(
             "the model on a batch of data."
         )
 
-    from keras.layers import Wrapper
-    from keras.engine import sequential
     from keras.engine import functional
+    from keras.engine import sequential
+    from keras.layers import Wrapper
 
     if not check_pydot():
         raise ImportError(

@@ -14,11 +14,11 @@
 # ==============================================================================
 """Correctness tests for tf.keras using DistributionStrategy."""
 
-import tensorflow.compat.v2 as tf
-
 import functools
-from absl.testing import parameterized
+
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras.distribute import distributed_training_utils

@@ -13,12 +13,12 @@
 # limitations under the License.
 # =============================================================================
 
-import keras
-
 import tensorflow.compat.v2 as tf
 from tensorflow.python.framework.memory_checker import (
     MemoryChecker,
 )
+
+import keras
 
 
 class MemoryCheckerTest(tf.test.TestCase):

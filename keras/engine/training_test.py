@@ -20,7 +20,17 @@ import io
 import sys
 import tempfile
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.training.rmsprop import (
+    RMSPropOptimizer,
+)
+
 import keras
 from keras import backend
 from keras import layers as layers_module
@@ -39,16 +49,6 @@ from keras.testing_infra import test_utils
 from keras.utils import data_utils
 from keras.utils import io_utils
 from keras.utils import np_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.rmsprop import (
-    RMSPropOptimizer,
-)
 
 try:
     import scipy.sparse as scipy_sparse  # pylint: disable=g-import-not-at-top

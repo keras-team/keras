@@ -21,6 +21,13 @@ import os
 import warnings
 import weakref
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.eager import context
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
+
 from keras import backend
 from keras import callbacks as callbacks_module
 from keras import optimizers
@@ -51,20 +58,10 @@ from keras.utils import traceback_utils
 from keras.utils import version_utils
 from keras.utils.mode_keys import ModeKeys
 
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.eager import context
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
-
-# pylint: disable=g-import-not-at-top
 try:
     import h5py
 except ImportError:
     h5py = None
-# pylint: enable=g-import-not-at-top
 
 
 @keras_export("keras.Model", "keras.models.Model")
@@ -189,9 +186,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # Signature detection
         if is_functional_model_init_params(args, kwargs) and cls == Model:
             # Functional model
-            from keras.engine import (
-                functional,
-            )  # pylint: disable=g-import-not-at-top
+            from keras.engine import functional
 
             return functional.Functional(skip_init=True, *args, **kwargs)
         else:
@@ -206,9 +201,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # Special case for Subclassed Functional Model, which we couldn't detect
         # when __new__ is called. We only realize it is a functional model when
         # it calls super.__init__ with input and output tensor.
-        from keras.engine import (
-            functional,
-        )  # pylint: disable=g-import-not-at-top
+        from keras.engine import functional
 
         if is_functional_model_init_params(args, kwargs) and not isinstance(
             self, functional.Functional
@@ -553,7 +546,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 _convert_to_graph_inputs, copied_kwargs
             )
 
-            # pylint: disable=g-import-not-at-top
             with layout_map_lib.layout_map_scope(self._layout_map):
                 # We ignore the result here.
                 super().__call__(inputs, *copied_args, **copied_kwargs)
@@ -2963,9 +2955,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Returns:
             Model config with Keras version information added.
         """
-        from keras import (
-            __version__ as keras_version,
-        )  # pylint: disable=g-import-not-at-top
+        from keras import __version__ as keras_version
 
         config = self.get_config()
         model_config = {
@@ -3025,9 +3015,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # `Functional`. In the case that `cls` is meant to behave like a child
         # class of `Functional` but only inherits from the `Model` class, we
         # have to call `cls(...)` instead of `Functional.from_config`.
-        from keras.engine import (
-            functional,
-        )  # pylint: disable=g-import-not-at-top
+        from keras.engine import functional
 
         with generic_utils.SharedObjectLoadingScope():
             functional_model_keys = [
@@ -3946,8 +3934,8 @@ def disable_multi_worker(method):
 
 def inject_functional_model_class(cls):
     """Inject `Functional` into the hierarchy of this class if needed."""
-    from keras.engine import functional  # pylint: disable=g-import-not-at-top
-    from keras.engine import training_v1  # pylint: disable=g-import-not-at-top
+    from keras.engine import functional
+    from keras.engine import training_v1
 
     if cls == Model or cls == training_v1.Model:
         return functional.Functional

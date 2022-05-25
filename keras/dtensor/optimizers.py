@@ -14,6 +14,10 @@
 # ==============================================================================
 """DTensor specific Keras optimizers."""
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
+
 from keras.dtensor import dtensor_api as dtensor
 from keras.optimizers.optimizer_experimental import adadelta
 from keras.optimizers.optimizer_experimental import adagrad
@@ -22,11 +26,6 @@ from keras.optimizers.optimizer_experimental import optimizer as optimizer_lib
 from keras.optimizers.optimizer_experimental import rmsprop
 from keras.optimizers.optimizer_experimental import sgd
 from keras.optimizers.schedules import learning_rate_schedule
-
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 
 # pylint: disable=protected-access,missing-class-docstring

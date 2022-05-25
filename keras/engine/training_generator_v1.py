@@ -15,14 +15,13 @@
 """Part of the Keras training engine related to Python generators of array data.
 """
 
-import tensorflow.compat.v2 as tf
-
-# pylint: disable=protected-access
-
 import functools
 import math
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
+
 from keras import backend
 from keras import callbacks as cbks
 from keras.engine import training_utils
@@ -30,7 +29,8 @@ from keras.engine import training_utils_v1
 from keras.utils import data_utils
 from keras.utils import generic_utils
 from keras.utils.mode_keys import ModeKeys
-from tensorflow.python.platform import tf_logging as logging
+
+# pylint: disable=protected-access
 
 
 def model_iteration(

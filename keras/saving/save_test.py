@@ -14,8 +14,6 @@
 # ==============================================================================
 """Tests for Keras model saving code."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import os
 import pathlib
@@ -23,25 +21,25 @@ import shutil
 import tempfile
 import warnings
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras import losses
-from keras.optimizers import optimizer_v1
 from keras import optimizers
 from keras.engine import functional
 from keras.engine import sequential
 from keras.feature_column import dense_features
 from keras.feature_column import sequence_feature_column as ksfc
 from keras.layers import core
+from keras.optimizers import optimizer_v1
 from keras.premade_models.linear import LinearModel
 from keras.saving import model_config
 from keras.saving import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import generic_utils
-
 
 try:
     import h5py  # pylint:disable=g-import-not-at-top

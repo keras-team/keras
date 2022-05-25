@@ -14,17 +14,16 @@
 # ==============================================================================
 """Tests for Keras activation functions."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
+import keras.layers.activation as activation_layers
 from keras import activations
 from keras import backend
-from keras.testing_infra import test_combinations
-import keras.layers.activation as activation_layers
 from keras.layers import core
 from keras.layers import serialization
+from keras.testing_infra import test_combinations
 
 
 def _ref_softmax(values):
@@ -228,8 +227,8 @@ class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
                 )
             else:
                 from scipy.stats import (
-                    norm,
-                )  # pylint: disable=g-import-not-at-top
+                    norm,  # pylint: disable=g-import-not-at-top
+                )
 
                 return x * norm.cdf(x)
 

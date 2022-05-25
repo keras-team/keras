@@ -14,25 +14,25 @@
 # ==============================================================================
 """Tests for Keras backend."""
 
-import tensorflow.compat.v2 as tf
-
 import gc
 import warnings
 
-from absl.testing import parameterized
 import numpy as np
 import scipy.sparse
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_config
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
+
 from keras import activations
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras.engine import input_layer
 from keras.layers import activation
 from keras.layers.normalization import batch_normalization_v1
+from keras.testing_infra import test_combinations
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 

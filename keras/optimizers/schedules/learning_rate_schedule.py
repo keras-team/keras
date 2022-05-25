@@ -14,13 +14,14 @@
 # ==============================================================================
 """Various learning rate schedule functions."""
 
-import tensorflow.compat.v2 as tf
-
 import abc
 import math
+
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras.utils import generic_utils
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.optimizers.schedules.LearningRateSchedule")

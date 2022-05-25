@@ -22,15 +22,14 @@ from __future__ import print_function
 import hashlib
 import numbers
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.util.tf_export import tf_export
+
 from keras.layers.rnn.cell_wrappers import _enumerated_map_structure_up_to
 from keras.layers.rnn.cell_wrappers import _parse_config_to_function
 from keras.layers.rnn.cell_wrappers import _serialize_function_to_config
 from keras.layers.rnn.legacy_cells import RNNCell
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.python.util.tf_export import tf_export
-
 
 # This can be used with self.assertRaisesRegexp for assert_like_rnncell.
 ASSERT_LIKE_RNNCELL_ERROR_REGEXP = "is not an RNNCell"
@@ -658,8 +657,8 @@ class DeviceWrapper(_RNNCellWrapperV1):
 
 def _default_dropout_state_filter_visitor(substate):
     from keras.layers.rnn.legacy_cells import (
-        LSTMStateTuple,
-    )  # pylint: disable=g-import-not-at-top
+        LSTMStateTuple,  # pylint: disable=g-import-not-at-top
+    )
 
     if isinstance(substate, LSTMStateTuple):
         # Do not perform dropout on the memory state.

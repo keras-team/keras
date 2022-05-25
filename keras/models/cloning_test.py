@@ -14,20 +14,19 @@
 # ==============================================================================
 """Tests for `models.py` (model cloning, mainly)."""
 
-import tensorflow.compat.v2 as tf
-
 import functools
 import os
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras import metrics
 from keras import models
 from keras.optimizers import optimizer_v1
+from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 

@@ -14,22 +14,23 @@
 # ==============================================================================
 """Part of the Keras training engine related to plain array data."""
 
-import tensorflow.compat.v2 as tf
-
-# pylint: disable=protected-access
-
 import functools
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
+
 from keras import backend
 from keras import callbacks as cbks
 from keras.distribute import distributed_training_utils_v1
 from keras.engine import training_utils_v1
+from keras.utils import io_utils
 from keras.utils.generic_utils import make_batches
 from keras.utils.generic_utils import slice_arrays
-from keras.utils import io_utils
 from keras.utils.mode_keys import ModeKeys
-from tensorflow.python.platform import tf_logging as logging
+
+# pylint: disable=protected-access
+
 
 try:
     from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top

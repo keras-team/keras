@@ -14,13 +14,13 @@
 # ==============================================================================
 """Tests for custom training loops."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
+
 from keras import metrics
 from keras.distribute import strategy_combinations
 

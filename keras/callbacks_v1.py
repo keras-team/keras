@@ -16,14 +16,15 @@
 # pylint: disable=g-classes-have-attributes
 """Callbacks: utilities called at certain points during model training."""
 
-import tensorflow.compat.v2 as tf
-
 import os
+
 import numpy as np
-from keras import backend
-from keras import callbacks
+import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
+
+from keras import backend
+from keras import callbacks
 
 
 @keras_export(v1=["keras.callbacks.TensorBoard"])
@@ -256,8 +257,8 @@ class TensorBoard(callbacks.TensorBoard):
         if self.embeddings_freq and self.embeddings_data is not None:
             # Avoid circular dependency.
             from keras.engine import (
-                training_utils_v1,
-            )  # pylint: disable=g-import-not-at-top
+                training_utils_v1,  # pylint: disable=g-import-not-at-top
+            )
 
             self.embeddings_data = training_utils_v1.standardize_input_data(
                 self.embeddings_data, model.input_names

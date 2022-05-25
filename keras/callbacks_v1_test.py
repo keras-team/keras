@@ -14,24 +14,23 @@
 # ==============================================================================
 """Tests for Keras callbacks."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import shutil
 import tempfile
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras import callbacks
 from keras import callbacks_v1
-from keras.testing_infra import test_combinations
 from keras import layers
-from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import np_utils
-
 
 TRAIN_SAMPLES = 10
 TEST_SAMPLES = 10

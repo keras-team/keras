@@ -15,17 +15,16 @@
 """Tests for layer serialization utils."""
 
 import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
+from keras.layers.normalization import batch_normalization as batchnorm_v2
+from keras.layers.normalization import batch_normalization_v1 as batchnorm_v1
 from keras.layers.rnn import gru
 from keras.layers.rnn import gru_v1
 from keras.layers.rnn import lstm
 from keras.layers.rnn import lstm_v1
-from keras.layers.normalization import batch_normalization as batchnorm_v2
-from keras.layers.normalization import batch_normalization_v1 as batchnorm_v1
+from keras.testing_infra import test_combinations
 
 
 class SerializableInt(int):

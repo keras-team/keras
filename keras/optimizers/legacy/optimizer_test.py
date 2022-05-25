@@ -1,6 +1,8 @@
 """Tests for optimizer."""
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.optimizers.legacy import adadelta
 from keras.optimizers.legacy import adagrad
@@ -10,7 +12,6 @@ from keras.optimizers.legacy import ftrl
 from keras.optimizers.legacy import nadam
 from keras.optimizers.legacy import rmsprop
 from keras.optimizers.legacy import sgd
-import tensorflow.compat.v2 as tf
 
 adadelta_fn = tf.__internal__.test.combinations.NamedObject(
     "adadelta", lambda: adadelta.Adadelta(0.002)

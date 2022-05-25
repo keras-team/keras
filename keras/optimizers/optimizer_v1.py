@@ -20,6 +20,7 @@ For more examples see the base class `tf.compat.v1.keras.optimizers.Optimizer`.
 """
 
 import tensorflow.compat.v2 as tf
+
 from keras import backend
 
 

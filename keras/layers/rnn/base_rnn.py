@@ -17,6 +17,11 @@
 
 import collections
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
+
 from keras import backend
 from keras.engine import base_layer
 from keras.engine.input_spec import InputSpec
@@ -25,11 +30,6 @@ from keras.layers.rnn.dropout_rnn_cell_mixin import DropoutRNNCellMixin
 from keras.layers.rnn.stacked_rnn_cells import StackedRNNCells
 from keras.saving.saved_model import layer_serialization
 from keras.utils import generic_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 
 @keras_export("keras.layers.RNN")
@@ -963,9 +963,7 @@ class RNN(base_layer.Layer):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        from keras.layers import (
-            deserialize as deserialize_layer,
-        )  # pylint: disable=g-import-not-at-top
+        from keras.layers import deserialize as deserialize_layer
 
         cell = deserialize_layer(
             config.pop("cell"), custom_objects=custom_objects

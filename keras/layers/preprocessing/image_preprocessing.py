@@ -17,18 +17,18 @@
 # pylint: disable=g-classes-have-attributes
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.ops import stateless_random_ops
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
+
 from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.utils import image_utils
 from keras.utils import tf_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.ops import stateless_random_ops
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 H_AXIS = -3
 W_AXIS = -2

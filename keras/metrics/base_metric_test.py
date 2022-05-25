@@ -17,16 +17,17 @@
 import copy
 import os
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
+from keras import Model
 from keras import layers
 from keras import metrics
-from keras import Model
 from keras.engine import base_layer
 from keras.engine import training as training_module
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

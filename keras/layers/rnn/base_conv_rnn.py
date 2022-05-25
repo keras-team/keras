@@ -15,6 +15,9 @@
 """Base class for convolutional-recurrent layers."""
 # pylint: disable=g-classes-have-attributes
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine import base_layer
 from keras.engine.input_spec import InputSpec
@@ -22,8 +25,6 @@ from keras.layers.rnn.base_rnn import RNN
 from keras.utils import conv_utils
 from keras.utils import generic_utils
 from keras.utils import tf_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 class ConvRNN(RNN):

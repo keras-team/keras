@@ -15,12 +15,12 @@
 """Layer that concatenates several inputs."""
 
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras.layers.merging.base_merge import _Merge
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Concatenate")

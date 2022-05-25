@@ -15,10 +15,11 @@
 """Nadam optimizer implementation."""
 
 import tensorflow.compat.v2 as tf
-from keras import backend_config
-from keras.optimizers.schedules import learning_rate_schedule
-from keras.optimizers.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
+
+from keras import backend_config
+from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.schedules import learning_rate_schedule
 
 
 # pylint: disable=g-classes-have-attributes

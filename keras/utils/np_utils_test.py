@@ -14,9 +14,8 @@
 # ==============================================================================
 """Tests for np_utils."""
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 from keras.utils import np_utils
 

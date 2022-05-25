@@ -14,11 +14,12 @@
 # ==============================================================================
 """Tests for depthwise convolutional layers."""
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes

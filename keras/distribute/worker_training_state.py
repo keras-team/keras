@@ -14,9 +14,10 @@
 # ==============================================================================
 """Training state management."""
 
+import os
+
 import tensorflow.compat.v2 as tf
 
-import os
 from keras import backend
 from keras.distribute import distributed_file_utils
 from keras.utils import mode_keys

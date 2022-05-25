@@ -16,8 +16,9 @@
 # pylint: disable=g-bad-import-order
 # pylint: disable=g-classes-have-attributes
 import tensorflow.compat.v2 as tf
-from keras.optimizers.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
+
+from keras.optimizers.optimizer_v2 import optimizer_v2
 
 
 # pylint: disable=g-classes-have-attributes

@@ -15,10 +15,10 @@
 """Global average pooling 2D layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras.layers.pooling.base_global_pooling2d import GlobalPooling2D
-
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(

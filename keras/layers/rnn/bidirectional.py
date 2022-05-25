@@ -17,6 +17,9 @@
 
 import copy
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
@@ -25,9 +28,6 @@ from keras.layers.rnn.base_wrapper import Wrapper
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Bidirectional")
@@ -498,9 +498,7 @@ class Bidirectional(Wrapper):
         config = copy.deepcopy(config)
         num_constants = config.pop("num_constants", 0)
         # Handle forward layer instantiation (as would parent class).
-        from keras.layers import (
-            deserialize as deserialize_layer,
-        )  # pylint: disable=g-import-not-at-top
+        from keras.layers import deserialize as deserialize_layer
 
         config["layer"] = deserialize_layer(
             config["layer"], custom_objects=custom_objects

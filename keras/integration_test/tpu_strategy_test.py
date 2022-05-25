@@ -17,9 +17,8 @@
 import random
 import tempfile
 
-from absl import flags
-
 import tensorflow.compat.v2 as tf
+from absl import flags
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )

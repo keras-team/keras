@@ -20,6 +20,10 @@ import abc
 import contextlib
 import functools
 import warnings
+
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras import initializers
 from keras.engine import base_layer_utils
@@ -29,9 +33,6 @@ from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
-
 
 keras_optimizers_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/keras/optimizers", "keras optimizer usage", "method"

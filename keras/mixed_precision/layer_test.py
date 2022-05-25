@@ -14,13 +14,12 @@
 # ==============================================================================
 """Tests keras.layers.Layer works properly with mixed precision."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
-from absl.testing import parameterized
 import numpy as np
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras import layers
 from keras import models
 from keras.engine import base_layer
@@ -29,6 +28,7 @@ from keras.engine import input_spec
 from keras.mixed_precision import policy
 from keras.mixed_precision import test_util as mp_test_util
 from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.testing_infra import test_combinations
 
 
 class MultiplyLayerWithFunction(mp_test_util.MultiplyLayer):

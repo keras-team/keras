@@ -18,18 +18,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import copy
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras.engine import base_layer as keras_base_layer
 from keras.engine import input_spec
 from keras.legacy_tf_layers import base as base_tf_layers
 from keras.legacy_tf_layers import core as core_tf_layers
+from keras.testing_infra import test_combinations
 
 
 class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):

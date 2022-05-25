@@ -19,12 +19,15 @@ import tensorflow.compat.v1 as tf1
 
 import functools
 import threading
+
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras.dtensor import dtensor_api as dtensor
 from keras.utils import control_flow_util
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
-from tensorflow.python.util.tf_export import keras_export
 
 _call_context = threading.local()
 
@@ -32,9 +35,7 @@ _call_context = threading.local()
 def create_mean_metric(value, name=None):
     # import keras will import base_layer and then this module, and metric
     # relies on base_layer, which result into a cyclic dependency.
-    from keras import (
-        metrics as metrics_module,
-    )  # pylint: disable=g-import-not-at-top
+    from keras import metrics as metrics_module
 
     metric_obj = metrics_module.Mean(name=name, dtype=value.dtype)
     return metric_obj, metric_obj(value)
@@ -241,7 +242,7 @@ def _create_keras_history_helper(tensors, processed_ops, created_layers):
     # Import of `base_layer` needed in order to create `TensorFlowOpLayer`.
     # Cannot be imported at top because of circular dependencies.
     # TODO(omalleyt): Resolve circular dependency.
-    from keras.engine import base_layer  # pylint: disable=g-import-not-at-top
+    from keras.engine import base_layer
 
     tensor_list = tf.nest.flatten(tensors)
     sparse_ops = []

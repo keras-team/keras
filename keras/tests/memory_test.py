@@ -21,11 +21,11 @@ introspection (test_util decorators). Please be careful adding new tests here.
 """
 
 import tensorflow.compat.v2 as tf
-
-import keras
 from tensorflow.python.eager.memory_tests import (
     memory_test_util,
 )
+
+import keras
 
 
 class SingleLayerNet(keras.Model):

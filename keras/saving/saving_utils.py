@@ -14,21 +14,22 @@
 # ==============================================================================
 """Utils related to keras model saving."""
 
-# pylint: disable=g-bad-import-order, g-direct-tensorflow-import
-import tensorflow.compat.v2 as tf
-import keras
-
 import copy
 import os
+
+# pylint: disable=g-bad-import-order, g-direct-tensorflow-import
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
+
+import keras
 from keras import backend
 from keras import losses
-from keras.optimizers import optimizer_v1
 from keras import optimizers
 from keras.engine import base_layer_utils
+from keras.optimizers import optimizer_v1
 from keras.utils import generic_utils
 from keras.utils import version_utils
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
-from tensorflow.python.platform import tf_logging as logging
 
 # pylint: enable=g-bad-import-order, g-direct-tensorflow-import
 
@@ -151,9 +152,7 @@ def trace_model_call(model, input_signature=None):
         # Outputs always has to be a flat dict.
         output_names = model.output_names  # Functional Model.
         if output_names is None:  # Subclassed Model.
-            from keras.engine import (
-                compile_utils,
-            )  # pylint: disable=g-import-not-at-top
+            from keras.engine import compile_utils
 
             output_names = compile_utils.create_pseudo_output_names(outputs)
         outputs = tf.nest.flatten(outputs)
@@ -164,12 +163,8 @@ def trace_model_call(model, input_signature=None):
 
 def model_metadata(model, include_optimizer=True, require_config=True):
     """Returns a dictionary containing the model metadata."""
-    from keras import (
-        __version__ as keras_version,
-    )  # pylint: disable=g-import-not-at-top
-    from keras.optimizers.optimizer_v2 import (
-        optimizer_v2,
-    )  # pylint: disable=g-import-not-at-top
+    from keras import __version__ as keras_version
+    from keras.optimizers.optimizer_v2 import optimizer_v2
 
     model_config = {"class_name": model.__class__.__name__}
     try:
@@ -321,9 +316,7 @@ def _serialize_nested_config(config):
 
 def _deserialize_metric(metric_config):
     """Deserialize metrics, leaving special strings untouched."""
-    from keras import (
-        metrics as metrics_module,
-    )  # pylint:disable=g-import-not-at-top
+    from keras import metrics as metrics_module
 
     if metric_config in ["accuracy", "acc", "crossentropy", "ce"]:
         # Do not deserialize accuracy and cross-entropy strings as we have special

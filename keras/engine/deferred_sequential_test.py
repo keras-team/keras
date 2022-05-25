@@ -14,11 +14,11 @@
 # ==============================================================================
 """Tests specific to deferred-build `Sequential` models."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import unittest
+
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.testing_infra import test_combinations

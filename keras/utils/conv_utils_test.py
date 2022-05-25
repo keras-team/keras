@@ -14,12 +14,11 @@
 # ==============================================================================
 """Tests for conv_utils."""
 
-import tensorflow.compat.v2 as tf
-
 import itertools
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 from keras.utils import conv_utils
 

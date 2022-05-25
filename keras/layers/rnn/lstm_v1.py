@@ -15,6 +15,9 @@
 """Long Short-Term Memory V1 layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import activations
 from keras import constraints
 from keras import initializers
@@ -23,9 +26,6 @@ from keras.engine.input_spec import InputSpec
 from keras.layers.rnn import lstm
 from keras.layers.rnn import rnn_utils
 from keras.layers.rnn.base_rnn import RNN
-
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(v1=["keras.layers.LSTMCell"])

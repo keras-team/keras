@@ -17,6 +17,10 @@
 
 import uuid
 
+import tensorflow.compat.v2 as tf
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -29,11 +33,6 @@ from keras.layers.rnn import rnn_utils
 from keras.layers.rnn.base_rnn import RNN
 from keras.layers.rnn.dropout_rnn_cell_mixin import DropoutRNNCellMixin
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
-
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
-
 
 RECURRENT_DROPOUT_WARNING_MSG = (
     "RNN `implementation=2` is not supported when `recurrent_dropout` is set. "

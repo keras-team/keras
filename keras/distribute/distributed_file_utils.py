@@ -44,9 +44,9 @@ remove_temp_dirpath(self.log_dir, get_distribution_strategy())
 Experimental. API is subject to change.
 """
 
-import tensorflow.compat.v2 as tf
-
 import os
+
+import tensorflow.compat.v2 as tf
 
 
 def _get_base_dirpath(strategy):

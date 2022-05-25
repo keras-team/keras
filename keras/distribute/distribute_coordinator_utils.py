@@ -25,13 +25,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import copy
 import json
 import os
 import threading
 import time
+
+import tensorflow.compat.v2 as tf
 from tensorflow.core.protobuf import cluster_pb2
 from tensorflow.python.platform import tf_logging as logging
 

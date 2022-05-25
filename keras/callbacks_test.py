@@ -27,7 +27,11 @@ import time
 import unittest
 from unittest import mock
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.python.platform import tf_logging as logging
+
 import keras
 from keras.callbacks import BackupAndRestore
 from keras.callbacks import BackupAndRestoreExperimental
@@ -40,9 +44,6 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import io_utils
 from keras.utils import np_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 try:
     import h5py  # pylint:disable=g-import-not-at-top

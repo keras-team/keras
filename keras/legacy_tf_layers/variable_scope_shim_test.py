@@ -21,7 +21,14 @@ from __future__ import print_function
 import gc
 import threading
 
+import numpy
+import tensorflow as tf
 from absl.testing import parameterized
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+from tensorflow.python.ops import variable_scope
+
 from keras import models
 from keras import regularizers
 from keras.engine import base_layer
@@ -31,14 +38,6 @@ from keras.layers import core
 from keras.legacy_tf_layers import core as core_layers
 from keras.legacy_tf_layers import variable_scope_shim
 from keras.testing_infra import test_combinations
-
-import numpy
-import tensorflow as tf
-
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.ops import variable_scope
 
 
 def run_inside_wrap_function_in_eager_mode(graph_function):

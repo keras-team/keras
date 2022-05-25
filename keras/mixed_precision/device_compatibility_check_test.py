@@ -14,13 +14,13 @@
 # ==============================================================================
 """Tests the device compatibility check."""
 
-import tensorflow.compat.v2 as tf
-
 import re
 
-from keras.testing_infra import test_combinations
-from keras.mixed_precision import device_compatibility_check
+import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging
+
+from keras.mixed_precision import device_compatibility_check
+from keras.testing_infra import test_combinations
 
 
 def device_details(device_name, compute_capability=None):

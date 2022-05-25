@@ -15,10 +15,10 @@
 """Global max pooling 1D layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+from tensorflow.python.util.tf_export import keras_export
+
 from keras import backend
 from keras.layers.pooling.base_global_pooling1d import GlobalPooling1D
-
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.GlobalMaxPool1D", "keras.layers.GlobalMaxPooling1D")

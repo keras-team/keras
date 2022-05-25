@@ -14,14 +14,15 @@
 # ==============================================================================
 """Tests for merging layers."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras import backend
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import tf_inspect
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes

@@ -15,7 +15,6 @@
 """Tests for Keras Vis utils."""
 
 import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
 
 import keras

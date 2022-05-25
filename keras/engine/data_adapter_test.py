@@ -14,19 +14,18 @@
 # ==============================================================================
 """DataAdapter tests."""
 
-import tensorflow.compat.v2 as tf
-
 import math
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+from tensorflow.python.eager import context
 
 import keras
+from keras.engine import data_adapter
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.engine import data_adapter
 from keras.utils import data_utils
-from tensorflow.python.eager import context
 
 
 class DummyArrayLike:

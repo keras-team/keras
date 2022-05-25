@@ -14,14 +14,14 @@
 # ==============================================================================
 """Tests for ClusterCoordinator and Keras models."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
 from keras.distribute import multi_worker_testing_utils
 from keras.distribute import strategy_combinations
 from keras.engine import base_layer
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):

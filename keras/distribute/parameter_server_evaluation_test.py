@@ -16,10 +16,7 @@
 
 import time
 
-import keras
-from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.distribute import (
     multi_worker_test_base,
 )
@@ -27,6 +24,9 @@ from tensorflow.python.distribute.cluster_resolver import (
     SimpleClusterResolver,
 )
 from tensorflow.python.ops import resource_variable_ops
+
+import keras
+from keras.testing_infra import test_utils
 
 
 # TODO(yuefengz): move the following implementation to Keras core.

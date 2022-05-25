@@ -17,10 +17,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import timeit
+
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 from keras.benchmarks import benchmark_util
 from keras.benchmarks import distribution_util

@@ -16,15 +16,14 @@
 
 import abc
 
-from keras.engine import data_adapter
-from keras.engine.base_layer import Layer
-from keras.utils import version_utils
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.eager import context
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
+from keras.engine import data_adapter
+from keras.engine.base_layer import Layer
+from keras.utils import version_utils
 
 keras_kpl_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/keras/layers/preprocessing",

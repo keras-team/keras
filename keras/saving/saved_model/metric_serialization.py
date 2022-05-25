@@ -14,10 +14,11 @@
 # ==============================================================================
 """Classes and functions implementing Metrics SavedModel serialization."""
 
+import tensorflow.compat.v2 as tf
+
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import layer_serialization
 from keras.utils import generic_utils
-import tensorflow.compat.v2 as tf
 
 
 class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):

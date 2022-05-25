@@ -20,8 +20,6 @@
 # pylint: disable=missing-function-docstring
 """Keras backend API."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import itertools
 import json
@@ -33,11 +31,15 @@ import warnings
 import weakref
 
 import numpy as np
-
+import tensorflow.compat.v2 as tf
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_config
 from tensorflow.python.framework import config
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
+
 from keras import backend_config
 from keras.distribute import distribute_coordinator_utils as dc
 from keras.engine import keras_tensor
@@ -45,9 +47,6 @@ from keras.utils import control_flow_util
 from keras.utils import object_identity
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 py_all = all
 py_sum = sum
@@ -1451,8 +1450,8 @@ def placeholder(
         # when the placeholder is built in a top-level eager context
         # (intended to be used with keras.backend.function)
         from keras.engine import (
-            input_layer,
-        )  # pylint: disable=g-import-not-at-top
+            input_layer,  # pylint: disable=g-import-not-at-top
+        )
 
         x = input_layer.Input(tensor=x)
         x._is_backend_placeholder = True
@@ -1977,8 +1976,8 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             self._generator = None
         elif self._rng_type == self.RNG_STATEFUL:
             from keras.utils import (
-                tf_utils,
-            )  # pylint: disable=g-import-not-at-top
+                tf_utils,  # pylint: disable=g-import-not-at-top
+            )
 
             with tf_utils.maybe_init_scope(self):
                 seed = self._create_seed(self._seed)
@@ -5266,8 +5265,8 @@ def in_train_phase(x, alt, training=None):
         the `training` flag defaults to `K.learning_phase()`.
     """
     from keras.engine import (
-        base_layer_utils,
-    )  # pylint: disable=g-import-not-at-top
+        base_layer_utils,  # pylint: disable=g-import-not-at-top
+    )
 
     if training is None:
         training = base_layer_utils.call_context().training

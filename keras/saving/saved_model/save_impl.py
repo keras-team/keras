@@ -22,6 +22,9 @@ import functools
 import threading
 import weakref
 
+import tensorflow.compat.v1.logging as logging
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
@@ -36,8 +39,6 @@ from keras.utils import tf_contextlib
 from keras.utils import tf_utils
 from keras.utils import version_utils
 from keras.utils.generic_utils import LazyLoader
-import tensorflow.compat.v1.logging as logging
-import tensorflow.compat.v2 as tf
 
 # To avoid circular dependencies between keras/engine and keras/saving,
 # code in keras/saving must delay imports.

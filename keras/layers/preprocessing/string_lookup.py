@@ -14,14 +14,14 @@
 # ==============================================================================
 """Keras string lookup preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
-
-# pylint: disable=g-classes-have-attributes
-
 import numpy as np
+import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
+
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup
-from tensorflow.python.util.tf_export import keras_export
+
+# pylint: disable=g-classes-have-attributes
 
 
 @keras_export(

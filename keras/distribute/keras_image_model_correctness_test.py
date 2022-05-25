@@ -14,13 +14,13 @@
 # ==============================================================================
 """Correctness tests for tf.keras CNN models using DistributionStrategy."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
 import keras
-from keras.testing_infra import test_utils
 from keras.distribute import keras_correctness_test_base
 from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.testing_infra import test_utils
 
 
 @test_utils.run_all_without_tensor_float_32(

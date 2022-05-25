@@ -14,12 +14,11 @@
 # ==============================================================================
 """Keras timeseries dataset utilities."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
 
 # pylint: disable=g-classes-have-attributes
-
-import numpy as np
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(

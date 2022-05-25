@@ -15,7 +15,8 @@
 """Layers that operate regularization via the addition of noise."""
 # pylint: disable=g-bad-import-order,unused-import
 
+from keras.layers.regularization.alpha_dropout import AlphaDropout
+
 # Regularization layers imported for backwards namespace compatibility
 from keras.layers.regularization.gaussian_dropout import GaussianDropout
 from keras.layers.regularization.gaussian_noise import GaussianNoise
-from keras.layers.regularization.alpha_dropout import AlphaDropout

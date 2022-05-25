@@ -14,21 +14,21 @@
 # ==============================================================================
 """Tests for training routines."""
 
-import tensorflow.compat.v2 as tf
-
 import itertools
 
-from absl.testing import parameterized
 import numpy as np
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras import layers as layers_module
 from keras import losses
 from keras import metrics as metrics_module
-from keras.testing_infra import test_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.engine import training_generator_v1
 from keras.optimizers.optimizer_v2 import rmsprop
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import data_utils
 
 

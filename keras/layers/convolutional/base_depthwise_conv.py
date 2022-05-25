@@ -15,12 +15,13 @@
 """Keras abstract base for depthwise convolutions."""
 # pylint: disable=g-classes-have-attributes
 
+import tensorflow.compat.v2 as tf
+
 from keras import constraints
 from keras import initializers
 from keras import regularizers
 from keras.engine.input_spec import InputSpec
 from keras.layers.convolutional.base_conv import Conv
-import tensorflow.compat.v2 as tf
 
 
 class DepthwiseConv(Conv):

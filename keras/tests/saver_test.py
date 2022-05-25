@@ -14,15 +14,16 @@
 # =============================================================================
 """Tests for tensorflow.python.training.saver.py."""
 
-import tensorflow.compat.v2 as tf
-
 import functools
 import os
-from keras.engine import training
-from keras.layers import core
+
+import tensorflow.compat.v2 as tf
 from tensorflow.python.training.tracking import (
     util as trackable_utils,
 )
+
+from keras.engine import training
+from keras.layers import core
 
 
 class NonLayerTrackable(tf.Module):

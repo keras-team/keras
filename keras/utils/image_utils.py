@@ -20,10 +20,11 @@ import io
 import pathlib
 import warnings
 
-from keras import backend
 import numpy as np
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
+
+from keras import backend
 
 try:
     from PIL import Image as pil_image

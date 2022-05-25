@@ -14,17 +14,15 @@
 # ==============================================================================
 """Tests for Keras regularizers."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
 from keras import regularizers
+from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
-
 
 DATA_DIM = 5
 NUM_CLASSES = 2

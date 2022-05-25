@@ -15,16 +15,16 @@
 """Tests for TimeDistributed wrapper."""
 
 
-from absl.testing import parameterized
-import keras
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
-
+from absl.testing import parameterized
 from tensorflow.python.training.tracking import (
     util as trackable_util,
 )
+
+import keras
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class TimeDistributedTest(test_combinations.TestCase):

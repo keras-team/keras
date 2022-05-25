@@ -14,11 +14,12 @@
 # ==============================================================================
 """Tests for the MultiHeadAttention layer."""
 
-from absl.testing import parameterized
-import keras
-from keras.testing_infra import test_combinations
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
+import keras
+from keras.testing_infra import test_combinations
 
 
 # This decorator runs the test in V1, V2-Eager, and V2-Functional mode. It

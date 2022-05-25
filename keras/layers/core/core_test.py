@@ -17,15 +17,15 @@
 import os
 import textwrap
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras import initializers
 from keras.layers import core
 from keras.mixed_precision import policy
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes

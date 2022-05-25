@@ -18,12 +18,13 @@ import multiprocessing
 import os
 import random
 import tempfile
-from absl.testing import parameterized
-from keras.testing_infra import test_utils
+
 import numpy as np
 import portpicker
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
+from keras.testing_infra import test_utils
 
 # These vocabularies usually come from TFT or a Beam pipeline.
 FEATURE_VOCAB = [

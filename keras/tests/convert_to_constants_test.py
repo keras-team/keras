@@ -14,17 +14,16 @@
 # ==============================================================================
 """Tests for convert_to_constants.py."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
 import numpy as np
-
-import keras
+import tensorflow.compat.v2 as tf
 from tensorflow.python.framework import convert_to_constants
-from keras.testing_infra import test_utils
 from tensorflow.python.saved_model.load import load
 from tensorflow.python.saved_model.save import save
+
+import keras
+from keras.testing_infra import test_utils
 
 
 class VariablesToConstantsTest(tf.test.TestCase):

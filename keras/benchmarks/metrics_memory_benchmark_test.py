@@ -14,9 +14,8 @@
 # ==============================================================================
 """Benchmark tests for Keras metrics memory consumption."""
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 try:
     import memory_profiler  # pylint:disable=g-import-not-at-top

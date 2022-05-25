@@ -15,6 +15,7 @@
 """Test MirroredVariable in MirroredStrategy and MultiWorkerMirroredStrategy."""
 
 import tensorflow.compat.v2 as tf
+
 from keras.distribute import distributed_training_utils
 from keras.layers import core
 

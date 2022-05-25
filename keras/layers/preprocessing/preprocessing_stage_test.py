@@ -14,16 +14,17 @@
 # ==============================================================================
 """Preprocessing stage tests."""
 
+import time
+
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-classes-have-attributes
-
-import time
-import numpy as np
-from keras.testing_infra import test_combinations
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_stage
 from keras.layers.preprocessing import preprocessing_test_utils
+from keras.testing_infra import test_combinations
+
+# pylint: disable=g-classes-have-attributes
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)

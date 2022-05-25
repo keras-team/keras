@@ -14,18 +14,17 @@
 # ==============================================================================
 """Correctness tests for tf.keras DNN model using DistributionStrategy."""
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras import backend
-from keras.testing_infra import test_utils
 from keras.distribute import keras_correctness_test_base
 from keras.distribute import strategy_combinations
 from keras.optimizers.optimizer_v2 import (
     gradient_descent as gradient_descent_keras,
 )
+from keras.testing_infra import test_utils
 
 
 def all_strategy_combinations_with_eager_and_graph_modes():

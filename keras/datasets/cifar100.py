@@ -17,11 +17,11 @@
 import os
 
 import numpy as np
+from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.datasets.cifar import load_batch
 from keras.utils.data_utils import get_file
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.datasets.cifar100.load_data")

@@ -17,13 +17,15 @@
 
 
 import copy
+
+import tensorflow.compat.v2 as tf
+
 from keras import losses as losses_mod
 from keras import metrics as metrics_mod
 from keras.saving.experimental import saving_lib
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
 
 
 class Container:

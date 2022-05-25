@@ -14,9 +14,6 @@
 # ==============================================================================
 """Tests for layer_utils."""
 
-import keras
-import tensorflow.compat.v2 as tf
-
 import collections
 import contextlib
 import multiprocessing.dummy
@@ -28,9 +25,11 @@ import time
 import timeit
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+
+import keras
 from keras.utils import io_utils
 from keras.utils import layer_utils
-
 
 _PICKLEABLE_CALL_COUNT = collections.Counter()
 

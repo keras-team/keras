@@ -19,16 +19,17 @@ import random
 import shutil
 import tempfile
 
+import numpy as np
+import pandas as pd
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras import layers
 from keras.engine import sequential
 from keras.preprocessing import image
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import image_utils
-import numpy as np
-import pandas as pd
-import tensorflow.compat.v2 as tf
 
 try:
     import PIL  # pylint:disable=g-import-not-at-top

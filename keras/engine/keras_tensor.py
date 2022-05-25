@@ -14,10 +14,10 @@
 # ==============================================================================
 """Keras Input Tensor used to track functional API Topology."""
 
-from keras.utils import object_identity
 import tensorflow.compat.v2 as tf
-
 from tensorflow.python.data.util import structure
+
+from keras.utils import object_identity
 
 # pylint: disable=g-classes-have-attributes
 

@@ -16,13 +16,13 @@
 # pylint: disable=g-bad-import-order
 
 import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
-from keras.testing_infra import test_combinations
+
 from keras import layers
-from keras.testing_infra import test_utils
 from keras.engine import keras_tensor
 from keras.engine import training
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class CustomTypeSpec(tf.TypeSpec):

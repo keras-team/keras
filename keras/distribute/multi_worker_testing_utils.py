@@ -14,20 +14,20 @@
 # ==============================================================================
 """Utilities for testing multi-worker distribution strategies with Keras."""
 
-import tensorflow.compat.v2 as tf
-
 import threading
 import unittest
-import keras
+
+import tensorflow.compat.v2 as tf
 from tensorflow.python.distribute.cluster_resolver import (
     SimpleClusterResolver,
 )
-from keras.optimizers.optimizer_v2 import gradient_descent
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.server_lib import (
     ClusterSpec,
 )
 
+import keras
+from keras.optimizers.optimizer_v2 import gradient_descent
 
 _portpicker_import_error = None
 try:

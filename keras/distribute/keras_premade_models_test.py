@@ -14,6 +14,8 @@
 # ==============================================================================
 """Tests for keras premade models using tf.distribute.Strategy."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras.engine import sequential
@@ -23,8 +25,6 @@ from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.premade_models import linear
 from keras.premade_models import wide_deep
 from keras.utils import dataset_creator
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 def strategy_combinations_eager_data_fn():

@@ -15,10 +15,10 @@
 """Layer that subtracts two inputs."""
 
 
+from tensorflow.python.util.tf_export import keras_export
+
 from keras.layers.merging.base_merge import _Merge
 from keras.utils import tf_utils
-
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Subtract")

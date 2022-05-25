@@ -14,13 +14,13 @@
 # ==============================================================================
 """Functional test for GradientDescent."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.optimizers.schedules import learning_rate_schedule
+from keras.testing_infra import test_combinations
 
 
 class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):

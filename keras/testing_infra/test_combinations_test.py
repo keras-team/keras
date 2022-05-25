@@ -14,15 +14,15 @@
 # ==============================================================================
 """Tests for Keras test_utils."""
 
-import tensorflow.compat.v2 as tf
-
 import unittest
+
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
 from keras import models as keras_models
-from keras.testing_infra import test_utils
 from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class CombinationsTest(tf.test.TestCase):

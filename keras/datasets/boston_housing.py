@@ -15,9 +15,9 @@
 """Boston housing price regression dataset."""
 
 import numpy as np
+from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils.data_utils import get_file
-from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.datasets.boston_housing.load_data")

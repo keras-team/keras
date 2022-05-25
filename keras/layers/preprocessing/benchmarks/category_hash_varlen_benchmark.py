@@ -16,11 +16,11 @@
 varying-length inputs."""
 
 import tensorflow.compat.v2 as tf
-
-import keras
 from tensorflow.python.eager.def_function import (
     function as tf_function,
 )
+
+import keras
 from keras.layers.preprocessing import hashing
 from keras.layers.preprocessing.benchmarks import (
     feature_column_benchmark as fc_bm,
