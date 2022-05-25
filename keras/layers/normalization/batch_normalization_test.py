@@ -258,9 +258,9 @@ class BatchNormalizationTest(test_combinations.TestCase):
         )
         layer(x, training=True)
         self.assertTrue(layer.fused)
-        # Since fused is used, Bessel's correction is used. The variance of [0, 2]
-        # is 2 with Bessel's correction. Since the momentum is 0.5, the variance is
-        # 2 * 0.5 == 1.
+        # Since fused is used, Bessel's correction is used. The variance of [0,
+        # 2] is 2 with Bessel's correction. Since the momentum is 0.5, the
+        # variance is 2 * 0.5 == 1.
         self.assertAllEqual(self.evaluate(layer.moving_variance), [1.0])
 
         x = tf.constant([0.0, 2.0], shape=[2, 1, 1, 1, 1])
@@ -269,9 +269,9 @@ class BatchNormalizationTest(test_combinations.TestCase):
         )
         layer(x, training=True)
         self.assertTrue(layer.fused)
-        # Since fused is used, Bessel's correction is used. The variance of [0, 2]
-        # is 2 with Bessel's correction. Since the momentum is 0.5, the variance is
-        # 2 * 0.5 == 1.
+        # Since fused is used, Bessel's correction is used. The variance of [0,
+        # 2] is 2 with Bessel's correction. Since the momentum is 0.5, the
+        # variance is 2 * 0.5 == 1.
         self.assertAllEqual(self.evaluate(layer.moving_variance), [1.0])
 
 

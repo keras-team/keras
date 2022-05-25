@@ -64,9 +64,11 @@ def multiply(inputs, **kwargs):
     Usage in a functional model:
 
     >>> input1 = tf.keras.layers.Input(shape=(16,))
-    >>> x1 = tf.keras.layers.Dense(8, activation='relu')(input1) #shape=(None, 8)
+    >>> x1 = tf.keras.layers.Dense(
+    ...     8, activation='relu')(input1) #shape=(None, 8)
     >>> input2 = tf.keras.layers.Input(shape=(32,))
-    >>> x2 = tf.keras.layers.Dense(8, activation='relu')(input2) #shape=(None, 8)
+    >>> x2 = tf.keras.layers.Dense(
+    ...     8, activation='relu')(input2) #shape=(None, 8)
     >>> out = tf.keras.layers.multiply([x1,x2]) #shape=(None, 8)
     >>> out = tf.keras.layers.Dense(4)(out)
     >>> model = tf.keras.models.Model(inputs=[input1, input2], outputs=out)

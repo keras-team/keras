@@ -28,9 +28,9 @@ class Reshape(Layer):
 
     Input shape:
       Arbitrary, although all dimensions in the input shape must be known/fixed.
-      Use the keyword argument `input_shape` (tuple of integers, does not include
-      the samples/batch size axis) when using this layer as the first layer
-      in a model.
+      Use the keyword argument `input_shape` (tuple of integers, does not
+      include the samples/batch size axis) when using this layer as the first
+      layer in a model.
 
     Output shape:
       `(batch_size,) + target_shape`
@@ -74,8 +74,9 @@ class Reshape(Layer):
 
         Args:
           input_shape: Shape of array being reshaped
-          output_shape: Desired shape of the array with at most a single -1 which
-            indicates a dimension that should be derived from the input shape.
+          output_shape: Desired shape of the array with at most a single -1
+            which indicates a dimension that should be derived from the input
+            shape.
 
         Returns:
           The new output shape with a -1 replaced with its computed value.
@@ -100,8 +101,8 @@ class Reshape(Layer):
                     unknown = index
                 else:
                     raise ValueError(
-                        f"There must be at most one unknown dimension in output_shape. "
-                        f"Received: output_shape={output_shape}."
+                        f"There must be at most one unknown dimension in "
+                        f"output_shape. Received: output_shape={output_shape}."
                     )
             else:
                 known *= dim
@@ -133,8 +134,9 @@ class Reshape(Layer):
     def call(self, inputs):
         result = tf.reshape(inputs, (tf.shape(inputs)[0],) + self.target_shape)
         if not tf.executing_eagerly():
-            # Set the static shape for the result since it might lost during array_ops
-            # reshape, eg, some `None` dim in the result could be inferred.
+            # Set the static shape for the result since it might lost during
+            # array_ops reshape, eg, some `None` dim in the result could be
+            # inferred.
             result.set_shape(self.compute_output_shape(inputs.shape))
         return result
 

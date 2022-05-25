@@ -323,7 +323,8 @@ class CenterCropTest(test_combinations.TestCase):
         with test_utils.use_gpu():
             layer = image_preprocessing.CenterCrop(height, width)
             actual_output = layer(inp)
-            # In this case, output should equal resizing with crop_to_aspect ratio.
+            # In this case, output should equal resizing with crop_to_aspect
+            # ratio.
             resize_layer = image_preprocessing.Resizing(
                 height, width, crop_to_aspect_ratio=True
             )
@@ -390,7 +391,8 @@ class RandomCropTest(test_combinations.TestCase):
         with test_utils.use_gpu():
             layer = image_preprocessing.RandomCrop(height, width)
             actual_output = layer(inp)
-            # In this case, output should equal resizing with crop_to_aspect ratio.
+            # In this case, output should equal resizing with crop_to_aspect
+            # ratio.
             resize_layer = image_preprocessing.Resizing(
                 height, width, crop_to_aspect_ratio=True
             )
@@ -845,7 +847,8 @@ class RandomContrastTest(test_combinations.TestCase):
 
     def test_output_value_clip(self):
         input_images = np.random.random((5, 8, 3)).astype(np.float32) * 255.0
-        # Give a factor range [1.0, 11.0] so that it will produce large contrast.
+        # Give a factor range [1.0, 11.0] so that it will produce large
+        # contrast.
         layer = image_preprocessing.RandomContrast((0.0, 10.0))
         output = layer(input_images)
         self.assertLessEqual(tf.reduce_max(output), 255.0)
@@ -1936,7 +1939,8 @@ class RandomRotationTest(test_combinations.TestCase):
             self.assertAllClose(expected_output, actual_output)
 
     def test_distribution_strategy(self):
-        """Tests that RandomRotation can be created within distribution strategies."""
+        """Tests that RandomRotation can be created within distribution
+        strategies."""
         input_images = np.random.random((2, 5, 8, 3)).astype(np.float32)
         with test_utils.use_gpu():
             strat = tf.distribute.MirroredStrategy(devices=["cpu", "gpu"])
@@ -2256,8 +2260,9 @@ class RandomHeightTest(test_combinations.TestCase):
                     dtype
                 )
                 layer = image_preprocessing.RandomHeight(factor=(1.0, 1.0))
-                # Return type of RandomHeight() is float32 if `interpolation` is not
-                # set to `ResizeMethod.NEAREST_NEIGHBOR`; cast `layer` to desired dtype.
+                # Return type of RandomHeight() is float32 if `interpolation` is
+                # not set to `ResizeMethod.NEAREST_NEIGHBOR`; cast `layer` to
+                # desired dtype.
                 output_image = tf.cast(
                     layer(np.expand_dims(input_image, axis=0)), dtype=dtype
                 )
@@ -2412,8 +2417,9 @@ class RandomWidthTest(test_combinations.TestCase):
                     dtype
                 )
                 layer = image_preprocessing.RandomWidth(factor=(1.0, 1.0))
-                # Return type of RandomWidth() is float32 if `interpolation` is not
-                # set to `ResizeMethod.NEAREST_NEIGHBOR`; cast `layer` to desired dtype.
+                # Return type of RandomWidth() is float32 if `interpolation` is
+                # not set to `ResizeMethod.NEAREST_NEIGHBOR`; cast `layer` to
+                # desired dtype.
                 output_image = tf.cast(
                     layer(np.expand_dims(input_image, axis=0)), dtype=dtype
                 )

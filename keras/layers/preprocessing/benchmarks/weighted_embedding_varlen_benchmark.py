@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Benchmark for KPL implementation of weighted embedding column with varying-length inputs."""
+"""Benchmark for KPL implementation of weighted embedding column with
+varying-length inputs."""
 
 import tensorflow.compat.v2 as tf
 

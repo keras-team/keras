@@ -51,8 +51,8 @@ def _build_attention_equation(rank, attn_axes):
     num_heads, <query attention dims>, <key attention dims>)`
     (2) Combination:
     `(<batch dims>, num_heads, <query attention dims>, <key attention dims>),
-    (<batch dims>, <value attention dims>, num_heads, channels) -> (<batch dims>,
-    <query attention dims>, num_heads, channels)`
+    (<batch dims>, <value attention dims>, num_heads, channels) -> (<batch
+    dims>, <query attention dims>, num_heads, channels)`
 
     Args:
       rank: Rank of query, key, value tensors.
@@ -130,8 +130,8 @@ def _get_output_shape(output_rank, known_last_dims):
 class MultiHeadAttention(Layer):
     """MultiHeadAttention layer.
 
-    This is an implementation of multi-headed attention as described in the paper
-    "Attention is all you Need" (Vaswani et al., 2017).
+    This is an implementation of multi-headed attention as described in the
+    paper "Attention is all you Need" (Vaswani et al., 2017).
     If `query`, `key,` `value` are the same, then
     this is self-attention. Each timestep in `query` attends to the
     corresponding sequence in `key`, and returns a fixed-width vector.
@@ -153,8 +153,8 @@ class MultiHeadAttention(Layer):
     When using MultiHeadAttention inside a custom Layer, the custom Layer must
     implement `build()` and call MultiHeadAttention's `_build_from_signature()`.
     This enables weights to be restored correctly when the model is loaded.
-    TODO(b/172609172): link to documentation about calling custom build functions
-    when used in a custom Layer.
+    TODO(b/172609172): link to documentation about calling custom build
+    functions when used in a custom Layer.
 
     Examples:
 
@@ -173,7 +173,8 @@ class MultiHeadAttention(Layer):
 
     Performs 2D self-attention over a 5D input tensor on axes 2 and 3.
 
-    >>> layer = MultiHeadAttention(num_heads=2, key_dim=2, attention_axes=(2, 3))
+    >>> layer = MultiHeadAttention(
+    ...     num_heads=2, key_dim=2, attention_axes=(2, 3))
     >>> input_tensor = tf.keras.Input(shape=[5, 3, 4, 16])
     >>> output_tensor = layer(input_tensor, input_tensor)
     >>> print(output_tensor.shape)
@@ -185,8 +186,9 @@ class MultiHeadAttention(Layer):
       value_dim: Size of each attention head for value.
       dropout: Dropout probability.
       use_bias: Boolean, whether the dense layers use bias vectors/matrices.
-      output_shape: The expected shape of an output tensor, besides the batch and
-        sequence dims. If not specified, projects back to the key feature dim.
+      output_shape: The expected shape of an output tensor, besides the batch
+        and sequence dims. If not specified, projects back to the key feature
+        dim.
       attention_axes: axes over which the attention is applied. `None` means
         attention over all axes, but batch, heads, and features.
       kernel_initializer: Initializer for dense layer kernels.
@@ -208,8 +210,8 @@ class MultiHeadAttention(Layer):
         indicates no attention. Broadcasting can happen for the missing batch
         dimensions and the head dimension.
       return_attention_scores: A boolean to indicate whether the output should
-        be `(attention_output, attention_scores)` if `True`, or `attention_output`
-        if `False`. Defaults to `False`.
+        be `(attention_output, attention_scores)` if `True`, or
+        `attention_output` if `False`. Defaults to `False`.
       training: Python boolean indicating whether the layer should behave in
         training mode (adding dropout) or in inference mode (no dropout).
         Defaults to either using the training mode of the parent layer/model,
@@ -304,8 +306,8 @@ class MultiHeadAttention(Layer):
         layer = cls(**config)
         if None in [query_shape, key_shape, value_shape]:
             logging.warning(
-                "One of dimensions of the input shape is missing. It should have been"
-                " memorized when the layer was serialized. "
+                "One of dimensions of the input shape is missing. It "
+                "should have been memorized when the layer was serialized. "
                 "%s is created without weights.",
                 str(cls),
             )
@@ -318,7 +320,8 @@ class MultiHeadAttention(Layer):
     def _build_from_signature(self, query, value, key=None):
         """Builds layers and variables.
 
-        Once the method is called, self._built_from_signature will be set to True.
+        Once the method is called, self._built_from_signature will be set to
+        True.
 
         Args:
           query: Query tensor or TensorShape.
@@ -383,9 +386,9 @@ class MultiHeadAttention(Layer):
                 **self._get_common_kwargs_for_sublayer()
             )
 
-            # Builds the attention computations for multi-head dot product attention.
-            # These computations could be wrapped into the keras attention layer once
-            # it supports mult-head einsum computations.
+            # Builds the attention computations for multi-head dot product
+            # attention.  These computations could be wrapped into the keras
+            # attention layer once it supports mult-head einsum computations.
             self._build_attention(output_rank)
             self._output_dense = self._make_output_dense(
                 free_dims,
@@ -401,8 +404,8 @@ class MultiHeadAttention(Layer):
             kernel_constraint=self._kernel_constraint,
             bias_constraint=self._bias_constraint,
         )
-        # Create new clone of kernel/bias initializer, so that we don't reuse the
-        # initializer instance, which could lead to same init value since
+        # Create new clone of kernel/bias initializer, so that we don't reuse
+        # the initializer instance, which could lead to same init value since
         # initializer is stateless.
         kernel_initializer = self._kernel_initializer.__class__.from_config(
             self._kernel_initializer.get_config()
@@ -475,7 +478,8 @@ class MultiHeadAttention(Layer):
         # `attention_scores` = [B, N, T, S]
         if attention_mask is not None:
             # The expand dim happens starting from the `num_heads` dimension,
-            # (<batch_dims>, num_heads, <query_attention_dims, key_attention_dims>)
+            # (<batch_dims>, num_heads, <query_attention_dims,
+            # key_attention_dims>)
             mask_expansion_axis = -len(self._attention_axes) * 2 - 1
             for _ in range(
                 len(attention_scores.shape) - len(attention_mask.shape)
@@ -491,8 +495,8 @@ class MultiHeadAttention(Layer):
         """Applies Dot-product attention with query, key, value tensors.
 
         This function defines the computation inside `call` with projected
-        multi-head Q, K, V inputs. Users can override this function for customized
-        attention implementation.
+        multi-head Q, K, V inputs. Users can override this function for
+        customized attention implementation.
 
         Args:
           query: Projected query `Tensor` of shape `(B, T, N, key_dim)`.

@@ -93,13 +93,18 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
             attention_layer._calculate_scores(query=q, key=k)
         )
 
-        # pylint:disable=line-too-long
-        # expected000 = tanh(1.+1.5) + tanh(1.1+1.6) + tanh(1.2+1.7) + tanh(1.3+1.8) = 3.96753427840
-        # expected001 = tanh(1.+2.5) + tanh(1.1+2.6) + tanh(1.2+2.7) + tanh(1.3+2.8) = 3.99558784825
-        # expected002 = tanh(1.+3.5) + tanh(1.1+3.6) + tanh(1.2+3.7) + tanh(1.3+3.8) = 3.99940254147
-        # expected010 = tanh(2.+1.5) + tanh(2.1+1.6) + tanh(2.2+1.7) + tanh(2.3+1.8) = 3.99558784825
-        # expected011 = tanh(2.+2.5) + tanh(2.1+2.6) + tanh(2.2+2.7) + tanh(2.3+2.8) = 3.99940254147
-        # expected012 = tanh(2.+3.5) + tanh(2.1+3.6) + tanh(2.2+3.7) + tanh(2.3+3.8) = 3.99991913657
+        # expected000 = tanh(1.+1.5) + tanh(1.1+1.6) + \
+        #     tanh(1.2+1.7) + tanh(1.3+1.8) = 3.96753427840
+        # expected001 = tanh(1.+2.5) + tanh(1.1+2.6) + \
+        #     tanh(1.2+2.7) + tanh(1.3+2.8) = 3.99558784825
+        # expected002 = tanh(1.+3.5) + tanh(1.1+3.6) + \
+        #     tanh(1.2+3.7) + tanh(1.3+3.8) = 3.99940254147
+        # expected010 = tanh(2.+1.5) + tanh(2.1+1.6) + \
+        #     tanh(2.2+1.7) + tanh(2.3+1.8) = 3.99558784825
+        # expected011 = tanh(2.+2.5) + tanh(2.1+2.6) + \
+        #     tanh(2.2+2.7) + tanh(2.3+2.8) = 3.99940254147
+        # expected012 = tanh(2.+3.5) + tanh(2.1+3.6) + \
+        #     tanh(2.2+3.7) + tanh(2.3+3.8) = 3.99991913657
         expected = np.array(
             [
                 [
@@ -365,7 +370,8 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
             )
 
         # Expected scores of shape [1, 2, 3]
-        # scores = [[[1.1*1.6, 1.1*0.7, -1.1*0.8], [-0.5*1.6, -0.5*0.7, 0.5*0.8]]]
+        # scores = [[[1.1*1.6, 1.1*0.7, -1.1*0.8],
+        #            [-0.5*1.6, -0.5*0.7, 0.5*0.8]]]
         #        = [[[1.76, 0.77, -0.88], [-0.8, -0.35, 0.4]]]
         # Expected attention distribution = softmax(scores) with zeros in
         # positions where v_mask == False.
@@ -437,7 +443,9 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
             )
 
         # Expected scores of shape [1, 3, 3]
-        # scores = [[0.25, 0.4, -0.15], [0.4, 0.64, -0.24], [-0.15, -0.24, 0.09]]
+        # scores = [[0.25, 0.4, -0.15],
+        #           [0.4, 0.64, -0.24],
+        #           [-0.15, -0.24, 0.09]]
         # Expected attention distribution = softmax(scores) lower triangular
         # => attention_distribution00 = [1., 0., 0.]
         #    attention_distribution01
@@ -463,7 +471,8 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
         # expected000 = 0.5
         # expected010 = 0.44028635073 * 0.5 + 0.55971364926 * 0.8
         #             = 0.66791409477
-        # expected020 = 0.31395396638 * 0.5 +0.28693232061 * 0.8 -0.399113713 * 0.3
+        # expected020 = 0.31395396638 * 0.5 + \
+        #     0.28693232061 * 0.8 -0.399113713 * 0.3
         #             = 0.26678872577
         expected = np.array(
             [[[0.5], [0.66791409477], [0.26678872577]]], dtype=np.float32

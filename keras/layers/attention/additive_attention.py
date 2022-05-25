@@ -29,8 +29,8 @@ from tensorflow.python.util.tf_export import keras_export
 class AdditiveAttention(BaseDenseAttention):
     """Additive attention layer, a.k.a. Bahdanau-style attention.
 
-    Inputs are `query` tensor of shape `[batch_size, Tq, dim]`, `value` tensor of
-    shape `[batch_size, Tv, dim]` and `key` tensor of shape
+    Inputs are `query` tensor of shape `[batch_size, Tq, dim]`, `value` tensor
+    of shape `[batch_size, Tv, dim]` and `key` tensor of shape
     `[batch_size, Tv, dim]`. The calculation follows the steps:
 
     1. Reshape `query` and `key` into shapes `[batch_size, Tq, 1, dim]`
@@ -44,11 +44,12 @@ class AdditiveAttention(BaseDenseAttention):
        `return tf.matmul(distribution, value)`.
 
     Args:
-      use_scale: If `True`, will create a variable to scale the attention scores.
-      causal: Boolean. Set to `True` for decoder self-attention. Adds a mask such
-        that position `i` cannot attend to positions `j > i`. This prevents the
-        flow of information from the future towards the past.
-        Defaults to `False`.
+      use_scale: If `True`, will create a variable to scale the attention
+        scores.
+      causal: Boolean. Set to `True` for decoder self-attention. Adds a mask
+        such that position `i` cannot attend to positions `j > i`. This prevents
+        the flow of information from the future towards the past.  Defaults to
+        `False`.
       dropout: Float between 0 and 1. Fraction of the units to drop for the
         attention scores. Defaults to 0.0.
 

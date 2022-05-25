@@ -356,8 +356,9 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         output_y2 = math.sqrt(2.0 / 2000.0) * rff_layer2(y)
 
         # Compute the inner products of the outputs (on inputs x and y) for both
-        # layers. For any fixed random features layer rff_layer, and inputs x, y,
-        # rff_layer(x)^T * rff_layer(y) ~= K(x,y) up to a normalization factor.
+        # layers. For any fixed random features layer rff_layer, and inputs x,
+        # y, rff_layer(x)^T * rff_layer(y) ~= K(x,y) up to a normalization
+        # factor.
         approx_kernel1 = kernelized_utils.inner_product(output_x1, output_y1)
         approx_kernel2 = kernelized_utils.inner_product(output_x2, output_y2)
         self._assert_all_close(approx_kernel1, approx_kernel2, atol=0.08)
@@ -389,8 +390,8 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         output_y = math.sqrt(2.0 / small_output_dim) * rff_layer(y)
 
         # The inner products of the outputs (on inputs x and y) approximates the
-        # real value of the RBF kernel but poorly since the output dimension of the
-        # layer is small.
+        # real value of the RBF kernel but poorly since the output dimension of
+        # the layer is small.
         exact_kernel_value = exact_kernel_fn(x, y)
         approx_kernel_value = kernelized_utils.inner_product(output_x, output_y)
         abs_error = tf.abs(exact_kernel_value - approx_kernel_value)

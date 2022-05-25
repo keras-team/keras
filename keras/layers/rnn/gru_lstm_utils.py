@@ -100,7 +100,8 @@ class DefunWrapper:
 def canonical_to_params(weights, biases, shape, transpose_weights=False):
     """Utility function convert variable to cuDNN compatible parameter.
 
-    Note that Keras weights for kernels are different from the cuDNN format. Eg.:
+    Note that Keras weights for kernels are different from the cuDNN format.
+    Eg.:
 
     ```
       Keras                 cuDNN
@@ -142,8 +143,8 @@ def is_sequence_right_padded(mask):
     Mixture of mask/unmasked data: [[True, False, True, False, False]].
 
     Note that for the mixed data example above, the actually data RNN should see
-    are those 2 Trues (index 0 and 2), the index 1 False should be ignored and not
-    pollute the internal states.
+    are those 2 Trues (index 0 and 2), the index 1 False should be ignored and
+    not pollute the internal states.
 
     Args:
       mask: the Boolean tensor with shape [batch, timestep]
@@ -158,11 +159,11 @@ def is_sequence_right_padded(mask):
 
 
 def has_fully_masked_sequence(mask):
-    # See https://github.com/tensorflow/tensorflow/issues/33148 for more details.
-    # Cudnn kernel will error out if the input sequence contains any fully masked
-    # data. We walk around this issue by rerouting the computation to standard
-    # kernel, until the issue on cudnn side has been fixed.
-    # For a fully masked sequence, it will contain all Falses. To make it easy to
+    # See https://github.com/tensorflow/tensorflow/issues/33148 for more
+    # details.  Cudnn kernel will error out if the input sequence contains any
+    # fully masked data. We walk around this issue by rerouting the computation
+    # to standard kernel, until the issue on cudnn side has been fixed.  For a
+    # fully masked sequence, it will contain all Falses. To make it easy to
     # check, we inverse the boolean, check if any of the sequence has all True.
     return tf.reduce_any(tf.reduce_all(tf.logical_not(mask), axis=1))
 
@@ -185,15 +186,15 @@ def calculate_sequence_by_mask(mask, time_major):
     Consider the following example:
       a = [[True, True, False, False],
            [True, True, True, False]]
-    It is a (2, 4) tensor, and the corresponding sequence length result should be
-    1D tensor with value [2, 3]. Note that the masking tensor must be right
+    It is a (2, 4) tensor, and the corresponding sequence length result should
+    be 1D tensor with value [2, 3]. Note that the masking tensor must be right
     padded that could be checked by, e.g., `is_sequence_right_padded()`.
 
     Args:
       mask: Boolean tensor with shape [batch, timestep] or [timestep, batch] if
         time_major=True.
-      time_major: Boolean, which indicates whether the mask is time major or batch
-        major.
+      time_major: Boolean, which indicates whether the mask is time major or
+        batch major.
     Returns:
       sequence_length: 1D int32 tensor.
     """
@@ -250,7 +251,8 @@ def function_register(func, *args, **kwargs):
       a `ConcreteFunction` object specialized to inputs and execution context.
 
     Raises:
-      ValueError: When the input function is not a defun wrapped python function.
+      ValueError: When the input function is not a defun wrapped python
+        function.
     """
     concrete_func = func.get_concrete_function(*args, **kwargs)
     concrete_func.add_to_graph()

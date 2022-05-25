@@ -25,10 +25,11 @@ def get_locallyconnected_mask(
 ):
     """Return a mask representing connectivity of a locally-connected operation.
 
-    This method returns a masking numpy array of 0s and 1s (of type `np.float32`)
-    that, when element-wise multiplied with a fully-connected weight tensor, masks
-    out the weights between disconnected input-output pairs and thus implements
-    local connectivity through a sparse fully-connected weight tensor.
+    This method returns a masking numpy array of 0s and 1s (of type
+    `np.float32`) that, when element-wise multiplied with a fully-connected
+    weight tensor, masks out the weights between disconnected input-output pairs
+    and thus implements local connectivity through a sparse fully-connected
+    weight tensor.
 
     Assume an unshared convolution with given parameters is applied to an input
     having N spatial dimensions with `input_shape = (d_in1, ..., d_inN)`
@@ -36,10 +37,10 @@ def get_locallyconnected_mask(
     by layer parameters such as `strides`).
 
     This method returns a mask which can be broadcast-multiplied (element-wise)
-    with a 2*(N+1)-D weight matrix (equivalent to a fully-connected layer between
-    (N+1)-D activations (N spatial + 1 channel dimensions for input and output)
-    to make it perform an unshared convolution with given `kernel_shape`,
-    `strides`, `padding` and `data_format`.
+    with a 2*(N+1)-D weight matrix (equivalent to a fully-connected layer
+    between (N+1)-D activations (N spatial + 1 channel dimensions for input and
+    output) to make it perform an unshared convolution with given
+    `kernel_shape`, `strides`, `padding` and `data_format`.
 
     Args:
       input_shape: tuple of size N: `(d_in1, ..., d_inN)` spatial shape of the
@@ -98,19 +99,18 @@ def local_conv_matmul(inputs, kernel, kernel_mask, output_shape):
         inputs: (N+2)-D tensor with shape `(batch_size, channels_in, d_in1, ...,
           d_inN)` or `(batch_size, d_in1, ..., d_inN, channels_in)`.
         kernel: the unshared weights for N-D convolution,
-            an (N+2)-D tensor of shape: `(d_in1, ..., d_inN, channels_in, d_out2,
-              ..., d_outN, channels_out)` or `(channels_in, d_in1, ..., d_inN,
-              channels_out, d_out2, ..., d_outN)`, with the ordering of channels
-              and spatial dimensions matching that of the input. Each entry is the
-              weight between a particular input and output location, similarly to
-              a fully-connected weight matrix.
+            an (N+2)-D tensor of shape: `(d_in1, ..., d_inN, channels_in,
+            d_out2, ..., d_outN, channels_out)` or `(channels_in, d_in1, ...,
+            d_inN, channels_out, d_out2, ..., d_outN)`, with the ordering of
+            channels and spatial dimensions matching that of the input. Each
+            entry is the weight between a particular input and output location,
+            similarly to a fully-connected weight matrix.
         kernel_mask: a float 0/1 mask tensor of shape: `(d_in1, ..., d_inN, 1,
           d_out2, ..., d_outN, 1)` or `(1, d_in1, ..., d_inN, 1, d_out2, ...,
-          d_outN)`, with the ordering of singleton and spatial dimensions matching
-          that of the input. Mask represents the connectivity pattern of the layer
-          and is
-             precomputed elsewhere based on layer parameters: stride, padding, and
-               the receptive field shape.
+          d_outN)`, with the ordering of singleton and spatial dimensions
+          matching that of the input. Mask represents the connectivity pattern
+          of the layer and is precomputed elsewhere based on layer parameters:
+          stride, padding, and the receptive field shape.
         output_shape: a tuple of (N+2) elements representing the output shape:
           `(batch_size, channels_out, d_out1, ..., d_outN)` or `(batch_size,
           d_out1, ..., d_outN, channels_out)`, with the ordering of channels and

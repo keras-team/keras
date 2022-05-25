@@ -60,26 +60,27 @@ class _RNNCellWrapper(AbstractRNNCell):
         Args:
           inputs: A tensor with wrapped cell's input.
           state: A tensor or tuple of tensors with wrapped cell's state.
-          cell_call_fn: Wrapped cell's method to use for step computation (cell's
-            `__call__` or 'call' method).
+          cell_call_fn: Wrapped cell's method to use for step computation
+            (cell's `__call__` or 'call' method).
           **kwargs: Additional arguments.
 
         Returns:
           A pair containing:
           - Output: A tensor with cell's output.
-          - New state: A tensor or tuple of tensors with new wrapped cell's state.
+          - New state: A tensor or tuple of tensors with new wrapped cell's
+            state.
         """
         raise NotImplementedError
 
     def call(self, inputs, state, **kwargs):
         """Runs the RNN cell step computation.
 
-        When `call` is being used, we assume that the wrapper object has been built,
-        and therefore the wrapped cells has been built via its `build` method and
-        its `call` method can be used directly.
+        When `call` is being used, we assume that the wrapper object has been
+        built, and therefore the wrapped cells has been built via its `build`
+        method and its `call` method can be used directly.
 
-        This allows to use the wrapped cell and the non-wrapped cell equivalently
-        when using `call` and `build`.
+        This allows to use the wrapped cell and the non-wrapped cell
+        equivalently when using `call` and `build`.
 
         Args:
           inputs: A tensor with wrapped cell's input.
@@ -90,7 +91,8 @@ class _RNNCellWrapper(AbstractRNNCell):
           A pair containing:
 
           - Output: A tensor with cell's output.
-          - New state: A tensor or tuple of tensors with new wrapped cell's state.
+          - New state: A tensor or tuple of tensors with new wrapped cell's
+            state.
         """
         return self._call_wrapped_cell(
             inputs, state, cell_call_fn=self.cell.call, **kwargs
@@ -159,10 +161,11 @@ class DropoutWrapper(_RNNCellWrapper):
     ):
         """Create a cell with added input, state, and/or output dropout.
 
-        If `variational_recurrent` is set to `True` (**NOT** the default behavior),
-        then the same dropout mask is applied at every step, as described in:
-        [A Theoretically Grounded Application of Dropout in Recurrent
-        Neural Networks. Y. Gal, Z. Ghahramani](https://arxiv.org/abs/1512.05287).
+        If `variational_recurrent` is set to `True` (**NOT** the default
+        behavior), then the same dropout mask is applied at every step, as
+        described in: [A Theoretically Grounded Application of Dropout in
+        Recurrent Neural Networks. Y. Gal, Z.
+        Ghahramani](https://arxiv.org/abs/1512.05287).
 
         Otherwise a different dropout mask is applied at every time step.
 
@@ -174,44 +177,52 @@ class DropoutWrapper(_RNNCellWrapper):
         Args:
           cell: an RNNCell, a projection to output_size is added to it.
           input_keep_prob: unit Tensor or float between 0 and 1, input keep
-            probability; if it is constant and 1, no input dropout will be added.
+            probability; if it is constant and 1, no input dropout will be
+            added.
           output_keep_prob: unit Tensor or float between 0 and 1, output keep
-            probability; if it is constant and 1, no output dropout will be added.
+            probability; if it is constant and 1, no output dropout will be
+            added.
           state_keep_prob: unit Tensor or float between 0 and 1, output keep
-            probability; if it is constant and 1, no output dropout will be added.
-            State dropout is performed on the outgoing states of the cell. **Note**
-            the state components to which dropout is applied when `state_keep_prob`
-            is in `(0, 1)` are also determined by the argument
-            `dropout_state_filter_visitor` (e.g. by default dropout is never applied
-            to the `c` component of an `LSTMStateTuple`).
+            probability; if it is constant and 1, no output dropout will be
+            added.  State dropout is performed on the outgoing states of the
+            cell. **Note** the state components to which dropout is applied when
+            `state_keep_prob` is in `(0, 1)` are also determined by the argument
+            `dropout_state_filter_visitor` (e.g. by default dropout is never
+            applied to the `c` component of an `LSTMStateTuple`).
           variational_recurrent: Python bool.  If `True`, then the same dropout
-            pattern is applied across all time steps per run call. If this parameter
-            is set, `input_size` **must** be provided.
-          input_size: (optional) (possibly nested tuple of) `TensorShape` objects
-            containing the depth(s) of the input tensors expected to be passed in to
-            the `DropoutWrapper`.  Required and used **iff** `variational_recurrent
-            = True` and `input_keep_prob < 1`.
+            pattern is applied across all time steps per run call. If this
+            parameter is set, `input_size` **must** be provided.
+          input_size: (optional) (possibly nested tuple of) `TensorShape`
+            objects containing the depth(s) of the input tensors expected to be
+            passed in to the `DropoutWrapper`.  Required and used **iff**
+            `variational_recurrent = True` and `input_keep_prob < 1`.
           dtype: (optional) The `dtype` of the input, state, and output tensors.
             Required and used **iff** `variational_recurrent = True`.
           seed: (optional) integer, the randomness seed.
-          dropout_state_filter_visitor: (optional), default: (see below).  Function
-            that takes any hierarchical level of the state and returns a scalar or
-            depth=1 structure of Python booleans describing which terms in the state
-            should be dropped out.  In addition, if the function returns `True`,
-            dropout is applied across this sublevel.  If the function returns
-            `False`, dropout is not applied across this entire sublevel.
-            Default behavior: perform dropout on all terms except the memory (`c`)
-              state of `LSTMCellState` objects, and don't try to apply dropout to
-            `TensorArray` objects: ```
+          dropout_state_filter_visitor: (optional), default: (see below).
+            Function that takes any hierarchical level of the state and returns
+            a scalar or depth=1 structure of Python booleans describing which
+            terms in the state should be dropped out.  In addition, if the
+            function returns `True`, dropout is applied across this sublevel.
+            If the function returns `False`, dropout is not applied across this
+            entire sublevel.  Default behavior: perform dropout on all terms
+            except the memory (`c`) state of `LSTMCellState` objects, and don't
+            try to apply dropout to
+            `TensorArray` objects:
+            ```
             def dropout_state_filter_visitor(s):
-              if isinstance(s, LSTMCellState): # Never perform dropout on the c
-                state. return LSTMCellState(c=False, h=True)
-              elif isinstance(s, TensorArray): return False return True ```
+              # Never perform dropout on the c state.
+              if isinstance(s, LSTMCellState):
+                return LSTMCellState(c=False, h=True)
+              elif isinstance(s, TensorArray):
+                return False
+              return True
+            ```
           **kwargs: dict of keyword arguments for base layer.
 
         Raises:
-          TypeError: if `cell` is not an `RNNCell`, or `keep_state_fn` is provided
-            but not `callable`.
+          TypeError: if `cell` is not an `RNNCell`, or `keep_state_fn` is
+            provided but not `callable`.
           ValueError: if any of the keep_probs are not between 0 and 1.
         """
         if isinstance(cell, lstm.LSTMCell):
@@ -287,8 +298,8 @@ class DropoutWrapper(_RNNCellWrapper):
             ):
                 if input_size is None:
                     raise ValueError(
-                        "When variational_recurrent=True and input_keep_prob < 1.0 or "
-                        "is unknown, input_size must be provided"
+                        "When variational_recurrent=True and input_keep_prob < "
+                        "1.0 or is unknown, input_size must be provided"
                     )
                 self._recurrent_input_noise = _enumerated_map_structure_up_to(
                     input_size,
@@ -386,15 +397,16 @@ class DropoutWrapper(_RNNCellWrapper):
         Args:
           inputs: A tensor with wrapped cell's input.
           state: A tensor or tuple of tensors with wrapped cell's state.
-          cell_call_fn: Wrapped cell's method to use for step computation (cell's
-            `__call__` or 'call' method).
+          cell_call_fn: Wrapped cell's method to use for step computation
+            (cell's `__call__` or 'call' method).
           **kwargs: Additional arguments.
 
         Returns:
           A pair containing:
 
           - Output: A tensor with cell's output.
-          - New state: A tensor or tuple of tensors with new wrapped cell's state.
+          - New state: A tensor or tuple of tensors with new wrapped cell's
+            state.
         """
 
         def _should_dropout(p):
@@ -487,10 +499,10 @@ class ResidualWrapper(_RNNCellWrapper):
 
         Args:
           cell: An instance of `RNNCell`.
-          residual_fn: (Optional) The function to map raw cell inputs and raw cell
-            outputs to the actual cell outputs of the residual network.
-            Defaults to calling nest.map_structure on (lambda i, o: i + o), inputs
-              and outputs.
+          residual_fn: (Optional) The function to map raw cell inputs and raw
+            cell outputs to the actual cell outputs of the residual network.
+            Defaults to calling nest.map_structure on (lambda i, o: i + o),
+            inputs and outputs.
           **kwargs: dict of keyword arguments for base layer.
         """
         super().__init__(cell, **kwargs)
@@ -502,8 +514,8 @@ class ResidualWrapper(_RNNCellWrapper):
         Args:
           inputs: cell inputs.
           state: cell state.
-          cell_call_fn: Wrapped cell's method to use for step computation (cell's
-            `__call__` or 'call' method).
+          cell_call_fn: Wrapped cell's method to use for step computation
+            (cell's `__call__` or 'call' method).
           **kwargs: Additional arguments passed to the wrapped cell's `call`.
 
         Returns:
@@ -511,7 +523,8 @@ class ResidualWrapper(_RNNCellWrapper):
 
         Raises:
           TypeError: If cell inputs and outputs have different structure (type).
-          ValueError: If cell inputs and outputs have different structure (value).
+          ValueError: If cell inputs and outputs have different structure
+            (value).
         """
         outputs, new_state = cell_call_fn(inputs, state, **kwargs)
 

@@ -42,8 +42,8 @@ class CategoryEncoding(base_layer.Layer):
     This layer provides options for condensing data into a categorical encoding
     when the total number of tokens are known in advance. It accepts integer
     values as inputs, and it outputs a dense or sparse representation of those
-    inputs. For integer inputs where the total number of tokens is not known, use
-    `tf.keras.layers.IntegerLookup` instead.
+    inputs. For integer inputs where the total number of tokens is not known,
+    use `tf.keras.layers.IntegerLookup` instead.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
@@ -85,9 +85,9 @@ class CategoryEncoding(base_layer.Layer):
              [0. , 0.2, 0. , 0.4]], dtype=float32)>
 
     Args:
-      num_tokens: The total number of tokens the layer should support. All inputs
-        to the layer must integers in the range `0 <= value < num_tokens`, or an
-        error will be thrown.
+      num_tokens: The total number of tokens the layer should support. All
+        inputs to the layer must integers in the range `0 <= value <
+        num_tokens`, or an error will be thrown.
       output_mode: Specification for the output of the layer.
         Defaults to `"multi_hot"`. Values can be `"one_hot"`, `"multi_hot"` or
         `"count"`, configuring the layer as follows:
@@ -97,10 +97,10 @@ class CategoryEncoding(base_layer.Layer):
             last dimension is not size 1, will append a new dimension for the
             encoded output.
           - `"multi_hot"`: Encodes each sample in the input into a single array
-            of `num_tokens` size, containing a 1 for each vocabulary term present
-            in the sample. Treats the last dimension as the sample dimension, if
-            input shape is `(..., sample_length)`, output shape will be
-            `(..., num_tokens)`.
+            of `num_tokens` size, containing a 1 for each vocabulary term
+            present in the sample. Treats the last dimension as the sample
+            dimension, if input shape is `(..., sample_length)`, output shape
+            will be `(..., num_tokens)`.
           - `"count"`: Like `"multi_hot"`, but the int array contains a count of
             the number of times the token at that index appeared in the sample.
         For all output modes, currently only output up to rank 2 is supported.
@@ -110,15 +110,15 @@ class CategoryEncoding(base_layer.Layer):
     Call arguments:
       inputs: A 1D or 2D tensor of integer inputs.
       count_weights: A tensor in the same shape as `inputs` indicating the
-        weight for each sample value when summing up in `count` mode. Not used in
-        `"multi_hot"` or `"one_hot"` modes.
+        weight for each sample value when summing up in `count` mode. Not used
+        in `"multi_hot"` or `"one_hot"` modes.
     """
 
     def __init__(
         self, num_tokens=None, output_mode="multi_hot", sparse=False, **kwargs
     ):
-        # max_tokens is an old name for the num_tokens arg we continue to support
-        # because of usage.
+        # max_tokens is an old name for the num_tokens arg we continue to
+        # support because of usage.
         if "max_tokens" in kwargs:
             logging.warning(
                 "max_tokens is deprecated, please use num_tokens instead."
@@ -192,8 +192,8 @@ class CategoryEncoding(base_layer.Layer):
         if count_weights is not None:
             if self.output_mode != COUNT:
                 raise ValueError(
-                    "`count_weights` is not used when `output_mode` is not `'count'`. "
-                    "Received `count_weights={}`.".format(count_weights)
+                    "`count_weights` is not used when `output_mode` is not "
+                    "`'count'`. Received `count_weights={count_weights}`."
                 )
             count_weights = utils.ensure_tensor(
                 count_weights, self.compute_dtype

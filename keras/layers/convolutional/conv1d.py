@@ -44,8 +44,8 @@ class Conv1D(Conv):
 
     Examples:
 
-    >>> # The inputs are 128-length vectors with 10 timesteps, and the batch size
-    >>> # is 4.
+    >>> # The inputs are 128-length vectors with 10 timesteps, and the
+    >>> # batch size is 4.
     >>> input_shape = (4, 10, 128)
     >>> x = tf.random.normal(input_shape)
     >>> y = tf.keras.layers.Conv1D(
@@ -73,9 +73,9 @@ class Conv1D(Conv):
         Specifying any stride value != 1 is incompatible with specifying
         any `dilation_rate` value != 1.
       padding: One of `"valid"`, `"same"` or `"causal"` (case-insensitive).
-        `"valid"` means no padding. `"same"` results in padding with zeros evenly
-        to the left/right or up/down of the input such that output has the same
-        height/width dimension as the input.
+        `"valid"` means no padding. `"same"` results in padding with zeros
+        evenly to the left/right or up/down of the input such that output has
+        the same height/width dimension as the input.
         `"causal"` results in causal (dilated) convolutions, e.g. `output[t]`
         does not depend on `input[t+1:]`. Useful when modeling temporal data
         where the model should not violate the temporal order.

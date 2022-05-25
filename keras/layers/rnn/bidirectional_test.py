@@ -326,8 +326,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     def test_Bidirectional_with_time_major_input(self, time_major):
         batch_size, time, input_dim = 2, 3, 1
         inputs = tf.zeros((batch_size, time, input_dim))
-        # length is [1 2]. Within the batch, the first element has 1 step, and the
-        # second element as 2 steps.
+        # length is [1 2]. Within the batch, the first element has 1 step, and
+        # the second element as 2 steps.
         lengths = tf.range(1, 1 + batch_size)
         mask = tf.sequence_mask(lengths, maxlen=time, dtype=tf.float32)
 
@@ -355,8 +355,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         if time_major:
             keras_outputs = tf.transpose(keras_outputs, [1, 0, 2])
 
-        # expect the first element in batch has 1 step and second element in batch
-        # has 2 steps.
+        # expect the first element in batch has 1 step and second element in
+        # batch has 2 steps.
         expected_result = np.array(
             [
                 [[1.0, 1.0], [0.0, 0.0], [0.0, 0.0]],
@@ -430,7 +430,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             model.predict(inputs)
 
     def test_Bidirectional_state_reuse_with_np_input(self):
-        # See https://github.com/tensorflow/tensorflow/issues/28761 for more detail.
+        # See https://github.com/tensorflow/tensorflow/issues/28761 for more
+        # detail.
         rnn = keras.layers.LSTM
         samples = 2
         dim = 5
@@ -620,7 +621,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             rnn(3, return_state=True), merge_mode=None
         )
         output_shape = wrapper.compute_output_shape(input_shape)
-        # 1 for forward output and 1 for backward output,  and the rest for states
+        # 1 for forward output and 1 for backward output,  and the rest for
+        # states
         self.assertLen(output_shape, 2 + num_state)
         for shape in output_shape:
             self.assertEqual(shape.as_list(), [None, 3])
@@ -659,7 +661,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded input yet.",
+        skip_message="Skipping as ROCm MIOpen does not support padded "
+        "input yet.",
     )
     def test_Bidirectional_last_output_with_masking(self):
         rnn = keras.layers.LSTM
@@ -669,8 +672,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         units = 3
         merge_mode = "concat"
         x = np.random.rand(samples, timesteps, dim)
-        # clear the first record's timestep 2. Last output should be same as state,
-        # not zeroed.
+        # clear the first record's timestep 2. Last output should be same as
+        # state, not zeroed.
         x[0, 2] = 0
 
         with self.cached_session():
@@ -691,7 +694,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     @parameterized.parameters([keras.layers.LSTM, keras.layers.GRU])
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded input yet.",
+        skip_message="Skipping as ROCm MIOpen does not support padded "
+        "input yet.",
     )
     def test_Bidirectional_sequence_output_with_masking(self, rnn):
         samples = 2
@@ -700,8 +704,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         units = 3
         merge_mode = "concat"
         x = np.random.rand(samples, timesteps, dim)
-        # clear the first record's timestep 2, and expect the output of timestep 2
-        # is also 0s.
+        # clear the first record's timestep 2, and expect the output of timestep
+        # 2 is also 0s.
         x[0, 2] = 0
 
         with self.cached_session():
@@ -919,7 +923,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     @parameterized.parameters(["ave", "concat", "mul"])
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm RNN does not support ragged tensors yet.",
+        skip_message="Skipping as ROCm RNN does not support ragged "
+        "tensors yet.",
     )
     def test_Bidirectional_ragged_input(self, merge_mode):
         np.random.seed(100)
@@ -958,8 +963,8 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             )
 
             # TODO(kaftan): after KerasTensor refactor TF op layers should work
-            # with many composite tensors, and this shouldn't need to be a lambda
-            # layer.
+            # with many composite tensors, and this shouldn't need to be a
+            # lambda layer.
             reverse_layer = core.Lambda(tf.reverse, arguments=dict(axis=[1]))
             f_backward = keras.backend.function(
                 [inputs], reverse_layer(layer.backward_layer(inputs))

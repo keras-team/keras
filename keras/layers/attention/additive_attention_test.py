@@ -65,14 +65,18 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
         )
         actual = attention_layer._calculate_scores(query=q, key=k)
 
-        # pylint:disable=line-too-long
-        # expected000 = 0.5*tanh(1.+1.5) + 0.6*tanh(1.1+1.6) + 0.7*tanh(1.2+1.7) + 0.8*tanh(1.3+1.8) = 2.58044532581
-        # expected001 = 0.5*tanh(1.+2.5) + 0.6*tanh(1.1+2.6) + 0.7*tanh(1.2+2.7) + 0.8*tanh(1.3+2.8) = 2.59734317449
-        # expected002 = 0.5*tanh(1.+3.5) + 0.6*tanh(1.1+3.6) + 0.7*tanh(1.2+3.7) + 0.8*tanh(1.3+3.8) = 2.59964024652
-        # expected010 = 0.5*tanh(2.+1.5) + 0.6*tanh(2.1+1.6) + 0.7*tanh(2.2+1.7) + 0.8*tanh(2.3+1.8) = 2.59734317449
-        # expected011 = 0.5*tanh(2.+2.5) + 0.6*tanh(2.1+2.6) + 0.7*tanh(2.2+2.7) + 0.8*tanh(2.3+2.8) = 2.59964024652
-        # expected012 = 0.5*tanh(2.+3.5) + 0.6*tanh(2.1+3.6) + 0.7*tanh(2.2+3.7) + 0.8*tanh(2.3+3.8) = 2.59995130916
-        # pylint:enable=line-too-long
+        # expected000 = 0.5*tanh(1.+1.5) + 0.6*tanh(1.1+1.6) + \
+        #     0.7*tanh(1.2+1.7) + 0.8*tanh(1.3+1.8) = 2.58044532581
+        # expected001 = 0.5*tanh(1.+2.5) + 0.6*tanh(1.1+2.6) + \
+        #     0.7*tanh(1.2+2.7) + 0.8*tanh(1.3+2.8) = 2.59734317449
+        # expected002 = 0.5*tanh(1.+3.5) + 0.6*tanh(1.1+3.6) + \
+        #     0.7*tanh(1.2+3.7) + 0.8*tanh(1.3+3.8) = 2.59964024652
+        # expected010 = 0.5*tanh(2.+1.5) + 0.6*tanh(2.1+1.6) + \
+        #     0.7*tanh(2.2+1.7) + 0.8*tanh(2.3+1.8) = 2.59734317449
+        # expected011 = 0.5*tanh(2.+2.5) + 0.6*tanh(2.1+2.6) + \
+        #     0.7*tanh(2.2+2.7) + 0.8*tanh(2.3+2.8) = 2.59964024652
+        # expected012 = 0.5*tanh(2.+3.5) + 0.6*tanh(2.1+3.6) + \
+        #     0.7*tanh(2.2+3.7) + 0.8*tanh(2.3+3.8) = 2.59995130916
         expected = np.array(
             [
                 [
@@ -199,9 +203,10 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
         attention_layer.scale = np.array([[[0.5]]], dtype=np.float32)
         actual = attention_layer([q, v], mask=[None, v_mask])
 
-        # pylint:disable=line-too-long
         # Expected scores of shape [1, 1, 3]
-        # scores = [[[0.5 * tanh(1.1 + 1.6), 0.5 * tanh(1.1 + 0.7), 0.5 * tanh(1.1 - 0.8)]]]
+        # scores = [[[0.5 * tanh(1.1 + 1.6),
+        #             0.5 * tanh(1.1 + 0.7),
+        #             0.5 * tanh(1.1 - 0.8)]]]
         #        = [[[0.49550372683, 0.47340300642, 0.14565630622]]]
         # Expected attention distribution = softmax(scores) with zeros in
         # positions where v_mask == False.
@@ -216,7 +221,6 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
         # Expected tensor of shape [1, 1, 1].
         # expected000 = 0.50552495521 * 1.6 + 0.49447504478 * 0.7 - 0 * 0.8
         #             = 1.15497245968
-        # pylint:enable=line-too-long
         expected = np.array([[[1.15497245968]]], dtype=np.float32)
         self.assertAllClose(expected, actual)
 
@@ -235,9 +239,10 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
         attention_layer.scale = np.array([[[0.5]]], dtype=np.float32)
         actual = attention_layer([q, v, k], mask=[None, v_mask])
 
-        # pylint:disable=line-too-long
         # Expected scores of shape [1, 1, 3]
-        # scores = [[[0.5 * tanh(1.1 + 1.6), 0.5 * tanh(1.1 + 0.7), 0.5 * tanh(1.1 - 0.8)]]]
+        # scores = [[[0.5 * tanh(1.1 + 1.6),
+        #             0.5 * tanh(1.1 + 0.7),
+        #             0.5 * tanh(1.1 - 0.8)]]]
         #        = [[[0.49550372683, 0.47340300642, 0.14565630622]]]
         # Expected attention distribution = softmax(scores) with zeros in
         # positions where v_mask == False.
@@ -252,7 +257,6 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
         # Expected tensor of shape [1, 1, 1].
         # expected000 = 0.50552495521 * 0.5 + 0.49447504478 * 0.8 - 0 * 0.3
         #             = 0.64834251342
-        # pylint:enable=line-too-long
         expected = np.array([[[0.64834251342]]], dtype=np.float32)
         self.assertAllClose(expected, actual)
 
@@ -271,10 +275,13 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
         attention_layer.scale = np.array([[[0.5]]], dtype=np.float32)
         actual = attention_layer([q, v], mask=[q_mask, v_mask])
 
-        # pylint:disable=line-too-long
         # Expected scores of shape [1, 2, 3]
-        # scores = [[[0.5 * tanh(1.1 + 1.6), 0.5 * tanh(1.1 + 0.7), 0.5 * tanh(1.1 - 0.8)],
-        #            [0.5 * tanh(-0.5 + 1.6), 0.5 * tanh(-0.5 + 0.7), 0.5 * tanh(-0.5 - 0.8)]]]
+        # scores = [[[0.5 * tanh(1.1 + 1.6),
+        #             0.5 * tanh(1.1 + 0.7),
+        #             0.5 * tanh(1.1 - 0.8)],
+        #            [0.5 * tanh(-0.5 + 1.6),
+        #             0.5 * tanh(-0.5 + 0.7),
+        #             0.5 * tanh(-0.5 - 0.8)]]]
         #        = [[[0.49550372683, 0.47340300642, 0.14565630622],
         #            [0.40024951088, 0.09868766011, -0.43086157965]]]
         # Expected attention distribution = softmax(scores) with zeros in
@@ -298,7 +305,6 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
         # expected000 = 0.50552495521 * 1.6 + 0.49447504478 * 0.7 - 0 * 0.8
         #             = 1.15497245968
         # expected000 = 0
-        # pylint:enable=line-too-long
         expected = np.array([[[1.15497245968], [0.0]]], dtype=np.float32)
         self.assertAllClose(expected, actual)
 

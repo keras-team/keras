@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """Keras recurrent layers."""
-# pylint: disable=g-bad-import-order,g-direct-tensorflow-import,disable=g-import-not-at-top
 
 import tensorflow.compat.v2 as tf
 

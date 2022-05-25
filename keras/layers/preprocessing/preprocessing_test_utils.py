@@ -66,7 +66,8 @@ class PreprocessingLayerTest(tf.test.TestCase):
     compare_accumulators = assertAllCloseOrEqual
 
     def validate_accumulator_computation(self, combiner, data, expected):
-        """Validate that various combinations of compute and merge are identical."""
+        """Validate that various combinations of compute and merge are
+        identical."""
         if len(data) < 4:
             raise AssertionError(
                 f"Data must have at least 4 elements. Received "
@@ -151,8 +152,8 @@ class PreprocessingLayerTest(tf.test.TestCase):
         self.compare_accumulators(
             all_merge,
             single_merge,
-            msg="Calling merge with a data length of 1 should not change the data "
-            "output.",
+            msg="Calling merge with a data length of 1 should not change "
+            "the data output.",
         )
 
         self.compare_accumulators(

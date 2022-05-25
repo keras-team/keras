@@ -71,8 +71,8 @@ class BaseDenseAttentionTest(tf.test.TestCase, parameterized.TestCase):
             scores=scores, value=v, scores_mask=scores_mask
         )
 
-        # Expected softmax scores = softmax(scores) with zeros in positions where
-        # v_mask == False.
+        # Expected softmax scores = softmax(scores) with zeros in positions
+        # where v_mask == False.
         # => softmax_scores000 = exp(1)/(exp(1) + exp(0)) = 0.73105857863
         #    softmax_scores001 = exp(0)/(exp(1) + exp(0)) = 0.26894142137
         #    softmax_scores002 = 0

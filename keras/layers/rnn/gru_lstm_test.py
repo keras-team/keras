@@ -66,7 +66,8 @@ class RNNV2Test(test_combinations.TestCase):
 
     @parameterized.parameters([lstm.LSTM, gru.GRU])
     def test_reset_dropout_mask_between_batch(self, layer):
-        # See https://github.com/tensorflow/tensorflow/issues/29187 for more details
+        # See https://github.com/tensorflow/tensorflow/issues/29187 for more
+        # details
         batch_size = 8
         timestep = 12
         embedding_dim = 10

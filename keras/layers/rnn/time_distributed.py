@@ -34,8 +34,8 @@ class TimeDistributed(Wrapper):
     Every input should be at least 3D, and the dimension of index one of the
     first input will be considered to be the temporal dimension.
 
-    Consider a batch of 32 video samples, where each sample is a 128x128 RGB image
-    with `channels_last` data format, across 10 timesteps.
+    Consider a batch of 32 video samples, where each sample is a 128x128 RGB
+    image with `channels_last` data format, across 10 timesteps.
     The batch input shape is `(32, 10, 128, 128, 3)`.
 
     You can then use `TimeDistributed` to apply the same `Conv2D` layer to each
@@ -47,8 +47,8 @@ class TimeDistributed(Wrapper):
     >>> outputs.shape
     TensorShape([None, 10, 126, 126, 64])
 
-    Because `TimeDistributed` applies the same instance of `Conv2D` to each of the
-    timestamps, the same set of weights are used at each timestamp.
+    Because `TimeDistributed` applies the same instance of `Conv2D` to each of
+    the timestamps, the same set of weights are used at each timestamp.
 
     Args:
       layer: a `tf.keras.layers.Layer` instance.
@@ -85,8 +85,8 @@ class TimeDistributed(Wrapper):
     def _get_shape_tuple(self, init_tuple, tensor, start_idx, int_shape=None):
         """Finds non-specific dimensions in the static shapes.
 
-        The static shapes are replaced with the corresponding dynamic shapes of the
-        tensor.
+        The static shapes are replaced with the corresponding dynamic shapes of
+        the tensor.
         Args:
           init_tuple: a tuple, the first part of the output shape
           tensor: the tensor from which to get the (static and dynamic) shapes
@@ -263,9 +263,9 @@ class TimeDistributed(Wrapper):
                     y, tf.reshape, y, output_shape
                 )
                 if not tf.executing_eagerly():
-                    # Set the static shape for the result since it might be lost during
-                    # array_ops reshape, eg, some `None` dim in the result could be
-                    # inferred.
+                    # Set the static shape for the result since it might be lost
+                    # during array_ops reshape, eg, some `None` dim in the
+                    # result could be inferred.
                     tf.__internal__.nest.map_structure_up_to(
                         y,
                         lambda tensor, shape: tensor.set_shape(shape),
@@ -295,19 +295,19 @@ class TimeDistributed(Wrapper):
 
         Args:
           inputs: Tensor with shape [batch size, timesteps, ...] indicating the
-            input to TimeDistributed. If static shape information is available for
-            "batch size", `mask` is returned unmodified.
+            input to TimeDistributed. If static shape information is available
+            for "batch size", `mask` is returned unmodified.
           mask: Either None (indicating no masking) or a Tensor indicating the
             input mask for TimeDistributed. The shape can be static or dynamic.
 
         Returns:
-          Either None (no masking), or a [batch size, timesteps, ...] Tensor with
-          an output mask for the TimeDistributed layer with the shape beyond the
-          second dimension being the value of the input mask shape(if the computed
-          output mask is none), an output mask with the shape beyond the first
-          dimension being the value of the mask shape(if mask is not None) or
-          output mask with the shape beyond the first dimension being the
-          value of the computed output shape.
+          Either None (no masking), or a [batch size, timesteps, ...] Tensor
+          with an output mask for the TimeDistributed layer with the shape
+          beyond the second dimension being the value of the input mask shape(if
+          the computed output mask is none), an output mask with the shape
+          beyond the first dimension being the value of the mask shape(if mask
+          is not None) or output mask with the shape beyond the first dimension
+          being the value of the computed output shape.
 
         """
         # cases need to call the layer.compute_mask when input_mask is None:
@@ -325,8 +325,9 @@ class TimeDistributed(Wrapper):
             tf.nest.flatten(is_ragged_input)
         )
         if batch_size and not self._always_use_reshape or any(is_ragged_input):
-            # batch size matters, we currently do not handle mask explicitly, or if
-            # the layer always uses reshape approach, or the input is a ragged tensor.
+            # batch size matters, we currently do not handle mask explicitly, or
+            # if the layer always uses reshape approach, or the input is a
+            # ragged tensor.
             return mask
         inner_mask = mask
         if inner_mask is not None:

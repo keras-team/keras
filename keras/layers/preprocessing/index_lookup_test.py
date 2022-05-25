@@ -41,8 +41,8 @@ def _get_end_to_end_test_cases():
     test_cases = (
         {
             "testcase_name": "test_strings_soft_vocab_cap",
-            # Create an array where 'earth' is the most frequent term, followed by
-            # 'wind', then 'and', then 'fire'. This ensures that the vocab
+            # Create an array where 'earth' is the most frequent term, followed
+            # by 'wind', then 'and', then 'fire'. This ensures that the vocab
             # accumulator is sorting by frequency.
             "vocab_data": np.array(
                 [
@@ -82,8 +82,8 @@ def _get_end_to_end_test_cases():
         },
         {
             "testcase_name": "test_inverse_strings_soft_vocab_cap",
-            # Create an array where 'earth' is the most frequent term, followed by
-            # 'wind', then 'and', then 'fire'. This ensures that the vocab
+            # Create an array where 'earth' is the most frequent term, followed
+            # by 'wind', then 'and', then 'fire'. This ensures that the vocab
             # accumulator is sorting by frequency.
             "vocab_data": np.array(
                 [
@@ -124,8 +124,8 @@ def _get_end_to_end_test_cases():
         },
         {
             "testcase_name": "test_strings_with_special_tokens",
-            # Mask and oov values in the vocab data should be dropped, and mapped
-            # to 0 and 1 respectively when calling the layer.
+            # Mask and oov values in the vocab data should be dropped, and
+            # mapped to 0 and 1 respectively when calling the layer.
             "vocab_data": np.array(
                 [
                     ["fire"],
@@ -217,8 +217,8 @@ def _get_end_to_end_test_cases():
         },
         {
             "testcase_name": "test_ints_with_special_tokens",
-            # Mask and oov values in the vocab data should be dropped, and mapped
-            # to 0 and 1 respectively when calling the layer.
+            # Mask and oov values in the vocab data should be dropped, and
+            # mapped to 0 and 1 respectively when calling the layer.
             "vocab_data": np.array(
                 [
                     [42],
@@ -267,8 +267,8 @@ def _get_end_to_end_test_cases():
         },
         {
             "testcase_name": "test_strings_hard_vocab_cap",
-            # Create an array where 'earth' is the most frequent term, followed by
-            # 'wind', then 'and', then 'fire'. This ensures that the vocab
+            # Create an array where 'earth' is the most frequent term, followed
+            # by 'wind', then 'and', then 'fire'. This ensures that the vocab
             # accumulator is sorting by frequency.
             "vocab_data": np.array(
                 [
@@ -308,8 +308,8 @@ def _get_end_to_end_test_cases():
         },
         {
             "testcase_name": "test_inverse_strings_hard_vocab_cap",
-            # Create an array where 'earth' is the most frequent term, followed by
-            # 'wind', then 'and', then 'fire'. This ensures that the vocab
+            # Create an array where 'earth' is the most frequent term, followed
+            # by 'wind', then 'and', then 'fire'. This ensures that the vocab
             # accumulator is sorting by frequency.
             "vocab_data": np.array(
                 [
@@ -520,12 +520,12 @@ class IndexLookupLayerTest(
             # together. When the results have different shapes on the non-concat
             # axis (which can happen in the output_mode = INT case for
             # IndexLookup), the concatenation fails. In real use cases, this may
-            # not be an issue because users are likely to pipe the preprocessing layer
-            # into other keras layers instead of predicting it directly. A workaround
-            # for these unit tests is to have the dataset only contain one batch, so
-            # no concatenation needs to happen with the result. For consistency with
-            # numpy input, we should make `predict` join differently shaped results
-            # together sensibly, with 0 padding.
+            # not be an issue because users are likely to pipe the preprocessing
+            # layer into other keras layers instead of predicting it directly. A
+            # workaround for these unit tests is to have the dataset only
+            # contain one batch, so no concatenation needs to happen with the
+            # result. For consistency with numpy input, we should make `predict`
+            # join differently shaped results together sensibly, with 0 padding.
             input_data = tf.data.Dataset.from_tensor_slices(input_data).batch(
                 input_shape[0]
             )
@@ -2233,8 +2233,8 @@ class IndexLookupSavingTest(
         output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
         model.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
 
         loaded_model = keras.models.load_model(
@@ -2317,8 +2317,8 @@ class IndexLookupSavingTest(
         output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
         tf.saved_model.save(obj=model, export_dir=output_path)
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
 
         loaded_model = tf.saved_model.load(output_path)
@@ -2362,8 +2362,8 @@ class IndexLookupSavingTest(
         output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
         model.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
 
         loaded_model = tf.saved_model.load(output_path)
@@ -2407,8 +2407,8 @@ class IndexLookupSavingTest(
         output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
         model.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
         tf.io.gfile.remove(vocab_file)
 
@@ -2438,8 +2438,8 @@ class IndexLookupSavingTest(
         )
         model_2.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
 
         loaded_model = keras.models.load_model(
@@ -2485,8 +2485,8 @@ class IndexLookupSavingTest(
         output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
         model.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
         tf.io.gfile.remove(vocab_file)
 
@@ -2516,8 +2516,8 @@ class IndexLookupSavingTest(
         )
         tf.saved_model.save(model_2, output_path)
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
 
         loaded_model = tf.saved_model.load(output_path)
@@ -2563,8 +2563,8 @@ class IndexLookupSavingTest(
         output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
         model.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
         tf.io.gfile.remove(vocab_file)
 
@@ -2594,8 +2594,8 @@ class IndexLookupSavingTest(
         )
         model_2.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         keras.backend.clear_session()
 
         loaded_model = keras.models.load_model(
@@ -2679,9 +2679,10 @@ class EagerExecutionDisabled(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
 ):
     def test_lookup(self):
-        # We need this test for model_to_estimator followed by export_saved_model,
-        # which will call the layer in a legacy session. This could also happen
-        # directly if a user calls disable_v2_behavior or disable_eager_execution.
+        # We need this test for model_to_estimator followed by
+        # export_saved_model, which will call the layer in a legacy session.
+        # This could also happen directly if a user calls disable_v2_behavior or
+        # disable_eager_execution.
         with tf.compat.v1.Session():
             with test_utils.run_eagerly_scope(False):
                 vocab_data = ["earth", "wind", "and", "fire"]
@@ -2699,8 +2700,8 @@ class EagerExecutionDisabled(
                 )
                 int_data = layer(input_data)
                 model = keras.Model(inputs=input_data, outputs=int_data)
-                # In a TF1 session the user will need to make sure all tables are
-                # initialized themselves.
+                # In a TF1 session the user will need to make sure all tables
+                # are initialized themselves.
                 tf.compat.v1.tables_initializer().run()
                 output_dataset = model(input_array)
                 self.assertAllEqual(output_dataset, expected_output)

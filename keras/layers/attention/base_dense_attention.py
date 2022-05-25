@@ -34,9 +34,9 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
     reuse the `apply_attention_scores()` method.
 
     Args:
-      causal: Boolean. Set to `True` for decoder self-attention. Adds a mask such
-        that position `i` cannot attend to positions `j > i`. This prevents the
-        flow of information from the future towards the past.
+      causal: Boolean. Set to `True` for decoder self-attention. Adds a mask
+        such that position `i` cannot attend to positions `j > i`. This prevents
+        the flow of information from the future towards the past.
       dropout: Float between 0 and 1. Fraction of the units to drop for the
         attention scores.
 
@@ -90,11 +90,11 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
 
         To use this method in your attention layer, follow the steps:
 
-        * Use `query` tensor of shape `[batch_size, Tq]` and `key` tensor of shape
-          `[batch_size, Tv]` to calculate the attention `scores`.
+        * Use `query` tensor of shape `[batch_size, Tq]` and `key` tensor of
+          shape `[batch_size, Tv]` to calculate the attention `scores`.
         * Pass `scores` and `value` tensors to this method. The method applies
-          `scores_mask`, calculates `attention_distribution = softmax(scores)`, then
-          returns `matmul(attention_distribution, value).
+          `scores_mask`, calculates `attention_distribution = softmax(scores)`,
+          then returns `matmul(attention_distribution, value).
         * Apply `query_mask` and return the result.
 
         Args:
@@ -102,8 +102,9 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
           value: Value tensor of shape `[batch_size, Tv, dim]`.
           scores_mask: A boolean mask `Tensor` of shape `[batch_size, 1, Tv]` or
             `[batch_size, Tq, Tv]`. If given, scores at positions where
-            `scores_mask==False` do not contribute to the result. It must contain
-            at least one `True` value in each line along the last dimension.
+            `scores_mask==False` do not contribute to the result. It must
+            contain at least one `True` value in each line along the last
+            dimension.
           training: Python boolean indicating whether the layer should behave in
             training mode (adding dropout) or in inference mode (no dropout).
 
@@ -114,8 +115,8 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         """
         if scores_mask is not None:
             padding_mask = tf.logical_not(scores_mask)
-            # Bias so padding positions do not contribute to attention distribution.
-            # Note 65504. is the max float16 value.
+            # Bias so padding positions do not contribute to attention
+            # distribution.  Note 65504. is the max float16 value.
             if scores.dtype is tf.float16:
                 scores -= 65504.0 * tf.cast(padding_mask, dtype=scores.dtype)
             else:
@@ -148,8 +149,8 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
             v_mask = tf.expand_dims(v_mask, axis=-2)
         if self.causal:
             # Creates a lower triangular mask, so position i cannot attend to
-            # positions j>i. This prevents the flow of information from the future
-            # into the past.
+            # positions j>i. This prevents the flow of information from the
+            # future into the past.
             scores_shape = tf.shape(scores)
             # causal_mask_shape = [1, Tq, Tv].
             causal_mask_shape = tf.concat(
@@ -208,7 +209,8 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
             if len(mask) < 2 or len(mask) > len(inputs):
                 raise ValueError(
                     f"{class_name} layer mask must be a list of length 2, "
-                    f"namely [query_mask, value_mask]. Received length: {len(mask)}."
+                    "namely [query_mask, value_mask]. "
+                    f"Received length: {len(mask)}."
                 )
 
     def get_config(self):

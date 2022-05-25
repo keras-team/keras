@@ -54,15 +54,15 @@ class Conv1DTranspose(Conv1D):
         time dimension. Specifying a stride value != 1 is incompatible with
         specifying a `dilation_rate` value != 1. Defaults to 1.
       padding: one of `"valid"` or `"same"` (case-insensitive).
-        `"valid"` means no padding. `"same"` results in padding with zeros evenly
-        to the left/right or up/down of the input such that output has the same
-        height/width dimension as the input.
+        `"valid"` means no padding. `"same"` results in padding with zeros
+        evenly to the left/right or up/down of the input such that output has
+        the same height/width dimension as the input.
       output_padding: An integer specifying the amount of padding along
         the time dimension of the output tensor.
         The amount of output padding must be lower than the stride.
         If set to `None` (default), the output shape is inferred.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`.  The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch_size, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch_size, channels, length)`.

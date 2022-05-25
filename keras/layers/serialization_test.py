@@ -74,8 +74,8 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
             bias_regularizer="l2",
         )
         config = keras.layers.serialize(layer)
-        # Because we're passing an unknown class here, deserialization should fail
-        # unless we add SerializableInt to the custom object dict.
+        # Because we're passing an unknown class here, deserialization should
+        # fail unless we add SerializableInt to the custom object dict.
         with self.assertRaisesRegex(
             ValueError, "Unknown config_item: SerializableInt.*"
         ):
@@ -89,8 +89,8 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
             bias_regularizer="l2",
         )
         config = keras.layers.serialize(layer)
-        # Because we're passing an unknown class here, deserialization should fail
-        # unless we add SerializableInt to the custom object dict.
+        # Because we're passing an unknown class here, deserialization should
+        # fail unless we add SerializableInt to the custom object dict.
         new_layer = keras.layers.deserialize(
             config, custom_objects={"SerializableInt": SerializableInt}
         )

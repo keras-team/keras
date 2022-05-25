@@ -118,8 +118,8 @@ class Concatenate(_Merge):
             # Get the only rank for the set.
             (rank,) = ranks
             for axis in range(rank):
-                # Skip the Nones in the shape since they are dynamic, also the axis for
-                # concat has been removed above.
+                # Skip the Nones in the shape since they are dynamic, also the
+                # axis for concat has been removed above.
                 unique_dims = set(
                     shape[axis]
                     for shape in shape_set
@@ -137,8 +137,9 @@ class Concatenate(_Merge):
             not isinstance(input_shape[0], (tuple, list))
         ):
             # The tf_utils.shape_type_conversion decorator turns tensorshapes
-            # into tuples, so we need to verify that `input_shape` is a list/tuple,
-            # *and* that the individual elements are themselves shape tuples.
+            # into tuples, so we need to verify that `input_shape` is a
+            # list/tuple, *and* that the individual elements are themselves
+            # shape tuples.
             raise ValueError(
                 "A `Concatenate` layer should be called on a list of inputs. "
                 f"Received: input_shape={input_shape}"

@@ -59,12 +59,14 @@ class Resizing(base_layer.Layer):
     """A preprocessing layer which resizes images.
 
     This layer resizes an image input to a target height and width. The input
-    should be a 4D (batched) or 3D (unbatched) tensor in `"channels_last"` format.
-    Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and of
-    interger or floating point dtype. By default, the layer will output floats.
+    should be a 4D (batched) or 3D (unbatched) tensor in `"channels_last"`
+    format.  Input pixel values can be of any range (e.g. `[0., 1.)` or `[0,
+    255]`) and of interger or floating point dtype. By default, the layer will
+    output floats.
 
     This layer can be called on tf.RaggedTensor batches of input images of
-    distinct sizes, and will resize the outputs to dense tensors of uniform size.
+    distinct sizes, and will resize the outputs to dense tensors of uniform
+    size.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
@@ -77,10 +79,10 @@ class Resizing(base_layer.Layer):
         `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
       crop_to_aspect_ratio: If True, resize the images without aspect
         ratio distortion. When the original aspect ratio differs from the target
-        aspect ratio, the output image will be cropped so as to return the largest
-        possible window in the image (of size `(height, width)`) that matches
-        the target aspect ratio. By default (`crop_to_aspect_ratio=False`),
-        aspect ratio may not be preserved.
+        aspect ratio, the output image will be cropped so as to return the
+        largest possible window in the image (of size `(height, width)`) that
+        matches the target aspect ratio. By default
+        (`crop_to_aspect_ratio=False`), aspect ratio may not be preserved.
     """
 
     def __init__(
@@ -102,9 +104,9 @@ class Resizing(base_layer.Layer):
         base_preprocessing_layer.keras_kpl_gauge.get_cell("Resizing").set(True)
 
     def call(self, inputs):
-        # tf.image.resize will always output float32 and operate more efficiently on
-        # float32 unless interpolation is nearest, in which case ouput type matches
-        # input type.
+        # tf.image.resize will always output float32 and operate more
+        # efficiently on float32 unless interpolation is nearest, in which case
+        # ouput type matches input type.
         if self.interpolation == "nearest":
             input_dtype = self.compute_dtype
         else:
@@ -160,12 +162,13 @@ class CenterCrop(base_layer.Layer):
     """A preprocessing layer which crops images.
 
     This layers crops the central portion of the images to a target size. If an
-    image is smaller than the target size, it will be resized and cropped so as to
-    return the largest possible window in the image that matches the target aspect
-    ratio.
+    image is smaller than the target size, it will be resized and cropped so as
+    to return the largest possible window in the image that matches the target
+    aspect ratio.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output floats.
+    of interger or floating point dtype. By default, the layer will output
+    floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
@@ -238,8 +241,8 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     """Abstract base layer for image augmentaion.
 
     This layer contains base functionalities for preprocessing layers which
-    augment image related data, eg. image and in future, label and bounding boxes.
-    The subclasses could avoid making certain mistakes and reduce code
+    augment image related data, eg. image and in future, label and bounding
+    boxes.  The subclasses could avoid making certain mistakes and reduce code
     duplications.
 
     This layer requires you to implement one method: `augment_image()`, which
@@ -249,14 +252,14 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     `augment_label()`, which handles label augmentation if the layer supports
     that.
 
-    `augment_bounding_boxes()`, which handles the bounding box augmentation, if the
-    layer supports that.
+    `augment_bounding_boxes()`, which handles the bounding box augmentation, if
+    the layer supports that.
 
     `get_random_transformation()`, which should produce a random transformation
-    setting. The tranformation object, which could be any type, will be passed to
-    `augment_image`, `augment_label` and `augment_bounding_boxes`, to coodinate
-    the randomness behavior, eg, in the RandomFlip layer, the image and
-    bounding_boxes should be changed in the same way.
+    setting. The tranformation object, which could be any type, will be passed
+    to `augment_image`, `augment_label` and `augment_bounding_boxes`, to
+    coodinate the randomness behavior, eg, in the RandomFlip layer, the image
+    and bounding_boxes should be changed in the same way.
 
     The `call()` method support two formats of inputs:
     1. Single image tensor with 3D (HWC) or 4D (NHWC) format.
@@ -267,9 +270,9 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     The output of the `call()` will be in two formats, which will be the same
     structure as the inputs.
 
-    The `call()` will handle the logic detecting the training/inference
-    mode, unpack the inputs, forward to the correct function, and pack the output
-    back to the same structure as the inputs.
+    The `call()` will handle the logic detecting the training/inference mode,
+    unpack the inputs, forward to the correct function, and pack the output back
+    to the same structure as the inputs.
 
     By default the `call()` method leverages the `tf.vectorized_map()` function.
     Auto-vectorization can be disabled by setting `self.auto_vectorize = False`
@@ -299,8 +302,8 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     ```
 
     Note that since the randomness is also a common functionnality, this layer
-    also includes a tf.keras.backend.RandomGenerator, which can be used to produce
-    the random numbers.  The random number generator is stored in the
+    also includes a tf.keras.backend.RandomGenerator, which can be used to
+    produce the random numbers.  The random number generator is stored in the
     `self._random_generator` attribute.
     """
 
@@ -312,10 +315,10 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     def auto_vectorize(self):
         """Control whether automatic vectorization occurs.
 
-        By default the `call()` method leverages the `tf.vectorized_map()` function.
-        Auto-vectorization can be disabled by setting `self.auto_vectorize = False`
-        in your `__init__()` method.  When disabled, `call()` instead relies
-        on `tf.map_fn()`. For example:
+        By default the `call()` method leverages the `tf.vectorized_map()`
+        function.  Auto-vectorization can be disabled by setting
+        `self.auto_vectorize = False` in your `__init__()` method.  When
+        disabled, `call()` instead relies on `tf.map_fn()`. For example:
 
         ```python
         class SubclassLayer(BaseImageAugmentationLayer):
@@ -342,10 +345,11 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
         """Augment a single image during training.
 
         Args:
-          image: 3D image input tensor to the layer. Forwarded from `layer.call()`.
+          image: 3D image input tensor to the layer. Forwarded from
+            `layer.call()`.
           transformation: The transformation object produced by
-            `get_random_transformation`. Used to coordinate the randomness between
-            image, label and bounding box.
+            `get_random_transformation`. Used to coordinate the randomness
+            between image, label and bounding box.
 
         Returns:
           output 3D tensor, which will be forward to `layer.call()`.
@@ -359,8 +363,8 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
         Args:
           label: 1D label to the layer. Forwarded from `layer.call()`.
           transformation: The transformation object produced by
-            `get_random_transformation`. Used to coordinate the randomness between
-            image, label and bounding box.
+            `get_random_transformation`. Used to coordinate the randomness
+            between image, label and bounding box.
 
         Returns:
           output 1D tensor, which will be forward to `layer.call()`.
@@ -374,8 +378,8 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
         Args:
           target: 1D label to the layer. Forwarded from `layer.call()`.
           transformation: The transformation object produced by
-            `get_random_transformation`. Used to coordinate the randomness between
-            image, label and bounding box.
+            `get_random_transformation`. Used to coordinate the randomness
+            between image, label and bounding box.
 
         Returns:
           output 1D tensor, which will be forward to `layer.call()`.
@@ -389,11 +393,13 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
         """Augment bounding boxes for one image during training.
 
         Args:
-          image: 3D image input tensor to the layer. Forwarded from `layer.call()`.
-          bounding_boxes: 2D bounding boxes to the layer. Forwarded from `call()`.
+          image: 3D image input tensor to the layer. Forwarded from
+            `layer.call()`.
+          bounding_boxes: 2D bounding boxes to the layer. Forwarded from
+            `call()`.
           transformation: The transformation object produced by
-            `get_random_transformation`. Used to coordinate the randomness between
-            image, label and bounding box.
+            `get_random_transformation`. Used to coordinate the randomness
+            between image, label and bounding box.
 
         Returns:
           output 2D tensor, which will be forward to `layer.call()`.
@@ -406,7 +412,8 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     ):
         """Produce random transformation config for one single input.
 
-        This is used to produce same randomness between image/label/bounding_box.
+        This is used to produce same randomness between
+        image/label/bounding_box.
 
         Args:
           image: 3D image tensor from inputs.
@@ -509,17 +516,18 @@ class RandomCrop(BaseImageAugmentationLayer):
     """A preprocessing layer which randomly crops images during training.
 
     During training, this layer will randomly choose a location to crop images
-    down to a target size. The layer will crop all the images in the same batch to
-    the same cropping location.
+    down to a target size. The layer will crop all the images in the same batch
+    to the same cropping location.
 
     At inference time, and during training if an input image is smaller than the
-    target size, the input will be resized and cropped so as to return the largest
-    possible window in the image that matches the target aspect ratio. If you need
-    to apply random cropping at inference time, set `training` to True when
-    calling the layer.
+    target size, the input will be resized and cropped so as to return the
+    largest possible window in the image that matches the target aspect ratio.
+    If you need to apply random cropping at inference time, set `training` to
+    True when calling the layer.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output floats.
+    of interger or floating point dtype. By default, the layer will output
+    floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
@@ -557,7 +565,8 @@ class RandomCrop(BaseImageAugmentationLayer):
             inputs = self._ensure_inputs_are_compute_dtype(inputs)
             inputs, is_dict, targets = self._format_inputs(inputs)
             output = inputs
-            # self._resize() returns valid results for both batched and unbatched
+            # self._resize() returns valid results for both batched and
+            # unbatched
             output["images"] = self._resize(inputs["images"])
             return self._format_output(output, is_dict, targets)
 
@@ -618,16 +627,16 @@ class RandomCrop(BaseImageAugmentationLayer):
 class Rescaling(base_layer.Layer):
     """A preprocessing layer which rescales input values to a new range.
 
-    This layer rescales every value of an input (often an image) by multiplying by
-    `scale` and adding `offset`.
+    This layer rescales every value of an input (often an image) by multiplying
+    by `scale` and adding `offset`.
 
     For instance:
 
     1. To rescale an input in the ``[0, 255]`` range
     to be in the `[0, 1]` range, you would pass `scale=1./255`.
 
-    2. To rescale an input in the ``[0, 255]`` range to be in the `[-1, 1]` range,
-    you would pass `scale=1./127.5, offset=-1`.
+    2. To rescale an input in the ``[0, 255]`` range to be in the `[-1, 1]`
+    range, you would pass `scale=1./127.5, offset=-1`.
 
     The rescaling is applied both during training and inference. Inputs can be
     of integer or floating point dtype, and by default the layer will output
@@ -689,7 +698,8 @@ class RandomFlip(BaseImageAugmentationLayer):
     input. Call the layer with `training=True` to flip the input.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output floats.
+    of interger or floating point dtype. By default, the layer will output
+    floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
@@ -813,26 +823,26 @@ class RandomTranslation(BaseImageAugmentationLayer):
     filling empty space according to `fill_mode`.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output floats.
+    of interger or floating point dtype. By default, the layer will output
+    floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Args:
-      height_factor: a float represented as fraction of value, or a tuple of size
-        2 representing lower and upper bound for shifting vertically. A negative
-        value means shifting image up, while a positive value means shifting image
-        down. When represented as a single positive float, this value is used for
-        both the upper and lower bound. For instance, `height_factor=(-0.2, 0.3)`
-        results in an output shifted by a random amount in the range
-        `[-20%, +30%]`.
-        `height_factor=0.2` results in an output height shifted by a random amount
-        in the range `[-20%, +20%]`.
-      width_factor: a float represented as fraction of value, or a tuple of size 2
-        representing lower and upper bound for shifting horizontally. A negative
-        value means shifting image left, while a positive value means shifting
-        image right. When represented as a single positive float, this value is
-        used for both the upper and lower bound. For instance,
+      height_factor: a float represented as fraction of value, or a tuple of
+        size 2 representing lower and upper bound for shifting vertically. A
+        negative value means shifting image up, while a positive value means
+        shifting image down. When represented as a single positive float, this
+        value is used for both the upper and lower bound. For instance,
+        `height_factor=(-0.2, 0.3)` results in an output shifted by a random
+        amount in the range `[-20%, +30%]`.  `height_factor=0.2` results in an
+        output height shifted by a random amount in the range `[-20%, +20%]`.
+      width_factor: a float represented as fraction of value, or a tuple of size
+        2 representing lower and upper bound for shifting horizontally. A
+        negative value means shifting image left, while a positive value means
+        shifting image right. When represented as a single positive float, this
+        value is used for both the upper and lower bound. For instance,
         `width_factor=(-0.2, 0.3)` results in an output shifted left by 20%, and
         shifted right by 30%. `width_factor=0.2` results in an output height
         shifted left or right by 20%.
@@ -844,13 +854,13 @@ class RandomTranslation(BaseImageAugmentationLayer):
           filling all values beyond the edge with the same constant value k = 0.
         - *wrap*: `(a b c d | a b c d | a b c d)` The input is extended by
           wrapping around to the opposite edge.
-        - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended by the
-          nearest pixel.
+        - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended by
+          the nearest pixel.
       interpolation: Interpolation mode. Supported values: `"nearest"`,
         `"bilinear"`.
       seed: Integer. Used to create a random seed.
-      fill_value: a float represents the value to be filled outside the boundaries
-        when `fill_mode="constant"`.
+      fill_value: a float represents the value to be filled outside the
+        boundaries when `fill_mode="constant"`.
 
     Input shape:
       3D (unbatched) or 4D (batched) tensor with shape:
@@ -921,8 +931,8 @@ class RandomTranslation(BaseImageAugmentationLayer):
     @tf.function
     def augment_image(self, image, transformation):
         """Translated inputs with random ops."""
-        # The transform op only accepts rank 4 inputs, so if we have an unbatched
-        # image, we need to temporarily expand dims to a batch.
+        # The transform op only accepts rank 4 inputs, so if we have an
+        # unbatched image, we need to temporarily expand dims to a batch.
         original_shape = image.shape
         inputs = tf.expand_dims(image, 0)
 
@@ -972,8 +982,8 @@ class RandomTranslation(BaseImageAugmentationLayer):
         }
 
     def _batch_augment(self, inputs):
-        # Change to vectorized_map for better performance, as well as work around
-        # issue for different tensorspec between inputs and outputs.
+        # Change to vectorized_map for better performance, as well as work
+        # around issue for different tensorspec between inputs and outputs.
         return tf.vectorized_map(self._augment, inputs)
 
     def augment_label(self, label, transformation):
@@ -1004,8 +1014,8 @@ def get_translation_matrix(translations, name=None):
       name: The name of the op.
 
     Returns:
-      A tensor of shape `(num_images, 8)` projective transforms which can be given
-        to `transform`.
+      A tensor of shape `(num_images, 8)` projective transforms which can be
+        given to `transform`.
     """
     with backend.name_scope(name or "translation_matrix"):
         num_translations = tf.shape(translations)[0]
@@ -1042,19 +1052,20 @@ def transform(
 
     Args:
       images: A tensor of shape
-        `(num_images, num_rows, num_columns, num_channels)` (NHWC). The rank must
-        be statically known (the shape is not `TensorShape(None)`).
+        `(num_images, num_rows, num_columns, num_channels)` (NHWC). The rank
+        must be statically known (the shape is not `TensorShape(None)`).
       transforms: Projective transform matrix/matrices. A vector of length 8 or
-        tensor of size N x 8. If one row of transforms is [a0, a1, a2, b0, b1, b2,
-        c0, c1], then it maps the *output* point `(x, y)` to a transformed *input*
-        point `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`, where
-        `k = c0 x + c1 y + 1`. The transforms are *inverted* compared to the
-        transform mapping input points to output points. Note that gradients are
-        not backpropagated into transformation parameters.
+        tensor of size N x 8. If one row of transforms is [a0, a1, a2, b0, b1,
+        b2, c0, c1], then it maps the *output* point `(x, y)` to a transformed
+        *input* point
+        `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`,
+        where `k = c0 x + c1 y + 1`. The transforms are *inverted* compared
+        to the transform mapping input points to output points. Note that
+        gradients are not backpropagated into transformation parameters.
       fill_mode: Points outside the boundaries of the input are filled according
         to the given mode (one of `{"constant", "reflect", "wrap", "nearest"}`).
-      fill_value: a float represents the value to be filled outside the boundaries
-        when `fill_mode="constant"`.
+      fill_value: a float represents the value to be filled outside the
+        boundaries when `fill_mode="constant"`.
       interpolation: Interpolation mode. Supported values: `"nearest"`,
         `"bilinear"`.
       output_shape: Output dimension after the transform, `[height, width]`.
@@ -1130,20 +1141,20 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
     """Returns projective transform(s) for the given angle(s).
 
     Args:
-      angles: A scalar angle to rotate all images by, or (for batches of images) a
-        vector with an angle to rotate each image in the batch. The rank must be
-        statically known (the shape is not `TensorShape(None)`).
+      angles: A scalar angle to rotate all images by, or (for batches of images)
+        a vector with an angle to rotate each image in the batch. The rank must
+        be statically known (the shape is not `TensorShape(None)`).
       image_height: Height of the image(s) to be transformed.
       image_width: Width of the image(s) to be transformed.
       name: The name of the op.
 
     Returns:
-      A tensor of shape (num_images, 8). Projective transforms which can be given
-        to operation `image_projective_transform_v2`. If one row of transforms is
-         [a0, a1, a2, b0, b1, b2, c0, c1], then it maps the *output* point
-         `(x, y)` to a transformed *input* point
-         `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`,
-         where `k = c0 x + c1 y + 1`.
+      A tensor of shape (num_images, 8). Projective transforms which can be
+        given to operation `image_projective_transform_v2`. If one row of
+        transforms is [a0, a1, a2, b0, b1, b2, c0, c1], then it maps the
+        *output* point `(x, y)` to a transformed *input* point
+        `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`,
+        where `k = c0 x + c1 y + 1`.
     """
     with backend.name_scope(name or "rotation_matrix"):
         x_offset = (
@@ -1191,7 +1202,8 @@ class RandomRotation(BaseImageAugmentationLayer):
     rotations at inference time, set `training` to True when calling the layer.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output floats.
+    of interger or floating point dtype. By default, the layer will output
+    floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
@@ -1211,8 +1223,9 @@ class RandomRotation(BaseImageAugmentationLayer):
         while a negative value means clock-wise. When represented as a single
         float, this value is used for both the upper and lower bound. For
         instance, `factor=(-0.2, 0.3)` results in an output rotation by a random
-        amount in the range `[-20% * 2pi, 30% * 2pi]`. `factor=0.2` results in an
-        output rotating by a random amount in the range `[-20% * 2pi, 20% * 2pi]`.
+        amount in the range `[-20% * 2pi, 30% * 2pi]`. `factor=0.2` results in
+        an output rotating by a random amount in the range
+        `[-20% * 2pi, 20% * 2pi]`.
       fill_mode: Points outside the boundaries of the input are filled according
         to the given mode (one of `{"constant", "reflect", "wrap", "nearest"}`).
         - *reflect*: `(d c b a | a b c d | d c b a)` The input is extended by
@@ -1221,13 +1234,13 @@ class RandomRotation(BaseImageAugmentationLayer):
           filling all values beyond the edge with the same constant value k = 0.
         - *wrap*: `(a b c d | a b c d | a b c d)` The input is extended by
           wrapping around to the opposite edge.
-        - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended by the
-          nearest pixel.
+        - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended by
+          the nearest pixel.
       interpolation: Interpolation mode. Supported values: `"nearest"`,
         `"bilinear"`.
       seed: Integer. Used to create a random seed.
-      fill_value: a float represents the value to be filled outside the boundaries
-        when `fill_mode="constant"`.
+      fill_value: a float represents the value to be filled outside the
+        boundaries when `fill_mode="constant"`.
     """
 
     def __init__(
@@ -1295,8 +1308,8 @@ class RandomRotation(BaseImageAugmentationLayer):
         h = image_shape[H_AXIS]
         w = image_shape[W_AXIS]
         bbox_dtype = bounding_boxes.dtype
-        # origin coordinates, all the points on the image are rotated around this
-        # point
+        # origin coordinates, all the points on the image are rotated around
+        # this point
         origin_x, origin_y = int(h / 2), int(w / 2)
         angle = transformation["angle"]
         angle = -angle
@@ -1376,22 +1389,23 @@ class RandomZoom(BaseImageAugmentationLayer):
     independently, filling empty space according to `fill_mode`.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output floats.
+    of interger or floating point dtype. By default, the layer will output
+    floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Args:
-      height_factor: a float represented as fraction of value, or a tuple of size
-        2 representing lower and upper bound for zooming vertically. When
+      height_factor: a float represented as fraction of value, or a tuple of
+        size 2 representing lower and upper bound for zooming vertically. When
         represented as a single float, this value is used for both the upper and
         lower bound. A positive value means zooming out, while a negative value
         means zooming in. For instance, `height_factor=(0.2, 0.3)` result in an
         output zoomed out by a random amount in the range `[+20%, +30%]`.
         `height_factor=(-0.3, -0.2)` result in an output zoomed in by a random
         amount in the range `[+20%, +30%]`.
-      width_factor: a float represented as fraction of value, or a tuple of size 2
-        representing lower and upper bound for zooming horizontally. When
+      width_factor: a float represented as fraction of value, or a tuple of size
+        2 representing lower and upper bound for zooming horizontally. When
         represented as a single float, this value is used for both the upper and
         lower bound. For instance, `width_factor=(0.2, 0.3)` result in an output
         zooming out between 20% to 30%. `width_factor=(-0.3, -0.2)` result in an
@@ -1405,13 +1419,13 @@ class RandomZoom(BaseImageAugmentationLayer):
           filling all values beyond the edge with the same constant value k = 0.
         - *wrap*: `(a b c d | a b c d | a b c d)` The input is extended by
           wrapping around to the opposite edge.
-        - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended by the
-          nearest pixel.
+        - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended by
+          the nearest pixel.
       interpolation: Interpolation mode. Supported values: `"nearest"`,
         `"bilinear"`.
       seed: Integer. Used to create a random seed.
-      fill_value: a float represents the value to be filled outside the boundaries
-        when `fill_mode="constant"`.
+      fill_value: a float represents the value to be filled outside the
+        boundaries when `fill_mode="constant"`.
 
     Example:
 
@@ -1547,8 +1561,8 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
     """Returns projective transform(s) for the given zoom(s).
 
     Args:
-      zooms: A matrix of 2-element lists representing `[zx, zy]` to zoom for each
-        image (for a batch of images).
+      zooms: A matrix of 2-element lists representing `[zx, zy]` to zoom for
+        each image (for a batch of images).
       image_height: Height of the image(s) to be transformed.
       image_width: Width of the image(s) to be transformed.
       name: The name of the op.
@@ -1594,17 +1608,17 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
 class RandomContrast(BaseImageAugmentationLayer):
     """A preprocessing layer which randomly adjusts contrast during training.
 
-    This layer will randomly adjust the contrast of an image or images by a random
-    factor. Contrast is adjusted independently for each channel of each image
-    during training.
+    This layer will randomly adjust the contrast of an image or images by a
+    random factor. Contrast is adjusted independently for each channel of each
+    image during training.
 
     For each channel, this layer computes the mean of the image pixels in the
     channel and then adjusts each component `x` of each pixel to
     `(x - mean) * contrast_factor + mean`.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    in integer or floating point dtype. By default, the layer will output floats.
-    The output value will be clipped to the range `[0, 255]`, the valid
+    in integer or floating point dtype. By default, the layer will output
+    floats. The output value will be clipped to the range `[0, 255]`, the valid
     range of RGB colors.
 
     For an overview and full list of preprocessing layers, see the preprocessing
@@ -1621,10 +1635,10 @@ class RandomContrast(BaseImageAugmentationLayer):
     Arguments:
       factor: a positive float represented as fraction of value, or a tuple of
         size 2 representing lower and upper bound. When represented as a single
-        float, lower = upper. The contrast factor will be randomly picked between
-        `[1.0 - lower, 1.0 + upper]`. For any pixel x in the channel, the output
-        will be `(x - mean) * factor + mean` where `mean` is the mean value of the
-        channel.
+        float, lower = upper. The contrast factor will be randomly picked
+        between `[1.0 - lower, 1.0 + upper]`. For any pixel x in the channel,
+        the output will be `(x - mean) * factor + mean` where `mean` is the mean
+        value of the channel.
       seed: Integer. Used to create a random seed.
     """
 
@@ -1704,10 +1718,10 @@ class RandomBrightness(BaseImageAugmentationLayer):
         is provided, eg, 0.2, then -0.2 will be used for lower bound and 0.2
         will be used for upper bound.
       value_range: Optional list/tuple of 2 floats for the lower and upper limit
-        of the values of the input data. Defaults to [0.0, 255.0]. Can be changed
-        to e.g. [0.0, 1.0] if the image input has been scaled before this layer.
-        The brightness adjustment will be scaled to this range, and the
-        output values will be clipped to this range.
+        of the values of the input data. Defaults to [0.0, 255.0]. Can be
+        changed to e.g. [0.0, 1.0] if the image input has been scaled before
+        this layer.  The brightness adjustment will be scaled to this range, and
+        the output values will be clipped to this range.
       seed: optional integer, for fixed RNG behavior.
 
     Inputs: 3D (HWC) or 4D (NHWC) tensor, with float or int dtype. Input pixel
@@ -1854,14 +1868,15 @@ class RandomHeight(BaseImageAugmentationLayer):
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Args:
-      factor: A positive float (fraction of original height), or a tuple of size 2
-        representing lower and upper bound for resizing vertically. When
+      factor: A positive float (fraction of original height), or a tuple of size
+        2 representing lower and upper bound for resizing vertically. When
         represented as a single float, this value is used for both the upper and
         lower bound. For instance, `factor=(0.2, 0.3)` results in an output with
         height changed by a random amount in the range `[20%, 30%]`.
-        `factor=(-0.2, 0.3)` results in an output with height changed by a random
-        amount in the range `[-20%, +30%]`. `factor=0.2` results in an output with
-        height changed by a random amount in the range `[-20%, +20%]`.
+        `factor=(-0.2, 0.3)` results in an output with height changed by a
+        random amount in the range `[-20%, +30%]`. `factor=0.2` results in an
+        output with height changed by a random amount in the range
+        `[-20%, +20%]`.
       interpolation: String, the interpolation method. Defaults to `"bilinear"`.
         Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`,
         `"lanczos3"`, `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
@@ -1928,8 +1943,8 @@ class RandomHeight(BaseImageAugmentationLayer):
         return result
 
     def augment_image(self, image, transformation):
-        # The batch dimension of the input=image is not modified. The output would
-        # be accurate for both unbatched and batched input
+        # The batch dimension of the input=image is not modified. The output
+        # would be accurate for both unbatched and batched input
         inputs_shape = tf.shape(image)
         img_wd = inputs_shape[W_AXIS]
         adjusted_height = transformation["height"]
@@ -1970,8 +1985,8 @@ class RandomWidth(BaseImageAugmentationLayer):
     This layer will randomly adjusts the width of a batch of images of a
     batch of images by a random factor. The input should be a 3D (unbatched) or
     4D (batched) tensor in the `"channels_last"` image data format. Input pixel
-    values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and of interger or
-    floating point dtype. By default, the layer will output floats.
+    values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and of interger
+    or floating point dtype. By default, the layer will output floats.
 
     By default, this layer is inactive during inference.
 
@@ -1979,14 +1994,14 @@ class RandomWidth(BaseImageAugmentationLayer):
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Args:
-      factor: A positive float (fraction of original width), or a tuple of size 2
-        representing lower and upper bound for resizing vertically. When
+      factor: A positive float (fraction of original width), or a tuple of size
+        2 representing lower and upper bound for resizing vertically. When
         represented as a single float, this value is used for both the upper and
         lower bound. For instance, `factor=(0.2, 0.3)` results in an output with
-        width changed by a random amount in the range `[20%, 30%]`. `factor=(-0.2,
-        0.3)` results in an output with width changed by a random amount in the
-        range `[-20%, +30%]`. `factor=0.2` results in an output with width changed
-        by a random amount in the range `[-20%, +20%]`.
+        width changed by a random amount in the range `[20%, 30%]`.
+        `factor=(-0.2, 0.3)` results in an output with width changed by a random
+        amount in the range `[-20%, +30%]`. `factor=0.2` results in an output
+        with width changed by a random amount in the range `[-20%, +20%]`.
       interpolation: String, the interpolation method. Defaults to `bilinear`.
         Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`, `"lanczos3"`,
         `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
@@ -2040,8 +2055,8 @@ class RandomWidth(BaseImageAugmentationLayer):
         return result
 
     def augment_image(self, image, transformation):
-        # The batch dimension of the input=image is not modified. The output would
-        # be accurate for both unbatched and batched input
+        # The batch dimension of the input=image is not modified. The output
+        # would be accurate for both unbatched and batched input
         inputs = utils.ensure_tensor(image)
         inputs_shape = tf.shape(inputs)
         img_hd = inputs_shape[H_AXIS]

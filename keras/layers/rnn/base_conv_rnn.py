@@ -35,14 +35,14 @@ class ConvRNN(RNN):
         `call(input_at_t, states_at_t)` method, returning `(output_at_t,
         states_at_t_plus_1)`. The call method of the cell can also take the
         optional argument `constants`, see section "Note on passing external
-        constants" below. - a `state_size` attribute. This can be a single integer
-        (single state) in which case it is the number of channels of the recurrent
-        state (which should be the same as the number of channels of the cell
-        output). This can also be a list/tuple of integers (one size per state).
-        In this case, the first entry (`state_size[0]`) should be the same as the
-        size of the cell output.
-      return_sequences: Boolean. Whether to return the last output. in the output
-        sequence, or the full sequence.
+        constants" below. - a `state_size` attribute. This can be a single
+        integer (single state) in which case it is the number of channels of the
+        recurrent state (which should be the same as the number of channels of
+        the cell output). This can also be a list/tuple of integers (one size
+        per state).  In this case, the first entry (`state_size[0]`) should be
+        the same as the size of the cell output.
+      return_sequences: Boolean. Whether to return the last output. in the
+        output sequence, or the full sequence.
       return_state: Boolean. Whether to return the last state in addition to the
         output.
       go_backwards: Boolean (default False). If True, process the input sequence
@@ -59,8 +59,8 @@ class ConvRNN(RNN):
       training: Python boolean indicating whether the layer should behave in
         training mode or in inference mode. This argument is passed to the cell
         when calling it. This is for use with cells that use dropout.
-      initial_state: List of initial state tensors to be passed to the first call
-        of the cell.
+      initial_state: List of initial state tensors to be passed to the first
+        call of the cell.
       constants: List of constant tensors to be passed to the cell at each
         timestep.
     Input shape:
@@ -69,13 +69,13 @@ class ConvRNN(RNN):
       if data_format='channels_first' or shape: `(samples, timesteps,
         img_dimensions..., channels)` if data_format='channels_last'.
     Output shape:
-      - If `return_state`: a list of tensors. The first tensor is the output. The
-        remaining tensors are the last states,
+      - If `return_state`: a list of tensors. The first tensor is the output.
+        The remaining tensors are the last states,
         each (2 + `rank`)D tensor with shape: `(samples, filters,
           new_img_dimensions...)` if data_format='channels_first'
         or shape: `(samples, new_img_dimensions..., filters)` if
-          data_format='channels_last'. img_dimension values might have changed due
-          to padding.
+          data_format='channels_last'. img_dimension values might have changed
+          due to padding.
       - If `return_sequences`: (3 + `rank`)D tensor with shape: `(samples,
         timesteps, filters, new_img_dimensions...)` if
         data_format='channels_first'
@@ -85,37 +85,39 @@ class ConvRNN(RNN):
         new_img_dimensions...)` if data_format='channels_first'
         or shape: `(samples, new_img_dimensions..., filters)` if
           data_format='channels_last'.
-    Masking: This layer supports masking for input data with a variable number of
-      timesteps.
+    Masking: This layer supports masking for input data with a variable number
+      of timesteps.
     Note on using statefulness in RNNs: You can set RNN layers to be 'stateful',
       which means that the states computed for the samples in one batch will be
       reused as initial states for the samples in the next batch. This assumes a
       one-to-one mapping between samples in different successive batches.
-      To enable statefulness: - Specify `stateful=True` in the layer constructor.
+      To enable statefulness: - Specify `stateful=True` in the layer
+      constructor.
         - Specify a fixed batch size for your model, by passing
-            - If sequential model: `batch_input_shape=(...)` to the first layer in
-              your model.
-            - If functional model with 1 or more Input layers: `batch_shape=(...)`
-              to all the first layers in your model. This is the expected shape of
-              your inputs *including the batch size*. It should be a tuple of
-              integers, e.g. `(32, 10, 100, 100, 32)`. for rank 2 convolution Note
-              that the image dimensions should be specified too. - Specify
-              `shuffle=False` when calling fit(). To reset the states of your
-              model, call `.reset_states()` on either a specific layer, or on your
-              entire model.
+            - If sequential model: `batch_input_shape=(...)` to the first layer
+              in your model.
+            - If functional model with 1 or more Input layers:
+              `batch_shape=(...)` to all the first layers in your model. This is
+              the expected shape of your inputs *including the batch size*. It
+              should be a tuple of integers, e.g. `(32, 10, 100, 100, 32)`. for
+              rank 2 convolution Note that the image dimensions should be
+              specified too. - Specify `shuffle=False` when calling fit(). To
+              reset the states of your model, call `.reset_states()` on either a
+              specific layer, or on your entire model.
     Note on specifying the initial state of RNNs: You can specify the initial
       state of RNN layers symbolically by calling them with the keyword argument
-      `initial_state`. The value of `initial_state` should be a tensor or list of
-      tensors representing the initial state of the RNN layer. You can specify the
-      initial state of RNN layers numerically by calling `reset_states` with the
-      keyword argument `states`. The value of `states` should be a numpy array or
-      list of numpy arrays representing the initial state of the RNN layer.
-    Note on passing external constants to RNNs: You can pass "external" constants
-      to the cell using the `constants` keyword argument of `RNN.__call__` (as
-      well as `RNN.call`) method. This requires that the `cell.call` method
-      accepts the same keyword argument `constants`. Such constants can be used to
-      condition the cell transformation on additional static inputs (not changing
-      over time), a.k.a. an attention mechanism.
+      `initial_state`. The value of `initial_state` should be a tensor or list
+      of tensors representing the initial state of the RNN layer. You can
+      specify the initial state of RNN layers numerically by calling
+      `reset_states` with the keyword argument `states`. The value of `states`
+      should be a numpy array or list of numpy arrays representing the initial
+      state of the RNN layer.
+    Note on passing external constants to RNNs: You can pass "external"
+      constants to the cell using the `constants` keyword argument of
+      `RNN.__call__` (as well as `RNN.call`) method. This requires that the
+      `cell.call` method accepts the same keyword argument `constants`. Such
+      constants can be used to condition the cell transformation on additional
+      static inputs (not changing over time), a.k.a. an attention mechanism.
     """
 
     def __init__(
@@ -169,7 +171,7 @@ class ConvRNN(RNN):
 
         norm_img_dims = tuple(
             [
-                conv_utils.conv_output_length(  # pylint: disable=g-complex-comprehension
+                conv_utils.conv_output_length(
                     img_dims[idx],
                     cell.kernel_size[idx],
                     padding=cell.padding,
@@ -433,8 +435,8 @@ class ConvRNN(RNN):
                     dim = self.cell.state_size
                 if value.shape != get_tuple_shape(dim):
                     raise ValueError(
-                        f"State {index} is incompatible with layer {self.name}: "
-                        f"expected shape={get_tuple_shape(dim)}, "
+                        "State {index} is incompatible with layer "
+                        f"{self.name}: expected shape={get_tuple_shape(dim)}, "
                         f"found shape={value.shape}"
                     )
                 backend.set_value(state, value)

@@ -47,8 +47,8 @@ class Hashing(base_layer.Layer):
     stable across invocations, regardless of device and context, by mixing the
     input bits thoroughly.
 
-    If you want to obfuscate the hashed output, you can also pass a random `salt`
-    argument in the constructor. In that case, the layer will use the
+    If you want to obfuscate the hashed output, you can also pass a random
+    `salt` argument in the constructor. In that case, the layer will use the
     [SipHash64](https://github.com/google/highwayhash) hash function, with
     the `salt` value serving as additional input to the hash function.
 
@@ -104,9 +104,9 @@ class Hashing(base_layer.Layer):
              [0]])>
 
     Args:
-      num_bins: Number of hash bins. Note that this includes the `mask_value` bin,
-        so the effective number of bins is `(num_bins - 1)` if `mask_value` is
-        set.
+      num_bins: Number of hash bins. Note that this includes the `mask_value`
+        bin, so the effective number of bins is `(num_bins - 1)` if `mask_value`
+        is set.
       mask_value: A value that represents masked inputs, which are mapped to
         index 0. Defaults to None, meaning no mask term will be added and the
         hashing will start at index 0.
@@ -115,23 +115,24 @@ class Hashing(base_layer.Layer):
         used as an additional input (known as a "salt" in cryptography).
         These should be non-zero. Defaults to `None` (in that
         case, the FarmHash64 hash function is used). It also supports
-        tuple/list of 2 unsigned integer numbers, see reference paper for details.
-      output_mode: Specification for the output of the layer. Defaults to `"int"`.
-        Values can be `"int"`, `"one_hot"`, `"multi_hot"`, or `"count"`
-        configuring the layer as follows:
+        tuple/list of 2 unsigned integer numbers, see reference paper for
+        details.
+      output_mode: Specification for the output of the layer. Defaults to
+        `"int"`.  Values can be `"int"`, `"one_hot"`, `"multi_hot"`, or
+        `"count"` configuring the layer as follows:
           - `"int"`: Return the integer bin indices directly.
           - `"one_hot"`: Encodes each individual element in the input into an
             array the same size as `num_bins`, containing a 1 at the input's bin
-            index. If the last dimension is size 1, will encode on that dimension.
-            If the last dimension is not size 1, will append a new dimension for
-            the encoded output.
+            index. If the last dimension is size 1, will encode on that
+            dimension.  If the last dimension is not size 1, will append a new
+            dimension for the encoded output.
           - `"multi_hot"`: Encodes each sample in the input into a single array
             the same size as `num_bins`, containing a 1 for each bin index
             index present in the sample. Treats the last dimension as the sample
-            dimension, if input shape is `(..., sample_length)`, output shape will
-            be `(..., num_tokens)`.
-          - `"count"`: As `"multi_hot"`, but the int array contains a count of the
-            number of times the bin index appeared in the sample.
+            dimension, if input shape is `(..., sample_length)`, output shape
+            will be `(..., num_tokens)`.
+          - `"count"`: As `"multi_hot"`, but the int array contains a count of
+            the number of times the bin index appeared in the sample.
       sparse: Boolean. Only applicable to `"one_hot"`, `"multi_hot"`,
         and `"count"` output modes. If True, returns a `SparseTensor` instead of
         a dense `Tensor`. Defaults to False.
@@ -163,8 +164,8 @@ class Hashing(base_layer.Layer):
     ):
         if num_bins is None or num_bins <= 0:
             raise ValueError(
-                f"The `num_bins` for `Hashing` cannot be `None` or non-positive "
-                f"values. Received: num_bins={num_bins}."
+                f"The `num_bins` for `Hashing` cannot be `None` or "
+                f"non-positive values. Received: num_bins={num_bins}."
             )
 
         # By default, output int64 when output_mode='int' and floats otherwise.
@@ -175,7 +176,8 @@ class Hashing(base_layer.Layer):
         elif (
             output_mode == "int" and not tf.as_dtype(kwargs["dtype"]).is_integer
         ):
-            # Compat for when dtype was always floating and ignored by the layer.
+            # Compat for when dtype was always floating and ignored by the
+            # layer.
             kwargs["dtype"] = tf.int64
 
         super().__init__(**kwargs)
@@ -221,8 +223,9 @@ class Hashing(base_layer.Layer):
                 self.salt = [salt, salt]
             else:
                 raise ValueError(
-                    f"The `salt` argument for `Hashing` can only be a tuple of size 2 "
-                    f"integers, or a single integer. Received: salt={salt}."
+                    "The `salt` argument for `Hashing` can only be a tuple of "
+                    "size 2 integers, or a single integer. "
+                    f"Received: salt={salt}."
                 )
 
     def call(self, inputs):

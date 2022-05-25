@@ -38,7 +38,8 @@ class Conv(Layer):
     once (except the `trainable` attribute).
 
     Args:
-      rank: An integer, the rank of the convolution, e.g. "2" for 2D convolution.
+      rank: An integer, the rank of the convolution, e.g. "2" for 2D
+        convolution.
       filters: Integer, the dimensionality of the output space (i.e. the number
         of filters in the convolution). Could be "None", eg in the case of
         depth wise convolution.
@@ -50,10 +51,12 @@ class Conv(Layer):
         any `dilation_rate` value != 1.
       padding: One of `"valid"`,  `"same"`, or `"causal"` (case-insensitive).
         `"valid"` means no padding. `"same"` results in padding with zeros
-        evenly to the left/right or up/down of the input such that output has the
-        same height/width dimension as the input. `"causal"` results in causal
-        (dilated) convolutions, e.g. `output[t]` does not depend on `input[t+1:]`.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
+        evenly to the left/right or up/down of the input such that output has
+        the same height/width dimension as the input. `"causal"` results in
+        causal (dilated) convolutions, e.g. `output[t]` does not depend on
+        `input[t+1:]`.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`.
         The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch_size, ..., channels)` while `channels_first` corresponds to
@@ -70,8 +73,8 @@ class Conv(Layer):
       activation: Activation function to use.
         If you don't specify anything, no activation is applied.
       use_bias: Boolean, whether the layer uses a bias.
-      kernel_initializer: An initializer for the convolution kernel. If None, the
-        default initializer (glorot_uniform) will be used.
+      kernel_initializer: An initializer for the convolution kernel. If None,
+        the default initializer (glorot_uniform) will be used.
       bias_initializer: An initializer for the bias vector. If None, the default
         initializer (zeros) will be used.
       kernel_regularizer: Optional regularizer for the convolution kernel.
@@ -162,8 +165,8 @@ class Conv(Layer):
     def _validate_init(self):
         if self.filters is not None and self.filters % self.groups != 0:
             raise ValueError(
-                "The number of filters must be evenly divisible by the number of "
-                "groups. Received: groups={}, filters={}".format(
+                "The number of filters must be evenly divisible by the "
+                "number of groups. Received: groups={}, filters={}".format(
                     self.groups, self.filters
                 )
             )
@@ -199,9 +202,9 @@ class Conv(Layer):
         input_channel = self._get_input_channel(input_shape)
         if input_channel % self.groups != 0:
             raise ValueError(
-                "The number of input channels must be evenly divisible by the number "
-                "of groups. Received groups={}, but the input has {} channels "
-                "(full input shape is {}).".format(
+                "The number of input channels must be evenly divisible by "
+                "the number of groups. Received groups={}, but the input "
+                "has {} channels (full input shape is {}).".format(
                     self.groups, input_channel, input_shape
                 )
             )
@@ -210,8 +213,8 @@ class Conv(Layer):
             self.filters,
         )
 
-        # compute_output_shape contains some validation logic for the input shape,
-        # and make sure the output shape has all positive dimensions.
+        # compute_output_shape contains some validation logic for the input
+        # shape, and make sure the output shape has all positive dimensions.
         self.compute_output_shape(input_shape)
 
         self.kernel = self.add_weight(
@@ -259,9 +262,9 @@ class Conv(Layer):
             name=self.__class__.__name__,
         )
 
-    # TODO(b/213173659): remove this when grouped convolutions are fully supported
-    # on the CPU for compiled functions. For now, we need this as a workaround for
-    # CPU support.
+    # TODO(b/213173659): remove this when grouped convolutions are fully
+    # supported on the CPU for compiled functions. For now, we need this as a
+    # workaround for CPU support.
     @tf.function(jit_compile=True)
     def _jit_compiled_convolution_op(self, inputs, kernel):
         return self.convolution_op(inputs, kernel)
@@ -313,7 +316,7 @@ class Conv(Layer):
 
     def _spatial_output_shape(self, spatial_input_shape):
         return [
-            conv_utils.conv_output_length(  # pylint: disable=g-complex-comprehension
+            conv_utils.conv_output_length(
                 length,
                 self.kernel_size[i],
                 padding=self.padding,

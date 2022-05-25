@@ -57,7 +57,10 @@ class Conv2D(Conv):
     >>> input_shape = (4, 28, 28, 3)
     >>> x = tf.random.normal(input_shape)
     >>> y = tf.keras.layers.Conv2D(
-    ... 2, 3, activation='relu', dilation_rate=2, input_shape=input_shape[1:])(x)
+    ...     2, 3,
+    ...     activation='relu',
+    ...     dilation_rate=2,
+    ...     input_shape=input_shape[1:])(x)
     >>> print(y.shape)
     (4, 24, 24, 2)
 
@@ -79,36 +82,38 @@ class Conv2D(Conv):
 
 
     Args:
-      filters: Integer, the dimensionality of the output space (i.e. the number of
-        output filters in the convolution).
+      filters: Integer, the dimensionality of the output space (i.e. the number
+        of output filters in the convolution).
       kernel_size: An integer or tuple/list of 2 integers, specifying the height
-        and width of the 2D convolution window. Can be a single integer to specify
-        the same value for all spatial dimensions.
+        and width of the 2D convolution window. Can be a single integer to
+        specify the same value for all spatial dimensions.
       strides: An integer or tuple/list of 2 integers, specifying the strides of
         the convolution along the height and width. Can be a single integer to
         specify the same value for all spatial dimensions. Specifying any stride
-        value != 1 is incompatible with specifying any `dilation_rate` value != 1.
+        value != 1 is incompatible with specifying any `dilation_rate` value !=
+        1.
       padding: one of `"valid"` or `"same"` (case-insensitive).
-        `"valid"` means no padding. `"same"` results in padding with zeros evenly
-        to the left/right or up/down of the input. When `padding="same"` and
-        `strides=1`, the output has the same size as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs. `channels_last` corresponds
-        to inputs with shape `(batch_size, height, width, channels)` while
-        `channels_first` corresponds to inputs with shape `(batch_size, channels,
-        height, width)`. It defaults to the `image_data_format` value found in
-        your Keras config file at `~/.keras/keras.json`. If you never set it, then
-        it will be `channels_last`.
+        `"valid"` means no padding. `"same"` results in padding with zeros
+        evenly to the left/right or up/down of the input. When `padding="same"`
+        and `strides=1`, the output has the same size as the input.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`.  The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape `(batch_size, height,
+        width, channels)` while `channels_first` corresponds to inputs with
+        shape `(batch_size, channels, height, width)`. It defaults to the
+        `image_data_format` value found in your Keras config file at
+        `~/.keras/keras.json`. If you never set it, then it will be
+        `channels_last`.
       dilation_rate: an integer or tuple/list of 2 integers, specifying the
         dilation rate to use for dilated convolution. Can be a single integer to
         specify the same value for all spatial dimensions. Currently, specifying
-        any `dilation_rate` value != 1 is incompatible with specifying any stride
-        value != 1.
+        any `dilation_rate` value != 1 is incompatible with specifying any
+        stride value != 1.
       groups: A positive integer specifying the number of groups in which the
-        input is split along the channel axis. Each group is convolved separately
-        with `filters / groups` filters. The output is the concatenation of all
-        the `groups` results along the channel axis. Input channels and `filters`
-        must both be divisible by `groups`.
+        input is split along the channel axis. Each group is convolved
+        separately with `filters / groups` filters. The output is the
+        concatenation of all the `groups` results along the channel axis. Input
+        channels and `filters` must both be divisible by `groups`.
       activation: Activation function to use. If you don't specify anything, no
         activation is applied (see `keras.activations`).
       use_bias: Boolean, whether the layer uses a bias vector.

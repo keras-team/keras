@@ -36,7 +36,8 @@ class Lambda(Layer):
     as a `Layer` when constructing `Sequential`
     and Functional API models. `Lambda` layers are best suited for simple
     operations or quick experimentation. For more advanced use cases, follow
-    [this guide](https://www.tensorflow.org/guide/keras/custom_layers_and_models)
+    [this guide](
+    https://www.tensorflow.org/guide/keras/custom_layers_and_models)
     for subclassing `tf.keras.layers.Layer`.
 
     WARNING: `tf.keras.layers.Lambda` layers have (de)serialization limitations!
@@ -97,7 +98,8 @@ class Lambda(Layer):
     ```
 
       In general, Lambda layers can be convenient for simple stateless
-      computation, but anything more complex should use a subclass Layer instead.
+      computation, but anything more complex should use a subclass Layer
+      instead.
 
     Args:
       function: The function to be evaluated. Takes input tensor as first
@@ -105,12 +107,12 @@ class Lambda(Layer):
       output_shape: Expected output shape from function. This argument can be
         inferred if not explicitly provided. Can be a tuple or function. If a
         tuple, it only specifies the first dimension onward;
-        sample dimension is assumed either the same as the input: `output_shape =
-          (input_shape[0], ) + output_shape` or, the input is `None` and
-        the sample dimension is also `None`: `output_shape = (None, ) +
-          output_shape` If a function, it specifies the entire shape as a function
-          of the
-        input shape: `output_shape = f(input_shape)`
+        sample dimension is assumed either the same as the input:
+        `output_shape = (input_shape[0], ) + output_shape` or, the input is
+        `None` and the sample dimension is also `None`:
+        `output_shape = (None, ) + output_shape` If a function, it specifies the
+        entire shape as a function of the input shape:
+        `output_shape = f(input_shape)`
       mask: Either None (indicating no masking) or a callable with the same
         signature as the `compute_mask` layer method, or a tensor that will be
         returned as output mask regardless of what the input is.
@@ -147,16 +149,17 @@ class Lambda(Layer):
     def compute_output_shape(self, input_shape):
         if self._output_shape is None:
             # Make use of existing autocomputation but provide Lambda-specific
-            # error message. This is always safe to run even when the outer context
-            # is Graph mode because Lambda layers don't have side effects such as
-            # `add_loss`.
+            # error message. This is always safe to run even when the outer
+            # context is Graph mode because Lambda layers don't have side
+            # effects such as `add_loss`.
             with tf.__internal__.eager_context.eager_mode():
                 try:
                     return super().compute_output_shape(input_shape)
                 except NotImplementedError:
                     raise NotImplementedError(
-                        "We could not automatically infer the shape of the Lambda's "
-                        "output. Please specify `output_shape` for this Lambda."
+                        "We could not automatically infer the shape of "
+                        "the Lambda's output. Please specify `output_shape` "
+                        "for this Lambda."
                     )
 
         if callable(self._output_shape):
@@ -180,7 +183,8 @@ class Lambda(Layer):
         return tf.nest.map_structure(_add_batch, output_shapes)
 
     def call(self, inputs, mask=None, training=None):
-        # We must copy for thread safety, but it only needs to be a shallow copy.
+        # We must copy for thread safety, but it only needs to be a shallow
+        # copy.
         kwargs = {k: v for k, v in self.arguments.items()}
         if self._fn_expects_mask_arg:
             kwargs["mask"] = mask
@@ -203,9 +207,9 @@ class Lambda(Layer):
 
     def _check_variables(self, created_variables, accessed_variables):
         if not created_variables and not accessed_variables:
-            # In the common case that a Lambda layer does not touch a Variable, we
-            # don't want to incur the runtime cost of assembling any state used for
-            # checking only to immediately discard it.
+            # In the common case that a Lambda layer does not touch a Variable,
+            # we don't want to incur the runtime cost of assembling any state
+            # used for checking only to immediately discard it.
             return
 
         # Filter out the state variable in the tf.random.Generator, which is
@@ -257,8 +261,8 @@ class Lambda(Layer):
             self._already_warned = True
 
     def _warn(self, msg):
-        # This method will be overridden in a unit test to raise an error, because
-        # self.assertWarns is not universally implemented.
+        # This method will be overridden in a unit test to raise an error,
+        # because self.assertWarns is not universally implemented.
         return tf_logging.warning(msg)
 
     def compute_mask(self, inputs, mask=None):
@@ -392,6 +396,7 @@ class Lambda(Layer):
             supported_types = ["function", "lambda", "raw"]
             raise TypeError(
                 f"Unsupported value for `function_type` argument. Received: "
-                f"function_type={function_type}. Expected one of {supported_types}"
+                f"function_type={function_type}. "
+                f"Expected one of {supported_types}"
             )
         return function

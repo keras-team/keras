@@ -43,7 +43,8 @@ _config = tf.compat.v1.ConfigProto(graph_options=_graph_options)
 class LSTMGraphRewriteTest(test_combinations.TestCase):
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded input yet.",
+        skip_message="Skipping as ROCm MIOpen does not support padded "
+        "input yet.",
     )
     @test_utils.run_v2_only
     def test_lstm_feature_parity_v1_v2(self):
@@ -170,7 +171,8 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded input yet.",
+        skip_message="Skipping as ROCm MIOpen does not support padded "
+        "input yet.",
     )
     @test_utils.run_v2_only
     def test_explicit_device_with_go_backward_and_mask_v1(self):

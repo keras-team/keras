@@ -66,7 +66,8 @@ class UpSampling2D(Layer):
         Keras config file at `~/.keras/keras.json`.
         If you never set it, then it will be "channels_last".
       interpolation: A string, one of `"area"`, `"bicubic"`, `"bilinear"`,
-        `"gaussian"`, `"lanczos3"`, `"lanczos5"`, `"mitchellcubic"`, `"nearest"`.
+        `"gaussian"`, `"lanczos3"`, `"lanczos5"`, `"mitchellcubic"`,
+        `"nearest"`.
 
     Input shape:
       4D tensor with shape:

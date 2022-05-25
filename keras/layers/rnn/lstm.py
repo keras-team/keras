@@ -76,8 +76,8 @@ class LSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         (`tanh`). If you pass `None`, no activation is applied (ie. "linear"
         activation: `a(x) = x`).
       recurrent_activation: Activation function to use for the recurrent step.
-        Default: sigmoid (`sigmoid`). If you pass `None`, no activation is applied
-        (ie. "linear" activation: `a(x) = x`).
+        Default: sigmoid (`sigmoid`). If you pass `None`, no activation is
+        applied (ie. "linear" activation: `a(x) = x`).
       use_bias: Boolean, (default `True`), whether the layer uses a bias vector.
       kernel_initializer: Initializer for the `kernel` weights matrix, used for
         the linear transformation of the inputs. Default: `glorot_uniform`.
@@ -93,18 +93,18 @@ class LSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         matrix. Default: `None`.
       recurrent_regularizer: Regularizer function applied to
         the `recurrent_kernel` weights matrix. Default: `None`.
-      bias_regularizer: Regularizer function applied to the bias vector. Default:
-        `None`.
+      bias_regularizer: Regularizer function applied to the bias vector.
+        Default: `None`.
       kernel_constraint: Constraint function applied to the `kernel` weights
         matrix. Default: `None`.
-      recurrent_constraint: Constraint function applied to the `recurrent_kernel`
-        weights matrix. Default: `None`.
+      recurrent_constraint: Constraint function applied to the
+        `recurrent_kernel` weights matrix. Default: `None`.
       bias_constraint: Constraint function applied to the bias vector. Default:
         `None`.
-      dropout: Float between 0 and 1. Fraction of the units to drop for the linear
-        transformation of the inputs. Default: 0.
-      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop for
-        the linear transformation of the recurrent state. Default: 0.
+      dropout: Float between 0 and 1. Fraction of the units to drop for the
+        linear transformation of the inputs. Default: 0.
+      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop
+        for the linear transformation of the recurrent state. Default: 0.
 
     Call arguments:
       inputs: A 2D tensor, with shape of `[batch, feature]`.
@@ -439,29 +439,29 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
         matrix. Default: `None`.
       recurrent_regularizer: Regularizer function applied to the
         `recurrent_kernel` weights matrix. Default: `None`.
-      bias_regularizer: Regularizer function applied to the bias vector. Default:
-        `None`.
+      bias_regularizer: Regularizer function applied to the bias vector.
+        Default: `None`.
       activity_regularizer: Regularizer function applied to the output of the
         layer (its "activation"). Default: `None`.
       kernel_constraint: Constraint function applied to the `kernel` weights
         matrix. Default: `None`.
-      recurrent_constraint: Constraint function applied to the `recurrent_kernel`
-        weights matrix. Default: `None`.
+      recurrent_constraint: Constraint function applied to the
+        `recurrent_kernel` weights matrix. Default: `None`.
       bias_constraint: Constraint function applied to the bias vector. Default:
         `None`.
-      dropout: Float between 0 and 1. Fraction of the units to drop for the linear
-        transformation of the inputs. Default: 0.
-      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop for
-        the linear transformation of the recurrent state. Default: 0.
+      dropout: Float between 0 and 1. Fraction of the units to drop for the
+        linear transformation of the inputs. Default: 0.
+      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop
+        for the linear transformation of the recurrent state. Default: 0.
       return_sequences: Boolean. Whether to return the last output in the output
         sequence, or the full sequence. Default: `False`.
       return_state: Boolean. Whether to return the last state in addition to the
         output. Default: `False`.
-      go_backwards: Boolean (default `False`). If True, process the input sequence
-        backwards and return the reversed sequence.
-      stateful: Boolean (default `False`). If True, the last state for each sample
-        at index i in a batch will be used as initial state for the sample of
-        index i in the following batch.
+      go_backwards: Boolean (default `False`). If True, process the input
+        sequence backwards and return the reversed sequence.
+      stateful: Boolean (default `False`). If True, the last state for each
+      sample at index i in a batch will be used as initial state for the sample
+        of index i in the following batch.
       time_major: The shape format of the `inputs` and `outputs` tensors.
         If True, the inputs and outputs will be in shape
         `[timesteps, batch, feature]`, whereas in the False case, it will be
@@ -471,17 +471,17 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
         default this function accepts input and emits output in batch-major
         form.
       unroll: Boolean (default `False`). If True, the network will be unrolled,
-        else a symbolic loop will be used. Unrolling can speed-up a RNN, although
-        it tends to be more memory-intensive. Unrolling is only suitable for short
-        sequences.
+        else a symbolic loop will be used. Unrolling can speed-up a RNN,
+        although it tends to be more memory-intensive. Unrolling is only
+        suitable for short sequences.
 
     Call arguments:
       inputs: A 3D tensor with shape `[batch, timesteps, feature]`.
       mask: Binary tensor of shape `[batch, timesteps]` indicating whether
         a given timestep should be masked (optional, defaults to `None`).
         An individual `True` entry indicates that the corresponding timestep
-        should be utilized, while a `False` entry indicates that the corresponding
-        timestep should be ignored.
+        should be utilized, while a `False` entry indicates that the
+        corresponding timestep should be ignored.
       training: Python boolean indicating whether the layer should behave in
         training mode or in inference mode. This argument is passed to the cell
         when calling it. This is only relevant if `dropout` or
@@ -580,8 +580,8 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
             and tf.compat.v1.executing_eagerly_outside_functions()
         )
         if tf.config.list_logical_devices("GPU"):
-            # Only show the message when there is GPU available, user will not care
-            # about the cuDNN if there isn't any GPU.
+            # Only show the message when there is GPU available, user will not
+            # care about the cuDNN if there isn't any GPU.
             if self._could_use_gpu_kernel:
                 logging.debug(gru_lstm_utils.CUDNN_AVAILABLE_MSG % self.name)
             else:
@@ -639,9 +639,9 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
         else:
             # Use the new defun approach for backend implementation swap.
             # Note that different implementations need to have same function
-            # signature, eg, the tensor parameters need to have same shape and dtypes.
-            # Since the cuDNN has an extra set of bias, those bias will be passed to
-            # both normal and cuDNN implementations.
+            # signature, eg, the tensor parameters need to have same shape and
+            # dtypes. Since the cuDNN has an extra set of bias, those bias will
+            # be passed to both normal and cuDNN implementations.
             self.reset_dropout_mask()
             dropout_mask = self.get_dropout_mask_for_cell(
                 inputs, training, count=4
@@ -709,7 +709,8 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
                 if tf.executing_eagerly():
                     device_type = gru_lstm_utils.get_context_device_type()
                     can_use_gpu = (
-                        # Either user specified GPU or unspecified but GPU is available.
+                        # Either user specified GPU or unspecified but GPU is
+                        # available.
                         (
                             device_type == gru_lstm_utils.GPU_DEVICE_NAME
                             or (
@@ -724,8 +725,8 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
                             )
                         )
                     )
-                    # Under eager context, check the device placement and prefer the
-                    # GPU implementation when GPU is available.
+                    # Under eager context, check the device placement and prefer
+                    # the GPU implementation when GPU is available.
                     if can_use_gpu:
                         last_output, outputs, new_h, new_c, runtime = gpu_lstm(
                             **gpu_lstm_kwargs
@@ -914,8 +915,9 @@ def standard_lstm(
     removed since cuDNN implementation does not support that.
 
     Note that the first half of the bias tensor should be ignored by this impl.
-    The cuDNN impl need an extra set of input gate bias. In order to make the both
-    function take same shape of parameter, that extra set of bias is also feed
+    The cuDNN impl need an extra set of input gate bias. In order to make the
+    both function take same shape of parameter, that extra set of bias is also
+    feed
     here.
 
     Args:
@@ -928,15 +930,15 @@ def standard_lstm(
         is used in this case.
       mask: Boolean tensor for mask out the steps within sequence.
         An individual `True` entry indicates that the corresponding timestep
-        should be utilized, while a `False` entry indicates that the corresponding
-        timestep should be ignored.
+        should be utilized, while a `False` entry indicates that the
+        corresponding timestep should be ignored.
       time_major: boolean, whether the inputs are in the format of
         [time, batch, feature] or [batch, time, feature].
       go_backwards: Boolean (default False). If True, process the input sequence
         backwards and return the reversed sequence.
-      sequence_lengths: The lengths of all sequences coming from a variable length
-        input, such as ragged tensors. If the input has a fixed timestep size,
-        this should be None.
+      sequence_lengths: The lengths of all sequences coming from a variable
+        length input, such as ragged tensors. If the input has a fixed timestep
+        size, this should be None.
       zero_output_for_mask: Boolean, whether to output zero for masked timestep.
       return_sequences: Boolean. If True, return the recurrent outputs for all
         timesteps in the sequence. If False, only return the output for the
@@ -1013,10 +1015,11 @@ def gpu_lstm(
     sequence_lengths,
     return_sequences,
 ):
-    """LSTM with either cuDNN or ROCm implementation which is only available for GPU.
+    """LSTM with either cuDNN or ROCm implementation which is only available for
+    GPU.
 
-    Note that currently only right padded data is supported, or the result will be
-    polluted by the unmasked data which should be filtered.
+    Note that currently only right padded data is supported, or the result will
+    be polluted by the unmasked data which should be filtered.
 
     Args:
       inputs: Input tensor of LSTM layer.
@@ -1027,16 +1030,16 @@ def gpu_lstm(
       bias: Weights for cell kernel bias and recurrent bias. Only recurrent bias
         is used in this case.
       mask: Boolean tensor for mask out the steps within sequence. An individual
-        `True` entry indicates that the corresponding timestep should be utilized,
-        while a `False` entry indicates that the corresponding timestep should be
-        ignored.
+        `True` entry indicates that the corresponding timestep should be
+        utilized, while a `False` entry indicates that the corresponding
+        timestep should be ignored.
       time_major: Boolean, whether the inputs are in the format of [time, batch,
         feature] or [batch, time, feature].
       go_backwards: Boolean (default False). If True, process the input sequence
         backwards and return the reversed sequence.
-      sequence_lengths: The lengths of all sequences coming from a variable length
-        input, such as ragged tensors. If the input has a fixed timestep size,
-        this should be None.
+      sequence_lengths: The lengths of all sequences coming from a variable
+        length input, such as ragged tensors. If the input has a fixed timestep
+        size, this should be None.
       return_sequences: Boolean. If True, return the recurrent outputs for all
         timesteps in the sequence. If False, only return the output for the
         last timestep, matching the CPU function output format.
@@ -1075,8 +1078,8 @@ def gpu_lstm(
     full_bias = tf.concat((tf.zeros_like(bias), bias), 0)
 
     if tf.sysconfig.get_build_info()["is_rocm_build"]:
-        # ROCm MIOpen's weight sequence for LSTM is different from both canonical
-        # and Cudnn format
+        # ROCm MIOpen's weight sequence for LSTM is different from both
+        # canonical and Cudnn format
         # MIOpen: [i, f, o, c] Cudnn/Canonical: [i, f, c, o]
         # i is input gate weights.
         # f is forget gate weights.
@@ -1148,11 +1151,11 @@ def gpu_lstm(
     c = tf.squeeze(c, axis=seq_axis)
 
     # In the case of variable length input, the cudnn kernel will fill zeros for
-    # the output, whereas the default keras behavior is to bring over the previous
-    # output for t-1, so that in the return_sequence=False case, user can quickly
-    # get the final effect output instead just 0s at the last timestep.
-    # In order to mimic the default keras behavior, we copy the final h state as
-    # the last_output, since it is numerically same as the output.
+    # the output, whereas the default keras behavior is to bring over the
+    # previous output for t-1, so that in the return_sequence=False case, user
+    # can quickly get the final effect output instead just 0s at the last
+    # timestep.  In order to mimic the default keras behavior, we copy the final
+    # h state as the last_output, since it is numerically same as the output.
     if sequence_lengths is not None:
         last_output = h
 
@@ -1204,15 +1207,15 @@ def lstm_with_backend_selection(
         is used in this case.
       mask: Boolean tensor for mask out the steps within sequence.
         An individual `True` entry indicates that the corresponding timestep
-        should be utilized, while a `False` entry indicates that the corresponding
-        timestep should be ignored.
+        should be utilized, while a `False` entry indicates that the
+        corresponding timestep should be ignored.
       time_major: Boolean, whether the inputs are in the format of
         [time, batch, feature] or [batch, time, feature].
       go_backwards: Boolean (default False). If True, process the input sequence
         backwards and return the reversed sequence.
-      sequence_lengths: The lengths of all sequences coming from a variable length
-        input, such as ragged tensors. If the input has a fixed timestep size,
-        this should be None.
+      sequence_lengths: The lengths of all sequences coming from a variable
+        length input, such as ragged tensors. If the input has a fixed timestep
+        size, this should be None.
       zero_output_for_mask: Boolean, whether to output zero for masked timestep.
       return_sequences: Boolean. If True, return the recurrent outputs for all
         timesteps in the sequence. If False, only return the output for the

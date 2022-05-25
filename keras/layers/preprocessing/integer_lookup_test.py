@@ -103,13 +103,14 @@ class IntegerLookupLayerTest(
             # dataset batch separately, then tries to concatenate the results
             # together. When the results have different shapes on the non-concat
             # axis (which can happen in the output_mode = INT case for
-            # IntegerLookup), the concatenation fails. In real use cases, this may
-            # not be an issue because users are likely to pipe the preprocessing layer
-            # into other keras layers instead of predicting it directly. A workaround
-            # for these unit tests is to have the dataset only contain one batch, so
-            # no concatenation needs to happen with the result. For consistency with
-            # numpy input, we should make `predict` join differently shaped results
-            # together sensibly, with 0 padding.
+            # IntegerLookup), the concatenation fails. In real use cases, this
+            # may not be an issue because users are likely to pipe the
+            # preprocessing layer into other keras layers instead of predicting
+            # it directly. A workaround for these unit tests is to have the
+            # dataset only contain one batch, so no concatenation needs to
+            # happen with the result. For consistency with numpy input, we
+            # should make `predict` join differently shaped results together
+            # sensibly, with 0 padding.
             input_data = tf.data.Dataset.from_tensor_slices(input_data).batch(
                 input_shape[0]
             )
@@ -634,8 +635,8 @@ class IntegerLookupSavingTest(
         output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
         model.save(output_path, save_format="tf")
 
-        # Delete the session and graph to ensure that the loaded model is generated
-        # from scratch.
+        # Delete the session and graph to ensure that the loaded model is
+        # generated from scratch.
         # TODO(b/149526183): Can't clear session when TF2 is disabled.
         if tf.__internal__.tf2.enabled():
             keras.backend.clear_session()

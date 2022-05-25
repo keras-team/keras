@@ -36,7 +36,8 @@ class SeparableConv1D(SeparableConv):
     channels, followed by a pointwise convolution that mixes channels.
     If `use_bias` is True and a bias initializer is provided,
     it adds a bias vector to the output.
-    It then optionally applies an activation function to produce the final output.
+    It then optionally applies an activation function to produce the final
+    output.
 
     Args:
       filters: Integer, the dimensionality of the output space (i.e. the number
@@ -48,12 +49,13 @@ class SeparableConv1D(SeparableConv):
         Specifying any `stride` value != 1 is incompatible with specifying
         any `dilation_rate` value != 1.
       padding: One of `"valid"`, `"same"`, or `"causal"` (case-insensitive).
-        `"valid"` means no padding. `"same"` results in padding with zeros evenly
-        to the left/right or up/down of the input such that output has the same
-        height/width dimension as the input. `"causal"` results in causal
-        (dilated) convolutions, e.g. `output[t]` does not depend on `input[t+1:]`.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+        `"valid"` means no padding. `"same"` results in padding with zeros
+        evenly to the left/right or up/down of the input such that output has
+        the same height/width dimension as the input. `"causal"` results in
+        causal (dilated) convolutions, e.g. `output[t]` does not depend on
+        `input[t+1:]`.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`.  The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch_size, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch_size, channels, length)`.
@@ -174,7 +176,8 @@ class SeparableConv1D(SeparableConv):
             spatial_start_dim = 2
 
         # Explicitly broadcast inputs and kernels to 4D.
-        # TODO(fchollet): refactor when a native separable_conv1d op is available.
+        # TODO(fchollet): refactor when a native separable_conv1d op is
+        # available.
         inputs = tf.expand_dims(inputs, spatial_start_dim)
         depthwise_kernel = tf.expand_dims(self.depthwise_kernel, 0)
         pointwise_kernel = tf.expand_dims(self.pointwise_kernel, 0)

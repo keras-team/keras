@@ -218,7 +218,8 @@ class NormalizationTest(
     def test_output_dtype(self):
         if not tf.__internal__.tf2.enabled():
             self.skipTest("set_global_policy only supported in TF2.")
-        # Output should respect an explicit dtype, and default to the global policy.
+        # Output should respect an explicit dtype, and default to the global
+        # policy.
         policy.set_global_policy("float64")
         input_data = keras.Input(batch_size=16, shape=(1,))
         layer = normalization.Normalization(

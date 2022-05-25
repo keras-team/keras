@@ -390,8 +390,9 @@ class CuDNNV1OnlyTest(test_combinations.TestCase):
     def test_load_weights_between_noncudnn_rnn_time_distributed(
         self, rnn_type, to_cudnn
     ):
-        # Similar test as test_load_weights_between_noncudnn_rnn() but has different
-        # rank of input due to usage of TimeDistributed. Issue: #10356.
+        # Similar test as test_load_weights_between_noncudnn_rnn() but has
+        # different rank of input due to usage of TimeDistributed. Issue:
+        # #10356.
         input_size = 10
         steps = 6
         timesteps = 6

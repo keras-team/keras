@@ -59,8 +59,8 @@ class Cropping3D(Layer):
     Input shape:
       5D tensor with shape:
       - If `data_format` is `"channels_last"`:
-        `(batch_size, first_axis_to_crop, second_axis_to_crop, third_axis_to_crop,
-          depth)`
+        `(batch_size, first_axis_to_crop, second_axis_to_crop,
+        third_axis_to_crop, depth)`
       - If `data_format` is `"channels_first"`:
         `(batch_size, depth, first_axis_to_crop, second_axis_to_crop,
           third_axis_to_crop)`
@@ -68,8 +68,8 @@ class Cropping3D(Layer):
     Output shape:
       5D tensor with shape:
       - If `data_format` is `"channels_last"`:
-        `(batch_size, first_cropped_axis, second_cropped_axis, third_cropped_axis,
-          depth)`
+        `(batch_size, first_cropped_axis, second_cropped_axis,
+        third_cropped_axis, depth)`
       - If `data_format` is `"channels_first"`:
         `(batch_size, depth, first_cropped_axis, second_cropped_axis,
           third_cropped_axis)`
@@ -106,7 +106,8 @@ class Cropping3D(Layer):
             raise ValueError(
                 "`cropping` should be either an int, "
                 "a tuple of 3 ints "
-                "(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop), "
+                "(symmetric_dim1_crop, symmetric_dim2_crop, "
+                "symmetric_dim3_crop), "
                 "or a tuple of 3 tuples of 2 ints "
                 "((left_dim1_crop, right_dim1_crop),"
                 " (left_dim2_crop, right_dim2_crop),"
@@ -301,13 +302,7 @@ class Cropping3D(Layer):
                 :,
                 self.cropping[0][0] : -self.cropping[0][1],
                 self.cropping[1][0] : -self.cropping[1][1],
-                self.cropping[2][
-                    0
-                ] : -self.cropping[  # pylint: disable=invalid-unary-operand-type
-                    2
-                ][
-                    1
-                ],
+                self.cropping[2][0] : -self.cropping[2][1],
                 :,
             ]  # pylint: disable=invalid-unary-operand-type
         # pylint: enable=invalid-unary-operand-type
