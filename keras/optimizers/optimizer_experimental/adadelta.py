@@ -27,8 +27,8 @@ from keras.utils import generic_utils
 class Adadelta(optimizer.Optimizer):
     r"""Optimizer that implements the Adadelta algorithm.
 
-    Adadelta optimization is a stochastic gradient descent method that is based on
-    adaptive learning rate per dimension to address two drawbacks:
+    Adadelta optimization is a stochastic gradient descent method that is based
+    on adaptive learning rate per dimension to address two drawbacks:
 
     - The continual decay of learning rates throughout training.
     - The need for a manually selected global learning rate.
@@ -48,7 +48,8 @@ class Adadelta(optimizer.Optimizer):
         Note that `Adadelta` tends to benefit from higher initial learning rate
         values compared to other optimizers.
         To match the exact form in the original paper, use 1.0.
-      rho: A `Tensor` or a floating point value. The decay rate. Defaults to 0.95.
+      rho: A `Tensor` or a floating point value. The decay rate. Defaults to
+        0.95.
       epsilon: Small floating point value used to maintain numerical stability.
         Defaults to 1e-7.
       {{base_optimizer_keyword_args}}

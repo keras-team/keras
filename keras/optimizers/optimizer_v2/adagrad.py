@@ -122,9 +122,9 @@ class Adagrad(optimizer_v2.OptimizerV2):
 
         Args:
             config: A Python dictionary, typically the output of get_config.
-            custom_objects: A Python dictionary mapping names to additional Python
-              objects used to create this optimizer, such as a function used for a
-              hyperparameter.
+            custom_objects: A Python dictionary mapping names to additional
+              Python objects used to create this optimizer, such as a function
+              used for a hyperparameter.
 
         Returns:
             An optimizer instance.

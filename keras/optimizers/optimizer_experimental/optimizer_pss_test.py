@@ -91,8 +91,8 @@ class OptimizerPssTest(tf.test.TestCase, parameterized.TestCase):
         variables = optimizer.variables
         for var in variables:
             if "iteration" not in var.name and "learning_rate" not in var.name:
-                # Find a variable not iteration or learning_rate, and verify its value
-                # is updated (not 0).
+                # Find a variable not iteration or learning_rate, and verify its
+                # value is updated (not 0).
                 self.assertNotAllEqual(var, 0)
 
     @ds_combinations.generate(

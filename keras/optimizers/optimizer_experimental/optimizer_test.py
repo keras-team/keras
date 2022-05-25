@@ -262,8 +262,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         optimizer.apply_gradients(zip(grads, [var1, var2]))
         self.assertAllEqual([var1.numpy(), var2.numpy()], [0.0, 0.0])
 
-        # Third iteration, without EMA, we should see [var1, var2] = [-1.0, -1.0],
-        # but overwriting results in [var1, var2] = [-0.125, -0.125].
+        # Third iteration, without EMA, we should see [var1, var2] = [-1.0,
+        # -1.0], but overwriting results in [var1, var2] = [-0.125, -0.125].
         optimizer.apply_gradients(zip(grads, [var1, var2]))
         self.assertAllEqual([var1.numpy(), var2.numpy()], [-0.125, -0.125])
 

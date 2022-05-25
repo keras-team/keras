@@ -368,8 +368,8 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             slot1 = mom_opt.get_slot(var1, "momentum")
             self.assertEqual(slot1.shape, var1.shape)
 
-            # Step 1: the momentum accumulators where 0. So we should see a normal
-            # update: v -= grad * learning_rate
+            # Step 1: the momentum accumulators where 0. So we should see a
+            # normal update: v -= grad * learning_rate
             self.evaluate(tf.compat.v1.global_variables_initializer())
             self.evaluate(mom_update)
             # Check that the momentum accumulators have been updated.
@@ -568,8 +568,8 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 # Fetch params to validate initial values
                 self.assertAllClose([1.0, 2.0], self.evaluate(var0))
                 self.assertAllClose([3.0, 4.0], self.evaluate(var1))
-                # Step 1: the momentum accumulators where 0. So we should see a normal
-                # update: v -= grad * learning_rate
+                # Step 1: the momentum accumulators where 0. So we should see a
+                # normal update: v -= grad * learning_rate
                 self.evaluate(mom_update)
                 # Check that the momentum accumulators have been updated.
                 self.assertAllCloseAccordingToType(
@@ -658,8 +658,8 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 self.assertAllClose([0, 0], self.evaluate(var0)[1])
                 self.assertAllClose([1, 1], self.evaluate(var1)[2])
 
-                # Step 1: the momentum accumulators are 0. So we should see a normal
-                # update: v -= grad * learning_rate
+                # Step 1: the momentum accumulators are 0. So we should see a
+                # normal update: v -= grad * learning_rate
                 self.evaluate(mom_update)
                 # Check that the momentum accumulators have been updated.
                 self.assertAllCloseAccordingToType(
@@ -749,8 +749,8 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 # Fetch params to validate initial values
                 self.assertAllClose([1.0, 2.0], self.evaluate(var0))
                 self.assertAllClose([3.0, 4.0], self.evaluate(var1))
-                # Step 1: the momentum accumulators where 0. So we should see a normal
-                # update: v -= grad * learning_rate
+                # Step 1: the momentum accumulators where 0. So we should see a
+                # normal update: v -= grad * learning_rate
                 self.evaluate(mom_update1)
                 # Check that the momentum accumulators have been updated.
                 self.assertAllCloseAccordingToType(
@@ -768,7 +768,8 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                     np.array([3.0 - (0.01 * 2.0), 4.0 - (0.01 * 2.0)]),
                     self.evaluate(var1),
                 )
-                # Step 2: the second momentum accumulators contain the previous update.
+                # Step 2: the second momentum accumulators contain the previous
+                # update.
                 self.evaluate(mom_update2)
                 # Check that the momentum accumulators have been updated.
                 self.assertAllCloseAccordingToType(

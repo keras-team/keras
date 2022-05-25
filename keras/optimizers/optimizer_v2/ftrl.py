@@ -27,9 +27,9 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 class Ftrl(optimizer_v2.OptimizerV2):
     r"""Optimizer that implements the FTRL algorithm.
 
-    "Follow The Regularized Leader" (FTRL) is an optimization algorithm developed
-    at Google for click-through rate prediction in the early 2010s. It is most
-    suitable for shallow models with large and sparse feature spaces.
+    "Follow The Regularized Leader" (FTRL) is an optimization algorithm
+    developed at Google for click-through rate prediction in the early 2010s. It
+    is most suitable for shallow models with large and sparse feature spaces.
     The algorithm is described by
     [McMahan et al., 2013](https://research.google.com/pubs/archive/41159.pdf).
     The Keras version has support for both online L2 regularization
@@ -119,28 +119,32 @@ class Ftrl(optimizer_v2.OptimizerV2):
 
         if initial_accumulator_value < 0.0:
             raise ValueError(
-                "`initial_accumulator_value` needs to be positive or zero. Received: "
+                "`initial_accumulator_value` needs to be "
+                "positive or zero. Received: "
                 f"initial_accumulator_value={initial_accumulator_value}."
             )
         if learning_rate_power > 0.0:
             raise ValueError(
-                "`learning_rate_power` needs to be negative or zero. Received: "
+                "`learning_rate_power` needs to be "
+                "negative or zero. Received: "
                 f"learning_rate_power={learning_rate_power}."
             )
         if l1_regularization_strength < 0.0:
             raise ValueError(
                 "`l1_regularization_strength` needs to be positive or zero. "
-                f"Received: l1_regularization_strength={l1_regularization_strength}."
+                f"Received: l1_regularization_strength="
+                f"{l1_regularization_strength}."
             )
         if l2_regularization_strength < 0.0:
             raise ValueError(
                 "`l2_regularization_strength` needs to be positive or zero. "
-                f"Received: l2_regularization_strength={l2_regularization_strength}."
+                f"Received: l2_regularization_strength="
+                f"{l2_regularization_strength}."
             )
         if l2_shrinkage_regularization_strength < 0.0:
             raise ValueError(
-                "`l2_shrinkage_regularization_strength` needs to be positive or "
-                "zero. Received: l2_shrinkage_regularization_strength"
+                "`l2_shrinkage_regularization_strength` needs to be positive "
+                "or zero. Received: l2_shrinkage_regularization_strength"
                 f"={l2_shrinkage_regularization_strength}."
             )
 
@@ -195,8 +199,8 @@ class Ftrl(optimizer_v2.OptimizerV2):
             (var_device, var_dtype)
         ) or self._fallback_apply_state(var_device, var_dtype)
 
-        # Adjust L2 regularization strength to include beta to avoid the underlying
-        # TensorFlow ops needing to include it.
+        # Adjust L2 regularization strength to include beta to avoid the
+        # underlying TensorFlow ops needing to include it.
         adjusted_l2_regularization_strength = coefficients[
             "l2_regularization_strength"
         ] + coefficients["beta"] / (2.0 * coefficients["lr_t"])
@@ -238,8 +242,8 @@ class Ftrl(optimizer_v2.OptimizerV2):
             (var_device, var_dtype)
         ) or self._fallback_apply_state(var_device, var_dtype)
 
-        # Adjust L2 regularization strength to include beta to avoid the underlying
-        # TensorFlow ops needing to include it.
+        # Adjust L2 regularization strength to include beta to avoid the
+        # underlying TensorFlow ops needing to include it.
         adjusted_l2_regularization_strength = coefficients[
             "l2_regularization_strength"
         ] + coefficients["beta"] / (2.0 * coefficients["lr_t"])

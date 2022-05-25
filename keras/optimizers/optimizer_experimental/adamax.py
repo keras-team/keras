@@ -42,8 +42,8 @@ class Adamax(optimizer.Optimizer):
     t = 0  # Initialize timestep
     ```
 
-    The update rule for parameter `w` with gradient `g` is
-    described at the end of section 7.1 of the paper (see the referenece section):
+    The update rule for parameter `w` with gradient `g` is described at the end
+    of section 7.1 of the paper (see the referenece section):
 
     ```python
     t += 1

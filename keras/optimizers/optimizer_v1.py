@@ -85,8 +85,8 @@ class Optimizer:
             List of gradient tensors.
 
         Raises:
-            ValueError: In case any gradient cannot be computed (e.g. if gradient
-              function not implemented).
+            ValueError: In case any gradient cannot be computed (e.g. if
+              gradient function not implemented).
         """
         grads = backend.gradients(loss, params)
         if any(g is None for g in grads):
@@ -113,9 +113,9 @@ class Optimizer:
         (otherwise the optimizer has no weights).
 
         Args:
-            weights: a list of Numpy arrays. The number of arrays and their shape
-              must match number of the dimensions of the weights of the optimizer
-              (i.e. it should match the output of `get_weights`).
+            weights: a list of Numpy arrays. The number of arrays and their
+              shape must match number of the dimensions of the weights of the
+              optimizer (i.e. it should match the output of `get_weights`).
 
         Raises:
             ValueError: in case of incompatible weight shapes.
@@ -890,9 +890,9 @@ class TFOptimizer(Optimizer, tf.__internal__.tracking.Trackable):
             self.updates = []
 
             if not params:
-                # After the model vars have been created, the second call to get_updates
-                # is called with params as an empty list. This ensures that we call
-                # compute_gradients with params=None.
+                # After the model vars have been created, the second call to
+                # get_updates is called with params as an empty list. This
+                # ensures that we call compute_gradients with params=None.
                 grads = self.optimizer.compute_gradients(loss)
             else:
                 grads = self.optimizer.compute_gradients(loss, params)

@@ -267,9 +267,10 @@ class FtrlOptimizerTest(tf.test.TestCase):
     def testFtrlWithL1_L2_L2Shrinkage(self):
         """Test the new FTRL op with support for l2 shrinkage.
 
-        The addition of this parameter which places a constant pressure on weights
-        towards the origin causes the gradient descent trajectory to differ. The
-        weights will tend to have smaller magnitudes with this parameter set.
+        The addition of this parameter which places a constant pressure on
+        weights towards the origin causes the gradient descent trajectory to
+        differ. The weights will tend to have smaller magnitudes with this
+        parameter set.
         """
         # TODO(tanzheny, omalleyt): Fix test in eager mode.
         for dtype in [tf.half, tf.float32]:
@@ -308,7 +309,8 @@ class FtrlOptimizerTest(tf.test.TestCase):
                 )
 
     def testFtrlWithL1_L2_L2ShrinkageSparse(self):
-        """Tests the new FTRL op with support for l2 shrinkage on sparse grads."""
+        """Tests the new FTRL op with support for l2 shrinkage on sparse
+        grads."""
         # TODO(tanzheny, omalleyt): Fix test in eager mode.
         for dtype in [tf.half, tf.float32]:
             with tf.Graph().as_default(), self.cached_session():
@@ -390,8 +392,8 @@ class FtrlOptimizerTest(tf.test.TestCase):
                     update1.run()
 
                 v0_val, v1_val = self.evaluate([var0, var1])
-                # var0 is experiencing L2 shrinkage so it should be smaller than var1
-                # in magnitude.
+                # var0 is experiencing L2 shrinkage so it should be smaller than
+                # var1 in magnitude.
                 self.assertTrue((v0_val**2 < v1_val**2).all())
                 accum0 = sess.run(opt0.get_slot(var0, "accumulator"))
                 accum1 = sess.run(opt1.get_slot(var1, "accumulator"))
@@ -436,11 +438,12 @@ class FtrlOptimizerTest(tf.test.TestCase):
         v0_val, v1_val = self.evaluate([var0, var1])
         return v0_val, v1_val
 
-    # When variables are initialized with Zero, FTRL-Proximal has two properties:
+    # When variables are initialized with Zero, FTRL-Proximal has two
+    # properties:
     # 1. Without L1&L2 but with fixed learning rate, FTRL-Proximal is identical
     # with GradientDescent.
-    # 2. Without L1&L2 but with adaptive learning rate, FTRL-Proximal is identical
-    # with Adagrad.
+    # 2. Without L1&L2 but with adaptive learning rate, FTRL-Proximal is
+    # identical with Adagrad.
     # So, basing on these two properties, we test if our implementation of
     # FTRL-Proximal performs same updates as Adagrad or GradientDescent.
     def testEquivAdagradwithoutRegularization(self):

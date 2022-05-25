@@ -49,8 +49,8 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                     epsilon = 1e-8
                     if use_callable_params:
                         adadelta_opt = adadelta.Adadelta(
-                            learning_rate=lambda: lr,  # pylint: disable=cell-var-from-loop
-                            rho=lambda: rho,  # pylint: disable=cell-var-from-loop
+                            learning_rate=lambda: lr,
+                            rho=lambda: rho,
                             epsilon=epsilon,
                         )  # pylint: disable=cell-var-from-loop
                     else:

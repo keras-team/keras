@@ -29,8 +29,8 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 class Adadelta(optimizer_v2.OptimizerV2):
     r"""Optimizer that implements the Adadelta algorithm.
 
-    Adadelta optimization is a stochastic gradient descent method that is based on
-    adaptive learning rate per dimension to address two drawbacks:
+    Adadelta optimization is a stochastic gradient descent method that is based
+    on adaptive learning rate per dimension to address two drawbacks:
 
     - The continual decay of learning rates throughout training.
     - The need for a manually selected global learning rate.
