@@ -273,7 +273,9 @@ class Conv(Layer):
             inputs = tf.pad(inputs, self._compute_causal_padding(inputs))
 
         if self.groups > 1:
-            outputs = self._jit_compiled_convolution_op(inputs, self.kernel)
+            outputs = self._jit_compiled_convolution_op(
+                inputs, tf.convert_to_tensor(self.kernel)
+            )
         else:
             outputs = self.convolution_op(inputs, self.kernel)
 
