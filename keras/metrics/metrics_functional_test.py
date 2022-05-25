@@ -61,8 +61,8 @@ class KerasFunctionalMetricsTest(tf.test.TestCase, parameterized.TestCase):
                 backend.eval(metric(y_true, y_pred)), [0.0, 1.0, 1.0, 1.0]
             )
 
-            # Test correctness if the shape of y_true is (batch_size, seq_length) and
-            # y_pred is (batch_size, seq_length, num_classes)
+            # Test correctness if the shape of y_true is (batch_size,
+            # seq_length) and y_pred is (batch_size, seq_length, num_classes)
             y_pred = backend.variable(
                 np.array(
                     [
@@ -85,7 +85,8 @@ class KerasFunctionalMetricsTest(tf.test.TestCase, parameterized.TestCase):
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def test_sparse_categorical_accuracy_eager(self):
-        """Tests that ints passed in via Eager return results. See b/113504761."""
+        """Tests that ints passed in via Eager return results. See
+        b/113504761."""
         metric = metrics.sparse_categorical_accuracy
         y_true = np.arange(6).reshape([6, 1])
         y_pred = np.arange(36).reshape([6, 6])
@@ -95,7 +96,8 @@ class KerasFunctionalMetricsTest(tf.test.TestCase, parameterized.TestCase):
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def test_sparse_categorical_accuracy_float_eager(self):
-        """Tests that floats passed in via Eager return results. See b/113504761."""
+        """Tests that floats passed in via Eager return results. See
+        b/113504761."""
         metric = metrics.sparse_categorical_accuracy
         y_true = np.arange(6, dtype=np.float32).reshape([6, 1])
         y_pred = np.arange(36).reshape([6, 6])
@@ -141,8 +143,8 @@ class KerasFunctionalMetricsTest(tf.test.TestCase, parameterized.TestCase):
             )
             self.assertEqual(np.mean(result), 0.0)
 
-            # Test correctness if the shape of y_true is (batch_size, seq_length) and
-            # y_pred is (batch_size, seq_length, num_classes)
+            # Test correctness if the shape of y_true is (batch_size,
+            # seq_length) and y_pred is (batch_size, seq_length, num_classes)
             y_pred = backend.variable(
                 np.array(
                     [

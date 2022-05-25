@@ -50,10 +50,10 @@ from tensorflow.python.util.tf_export import keras_export
 class MeanRelativeError(base_metric.Mean):
     """Computes the mean relative error by normalizing with the given values.
 
-    This metric creates two local variables, `total` and `count` that are used to
-    compute the mean relative error. This is weighted by `sample_weight`, and
-    it is ultimately returned as `mean_relative_error`:
-    an idempotent operation that simply divides `total` by `count`.
+    This metric creates two local variables, `total` and `count` that are used
+    to compute the mean relative error. This is weighted by `sample_weight`, and
+    it is ultimately returned as `mean_relative_error`: an idempotent operation
+    that simply divides `total` by `count`.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
@@ -96,9 +96,9 @@ class MeanRelativeError(base_metric.Mean):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -140,10 +140,10 @@ class MeanRelativeError(base_metric.Mean):
 class Accuracy(base_metric.MeanMetricWrapper):
     """Calculates how often predictions equal labels.
 
-    This metric creates two local variables, `total` and `count` that are used to
-    compute the frequency with which `y_pred` matches `y_true`. This frequency is
-    ultimately returned as `binary accuracy`: an idempotent operation that simply
-    divides `total` by `count`.
+    This metric creates two local variables, `total` and `count` that are used
+    to compute the frequency with which `y_pred` matches `y_true`. This
+    frequency is ultimately returned as `binary accuracy`: an idempotent
+    operation that simply divides `total` by `count`.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
@@ -183,10 +183,10 @@ class Accuracy(base_metric.MeanMetricWrapper):
 class BinaryAccuracy(base_metric.MeanMetricWrapper):
     """Calculates how often predictions match binary labels.
 
-    This metric creates two local variables, `total` and `count` that are used to
-    compute the frequency with which `y_pred` matches `y_true`. This frequency is
-    ultimately returned as `binary accuracy`: an idempotent operation that simply
-    divides `total` by `count`.
+    This metric creates two local variables, `total` and `count` that are used
+    to compute the frequency with which `y_pred` matches `y_true`. This
+    frequency is ultimately returned as `binary accuracy`: an idempotent
+    operation that simply divides `total` by `count`.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
@@ -233,13 +233,14 @@ class CategoricalAccuracy(base_metric.MeanMetricWrapper):
     You can provide logits of classes as `y_pred`, since argmax of
     logits and probabilities are same.
 
-    This metric creates two local variables, `total` and `count` that are used to
-    compute the frequency with which `y_pred` matches `y_true`. This frequency is
-    ultimately returned as `categorical accuracy`: an idempotent operation that
-    simply divides `total` by `count`.
+    This metric creates two local variables, `total` and `count` that are used
+    to compute the frequency with which `y_pred` matches `y_true`. This
+    frequency is ultimately returned as `categorical accuracy`: an idempotent
+    operation that simply divides `total` by `count`.
 
-    `y_pred` and `y_true` should be passed in as vectors of probabilities, rather
-    than as labels. If necessary, use `tf.one_hot` to expand `y_true` as a vector.
+    `y_pred` and `y_true` should be passed in as vectors of probabilities,
+    rather than as labels. If necessary, use `tf.one_hot` to expand `y_true` as
+    a vector.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
@@ -276,7 +277,7 @@ class CategoricalAccuracy(base_metric.MeanMetricWrapper):
     @dtensor_utils.inject_mesh
     def __init__(self, name="categorical_accuracy", dtype=None):
         super().__init__(
-            lambda y_true, y_pred: metrics_utils.sparse_categorical_matches(  # pylint: disable=g-long-lambda
+            lambda y_true, y_pred: metrics_utils.sparse_categorical_matches(
                 tf.math.argmax(y_true, axis=-1), y_pred
             ),
             name,
@@ -295,10 +296,10 @@ class SparseCategoricalAccuracy(base_metric.MeanMetricWrapper):
     You can provide logits of classes as `y_pred`, since argmax of
     logits and probabilities are same.
 
-    This metric creates two local variables, `total` and `count` that are used to
-    compute the frequency with which `y_pred` matches `y_true`. This frequency is
-    ultimately returned as `sparse categorical accuracy`: an idempotent operation
-    that simply divides `total` by `count`.
+    This metric creates two local variables, `total` and `count` that are used
+    to compute the frequency with which `y_pred` matches `y_true`. This
+    frequency is ultimately returned as `sparse categorical accuracy`: an
+    idempotent operation that simply divides `total` by `count`.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
@@ -402,7 +403,7 @@ class TopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
     @dtensor_utils.inject_mesh
     def __init__(self, k=5, name="top_k_categorical_accuracy", dtype=None):
         super().__init__(
-            lambda yt, yp, k: metrics_utils.sparse_top_k_categorical_matches(  # pylint: disable=g-long-lambda
+            lambda yt, yp, k: metrics_utils.sparse_top_k_categorical_matches(
                 tf.math.argmax(yt, axis=-1), yp, k
             ),
             name,
@@ -466,11 +467,11 @@ class _ConfusionMatrixConditionCount(base_metric.Metric):
 
     Args:
       confusion_matrix_cond: One of `metrics_utils.ConfusionMatrix` conditions.
-      thresholds: (Optional) Defaults to 0.5. A float value or a python list/tuple
-        of float threshold values in [0, 1]. A threshold is compared with
-        prediction values to determine the truth value of predictions (i.e., above
-        the threshold is `true`, below is `false`). One metric value is generated
-        for each threshold value.
+      thresholds: (Optional) Defaults to 0.5. A float value or a python
+        list/tuple of float threshold values in [0, 1]. A threshold is compared
+        with prediction values to determine the truth value of predictions
+        (i.e., above the threshold is `true`, below is `false`). One metric
+        value is generated for each threshold value.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
     """
@@ -497,9 +498,9 @@ class _ConfusionMatrixConditionCount(base_metric.Metric):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -779,29 +780,30 @@ class TruePositives(_ConfusionMatrixConditionCount):
 class Precision(base_metric.Metric):
     """Computes the precision of the predictions with respect to the labels.
 
-    The metric creates two local variables, `true_positives` and `false_positives`
-    that are used to compute the precision. This value is ultimately returned as
-    `precision`, an idempotent operation that simply divides `true_positives`
-    by the sum of `true_positives` and `false_positives`.
+    The metric creates two local variables, `true_positives` and
+    `false_positives` that are used to compute the precision. This value is
+    ultimately returned as `precision`, an idempotent operation that simply
+    divides `true_positives` by the sum of `true_positives` and
+    `false_positives`.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
 
     If `top_k` is set, we'll calculate precision as how often on average a class
-    among the top-k classes with the highest predicted values of a batch entry is
-    correct and can be found in the label for that entry.
+    among the top-k classes with the highest predicted values of a batch entry
+    is correct and can be found in the label for that entry.
 
     If `class_id` is specified, we calculate precision by considering only the
-    entries in the batch for which `class_id` is above the threshold and/or in the
-    top-k highest predictions, and computing the fraction of them for which
+    entries in the batch for which `class_id` is above the threshold and/or in
+    the top-k highest predictions, and computing the fraction of them for which
     `class_id` is indeed a correct label.
 
     Args:
       thresholds: (Optional) A float value, or a Python list/tuple of float
         threshold values in [0, 1]. A threshold is compared with prediction
         values to determine the truth value of predictions (i.e., above the
-        threshold is `true`, below is `false`). If used with a loss function that
-        sets `from_logits=True` (i.e. no sigmoid applied to predictions),
+        threshold is `true`, below is `false`). If used with a loss function
+        that sets `from_logits=True` (i.e. no sigmoid applied to predictions),
         `thresholds` should be set to 0. One metric value is generated for each
         threshold value. If neither thresholds nor top_k are set, the default is
         to calculate precision with `thresholds=0.5`.
@@ -825,13 +827,15 @@ class Precision(base_metric.Metric):
     >>> m.result().numpy()
     1.0
 
-    >>> # With top_k=2, it will calculate precision over y_true[:2] and y_pred[:2]
+    >>> # With top_k=2, it will calculate precision over y_true[:2]
+    >>> # and y_pred[:2]
     >>> m = tf.keras.metrics.Precision(top_k=2)
     >>> m.update_state([0, 0, 1, 1], [1, 1, 1, 1])
     >>> m.result().numpy()
     0.0
 
-    >>> # With top_k=4, it will calculate precision over y_true[:4] and y_pred[:4]
+    >>> # With top_k=4, it will calculate precision over y_true[:4]
+    >>> # and y_pred[:4]
     >>> m = tf.keras.metrics.Precision(top_k=4)
     >>> m.update_state([0, 0, 1, 1], [1, 1, 1, 1])
     >>> m.result().numpy()
@@ -885,10 +889,11 @@ class Precision(base_metric.Metric):
         Args:
           y_true: The ground truth values, with the same dimensions as `y_pred`.
             Will be cast to `bool`.
-          y_pred: The predicted values. Each element must be in the range `[0, 1]`.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          y_pred: The predicted values. Each element must be in the range
+            `[0, 1]`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -957,8 +962,8 @@ class Recall(base_metric.Metric):
       thresholds: (Optional) A float value, or a Python list/tuple of float
         threshold values in [0, 1]. A threshold is compared with prediction
         values to determine the truth value of predictions (i.e., above the
-        threshold is `true`, below is `false`). If used with a loss function that
-        sets `from_logits=True` (i.e. no sigmoid applied to predictions),
+        threshold is `true`, below is `false`). If used with a loss function
+        that sets `from_logits=True` (i.e. no sigmoid applied to predictions),
         `thresholds` should be set to 0. One metric value is generated for each
         threshold value. If neither thresholds nor top_k are set, the default is
         to calculate recall with `thresholds=0.5`.
@@ -1030,10 +1035,11 @@ class Recall(base_metric.Metric):
         Args:
           y_true: The ground truth values, with the same dimensions as `y_pred`.
             Will be cast to `bool`.
-          y_pred: The predicted values. Each element must be in the range `[0, 1]`.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          y_pred: The predicted values. Each element must be in the range
+            `[0, 1]`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -1127,9 +1133,9 @@ class SensitivitySpecificityBase(base_metric.Metric, metaclass=abc.ABCMeta):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -1170,7 +1176,8 @@ class SensitivitySpecificityBase(base_metric.Metric, metaclass=abc.ABCMeta):
         return dict(list(base_config.items()) + list(config.items()))
 
     def _find_max_under_constraint(self, constrained, dependent, predicate):
-        """Returns the maximum of dependent_statistic that satisfies the constraint.
+        """Returns the maximum of dependent_statistic that satisfies the
+        constraint.
 
         Args:
           constrained: Over these values the constraint
@@ -1182,7 +1189,8 @@ class SensitivitySpecificityBase(base_metric.Metric, metaclass=abc.ABCMeta):
           predicate: A binary boolean functor to be applied to arguments
           `constrained` and `self.value`, e.g. `tf.greater`.
 
-        Returns maximal dependent value, if no value satiesfies the constraint 0.0.
+        Returns:
+          maximal dependent value, if no value satiesfies the constraint 0.0.
         """
         feasible = tf.where(predicate(constrained, self.value))
         feasible_exists = tf.greater(tf.size(feasible), 0)
@@ -1202,18 +1210,19 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
     `Specificity` measures the proportion of actual negatives that are correctly
     identified as such (tn / (tn + fp)).
 
-    This metric creates four local variables, `true_positives`, `true_negatives`,
-    `false_positives` and `false_negatives` that are used to compute the
-    sensitivity at the given specificity. The threshold for the given specificity
-    value is computed and used to evaluate the corresponding sensitivity.
+    This metric creates four local variables, `true_positives`,
+    `true_negatives`, `false_positives` and `false_negatives` that are used to
+    compute the sensitivity at the given specificity. The threshold for the
+    given specificity value is computed and used to evaluate the corresponding
+    sensitivity.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
 
     If `class_id` is specified, we calculate precision by considering only the
-    entries in the batch for which `class_id` is above the threshold predictions,
-    and computing the fraction of them for which `class_id` is indeed a correct
-    label.
+    entries in the batch for which `class_id` is above the threshold
+    predictions, and computing the fraction of them for which `class_id` is
+    indeed a correct label.
 
     For additional information about specificity and sensitivity, see
     [the following](https://en.wikipedia.org/wiki/Sensitivity_and_specificity).
@@ -1306,18 +1315,19 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
     `Specificity` measures the proportion of actual negatives that are correctly
     identified as such (tn / (tn + fp)).
 
-    This metric creates four local variables, `true_positives`, `true_negatives`,
-    `false_positives` and `false_negatives` that are used to compute the
-    specificity at the given sensitivity. The threshold for the given sensitivity
-    value is computed and used to evaluate the corresponding specificity.
+    This metric creates four local variables, `true_positives`,
+    `true_negatives`, `false_positives` and `false_negatives` that are used to
+    compute the specificity at the given sensitivity. The threshold for the
+    given sensitivity value is computed and used to evaluate the corresponding
+    specificity.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
 
     If `class_id` is specified, we calculate precision by considering only the
-    entries in the batch for which `class_id` is above the threshold predictions,
-    and computing the fraction of them for which `class_id` is indeed a correct
-    label.
+    entries in the batch for which `class_id` is above the threshold
+    predictions, and computing the fraction of them for which `class_id` is
+    indeed a correct label.
 
     For additional information about specificity and sensitivity, see
     [the following](https://en.wikipedia.org/wiki/Sensitivity_and_specificity).
@@ -1405,18 +1415,18 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
 class PrecisionAtRecall(SensitivitySpecificityBase):
     """Computes best precision where recall is >= specified value.
 
-    This metric creates four local variables, `true_positives`, `true_negatives`,
-    `false_positives` and `false_negatives` that are used to compute the
-    precision at the given recall. The threshold for the given recall
-    value is computed and used to evaluate the corresponding precision.
+    This metric creates four local variables, `true_positives`,
+    `true_negatives`, `false_positives` and `false_negatives` that are used to
+    compute the precision at the given recall. The threshold for the given
+    recall value is computed and used to evaluate the corresponding precision.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
 
     If `class_id` is specified, we calculate precision by considering only the
-    entries in the batch for which `class_id` is above the threshold predictions,
-    and computing the fraction of them for which `class_id` is indeed a correct
-    label.
+    entries in the batch for which `class_id` is above the threshold
+    predictions, and computing the fraction of them for which `class_id` is
+    indeed a correct label.
 
     Args:
       recall: A scalar value in range `[0, 1]`.
@@ -1496,18 +1506,18 @@ class RecallAtPrecision(SensitivitySpecificityBase):
     For a given score-label-distribution the required precision might not
     be achievable, in this case 0.0 is returned as recall.
 
-    This metric creates four local variables, `true_positives`, `true_negatives`,
-    `false_positives` and `false_negatives` that are used to compute the
-    recall at the given precision. The threshold for the given precision
-    value is computed and used to evaluate the corresponding recall.
+    This metric creates four local variables, `true_positives`,
+    `true_negatives`, `false_positives` and `false_negatives` that are used to
+    compute the recall at the given precision. The threshold for the given
+    precision value is computed and used to evaluate the corresponding recall.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
 
     If `class_id` is specified, we calculate precision by considering only the
-    entries in the batch for which `class_id` is above the threshold predictions,
-    and computing the fraction of them for which `class_id` is indeed a correct
-    label.
+    entries in the batch for which `class_id` is above the threshold
+    predictions, and computing the fraction of them for which `class_id` is
+    indeed a correct label.
 
     Args:
       precision: A scalar value in range `[0, 1]`.
@@ -1593,36 +1603,38 @@ class AUC(base_metric.Metric):
     """Approximates the AUC (Area under the curve) of the ROC or PR curves.
 
     The AUC (Area under the curve) of the ROC (Receiver operating
-    characteristic; default) or PR (Precision Recall) curves are quality measures
-    of binary classifiers. Unlike the accuracy, and like cross-entropy
+    characteristic; default) or PR (Precision Recall) curves are quality
+    measures of binary classifiers. Unlike the accuracy, and like cross-entropy
     losses, ROC-AUC and PR-AUC evaluate all the operational points of a model.
 
     This class approximates AUCs using a Riemann sum. During the metric
     accumulation phrase, predictions are accumulated within predefined buckets
-    by value. The AUC is then computed by interpolating per-bucket averages. These
-    buckets define the evaluated operational points.
+    by value. The AUC is then computed by interpolating per-bucket averages.
+    These buckets define the evaluated operational points.
 
-    This metric creates four local variables, `true_positives`, `true_negatives`,
-    `false_positives` and `false_negatives` that are used to compute the AUC.
-    To discretize the AUC curve, a linearly spaced set of thresholds is used to
-    compute pairs of recall and precision values. The area under the ROC-curve is
-    therefore computed using the height of the recall values by the false positive
-    rate, while the area under the PR-curve is the computed using the height of
-    the precision values by the recall.
+    This metric creates four local variables, `true_positives`,
+    `true_negatives`, `false_positives` and `false_negatives` that are used to
+    compute the AUC.  To discretize the AUC curve, a linearly spaced set of
+    thresholds is used to compute pairs of recall and precision values. The area
+    under the ROC-curve is therefore computed using the height of the recall
+    values by the false positive rate, while the area under the PR-curve is the
+    computed using the height of the precision values by the recall.
 
     This value is ultimately returned as `auc`, an idempotent operation that
-    computes the area under a discretized curve of precision versus recall values
-    (computed using the aforementioned variables). The `num_thresholds` variable
-    controls the degree of discretization with larger numbers of thresholds more
-    closely approximating the true AUC. The quality of the approximation may vary
-    dramatically depending on `num_thresholds`. The `thresholds` parameter can be
-    used to manually specify thresholds which split the predictions more evenly.
+    computes the area under a discretized curve of precision versus recall
+    values (computed using the aforementioned variables). The `num_thresholds`
+    variable controls the degree of discretization with larger numbers of
+    thresholds more closely approximating the true AUC. The quality of the
+    approximation may vary dramatically depending on `num_thresholds`. The
+    `thresholds` parameter can be used to manually specify thresholds which
+    split the predictions more evenly.
 
-    For a best approximation of the real AUC, `predictions` should be distributed
-    approximately uniformly in the range [0, 1] (if `from_logits=False`). The
-    quality of the AUC approximation may be poor if this is not the case. Setting
-    `summation_method` to 'minoring' or 'majoring' can help quantify the error in
-    the approximation by providing lower or upper bound estimate of the AUC.
+    For a best approximation of the real AUC, `predictions` should be
+    distributed approximately uniformly in the range [0, 1] (if
+    `from_logits=False`). The quality of the AUC approximation may be poor if
+    this is not the case. Setting `summation_method` to 'minoring' or 'majoring'
+    can help quantify the error in the approximation by providing lower or upper
+    bound estimate of the AUC.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
@@ -1634,12 +1646,11 @@ class AUC(base_metric.Metric):
         [default] or 'PR' for the Precision-Recall-curve.
       summation_method: (Optional) Specifies the [Riemann summation method](
           https://en.wikipedia.org/wiki/Riemann_sum) used.
-          'interpolation' (default) applies mid-point summation scheme for `ROC`.
-          For PR-AUC, interpolates (true/false) positives but not the ratio that
-          is precision (see Davis & Goadrich 2006 for details);
-          'minoring' applies left summation
-          for increasing intervals and right summation for decreasing intervals;
-          'majoring' does the opposite.
+          'interpolation' (default) applies mid-point summation scheme for
+          `ROC`.  For PR-AUC, interpolates (true/false) positives but not the
+          ratio that is precision (see Davis & Goadrich 2006 for details);
+          'minoring' applies left summation for increasing intervals and right
+          summation for decreasing intervals; 'majoring' does the opposite.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
       thresholds: (Optional) A list of floating point values to use as the
@@ -1731,7 +1742,8 @@ class AUC(base_metric.Metric):
             summation_method, metrics_utils.AUCSummationMethod
         ) and summation_method not in list(metrics_utils.AUCSummationMethod):
             raise ValueError(
-                f'Invalid `summation_method` argument value "{summation_method}". '
+                f"Invalid `summation_method` "
+                f'argument value "{summation_method}". '
                 f"Expected one of: {list(metrics_utils.AUCSummationMethod)}"
             )
 
@@ -1813,7 +1825,8 @@ class AUC(base_metric.Metric):
         return list(self._thresholds)
 
     def _build(self, shape):
-        """Initialize TP, FP, TN, and FN tensors, given the shape of the data."""
+        """Initialize TP, FP, TN, and FN tensors, given the shape of the
+        data."""
         if self.multi_label:
             if shape.ndims != 2:
                 raise ValueError(
@@ -1845,9 +1858,9 @@ class AUC(base_metric.Metric):
 
         if self.multi_label:
             with tf.init_scope():
-                # This should only be necessary for handling v1 behavior. In v2, AUC
-                # should be initialized outside of any tf.functions, and therefore in
-                # eager mode.
+                # This should only be necessary for handling v1 behavior. In v2,
+                # AUC should be initialized outside of any tf.functions, and
+                # therefore in eager mode.
                 if not tf.executing_eagerly():
                     backend._initialize_variables(
                         backend._get_session()
@@ -1861,9 +1874,9 @@ class AUC(base_metric.Metric):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -1886,15 +1899,16 @@ class AUC(base_metric.Metric):
                     ]
                 )
             if self.label_weights is not None:
-                # label_weights should be of length equal to the number of labels.
+                # label_weights should be of length equal to the number of
+                # labels.
                 shapes.append((self.label_weights, ("L",)))
                 tf.debugging.assert_shapes(
                     shapes, message="Number of labels is not consistent."
                 )
 
         # Only forward label_weights to update_confusion_matrix_variables when
-        # multi_label is False. Otherwise the averaging of individual label AUCs is
-        # handled in AUC.result
+        # multi_label is False. Otherwise the averaging of individual label AUCs
+        # is handled in AUC.result
         label_weights = None if self.multi_label else self.label_weights
 
         if self._from_logits:
@@ -1927,8 +1941,8 @@ class AUC(base_metric.Metric):
           Precision = TP / (TP + FP) = TP / P
 
         Modeling all of TP (true positive), FP (false positive) and their sum
-        P = TP + FP (predicted positive) as varying linearly within each interval
-        [A, B] between successive thresholds, we get
+        P = TP + FP (predicted positive) as varying linearly within each
+        interval [A, B] between successive thresholds, we get
 
           Precision slope = dTP / dP
                           = (TP_B - TP_A) / (P_B - P_A)
@@ -1944,7 +1958,8 @@ class AUC(base_metric.Metric):
 
           int_A^B{Precision.dP} = TP_B - TP_A + intercept * log(P_B / P_A)
 
-        Bringing back the factor (slope / total_pos_weight) we'd put aside, we get
+        Bringing back the factor (slope / total_pos_weight) we'd put aside, we
+        get
 
           slope * [dTP + intercept *  log(P_B / P_A)] / total_pos_weight
 
@@ -2044,7 +2059,8 @@ class AUC(base_metric.Metric):
             heights = (y[: self.num_thresholds - 1] + y[1:]) / 2.0
         elif self.summation_method == metrics_utils.AUCSummationMethod.MINORING:
             heights = tf.minimum(y[: self.num_thresholds - 1], y[1:])
-        else:  # self.summation_method = metrics_utils.AUCSummationMethod.MAJORING:
+        # self.summation_method = metrics_utils.AUCSummationMethod.MAJORING:
+        else:
             heights = tf.maximum(y[: self.num_thresholds - 1], y[1:])
 
         # Sum up the areas of all the rectangles.
@@ -2109,11 +2125,12 @@ class AUC(base_metric.Metric):
             "multi_label": self.multi_label,
             "label_weights": label_weights,
         }
-        # optimization to avoid serializing a large number of generated thresholds
+        # optimization to avoid serializing a large number of generated
+        # thresholds
         if self._init_from_thresholds:
-            # We remove the endpoint thresholds as an inverse of how the thresholds
-            # were initialized. This ensures that a metric initialized from this
-            # config has the same thresholds.
+            # We remove the endpoint thresholds as an inverse of how the
+            # thresholds were initialized. This ensures that a metric
+            # initialized from this config has the same thresholds.
             config["thresholds"] = self.thresholds[1:-1]
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -2207,7 +2224,8 @@ class MeanAbsoluteError(base_metric.MeanMetricWrapper):
 
 @keras_export("keras.metrics.MeanAbsolutePercentageError")
 class MeanAbsolutePercentageError(base_metric.MeanMetricWrapper):
-    """Computes the mean absolute percentage error between `y_true` and `y_pred`.
+    """Computes the mean absolute percentage error between `y_true` and
+    `y_pred`.
 
     Args:
       name: (Optional) string name of the metric instance.
@@ -2279,7 +2297,8 @@ class MeanSquaredError(base_metric.MeanMetricWrapper):
 
 @keras_export("keras.metrics.MeanSquaredLogarithmicError")
 class MeanSquaredLogarithmicError(base_metric.MeanMetricWrapper):
-    """Computes the mean squared logarithmic error between `y_true` and `y_pred`.
+    """Computes the mean squared logarithmic error between `y_true` and
+    `y_pred`.
 
     Args:
       name: (Optional) string name of the metric instance.
@@ -2340,7 +2359,8 @@ class Hinge(base_metric.MeanMetricWrapper):
     Usage with `compile()` API:
 
     ```python
-    model.compile(optimizer='sgd', loss='mse', metrics=[tf.keras.metrics.Hinge()])
+    model.compile(
+        optimizer='sgd', loss='mse', metrics=[tf.keras.metrics.Hinge()])
     ```
     """
 
@@ -2461,9 +2481,9 @@ class RootMeanSquaredError(base_metric.Mean):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -2484,7 +2504,8 @@ class RootMeanSquaredError(base_metric.Mean):
 class LogCoshError(base_metric.MeanMetricWrapper):
     """Computes the logarithm of the hyperbolic cosine of the prediction error.
 
-    `logcosh = log((exp(x) + exp(-x))/2)`, where x is the error (y_pred - y_true)
+    `logcosh = log((exp(x) + exp(-x))/2)`, where x is the error (y_pred -
+    y_true)
 
     Args:
       name: (Optional) string name of the metric instance.
@@ -2556,7 +2577,8 @@ class Poisson(base_metric.MeanMetricWrapper):
 
 @keras_export("keras.metrics.KLDivergence")
 class KLDivergence(base_metric.MeanMetricWrapper):
-    """Computes Kullback-Leibler divergence metric between `y_true` and `y_pred`.
+    """Computes Kullback-Leibler divergence metric between `y_true` and
+    `y_pred`.
 
     `metric = y_true * log(y_true / y_pred)`
 
@@ -2637,9 +2659,9 @@ class _IoUBase(base_metric.Metric):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -2697,10 +2719,10 @@ class IoU(_IoUBase):
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
 
-    Note, this class first computes IoUs for all individual classes, then returns
-    the mean of IoUs for the classes that are specified by `target_class_ids`. If
-    `target_class_ids` has only one id value, the IoU of that specific class is
-    returned.
+    Note, this class first computes IoUs for all individual classes, then
+    returns the mean of IoUs for the classes that are specified by
+    `target_class_ids`. If `target_class_ids` has only one id value, the IoU of
+    that specific class is returned.
 
     Args:
       num_classes: The possible number of labels the prediction task can have.
@@ -2729,7 +2751,8 @@ class IoU(_IoUBase):
     ...                sample_weight=[0.3, 0.3, 0.3, 0.1])
     >>> # cm = [[0.3, 0.3],
     >>> #        [0.3, 0.1]]
-    >>> # sum_row = [0.6, 0.4], sum_col = [0.6, 0.4], true_positives = [0.3, 0.1]
+    >>> # sum_row = [0.6, 0.4], sum_col = [0.6, 0.4],
+    >>> # true_positives = [0.3, 0.1]
     >>> # iou = [0.33, 0.14]
     >>> m.result().numpy()
     0.33333334
@@ -2759,7 +2782,8 @@ class IoU(_IoUBase):
         )
         if max(target_class_ids) >= num_classes:
             raise ValueError(
-                f"Target class id {max(target_class_ids)} is out of range, which is "
+                f"Target class id {max(target_class_ids)} "
+                f"is out of range, which is "
                 f"[{0}, {num_classes})."
             )
         self.target_class_ids = list(target_class_ids)
@@ -2825,10 +2849,11 @@ class BinaryIoU(IoU):
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
 
-    This class can be used to compute IoUs for a binary classification task where
-    the predictions are provided as logits. First a `threshold` is applied to the
-    predicted values such that those that are below the `threshold` are converted
-    to class 0 and those that are above the `threshold` are converted to class 1.
+    This class can be used to compute IoUs for a binary classification task
+    where the predictions are provided as logits. First a `threshold` is applied
+    to the predicted values such that those that are below the `threshold` are
+    converted to class 0 and those that are above the `threshold` are converted
+    to class 1.
 
     IoUs for classes 0 and 1 are then computed, the mean of IoUs for the classes
     that are specified by `target_class_ids` is returned.
@@ -2837,12 +2862,13 @@ class BinaryIoU(IoU):
 
     Args:
       target_class_ids: A tuple or list of target class ids for which the metric
-        is returned. Options are `[0]`, `[1]`, or `[0, 1]`. With `[0]` (or `[1]`),
-        the IoU metric for class 0 (or class 1, respectively) is returned. With
-        `[0, 1]`, the mean of IoUs for the two classes is returned.
-      threshold: A threshold that applies to the prediction logits to convert them
-        to either predicted class 0 if the logit is below `threshold` or predicted
-        class 1 if the logit is above `threshold`.
+        is returned. Options are `[0]`, `[1]`, or `[0, 1]`. With `[0]` (or
+        `[1]`), the IoU metric for class 0 (or class 1, respectively) is
+        returned. With `[0, 1]`, the mean of IoUs for the two classes is
+        returned.
+      threshold: A threshold that applies to the prediction logits to convert
+        them to either predicted class 0 if the logit is below `threshold` or
+        predicted class 1 if the logit is above `threshold`.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
 
@@ -2858,7 +2884,8 @@ class BinaryIoU(IoU):
     ...                sample_weight=[0.2, 0.3, 0.4, 0.1])
     >>> # cm = [[0.2, 0.4],
     >>> #        [0.3, 0.1]]
-    >>> # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+    >>> # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5],
+    >>> # true_positives = [0.2, 0.1]
     >>> # iou = [0.222, 0.125]
     >>> m.result().numpy()
     0.17361112
@@ -2893,17 +2920,17 @@ class BinaryIoU(IoU):
     def update_state(self, y_true, y_pred, sample_weight=None):
         """Accumulates the confusion matrix statistics.
 
-        Before the confusion matrix is updated, the predicted values are thresholded
-        to be:
+        Before the confusion matrix is updated, the predicted values are
+        thresholded to be:
           0 for values that are smaller than the `threshold`
           1 for values that are larger or equal to the `threshold`
 
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -3020,11 +3047,11 @@ class OneHotIoU(IoU):
     Use `sample_weight` of 0 to mask values.
 
     This class can be used to compute IoU for multi-class classification tasks
-    where the labels are one-hot encoded (the last axis should have one dimension
-    per class). Note that the predictions should also have the same shape. To
-    compute the IoU, first the labels and predictions are converted back into
-    integer format by taking the argmax over the class axis. Then the same
-    computation steps as for the base `IoU` class apply.
+    where the labels are one-hot encoded (the last axis should have one
+    dimension per class). Note that the predictions should also have the same
+    shape. To compute the IoU, first the labels and predictions are converted
+    back into integer format by taking the argmax over the class axis. Then the
+    same computation steps as for the base `IoU` class apply.
 
     Note, if there is only one channel in the labels and predictions, this class
     is the same as class `IoU`. In this case, use `IoU` instead.
@@ -3050,7 +3077,8 @@ class OneHotIoU(IoU):
     ...                       [0.1, 0.4, 0.5]])
     >>> sample_weight = [0.1, 0.2, 0.3, 0.4]
     >>> m = tf.keras.metrics.OneHotIoU(num_classes=3, target_class_ids=[0, 2])
-    >>> m.update_state(y_true=y_true, y_pred=y_pred, sample_weight=sample_weight)
+    >>> m.update_state(
+    ...     y_true=y_true, y_pred=y_pred, sample_weight=sample_weight)
     >>> # cm = [[0, 0, 0.2+0.4],
     >>> #       [0.3, 0, 0],
     >>> #       [0, 0, 0.1]]
@@ -3092,9 +3120,9 @@ class OneHotIoU(IoU):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -3127,12 +3155,13 @@ class OneHotMeanIoU(MeanIoU):
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
 
-    This class can be used to compute the mean IoU for multi-class classification
-    tasks where the labels are one-hot encoded (the last axis should have one
-    dimension per class). Note that the predictions should also have the same
-    shape. To compute the mean IoU, first the labels and predictions are converted
-    back into integer format by taking the argmax over the class axis. Then the
-    same computation steps as for the base `MeanIoU` class apply.
+    This class can be used to compute the mean IoU for multi-class
+    classification tasks where the labels are one-hot encoded (the last axis
+    should have one dimension per class). Note that the predictions should also
+    have the same shape. To compute the mean IoU, first the labels and
+    predictions are converted back into integer format by taking the argmax over
+    the class axis. Then the same computation steps as for the base `MeanIoU`
+    class apply.
 
     Note, if there is only one channel in the labels and predictions, this class
     is the same as class `MeanIoU`. In this case, use `MeanIoU` instead.
@@ -3155,7 +3184,8 @@ class OneHotMeanIoU(MeanIoU):
     ...                       [0.1, 0.4, 0.5]])
     >>> sample_weight = [0.1, 0.2, 0.3, 0.4]
     >>> m = tf.keras.metrics.OneHotMeanIoU(num_classes=3)
-    >>> m.update_state(y_true=y_true, y_pred=y_pred, sample_weight=sample_weight)
+    >>> m.update_state(
+    ...     y_true=y_true, y_pred=y_pred, sample_weight=sample_weight)
     >>> # cm = [[0, 0, 0.2+0.4],
     >>> #       [0.3, 0, 0],
     >>> #       [0, 0, 0.1]]
@@ -3195,9 +3225,9 @@ class OneHotMeanIoU(MeanIoU):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
-            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
-            be broadcastable to `y_true`.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can
+            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+            and must be broadcastable to `y_true`.
 
         Returns:
           Update op.
@@ -3271,8 +3301,8 @@ class CategoricalCrossentropy(base_metric.MeanMetricWrapper):
     """Computes the crossentropy metric between the labels and predictions.
 
     This is the crossentropy metric class to be used when there are multiple
-    label classes (2 or more). Here we assume that labels are given as a `one_hot`
-    representation. eg., When labels values are [2, 0, 1],
+    label classes (2 or more). Here we assume that labels are given as a
+    `one_hot` representation. eg., When labels values are [2, 0, 1],
      `y_true` = [[0, 0, 1], [1, 0, 0], [0, 1, 0]].
 
     Args:
@@ -3443,15 +3473,16 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
     Args:
       y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
       y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
-      threshold: (Optional) Float representing the threshold for deciding whether
-        prediction values are 1 or 0.
+      threshold: (Optional) Float representing the threshold for deciding
+        whether prediction values are 1 or 0.
 
     Returns:
       Binary accuracy values. shape = `[batch_size, d0, .. dN-1]`
     """
-    # Note: calls metrics_utils.binary_matches with mean reduction. This maintains
-    # public facing binary_accuracy behavior and seperates it from the vital
-    # behavior of the binary_matches method needed in backend dependencies.
+    # Note: calls metrics_utils.binary_matches with mean reduction. This
+    # maintains public facing binary_accuracy behavior and seperates it from the
+    # vital behavior of the binary_matches method needed in backend
+    # dependencies.
 
     return tf.reduce_mean(
         metrics_utils.binary_matches(y_true, y_pred, threshold), axis=-1
@@ -3481,8 +3512,8 @@ def categorical_accuracy(y_true, y_pred):
     Returns:
       Categorical accuracy values.
     """
-    # Note: wraps metrics_utils.categorical_matches. This seperates public facing
-    # categorical_accuracy behavior from the vital behavior of the
+    # Note: wraps metrics_utils.categorical_matches. This seperates public
+    # facing categorical_accuracy behavior from the vital behavior of the
     # categorical_matches method needed in backend dependencies.
 
     return metrics_utils.sparse_categorical_matches(

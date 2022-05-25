@@ -168,8 +168,8 @@ def get(identifier):
 
     Args:
       identifier: A metric identifier. One of None or string name of a metric
-        function/class or metric configuration dictionary or a metric function or
-        a metric class instance
+        function/class or metric configuration dictionary or a metric function
+        or a metric class instance
 
     Returns:
       A Keras metric as a `function`/ `Metric` class instance.
