@@ -34,6 +34,7 @@ from keras.mixed_precision import test_util as mp_test_util
 from keras.optimizers.optimizer_experimental import (
     optimizer as optimizer_experimental,
 )
+from keras.optimizers.optimizer_experimental import adam as adam_experimental
 from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
 from keras.optimizers.optimizer_v2 import adam
 from keras.optimizers.optimizer_v2 import gradient_descent
@@ -614,6 +615,23 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(self.evaluate(opt.variables()[0]), 1)
             opt.set_weights([np.array(2.0)])
             self.assertEqual(self.evaluate(opt.variables()[0]), 2)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def testHyperParametersExposedLSOV3(self):
+        opt = adam_experimental.Adam(
+            learning_rate=1.0, beta_1=0.5, beta_2=0.9)
+        lso = loss_scale_optimizer.BaseLossScaleOptimizer(opt)
+        lso.learning_rate = tf.Variable(0.005)
+        self.assertAllClose(self.evaluate(lso.learning_rate), 0.005)
+        self.assertIs(lso.learning_rate, opt.learning_rate)
+
+        lso.use_ema = True
+        self.assertEqual(lso.use_ema, True)
+        self.assertEqual(opt.use_ema, True)
+
+        lso.ema_momentum = 0.88
+        self.assertEqual(lso.ema_momentum, 0.88)
+        self.assertEqual(opt.ema_momentum, 0.88)
 
     def testHyperParametersExposed(self):
         with self.cached_session():

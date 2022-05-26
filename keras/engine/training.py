@@ -751,11 +751,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         def _get_single_optimizer(opt):
             opt = optimizers.get(opt)
             if self.dtype_policy.name == "mixed_float16" and not isinstance(
-                opt, lso.LossScaleOptimizer
+                opt, lso.BaseLossScaleOptimizer
             ):
                 # Loss scaling is necessary with mixed_float16 for models to
                 # converge to the same accuracy as with float32.
-                opt = lso.LossScaleOptimizer(opt)
+                opt = lso.BaseLossScaleOptimizer(opt)
             return opt
 
         return tf.nest.map_structure(_get_single_optimizer, optimizer)

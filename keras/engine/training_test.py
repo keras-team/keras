@@ -42,6 +42,7 @@ from keras.engine import sequential
 from keras.engine import training as training_module
 from keras.engine import training_utils_v1
 from keras.layers.preprocessing import string_lookup
+from keras.mixed_precision import policy
 from keras.optimizers import optimizer_v2
 from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
 from keras.testing_infra import test_combinations
@@ -1707,6 +1708,21 @@ class TrainingTest(test_combinations.TestCase):
         )
         history = model.fit(x, y, epochs=2)
         self.assertIsInstance(history.history["my_metric"][0], int)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    @test_utils.enable_v2_dtype_behavior
+    def test_mixed_precision(self):
+        x, y = np.ones((10, 1)), np.ones((10, 1))
+        policy.set_global_policy("mixed_float16")
+        model = sequential.Sequential([layers_module.Dense(1)])
+        optimizer = sgd_experimental.SGD()
+        model.compile(
+            optimizer,
+            "mse",
+            run_eagerly=test_utils.should_run_eagerly(),
+        )
+        history = model.fit(x, y, epochs=2)
+        policy.set_global_policy("float32")
 
     @test_combinations.run_all_keras_modes
     def test_calling_aggregate_gradient(self):
