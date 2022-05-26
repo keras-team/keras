@@ -126,7 +126,8 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
         try:
             mp_policy.set_global_policy("mixed_float16")
             self.assertEqual(mp_policy.global_policy().name, "mixed_float16")
-            with tf.Graph().as_default():  # Policies are not associated with a graph
+            # Policies are not associated with a graph
+            with tf.Graph().as_default():
                 self.assertEqual(
                     mp_policy.global_policy().name, "mixed_float16"
                 )
@@ -143,15 +144,15 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             "set_global_policy can only be used to set the global policy to "
-            'floating-point policies, such as "float32" and "mixed_float16", but '
-            "got policy: int32",
+            'floating-point policies, such as "float32" and "mixed_float16", '
+            "but got policy: int32",
         ):
             mp_policy.set_global_policy("int32")
         with self.assertRaisesRegex(
             ValueError,
             "set_global_policy can only be used to set the global policy to "
-            'floating-point policies, such as "float32" and "mixed_float16", but '
-            "got policy: complex64",
+            'floating-point policies, such as "float32" and "mixed_float16", '
+            "but got policy: complex64",
         ):
             mp_policy.set_global_policy(mp_policy.Policy("complex64"))
 
@@ -170,7 +171,8 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
         else:
             self.assertRegex(
                 mock_warn.call_args[0][0],
-                r"Mixed precision compatibility check \(mixed_float16\): WARNING.*",
+                r"Mixed precision compatibility check \(mixed_float16\): "
+                r"WARNING.*",
             )
 
         if tf.config.list_physical_devices("GPU"):
@@ -206,8 +208,8 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
         ):
             config = policy.get_config()
             new_policy = mp_policy.Policy.from_config(config)
-            # Comparing strings is the easiest way to ensure the policies are the
-            # same, as policy does not override the == operator.
+            # Comparing strings is the easiest way to ensure the policies are
+            # the same, as policy does not override the == operator.
             self.assertEqual(str(policy), str(new_policy))
 
     @test_utils.enable_v2_dtype_behavior

@@ -254,20 +254,20 @@ class LayerCorrectnessTest(test_combinations.TestCase):
     ):
         """Tests a layer by comparing the float32 and mixed precision weights.
 
-        A float32 layer, a mixed precision layer, and a distributed mixed precision
-        layer are run. The three layers are identical other than their dtypes and
-        distribution strategies. The outputs after predict() and weights after fit()
-        are asserted to be close.
+        A float32 layer, a mixed precision layer, and a distributed mixed
+        precision layer are run. The three layers are identical other than their
+        dtypes and distribution strategies. The outputs after predict() and
+        weights after fit() are asserted to be close.
 
         Args:
-          f32_layer_fn: A function returning a float32 layer. The other two layers
-            will automatically be created from this
+          f32_layer_fn: A function returning a float32 layer. The other two
+            layers will automatically be created from this.
           input_shape: The shape of the input to the layer, including the batch
             dimension. Or a list of shapes if the layer takes multiple inputs.
           rtol: The relative tolerance to be asserted.
           atol: The absolute tolerance to be asserted.
-          input_data: A Numpy array with the data of the input. If None, input data
-            will be randomly generated
+          input_data: A Numpy array with the data of the input. If None, input
+            data will be randomly generated.
         """
 
         if (
@@ -292,8 +292,8 @@ class LayerCorrectnessTest(test_combinations.TestCase):
         # Compute per_replica_input_shapes for the distributed model
         global_batch_size = input_shapes[0][0]
         assert global_batch_size % strategy.num_replicas_in_sync == 0, (
-            "The number of replicas, %d, does not divide the global batch size of "
-            "%d" % (strategy.num_replicas_in_sync, global_batch_size)
+            "The number of replicas, %d, does not divide the global batch "
+            "size of %d" % (strategy.num_replicas_in_sync, global_batch_size)
         )
         per_replica_batch_size = (
             global_batch_size // strategy.num_replicas_in_sync
@@ -317,8 +317,8 @@ class LayerCorrectnessTest(test_combinations.TestCase):
 
         # Generate input data
         if input_data is None:
-            # Cast inputs to float16 to avoid measuring error from having f16 layers
-            # cast to float16.
+            # Cast inputs to float16 to avoid measuring error from having f16
+            # layers cast to float16.
             input_data = [
                 np.random.normal(size=s).astype("float16") for s in input_shapes
             ]

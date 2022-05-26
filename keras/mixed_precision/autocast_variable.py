@@ -42,9 +42,9 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     """Variable that will cast itself to a different dtype in applicable contexts.
 
     This class wraps a floating-point `tf.Variable`. It emulates the variable
-    interface and delegates to the wrapped variable, but it additionally will cast
-    the wrapped variable under an `enable_auto_cast_variables(dtype)` context
-    manager.
+    interface and delegates to the wrapped variable, but it additionally will
+    cast the wrapped variable under an `enable_auto_cast_variables(dtype)`
+    context manager.
 
     For example:
 
@@ -57,8 +57,8 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     tf.float16
 
     The purpose of this class is to allow Keras layers to create variables in
-    float32, and automatically cast them to float16 or bfloat16 when the layer is
-    called.
+    float32, and automatically cast them to float16 or bfloat16 when the layer
+    is called.
     """
 
     def __init__(self, variable):
@@ -81,10 +81,10 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
                 "type: %s" % variable.dtype.name
             )
         self._variable = variable
-        # 'delegate' means AutoCastVariable.op return self._variable.op, which will
-        # raise an AttributeError in Eager (as intended). If set to any other value,
-        # AutoCastVariable.op returns that value instead, which is used to set the
-        # op attribute in AutoCastVariable.assign().
+        # 'delegate' means AutoCastVariable.op return self._variable.op, which
+        # will raise an AttributeError in Eager (as intended). If set to any
+        # other value, AutoCastVariable.op returns that value instead, which is
+        # used to set the op attribute in AutoCastVariable.assign().
         self._op = "delegate"
 
     def _should_cast(self):
@@ -133,8 +133,8 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     def _dense_var_to_tensor(self, dtype=None, name=None, as_ref=False):
         """Converts this variable to a tensor."""
         if as_ref:
-            # This ValueError should not occur in practice since it is impossible to
-            # pass as_ref=True using public APIs.
+            # This ValueError should not occur in practice since it is
+            # impossible to pass as_ref=True using public APIs.
             raise ValueError(
                 "Cannot convert AutoCastVariable to a tensor if "
                 "as_ref=True is passed to convert_to_tensor"
@@ -184,9 +184,9 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     #   * 'count_up_to': This method only applies to int variables, which cannot
     #     be wrapped with an AutoCastVariable.
     #   * 'ref': Instead we inherit the definition from Variable.
-    #     If we defined and delegated to Variable, the ref of an AutoCastVariable
-    #     would be the same as the ref of the underlying variable, which would be
-    #     strange as they are different Python objects.
+    #     If we defined and delegated to Variable, the ref of an
+    #     AutoCastVariable would be the same as the ref of the underlying
+    #     variable, which would be strange as they are different Python objects.
 
     def set_shape(self, shape):
         return self._variable.set_shape(self, shape)
@@ -221,14 +221,15 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
         self, update_fn, value, use_locking=None, name=None, read_value=True
     ):
         # TODO(b/146181571): This logic can be simplified once
-        # DistributedVariable.assign returns a DistributedVariable. Currently for
-        # MirroredStrategy, it returns a Mirrored value.
+        # DistributedVariable.assign returns a DistributedVariable. Currently
+        # for MirroredStrategy, it returns a Mirrored value.
         if tf.compat.v1.executing_eagerly_outside_functions():
             assign_op = update_fn(value, use_locking, name, False)
             if read_value:
-                # We create a new AutoCastVariable with the same underlying tf.Variable.
-                # The new AutoCastVariable is identical except the 'op' attribute is
-                # defined. This matches the behavior of tf.Variable.assign.
+                # We create a new AutoCastVariable with the same underlying
+                # tf.Variable.  The new AutoCastVariable is identical except the
+                # 'op' attribute is defined. This matches the behavior of
+                # tf.Variable.assign.
                 var = create_autocast_variable(self._variable)
                 var._op = assign_op  # pylint:disable=protected-access
                 return var
@@ -367,8 +368,8 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     def _gather_saveables_for_checkpoint(self):
         # By delegating this method to the wrapped variable, checkpoints with
         # AutoCastVariables are identical to checkpoints with normal variables.
-        # Therefore models checkpointed with AutoCastVariables can be restored on
-        # models with normal variables, and vice versa.
+        # Therefore models checkpointed with AutoCastVariables can be restored
+        # on models with normal variables, and vice versa.
         return (
             self._variable._gather_saveables_for_checkpoint()
         )  # pylint:disable=protected-access
@@ -493,28 +494,32 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
         try:
             return self.read_value().__div__(o)
         except AttributeError:
-            # See https://docs.python.org/3/library/constants.html#NotImplemented
+            # See
+            # https://docs.python.org/3/library/constants.html#NotImplemented
             return NotImplemented
 
     def __rdiv__(self, o):
         try:
             return self.read_value().__rdiv__(o)
         except AttributeError:
-            # See https://docs.python.org/3/library/constants.html#NotImplemented
+            # See
+            # https://docs.python.org/3/library/constants.html#NotImplemented
             return NotImplemented
 
     def __matmul__(self, o):
         try:
             return self.read_value().__matmul__(o)
         except AttributeError:
-            # See https://docs.python.org/3/library/constants.html#NotImplemented
+            # See
+            # https://docs.python.org/3/library/constants.html#NotImplemented
             return NotImplemented
 
     def __rmatmul__(self, o):
         try:
             return self.read_value().__rmatmul__(o)
         except AttributeError:
-            # See https://docs.python.org/3/library/constants.html#NotImplemented
+            # See
+            # https://docs.python.org/3/library/constants.html#NotImplemented
             return NotImplemented
 
     # pylint: enable=multiple-statements
@@ -528,9 +533,9 @@ tf.register_tensor_conversion_function(
 def create_autocast_variable(variable):
     """Creates an AutoCastVariable that wraps another variable.
 
-    This typically just returns `AutoCastVariable(variable)`. But, if the variable
-    is a DistributedVariable or one of its subclasses, we instead dynamically
-    create a class that subclasses from both AutoCastVariable and
+    This typically just returns `AutoCastVariable(variable)`. But, if the
+    variable is a DistributedVariable or one of its subclasses, we instead
+    dynamically create a class that subclasses from both AutoCastVariable and
     variable.__class__. This is so the returned variable will still pass
     `isinstance(variable, variable.__class__)`, which is required for
     DistributedVariables and its subclasses to work properly.

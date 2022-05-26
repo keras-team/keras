@@ -208,12 +208,13 @@ class KerasModelTest(test_combinations.TestCase):
                     del y_true
                     return tf.reduce_mean(y_pred)
 
-                # Learning rate is small enough that if applied to a float16 variable,
-                # the variable will not change. So this tests the learning rate not
-                # applied to a float16 value, but instead the float32 variable.
+                # Learning rate is small enough that if applied to a float16
+                # variable, the variable will not change. So this tests the
+                # learning rate not applied to a float16 value, but instead the
+                # float32 variable.
                 opt = gradient_descent.SGD(2**-14)
-                # Use a fixed loss scale, as this test will fail if gradients are
-                # skipped for a step due to dynamic loss scaling.
+                # Use a fixed loss scale, as this test will fail if gradients
+                # are skipped for a step due to dynamic loss scaling.
                 opt = loss_scale_optimizer.LossScaleOptimizer(
                     opt, dynamic=False, initial_scale=8
                 )
@@ -297,7 +298,8 @@ class KerasModelTest(test_combinations.TestCase):
         },
     )
     def test_fixed_loss_scaling(self, strategy_fn):
-        # Note: We do not test mixed precision in this method, only loss scaling.
+        # Note: We do not test mixed precision in this method, only loss
+        # scaling.
         loss_scale = 8.0
         batch_size = 4
         with strategy_fn().scope():
@@ -305,9 +307,9 @@ class KerasModelTest(test_combinations.TestCase):
             layer = mp_test_util.MultiplyLayer()
             y = layer(x)
 
-            # The gradient of 'y' at this point is 1. With loss scaling, the gradient
-            # is 'loss_scale'. We divide by the batch size since the loss is averaged
-            # across batch elements.
+            # The gradient of 'y' at this point is 1. With loss scaling, the
+            # gradient is 'loss_scale'. We divide by the batch size since the
+            # loss is averaged across batch elements.
             expected_gradient = loss_scale / batch_size
             identity_with_grad_check_fn = (
                 mp_test_util.create_identity_with_grad_check_fn(
@@ -334,7 +336,8 @@ class KerasModelTest(test_combinations.TestCase):
         y = np.ones((batch_size, 1))
         dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(batch_size)
         model.fit(dataset)
-        # Variable starts at 1, and should have gradient of 1 subtracted from it.
+        # Variable starts at 1, and should have gradient of 1 subtracted from
+        # it.
         expected = 0
         self.assertEqual(backend.eval(layer.v), expected)
 
@@ -352,10 +355,10 @@ class KerasModelTest(test_combinations.TestCase):
         },
     )
     def test_advanced_model(self, strategy_fn, use_loss_scaling=False):
-        # The advanced model tests mixed-precision-related features that would occur
-        # in a resnet50 model. It tests a model that has:
-        #  * Multiple layers, some which use auto-cast variables and some which do
-        #    not
+        # The advanced model tests mixed-precision-related features that would
+        # occur in a resnet50 model. It tests a model that has:
+        #  * Multiple layers, some which use auto-cast variables and some which
+        #    do not
         #  * Regularization on some variables and not others.
         #  * A fixed loss scale (if use_loss_scaling is True)
 
@@ -388,9 +391,9 @@ class KerasModelTest(test_combinations.TestCase):
                 y = layer3(y)
                 y = layer4(y)
                 if use_loss_scaling:
-                    # The gradient of 'y' at this point is 1. With loss scaling, the
-                    # gradient is 'loss_scale'. We divide by the batch size of 2 since the
-                    # loss is averaged across batch elements.
+                    # The gradient of 'y' at this point is 1. With loss scaling,
+                    # the gradient is 'loss_scale'. We divide by the batch size
+                    # of 2 since the loss is averaged across batch elements.
                     expected_gradient = loss_scale / 2
                     identity_with_grad_check_fn = (
                         mp_test_util.create_identity_with_grad_check_fn(
@@ -448,7 +451,8 @@ class KerasModelTest(test_combinations.TestCase):
         expected_gradient = backend.variable(
             [initial_loss_scale / batch_size], dtype=tf.float16
         )
-        # If this variable is set to True, the model below will have NaN gradients
+        # If this variable is set to True, the model below will have NaN
+        # gradients
         have_nan_gradients = backend.variable(False, dtype=tf.bool)
         with strategy.scope():
             opt = gradient_descent.SGD(1.0)
@@ -504,8 +508,8 @@ class KerasModelTest(test_combinations.TestCase):
         y = np.ones((batch_size, 1))
         dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(batch_size)
         model.fit(dataset)
-        # The variables starts with 1 and has a gradient of 1, so will go down by 1
-        # each step.
+        # The variables starts with 1 and has a gradient of 1, so will go down
+        # by 1 each step.
         self.assertEqual(backend.eval(layer.v), 0)
 
         model.fit(dataset)
@@ -526,8 +530,8 @@ class KerasModelTest(test_combinations.TestCase):
 
         # Test with finite gradients again
         backend.set_value(have_nan_gradients, False)
-        # The loss scale will be halved due to the NaNs, so the gradient will also
-        # be halved
+        # The loss scale will be halved due to the NaNs, so the gradient will
+        # also be halved
         backend.set_value(
             expected_gradient, backend.get_value(expected_gradient / 2)
         )
@@ -559,8 +563,8 @@ class KerasModelTest(test_combinations.TestCase):
                 model.optimizer, loss_scale_optimizer.LossScaleOptimizer
             )
 
-            # Test if an LSO is passed, optimizer is not automatically wrapped with
-            # another LSO
+            # Test if an LSO is passed, optimizer is not automatically wrapped
+            # with another LSO
             model = models.Model(x, y)
             optimizer = loss_scale_optimizer.LossScaleOptimizer(
                 gradient_descent.SGD(1.0), dynamic_growth_steps=2
@@ -676,10 +680,11 @@ class KerasModelTest(test_combinations.TestCase):
         p = policy.Policy("mixed_float16")
         with strategy_fn().scope(), policy.policy_scope(p):
             x = layers.Input(shape=(2,), batch_size=2)
-            # Having a var_name other than 'v' tests that a fixed bug (b/134713714)
-            # does not reoccur. The bug was that a crash would occur when saving a
-            # checkpoint where an AutoCastVariable with a slot variable would have a
-            # different name than the layer attribute's name (layer.v in this case).
+            # Having a var_name other than 'v' tests that a fixed bug
+            # (b/134713714) does not reoccur. The bug was that a crash would
+            # occur when saving a checkpoint where an AutoCastVariable with a
+            # slot variable would have a different name than the layer
+            # attribute's name (layer.v in this case).
             layer = mp_test_util.MultiplyLayer(
                 assert_type=tf.float16, var_name=var_name
             )
@@ -849,8 +854,8 @@ class KerasModelTest(test_combinations.TestCase):
         },
     )
     def test_save_model_with_dynamic_loss_scaling(self, strategy_fn, h5=False):
-        # TODO(reedwm): Support and test saving model with a mixed_[b]float16 policy
-        # as well.
+        # TODO(reedwm): Support and test saving model with a mixed_[b]float16
+        # policy as well.
         strategy = strategy_fn()
         if (
             isinstance(strategy, tf.distribute.MirroredStrategy)
@@ -900,9 +905,9 @@ class KerasModelTest(test_combinations.TestCase):
         (weight,) = model.trainable_weights
         loaded_weight = backend.get_value(weight)
         self.assertEqual(loaded_weight, orig_weight)
-        # Currently the loss scale isn't always saved when the model is saved with
-        # Model.save(). So we assert the loss scale either has the value when it was
-        # saved, or the value it was initialized with.
+        # Currently the loss scale isn't always saved when the model is saved
+        # with Model.save(). So we assert the loss scale either has the value
+        # when it was saved, or the value it was initialized with.
         # TODO(reedwm): Always save/restore the loss scale with Model.save().
         self.assertIn(backend.get_value(model.optimizer.loss_scale), (1, 2))
         self.assertIn(

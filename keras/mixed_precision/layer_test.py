@@ -102,8 +102,8 @@ class LayerTest(test_combinations.TestCase):
                 self.v = self.add_weight("v", dtype="int32", trainable=False)
 
             def call(self, inputs):
-                # Only float variables should be autocasted. This will fail if self.v is
-                # autocasted to float32
+                # Only float variables should be autocasted. This will fail if
+                # self.v is autocasted to float32
                 return tf.cast(inputs, "int32") + self.v
 
         x = tf.constant([1.0])
@@ -194,16 +194,17 @@ class LayerTest(test_combinations.TestCase):
         with strategy_fn().scope() as strategy:
             with policy.policy_scope("mixed_float16"):
                 layer = mp_test_util.MultiplyLayer(assert_type=tf.float16)
-                # Learning rate is small enough that if applied to a float16 variable,
-                # the variable will not change. So this tests the learning rate is not
-                # applied to a float16 value, but instead the float32 variable.
+                # Learning rate is small enough that if applied to a float16
+                # variable, the variable will not change. So this tests the
+                # learning rate is not applied to a float16 value, but instead
+                # the float32 variable.
                 opt = gradient_descent.SGD(2**-14)
 
                 def run_fn():
                     with tf.GradientTape() as tape:
                         y = layer(x)
-                        # Divide by num_replicas_in_sync, as the effective total loss is the
-                        # sum of each of the replica's losses.
+                        # Divide by num_replicas_in_sync, as the effective total
+                        # loss is the sum of each of the replica's losses.
                         y /= strategy.num_replicas_in_sync
 
                     grad = tape.gradient(y, layer.v)
@@ -214,17 +215,18 @@ class LayerTest(test_combinations.TestCase):
                     self.evaluate(tf.compat.v1.global_variables_initializer())
                     self.evaluate(op)
                 # The gradient with respective to the variable is 1. Since the
-                # variable is initialized with 1 and the learning rate is 2**-14, the
-                # new variable value should be: init_val - gradient * learning_rate,
-                # which is  1 - 1 * 2**-14
+                # variable is initialized with 1 and the learning rate is
+                # 2**-14, the new variable value should be: init_val - gradient
+                # * learning_rate, which is  1 - 1 * 2**-14
                 self.assertEqual(self.evaluate(layer.v), 1 - 2**-14)
 
     def _test_checkpointing_layer_weights(
         self, strategy_fn, mixed_prec_when_saving, mixed_prec_when_loading
     ):
-        # In this test, we potentially save with mixed precision enabled and load
-        # with mixed precision disabled, or vice versa. This is possible because
-        # variables are float32 regardless of whether mixed precision is enabled.
+        # In this test, we potentially save with mixed precision enabled and
+        # load with mixed precision disabled, or vice versa. This is possible
+        # because variables are float32 regardless of whether mixed precision is
+        # enabled.
         save_policy = "mixed_float16" if mixed_prec_when_saving else "float32"
         load_policy = "mixed_float16" if mixed_prec_when_loading else "float32"
         save_input_dtype = "float16" if mixed_prec_when_saving else "float32"
@@ -314,10 +316,11 @@ class LayerTest(test_combinations.TestCase):
             config = layer.get_config()
             self.assertIsNone(config["dtype"])
             layer = mp_test_util.MultiplyLayer.from_config(config)
-            # If a layer is serialized with the "_infer" policy, when deserialized
-            # into TF 2 it will have the global policy instead of "_infer". This is
-            # because "_infer" is serialized into None, and passing dtype=None in
-            # TensorFlow 2 indicates to use the global policy.
+            # If a layer is serialized with the "_infer" policy, when
+            # deserialized into TF 2 it will have the global policy instead of
+            # "_infer". This is because "_infer" is serialized into None, and
+            # passing dtype=None in TensorFlow 2 indicates to use the global
+            # policy.
             self.assertEqual(layer.dtype, "float32")
             self.assertEqual(layer(x).dtype, "float32")
             self.assertEqual(layer.v.dtype, "float32")
@@ -325,10 +328,10 @@ class LayerTest(test_combinations.TestCase):
     @parameterized.named_parameters(*TESTCASES)
     def test_from_config_policy_v1(self, strategy_fn):
         # Test that layers serialized in previous Keras versions with the
-        # now-deleted PolicyV1 can be deserialized. In such cases, the PolicyV1 will
-        # be converted to a Policy, since PolicyV1 no longer exists. Unlike Policy,
-        # PolicyV1 had a "loss_scale" field, which is silently dropped when
-        # deserialized.
+        # now-deleted PolicyV1 can be deserialized. In such cases, the PolicyV1
+        # will be converted to a Policy, since PolicyV1 no longer exists. Unlike
+        # Policy, PolicyV1 had a "loss_scale" field, which is silently dropped
+        # when deserialized.
         x = tf.constant([1.0], dtype=tf.float16)
         with strategy_fn().scope():
 
@@ -424,8 +427,8 @@ class LayerTest(test_combinations.TestCase):
         mp_test_util.MultiplyLayer(dtype=policy.Policy("float64"))
 
     def test_input_spec_dtype(self):
-        # Test the InputSpec's dtype is compared against the inputs before the layer
-        # casts them, not after.
+        # Test the InputSpec's dtype is compared against the inputs before the
+        # layer casts them, not after.
         layer = mp_test_util.MultiplyLayer(dtype="float64")
         layer.input_spec = input_spec.InputSpec(dtype="float16")
 
