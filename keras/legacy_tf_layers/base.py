@@ -79,8 +79,8 @@ def keras_style_scope():
     output_2, next_state_2 = model_2(input, state)
     ```
 
-    The solution is to wrap the model construction and execution in a keras-style
-    scope:
+    The solution is to wrap the model construction and execution in a
+    keras-style scope:
 
     ```python
     with keras_style_scope():
@@ -165,13 +165,13 @@ class Layer(base_layer.Layer):
     Args:
       trainable: Boolean, whether the layer's variables should be trainable.
       name: String name of the layer.
-      dtype: Default dtype of the layer's weights (default of `None` means use the
-        type of the first input).
+      dtype: Default dtype of the layer's weights (default of `None` means use
+        the type of the first input).
 
     Read-only properties:
       name: The name of the layer (string).
-      dtype: Default dtype of the layer's weights (default of `None` means use the
-        type of the first input).
+      dtype: Default dtype of the layer's weights (default of `None` means use
+        the type of the first input).
       trainable_variables: List of trainable variables.
       non_trainable_variables: List of non-trainable variables.
       variables: List of all variables of this layer, trainable and
@@ -191,8 +191,8 @@ class Layer(base_layer.Layer):
     """
 
     def __init__(self, trainable=True, name=None, dtype=None, **kwargs):
-        # For backwards compatibility, legacy layers do not use `ResourceVariable`
-        # by default.
+        # For backwards compatibility, legacy layers do not use
+        # `ResourceVariable` by default.
         self._use_resource_variables = False
         scope = kwargs.pop("_scope", None)
         self._reuse = kwargs.pop("_reuse", None)
@@ -202,9 +202,9 @@ class Layer(base_layer.Layer):
         self.built = False
 
         if dtype is None:
-            # Indicates to infer dtype from inputs. When the V2 dtype behavior is
-            # enabled, Keras layers default their dtype to floatx instead, so we pass
-            # an "_infer" policy to keep the old V1 behavior.
+            # Indicates to infer dtype from inputs. When the V2 dtype behavior
+            # is enabled, Keras layers default their dtype to floatx instead, so
+            # we pass an "_infer" policy to keep the old V1 behavior.
             dtype = policy.Policy("_infer")
 
         if "autocast" not in kwargs:
@@ -218,13 +218,13 @@ class Layer(base_layer.Layer):
         if _is_in_keras_style_scope():
             if scope is not None:
                 raise ValueError(
-                    "scope argument not allowed when keras style layers are enabled, "
-                    "but saw: {}".format(scope)
+                    "scope argument not allowed when keras style layers are "
+                    "enabled, but saw: {}".format(scope)
                 )
             if self._reuse is not None:
                 raise ValueError(
-                    "reuse argument not allowed when keras style layers are enabled, "
-                    "but saw: {}".format(self._reuse)
+                    "reuse argument not allowed when keras style layers are "
+                    "enabled, but saw: {}".format(self._reuse)
                 )
             self._keras_style = True
         else:
@@ -241,8 +241,8 @@ class Layer(base_layer.Layer):
     def apply(self, *args, **kwargs):
         return self(*args, **kwargs)
 
-    # We no longer track graph in tf.layers layers. This property is only kept to
-    # maintain API backward compatibility.
+    # We no longer track graph in tf.layers layers. This property is only kept
+    # to maintain API backward compatibility.
     @property
     def graph(self):
         warnings.warn(
@@ -353,12 +353,13 @@ class Layer(base_layer.Layer):
         partitioner=None,
         **kwargs
     ):
-        """Adds a new variable to the layer, or gets an existing one; returns it.
+        """Adds a new variable to the layer, or gets an existing one; returns it
 
         Args:
           name: variable name.
           shape: variable shape.
-          dtype: The type of the variable. Defaults to `self.dtype` or `float32`.
+          dtype: The type of the variable. Defaults to `self.dtype` or
+            `float32`.
           initializer: initializer instance (callable).
           regularizer: regularizer instance (callable).
           trainable: whether the variable should be part of the layer's
@@ -372,10 +373,10 @@ class Layer(base_layer.Layer):
           use_resource: Whether to use `ResourceVariable`.
           synchronization: Indicates when a distributed a variable will be
             aggregated. Accepted values are constants defined in the class
-            `tf.VariableSynchronization`. By default the synchronization is set to
-            `AUTO` and the current `DistributionStrategy` chooses
-            when to synchronize. If `synchronization` is set to `ON_READ`,
-            `trainable` must not be set to `True`.
+            `tf.VariableSynchronization`. By default the synchronization is set
+            to `AUTO` and the current `DistributionStrategy` chooses when to
+            synchronize. If `synchronization` is set to `ON_READ`, `trainable`
+            must not be set to `True`.
           aggregation: Indicates how a distributed variable will be aggregated.
             Accepted values are constants defined in the class
             `tf.VariableAggregation`.
@@ -384,15 +385,15 @@ class Layer(base_layer.Layer):
             into multiple partitions according to `partitioner`.  In this case,
             an instance of `PartitionedVariable` is returned.  Available
             partitioners include `tf.compat.v1.fixed_size_partitioner` and
-            `tf.compat.v1.variable_axis_size_partitioner`.  For more details, see
-            the documentation of `tf.compat.v1.get_variable` and the  "Variable
-            Partitioners and Sharding" section of the API guide.
+            `tf.compat.v1.variable_axis_size_partitioner`.  For more details,
+            see the documentation of `tf.compat.v1.get_variable` and the
+            "Variable Partitioners and Sharding" section of the API guide.
           **kwargs: Additional keyword arguments.
 
         Returns:
-          The created variable.  Usually either a `Variable` or `ResourceVariable`
-          instance.  If `partitioner` is not `None`, a `PartitionedVariable`
-          instance is returned.
+          The created variable.  Usually either a `Variable` or
+          `ResourceVariable` instance.  If `partitioner` is not `None`, a
+          `PartitionedVariable` instance is returned.
 
         Raises:
           RuntimeError: If called with partitioned variable regularization and
@@ -423,12 +424,13 @@ class Layer(base_layer.Layer):
             if trainable:
                 raise ValueError(
                     "Synchronization value can be set to "
-                    "VariableSynchronization.ON_READ only for non-trainable variables. "
-                    "You have specified trainable=True and "
+                    "VariableSynchronization.ON_READ only for non-trainable "
+                    "variables. You have specified trainable=True and "
                     "synchronization=VariableSynchronization.ON_READ."
                 )
             else:
-                # Set trainable to be false when variable is to be synced on read.
+                # Set trainable to be false when variable is to be synced on
+                # read.
                 trainable = False
         elif trainable is None:
             trainable = True
@@ -449,15 +451,17 @@ class Layer(base_layer.Layer):
                 with tf.init_scope():
                     # Retrieve the variables from the graph into which variables
                     # will be lifted; if initialization ops will be lifted into
-                    # the eager context, then there is nothing to retrieve, since variable
-                    # collections are not supported when eager execution is enabled.
+                    # the eager context, then there is nothing to retrieve,
+                    # since variable collections are not supported when eager
+                    # execution is enabled.
                     if not tf.executing_eagerly():
                         init_graph = tf.compat.v1.get_default_graph()
                         existing_variables = set(
                             tf.compat.v1.global_variables()
                         )
             else:
-                # Initialization ops will not be lifted out of the default graph.
+                # Initialization ops will not be lifted out of the default
+                # graph.
                 init_graph = default_graph
                 existing_variables = set(tf.compat.v1.global_variables())
 
@@ -507,16 +511,17 @@ class Layer(base_layer.Layer):
                         var_store = (
                             vs._get_default_variable_store()
                         )  # pylint: disable=protected-access
-                        # When the shim to get variable scope working in TF2 is used,
-                        # We need to explicitly make the shim track the regularization
-                        # losses as the collections will not be accessible.
+                        # When the shim to get variable scope working in TF2 is
+                        # used, We need to explicitly make the shim track the
+                        # regularization losses as the collections will not be
+                        # accessible.
                         if hasattr(var_store, "add_regularizer"):
                             var_store.add_regularizer(variable, regularizer)
 
                 if init_graph is not None:
-                    # Handle edge case where a custom getter has overridden `trainable`.
-                    # There is one known occurrence of this, in unit test
-                    # testBasicRNNCellNotTrainable in
+                    # Handle edge case where a custom getter has overridden
+                    # `trainable`.  There is one known occurrence of this, in
+                    # unit test testBasicRNNCellNotTrainable in
                     # contrib.rnn.python.kernel_tests.core_rnn_cell_test
                     with init_graph.as_default():
                         trainable_variables = tf.compat.v1.trainable_variables()
@@ -525,7 +530,8 @@ class Layer(base_layer.Layer):
                         and self.trainable
                         and variable not in trainable_variables
                     ):
-                        # A custom getter / variable scope overrode the trainable flag.
+                        # A custom getter / variable scope overrode the
+                        # trainable flag.
                         extra_trainable_vars = self._trainable_weights[
                             prev_len_trainable:
                         ]
@@ -548,8 +554,8 @@ class Layer(base_layer.Layer):
           Output tensor(s).
 
         Note:
-          - If the layer's `call` method takes a `scope` keyword argument,
-            this argument will be automatically set to the current variable scope.
+          - If the layer's `call` method takes a `scope` keyword argument, this
+            argument will be automatically set to the current variable scope.
           - If the layer's `call` method takes a `mask` argument (as some Keras
             layers do), its default value will be set to the mask generated
             for `inputs` by the previous layer (if `input` did come from
@@ -557,15 +563,16 @@ class Layer(base_layer.Layer):
             a Keras layer with masking support.
 
         Raises:
-          ValueError: if the layer's `call` method returns None (an invalid value).
+          ValueError: if the layer's `call` method returns None (an invalid
+            value).
         """
         scope = kwargs.pop("scope", None)
 
         if self._keras_style:
             if scope is not None:
                 raise ValueError(
-                    "scope argument not allowed when keras style layers are enabled, "
-                    "but saw: {}".format(scope)
+                    "scope argument not allowed when keras style layers are "
+                    "enabled, but saw: {}".format(scope)
                 )
             return super().__call__(inputs, *args, **kwargs)
 
@@ -573,8 +580,9 @@ class Layer(base_layer.Layer):
 
         if self.built:
             try:
-                # Some classes which inherit from Layer do not use its constructor, so
-                # rather than initializing to None we check for an AttributeError.
+                # Some classes which inherit from Layer do not use its
+                # constructor, so rather than initializing to None we check for
+                # an AttributeError.
                 scope_context_manager = (
                     self._always_reuse_variable_scope
                 )  # pylint: disable=access-member-before-definition
@@ -582,16 +590,17 @@ class Layer(base_layer.Layer):
                 scope_context_manager = None
 
             if scope_context_manager is None:
-                # From this point we will always set reuse=True, so create a "final"
-                # variable scope with this setting. We avoid re-creating variable scopes
-                # after this point as an optimization.
+                # From this point we will always set reuse=True, so create a
+                # "final" variable scope with this setting. We avoid re-creating
+                # variable scopes after this point as an optimization.
                 scope_context_manager = tf.compat.v1.variable_scope(
                     self._scope, reuse=True, auxiliary_name_scope=False
                 )
 
-                # Do not cache variable scopes if Eager mode is enabled. If Eager mode
-                # is enabled then we don't want to reuse scopes because the cached scope
-                # might be from a FuncGraph or Eager scope we are no longer in.
+                # Do not cache variable scopes if Eager mode is enabled. If
+                # Eager mode is enabled then we don't want to reuse scopes
+                # because the cached scope might be from a FuncGraph or Eager
+                # scope we are no longer in.
                 if not tf.compat.v1.executing_eagerly_outside_functions():
                     self._always_reuse_variable_scope = scope_context_manager
         else:
@@ -641,14 +650,16 @@ class Layer(base_layer.Layer):
         return result
 
     def __setattr__(self, value, name):
-        # By-pass the automatic dependency tracking performed by the parent Layer.
+        # By-pass the automatic dependency tracking performed by the parent
+        # Layer.
         super(tf.__internal__.tracking.Trackable, self).__setattr__(
             value, name
         )  # pylint: disable=bad-super-call
 
     @property
     def _is_legacy_layer(self):
-        """Used by keras to check compatibility. This should not be overridden."""
+        """Used by keras to check compatibility. This should not be
+        overridden."""
         return True
 
 

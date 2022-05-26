@@ -39,8 +39,8 @@ class AveragePooling1D(keras_layers.AveragePooling1D, base.Layer):
         strides of the pooling operation.
       padding: A string. The padding method, either 'valid' or 'same'.
         Case-insensitive.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, length)`.
@@ -119,8 +119,8 @@ def average_pooling1d(
         strides of the pooling operation.
       padding: A string. The padding method, either 'valid' or 'same'.
         Case-insensitive.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, length)`.
@@ -196,8 +196,8 @@ class MaxPooling1D(keras_layers.MaxPooling1D, base.Layer):
         strides of the pooling operation.
       padding: A string. The padding method, either 'valid' or 'same'.
         Case-insensitive.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, length)`.
@@ -276,8 +276,8 @@ def max_pooling1d(
         strides of the pooling operation.
       padding: A string. The padding method, either 'valid' or 'same'.
         Case-insensitive.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, length)`.
@@ -347,8 +347,8 @@ class AveragePooling2D(keras_layers.AveragePooling2D, base.Layer):
     """Average pooling layer for 2D inputs (e.g. images).
 
     Args:
-      pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
-        specifying the size of the pooling window.
+      pool_size: An integer or tuple/list of 2 integers: (pool_height,
+        pool_width) specifying the size of the pooling window.
         Can be a single integer to specify the same value for
         all spatial dimensions.
       strides: An integer or tuple/list of 2 integers,
@@ -431,8 +431,8 @@ def average_pooling2d(
 
     Args:
       inputs: The tensor over which to pool. Must have rank 4.
-      pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
-        specifying the size of the pooling window.
+      pool_size: An integer or tuple/list of 2 integers: (pool_height,
+        pool_width) specifying the size of the pooling window.
         Can be a single integer to specify the same value for
         all spatial dimensions.
       strides: An integer or tuple/list of 2 integers,
@@ -512,8 +512,8 @@ class MaxPooling2D(keras_layers.MaxPooling2D, base.Layer):
     """Max pooling layer for 2D inputs (e.g. images).
 
     Args:
-      pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
-        specifying the size of the pooling window.
+      pool_size: An integer or tuple/list of 2 integers: (pool_height,
+        pool_width) specifying the size of the pooling window.
         Can be a single integer to specify the same value for
         all spatial dimensions.
       strides: An integer or tuple/list of 2 integers,
@@ -596,8 +596,8 @@ def max_pooling2d(
 
     Args:
       inputs: The tensor over which to pool. Must have rank 4.
-      pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
-        specifying the size of the pooling window.
+      pool_size: An integer or tuple/list of 2 integers: (pool_height,
+        pool_width) specifying the size of the pooling window.
         Can be a single integer to specify the same value for
         all spatial dimensions.
       strides: An integer or tuple/list of 2 integers,
@@ -934,9 +934,10 @@ def max_pooling3d(
 
     Args:
       inputs: The tensor over which to pool. Must have rank 5.
-      pool_size: An integer or tuple/list of 3 integers: (pool_depth, pool_height,
-        pool_width) specifying the size of the pooling window. Can be a single
-        integer to specify the same value for all spatial dimensions.
+      pool_size: An integer or tuple/list of 3 integers: (pool_depth,
+        pool_height, pool_width) specifying the size of the pooling window. Can
+        be a single integer to specify the same value for all spatial
+        dimensions.
       strides: An integer or tuple/list of 3 integers, specifying the strides of
         the pooling operation. Can be a single integer to specify the same value
         for all spatial dimensions.
@@ -945,8 +946,8 @@ def max_pooling3d(
       data_format: A string. The ordering of the dimensions in the inputs.
         `channels_last` (default) and `channels_first` are supported.
         `channels_last` corresponds to inputs with shape `(batch, depth, height,
-        width, channels)` while `channels_first` corresponds to inputs with shape
-        `(batch, channels, depth, height, width)`.
+        width, channels)` while `channels_first` corresponds to inputs with
+        shape `(batch, channels, depth, height, width)`.
       name: A string, the name of the layer.
 
     Returns:
