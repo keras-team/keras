@@ -67,7 +67,8 @@ def populate_deserializable_objects():
     LOCAL.ALL_OBJECTS["ZerosV2"] = initializers_v2.Zeros
 
     # Out of an abundance of caution we also include these aliases that have
-    # a non-zero probability of having been included in saved configs in the past.
+    # a non-zero probability of having been included in saved configs in the
+    # past.
     LOCAL.ALL_OBJECTS["glorot_normalV2"] = initializers_v2.GlorotNormal
     LOCAL.ALL_OBJECTS["glorot_uniformV2"] = initializers_v2.GlorotUniform
     LOCAL.ALL_OBJECTS["he_normalV2"] = initializers_v2.HeNormal
@@ -150,16 +151,16 @@ def deserialize(config, custom_objects=None):
 def get(identifier):
     """Retrieve a Keras initializer by the identifier.
 
-    The `identifier` may be the string name of a initializers function or class (
-    case-sensitively).
+    The `identifier` may be the string name of a initializers function or class
+    (case-sensitively).
 
     >>> identifier = 'Ones'
     >>> tf.keras.initializers.deserialize(identifier)
     <...keras.initializers.initializers_v2.Ones...>
 
     You can also specify `config` of the initializer to this function by passing
-    dict containing `class_name` and `config` as an identifier. Also note that the
-    `class_name` must map to a `Initializer` class.
+    dict containing `class_name` and `config` as an identifier. Also note that
+    the `class_name` must map to a `Initializer` class.
 
     >>> cfg = {'class_name': 'Ones', 'config': {}}
     >>> tf.keras.initializers.deserialize(cfg)

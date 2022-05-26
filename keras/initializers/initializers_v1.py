@@ -71,8 +71,8 @@ class RandomNormal(tf.compat.v1.random_normal_initializer):
     Args:
       mean: a python scalar or a scalar tensor. Mean of the random values to
         generate.
-      stddev: a python scalar or a scalar tensor. Standard deviation of the random
-        values to generate.
+      stddev: a python scalar or a scalar tensor. Standard deviation of the
+        random values to generate.
       seed: A Python integer. Used to create random seeds. See
         `tf.compat.v1.set_random_seed` for behavior.
       dtype: Default data type, used if no `dtype` argument is provided when
