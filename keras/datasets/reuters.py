@@ -167,7 +167,8 @@ def get_word_index(path="reuters_word_index.json"):
         path: where to cache the data (relative to `~/.keras/dataset`).
 
     Returns:
-        The word index dictionary. Keys are word strings, values are their index.
+        The word index dictionary. Keys are word strings, values are their
+        index.
     """
     origin_folder = (
         "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
