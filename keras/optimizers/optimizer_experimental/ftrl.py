@@ -27,9 +27,9 @@ from keras.utils import generic_utils
 class Ftrl(optimizer.Optimizer):
     r"""Optimizer that implements the FTRL algorithm.
 
-    "Follow The Regularized Leader" (FTRL) is an optimization algorithm developed
-    at Google for click-through rate prediction in the early 2010s. It is most
-    suitable for shallow models with large and sparse feature spaces.
+    "Follow The Regularized Leader" (FTRL) is an optimization algorithm
+    developed at Google for click-through rate prediction in the early 2010s. It
+    is most suitable for shallow models with large and sparse feature spaces.
     The algorithm is described by
     [McMahan et al., 2013](https://research.google.com/pubs/archive/41159.pdf).
     The Keras version has support for both online L2 regularization
@@ -73,23 +73,23 @@ class Ftrl(optimizer.Optimizer):
     Args:
       learning_rate: A `Tensor`, floating point value, a schedule that is a
         `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable that
-        takes no arguments and returns the actual value to use. The learning rate.
-        Defaults to 0.001.
-      learning_rate_power: A float value, must be less or equal to zero. Controls
-        how the learning rate decreases during training. Use zero for a fixed
-        learning rate.
-      initial_accumulator_value: The starting value for accumulators. Only zero or
-        positive values are allowed.
-      l1_regularization_strength: A float value, must be greater than or equal to
-        zero. Defaults to 0.0.
-      l2_regularization_strength: A float value, must be greater than or equal to
-        zero. Defaults to 0.0.
-      l2_shrinkage_regularization_strength: A float value, must be greater than or
-        equal to zero. This differs from L2 above in that the L2 above is a
+        takes no arguments and returns the actual value to use. The learning
+        rate.  Defaults to 0.001.
+      learning_rate_power: A float value, must be less or equal to zero.
+        Controls how the learning rate decreases during training. Use zero for a
+        fixed learning rate.
+      initial_accumulator_value: The starting value for accumulators. Only zero
+        or positive values are allowed.
+      l1_regularization_strength: A float value, must be greater than or equal
+        to zero. Defaults to 0.0.
+      l2_regularization_strength: A float value, must be greater than or equal
+        to zero. Defaults to 0.0.
+      l2_shrinkage_regularization_strength: A float value, must be greater than
+        or equal to zero. This differs from L2 above in that the L2 above is a
         stabilization penalty, whereas this L2 shrinkage is a magnitude penalty.
         When input is sparse shrinkage will only happen on the active weights.
-      beta: A float value, representing the beta value from the paper. Defaults to
-        0.0.
+      beta: A float value, representing the beta value from the paper. Defaults
+        to 0.0.
       {{base_optimizer_keyword_args}}
     """
 
@@ -126,8 +126,9 @@ class Ftrl(optimizer.Optimizer):
 
         if initial_accumulator_value < 0.0:
             raise ValueError(
-                "`initial_accumulator_value` needs to be positive or zero. Received: "
-                f"initial_accumulator_value={initial_accumulator_value}."
+                "`initial_accumulator_value` needs to be positive or zero. "
+                f"Received: initial_accumulator_value="
+                f"{initial_accumulator_value}."
             )
         if learning_rate_power > 0.0:
             raise ValueError(
@@ -137,17 +138,19 @@ class Ftrl(optimizer.Optimizer):
         if l1_regularization_strength < 0.0:
             raise ValueError(
                 "`l1_regularization_strength` needs to be positive or zero. "
-                f"Received: l1_regularization_strength={l1_regularization_strength}."
+                f"Received: l1_regularization_strength="
+                f"{l1_regularization_strength}."
             )
         if l2_regularization_strength < 0.0:
             raise ValueError(
                 "`l2_regularization_strength` needs to be positive or zero. "
-                f"Received: l2_regularization_strength={l2_regularization_strength}."
+                f"Received: l2_regularization_strength="
+                f"{l2_regularization_strength}."
             )
         if l2_shrinkage_regularization_strength < 0.0:
             raise ValueError(
-                "`l2_shrinkage_regularization_strength` needs to be positive or "
-                "zero. Received: l2_shrinkage_regularization_strength"
+                "`l2_shrinkage_regularization_strength` needs to be positive "
+                "or zero. Received: l2_shrinkage_regularization_strength"
                 f"={l2_shrinkage_regularization_strength}."
             )
 

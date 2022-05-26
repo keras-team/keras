@@ -244,12 +244,12 @@ class PiecewiseConstantDecay(LearningRateSchedule):
 
         Args:
           boundaries: A list of `Tensor`s or `int`s or `float`s with strictly
-            increasing entries, and with all elements having the same type as the
-            optimizer step.
+            increasing entries, and with all elements having the same type as
+            the optimizer step.
           values: A list of `Tensor`s or `float`s or `int`s that specifies the
             values for the intervals defined by `boundaries`. It should have one
-            more element than `boundaries`, and all elements should have the same
-            type.
+            more element than `boundaries`, and all elements should have the
+            same type.
           name: A string. Optional name of the operation. Defaults to
             'PiecewiseConstant'.
 
@@ -262,7 +262,8 @@ class PiecewiseConstantDecay(LearningRateSchedule):
             raise ValueError(
                 "The length of boundaries should be 1 less than the length of "
                 f"values. Received: boundaries={boundaries} of length "
-                f"{len(boundaries)}, and values={values} of length {len(values)}."
+                f"{len(boundaries)}, and values={values} "
+                f"of length {len(values)}."
             )
 
         self.boundaries = boundaries
@@ -399,7 +400,7 @@ class PolynomialDecay(LearningRateSchedule):
           end_learning_rate: A scalar `float32` or `float64` `Tensor` or a
             Python number.  The minimal end learning rate.
           power: A scalar `float32` or `float64` `Tensor` or a
-            Python number.  The power of the polynomial. Defaults to linear, 1.0.
+            Python number. The power of the polynomial. Defaults to linear, 1.0.
           cycle: A boolean, whether or not it should cycle beyond decay_steps.
           name: String.  Optional name of the operation. Defaults to
             'PolynomialDecay'.
@@ -434,7 +435,8 @@ class PolynomialDecay(LearningRateSchedule):
                 )
                 decay_steps_recomp = tf.multiply(decay_steps_recomp, multiplier)
             else:
-                # Make sure that the global_step used is not bigger than decay_steps.
+                # Make sure that the global_step used is not bigger than
+                # decay_steps.
                 global_step_recomp = tf.minimum(
                     global_step_recomp, decay_steps_recomp
                 )
@@ -528,8 +530,8 @@ class InverseTimeDecay(LearningRateSchedule):
             Python number.  The initial learning rate.
           decay_steps: How often to apply decay.
           decay_rate: A Python number.  The decay rate.
-          staircase: Whether to apply decay in a discrete staircase, as opposed to
-            continuous, fashion.
+          staircase: Whether to apply decay in a discrete staircase, as opposed
+            to continuous, fashion.
           name: String.  Optional name of the operation.  Defaults to
             'InverseTimeDecay'.
         """
@@ -626,7 +628,8 @@ class CosineDecay(LearningRateSchedule):
             Number of steps to decay over.
           alpha: A scalar `float32` or `float64` Tensor or a Python number.
             Minimum learning rate value as a fraction of initial_learning_rate.
-          name: String. Optional name of the operation.  Defaults to 'CosineDecay'.
+          name: String. Optional name of the operation.  Defaults to
+            'CosineDecay'.
         """
         super().__init__()
 
@@ -720,8 +723,8 @@ class CosineDecayRestarts(LearningRateSchedule):
         """Applies cosine decay with restarts to the learning rate.
 
         Args:
-          initial_learning_rate: A scalar `float32` or `float64` Tensor or a Python
-            number. The initial learning rate.
+          initial_learning_rate: A scalar `float32` or `float64` Tensor or a
+            Python number. The initial learning rate.
           first_decay_steps: A scalar `int32` or `int64` `Tensor` or a Python
             number. Number of steps to decay over.
           t_mul: A scalar `float32` or `float64` `Tensor` or a Python number.
@@ -729,8 +732,9 @@ class CosineDecayRestarts(LearningRateSchedule):
           m_mul: A scalar `float32` or `float64` `Tensor` or a Python number.
             Used to derive the initial learning rate of the i-th period.
           alpha: A scalar `float32` or `float64` Tensor or a Python number.
-            Minimum learning rate value as a fraction of the initial_learning_rate.
-          name: String. Optional name of the operation.  Defaults to 'SGDRDecay'.
+            Minimum learning rate value as a fraction of the
+            initial_learning_rate.
+          name: String. Optional name of the operation. Defaults to 'SGDRDecay'.
         """
         super().__init__()
 
@@ -872,8 +876,8 @@ class LinearCosineDecay(LearningRateSchedule):
         """Applies linear cosine decay to the learning rate.
 
         Args:
-          initial_learning_rate: A scalar `float32` or `float64` Tensor or a Python
-            number. The initial learning rate.
+          initial_learning_rate: A scalar `float32` or `float64` Tensor or a
+            Python number. The initial learning rate.
           decay_steps: A scalar `int32` or `int64` `Tensor` or a Python number.
             Number of steps to decay over.
           num_periods: Number of periods in the cosine part of the decay.
@@ -1001,11 +1005,12 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
         """Applies noisy linear cosine decay to the learning rate.
 
         Args:
-          initial_learning_rate: A scalar `float32` or `float64` Tensor or a Python
-            number. The initial learning rate.
+          initial_learning_rate: A scalar `float32` or `float64` Tensor or a
+            Python number. The initial learning rate.
           decay_steps: A scalar `int32` or `int64` `Tensor` or a Python number.
             Number of steps to decay over.
-          initial_variance: initial variance for the noise. See computation above.
+          initial_variance: initial variance for the noise. See computation
+            above.
           variance_decay: decay for the noise's variance. See computation above.
           num_periods: Number of periods in the cosine part of the decay.
             See computation above.

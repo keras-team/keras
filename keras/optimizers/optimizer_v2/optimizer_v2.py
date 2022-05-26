@@ -104,7 +104,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     """Base class for Keras optimizers.
 
     You should not use this class directly, but instead instantiate one of its
-    subclasses such as `tf.keras.optimizers.SGD`, `tf.keras.optimizers.Adam`, etc.
+    subclasses such as `tf.keras.optimizers.SGD`, `tf.keras.optimizers.Adam`,
+    etc.
 
     ### Usage
 
@@ -183,39 +184,40 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     `tf.keras.losses.Reduction.SUM` for not.
 
     To aggregate gradients yourself, call `apply_gradients` with
-    `experimental_aggregate_gradients` set to False. This is useful if you need to
-    process aggregated gradients.
+    `experimental_aggregate_gradients` set to False. This is useful if you need
+    to process aggregated gradients.
 
     If you are not using these and you want to average gradients, you should use
-    `tf.math.reduce_sum` to add up your per-example losses and then divide by the
-    global batch size. Note that when using `tf.distribute.Strategy`, the first
-    component of a tensor's shape is the *replica-local* batch size, which is off
-    by a factor equal to the number of replicas being used to compute a single
-    step. As a result, using `tf.math.reduce_mean` will give the wrong answer,
-    resulting in gradients that can be many times too big.
+    `tf.math.reduce_sum` to add up your per-example losses and then divide by
+    the global batch size. Note that when using `tf.distribute.Strategy`, the
+    first component of a tensor's shape is the *replica-local* batch size, which
+    is off by a factor equal to the number of replicas being used to compute a
+    single step. As a result, using `tf.math.reduce_mean` will give the wrong
+    answer, resulting in gradients that can be many times too big.
 
     ### Variable Constraints
 
     All Keras optimizers respect variable constraints. If constraint function is
     passed to any variable, the constraint will be applied to the variable after
     the gradient has been applied to the variable.
-    Important: If gradient is sparse tensor, variable constraint is not supported.
+    Important: If gradient is sparse tensor, variable constraint is not
+    supported.
 
     ### Thread Compatibility
 
-    The entire optimizer is currently thread compatible, not thread-safe. The user
-    needs to perform synchronization if necessary.
+    The entire optimizer is currently thread compatible, not thread-safe. The
+    user needs to perform synchronization if necessary.
 
     ### Slots
 
     Many optimizer subclasses, such as `Adam` and `Adagrad` allocate and manage
-    additional variables associated with the variables to train.  These are called
-    <i>Slots</i>.  Slots have names and you can ask the optimizer for the names of
-    the slots that it uses.  Once you have a slot name you can ask the optimizer
-    for the variable it created to hold the slot value.
+    additional variables associated with the variables to train.  These are
+    called <i>Slots</i>.  Slots have names and you can ask the optimizer for the
+    names of the slots that it uses.  Once you have a slot name you can ask the
+    optimizer for the variable it created to hold the slot value.
 
-    This can be useful if you want to log debug a training algorithm, report stats
-    about the slots, etc.
+    This can be useful if you want to log debug a training algorithm, report
+    stats about the slots, etc.
 
     ### Hyperparameters
 
@@ -278,8 +280,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     If you intend to create your own optimization algorithm, simply inherit from
     this class and override the following methods:
 
-      - `_resource_apply_dense` (update variable given gradient tensor is a dense
-        `tf.Tensor`)
+      - `_resource_apply_dense` (update variable given gradient tensor is a
+        dense `tf.Tensor`)
       - `_resource_apply_sparse` (update variable given gradient tensor is a
         sparse `tf.IndexedSlices`. The most common way for this to happen
         is if you are taking the gradient through a `tf.gather`.)
@@ -330,9 +332,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
           name: String. The name to use for momentum accumulator weights created
             by the optimizer.
           gradient_aggregator: The function to use to aggregate gradients across
-            devices (when using `tf.distribute.Strategy`). If `None`, defaults to
-            summing the gradients across devices. The function should accept and
-            return a list of `(gradient, variable)` tuples.
+            devices (when using `tf.distribute.Strategy`). If `None`, defaults
+            to summing the gradients across devices. The function should accept
+            and return a list of `(gradient, variable)` tuples.
           gradient_transformers: Optional. List of functions to use to transform
             gradients before applying updates to Variables. The functions are
             applied after `gradient_aggregator`. The functions should accept and
@@ -342,9 +344,10 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             If `clipvalue` (float) is set, the gradient of each weight
             is clipped to be no higher than this value.
             If `clipnorm` (float) is set, the gradient of each weight
-            is individually clipped so that its norm is no higher than this value.
-            If `global_clipnorm` (float) is set the gradient of all weights is
-            clipped so that their global norm is no higher than this value.
+            is individually clipped so that its norm is no higher than this
+            value. If `global_clipnorm` (float) is set the gradient of all
+            weights is clipped so that their global norm is no higher than this
+            value.
 
         Raises:
           ValueError: in case of any invalid argument.
@@ -373,7 +376,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 )
             if k == "lr":
                 warnings.warn(
-                    "The `lr` argument is deprecated, use `learning_rate` instead.",
+                    "The `lr` argument is deprecated, "
+                    "use `learning_rate` instead.",
                     stacklevel=2,
                 )
 
@@ -403,8 +407,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         self._initial_decay = decay
 
         self._hypers_created = False
-        # Store the distribution strategy object if the optimizer is created inside
-        # strategy scope, so it could be used to create variables later.
+        # Store the distribution strategy object if the optimizer is created
+        # inside strategy scope, so it could be used to create variables later.
         if tf.distribute.has_strategy():
             self._distribution_strategy = tf.distribute.get_strategy()
         else:
@@ -497,7 +501,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         )
 
     def _transform_loss(self, loss):
-        """Called in `.minimize` to transform loss before computing gradients."""
+        """Called in `.minimize` to transform loss before computing
+        gradients."""
         return loss
 
     def _get_gradients(self, tape, loss, var_list, grad_loss=None):
@@ -512,15 +517,15 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     def _aggregate_gradients(self, grads_and_vars):
         """Called in `apply_gradients` to aggregate gradients across devices.
 
-        Note that user subclasses may override this, so the interface should not be
-        changed.
+        Note that user subclasses may override this, so the interface should not
+        be changed.
 
         Args:
           grads_and_vars: List of (gradient, variable) pairs.
 
         Returns:
-          A list of (aggregrated_gradient, variable) pairs. By default, this calls
-          `self.gradient_aggregator`.
+          A list of (aggregrated_gradient, variable) pairs. By default, this
+          calls `self.gradient_aggregator`.
         """
         return self.gradient_aggregator(grads_and_vars)
 
@@ -546,23 +551,23 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         of using this function.
 
         Args:
-          loss: `Tensor` or callable. If a callable, `loss` should take no arguments
-            and return the value to minimize. If a `Tensor`, the `tape` argument
-            must be passed.
+          loss: `Tensor` or callable. If a callable, `loss` should take no
+            arguments and return the value to minimize. If a `Tensor`, the
+            `tape` argument must be passed.
           var_list: list or tuple of `Variable` objects to update to minimize
-            `loss`, or a callable returning the list or tuple of `Variable` objects.
-            Use callable when the variable list would otherwise be incomplete before
-            `minimize` since the variables are created at the first time `loss` is
-            called.
+            `loss`, or a callable returning the list or tuple of `Variable`
+            objects.  Use callable when the variable list would otherwise be
+            incomplete before `minimize` since the variables are created at the
+            first time `loss` is called.
           grad_loss: (Optional). A `Tensor` holding the gradient computed for
             `loss`.
           name: (Optional) str. Name for the returned operation.
-          tape: (Optional) `tf.GradientTape`. If `loss` is provided as a `Tensor`,
-            the tape that computed the `loss` must be provided.
+          tape: (Optional) `tf.GradientTape`. If `loss` is provided as a
+            `Tensor`, the tape that computed the `loss` must be provided.
 
         Returns:
-          An `Operation` that updates the variables in `var_list`. The `iterations`
-          will be automatically increased by 1.
+          An `Operation` that updates the variables in `var_list`. The
+          `iterations` will be automatically increased by 1.
 
         Raises:
           ValueError: If some of the variables are not `Variable` objects.
@@ -584,16 +589,17 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
         Args:
           loss: `Tensor` or callable. If a callable, `loss` should take no
-            arguments and return the value to minimize. If a `Tensor`, the `tape`
-            argument must be passed.
+            arguments and return the value to minimize. If a `Tensor`, the
+            `tape` argument must be passed.
           var_list: list or tuple of `Variable` objects to update to minimize
-            `loss`, or a callable returning the list or tuple of `Variable` objects.
-            Use callable when the variable list would otherwise be incomplete before
-            `minimize` and the variables are created at the first time when `loss`
-            is called.
-          grad_loss: Optional. A `Tensor` holding the gradient computed for `loss`.
-          tape: (Optional) `tf.GradientTape`. If `loss` is provided as a `Tensor`,
-            the tape that computed the `loss` must be provided.
+            `loss`, or a callable returning the list or tuple of `Variable`
+            objects.  Use callable when the variable list would otherwise be
+            incomplete before `minimize` and the variables are created at the
+            first time when `loss` is called.
+          grad_loss: Optional. A `Tensor` holding the gradient computed for
+            `loss`.
+          tape: (Optional) `tf.GradientTape`. If `loss` is provided as a
+            `Tensor`, the tape that computed the `loss` must be provided.
 
         Returns:
           A list of (gradient, variable) pairs. Variable is always present, but
@@ -647,8 +653,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         applies gradients.
 
         The method sums gradients from all replicas in the presence of
-        `tf.distribute.Strategy` by default. You can aggregate gradients yourself by
-        passing `experimental_aggregate_gradients=False`.
+        `tf.distribute.Strategy` by default. You can aggregate gradients
+        yourself by passing `experimental_aggregate_gradients=False`.
 
         Example:
 
@@ -663,11 +669,12 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
         Args:
           grads_and_vars: List of (gradient, variable) pairs.
-          name: Optional name for the returned operation. Default to the name passed
-            to the `Optimizer` constructor.
-          experimental_aggregate_gradients: Whether to sum gradients from different
-            replicas in the presence of `tf.distribute.Strategy`. If False, it's
-            user responsibility to aggregate the gradients. Default to True.
+          name: Optional name for the returned operation. Default to the name
+            passed to the `Optimizer` constructor.
+          experimental_aggregate_gradients: Whether to sum gradients from
+            different replicas in the presence of `tf.distribute.Strategy`. If
+            False, it's user responsibility to aggregate the gradients. Default
+            to True.
 
         Returns:
           An `Operation` that applies the specified gradients. The `iterations`
@@ -687,16 +694,16 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 self._create_all_weights(var_list)
 
             if not grads_and_vars:
-                # Distribution strategy does not support reducing an empty list of
-                # gradients
+                # Distribution strategy does not support reducing an empty list
+                # of gradients
                 return tf.no_op()
 
             if tf.distribute.in_cross_replica_context():
                 raise RuntimeError(
-                    "`apply_gradients() cannot be called in cross-replica context. "
-                    "Use `tf.distribute.Strategy.run` to enter replica "
-                    "context. For more information, please see the docstring of "
-                    "`tf.distribute.get_replica_context`."
+                    "`apply_gradients() cannot be called in cross-replica "
+                    "context. Use `tf.distribute.Strategy.run` to enter "
+                    "replica context. For more information, please see the "
+                    "docstring of `tf.distribute.get_replica_context`."
                 )
 
             strategy = tf.distribute.get_strategy()
@@ -714,9 +721,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 )
             ):
                 raise NotImplementedError(
-                    "`experimental_aggregate_gradients=False is not supported for "
-                    "ParameterServerStrategy and CentralStorageStrategy. Used: "
-                    f"strategy={strategy}."
+                    "`experimental_aggregate_gradients=False is not supported "
+                    "for ParameterServerStrategy and CentralStorageStrategy. "
+                    f"Used: strategy={strategy}."
                 )
 
             apply_state = self._prepare(var_list)
@@ -745,15 +752,17 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             """Apply gradient to variable."""
             if isinstance(var, tf.Tensor):
                 raise NotImplementedError(
-                    f"Updating a `Tensor` is not implemented. Received: var={var}."
+                    f"Updating a `Tensor` is not implemented. "
+                    f"Received: var={var}."
                 )
 
             apply_kwargs = {}
             if isinstance(grad, tf.IndexedSlices):
                 if var.constraint is not None:
                     raise RuntimeError(
-                        "Cannot use a constraint function on a sparse variable. "
-                        f"Received: grad={grad}, var.constraint={var.constraint}."
+                        "Cannot use a constraint function on a sparse "
+                        f"variable. Received: grad={grad}, "
+                        f"var.constraint={var.constraint}."
                     )
                 if "apply_state" in self._sparse_apply_args:
                     apply_kwargs["apply_state"] = apply_state
@@ -776,8 +785,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         update_ops = []
         with name_scope_only_in_function_or_graph(name or self._name):
             for grad, var in grads_and_vars:
-                # Colocate the update with variables to avoid unnecessary communication
-                # delays. See b/136304694.
+                # Colocate the update with variables to avoid unnecessary
+                # communication delays. See b/136304694.
                 with distribution.extended.colocate_vars_with(var):
                     with name_scope_only_in_function_or_graph(
                         "update"
@@ -791,12 +800,13 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                             group=False,
                         )
                         if tf.distribute.in_cross_replica_context():
-                            # In cross-replica context, extended.update returns a list of
-                            # update ops from all replicas (group=False).
+                            # In cross-replica context, extended.update returns
+                            # a list of update ops from all replicas
+                            # (group=False).
                             update_ops.extend(update_op)
                         else:
-                            # In replica context, extended.update return the single update op
-                            # of current replica.
+                            # In replica context, extended.update return the
+                            # single update op of current replica.
                             update_ops.append(update_op)
 
             any_symbolic = any(
@@ -804,9 +814,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 for i in update_ops
             )
             if not tf.executing_eagerly() or any_symbolic:
-                # If the current context is graph mode or any of the update ops are
-                # symbolic then the step update should be carried out under a graph
-                # context. (eager updates execute immediately)
+                # If the current context is graph mode or any of the update ops
+                # are symbolic then the step update should be carried out under
+                # a graph context. (eager updates execute immediately)
                 with backend._current_graph(
                     update_ops
                 ).as_default():  # pylint: disable=protected-access
@@ -905,14 +915,15 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     def _create_slots_for_sharded_variables(self, var_list):
         """Add ShardedVariables to slots to later reconstruct for checkpointing.
 
-        ShardedVariables don't have slot variables created for them; their shards
-        do. This function allows users to call get_slot with a ShardedVariable input
-        and receive a ShardedVariable output containing the appropriate slot vars.
+        ShardedVariables don't have slot variables created for them; their
+        shards do. This function allows users to call get_slot with a
+        ShardedVariable input and receive a ShardedVariable output containing
+        the appropriate slot vars.
 
         Iterate over the variables to find shards, and aggregate the sharded
-        containers in a set. Add these ShardedVariables to _slots so that get_slot
-        can retrieve the proper slot variables for their component shards, and
-        reconstruct those into a ShardedVariable.
+        containers in a set. Add these ShardedVariables to _slots so that
+        get_slot can retrieve the proper slot variables for their component
+        shards, and reconstruct those into a ShardedVariable.
 
         Args:
           var_list: list or tuple of `Variable` objects that will be minimized
@@ -933,12 +944,13 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             self._slots[sharded_key] = slot_dict
 
     def _create_all_weights(self, var_list):
-        """Creates all weights, including iterations, hyperparameters and slot vars.
+        """Creates all weights, including iterations, hyperparameters and slot
+        vars.
 
         This will add newly created variables to `optimizer.weights`.
 
-        New variables are only created when this method is called the first time, or
-        when called with different variables in the var_list.
+        New variables are only created when this method is called the first
+        time, or when called with different variables in the var_list.
 
         Args:
           var_list: list or tuple of `Variable` objects that will be minimized
@@ -990,15 +1002,15 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     def add_slot(self, var, slot_name, initializer="zeros", shape=None):
         """Add a new slot variable for `var`.
 
-        A slot variable is an additional variable associated with `var` to train.
-        It is allocated and managed by optimizers, e.g. `Adam`.
+        A slot variable is an additional variable associated with `var` to
+        train.  It is allocated and managed by optimizers, e.g. `Adam`.
 
         Args:
           var: a `Variable` object.
           slot_name: name of the slot variable.
           initializer: initializer of the slot variable
-          shape: (Optional) shape of the slot variable. If not set, it will default
-          to the shape of `var`.
+          shape: (Optional) shape of the slot variable. If not set, it will
+            default to the shape of `var`.
 
         Returns:
           A slot variable.
@@ -1028,13 +1040,13 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 strategy = tf.distribute.get_strategy()
                 if not strategy.extended.variable_created_in_scope(var):
                     raise ValueError(
-                        "Trying to create optimizer slot variable under the scope for "
-                        "tf.distribute.Strategy ({}), which is different from the scope "
-                        "used for the original variable ({}). Make sure the slot "
-                        "variables are created under the same strategy scope. This may "
-                        "happen if you're restoring from a checkpoint outside the scope.".format(
-                            strategy, var
-                        )
+                        "Trying to create optimizer slot variable under the "
+                        "scope for tf.distribute.Strategy ({}), which is "
+                        "different from the scope used for the original "
+                        "variable ({}). Make sure the slot variables are "
+                        "created under the same strategy scope. This may "
+                        "happen if you're restoring from a checkpoint "
+                        "outside the scope.".format(strategy, var)
                     )
 
                 with strategy.extended.colocate_vars_with(var):
@@ -1063,8 +1075,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         if isinstance(
             slot_variable, tf.__internal__.distribute.ShardedVariable
         ):
-            # Construct a ShardedVariable that points to the input ShardedVariable's
-            # component shard's slot variables.
+            # Construct a ShardedVariable that points to the input
+            # ShardedVariable's component shard's slot variables.
             shard_vars = []
             for shard in slot_variable.variables:
                 slot_shard = self.get_slot(shard, slot_name)
@@ -1113,9 +1125,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 if isinstance(value, (tf.Tensor, tf.Variable)) or callable(
                     value
                 ):
-                    # The check for `callable` covers the usage when `value` is a
-                    # `LearningRateSchedule`, in which case it does not need to create a
-                    # variable.
+                    # The check for `callable` covers the usage when `value` is
+                    # a `LearningRateSchedule`, in which case it does not need
+                    # to create a variable.
                     continue
                 else:
                     self._hyper[name] = self.add_weight(
@@ -1196,9 +1208,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
         Args:
             config: A Python dictionary, typically the output of get_config.
-            custom_objects: A Python dictionary mapping names to additional Python
-              objects used to create this optimizer, such as a function used for a
-              hyperparameter.
+            custom_objects: A Python dictionary mapping names to additional
+              Python objects used to create this optimizer, such as a function
+              used for a hyperparameter.
 
         Returns:
             An optimizer instance.
@@ -1213,7 +1225,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         return cls(**config)
 
     def _serialize_hyperparameter(self, hyperparameter_name):
-        """Serialize a hyperparameter that can be a float, callable, or Tensor."""
+        """Serialize a hyperparameter that can be a float, callable, or
+        Tensor."""
         value = self._hyper[hyperparameter_name]
         if isinstance(value, learning_rate_schedule.LearningRateSchedule):
             return learning_rate_schedule.serialize(value)
@@ -1242,9 +1255,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         variables in the order they were created. The returned list can in turn
         be used to load state into similarly parameterized optimizers.
 
-        For example, the RMSprop optimizer for this simple model returns a list of
-        three values-- the iteration count, followed by the root-mean-square value
-        of the kernel and bias of the single Dense layer:
+        For example, the RMSprop optimizer for this simple model returns a list
+        of three values-- the iteration count, followed by the root-mean-square
+        value of the kernel and bias of the single Dense layer:
 
         >>> opt = tf.keras.optimizers.RMSprop()
         >>> m = tf.keras.models.Sequential([tf.keras.layers.Dense(10)])
@@ -1269,12 +1282,12 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         This function takes the weight values associated with this
         optimizer as a list of Numpy arrays. The first value is always the
         iterations count of the optimizer, followed by the optimizer's state
-        variables in the order they are created. The passed values are used to set
-        the new state of the optimizer.
+        variables in the order they are created. The passed values are used to
+        set the new state of the optimizer.
 
         For example, the RMSprop optimizer for this simple model takes a list of
-        three values-- the iteration count, followed by the root-mean-square value
-        of the kernel and bias of the single Dense layer:
+        three values-- the iteration count, followed by the root-mean-square
+        value of the kernel and bias of the single Dense layer:
 
         >>> opt = tf.keras.optimizers.RMSprop()
         >>> m = tf.keras.models.Sequential([tf.keras.layers.Dense(10)])
@@ -1332,12 +1345,13 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             if trainable:
                 raise ValueError(
                     "Synchronization value can be set to "
-                    "VariableSynchronization.ON_READ only for non-trainable variables. "
-                    "You have specified trainable=True and "
+                    "VariableSynchronization.ON_READ only for non-trainable "
+                    "variables. You have specified trainable=True and "
                     "synchronization=VariableSynchronization.ON_READ."
                 )
             else:
-                # Set trainable to be false when variable is to be synced on read.
+                # Set trainable to be false when variable is to be synced on
+                # read.
                 trainable = False
         elif trainable is None:
             trainable = True
@@ -1405,8 +1419,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
         Args:
           grad: a `Tensor` representing the gradient.
-          handle: a `Tensor` of dtype `resource` which points to the variable to be
-            updated.
+          handle: a `Tensor` of dtype `resource` which points to the variable to
+            be updated.
           apply_state: A dict which is used across multiple apply calls.
 
         Returns:
@@ -1421,20 +1435,20 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     ):
         """Add ops to apply sparse gradients to `handle`, with repeated indices.
 
-        Optimizers which override this method must deal with repeated indices. See
-        the docstring of `_apply_sparse_duplicate_indices` for details. By default
-        the correct behavior, to sum non-unique indices and their associated
-        gradients, is enforced by first pre-processing `grad` and `indices` and
-        passing them on to `_resource_apply_sparse`. Optimizers which deal correctly
-        with duplicate indices may instead override this method to avoid the
-        overhead of summing.
+        Optimizers which override this method must deal with repeated indices.
+        See the docstring of `_apply_sparse_duplicate_indices` for details. By
+        default the correct behavior, to sum non-unique indices and their
+        associated gradients, is enforced by first pre-processing `grad` and
+        `indices` and passing them on to `_resource_apply_sparse`. Optimizers
+        which deal correctly with duplicate indices may instead override this
+        method to avoid the overhead of summing.
 
         Args:
           grad: a `Tensor` representing the gradient for the affected indices.
-          handle: a `Tensor` of dtype `resource` which points to the variable to be
-            updated.
-          indices: a `Tensor` of integral type representing the indices for which
-            the gradient is nonzero. Indices may be repeated.
+          handle: a `Tensor` of dtype `resource` which points to the variable to
+            be updated.
+          indices: a `Tensor` of integral type representing the indices for
+            which the gradient is nonzero. Indices may be repeated.
           **kwargs: May optionally contain `apply_state`
 
         Returns:
@@ -1450,17 +1464,17 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     def _resource_apply_sparse(self, grad, handle, indices, apply_state):
         """Add ops to apply sparse gradients to the variable `handle`.
 
-        Similar to `_apply_sparse`, the `indices` argument to this method has been
-        de-duplicated. Optimizers which deal correctly with non-unique indices may
-        instead override `_resource_apply_sparse_duplicate_indices` to avoid this
-        overhead.
+        Similar to `_apply_sparse`, the `indices` argument to this method has
+        been de-duplicated. Optimizers which deal correctly with non-unique
+        indices may instead override `_resource_apply_sparse_duplicate_indices`
+        to avoid this overhead.
 
         Args:
           grad: a `Tensor` representing the gradient for the affected indices.
-          handle: a `Tensor` of dtype `resource` which points to the variable to be
-            updated.
-          indices: a `Tensor` of integral type representing the indices for which
-            the gradient is nonzero. Indices are unique.
+          handle: a `Tensor` of dtype `resource` which points to the variable to
+            be updated.
+          indices: a `Tensor` of integral type representing the indices for
+            which the gradient is nonzero. Indices are unique.
           apply_state: A dict which is used across multiple apply calls.
 
         Returns:
@@ -1510,8 +1524,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         deferred_restorations = self._deferred_slot_restorations.get(
             slot_name, {}
         ).pop(variable_key, [])
-        # Iterate over restores, highest restore UID first to minimize the number
-        # of assignments.
+        # Iterate over restores, highest restore UID first to minimize the
+        # number of assignments.
         deferred_restorations.sort(
             key=lambda position: position.restore_uid, reverse=True
         )
@@ -1526,16 +1540,16 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         It is up to the caller to restore the value into the slot variable if a
         valid slot variable is returned.
 
-        Called when a variable which has an associated slot variable is created or
-        restored. When executing eagerly, we create the slot variable with a
+        Called when a variable which has an associated slot variable is created
+        or restored. When executing eagerly, we create the slot variable with a
         restoring initializer.
 
         No new variables are created when graph building. Instead,
-        _restore_slot_variable catches these after normal creation and adds restore
-        ops to the graph. This method is nonetheless important when graph building
-        for the case when a slot variable has already been created but `variable`
-        has just been added to a dependency graph (causing us to realize that the
-        slot variable needs to be restored).
+        _restore_slot_variable catches these after normal creation and adds
+        restore ops to the graph. This method is nonetheless important when
+        graph building for the case when a slot variable has already been
+        created but `variable` has just been added to a dependency graph
+        (causing us to realize that the slot variable needs to be restored).
 
         Args:
           slot_variable_position: A `trackable._CheckpointPosition` object
@@ -1544,8 +1558,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
           variable: The variable object this slot is being created for.
 
         Returns:
-          A slot variable that should have a value restored into it, or None if a
-          slot variable should not be restored at this time.
+          A slot variable that should have a value restored into it, or None if
+          a slot variable should not be restored at this time.
         """
         variable_key = _var_key(variable)
         slot_dict = self._slots.get(variable_key, {})
@@ -1554,22 +1568,22 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             slot_variable is None
             and tf.executing_eagerly()
             and slot_variable_position.is_simple_variable()
-            # Defer slot variable creation if there is an active variable creator
-            # scope. Generally we'd like to eagerly create/restore slot variables
-            # when possible, but this may mean that scopes intended to catch
-            # `variable` also catch its eagerly created slot variable
-            # unintentionally (specifically make_template would add a dependency on
-            # a slot variable if not for this case). Deferring is mostly harmless
-            # (aside from double initialization), and makes variable creator scopes
-            # behave the same way they do when graph building.
+            # Defer slot variable creation if there is an active variable
+            # creator scope. Generally we'd like to eagerly create/restore slot
+            # variables when possible, but this may mean that scopes intended to
+            # catch `variable` also catch its eagerly created slot variable
+            # unintentionally (specifically make_template would add a dependency
+            # on a slot variable if not for this case). Deferring is mostly
+            # harmless (aside from double initialization), and makes variable
+            # creator scopes behave the same way they do when graph building.
             #
-            # One notable case is with distribution strategy, which uses variable
-            # creator scope but always desires the `variable` and the slot to use
-            # the same scope, thus we can safely eagerly create/restore slot
-            # variables.
+            # One notable case is with distribution strategy, which uses
+            # variable creator scope but always desires the `variable` and the
+            # slot to use the same scope, thus we can safely eagerly
+            # create/restore slot variables.
             and (
                 not tf.compat.v1.get_default_graph()._variable_creator_stack
-                or self._distribution_strategy  # pylint: disable=protected-access
+                or self._distribution_strategy
             )
         ):
             initializer = (
@@ -1583,16 +1597,16 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 slot_name=slot_name,
                 shape=slot_variable_position.value_shape(),
             )
-            # Slot variables are not owned by any one object (because we don't want to
-            # save the slot variable if the optimizer is saved without the non-slot
-            # variable, or if the non-slot variable is saved without the optimizer;
-            # it's a dependency hypergraph with edges of the form (optimizer, non-slot
-            # variable, variable)). So we don't _track_ slot variables anywhere, and
-            # instead special-case this dependency and otherwise pretend it's a normal
-            # graph.
+            # Slot variables are not owned by any one object (because we don't
+            # want to save the slot variable if the optimizer is saved without
+            # the non-slot variable, or if the non-slot variable is saved
+            # without the optimizer; it's a dependency hypergraph with edges of
+            # the form (optimizer, non-slot variable, variable)). So we don't
+            # _track_ slot variables anywhere, and instead special-case this
+            # dependency and otherwise pretend it's a normal graph.
         if slot_variable is not None:
-            # For sharded variables, we need the logic in get_slot to combine slot
-            # variables for its shards
+            # For sharded variables, we need the logic in get_slot to combine
+            # slot variables for its shards
             if (slot_variable is variable) and (
                 isinstance(variable, tf.__internal__.distribute.ShardedVariable)
             ):
@@ -1601,10 +1615,10 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             # existing slot variable, we should restore it.
             return slot_variable
         else:
-            # We didn't make the slot variable. Defer restoring until it gets created
-            # normally. We keep a list rather than the one with the highest restore
-            # UID in case slot variables have their own dependencies, in which case
-            # those could differ between restores.
+            # We didn't make the slot variable. Defer restoring until it gets
+            # created normally. We keep a list rather than the one with the
+            # highest restore UID in case slot variables have their own
+            # dependencies, in which case those could differ between restores.
             self._deferred_slot_restorations.setdefault(
                 slot_name, {}
             ).setdefault(variable_key, []).append(slot_variable_position)
@@ -1612,7 +1626,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
     @contextlib.contextmanager
     def _distribution_strategy_scope(self):
-        """Returns the `tf.distribute.Strategy` this optimizer was created under."""
+        """Returns the `tf.distribute.Strategy` this optimizer was created
+        under."""
         if self._distribution_strategy and not tf.distribute.has_strategy():
             with self._distribution_strategy.scope():
                 yield self._distribution_strategy.scope()
@@ -1653,8 +1668,8 @@ def _get_slot_key_from_var(var, slot_name):
 class RestoredOptimizer(OptimizerV2):
     """A non-functional Optimizer implementation for checkpoint compatibility.
 
-    Holds slot variables and hyperparameters when an optimizer is restored from a
-    SavedModel. These variables may be referenced in functions along with ops
+    Holds slot variables and hyperparameters when an optimizer is restored from
+    a SavedModel. These variables may be referenced in functions along with ops
     created by the original optimizer, but currently we do not support using the
     optimizer object itself (e.g. through `apply_gradients`).
     """
@@ -1670,8 +1685,8 @@ class RestoredOptimizer(OptimizerV2):
         # TODO(allenl): Save and restore the Optimizer's config
         raise NotImplementedError(
             "Restoring functional Optimizers from SavedModels is not currently "
-            "supported. Please file a feature request if this limitation bothers "
-            "you."
+            "supported. Please file a feature request if this limitation "
+            "bothers you."
         )
 
 
@@ -1684,7 +1699,7 @@ tf.__internal__.saved_model.load.register_revived_type(
             version=2,
             min_producer_version=1,
             min_consumer_version=1,
-            setter=RestoredOptimizer._set_hyper,  # pylint: disable=protected-access
+            setter=RestoredOptimizer._set_hyper,
         )
     ],
 )

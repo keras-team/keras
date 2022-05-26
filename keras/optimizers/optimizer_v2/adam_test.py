@@ -163,8 +163,8 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             with tf.Graph().as_default(), self.cached_session(
                 force_gpu=tf.test.is_gpu_available()
             ):
-                # If a GPU is available, tests that all optimizer ops can be placed on
-                # it (i.e. they have GPU kernels).
+                # If a GPU is available, tests that all optimizer ops can be
+                # placed on it (i.e. they have GPU kernels).
                 var = tf.Variable([[1.0], [2.0]])
                 indices = tf.constant([0, 1], dtype=index_dtype)
                 g_sum = lambda: tf.reduce_sum(
@@ -630,7 +630,8 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         v2 = tf.Variable(1.0)
         opt = adam.Adam(1.0)
         opt.minimize(lambda: v1 + v2, var_list=[v1, v2])
-        # There should be iteration, and two unique slot variables for v1 and v2.
+        # There should be iteration, and two unique slot variables for v1 and
+        # v2.
         self.assertLen(set(v.ref() for v in opt.variables()), 5)
         self.assertEqual(
             self.evaluate(opt.variables()[0]), self.evaluate(opt.iterations)
@@ -733,8 +734,8 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             with tf.Graph().as_default(), self.cached_session(
                 force_gpu=tf.test.is_gpu_available()
             ):
-                # If a GPU is available, tests that all optimizer ops can be placed on
-                # it (i.e. they have GPU kernels).
+                # If a GPU is available, tests that all optimizer ops can be
+                # placed on it (i.e. they have GPU kernels).
                 var = tf.Variable([[1.0], [2.0]])
                 indices = tf.constant([0, 1], dtype=index_dtype)
                 g_sum = lambda: tf.reduce_sum(

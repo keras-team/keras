@@ -152,7 +152,8 @@ class Nadam(optimizer_v2.OptimizerV2):
         )
 
     def _prepare(self, var_list):
-        # Get the value of the momentum cache before starting to apply gradients.
+        # Get the value of the momentum cache before starting to apply
+        # gradients.
         self._m_cache_read = tf.identity(self._m_cache)
         return super()._prepare(var_list)
 

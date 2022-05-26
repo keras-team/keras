@@ -136,8 +136,8 @@ class AdamW(optimizer.Optimizer):
 
         Args:
           var_list: list of model variables to build AdamW variables on.
-          exclude_from_weight_decay: list of model variables that will be excluded
-            from weight decay.
+          exclude_from_weight_decay: list of model variables that will be
+            excluded from weight decay.
         """
         super().build(var_list)
         if hasattr(self, "_built") and self._built:

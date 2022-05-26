@@ -85,8 +85,8 @@ from keras.utils.generic_utils import serialize_keras_object
 def serialize(optimizer):
     """Serialize the optimizer configuration to JSON compatible python dict.
 
-    The configuration can be used for persistence and reconstruct the `Optimizer`
-    instance again.
+    The configuration can be used for persistence and reconstruct the
+    `Optimizer` instance again.
 
     >>> tf.keras.optimizers.serialize(tf.keras.optimizers.SGD())
     {'class_name': 'SGD', 'config': {'name': 'SGD', 'learning_rate': 0.01,
@@ -109,7 +109,8 @@ def deserialize(config, custom_objects=None):
     Args:
         config: Optimizer configuration dictionary.
         custom_objects: Optional dictionary mapping names (strings) to custom
-          objects (classes and functions) to be considered during deserialization.
+          objects (classes and functions) to be considered during
+          deserialization.
 
     Returns:
         A Keras Optimizer instance.
@@ -158,9 +159,10 @@ def get(identifier):
     Args:
         identifier: Optimizer identifier, one of
             - String: name of an optimizer
-            - Dictionary: configuration dictionary. - Keras Optimizer instance (it
-              will be returned unchanged). - TensorFlow Optimizer instance (it
-              will be wrapped as a Keras Optimizer).
+            - Dictionary: configuration dictionary.
+            - Keras Optimizer instance (it will be returned unchanged).
+            - TensorFlow Optimizer instance (it will be wrapped as a Keras
+              Optimizer).
 
     Returns:
         A Keras Optimizer instance.

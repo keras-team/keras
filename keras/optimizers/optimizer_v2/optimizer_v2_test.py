@@ -459,7 +459,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
             loss3 = lambda: 3 * var3 + 5 * var4
             opt_op_3 = opt1.minimize(loss3, [var3, var4])
 
-            # Assert set_weights with ValueError since weight list does not match.
+            # Assert set_weights with ValueError since weight list does not
+            # match.
             self.evaluate(tf.compat.v1.global_variables_initializer())
             weights = opt1.get_weights()
             with self.assertRaisesRegex(ValueError, "but the optimizer was"):
@@ -727,8 +728,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         test_combinations.combine(mode=["graph", "eager"])
     )
     def testAggregationTrue(self):
-        # Test that experimental_aggregate_gradients=True works without distributed
-        # strategy.
+        # Test that experimental_aggregate_gradients=True works without
+        # distributed strategy.
         var = tf.Variable([1.0, 2.0])
         opt = gradient_descent.SGD(3.0)
 
@@ -745,8 +746,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         test_combinations.combine(mode=["graph", "eager"])
     )
     def testAggregationFalse(self):
-        # Test that experimental_aggregate_gradients=False works without distributed
-        # strategy.
+        # Test that experimental_aggregate_gradients=False works without
+        # distributed strategy.
         var = tf.Variable([1.0, 2.0])
         opt = gradient_descent.SGD(3.0)
 
@@ -766,8 +767,9 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         checkpoint = tf.train.Checkpoint(optimizer=opt)
         path = checkpoint.save(self.get_temp_dir())
 
-        # Following verifies that the `iterations` can be restored with the absence
-        # of an `Optimizer` object (using a `Checkpoint` as a placeholder).
+        # Following verifies that the `iterations` can be restored with the
+        # absence of an `Optimizer` object (using a `Checkpoint` as a
+        # placeholder).
         iterations_var = tf.Variable(0, dtype=tf.int64)
         optimizer_checkpoint = tf.train.Checkpoint(iter=iterations_var)
         checkpoint_to_restore = tf.train.Checkpoint(
@@ -779,7 +781,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def testSlotWithNonstandardShapeRestoresBasedOnCheckpoint(self):
-        # First create an optimizer and a slot variable with a non-standard shape.
+        # First create an optimizer and a slot variable with a non-standard
+        # shape.
         x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)
         slot_shape = [2, 1]
         optimizer_1 = optimizer_v2.OptimizerV2(name="test")
@@ -803,8 +806,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     )
     def test_gradient_aggregator(self):
         def gradient_aggregator(grads_and_vars):
-            # Simulate an all-reduce where the other replica has zeros for gradients,
-            # by dividing each gradient by 2.
+            # Simulate an all-reduce where the other replica has zeros for
+            # gradients, by dividing each gradient by 2.
             grads = [g for g, _ in grads_and_vars]
             vars = [
                 v for _, v in grads_and_vars
@@ -845,7 +848,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def test_create_slots_for_sharded_variables(self):
-        # set names so that ShardedVariable is well-named for slot variable keying.
+        # set names so that ShardedVariable is well-named for slot variable
+        # keying.
         var_a = tf.Variable([1.0], name="part_0")
         var_b = tf.Variable([2.0], name="part_1")
         sharded_var = tf.__internal__.distribute.ShardedVariable([var_a, var_b])
@@ -1254,8 +1258,8 @@ def identify_redundant_ops(graph):
     """Implements basic common subexpression elimination.
 
     This is not intended to replicate the graph semantics of TensorFlow Graphs
-    (for instance it does not handle stateful op ordering), nor is it intended to
-    replace the common subexpression elimination Grappler pass. Rather, it
+    (for instance it does not handle stateful op ordering), nor is it intended
+    to replace the common subexpression elimination Grappler pass. Rather, it
     provides a high level sanity check that clearly redundant ops are not being
     created.
 
@@ -1275,8 +1279,8 @@ def identify_redundant_ops(graph):
         for op_input, name in zip(*get_inputs(op)):
             input_def = op_input.node_def
 
-            # Operations can have multiple outputs. We track which is used to prevent
-            # overzealous elimination.
+            # Operations can have multiple outputs. We track which is used to
+            # prevent overzealous elimination.
             input_def.name = name
 
             input_def.input[:] = [name_map.get(i, i) for i in input_def.input]

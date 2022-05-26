@@ -51,10 +51,9 @@ class SGD(optimizer_v2.OptimizerV2):
         `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
         that takes no arguments and returns the actual value to use. The
         learning rate. Defaults to 0.01.
-      momentum: float hyperparameter >= 0 that accelerates gradient descent
-        in the relevant
-        direction and dampens oscillations. Defaults to 0, i.e., vanilla gradient
-        descent.
+      momentum: float hyperparameter >= 0 that accelerates gradient descent in
+        the relevant direction and dampens oscillations. Defaults to 0, i.e.,
+        vanilla gradient descent.
       nesterov: boolean. Whether to apply Nesterov momentum.
         Defaults to `False`.
       name: Optional name prefix for the operations created when applying
