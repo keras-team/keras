@@ -28,7 +28,8 @@ optimizers = tf.keras.optimizers
 def _get_big_cnn_model(
     img_dim, n_channels, num_partitions, blocks_per_partition
 ):
-    """Creates a test model whose activations are significantly larger than model size."""
+    """Creates a test model whose activations are significantly larger than
+    model size."""
     model = tf.keras.Sequential()
     model.add(layers.Input(shape=(img_dim, img_dim, n_channels)))
     for _ in range(num_partitions):
@@ -54,7 +55,8 @@ def _get_big_cnn_model(
 def _get_split_cnn_model(
     img_dim, n_channels, num_partitions, blocks_per_partition
 ):
-    """Creates a test model that is split into `num_partitions` smaller models."""
+    """Creates a test model that is split into `num_partitions` smaller
+    models."""
     models = [tf.keras.Sequential() for _ in range(num_partitions)]
     models[0].add(layers.Input(shape=(img_dim, img_dim, n_channels)))
     for i in range(num_partitions):
@@ -133,7 +135,8 @@ def _train_no_recompute(n_steps):
 
 
 def _train_with_recompute(n_steps):
-    """Trains a single large model with gradient checkpointing using tf.recompute_grad."""
+    """Trains a single large model with gradient checkpointing using
+    tf.recompute_grad."""
     img_dim, n_channels, batch_size = 256, 1, 4
     x, y = _get_dummy_data(img_dim, n_channels, batch_size)
     # This model is the same model as _get_big_cnn_model but split into 3 parts.
@@ -195,7 +198,8 @@ class GradientCheckpointTest(tf.test.TestCase):
     def tearDown(self):
         super().tearDown()
         # Make sure all the models created in keras has been deleted and cleared
-        # from the global keras grpah, also do a force GC to recycle the GPU memory.
+        # from the global keras grpah, also do a force GC to recycle the GPU
+        # memory.
         tf.keras.backend.clear_session()
         gc.collect()
 

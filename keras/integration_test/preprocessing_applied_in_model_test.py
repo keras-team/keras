@@ -53,8 +53,8 @@ class PreprocessingAppliedInModelTest(tf.test.TestCase):
             strategy, tf.distribute.experimental.ParameterServerStrategy
         ):
             self.skipTest(
-                "Parameter Server strategy with dataset creator need to be run when "
-                "eager execution is enabled."
+                "Parameter Server strategy with dataset creator need to be run "
+                "when eager execution is enabled."
             )
         with strategy.scope():
             preprocessing_model = utils.make_preprocessing_model(

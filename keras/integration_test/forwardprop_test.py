@@ -113,11 +113,11 @@ def _forward_over_back_hessian(f, params, use_pfor, dtype=None):
         (e.g. `tf.float32`) matching the structure of `f`'s returns.
 
     Returns:
-      A possibly nested structure of matrix slices corresponding to `params`. Each
-      slice has shape [P, p_s] where `p_s` is the number of parameters (`tf.size`)
-      in the corresponding element of `params` and `P` is the total number of
-      parameters (`sum_s(p_s)`). The full matrix can be obtained by concatenating
-      along the second axis.
+      A possibly nested structure of matrix slices corresponding to `params`.
+      Each slice has shape [P, p_s] where `p_s` is the number of parameters
+      (`tf.size`) in the corresponding element of `params` and `P` is the total
+      number of parameters (`sum_s(p_s)`). The full matrix can be obtained by
+      concatenating along the second axis.
     """
     return _vectorize_parameters(
         functools.partial(_hvp, f, params),
@@ -130,7 +130,8 @@ def _forward_over_back_hessian(f, params, use_pfor, dtype=None):
 def _test_gradients(
     testcase, f, primals, order, delta=1e-3, rtol=1e-2, atol=1e-6
 ):
-    """Tests forward/backward jacobians of `f`'s [0, `order`)-order gradients."""
+    """Tests forward/backward jacobians of `f`'s [0, `order`)-order
+    gradients."""
     if order < 1:
         raise ValueError(
             "`order` should be a positive integer, got '{}'.".format(order)
@@ -325,9 +326,9 @@ class ForwardpropTest(tf.test.TestCase, parameterized.TestCase):
         parameters = model.embed.variables
         tangents = [tf.ones_like(v) for v in parameters]
         with tf.autodiff.ForwardAccumulator(parameters, tangents):
-            # Note that forwardprop runs alongside the original computation. This test
-            # is just checking that it doesn't crash; correctness is tested in core
-            # TF.
+            # Note that forwardprop runs alongside the original computation.
+            # This test is just checking that it doesn't crash; correctness is
+            # tested in core TF.
             model(
                 tf.zeros([3, 3], dtype=tf.int32)
             )  # pylint: disable=not-callable
