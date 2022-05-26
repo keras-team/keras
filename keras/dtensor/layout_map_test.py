@@ -81,8 +81,8 @@ class LayoutMapTest(test_util.DTensorBaseTest):
         self.assertEqual(layout_map["dense/kernel"], self.sharded_2d)
         self.assertEqual(layout_map["dense/bias"], self.sharded_1d)
 
-        # Map against the wildcard bias rule for dense, and based on the order of
-        # insertion, it will not use .*bias.
+        # Map against the wildcard bias rule for dense, and based on the order
+        # of insertion, it will not use .*bias.
         self.assertEqual(layout_map["dense_2/kernel"], self.layout_2d)
         self.assertEqual(layout_map["dense_2/bias"], self.layout_1d)
 
@@ -181,8 +181,8 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         with layout_map_lib.layout_map_scope(layout_map):
             model = SubclassModel(name="model")
 
-        # Init the model with eager tensor, make sure the model weights have correct
-        # layout, as well as produce correct result.
+        # Init the model with eager tensor, make sure the model weights have
+        # correct layout, as well as produce correct result.
         inputs = tf.zeros((10, 10))
         inputs = dtensor.copy_to_mesh(inputs, layout=self.layout_2d)
         result = model(inputs)
@@ -206,9 +206,9 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
     def test_init_functional_model_variable_with_layout(self):
         # Note that the functional model is using layers name + attribute name
-        # the layer name are unique among the functional model, and when the layer
-        # doesn't have a name, keras will give it a unique name based on the layer
-        # class.
+        # the layer name are unique among the functional model, and when the
+        # layer doesn't have a name, keras will give it a unique name based on
+        # the layer class.
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
         layout_map["d1.kernel"] = self.layout_2d
         layout_map["d1.bias"] = self.layout_1d
@@ -251,9 +251,9 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
     def test_init_sequential_model_variable_with_layout(self):
         # Note that the sequential model is using layers name + attribute name
-        # the layer name are unique among the functional model, and when the layer
-        # doesn't have a name, keras will give it a unique name based on the layer
-        # class.
+        # the layer name are unique among the functional model, and when the
+        # layer doesn't have a name, keras will give it a unique name based on
+        # the layer class.
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
         layout_map["d1.kernel"] = self.layout_2d
         layout_map["d1.bias"] = self.layout_1d

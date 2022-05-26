@@ -21,6 +21,6 @@ _DTENSOR_API_ENABLED = True
 if _DTENSOR_API_ENABLED:
     from tensorflow.compat.v2.experimental import dtensor as dtensor_api
 else:
-    # Leave it with a placeholder, so that the import line from other python file
-    # will not break.
+    # Leave it with a placeholder, so that the import line from other python
+    # file will not break.
     dtensor_api = None

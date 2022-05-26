@@ -64,8 +64,8 @@ class MnistTest(test_util.DTensorBaseTest):
         self.assertEqual(train_losses, sorted(train_losses, reverse=True))
 
     def DISABLED_test_mnist_training_tpu(self):
-        # TODO(scottzhu): Enable TPU test once the dtensor_test rule is migrated out
-        # of learning/brain
+        # TODO(scottzhu): Enable TPU test once the dtensor_test rule is migrated
+        # out of learning/brain
         tpu_util.dtensor_initialize_tpu_system()
         total_tpu_device_count = dtensor.num_global_devices("TPU")
         mesh_shape = [total_tpu_device_count]
