@@ -340,12 +340,12 @@ def compare_results(
         # We relax the tolerance a lot in the partial last batch case as
         #   1. the examples in uneven batches may have different weights when
         #      applying the gradients in the distributed case.
-        #   2. TF Keras and TF Keras DS have different ways to handle the case when
-        #      training with epochs > 1 with numpy inputs. In TF Keras, every epoch
-        #      may have a partial batch. While in TF Keras DS, as we convert
-        #      numpy inputs into dataset, it will do a repeat() first and calculate
-        #      steps_per_epoch, so it will at most have one partial batch. This
-        #      makes the 1-CPU result even different.
+        #   2. TF Keras and TF Keras DS have different ways to handle the case
+        #      when training with epochs > 1 with numpy inputs. In TF Keras,
+        #      every epoch may have a partial batch. While in TF Keras DS, as we
+        #      convert numpy inputs into dataset, it will do a repeat() first
+        #      and calculate steps_per_epoch, so it will at most have one
+        #      partial batch. This makes the 1-CPU result even different.
         default_tolerance = 1e-3
         relaxed_tolerance = 1e-3
     else:
@@ -458,11 +458,13 @@ class TestDistributionStrategyCorrectnessBase(
     def get_input_for_correctness_test(self, **kwargs):
         """Generates inputs that are dictionaries.
 
-        We only provide a default implementation of this method here. If you need
-        more customized way of providing input to your model, overwrite this method.
+        We only provide a default implementation of this method here. If you
+        need more customized way of providing input to your model, overwrite
+        this method.
 
         Args:
-          **kwargs: key word arguments about how to create the input dictionaries
+          **kwargs: key word arguments about how to create the input
+            dictionaries
 
         Returns:
           Three dictionaries representing the input for fit(), evaluate() and
@@ -558,8 +560,8 @@ class TestDistributionStrategyCorrectnessBase(
             )
 
             # First, special case, for multi-replica distributed training, batch
-            # norm is not aggregated globally. So it is expected to have different
-            # weights.
+            # norm is not aggregated globally. So it is expected to have
+            # different weights.
             if (
                 self.with_batch_norm == "regular"
                 and distribution.num_replicas_in_sync > 1
@@ -584,11 +586,13 @@ class TestDistributionStrategyCorrectnessBase(
     def get_input_for_dynamic_lr_test(self, **kwargs):
         """Generates inputs that are dictionaries.
 
-        We only provide a default implementation of this method here. If you need
-        more customized way of providing input to your model, overwrite this method.
+        We only provide a default implementation of this method here. If you
+        need more customized way of providing input to your model, overwrite
+        this method.
 
         Args:
-          **kwargs: key word arguments about how to create the input dictionaries
+          **kwargs: key word arguments about how to create the input
+            dictionaries
 
         Returns:
           Three dictionaries representing the input for fit(), evaluate() and
@@ -614,9 +618,9 @@ class TestDistributionStrategyCorrectnessBase(
                 )
                 and distribution.extended.steps_per_run > 1
             ):
-                # For TPUStrategy with steps_per_run > 1, the callback is not invoked
-                # every step. So, to compare the CPU/TPU, we let the CPU to behave the
-                # same as TPU.
+                # For TPUStrategy with steps_per_run > 1, the callback is not
+                # invoked every step. So, to compare the CPU/TPU, we let the CPU
+                # to behave the same as TPU.
                 update_freq = distribution.extended.steps_per_run
 
             training_epochs = 2

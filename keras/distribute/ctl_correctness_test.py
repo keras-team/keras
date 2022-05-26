@@ -293,7 +293,8 @@ class TestDistributionStrategyDnnCorrectness(
         sync_batchnorm,
         jit_compile,
     ):
-        # TODO(anjs): Identify why this particular V1 optimizer needs a higher tol.
+        # TODO(anjs): Identify why this particular V1 optimizer needs a higher
+        # tol.
         if (
             "FtrlV1" in optimizer_fn._name
             and "TPU" in type(distribution).__name__
@@ -358,15 +359,16 @@ class TestDistributionStrategyDnnCorrectness(
     def test_fused_batch_norm_uneven_batch(self, distribution):
         """Test that fused batch norm works when the last device may get empty data.
 
-        Adapted from https://www.tensorflow.org/tutorials/distribute/custom_training
+        Adapted from
+        https://www.tensorflow.org/tutorials/distribute/custom_training
         but using ResNet, which uses fused batchnorm, as the model.
 
         Arguments:
           distribution: distribute test configuration
         """
         (train_images, train_labels), _ = fashion_mnist.load_data()
-        # add channel dimension to make 2D data into 3D, since some ops of the model
-        # require it.
+        # add channel dimension to make 2D data into 3D, since some ops of the
+        # model require it.
         train_images = train_images[..., None]
         train_images = train_images / np.float32(255)
 
@@ -394,7 +396,8 @@ class TestDistributionStrategyDnnCorrectness(
 
         epochs = 2
 
-        # Keep only the first images, so that the last GPU receives an empty batch
+        # Keep only the first images, so that the last GPU receives an empty
+        # batch
         padded_train_images = padded_train_images[:num_samples]
         train_labels = train_labels[:num_samples]
 
@@ -423,8 +426,8 @@ class TestDistributionStrategyDnnCorrectness(
             return keras.Model(inputs, features)
 
         with distribution.scope():
-            # Set reduction to `none` so we can do the reduction afterwards and divide
-            # by global batch size.
+            # Set reduction to `none` so we can do the reduction afterwards and
+            # divide by global batch size.
             loss_object = keras.losses.SparseCategoricalCrossentropy(
                 from_logits=True, reduction=losses_impl.Reduction.NONE
             )

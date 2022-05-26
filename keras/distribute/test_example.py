@@ -58,10 +58,12 @@ def batchnorm_example(
     renorm=False,
     update_ops_in_replica_mode=False,
 ):
-    """Example of non-distribution-aware legacy code with batch normalization."""
+    """Example of non-distribution-aware legacy code with batch
+    normalization."""
 
     def dataset_fn():
-        # input shape is [16, 8], input values are increasing in both dimensions.
+        # input shape is [16, 8], input values are increasing in both
+        # dimensions.
         return tf.data.Dataset.from_tensor_slices(
             [
                 [
@@ -91,7 +93,8 @@ def batchnorm_example(
                 loss = tf.reduce_mean(
                     tf.reduce_sum(layer(y)) - tf.constant(1.0)
                 )
-            # `x` and `y` will be fetched by the gradient computation, but not `loss`.
+            # `x` and `y` will be fetched by the gradient computation, but not
+            # `loss`.
             return loss
 
         if isinstance(optimizer, optimizer_v2.OptimizerV2):

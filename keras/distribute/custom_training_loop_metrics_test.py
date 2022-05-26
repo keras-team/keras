@@ -74,8 +74,8 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
         for i in dataset:
             distribution.run(step_fn, args=(i,))
 
-        # This should be the mean of integers 0-9 which has a sum of 45 and a count
-        # of 10 resulting in mean of 4.5.
+        # This should be the mean of integers 0-9 which has a sum of 45 and a
+        # count of 10 resulting in mean of 4.5.
         self.assertEqual(metric.result().numpy(), 4.5)
 
     @tf.__internal__.distribute.combinations.generate(
@@ -92,8 +92,8 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
             for i in range(10):
                 metric.update_state(i)
 
-        # This should be the mean of integers 0-9 which has a sum of 45 and a count
-        # of 10 resulting in mean of 4.5.
+        # This should be the mean of integers 0-9 which has a sum of 45 and a
+        # count of 10 resulting in mean of 4.5.
         self.assertEqual(metric.result().numpy(), 4.5)
 
     @tf.__internal__.distribute.combinations.generate(
@@ -122,8 +122,8 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
 
         train_fn(dataset)
 
-        # This should be the mean of integers 0-9 which has a sum of 45 and a count
-        # of 10 resulting in mean of 4.5.
+        # This should be the mean of integers 0-9 which has a sum of 45 and a
+        # count of 10 resulting in mean of 4.5.
         self.assertEqual(metric.result().numpy(), 4.5)
 
 

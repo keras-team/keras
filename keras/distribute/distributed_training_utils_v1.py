@@ -74,22 +74,22 @@ def unwrap_values(
 
     This function calls `flatten_per_replica_values` to parse each of the input
     parameters into a list of values on the different devices. If we set
-    `with_loss_tensor` to be True, we also call `reduce` on the list of losses on
-    the different devices to give us one loss tensor.
+    `with_loss_tensor` to be True, we also call `reduce` on the list of losses
+    on the different devices to give us one loss tensor.
 
     Args:
-      distribution_strategy: DistributionStrategy used to distribute training and
-          validation.
+      distribution_strategy: DistributionStrategy used to distribute training
+          and validation.
       grouped_inputs: PerReplica inputs returned from the train or test function
           that we ran on each device.
-      grouped_outputs: PerReplica outputs returned from the train or test function
-          that we ran on each device.
-      grouped_updates: PerReplica updates returned from the train or test function
-          that we ran on each device.
+      grouped_outputs: PerReplica outputs returned from the train or test
+          function that we ran on each device.
+      grouped_updates: PerReplica updates returned from the train or test
+          function that we ran on each device.
       grouped_session_args: PerReplica session args returned from the train or
           test function that we ran on each device.
-      with_loss_tensor: Boolean that indicates if we need to add the reduced loss
-          tensor as one of the outputs.
+      with_loss_tensor: Boolean that indicates if we need to add the reduced
+          loss tensor as one of the outputs.
 
     Returns:
       Values of each of the PerReplica parameters.
@@ -134,9 +134,9 @@ def unwrap_output_dict(strategy, grouped_outputs, mode):
     if mode == ModeKeys.PREDICT:
         return flatten_per_replica_values(strategy, grouped_outputs)
 
-    # In the case of fit/eval, the grouped_outputs is a dict, whereas in predict,
-    # the output is as same structure as model output. They need to be treated
-    # differently
+    # In the case of fit/eval, the grouped_outputs is a dict, whereas in
+    # predict, the output is as same structure as model output. They need to be
+    # treated differently
     total_loss = strategy.reduce(
         tf.distribute.ReduceOp.SUM, grouped_outputs["total_loss"][0], axis=None
     )
@@ -151,12 +151,12 @@ def unwrap_output_dict(strategy, grouped_outputs, mode):
         backend.is_tpu_strategy(strategy)
         and tf.compat.v1.executing_eagerly_outside_functions()
     ):
-        # Choose 1 value per replica in the TPU case since all replicas produce the
-        # same output.
+        # Choose 1 value per replica in the TPU case since all replicas produce
+        # the same output.
         # We only do this in eager mode for now since this function is used in
         # both graph and eager mode and in the graph case we currently don't use
-        # experimental_run so would need to be removed when we converge the graph
-        # code path as well.
+        # experimental_run so would need to be removed when we converge the
+        # graph code path as well.
         output_losses = output_losses[:: strategy.num_replicas_in_sync]
         metrics = metrics[:: strategy.num_replicas_in_sync]
     return {
@@ -174,16 +174,16 @@ def unwrap_outputs(
 
     This function calls `flatten_per_replica_values` to parse each of the input
     parameters into a list of outputs on the different devices. If we set
-    `with_loss_tensor` to be True, we also call `reduce` on the list of losses on
-    the different devices to give us one loss tensor.
+    `with_loss_tensor` to be True, we also call `reduce` on the list of losses
+    on the different devices to give us one loss tensor.
 
     Args:
-      distribution_strategy: DistributionStrategy used to distribute training and
-          validation.
-      grouped_outputs: PerReplica outputs returned from the train or test function
-          that we ran on each device.
-      with_loss_tensor: Boolean that indicates if we need to add the reduced loss
-          tensor as one of the outputs.
+      distribution_strategy: DistributionStrategy used to distribute training
+          and validation.
+      grouped_outputs: PerReplica outputs returned from the train or test
+          function that we ran on each device.
+      with_loss_tensor: Boolean that indicates if we need to add the reduced
+          loss tensor as one of the outputs.
 
     Returns:
       Values of each of the PerReplica outputs.
@@ -207,12 +207,12 @@ def unwrap_outputs(
         backend.is_tpu_strategy(distribution_strategy)
         and tf.compat.v1.executing_eagerly_outside_functions()
     ):
-        # Choose 1 value per replica in the TPU case since all replicas produce the
-        # same output.
+        # Choose 1 value per replica in the TPU case since all replicas produce
+        # the same output.
         # We only do this in eager mode for now since this function is used in
         # both graph and eager mode and in the graph case we currently don't use
-        # experimental_run so would need to be removed when we converge the graph
-        # code path as well.
+        # experimental_run so would need to be removed when we converge the
+        # graph code path as well.
         all_outputs = all_outputs[:: distribution_strategy.num_replicas_in_sync]
     return [loss] + all_outputs
 
@@ -226,17 +226,18 @@ def flatten_per_replica_values(distribution_strategy, per_replica_values):
     of PerReplica values and return all the values in the PerReplica dict.
 
     Args:
-      distribution_strategy: DistributionStrategy used to distribute training and
-        validation.
-      per_replica_values: List of PerReplica object or a single PerReplica object.
+      distribution_strategy: DistributionStrategy used to distribute training
+        and validation.
+      per_replica_values: List of PerReplica object or a single PerReplica
+        object.
 
     Returns:
       List of values of all the PerReplica objects.
 
     """
     # pylint: disable=g-complex-comprehension
-    # This function takes a PerReplica object or a list of PerReplica objects and
-    # returns all the values associated with it.
+    # This function takes a PerReplica object or a list of PerReplica objects
+    # and returns all the values associated with it.
     return [
         e
         for flattened in tf.nest.flatten(per_replica_values)
@@ -252,10 +253,10 @@ def validate_callbacks(input_callbacks, optimizer):
       optimizer: Optimizer instance used to train the model.
 
     Raises:
-      ValueError: If `LearningRateScheduler` or `ReduceLROnPlateau` is one of the
-          callbacks passed.
-      ValueError: If `write_grads` is one of the parameters passed as part of the
-          TensorBoard callback.
+      ValueError: If `LearningRateScheduler` or `ReduceLROnPlateau` is one of
+          the callbacks passed.
+      ValueError: If `write_grads` is one of the parameters passed as part of
+          the TensorBoard callback.
     """
     if input_callbacks:
         for callback in input_callbacks:
@@ -270,16 +271,16 @@ def validate_callbacks(input_callbacks, optimizer):
                         "%s callback with DistributionStrategy." % callback
                     )
 
-            # If users want to use the TensorBoard callback they cannot use certain
-            # features of the callback that involve accessing model attributes and
-            # running ops.
+            # If users want to use the TensorBoard callback they cannot use
+            # certain features of the callback that involve accessing model
+            # attributes and running ops.
             if isinstance(callback, callbacks.TensorBoard):
                 if getattr(callback, "write_grads", False):
                     logging.warning(
                         UserWarning(
-                            "`write_grads` in the TensorBoard callback is not supported "
-                            "when using DistributionStrategy. Setting `write_grads` "
-                            "to `False`."
+                            "`write_grads` in the TensorBoard callback is not "
+                            "supported when using DistributionStrategy. "
+                            "Setting `write_grads` to `False`."
                         )
                     )
                     callback.write_grads = False
@@ -301,9 +302,9 @@ def validate_distributed_dataset_inputs(
           `MirroredStrategy` this is a PerReplica object with a tensor for each
           device set in the dict. y can also be a tuple or dict. The keys of the
           dict should match the names of the output layers of the model.
-      sample_weights: Sample weights Dataset DistributedValue object. For example,
-          when we use `MirroredStrategy` this is a PerReplica object with a tensor
-          for each device set in the dict.
+      sample_weights: Sample weights Dataset DistributedValue object. For
+          example, when we use `MirroredStrategy` this is a PerReplica object
+          with a tensor for each device set in the dict.
 
     Returns:
       The unwrapped values list of the x and y DistributedValues inputs.
@@ -351,7 +352,8 @@ def validate_per_replica_inputs(distribution_strategy, x):
       the input list.
 
     Raises:
-      ValueError: If any of the objects in the `per_replica_list` is not a tensor.
+      ValueError: If any of the objects in the `per_replica_list` is not a
+        tensor.
 
     """
     # Convert the inputs and targets into a list of PerReplica objects.
@@ -368,7 +370,8 @@ def validate_per_replica_inputs(distribution_strategy, x):
                 )
 
         if not tf.executing_eagerly():
-            # Validate that the shape and dtype of all the elements in x are the same.
+            # Validate that the shape and dtype of all the elements in x are the
+            # same.
             validate_all_tensor_shapes(x, x_values)
         validate_all_tensor_types(x, x_values)
 
@@ -424,7 +427,8 @@ def _wait_for_variable_initialization(session):
 
 
 def init_restore_or_wait_for_variables():
-    """Initialize or restore variables or wait for variables to be initialized."""
+    """Initialize or restore variables or wait for variables to be
+    initialized."""
     backend._initialize_variables(
         backend._get_session()
     )  # pylint: disable=protected-access
@@ -508,8 +512,8 @@ def get_input_params(
         distribution_strategy
     )
 
-    # TODO(b/128995245): In eager mode, uneven batch sizes are allowed except for
-    # `fit()` on TPUStrategy.
+    # TODO(b/128995245): In eager mode, uneven batch sizes are allowed except
+    # for `fit()` on TPUStrategy.
     # In graph mode, the zero batch case in batch norm is not handled due to
     # XLA-GPU regression. Uneven batch sizes are not allowed except
     # for `test()` and `predict()` on TPUStrategy.
@@ -526,13 +530,14 @@ def get_input_params(
 
     if steps is None:
         if batch_size is None:
-            # If neither the batch size or number of steps are set. We choose the
-            # global batch size as the minimum of number of samples and 32. 32 is
-            # chosen to provide backward compatibility.
+            # If neither the batch size or number of steps are set. We choose
+            # the global batch size as the minimum of number of samples and 32.
+            # 32 is chosen to provide backward compatibility.
             global_batch_size = min(num_samples, 32)
         else:
             # If the user provided the batch size we need to handle the case
-            # between different strategies that use the global/per-replica batch size
+            # between different strategies that use the global/per-replica batch
+            # size
             global_batch_size = batch_size
             if use_per_replica_batch:
                 global_batch_size *= distribution_strategy.num_replicas_in_sync
@@ -558,7 +563,8 @@ def get_input_params(
             global_batch_size = num_samples // steps
         else:
             # If the user provided the batch size we need to handle the case
-            # between different strategies that use the global/per-replica batch size
+            # between different strategies that use the global/per-replica batch
+            # size
             global_batch_size = batch_size
             if use_per_replica_batch:
                 global_batch_size *= distribution_strategy.num_replicas_in_sync
@@ -576,12 +582,13 @@ def get_input_params(
                     % (num_samples, global_batch_size, steps)
                 )
 
-    # We need to return the per replica or global batch size based on the strategy
+    # We need to return the per replica or global batch size based on the
+    # strategy
     if use_per_replica_batch:
         if global_batch_size % distribution_strategy.num_replicas_in_sync:
             raise ValueError(
-                "The batch size (%s) could not be sharded evenly across the sync "
-                "replicas (%s) in the distribution strategy."
+                "The batch size (%s) could not be sharded evenly across the "
+                "sync replicas (%s) in the distribution strategy."
                 % (
                     global_batch_size,
                     distribution_strategy.num_replicas_in_sync,
@@ -623,9 +630,9 @@ def _get_input_from_iterator(iterator, model):
     next_element = iterator.get_next()
 
     # `len(nest.flatten(x))` is going to not count empty elements such as {}.
-    # len(nest.flatten([[0,1,2], {}])) is 3 and not 4.   The `next_element` is
-    # going to get flattened in `_prepare_feed_values` to work around that. Empty
-    # elements are going to get filtered out as part of the flattening.
+    # len(nest.flatten([[0,1,2], {}])) is 3 and not 4. The `next_element` is
+    # going to get flattened in `_prepare_feed_values` to work around that.
+    # Empty elements are going to get filtered out as part of the flattening.
     if len(tf.nest.flatten(next_element)) == len(model.inputs):
         x = next_element
         y = None
@@ -673,8 +680,8 @@ def _prepare_feed_values(model, inputs, targets, sample_weights, mode):
         inputs = flatten_per_replica_values(strategy, inputs)
         targets = flatten_per_replica_values(strategy, targets)
         # Expand 1-dimensional inputs.
-        # TODO(b/124535720): Remove once this standarize data logic is shared with
-        # main flow.
+        # TODO(b/124535720): Remove once this standarize data logic is shared
+        # with main flow.
         inputs, targets = tf.nest.map_structure(
             training_utils_v1.standardize_single_array, (inputs, targets)
         )
@@ -723,8 +730,8 @@ def _custom_compile_for_predict(model):
     """Custom compile for TPU predict mode."""
     if not model.built:
         # Model is not compilable because it does not know its number of inputs
-        # and outputs, nor their shapes and names. We will compile after the first
-        # time the model gets called on training data.
+        # and outputs, nor their shapes and names. We will compile after the
+        # first time the model gets called on training data.
         return
     model._is_compiled = True
     model.total_loss = None
@@ -741,12 +748,12 @@ def _build_network_on_replica(model, mode, inputs=None, targets=None):
     placeholders for the input and the output that are not accessible till we
     call iterator.get_next() inside the step_fn for `fit`/`evaluate`/`predict`.
 
-    The sharing of weights and layers between the old and the new model guarantee
-    that we're using Strategy variables and any updates on either model are
-    reflected correctly in callbacks and loop iterations.
+    The sharing of weights and layers between the old and the new model
+    guarantee that we're using Strategy variables and any updates on either
+    model are reflected correctly in callbacks and loop iterations.
 
-    We need to make sure we share the optimizers between the old and the new model
-    as well so that optimizer state is not lost if the user is running fit
+    We need to make sure we share the optimizers between the old and the new
+    model as well so that optimizer state is not lost if the user is running fit
     multiple times.
 
     Args:
@@ -762,8 +769,8 @@ def _build_network_on_replica(model, mode, inputs=None, targets=None):
     from keras import models  # pylint: disable=g-import-not-at-top
     from keras.engine import sequential  # pylint: disable=g-import-not-at-top
 
-    # We rely on the internal methods to avoid having share_weights weights in the
-    # public API.
+    # We rely on the internal methods to avoid having share_weights weights in
+    # the public API.
     if isinstance(model, sequential.Sequential):
         updated_model = models._clone_sequential_model(
             model, input_tensors=inputs, layer_fn=models.share_weights
@@ -776,8 +783,8 @@ def _build_network_on_replica(model, mode, inputs=None, targets=None):
         # here.
         updated_model._callable_losses = model._callable_losses
 
-    # Recast all low precision outputs back to float32 since we only casted
-    # the inputs to bfloat16 and not targets. This is done so that we can preserve
+    # Recast all low precision outputs back to float32 since we only casted the
+    # inputs to bfloat16 and not targets. This is done so that we can preserve
     # precision when calculating the loss value.
     def _upcast_low_precision_outputs(output):
         if output.dtype == tf.bfloat16:
@@ -836,8 +843,8 @@ def _clone_and_build_model(model, mode, inputs=None, targets=None):
         optimizer = model.optimizer.__class__.from_config(optimizer_config)
 
     # Recast all low precision outputs back to float32 since we only casted
-    # the inputs to bfloat16 and not targets. This is done so that we can preserve
-    # precision when calculating the loss value.
+    # the inputs to bfloat16 and not targets. This is done so that we can
+    # preserve precision when calculating the loss value.
     def _upcast_low_precision_outputs(output):
         if output.dtype == tf.bfloat16:
             return tf.cast(output, tf.float32)
@@ -879,7 +886,8 @@ def clone_model_on_replicas(model, strategy, mode, inputs=None, targets=None):
 
 
 def _make_execution_function(model, mode):
-    """Makes or reuses function to run one step of distributed model execution."""
+    """Makes or reuses function to run one step of distributed model
+    execution."""
     if is_distributing_by_cloning(model):
         return _make_execution_function_with_cloning(model, mode)
 
@@ -904,10 +912,10 @@ def _make_execution_function_without_cloning(model, mode):
         def distributed_function(input_fn):
             """A single step of the distributed execution across replicas."""
             x, y, sample_weights = input_fn()
-            # Call `Model.{train,test,predict}_on_batch` on every replica passing
-            # PerReplicas as arguments.  On every replica inside this call, each
-            # PerReplica object will return the value for that replica.  The outputs
-            # are PerReplicas too.
+            # Call `Model.{train,test,predict}_on_batch` on every replica
+            # passing PerReplicas as arguments.  On every replica inside this
+            # call, each PerReplica object will return the value for that
+            # replica. The outputs are PerReplicas too.
             outputs = strategy.run(
                 per_replica_function, args=(x, y, sample_weights)
             )
@@ -964,16 +972,17 @@ def _make_replicated_models_with_cloning(model, mode):
 
 
 def _make_execution_function_with_cloning(model, mode):
-    """Clones or re-uses models to run one step of distributed model execution."""
+    """Clones or re-uses models to run one step of distributed model
+    execution."""
     distributed_model = get_distributed_model(model, mode)
     # TODO(b/134069401): Create a cache for the distributed model and exec
-    # function that incorporates additional attributes to be part of the cache key
-    # than just the mode.
+    # function that incorporates additional attributes to be part of the cache
+    # key than just the mode.
     # If distributed model for a particular `mode` is already built, use the
     # `_distribution_function` on that distributed model.
-    # If you have updated the sample_weight_mode on the model, then you will need
-    # to recompile metrics and recreate the execution function. This is indicated
-    # by the `_recompile_exec_function` property.
+    # If you have updated the sample_weight_mode on the model, then you will
+    # need to recompile metrics and recreate the execution function. This is
+    # indicated by the `_recompile_exec_function` property.
     if (
         distributed_model
         and hasattr(distributed_model, "_distribution_function")
@@ -1022,16 +1031,18 @@ def _make_graph_execution_function(model, mode):
             _per_replica_function, args=(get_distributed_model(model, mode),)
         )
 
-        # Initialize the variables in the replicated model. This is necessary for
-        # multi-worker training because on some workers, initialization is not
-        # needed. This method does initialization or waiting for initialization
-        # according to the context object of distribute coordinator.
+        # Initialize the variables in the replicated model. This is necessary
+        # for multi-worker training because on some workers, initialization is
+        # not needed. This method does initialization or waiting for
+        # initialization according to the context object of distribute
+        # coordinator.
         init_restore_or_wait_for_variables()
 
-        # Unwrap all the per device values returned from `call_for_each_replica`.
-        # Unwrapping per device values gives you a list of values that can be
-        # used to construct a new train function that is composed of update ops on
-        # all the devices over which the model is distributed.
+        # Unwrap all the per device values returned from
+        # `call_for_each_replica`.  Unwrapping per device values gives you a
+        # list of values that can be used to construct a new train function that
+        # is composed of update ops on all the devices over which the model is
+        # distributed.
         (
             all_inputs,
             all_outputs,
@@ -1062,15 +1073,16 @@ def _make_eager_execution_function(model, mode):
         f = model._make_execution_function(mode)
         return (f.inputs, f.outputs)
 
-    # NOTE(priyag): Try creating a new FuncGraph within DS scope instead of using
-    # the global one.
+    # NOTE(priyag): Try creating a new FuncGraph within DS scope instead of
+    # using the global one.
     strategy = model._distribution_strategy
     global_graph = backend.get_graph()
 
     with global_graph.as_default(), strategy.scope():
-        # First we gather the relevant portions of the model across all replicas.
-        # `backend._scratch_graph(global_graph)` signals to Keras that it should not
-        # lift to a separate graph when creating the per-replica functions.
+        # First we gather the relevant portions of the model across all
+        # replicas.  `backend._scratch_graph(global_graph)` signals to Keras
+        # that it should not lift to a separate graph when creating the
+        # per-replica functions.
         with backend._scratch_graph(global_graph):
             # Create train ops on each of the devices when we call
             # `_per_replica_fit_function`.
@@ -1080,10 +1092,11 @@ def _make_eager_execution_function(model, mode):
             )
             grouped_inputs, grouped_outputs = grouped
 
-            # Unwrap all the per device values returned from `call_for_each_replica`.
-            # Unwrapping per device values gives you a list of values that can be
-            # used to construct a new train function that is composed of
-            # inputs/outputs on all the devices over which the model is distributed.
+            # Unwrap all the per device values returned from
+            # `call_for_each_replica`.  Unwrapping per device values gives you a
+            # list of values that can be used to construct a new train function
+            # that is composed of inputs/outputs on all the devices over which
+            # the model is distributed.
             (all_inputs, all_outputs, _, _) = unwrap_values(
                 strategy,
                 grouped_inputs,
@@ -1091,8 +1104,8 @@ def _make_eager_execution_function(model, mode):
                 with_loss_tensor=(mode != ModeKeys.PREDICT),
             )
 
-        # Finally, a joint Keras function is created; this one will be created in
-        # a separate FuncGraph.
+        # Finally, a joint Keras function is created; this one will be created
+        # in a separate FuncGraph.
         return backend.function(
             all_inputs,
             all_outputs,
@@ -1123,7 +1136,8 @@ def _copy_weights_to_original_model(model, mode):
 
 
 def _per_replica_aggregate_batch(strategy, batch_outs, model, mode):
-    """Aggregates the per-replica batch-level outputs from a distributed step."""
+    """Aggregates the per-replica batch-level outputs from a distributed
+    step."""
     if strategy is not None and mode == ModeKeys.PREDICT:
         total_batch_outs = []
         for i in range(len(model.outputs)):
@@ -1238,8 +1252,8 @@ def _update_sample_weight_modes(model, mode, sample_weights):
             distributed_models = flatten_per_replica_values(
                 model._distribution_strategy, distributed_model
             )
-            # sample_weights is a tuple of 1 list where the number of elements in the
-            # list is equal to the number of replicas in sync.
+            # sample_weights is a tuple of 1 list where the number of elements
+            # in the list is equal to the number of replicas in sync.
             sample_weights = sample_weights[0]
             if sample_weights and None not in sample_weights:
                 for m, sw in zip(distributed_models, sample_weights):

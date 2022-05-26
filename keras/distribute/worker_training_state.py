@@ -63,13 +63,13 @@ class WorkerTrainingState:
         # If this is single-worker training, checkpoint_dir are the same for
         # write_checkpoint_manager and read_checkpoint_manager.
         #
-        # If this is multi-worker training, and this worker should not
-        # save checkpoint, we replace the write_checkpoint_manager's checkpoint_dir
-        # with a temp filepath, so it writes to a file that will be removed at the
-        # end of back_up() call. This is necessary because the SyncOnReadVariable
-        # needs to be synced across all the workers in order to be read, and all
-        # workers need to perform `save()`.
-        # But all workers should restore from the same checkpoint_dir as passed in
+        # If this is multi-worker training, and this worker should not save
+        # checkpoint, we replace the write_checkpoint_manager's checkpoint_dir
+        # with a temp filepath, so it writes to a file that will be removed at
+        # the end of back_up() call. This is necessary because the
+        # SyncOnReadVariable needs to be synced across all the workers in order
+        # to be read, and all workers need to perform `save()`.  But all workers
+        # should restore from the same checkpoint_dir as passed in
         # read_checkpoint_manager.
         self.read_checkpoint_manager = tf.train.CheckpointManager(
             checkpoint,
@@ -104,8 +104,9 @@ class WorkerTrainingState:
         """Restore the training state from the backed up checkpoint file.
 
         Returns:
-          True if the training state is successfully restored. False if the training
-          state doesn't need to be restored, or error occurred so it can't.
+          True if the training state is successfully restored. False if the
+          training state doesn't need to be restored, or error occurred so it
+          can't.
         """
         self.read_checkpoint_manager.restore_or_initialize()
 
@@ -125,10 +126,10 @@ class WorkerTrainingState:
         """Maybe load initial epoch from ckpt considering possible worker recovery.
 
         When `_ckpt_saved_epoch` attribute exists and is not
-        `CKPT_SAVED_EPOCH_UNUSED_VALUE`, this is under multi-worker training setting
-        and indicates the worker is recovering from previous failure. In this case,
-        infer `initial_epoch` from `self._ckpt_saved_epoch` to continue previous
-        unfinished training from certain epoch.
+        `CKPT_SAVED_EPOCH_UNUSED_VALUE`, this is under multi-worker training
+        setting and indicates the worker is recovering from previous failure. In
+        this case, infer `initial_epoch` from `self._ckpt_saved_epoch` to
+        continue previous unfinished training from certain epoch.
 
         Args:
           initial_epoch: The original initial_epoch user passes in in `fit()`.
@@ -136,13 +137,14 @@ class WorkerTrainingState:
 
         Returns:
           If the training is recovering from previous failure under multi-worker
-          training setting, return the epoch the training is supposed to continue
-          at. Otherwise, return the `initial_epoch` the user passes in.
+          training setting, return the epoch the training is supposed to
+          continue at. Otherwise, return the `initial_epoch` the user passes in.
         """
 
         epoch = backend.eval(self._ckpt_saved_epoch)
         if mode == mode_keys.ModeKeys.TRAIN and epoch >= 0:
             # The most recently saved epoch is one epoch prior to the epoch it
-            # failed at, so return the value of 'self._ckpt_saved_epoch' plus one.
+            # failed at, so return the value of 'self._ckpt_saved_epoch' plus
+            # one.
             return epoch + 1
         return initial_epoch

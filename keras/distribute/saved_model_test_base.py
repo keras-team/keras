@@ -140,13 +140,13 @@ class TestSavedModelBase(tf.test.TestCase, parameterized.TestCase):
         This method must be implemented by the subclasses.
 
         Args:
-          distribution: the distribution strategy used to load the model. None if no
-            distribution strategy is used
+          distribution: the distribution strategy used to load the model. None
+            if no distribution strategy is used
           saved_dir: the string representing the path where the model is saved.
           predict_dataset: the data used to do the predict on the model for
             cross_replica context.
-          output_name: the string representing the name of the output layer of the
-            model.
+          output_name: the string representing the name of the output layer of
+            the model.
         """
 
         raise NotImplementedError("must be implemented in descendants")
@@ -237,7 +237,8 @@ class TestSavedModelBase(tf.test.TestCase, parameterized.TestCase):
         distribution_for_restoring,
         save_in_scope,
     ):
-        """Save a model with DS, and restore it with potentially different DS."""
+        """Save a model with DS, and restore it with potentially different
+        DS."""
         saved_dir = os.path.join(self.get_temp_dir(), "2")
 
         with distribution_for_saving.scope():

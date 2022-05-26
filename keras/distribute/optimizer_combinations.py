@@ -95,7 +95,8 @@ optimizers_v1_and_v2 = optimizers_v1 + optimizers_v2
 
 
 def distributions_and_v1_optimizers():
-    """A common set of combination with DistributionStrategies and Optimizers."""
+    """A common set of combination with DistributionStrategies and
+    Optimizers."""
     return tf.__internal__.test.combinations.combine(
         distribution=[
             tf.__internal__.distribute.combinations.one_device_strategy,
@@ -108,7 +109,8 @@ def distributions_and_v1_optimizers():
 
 
 def distributions_and_v2_optimizers():
-    """A common set of combination with DistributionStrategies and Optimizers."""
+    """A common set of combination with DistributionStrategies and
+    Optimizers."""
     return tf.__internal__.test.combinations.combine(
         distribution=[
             tf.__internal__.distribute.combinations.one_device_strategy,
@@ -121,7 +123,8 @@ def distributions_and_v2_optimizers():
 
 
 def distributions_and_v1_and_v2_optimizers():
-    """A common set of combination with DistributionStrategies and Optimizers."""
+    """A common set of combination with DistributionStrategies and
+    Optimizers."""
     return tf.__internal__.test.combinations.combine(
         distribution=[
             tf.__internal__.distribute.combinations.one_device_strategy,

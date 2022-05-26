@@ -122,8 +122,8 @@ class DistributionStrategySiameseEmbeddingModelCorrectnessTest(
             if initial_weights:
                 model.set_weights(initial_weights)
 
-            # TODO(b/130808953): Switch back to the V1 optimizer after global_step
-            # is made mirrored.
+            # TODO(b/130808953): Switch back to the V1 optimizer after
+            # global_step is made mirrored.
             model.compile(
                 optimizer=gradient_descent_keras.SGD(learning_rate=0.1),
                 loss="mse",

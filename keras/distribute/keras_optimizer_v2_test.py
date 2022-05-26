@@ -74,10 +74,12 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
 
             # first step.
             train_fn()
-            # var(1) = var(0) - lr * m(1) * sqrt(1 - beta2) / sqrt(v(1)) / (1 - beta1)
+            # var(1) = var(0) - lr * m(1) * sqrt(1 - beta2) / sqrt(v(1)) / (1 -
+            # beta1)
             #        = 2.0 - 0.01 * 1.2 * sqrt(0.8) / sqrt(1.8) / 0.8
             self.assertAllClose(1.99, self.evaluate(all_vars[0]))
-            # m(1) = beta1 * m(0) + (1-beta1) * grad = 0.2 * 0 + 0.8 * (1 + 2) / 2
+            # m(1) = beta1 * m(0) + (1-beta1) * grad = 0.2 * 0 + 0.8 * (1 + 2) /
+            # 2
             self.assertAllClose(1.2, self.evaluate(all_vars[1]))
             # v(1) = beta2 * v(0) + (1-beta2) * grad^2 = 0.2 * 0 + 0.8 * 2.25
             self.assertAllClose(1.8, self.evaluate(all_vars[2]))
