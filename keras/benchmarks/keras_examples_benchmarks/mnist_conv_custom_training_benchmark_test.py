@@ -112,8 +112,8 @@ class CustomMnistBenchmark(tf.test.Benchmark):
           loss_fn: See `loss_fn` in `train_function()` method.
           optimizer: See `optimizer` in `train_function()` method.
           batch_size: See `batch_size` in `train_function()` method.
-          distribution_strategy: See `distribution_strategy` in `train_function()`
-            method.
+          distribution_strategy: See `distribution_strategy` in
+            `train_function()` method.
 
         Returns:
           Sum of per_replica_losses.
@@ -148,8 +148,8 @@ class CustomMnistBenchmark(tf.test.Benchmark):
 
         Args:
           model: Model function to be benchmarked.
-          train_dataset: `tf.data` dataset. Should return a tuple of either (inputs,
-            targets) or (inputs, targets, sample_weights).
+          train_dataset: `tf.data` dataset. Should return a tuple of either
+            (inputs, targets) or (inputs, targets, sample_weights).
           loss_fn: `tf.keras.losses.Loss` instance.
           optimizer: `tf.keras.optimizers` instance.
           epochs: Integer. Number of epochs to train the model. If unspecified,

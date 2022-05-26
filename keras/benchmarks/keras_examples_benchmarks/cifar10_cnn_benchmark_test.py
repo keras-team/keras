@@ -36,7 +36,9 @@ class Cifar10CNNBenchmark(tf.test.Benchmark):
         self.epochs = 5
 
     def _build_model(self):
-        """Model from https://github.com/keras-team/keras/blob/master/examples/cifar10_cnn.py."""
+        """Model from
+        https://github.com/keras-team/keras/blob/master/examples/cifar10_cnn.py.
+        """
         model = tf.keras.Sequential()
         model.add(
             tf.keras.layers.Conv2D(

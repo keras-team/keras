@@ -28,8 +28,8 @@ def _collective_communication(all_reduce_alg):
     """Return a CollectiveCommunication based on all_reduce_alg.
 
     Args:
-      all_reduce_alg: a string specifying which collective communication to pick,
-        or None.
+      all_reduce_alg: a string specifying which collective communication to
+        pick, or None.
 
     Returns:
       tf.distribute.experimental.CollectiveCommunication object
@@ -56,14 +56,16 @@ def _mirrored_cross_device_ops(all_reduce_alg, num_packs):
     """Return a CrossDeviceOps based on all_reduce_alg and num_packs.
 
     Args:
-      all_reduce_alg: a string specifying which cross device op to pick, or None.
+      all_reduce_alg: a string specifying which cross device op to pick, or
+        None.
       num_packs: an integer specifying number of packs for the cross device op.
 
     Returns:
       tf.distribute.CrossDeviceOps object or None.
 
     Raises:
-      ValueError: if `all_reduce_alg` not in [None, "nccl", "hierarchical_copy"].
+      ValueError: if `all_reduce_alg` not in [None, "nccl",
+        "hierarchical_copy"].
     """
     if all_reduce_alg is None:
         return None
