@@ -44,7 +44,8 @@ def create_identity_with_grad_check_fn(expected_gradient, expected_dtype=None):
         x = tf.identity(x)
 
         def grad(dx):
-            """Gradient function that asserts the gradient has a certain value."""
+            """Gradient function that asserts the gradient has a certain
+            value."""
             if expected_dtype:
                 assert (
                     dx.dtype == expected_dtype
@@ -55,9 +56,9 @@ def create_identity_with_grad_check_fn(expected_gradient, expected_dtype=None):
             expected_tensor = tf.convert_to_tensor(
                 expected_gradient, dtype=dx.dtype, name="expected_gradient"
             )
-            # Control dependency is to ensure input is available. It's possible the
-            # dataset will throw a StopIteration to indicate there is no more data, in
-            # which case we don't want to run the assertion.
+            # Control dependency is to ensure input is available. It's possible
+            # the dataset will throw a StopIteration to indicate there is no
+            # more data, in which case we don't want to run the assertion.
             with tf.control_dependencies([x]):
                 assert_op = tf.compat.v1.assert_equal(dx, expected_tensor)
             with tf.control_dependencies([assert_op]):
@@ -78,13 +79,13 @@ def create_identity_with_nan_gradients_fn(have_nan_gradients):
     """Returns a function that optionally has NaN gradients.
 
     This serves as a hook to introduce NaN gradients to a model. This returns an
-    identity function. The identity's gradient function will check if the boolean
-    tensor `have_nan_gradients` is True. If so, the gradient will be NaN.
-    Otherwise, the gradient will also be the identity.
+    identity function. The identity's gradient function will check if the
+    boolean tensor `have_nan_gradients` is True. If so, the gradient will be
+    NaN.  Otherwise, the gradient will also be the identity.
 
     Args:
-      have_nan_gradients: A scalar boolean tensor. If True, gradients will be NaN.
-        Otherwise, the gradient function is the identity function.
+      have_nan_gradients: A scalar boolean tensor. If True, gradients will be
+        NaN. Otherwise, the gradient function is the identity function.
 
     Returns:
       An identity function whose gradient function will return NaNs, if
@@ -121,12 +122,14 @@ class AssertTypeLayer(base_layer.Layer):
         super().__init__(**kwargs)
 
     def assert_input_types(self, inputs):
-        """Asserts `inputs` are of the correct type. Should be called in call()."""
+        """Asserts `inputs` are of the correct type. Should be called in
+        call()."""
         if self._assert_type:
             inputs_flattened = tf.nest.flatten(inputs)
             for inp in inputs_flattened:
                 assert inp.dtype.base_dtype == self._assert_type, (
-                    "Input tensor has type %s which does not match assert type %s"
+                    "Input tensor has type %s which does "
+                    "not match assert type %s"
                     % (inp.dtype.name, self._assert_type)
                 )
 
@@ -149,9 +152,9 @@ class MultiplyLayer(AssertTypeLayer):
           activity_regularizer: The activity regularizer.
           use_operator: If True, add using the * operator. If False, add using
             tf.multiply.
-          var_name: The name of the variable. It can be useful to pass a name other
-            than 'v', to test having the attribute name (self.v) being different
-            from the variable name.
+          var_name: The name of the variable. It can be useful to pass a name
+            other than 'v', to test having the attribute name (self.v) being
+            different from the variable name.
           **kwargs: Passed to AssertTypeLayer constructor.
         """
         self._regularizer = regularizer
