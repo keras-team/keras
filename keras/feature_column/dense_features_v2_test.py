@@ -82,8 +82,8 @@ class DenseFeaturesTest(test_combinations.TestCase):
         # Check that only one variable was created.
         self.assertEqual(1, len(variables))
 
-        # Check that invoking dense_features on the same features does not create
-        # additional variables
+        # Check that invoking dense_features on the same features does not
+        # create additional variables
         _ = dense_features(features)
         self.assertEqual(1, len(variables))
         self.assertIs(variables[0], dense_features.variables[0])

@@ -60,7 +60,7 @@ class _BaseFeaturesLayer(Layer):
     ):
         super().__init__(name=name, trainable=trainable, **kwargs)
         self._feature_columns = _normalize_feature_columns(feature_columns)
-        self._state_manager = tf.__internal__.feature_column.StateManager(  # pylint: disable=protected-access
+        self._state_manager = tf.__internal__.feature_column.StateManager(
             self, self.trainable
         )
         self._partitioner = partitioner
@@ -182,8 +182,8 @@ def _verify_static_batch_size_equality(tensors, columns):
                 expected_batch_size = batch_size
             elif not expected_batch_size.is_compatible_with(batch_size):
                 raise ValueError(
-                    "Batch size (first dimension) of each feature must be same. "
-                    "Batch size of columns ({}, {}): ({}, {})".format(
+                    "Batch size (first dimension) of each feature must be "
+                    "same. Batch size of columns ({}, {}): ({}, {})".format(
                         columns[bath_size_column_index].name,
                         columns[i].name,
                         expected_batch_size,
@@ -195,9 +195,9 @@ def _verify_static_batch_size_equality(tensors, columns):
 def _normalize_feature_columns(feature_columns):
     """Normalizes the `feature_columns` input.
 
-    This method converts the `feature_columns` to list type as best as it can. In
-    addition, verifies the type and other parts of feature_columns, required by
-    downstream library.
+    This method converts the `feature_columns` to list type as best as it can.
+    In addition, verifies the type and other parts of feature_columns, required
+    by downstream library.
 
     Args:
       feature_columns: The raw feature columns, usually passed by users.

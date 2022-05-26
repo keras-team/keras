@@ -209,8 +209,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         sequence_input_layer = ksfc.SequenceFeatures([embedding_column_a])
         with self.assertRaisesRegex(
             ValueError,
-            r"In embedding_column: aaa_embedding\. categorical_column must be of "
-            r"type SequenceCategoricalColumn to use SequenceFeatures\.",
+            r"In embedding_column: aaa_embedding\. categorical_column must be "
+            r"of type SequenceCategoricalColumn to use SequenceFeatures\.",
         ):
             _, _ = sequence_input_layer({"aaa": sparse_input})
 
@@ -303,7 +303,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
                 )
 
     def test_shared_embedding_column_with_non_sequence_categorical(self):
-        """Tests that error is raised for non-sequence shared embedding column."""
+        """Tests that error is raised for non-sequence shared embedding
+        column."""
         with tf.Graph().as_default():
             vocabulary_size = 3
             sparse_input_a = tf.compat.v1.SparseTensorValue(
@@ -342,7 +343,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
                 ValueError,
                 r"In embedding_column: aaa_shared_embedding\. "
                 r"categorical_column must "
-                r"be of type SequenceCategoricalColumn to use SequenceFeatures\.",
+                r"be of type SequenceCategoricalColumn to use "
+                r"SequenceFeatures\.",
             ):
                 _, _ = sequence_input_layer(
                     {"aaa": sparse_input_a, "bbb": sparse_input_b}
@@ -476,8 +478,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         sequence_input_layer = ksfc.SequenceFeatures([indicator_column_a])
         with self.assertRaisesRegex(
             ValueError,
-            r"In indicator_column: aaa_indicator\. categorical_column must be of "
-            r"type SequenceCategoricalColumn to use SequenceFeatures\.",
+            r"In indicator_column: aaa_indicator\. categorical_column must be "
+            r"of type SequenceCategoricalColumn to use SequenceFeatures\.",
         ):
             _, _ = sequence_input_layer({"aaa": sparse_input})
 
@@ -570,7 +572,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
                 "dense_shape": (2, 8),
             },
             "expected_input_layer": [
-                # The output of numeric_column._get_dense_tensor should be flattened.
+                # The output of numeric_column._get_dense_tensor should be
+                # flattened.
                 [[0.0, 1.0, 2.0, 3.0], [4.0, 5.0, 6.0, 7.0]],
                 [[10.0, 11.0, 12.0, 13.0], [0.0, 0.0, 0.0, 0.0]],
             ],
@@ -612,7 +615,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
                 "dense_shape": (2, 2, 4),
             },
             "expected_input_layer": [
-                # The output of numeric_column._get_dense_tensor should be flattened.
+                # The output of numeric_column._get_dense_tensor should be
+                # flattened.
                 [[0.0, 1.0, 2.0, 3.0], [4.0, 5.0, 6.0, 7.0]],
                 [[10.0, 11.0, 12.0, 13.0], [0.0, 0.0, 0.0, 0.0]],
             ],
@@ -670,7 +674,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         {
             "testcase_name": "2D",
             "sparse_input_args": {
-                # example 0, values [[[0., 1.],  [2., 3.]], [[4., 5.],  [6., 7.]]]
+                # example 0, values [[[0., 1.],  [2., 3.]], [[4., 5.],  [6.,
+                # 7.]]]
                 # example 1, [[[10., 11.],  [12., 13.]]]
                 "indices": (
                     (0, 0),

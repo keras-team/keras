@@ -30,9 +30,9 @@ from keras.utils import tf_contextlib
 class DenseFeatures(dense_features.DenseFeatures):
     """A layer that produces a dense `Tensor` based on given `feature_columns`.
 
-    Generally a single example in training data is described with FeatureColumns.
-    At the first layer of the model, this column oriented data should be converted
-    to a single `Tensor`.
+    Generally a single example in training data is described with
+    FeatureColumns.  At the first layer of the model, this column oriented data
+    should be converted to a single `Tensor`.
 
     This layer can be called multiple times with different features.
 
@@ -45,7 +45,8 @@ class DenseFeatures(dense_features.DenseFeatures):
     ```python
     price = tf.feature_column.numeric_column('price')
     keywords_embedded = tf.feature_column.embedding_column(
-        tf.feature_column.categorical_column_with_hash_bucket("keywords", 10000),
+        tf.feature_column.categorical_column_with_hash_bucket("keywords",
+                                                              10000),
         dimensions=16)
     columns = [price, keywords_embedded, ...]
     feature_layer = tf.keras.layers.DenseFeatures(columns)
@@ -54,7 +55,8 @@ class DenseFeatures(dense_features.DenseFeatures):
         ..., features=tf.feature_column.make_parse_example_spec(columns))
     dense_tensor = feature_layer(features)
     for units in [128, 64, 32]:
-      dense_tensor = tf.keras.layers.Dense(units, activation='relu')(dense_tensor)
+      dense_tensor = tf.keras.layers.Dense(units, activation='relu')(
+        dense_tensor)
     prediction = tf.keras.layers.Dense(1)(dense_tensor)
     ```
     """
@@ -64,11 +66,11 @@ class DenseFeatures(dense_features.DenseFeatures):
 
         Args:
           feature_columns: An iterable containing the FeatureColumns to use as
-            inputs to your model. All items should be instances of classes derived
-            from `DenseColumn` such as `numeric_column`, `embedding_column`,
-            `bucketized_column`, `indicator_column`. If you have categorical
-            features, you can wrap them with an `embedding_column` or
-            `indicator_column`.
+            inputs to your model. All items should be instances of classes
+            derived from `DenseColumn` such as `numeric_column`,
+            `embedding_column`, `bucketized_column`, `indicator_column`. If you
+            have categorical features, you can wrap them with an
+            `embedding_column` or `indicator_column`.
           trainable:  Boolean, whether the layer's variables will be updated via
             gradient descent during training.
           name: Name to give to the DenseFeatures.
@@ -114,8 +116,8 @@ class _StateManagerImplV2(
         if name in self._cols_to_vars_map[feature_column]:
             raise ValueError("Variable already exists.")
 
-        # We explicitly track these variables since `name` is not guaranteed to be
-        # unique and disable manual tracking that the add_weight call does.
+        # We explicitly track these variables since `name` is not guaranteed to
+        # be unique and disable manual tracking that the add_weight call does.
         with no_manual_dependency_tracking_scope(self._layer):
             var = self._layer.add_weight(
                 name=name,
@@ -138,9 +140,9 @@ def no_manual_dependency_tracking_scope(obj):
     """A context that disables manual dependency tracking for the given `obj`.
 
     Sometimes library methods might track objects on their own and we might want
-    to disable that and do the tracking on our own. One can then use this context
-    manager to disable the tracking the library method does and do your own
-    tracking.
+    to disable that and do the tracking on our own. One can then use this
+    context manager to disable the tracking the library method does and do your
+    own tracking.
 
     For example:
 
@@ -148,7 +150,8 @@ def no_manual_dependency_tracking_scope(obj):
       def build():
         with no_manual_dependency_tracking_scope(self):
           var = self.add_weight("name1")  # Creates a var and doesn't track it
-        self._track_trackable("name2", var)  # We track variable with name `name2`
+        # We track variable with name `name2`
+        self._track_trackable("name2", var)
 
     Args:
       obj: A trackable object.
