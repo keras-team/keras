@@ -73,8 +73,8 @@ def VGG16(
     For VGG16, call `tf.keras.applications.vgg16.preprocess_input` on your
     inputs before passing them to the model.
     `vgg16.preprocess_input` will convert the input images from RGB to BGR,
-    then will zero-center each color channel with respect to the ImageNet dataset,
-    without scaling.
+    then will zero-center each color channel with respect to the ImageNet
+    dataset, without scaling.
 
     Args:
         include_top: whether to include the 3 fully-connected
@@ -107,11 +107,11 @@ def VGG16(
         classes: optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
-        classifier_activation: A `str` or callable. The activation function to use
-            on the "top" layer. Ignored unless `include_top=True`. Set
-            `classifier_activation=None` to return the logits of the "top" layer.
-            When loading pretrained weights, `classifier_activation` can only
-            be `None` or `"softmax"`.
+        classifier_activation: A `str` or callable. The activation function to
+            use on the "top" layer. Ignored unless `include_top=True`. Set
+            `classifier_activation=None` to return the logits of the "top"
+            layer.  When loading pretrained weights, `classifier_activation` can
+            only be `None` or `"softmax"`.
 
     Returns:
       A `keras.Model` instance.

@@ -360,7 +360,8 @@ def EfficientNet(
         # However, the original implemenetation uses (input - mean) / var to
         # normalize the input, we need to divide another sqrt(var) to match the
         # original implementation.
-        # See https://github.com/tensorflow/tensorflow/issues/49930 for more details
+        # See https://github.com/tensorflow/tensorflow/issues/49930 for more
+        # details
         x = layers.Rescaling(1.0 / tf.math.sqrt(IMAGENET_STDDEV_RGB))(x)
 
     x = layers.ZeroPadding2D(
@@ -390,7 +391,8 @@ def EfficientNet(
         args["filters_out"] = round_filters(args["filters_out"])
 
         for j in range(round_repeats(args.pop("repeats"))):
-            # The first block needs to take care of stride and filter size increase.
+            # The first block needs to take care of stride and filter size
+            # increase.
             if j > 0:
                 args["strides"] = 1
                 args["filters_in"] = args["filters_out"]
@@ -840,9 +842,9 @@ def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the efficientnet model
-    implementation. Users are no longer required to call this method to normalize
-    the input data. This method does nothing and only kept as a placeholder to
-    align the API surface between old and new version of model.
+    implementation. Users are no longer required to call this method to
+    normalize the input data. This method does nothing and only kept as a
+    placeholder to align the API surface between old and new version of model.
 
     Args:
       x: A floating point `numpy.array` or a `tf.Tensor`.
