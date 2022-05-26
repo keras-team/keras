@@ -65,8 +65,8 @@ class KerasInitializersTest(tf.test.TestCase, parameterized.TestCase):
         target_max=None,
         target_min=None,
     ):
-        # The global seed is set so that we can get the same random streams between
-        # eager and graph mode when stateful op is used.
+        # The global seed is set so that we can get the same random streams
+        # between eager and graph mode when stateful op is used.
         tf.random.set_seed(1337)
         variable = backend.variable(init(shape))
         output = backend.get_value(variable)
@@ -314,8 +314,9 @@ class KerasInitializersTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(result.shape, (2, 2))
 
             if hasattr(initializer, "seed"):
-                # Make sure the result are different when the partition_shape is same,
-                # but partition_offset is different, for random related initializers.
+                # Make sure the result are different when the partition_shape is
+                # same, but partition_offset is different, for random related
+                # initializers.
                 result_2 = initializer(
                     shape=(4, 2),
                     partition_shape=(2, 2),
@@ -325,9 +326,11 @@ class KerasInitializersTest(tf.test.TestCase, parameterized.TestCase):
 
                 # Make sure initializer produce same result when provide same
                 # partition offset.
-                # TODO(scottzhu): Enable this assert when initializer is fully stateless
+                # TODO(scottzhu): Enable this assert when initializer is fully
+                # stateless
                 # result_3 = initializer(
-                #     shape=(4, 2), partition_shape=(2, 2), partition_offset=(1, 0))
+                #     shape=(4, 2), partition_shape=(2, 2), partition_offset=(1,
+                #     0))
                 # self.assertAllClose(result_2, result_3)
 
     @parameterized.named_parameters(
