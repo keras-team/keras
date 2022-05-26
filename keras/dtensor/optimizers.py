@@ -49,11 +49,11 @@ class Optimizer(optimizer_lib._BaseOptimizer):
             state variables created by this optimizer.
           mesh: dtensor.Mesh. The optional Mesh which will be used to create
             the states. Note that usually the state variable will use the layout
-            from the corresponding model variables. This mesh only used for global
-            variables like globle steps, learning rate, etc.
+            from the corresponding model variables. This mesh only used for
+            global variables like globle steps, learning rate, etc.
         """
-        # TODO(scottzhu): Skip the gradients_clip_option and ema_option for now, and
-        # will cover them in future if really needed.
+        # TODO(scottzhu): Skip the gradients_clip_option and ema_option for now,
+        # and will cover them in future if really needed.
         # TODO(scottzhu): We might want to make mesh to be required in future.
         self._mesh = mesh
         super().__init__(name=name)
@@ -65,7 +65,8 @@ class Optimizer(optimizer_lib._BaseOptimizer):
                 init_val, dtensor.Layout.replicated(self._mesh, rank=0)
             )
         with tf.init_scope():
-            # Lift the variable creation to init scope to avoid environment issue.
+            # Lift the variable creation to init scope to avoid environment
+            # issue.
             self._iterations = dtensor.DVariable(init_val, name="iteration")
 
     ################## Override methods from keras.Optimizer ################
@@ -79,20 +80,20 @@ class Optimizer(optimizer_lib._BaseOptimizer):
         corresponding momemtum variable is created of the same shape and dtype.
 
         Args:
-          model_variable: The corresponding model variable to the optimizer variable
-            to be created.
-          variable_name: The name prefix of the optimizer variable to be created.
-            The create variables name will follow the pattern
+          model_variable: The corresponding model variable to the optimizer
+            variable to be created.
+          variable_name: The name prefix of the optimizer variable to be
+            created.  The create variables name will follow the pattern
             `{variable_name}/{model_variable.name}`, e.g., `momemtum/dense_1`.
-          initial_value: The initial value of the optimizer variable, if None, the
-            value will be default to 0.
+          initial_value: The initial value of the optimizer variable, if None,
+            the value will be default to 0.
 
         Returns:
           An optimizer variable.
         """
         if initial_value is None:
-            # Use tf.zeros_like which will propagate the layout information from the
-            # model weights if any.
+            # Use tf.zeros_like which will propagate the layout information from
+            # the model weights if any.
             initial_value = tf.zeros_like(model_variable)
         elif isinstance(initial_value, tf.Tensor):
             initial_value = dtensor.copy_to_mesh(
@@ -162,8 +163,8 @@ class Optimizer(optimizer_lib._BaseOptimizer):
             learning_rate, learning_rate_schedule.LearningRateSchedule
         ):
             # Create a variable to hold the current learning rate.
-            # Note that the init value `learning_rate(self.iterations)` should have
-            # the correct layout information from self.iterations.
+            # Note that the init value `learning_rate(self.iterations)` should
+            # have the correct layout information from self.iterations.
             self._current_learning_rate = dtensor.DVariable(
                 learning_rate(self.iterations),
                 name="learning_rate",

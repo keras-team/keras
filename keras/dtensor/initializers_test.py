@@ -111,8 +111,8 @@ class InitializersTest(test_util.DTensorBaseTest):
             new_value = initializer(shape=shape, layout=layout)
             self.assertAllClose(value, new_value)
         finally:
-            # Unset the keras global generator so that it doesn't affect other tests
-            # that need to verify the existence of global generator.
+            # Unset the keras global generator so that it doesn't affect other
+            # tests that need to verify the existence of global generator.
             backend._SEED_GENERATOR.generator = None
 
     @parameterized.named_parameters(

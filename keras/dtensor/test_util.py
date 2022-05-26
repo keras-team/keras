@@ -44,11 +44,13 @@ class DTensorBaseTest(tf.test.TestCase, parameterized.TestCase):
         """Configs corresponding mesh given test context.
 
         If runs on a CPU mesh, set virtual device on CPU.
-        If runs on a GPU mesh, sets virtual device on GPU with proper memory limits.
+        If runs on a GPU mesh, sets virtual device on GPU with proper memory
+        limits.
         if runs on a TPU mesh, initializes TPU system.
 
         Args:
-          device_type_mesh_map: A dictionary containing device_type -> mesh mapping.
+          device_type_mesh_map: A dictionary containing device_type -> mesh
+            mapping.
 
         Returns:
           A properly configured mesh for use in test.

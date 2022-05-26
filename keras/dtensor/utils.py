@@ -65,11 +65,12 @@ def allow_initializer_layout(init_method):
 
     By adding this annotation, it will:
 
-    1. Filter out the kwargs based on some keywords, eg if the 'kernel_initialzer'
-       appears in method signature, then it will try to pop the 'kernel_layout' if
-       it presents. Same for "bias" and "recurrent_kernel", etc. This will make
-       sure the layout related param is not passed to `BaseLayer.__init__`, which
-       will raise error about unexpect keyword args.
+    1. Filter out the kwargs based on some keywords, eg if the
+      'kernel_initialzer' appears in method signature, then it will try to pop
+      the 'kernel_layout' if it presents. Same for "bias" and
+      "recurrent_kernel", etc. This will make sure the layout related param is
+      not passed to `BaseLayer.__init__`, which will raise error about unexpect
+      keyword args.
     2. Set the self.kernel/bias_layout attribute after the `__init__` method is
        called. Keras framework will use those fields to create weights down the
        stream.
@@ -111,8 +112,8 @@ def inject_mesh(init_method):
     DTensor mesh to create the weights, but doesn't want to change the current
     public API interface.
 
-    This is for temporary usage and eventually the mesh/layout information will be
-    public arguments in the `__init__` method
+    This is for temporary usage and eventually the mesh/layout information will
+    be public arguments in the `__init__` method.
 
     Sample usage:
     ```python
@@ -135,9 +136,9 @@ def inject_mesh(init_method):
 
     def _wrap_function(instance, *args, **kwargs):
         mesh = kwargs.pop("mesh", None)
-        # Note that the injection of _mesh need to happen before the invocation of
-        # __init__, since the class might need the mesh to create weights in the
-        # __init__.
+        # Note that the injection of _mesh need to happen before the invocation
+        # of __init__, since the class might need the mesh to create weights in
+        # the __init__.
         if mesh is not None:
             instance._mesh = mesh  # pylint: disable=protected-access
         init_method(instance, *args, **kwargs)

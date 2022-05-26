@@ -51,10 +51,10 @@ def get_current_layout_map():
 class LayoutMap(collections.abc.MutableMapping):
     """A dict-like object that maps string to `Layout` instances.
 
-    `LayoutMap` uses a string as key and a `Layout` as value. There is a behavior
-    difference between a normal Python dict and this class. The string key will be
-    treated as a regex when retrieving the value. See the docstring of
-    `get` for more details.
+    `LayoutMap` uses a string as key and a `Layout` as value. There is a
+    behavior difference between a normal Python dict and this class. The string
+    key will be treated as a regex when retrieving the value. See the docstring
+    of `get` for more details.
 
     See below for a usage example. You can define the naming schema
     of the `Layout`, and then retrieve the corresponding `Layout` instance.
@@ -91,9 +91,9 @@ class LayoutMap(collections.abc.MutableMapping):
         """Retrieve the corresponding layout by the string key.
 
         When there isn't an exact match, all the existing keys in the layout map
-        will be treated as a regex and map against the input key again. The first
-        match will be returned, based on the key insertion order. Return None if
-        there isn't any match found.
+        will be treated as a regex and map against the input key again. The
+        first match will be returned, based on the key insertion order. Return
+        None if there isn't any match found.
 
         Args:
           key: the string key as the query for the layout.
@@ -159,10 +159,10 @@ def layout_map_scope(layout_map):
     to map the variable against the layout.
 
     For subclassed models, the full object/attribute name is used as the key.
-    For Functional/Sequential models, since the layers within the model do not get
-    assigned to a meaningful attribute, we use `layer.name` as the key
-    for the layer, followed by the attribute name. Keras ensures
-    name uniqueness among the layers in all Functional/Sequential models.
+    For Functional/Sequential models, since the layers within the model do not
+    get assigned to a meaningful attribute, we use `layer.name` as the key for
+    the layer, followed by the attribute name. Keras ensures name uniqueness
+    among the layers in all Functional/Sequential models.
 
     See the following examples that show the variable object names
     for different Keras model types:
@@ -230,8 +230,8 @@ def layout_map_scope(layout_map):
     ```
 
     Args:
-      layout_map: a LayoutMap which contains the variable_object_path (string) ->
-        Layout. When a layout is not found for the variable, a default all
+      layout_map: a LayoutMap which contains the variable_object_path (string)
+        -> Layout. When a layout is not found for the variable, a default all
         replicated layout will be created for the variable.
 
     Yields:
@@ -299,11 +299,12 @@ def _map_functional_model_variable(model, layout_map):
         # name based on the class name.
         layer_name = layer.name
         for path, variable in layer._flatten(
-            predicate=_is_lazy_init_variable,  # pylint: disable=protected-access
+            predicate=_is_lazy_init_variable,
             with_path=True,
         ):
             # Note that path is a tuple that contains string and ints, eg:
-            # ('d1', '_trainable_weights', 0) maps to model.d1._trainable_weights[0]
+            # ('d1', '_trainable_weights', 0) maps to
+            # model.d1._trainable_weights[0]
             if [a for a in _KERAS_ATTRIBUTES_TO_SKIP if a in path]:
                 continue
             # Convert all the ints to string and join with .
@@ -319,10 +320,11 @@ def _map_functional_model_variable(model, layout_map):
             layer, lazy_init_variable_to_tf_variable_map
         )
 
-        # After we replaced all the variables, we want to make sure all the cached
-        # attributes are having the new variable, rather than old LazyInitVariable.
+        # After we replaced all the variables, we want to make sure all the
+        # cached attributes are having the new variable, rather than old
+        # LazyInitVariable.
         for path, variable in layer._flatten(
-            predicate=_is_lazy_init_variable,  # pylint: disable=protected-access
+            predicate=_is_lazy_init_variable,
             with_path=True,
         ):
             tf_variable = lazy_init_variable_to_tf_variable_map[id(variable)]
@@ -335,14 +337,15 @@ def _map_functional_model_variable(model, layout_map):
 def _init_state_variable_for_rng(model, layout_map):
     """Init the state variable in tf.ranodm.Generator.
 
-    Since the BaseRandomLayer in keras explicitly untrack the tf.random.Generator,
-    the variable in it will stay as LazyInitVariable, which cause runtime error if
-    we don't replace them with proper DVariable. Since user usually are not
-    aware the existence of those variable, we will just give them replicated
-    layout since they are tiny.
+    Since the BaseRandomLayer in keras explicitly untrack the
+    tf.random.Generator, the variable in it will stay as LazyInitVariable, which
+    cause runtime error if we don't replace them with proper DVariable. Since
+    user usually are not aware the existence of those variable, we will just
+    give them replicated layout since they are tiny.
 
     Args:
-      model: the model whose layers will be checked to find the BaseRandomLayers.
+      model: the model whose layers will be checked to find the
+        BaseRandomLayers.
       layout_map: used to get the default mesh information to create DVariable.
     """
     # pylint: disable=protected-access
@@ -352,10 +355,10 @@ def _init_state_variable_for_rng(model, layout_map):
         keras_generator = l._random_generator
         if keras_generator._built and keras_generator._generator is None:
             raise ValueError(
-                "Keras is expected to use tf.random.Generator when using DTensor API."
-                "Please call "
-                "`tf.keras.backend.experimental.enable_tf_random_generator` at the "
-                "beginning of your program."
+                "Keras is expected to use tf.random.Generator when using "
+                "DTensor API. Please call "
+                "`tf.keras.backend.experimental.enable_tf_random_generator` at "
+                "the beginning of your program."
             )
         if hasattr(keras_generator, "_generator") and _is_lazy_init_variable(
             keras_generator._generator._state_var
@@ -365,8 +368,9 @@ def _init_state_variable_for_rng(model, layout_map):
                 layout_map, "", keras_generator._generator._state_var
             )
         else:
-            # When the keras_generator is not built yet. Call the init function with
-            # DTensor device to init all the variable with default replicated layout.
+            # When the keras_generator is not built yet. Call the init function
+            # with DTensor device to init all the variable with default
+            # replicated layout.
             with dtensor.run_on(layout_map.get_default_mesh()):
                 keras_generator._maybe_init()
 
@@ -376,17 +380,17 @@ def _config_dvariable_regularization(
 ):
     """Update the weights regularizer for newly created `DVariable`.
 
-    The weight regularization usually happens when `layer.add_weight()` is called,
-    at which point the library will first create a `LazyInitVariable`, and then
-    replace it with a `DVariable`. We will defer the creation of those losses,
-    until the DVariable is created.
+    The weight regularization usually happens when `layer.add_weight()` is
+    called, at which point the library will first create a `LazyInitVariable`,
+    and then replace it with a `DVariable`. We will defer the creation of those
+    losses, until the DVariable is created.
 
     See `layer._captured_weight_regularizer` for more details.
 
     Args:
       layer: the layer instance for DVariable regularization config.
-      lazy_init_variable_to_tf_variable_map: the dict between LazyInitVariable ID
-        and newly created DVariable.
+      lazy_init_variable_to_tf_variable_map: the dict between LazyInitVariable
+        ID and newly created DVariable.
     """
     # pylint: disable=protected-access
     for (name, variable, regualarizer) in layer._captured_weight_regularizer:
@@ -411,8 +415,8 @@ def _create_dvariable(layout_map, object_path, variable):
     find any variables.
 
     Args:
-      layout_map: a LayoutMap which contains the variable_object_path (string) ->
-        Layout.
+      layout_map: a LayoutMap which contains the variable_object_path (string)
+        -> Layout.
       object_path: string, the object attribute path for the variable.
       variable: LazyInitVariable which will be replaced by the newly created
         tf.Variable.
@@ -432,8 +436,8 @@ def _create_dvariable(layout_map, object_path, variable):
         with lazy_variable.disable_init_variable_creator():
             init_val = utils.call_with_layout(init_val, layout)
     else:
-        # The init value is probably already created as a tensor, we will just copy
-        # it to mesh and give it a proper layout.
+        # The init value is probably already created as a tensor, we will just
+        # copy it to mesh and give it a proper layout.
         init_val = dtensor.copy_to_mesh(init_val, layout)
     # Use the original variable name for new DVariable creation. TF was adding
     # ":0" suffix to it.
@@ -460,8 +464,8 @@ def _set_object_by_path(object_to_set, path, value):
         if i == len(path) - 1:
             # We found the actual attribute to set
             if isinstance(attr_name, int):
-                # This means we are trying to set an element in the array, make sure the
-                # instance is array like object.
+                # This means we are trying to set an element in the array, make
+                # sure the instance is array like object.
                 object_to_set[attr_name] = value
             else:
                 setattr(object_to_set, attr_name, value)
