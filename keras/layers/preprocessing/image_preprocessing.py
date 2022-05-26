@@ -387,9 +387,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
         return self.augment_label(target, transformation)
 
     @doc_controls.for_subclass_implementers
-    def augment_bounding_boxes(
-        self, image, bounding_boxes, transformation=None
-    ):
+    def augment_bounding_boxes(self, image, bounding_boxes, transformation):
         """Augment bounding boxes for one image during training.
 
         Args:
@@ -768,10 +766,7 @@ class RandomFlip(BaseImageAugmentationLayer):
             "flip_vertical": flip_vertical,
         }
 
-    def augment_bounding_boxes(
-        self, image, bounding_boxes, transformation=None
-    ):
-        transformation = transformation or self.get_random_transformation()
+    def augment_bounding_boxes(self, image, bounding_boxes, transformation):
         image = tf.expand_dims(image, 0)
         image_shape = tf.shape(image)
         h = image_shape[H_AXIS]
@@ -2046,12 +2041,22 @@ class RandomWidth(BaseImageAugmentationLayer):
         self.auto_vectorize = False
 
     def _batch_augment(self, inputs):
+        transformation = self.get_random_transformation(image=inputs[IMAGES])
+        result = {}
+        if BOUNDING_BOXES in inputs:
+
+            def augment_batch(input):
+                augmented_bbox = self.augment_bounding_boxes(
+                    input[IMAGES], input[BOUNDING_BOXES], transformation
+                )
+                return {IMAGES: input[IMAGES], BOUNDING_BOXES: augmented_bbox}
+
+            bbox_out = tf.map_fn(augment_batch, inputs)
+            result[BOUNDING_BOXES] = bbox_out[BOUNDING_BOXES]
         images = self.augment_image(
-            inputs[IMAGES],
-            transformation=self.get_random_transformation(image=inputs[IMAGES]),
+            inputs[IMAGES], transformation=transformation
         )
-        result = {IMAGES: images}
-        # to-do augment bbox to clip bbox to resized width value
+        result[IMAGES] = images
         return result
 
     def augment_image(self, image, transformation):
@@ -2084,6 +2089,29 @@ class RandomWidth(BaseImageAugmentationLayer):
         )
         adjusted_width = tf.cast(width_factor * img_wd, tf.int32)
         return {"width": adjusted_width}
+
+    def augment_bounding_boxes(self, image, bounding_boxes, transformation):
+        image = tf.expand_dims(image, 0)
+        image_shape = tf.shape(image)
+        bbox_dtype = bounding_boxes.dtype
+        w = image_shape[W_AXIS]
+        width_factor = transformation["width"] / w
+        x_cols = tf.cast(
+            tf.gather(bounding_boxes, [0, 2], axis=1), dtype=tf.float64
+        )
+        new_x_cols = tf.cast(
+            tf.scalar_mul(width_factor, x_cols), dtype=bbox_dtype
+        )
+        bboxes_out = tf.stack(
+            [
+                new_x_cols[:, 0],
+                bounding_boxes[:, 1],
+                new_x_cols[:, 1],
+                bounding_boxes[:, 3],
+            ],
+            axis=1,
+        )
+        return bboxes_out
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()

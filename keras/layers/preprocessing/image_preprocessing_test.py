@@ -2514,6 +2514,48 @@ class RandomWidthTest(test_combinations.TestCase):
                 self.assertEqual(img_out.shape[1], 3)
 
     @test_utils.run_v2_only
+    def test_batched_input_with_bbox(self):
+        mock_factor = 0.5
+        with test_utils.use_gpu():
+            layer = image_preprocessing.RandomWidth(0.5)
+            with tf.compat.v1.test.mock.patch.object(
+                layer._random_generator,
+                "random_uniform",
+                return_value=mock_factor,
+            ):
+                images = np.random.random((2, 512, 512, 3))
+                bboxes = tf.ragged.constant(
+                    [
+                        [[200, 200, 400, 400], [100, 100, 300, 300]],
+                        [
+                            [230, 230, 290, 290],
+                            [320, 250, 350, 300],
+                            [320, 250, 350, 300],
+                        ],
+                    ],
+                    ragged_rank=1,
+                    inner_shape=(4,),
+                )
+                input = {"images": images, "bounding_boxes": bboxes}
+                expected_bbox_out = tf.ragged.constant(
+                    [
+                        [[100, 200, 200, 400], [50, 100, 150, 300]],
+                        [
+                            [115, 230, 145, 290],
+                            [160, 250, 175, 300],
+                            [160, 250, 175, 300],
+                        ],
+                    ],
+                    ragged_rank=1,
+                    inner_shape=(4,),
+                )
+                img_out = layer(input, training=True)
+                self.assertEqual(img_out["images"].shape[2], 256)
+                self.assertAllClose(
+                    img_out["bounding_boxes"], expected_bbox_out
+                )
+
+    @test_utils.run_v2_only
     def test_output_dtypes(self):
         inputs = np.array([[[1], [2]], [[3], [4]]], dtype="float64")
         layer = image_preprocessing.RandomWidth(0.2)
