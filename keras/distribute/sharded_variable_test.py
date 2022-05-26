@@ -158,10 +158,10 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
         """Test saving and loading models with various fixed numbers of shards.
 
         Args:
-          shard_config: The number of shards to use per variable before and after
-            loading. For example, [1, 3] means to create and save the model with 1
-            shard (i.e., no variable partitioning), and load it into 3 shards per
-            variable.
+          shard_config: The number of shards to use per variable before and
+            after loading. For example, [1, 3] means to create and save the
+            model with 1 shard (i.e., no variable partitioning), and load it
+            into 3 shards per variable.
           model_type: Either 'dense' or 'embedding', which simple model to test.
         """
 
@@ -203,7 +203,8 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
             )
             expect = model(x)
 
-        # Dense layers have two variables (kernel and bias), embedding layers have 1
+        # Dense layers have two variables (kernel and bias), embedding layers
+        # have 1
         n_expected_variables = shard_config[0] * (
             2 if model_type == "dense" else 1
         )
@@ -293,12 +294,14 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
     def test_slot_variable_checkpointing(self):
 
         with self.strategy.scope():
-            # Set a name so the ShardedVariable is well-named for slot var keying
+            # Set a name so the ShardedVariable is well-named for slot var
+            # keying
             var = tf.Variable([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], name="test")
 
         opt = keras.optimizers.optimizer_v2.adam.Adam()
 
-        # Run once to trigger apply_gradients to populate optimizer slot variables.
+        # Run once to trigger apply_gradients to populate optimizer slot
+        # variables.
         def train_step():
             with tf.GradientTape() as tape:
                 loss = sum(var)
@@ -314,7 +317,8 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
 
         ckpt = tf.train.Checkpoint(var=var, opt=opt)
 
-        # Assert that checkpoint has slots for each shard and the ShardedVariable
+        # Assert that checkpoint has slots for each shard and the
+        # ShardedVariable
         self.assertLen(ckpt.opt._slots, 3)
         for var_name in ckpt.opt._slots.keys():
             self.assertLen(ckpt.opt._slots[var_name], 2)
@@ -349,12 +353,14 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
     def test_slot_variable_checkpoint_load_with_diff_shards(self):
 
         with self.strategy.scope():
-            # Set a name so the ShardedVariable is well-named for slot var keying
+            # Set a name so the ShardedVariable is well-named for slot var
+            # keying
             var = tf.Variable([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], name="test")
 
         opt = keras.optimizers.optimizer_v2.adam.Adam()
 
-        # Run once to trigger apply_gradients to populate optimizer slot variables.
+        # Run once to trigger apply_gradients to populate optimizer slot
+        # variables.
         def train_step():
             with tf.GradientTape() as tape:
                 loss = sum(var)
@@ -388,7 +394,8 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
             var = tf.Variable([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], name="test")
 
         opt = keras.optimizers.optimizer_v2.adam.Adam()
-        # Run once to trigger apply_gradients to populate optimizer slot variables.
+        # Run once to trigger apply_gradients to populate optimizer slot
+        # variables.
         strategy2.run(train_step)
 
         new_ckpt = tf.train.Checkpoint(var=var, opt=opt)
@@ -406,7 +413,8 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
 class ShardedVariableMixedPartitioningTest(tf.test.TestCase):
     def test_saved_model_min_size_partitioner(self):
 
-        # set min_shard_bytes such that Dense kernel is split into 2 and bias into 1
+        # set min_shard_bytes such that Dense kernel is split into 2 and bias
+        # into 1
         partitioner = (
             tf.distribute.experimental.partitioners.MinSizePartitioner(
                 min_shard_bytes=(6 * 6 * 4) // 2, max_shards=2
@@ -438,7 +446,8 @@ class ShardedVariableMixedPartitioningTest(tf.test.TestCase):
         saved_dir = self.get_temp_dir()
         model.save(saved_dir)
 
-        # set min_shard_bytes such that Dense kernel is split into 3 and bias into 1
+        # set min_shard_bytes such that Dense kernel is split into 3 and bias
+        # into 1
         partitioner2 = (
             tf.distribute.experimental.partitioners.MinSizePartitioner(
                 min_shard_bytes=(6 * 6 * 4) // 3, max_shards=3

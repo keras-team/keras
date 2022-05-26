@@ -93,8 +93,8 @@ class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
             distribution, tf.distribute.experimental.ParameterServerStrategy
         ):
             self.skipTest(
-                "Parameter Server strategy requires dataset creator to be used in "
-                "model.fit."
+                "Parameter Server strategy requires dataset creator to be used "
+                "in model.fit."
             )
         if (
             not tf.__internal__.tf2.enabled()
@@ -104,8 +104,8 @@ class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
             )
         ):
             self.skipTest(
-                "Parameter Server strategy with dataset creator needs to be run when "
-                "eager execution is enabled."
+                "Parameter Server strategy with dataset creator needs to be "
+                "run when eager execution is enabled."
             )
         with distribution.scope():
             model = linear.LinearModel()
@@ -130,8 +130,8 @@ class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
             distribution, tf.distribute.experimental.ParameterServerStrategy
         ):
             self.skipTest(
-                "Parameter Server strategy requires dataset creator to be used in "
-                "model.fit."
+                "Parameter Server strategy requires dataset creator to be used "
+                "in model.fit."
             )
         if (
             not tf.__internal__.tf2.enabled()
@@ -141,8 +141,8 @@ class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
             )
         ):
             self.skipTest(
-                "Parameter Server strategy with dataset creator needs to be run when "
-                "eager execution is enabled."
+                "Parameter Server strategy with dataset creator needs to be "
+                "run when eager execution is enabled."
             )
         with distribution.scope():
             linear_model = linear.LinearModel(units=1)

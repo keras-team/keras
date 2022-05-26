@@ -216,7 +216,8 @@ class SavedModelTFModuleTest(test_base.TestSavedModelBase):
         load_options = tf.saved_model.LoadOptions(
             experimental_io_device="/job:localhost"
         )
-        # Check that the model can be loaded and training continued without error.
+        # Check that the model can be loaded and training continued without
+        # error.
         with distribution.scope():
             loaded_model = tf.saved_model.load(saved_dir, options=load_options)
             self._train_model(loaded_model, x_train, y_train, batch_size)

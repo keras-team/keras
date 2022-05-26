@@ -167,9 +167,9 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
 
     def testModelPredict(self, strategy):
         _, predictions = self._model_predict(strategy, steps=3)
-        # Check the first (0th index), fourth (3rd index) and the last predictions
-        # because the first, fourth and the last input are the same in
-        # `model.predict` so there predictions should match.
+        # Check the first (0th index), fourth (3rd index) and the last
+        # predictions because the first, fourth and the last input are the same
+        # in `model.predict` so there predictions should match.
         self.assertTrue(
             all(predictions[0] == predictions[i] for i in [0, 3, 5])
         )
@@ -203,9 +203,9 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
         _, predictions = self._model_predict(
             strategy, with_normalization_layer=True, steps=3
         )
-        # Check the first (0th index), fourth (3rd index) and the last predictions
-        # because the first, fourth and the last input is the same in
-        # `model.predict` so there predictions should match.
+        # Check the first (0th index), fourth (3rd index) and the last
+        # predictions because the first, fourth and the last input is the same
+        # in `model.predict` so there predictions should match.
         self.assertTrue(
             all(predictions[0] == predictions[i] for i in [0, 3, 5])
         )
@@ -219,9 +219,9 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
             strategy, steps_per_execution=3, steps=3
         )
 
-        # Check the first (0th index), fourth (3rd index) and the last predictions
-        # because the first, fourth and the last input is the same in
-        # `model.predict` so there predictions should match.
+        # Check the first (0th index), fourth (3rd index) and the last
+        # predictions because the first, fourth and the last input is the same
+        # in `model.predict` so there predictions should match.
         self.assertTrue(
             all(predictions[0] == predictions[i] for i in [0, 3, 5])
         )
@@ -248,9 +248,9 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
         model = self._model_fit(strategy, x=x, validation_data=validation_data)
         _, predictions = self._model_predict(strategy, model, steps=3)
 
-        # Check the first (0th index), fourth (3rd index) and the last predictions
-        # because the first, fourth and the last input is the same in
-        # `model.predict` so there predictions should match.
+        # Check the first (0th index), fourth (3rd index) and the last
+        # predictions because the first, fourth and the last input is the same
+        # in `model.predict` so there predictions should match.
         self.assertTrue(
             all(predictions[0] == predictions[i] for i in [0, 3, 5])
         )
@@ -274,9 +274,9 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
             test_data=dataset_creator.DatasetCreator(_dataset_fn),
         )
 
-        # Check the first (0th index), fourth (3rd index) and the last predictions
-        # because the first, fourth and the last input is the same in
-        # `model.predict` so there predictions should match.
+        # Check the first (0th index), fourth (3rd index) and the last
+        # predictions because the first, fourth and the last input is the same
+        # in `model.predict` so there predictions should match.
         self.assertTrue(
             all(predictions[0] == predictions[i] for i in [0, 3, 5])
         )

@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for tf.keras models with callbacks, checkpointing with dist strategy."""
+"""Tests for tf.keras models with callbacks, checkpointing with dist
+strategy."""
 
 import collections
 import tempfile
@@ -107,8 +108,9 @@ class TestDistributionStrategyWithCallbacks(
             )
             and not tf.executing_eagerly()
         ):
-            # TPU Strategy can have multi step training, from extended.steps_per_run
-            # if steps_per_run = 1, then num_batch_call_per_epoch = steps_per_epoch
+            # TPU Strategy can have multi step training, from
+            # extended.steps_per_run if steps_per_run = 1, then
+            # num_batch_call_per_epoch = steps_per_epoch
             steps_per_run = distribution.extended.steps_per_run
             num_batch_call_per_epoch = steps_per_epoch // steps_per_run
             if steps_per_epoch % steps_per_run:
@@ -215,9 +217,9 @@ class TestDistributionStrategyErrorCases(
 
             x = distribution.run(run)
 
-            # Removed device and input tensor shape details from the error message
-            # since the order of the device and the corresponding input tensor shape
-            # is not deterministic over different runs.
+            # Removed device and input tensor shape details from the error
+            # message since the order of the device and the corresponding input
+            # tensor shape is not deterministic over different runs.
             with self.assertRaisesRegex(
                 ValueError,
                 "Input tensor shapes do not match for "
@@ -252,9 +254,9 @@ class TestDistributionStrategyErrorCases(
 
             x = distribution.run(run)
 
-            # Removed device and input tensor dtype details from the error message
-            # since the order of the device and the corresponding input tensor dtype
-            # is not deterministic over different runs.
+            # Removed device and input tensor dtype details from the error
+            # message since the order of the device and the corresponding input
+            # tensor dtype is not deterministic over different runs.
             with self.assertRaisesRegex(
                 ValueError,
                 "Input tensor dtypes do not match for "
@@ -306,8 +308,8 @@ class TestDistributionStrategyErrorCases(
                     sample_weight=sample_weight,
                 )
 
-            # Test with not specifying the `steps` argument for dataset with infinite
-            # cardinality.
+            # Test with not specifying the `steps` argument for dataset with
+            # infinite cardinality.
             dataset = dataset.repeat()
             with self.assertRaises(ValueError):
                 model.fit(dataset, epochs=1, verbose=0)

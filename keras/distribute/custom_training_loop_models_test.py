@@ -210,8 +210,8 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
         def create_lstm_model():
             model = keras.models.Sequential()
-            # We only have LSTM variables so we can detect no gradient issues more
-            # easily.
+            # We only have LSTM variables so we can detect no gradient issues
+            # more easily.
             model.add(
                 keras.layers.LSTM(
                     1, return_sequences=False, input_shape=(10, 1)
@@ -262,8 +262,8 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
     def test_nested_tf_functions(self, distribution):
         # The test builds two computations with keras layers, one with nested
         # tf.function, and the other without nested tf.function. We run these
-        # computations independently on the model with same weights, and make sure
-        # the variables are still the same after one training step.
+        # computations independently on the model with same weights, and make
+        # sure the variables are still the same after one training step.
 
         inputs = np.random.random((10, 3)).astype(np.float32)
         targets = np.ones((10, 4), dtype=np.float32)
@@ -470,8 +470,8 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
         loss = distribution.reduce(tf.distribute.ReduceOp.MEAN, loss, axis=0)
 
     def test_variable_run_argument(self, distribution):
-        # Test that variables passed to run() remain variables. Previous behavior
-        # in TPUStrategy was to cast to Tensor.
+        # Test that variables passed to run() remain variables. Previous
+        # behavior in TPUStrategy was to cast to Tensor.
 
         with distribution.scope():
             optimizer = gradient_descent.SGD(0.1)

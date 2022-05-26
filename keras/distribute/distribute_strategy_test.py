@@ -382,14 +382,16 @@ class TestDistributionStrategyWithNumpyArrays(
             replica_scale_factor = distribution.num_replicas_in_sync
 
         with self.cached_session():
-            # Default global batch size 32 for input with 64 samples run in 2 steps
+            # Default global batch size 32 for input with 64 samples run in 2
+            # steps
             steps, batch_size = distributed_training_utils_v1.get_input_params(
                 distribution, 64, steps=None, batch_size=None
             )
             self.assertEqual(batch_size, 32 // replica_scale_factor)
             self.assertEqual(steps, 2)
 
-            # Computed global batch size 20 is lower than 32 if we pass less samples.
+            # Computed global batch size 20 is lower than 32 if we pass less
+            # samples.
             steps, batch_size = distributed_training_utils_v1.get_input_params(
                 distribution, 20, steps=None, batch_size=None
             )
@@ -411,14 +413,16 @@ class TestDistributionStrategyWithNumpyArrays(
             replica_scale_factor = distribution.num_replicas_in_sync
 
         with self.cached_session():
-            # Computed global batch size is correct for number of specified 1 step
+            # Computed global batch size is correct for number of specified 1
+            # step
             steps, batch_size = distributed_training_utils_v1.get_input_params(
                 distribution, 64, steps=1, batch_size=None
             )
             self.assertEqual(batch_size, 64 // replica_scale_factor)
             self.assertEqual(steps, 1)
 
-            # Computed global batch size is correct for number of specified 2 steps
+            # Computed global batch size is correct for number of specified 2
+            # steps
             steps, batch_size = distributed_training_utils_v1.get_input_params(
                 distribution, 64, steps=2, batch_size=None
             )
@@ -530,8 +534,9 @@ class TestDistributionStrategyWithNumpyArrays(
                     validation_data=(inputs, targets),
                 )
 
-                # TODO(anjalisridhar): We need tests for when the batch size and steps
-                # are smaller and results in a 0 batch_size and steps value.
+                # TODO(anjalisridhar): We need tests for when the batch size and
+                # steps are smaller and results in a 0 batch_size and steps
+                # value.
                 model.evaluate(inputs, targets)
                 model.evaluate(inputs, targets, batch_size=8)
 
@@ -569,9 +574,9 @@ class TestDistributionStrategyWithNumpyArrays(
             metrics = ["mae"]
             model.compile(optimizer, loss, metrics=metrics)
 
-            # We need to pass float32 since TPUs do not support float64, even though
-            # these arrays will immediately be casted to bfloat16 on TPUs. We also
-            # cannot pass bfloat16, as Numpy does not support it.
+            # We need to pass float32 since TPUs do not support float64, even
+            # though these arrays will immediately be casted to bfloat16 on
+            # TPUs. We also cannot pass bfloat16, as Numpy does not support it.
             inputs = np.zeros((64, 3), dtype="float32")
             targets = np.zeros((64, 4), dtype="float32")
 
@@ -595,9 +600,9 @@ class TestDistributionStrategyWithNumpyArrays(
     )
     def test_operator_overload_mixed_precision(self, distribution):
         # Regression test that tests a fixed bug does not reoccur. Adding an
-        # AutoCastVariable to a tensor on a TPU, where the variable was the LHS of
-        # the '+' operator, used to cause the gradient w.r.t. the variable to be
-        # None.
+        # AutoCastVariable to a tensor on a TPU, where the variable was the LHS
+        # of the '+' operator, used to cause the gradient w.r.t. the variable to
+        # be None.
         if isinstance(
             distribution,
             (
@@ -694,8 +699,8 @@ class TestDistributionStrategyWithNumpyArrays(
             # Call fit with validation data
             model.fit(inputs, targets, epochs=1, batch_size=8, verbose=0)
 
-            # TODO(anjalisridhar): We need tests for when the batch size and steps are
-            # smaller and results in a 0 batch_size and steps value.
+            # TODO(anjalisridhar): We need tests for when the batch size and
+            # steps are smaller and results in a 0 batch_size and steps value.
             model.evaluate(inputs, targets)
             model.evaluate(inputs, targets, batch_size=8)
 
@@ -729,16 +734,18 @@ class TestDistributionStrategyWithNumpyArrays(
                 verbose=1,
             )
 
-            # The per sample loss is multiplied by the corresponding sample weight.
-            # The average of these weighted losses is the return value of the
-            # `evaluate` call. For example, in the test above the average weighted
-            # loss is calculated in the following manner:
+            # The per sample loss is multiplied by the corresponding sample
+            # weight.  The average of these weighted losses is the return value
+            # of the `evaluate` call. For example, in the test above the average
+            # weighted loss is calculated in the following manner:
 
-            # batch_1 = (((2-0)^2) * 0.25 + ((4-1)^2) * 0.5) / 2 = 5.5 / 2 = 2.75
+            # batch_1 = (((2-0)^2) * 0.25 + ((4-1)^2) * 0.5) / 2 = 5.5 / 2 =
+            # 2.75
             # batch_2 = (((6-2)^2 * 0.75) + ((8-3)^2 * 1)) / 2 = 37 / 2 = 18.5
             # final result = (batch_1 + batch_2) / 2 = 10.625.
-            # The first time we divide by number of input samples and the second time
-            # we divide by number of steps/batches that the loss is aggregated over.
+            # The first time we divide by number of input samples and the second
+            # time we divide by number of steps/batches that the loss is
+            # aggregated over.
             self.assertAllClose(result, 10.625)
 
             # We now test without passing sample_weights:
@@ -760,18 +767,20 @@ class TestDistributionStrategyWithNumpyArrays(
                 loss = "mse"
                 model.compile(optimizer, loss)
 
-            # We take 6 input samples with each input having a dimension of 3 or 5.
+            # We take 6 input samples with each input having a dimension of 3 or
+            # 5.
             input_a_np = np.asarray(np.random.random((6, 3)), dtype=np.float32)
             input_b_np = np.asarray(np.random.random((6, 5)), dtype=np.float32)
             inputs = [input_a_np, input_b_np]
 
             outs = model.predict(inputs)
-            # `predict` a list that is equal in length to the number of model outputs.
-            # In this test our model has two outputs and each element of `outs`
-            # corresponds to all the samples of one of the model outputs.
+            # `predict` a list that is equal in length to the number of model
+            # outputs.  In this test our model has two outputs and each element
+            # of `outs` corresponds to all the samples of one of the model
+            # outputs.
             self.assertLen(outs, 2)
-            # Each of the output samples have a dimension of 7. We should process all
-            # the available input samples(6).
+            # Each of the output samples have a dimension of 7. We should
+            # process all the available input samples(6).
             self.assertAllEqual([6, 7], outs[0].shape)
             self.assertAllEqual([6, 7], outs[1].shape)
 
@@ -797,16 +806,16 @@ class TestDistributionStrategyWithNumpyArrays(
             x = np.random.random((10, 3)).astype("float32")
             y = np.random.random((10, 4)).astype("float32")
 
-            # As sample size is 10, we batch by 4 so that the last batch is
-            # a partial batch. Also `evaluate()` using numpy array as inputs without
-            # distribution strategy uses entire sample as a single batch. As so,
-            # we remove parameters `batch_size` and `steps`.
+            # As sample size is 10, we batch by 4 so that the last batch is a
+            # partial batch. Also `evaluate()` using numpy array as inputs
+            # without distribution strategy uses entire sample as a single
+            # batch. As so, we remove parameters `batch_size` and `steps`.
             cpu_model.set_weights(model_with_ds_strategy.get_weights())
             evaluate_ground_truth = cpu_model.evaluate(x, y)
 
-            # We don't compare the loss as loss is currently not computed as metric
-            # in Keras, the loss value is inaccurate for last partial batch due to
-            # more weights for the last batch samples.
+            # We don't compare the loss as loss is currently not computed as
+            # metric in Keras, the loss value is inaccurate for last partial
+            # batch due to more weights for the last batch samples.
             steps = np.ceil(10.0 / batch_size)
             self.assertAllClose(
                 model_with_ds_strategy.evaluate(
@@ -816,7 +825,8 @@ class TestDistributionStrategyWithNumpyArrays(
                 atol=1e-5,
                 rtol=1e-5,
             )
-            # Test that `steps` is inferred correctly when final partial batch exists.
+            # Test that `steps` is inferred correctly when final partial batch
+            # exists.
             self.assertAllClose(
                 model_with_ds_strategy.evaluate(x, y, batch_size=batch_size)[
                     1:
@@ -846,9 +856,9 @@ class TestDistributionStrategyWithNumpyArrays(
             inputs = np.random.random((10, 3)).astype(np.float32)
 
             # As sample size is 10, we batch by 4 so that the last batch is
-            # a partial batch. Also `predict()` using numpy array as inputs without
-            # distribution strategy uses entire sample as a single batch. As so,
-            # we remove parameters `batch_size` and `steps`.
+            # a partial batch. Also `predict()` using numpy array as inputs
+            # without distribution strategy uses entire sample as a single
+            # batch. As so, we remove parameters `batch_size` and `steps`.
             cpu_model.set_weights(model_with_ds_strategy.get_weights())
             predict_ground_truth = cpu_model.predict(inputs)
             self.assertAllClose(
@@ -857,7 +867,8 @@ class TestDistributionStrategyWithNumpyArrays(
                 atol=1e-5,
                 rtol=1e-5,
             )
-            # Test that `steps` is inferred correctly when final partial batch exists.
+            # Test that `steps` is inferred correctly when final partial batch
+            # exists.
             self.assertAllClose(
                 model_with_ds_strategy.predict(inputs, batch_size=4),
                 predict_ground_truth,
@@ -1256,8 +1267,8 @@ class TestDistributionStrategyWithDatasets(
     def test_on_dataset_with_unknown_cardinality_without_steps(
         self, distribution, mode
     ):
-        # TODO(b/155867206): Investigate why this test occasionally segfaults on TPU
-        # in eager mode.
+        # TODO(b/155867206): Investigate why this test occasionally segfaults on
+        # TPU in eager mode.
         if mode == "eager" and backend.is_tpu_strategy(distribution):
             self.skipTest("caused segfault with TPU in eager mode.")
 
@@ -1488,9 +1499,9 @@ class TestDistributionStrategyWithDatasets(
         )
     )
     def test_learning_phase_value(self, distribution):
-        # TODO(anjalisridhar): Modify this test to use Lambdas since we can compare
-        # meaningful values. Currently we don't pass the learning phase if the
-        # Lambda layer uses the learning phase.
+        # TODO(anjalisridhar): Modify this test to use Lambdas since we can
+        # compare meaningful values. Currently we don't pass the learning phase
+        # if the Lambda layer uses the learning phase.
         with self.cached_session():
             with distribution.scope():
                 x = keras.layers.Input(shape=(1,), name="input")
@@ -1525,8 +1536,8 @@ class TestDistributionStrategyWithDatasets(
 
             with distribution.scope():
                 model.set_weights(initial_weights)
-            # TODO(psv/anjalisridhar): Enable these lines after we fix b/117431185.
-            # evaluate_output = model.evaluate(dataset, steps=20)
+            # TODO(psv/anjalisridhar): Enable these lines after we fix
+            # b/117431185.  evaluate_output = model.evaluate(dataset, steps=20)
             # self.assertAlmostEqual(evaluate_output[1], 1, 0)
 
             inputs = np.ones((10, 1), dtype=np.float32)
@@ -1594,9 +1605,9 @@ class TestDistributionStrategyWithDatasets(
             cpu_model.set_weights(model_with_ds_strategy.get_weights())
             dataset_with_partial_batch = dataset.batch(batch_size)
 
-            # We don't compare the loss as loss is currently not computed as metric
-            # in Keras, the loss value is inaccurate for last partial batch due to
-            # more weights for the last batch samples.
+            # We don't compare the loss as loss is currently not computed as
+            # metric in Keras, the loss value is inaccurate for last partial
+            # batch due to more weights for the last batch samples.
             steps = np.ceil(10.0 / batch_size)
             self.assertAllClose(
                 model_with_ds_strategy.evaluate(
@@ -1718,12 +1729,12 @@ class TestDistributionStrategyWithDatasets(
         with self.cached_session():
             with distribution.scope():
                 input_a, input_b, output = _create_model_input_output_tensors()
-                # `input_a`, which has input name that comes last in alphanumeric
-                # order, is the first input of the model input layers. If tensors
-                # from `input_dict` is blindly flattened and passed to model
-                # inputs incorrectly, this would result in `input_a` input layer
-                # matching with tensor `a_input_sorted_first` and would result in
-                # shape mismatch.
+                # `input_a`, which has input name that comes last in
+                # alphanumeric order, is the first input of the model input
+                # layers. If tensors from `input_dict` is blindly flattened and
+                # passed to model inputs incorrectly, this would result in
+                # `input_a` input layer matching with tensor
+                # `a_input_sorted_first` and would result in shape mismatch.
                 model_with_array_input = keras.models.Model(
                     inputs=[input_a, input_b], outputs=output
                 )
@@ -1776,15 +1787,17 @@ class TestDistributionStrategyWithDatasets(
             ).batch(2)
             result = model.evaluate(ds, verbose=1)
 
-            # The per sample loss is multiplied by the corresponding sample weight.
-            # The average of these weighted losses is the return value of the
-            # `evaluate` call. For example, in the test above the average weighted
-            # loss is calculated in the following manner:
-            # batch_1 = (((2-0)^2) * 0.25 + ((4-1)^2) * 0.5) / 2 = 5.5 / 2 = 2.75
+            # The per sample loss is multiplied by the corresponding sample
+            # weight.  The average of these weighted losses is the return value
+            # of the `evaluate` call. For example, in the test above the average
+            # weighted loss is calculated in the following manner:
+            # batch_1 = (((2-0)^2) * 0.25 + ((4-1)^2) * 0.5) / 2 = 5.5 / 2 =
+            # 2.75
             # batch_2 = (((6-2)^2 * 0.75) + ((8-3)^2 * 1)) / 2 = 37 / 2 = 18.5
             # final result = (batch_1 + batch_2) / 2 = 10.625.
-            # The first time we divide by number of input samples and the second time
-            # we divide by number of steps/batches that the loss is aggregated over.
+            # The first time we divide by number of input samples and the second
+            # time we divide by number of steps/batches that the loss is
+            # aggregated over.
             self.assertAllClose(result, 10.625)
 
             # We now test without passing sample_weights:
@@ -1817,12 +1830,12 @@ class TestDistributionStrategyWithDatasetsFile(
     def test_predict_on_dataset_shard_options_file_multi_worker_mirrored(
         self, distribution, mode
     ):
-        # This test is to verify if we successfully switch auto_shard_policy of a
-        # input dataset inside model.predict with MultiWorkerMirroredStrategy to
-        # AutoShardPolicy.DATA. Since there is only one input file for multiple
-        # workers, AutoShardPolicy.AUTO or AutoShardPolicy.FILE will lead to an
-        # error. However, since we switch to AutoShardPolicy.DATA in model.predict,
-        # no error is raised.
+        # This test is to verify if we successfully switch auto_shard_policy of
+        # a input dataset inside model.predict with MultiWorkerMirroredStrategy
+        # to AutoShardPolicy.DATA. Since there is only one input file for
+        # multiple workers, AutoShardPolicy.AUTO or AutoShardPolicy.FILE will
+        # lead to an error. However, since we switch to AutoShardPolicy.DATA in
+        # model.predict, no error is raised.
         del mode
         with distribution.scope():
             optimizer_fn = gradient_descent_keras.SGD
@@ -1880,15 +1893,16 @@ class TestRegularizerLoss(tf.test.TestCase, parameterized.TestCase):
         ):
             batch_size //= distribution.num_replicas_in_sync
 
-            # Given an input x, which is always 1, and variable v, this model computes
-            # Loss=x+v+regularizer_loss, where regularizer_loss=v and the variable is
-            # initialized to 1. Therefore, this model computes Loss=1+2v, and so the
-            # gradient dLoss/dv = 2. This gradient of 2 is averaged over all examples
-            # in a batch and then multiplied by the learning rate of 1. As a result,
-            # the model update for one batch should subtract 2 from v, resulting in v
-            # being -1. If the regularizer loss is not scaled correctly by number of
-            # replicas, the variable value will be incorrect when number of replicas
-            # >1. For e.g. it will be -2 if num replicas = 2.
+            # Given an input x, which is always 1, and variable v, this model
+            # computes Loss=x+v+regularizer_loss, where regularizer_loss=v and
+            # the variable is initialized to 1. Therefore, this model computes
+            # Loss=1+2v, and so the gradient dLoss/dv = 2. This gradient of 2 is
+            # averaged over all examples in a batch and then multiplied by the
+            # learning rate of 1. As a result, the model update for one batch
+            # should subtract 2 from v, resulting in v being -1. If the
+            # regularizer loss is not scaled correctly by number of replicas,
+            # the variable value will be incorrect when number of replicas >1.
+            # For e.g. it will be -2 if num replicas = 2.
         with distribution.scope():
             x = keras.layers.Input(shape=(1,), batch_size=batch_size)
             y = TestRegularizerLoss.AddLayer()(x)
@@ -2674,8 +2688,9 @@ class TestDistributionStrategyWithKerasModels(
                             loss, global_batch_size=batch_size
                         )
 
-                        # Verify that the loss computed in this loop is equivalent to the
-                        # loss from the model that was added via add_loss.
+                        # Verify that the loss computed in this loop is
+                        # equivalent to the loss from the model that was added
+                        # via add_loss.
                         tf.compat.v1.assert_equal(loss, loss_from_model)
 
                     grads = tape.gradient(loss, model.trainable_variables)
@@ -2739,8 +2754,8 @@ def _functional_with_add_loss_and_metric(input_shape, num_classes, l1, l2):
     x = keras.layers.MaxPooling2D(pool_size=2)(x)
     x = keras.layers.Conv2D(64, kernel_size=5, activation="relu")(x)
     x = keras.layers.MaxPooling2D(pool_size=2)(x)
-    # Apply L2 regularization to embedding. Use a mix of TensorFlow ops and layers
-    # to exercise all code paths.
+    # Apply L2 regularization to embedding. Use a mix of TensorFlow ops and
+    # layers to exercise all code paths.
     x = keras.layers.Flatten(name="embedding")(x)
     l2_loss = tf.reduce_mean(tf.reduce_sum(tf.square(x), -1))
     # Apply L1 regularization to next layer.
@@ -2855,7 +2870,8 @@ class TestDistributionStrategyWithMultipleAddLossAndMetricCalls(
         dataset = dataset.shuffle(64).batch(
             8 * distribution.num_replicas_in_sync, drop_remainder=True
         )
-        # Make model with distribution strategy and initialize with dataset shape.
+        # Make model with distribution strategy and initialize with dataset
+        # shape.
         input_shape = tf.data.experimental.get_structure(dataset)[0].shape[1:]
         with distribution.scope():
             model = model_fn(input_shape, 10, l1, l2)
@@ -2930,7 +2946,8 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
             model = DeterministicModel(distribution)
             optimizer = keras.optimizers.adam_v2.Adam(1e-4)
 
-        # Compile & evaluate the model outside of the distribution strategy scope
+        # Compile & evaluate the model outside of the distribution strategy
+        # scope
         model.compile(
             optimizer=optimizer,
             loss=keras.losses.MeanSquaredError(),

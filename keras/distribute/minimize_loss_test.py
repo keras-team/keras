@@ -221,8 +221,8 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
 
         def appending_creator(next_creator, **kwargs):
             v = next_creator(**kwargs)
-            # Skip the StateVar created in the tf.random.Generator, which is used by
-            # keras initializers.
+            # Skip the StateVar created in the tf.random.Generator, which is
+            # used by keras initializers.
             if "StateVar" in v.name:
                 return v
             created_variables.append(v.name)
@@ -355,18 +355,18 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
             expected_moving_means = [0.0] * 8
 
             def averaged_batch_mean(i):
-                # Each batch has shape [16, 8] where the ith element in jth list is
-                # (8 * j + i + replica_id * 100). So the batch mean in each replica is
-                # (60 + i + replica_id * 100). So here comes its batch mean over all
-                # replicas:
+                # Each batch has shape [16, 8] where the ith element in jth list
+                # is (8 * j + i + replica_id * 100). So the batch mean in each
+                # replica is (60 + i + replica_id * 100). So here comes its
+                # batch mean over all replicas:
                 return 60.0 + i + (num_replicas - 1.0) / 2.0 * 100.0
 
             for _ in range(10):
                 run_step()
                 moving_means = self.evaluate(batchnorm.moving_mean)
 
-                # We make sure that the moving_mean is updated as if the sample mean is
-                # calculated over all replicas.
+                # We make sure that the moving_mean is updated as if the sample
+                # mean is calculated over all replicas.
                 for i, expected_moving_mean in enumerate(expected_moving_means):
                     expected_moving_means[i] -= (
                         expected_moving_mean - averaged_batch_mean(i)
@@ -507,12 +507,12 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
             #   predict = [4, 14]
             #   predict - y = [-2, -7]
             #   dloss/dw = 2 <[2, 7], [-2, -7]> = - 2(4 + 49) = -106
-            # So unreplicated the update to w with lr=0.001 is -0.2 * -106 = 0.106
-            # with sum loss reduction, or 0.053 with mean.
+            # So unreplicated the update to w with lr=0.001 is -0.2 * -106 =
+            # 0.106 with sum loss reduction, or 0.053 with mean.
             if loss_reduction == tf.compat.v1.losses.Reduction.SUM:
-                # Note that the "distribution.num_replicas_in_sync" factor will go away
-                # once we split the input across replicas, instead of pulling a complete
-                # batch of input per replica.
+                # Note that the "distribution.num_replicas_in_sync" factor will
+                # go away once we split the input across replicas, instead of
+                # pulling a complete batch of input per replica.
                 self.assertNear(
                     weight,
                     2 + 0.106 * distribution.num_replicas_in_sync,
@@ -540,8 +540,9 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
 
             def dataset_fn():
                 dataset = tf.data.Dataset.from_tensors([[1.0]]).repeat()
-                # TODO(priyag): batch with drop_remainder=True causes shapes to be
-                # fully defined for TPU. Remove this when XLA supports dynamic shapes.
+                # TODO(priyag): batch with drop_remainder=True causes shapes to
+                # be fully defined for TPU. Remove this when XLA supports
+                # dynamic shapes.
                 return dataset.batch(batch_size=1, drop_remainder=True)
 
             optimizer = optimizer_fn()
@@ -592,10 +593,11 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
                 initial_loss = lambda: tf.constant(1e7)
                 # Initial values corresponding to reduced losses are just single
                 # tensors. But for non reduced losses, we need to have initial
-                # values that are of the same structure as non reduced losses. In
-                # MirroredStrategy, this will be a list of losses, in TPUStrategy
-                # it will be single tensor. Using `call_for_each_replica` followed
-                # by `experimental_local_results` gives us the desired initial
+                # values that are of the same structure as non reduced losses.
+                # In MirroredStrategy, this will be a list of losses, in
+                # TPUStrategy it will be single tensor. Using
+                # `call_for_each_replica` followed by
+                # `experimental_local_results` gives us the desired initial
                 # value structure.
                 not_reduced = distribution.experimental_local_results(
                     distribution.extended.call_for_each_replica(initial_loss)

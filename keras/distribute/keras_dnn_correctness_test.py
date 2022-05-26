@@ -312,8 +312,8 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
         ):
             with self.assertRaisesRegex(
                 ValueError,
-                "Expected `model` argument to be a functional `Model` instance, "
-                "but got a subclassed model instead.",
+                "Expected `model` argument to be a functional `Model` "
+                "instance, but got a subclassed model instead.",
             ):
                 self.run_correctness_test(
                     distribution, use_numpy, use_validation_data
@@ -340,8 +340,8 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
         elif backend.is_tpu_strategy(distribution):
             with self.assertRaisesRegex(
                 ValueError,
-                "Expected `model` argument to be a functional `Model` instance, "
-                "but got a subclassed model instead.",
+                "Expected `model` argument to be a functional `Model` "
+                "instance, but got a subclassed model instead.",
             ):
                 self.run_dynamic_lr_test(distribution)
         else:
