@@ -49,11 +49,12 @@ class DistributedTrainingTest(tf.test.TestCase):
             strategy, tf.distribute.experimental.ParameterServerStrategy
         ):
             self.skipTest(
-                "Parameter Server strategy with dataset creator need to be run when "
-                "eager execution is enabled."
+                "Parameter Server strategy with dataset creator need to be run "
+                "when eager execution is enabled."
             )
 
-        # A `dataset_fn` is required for `Model.fit` to work across all strategies.
+        # A `dataset_fn` is required for `Model.fit` to work across all
+        # strategies.
         def dataset_fn(input_context):
             batch_size = input_context.get_per_replica_batch_size(
                 global_batch_size=64

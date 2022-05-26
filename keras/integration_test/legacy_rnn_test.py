@@ -295,9 +295,9 @@ class LegacyRNNTest(tf.test.TestCase):
         )
         fix_weights_generator = tf.keras.layers.SimpleRNNCell(output_shape)
         fix_weights_generator.build((None, input_shape))
-        # The SimpleRNNCell contains 3 weights: kernel, recurrent_kernel, and bias
-        # The BasicRNNCell contains 2 weight: kernel and bias, where kernel is
-        # zipped [kernel, recurrent_kernel] in SimpleRNNCell.
+        # The SimpleRNNCell contains 3 weights: kernel, recurrent_kernel, and
+        # bias The BasicRNNCell contains 2 weight: kernel and bias, where kernel
+        # is zipped [kernel, recurrent_kernel] in SimpleRNNCell.
         keras_weights = fix_weights_generator.get_weights()
         kernel, recurrent_kernel, bias = keras_weights
         tf_weights = [np.concatenate((kernel, recurrent_kernel)), bias]
@@ -344,8 +344,8 @@ class LegacyRNNTest(tf.test.TestCase):
                 weights = model.get_weights()
                 config = layer.get_config()
                 # The custom_objects is important here since rnn_cell_impl is
-                # not visible as a Keras layer, and also has a name conflict with
-                # keras.LSTMCell and GRUCell.
+                # not visible as a Keras layer, and also has a name conflict
+                # with keras.LSTMCell and GRUCell.
                 layer = tf.keras.layers.RNN.from_config(
                     config,
                     custom_objects={
@@ -380,7 +380,8 @@ class LegacyRNNTest(tf.test.TestCase):
             kn2_new = KerasNetworkKerasRNNs(name="kn2_new")
 
         kn2_new(z)  # pylint:disable=not-callable
-        # Most importantly, this doesn't fail due to variable scope reuse issues.
+        # Most importantly, this doesn't fail due to variable scope reuse
+        # issues.
         kn1_new(z)  # pylint:disable=not-callable
 
         self.assertTrue(

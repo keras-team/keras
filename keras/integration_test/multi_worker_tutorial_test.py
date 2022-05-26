@@ -71,8 +71,8 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
         try:
             yield
         except zipfile.BadZipfile as e:
-            # There can be a race when multiple processes are downloading the data.
-            # Skip the test if that results in loading errors.
+            # There can be a race when multiple processes are downloading the
+            # data.  Skip the test if that results in loading errors.
             self.skipTest(
                 "Data loading error: Bad magic number for file header."
             )
@@ -285,7 +285,8 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
         )
     )
     def testMwmsWithCtl(self, mode):
-        """Test multi-worker CTL training flow demo'ed in a to-be-added tutorial."""
+        """Test multi-worker CTL training flow demo'ed in a to-be-added
+        tutorial."""
 
         def proc_func(checkpoint_dir):
             global_batch_size = PER_WORKER_BATCH_SIZE * NUM_WORKERS

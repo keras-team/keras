@@ -32,7 +32,8 @@ from keras.utils import generic_utils
 # `tf.print` message is only available in stderr in TF2, which this test checks.
 @test_utils.run_v2_only
 class CustomObjectSavingTest(tf.test.TestCase, parameterized.TestCase):
-    """Test for custom Keras object saving with `register_keras_serializable`."""
+    """Test for custom Keras object saving with
+    `register_keras_serializable`."""
 
     def setUp(self):
         super().setUp()
