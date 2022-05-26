@@ -160,7 +160,8 @@ def MobileNetV2(
       include_top: Boolean, whether to include the fully-connected layer at the
         top of the network. Defaults to `True`.
       weights: String, one of `None` (random initialization), 'imagenet'
-        (pre-training on ImageNet), or the path to the weights file to be loaded.
+        (pre-training on ImageNet), or the path to the weights file to be
+        loaded.
       input_tensor: Optional Keras tensor (i.e. output of `layers.Input()`)
         to use as image input for the model.
       pooling: String, optional pooling mode for feature extraction when
@@ -175,9 +176,9 @@ def MobileNetV2(
             2D tensor.
         - `max` means that global max pooling will
             be applied.
-      classes: Optional integer number of classes to classify images into, only to
-        be specified if `include_top` is True, and if no `weights` argument is
-        specified.
+      classes: Optional integer number of classes to classify images into, only
+        to be specified if `include_top` is True, and if no `weights` argument
+        is specified.
       classifier_activation: A `str` or callable. The activation function to use
         on the "top" layer. Ignored unless `include_top=True`. Set
         `classifier_activation=None` to return the logits of the "top" layer.
@@ -491,7 +492,8 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
 
     in_channels = backend.int_shape(inputs)[channel_axis]
     pointwise_conv_filters = int(filters * alpha)
-    # Ensure the number of filters on the last 1x1 convolution is divisible by 8.
+    # Ensure the number of filters on the last 1x1 convolution is divisible by
+    # 8.
     pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
     x = inputs
     prefix = "block_{}_".format(block_id)

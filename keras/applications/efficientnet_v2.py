@@ -560,15 +560,15 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
     https://keras.io/guides/transfer_learning/).
 
   Note: each Keras Application expects a specific kind of input preprocessing.
-  For EfficientNetV2, by default input preprocessing is included as a part of the
-  model (as a `Rescaling` layer), and thus
+  For EfficientNetV2, by default input preprocessing is included as a part of
+  the model (as a `Rescaling` layer), and thus
   `tf.keras.applications.efficientnet_v2.preprocess_input` is actually a
-  pass-through function. In this use case, EfficientNetV2 models expect their inputs
-  to be float tensors of pixels with values in the [0-255] range.
+  pass-through function. In this use case, EfficientNetV2 models expect their
+  inputs to be float tensors of pixels with values in the [0-255] range.
   At the same time, preprocessing as a part of the model (i.e. `Rescaling`
   layer) can be disabled by setting `include_preprocessing` argument to False.
-  With preprocessing disabled EfficientNetV2 models expect their inputs to be float
-  tensors of pixels with values in the [-1, 1] range.
+  With preprocessing disabled EfficientNetV2 models expect their inputs to be
+  float tensors of pixels with values in the [-1, 1] range.
 
   Args:
     include_top: Boolean, whether to include the fully-connected
@@ -752,7 +752,8 @@ def FusedMBConvBlock(
     survival_probability: float = 0.8,
     name=None,
 ):
-    """Fused MBConv Block: Fusing the proj conv1x1 and depthwise_conv into a conv2d."""
+    """Fused MBConv Block: Fusing the proj conv1x1 and depthwise_conv into a
+    conv2d."""
     bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
 
     if name is None:
@@ -863,7 +864,8 @@ def EfficientNetV2(
     classifier_activation="softmax",
     include_preprocessing=True,
 ):
-    """Instantiates the EfficientNetV2 architecture using given scaling coefficients.
+    """Instantiates the EfficientNetV2 architecture using given scaling
+    coefficients.
 
     Args:
       width_coefficient: float, scaling coefficient for network width.
@@ -877,25 +879,27 @@ def EfficientNetV2(
       activation: activation function.
       blocks_args: list of dicts, parameters to construct block modules.
       model_name: string, model name.
-      include_top: whether to include the fully-connected layer at the top of the
-        network.
+      include_top: whether to include the fully-connected layer at the top of
+        the network.
       weights: one of `None` (random initialization), `"imagenet"` (pre-training
         on ImageNet), or the path to the weights file to be loaded.
       input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) or
         numpy array to use as image input for the model.
-      input_shape: optional shape tuple, only to be specified if `include_top` is
-        False. It should have exactly 3 inputs channels.
-      pooling: optional pooling mode for feature extraction when `include_top` is
-        `False`. - `None` means that the output of the model will be the 4D tensor
-        output of the last convolutional layer. - "avg" means that global average
-        pooling will be applied to the output of the last convolutional layer, and
-        thus the output of the model will be a 2D tensor. - `"max"` means that
-        global max pooling will be applied.
+      input_shape: optional shape tuple, only to be specified if `include_top`
+        is False. It should have exactly 3 inputs channels.
+      pooling: optional pooling mode for feature extraction when `include_top`
+        is `False`.
+        - `None` means that the output of the model will be the 4D tensor output
+          of the last convolutional layer.
+        - "avg" means that global average pooling will be applied to the output
+          of the last convolutional layer, and thus the output of the model will
+          be a 2D tensor.
+        - `"max"` means that global max pooling will be applied.
       classes: optional number of classes to classify images into, only to be
         specified if `include_top` is True, and if no `weights` argument is
         specified.
-      classifier_activation: A string or callable. The activation function to use
-        on the `"top"` layer. Ignored unless `include_top=True`. Set
+      classifier_activation: A string or callable. The activation function to
+        use on the `"top"` layer. Ignored unless `include_top=True`. Set
         `classifier_activation=None` to return the logits of the `"top"` layer.
       include_preprocessing: Boolean, whether to include the preprocessing layer
         (`Rescaling`) at the bottom of the network. Defaults to `True`.
@@ -1016,7 +1020,8 @@ def EfficientNetV2(
             repeats=args.pop("num_repeat"), depth_coefficient=depth_coefficient
         )
         for j in range(repeats):
-            # The first block needs to take care of stride and filter size increase.
+            # The first block needs to take care of stride and filter size
+            # increase.
             if j > 0:
                 args["strides"] = 1
                 args["input_filters"] = args["output_filters"]
@@ -1328,16 +1333,16 @@ def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the EfficientNetV2 model
-    implementation. Users are no longer required to call this method to normalize
-    the input data. This method does nothing and only kept as a placeholder to
-    align the API surface between old and new version of model.
+    implementation. Users are no longer required to call this method to
+    normalize the input data. This method does nothing and only kept as a
+    placeholder to align the API surface between old and new version of model.
 
     Args:
       x: A floating point `numpy.array` or a `tf.Tensor`.
       data_format: Optional data format of the image tensor/array. Defaults to
         None, in which case the global setting
-        `tf.keras.backend.image_data_format()` is used (unless you changed it, it
-        defaults to "channels_last").{mode}
+        `tf.keras.backend.image_data_format()` is used (unless you changed it,
+        it defaults to "channels_last").{mode}
 
     Returns:
       Unchanged `numpy.array` or `tf.Tensor`.

@@ -125,8 +125,8 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
     include_top: Whether to include the fully-connected
       layer at the top of the network. Defaults to True.
     weights: One of `None` (random initialization),
-      `"imagenet"` (pre-training on ImageNet-1k), or the path to the weights file
-      to be loaded. Defaults to `"imagenet"`.
+      `"imagenet"` (pre-training on ImageNet-1k), or the path to the weights
+      file to be loaded. Defaults to `"imagenet"`.
     input_tensor: Optional Keras tensor
       (i.e. output of `layers.Input()`)
       to use as image input for the model.
@@ -241,8 +241,8 @@ def ConvNeXtBlock(
     """ConvNeXt block.
 
     References:
-      - https://arxiv.org/abs/2201.03545
-      - https://github.com/facebookresearch/ConvNeXt/blob/main/models/convnext.py
+    - https://arxiv.org/abs/2201.03545
+    - https://github.com/facebookresearch/ConvNeXt/blob/main/models/convnext.py
 
     Notes:
       In the original ConvNeXt implementation (linked above), the authors use
@@ -370,30 +370,32 @@ def ConvNeXt(
       depths: An iterable containing depths for each individual stages.
       projection_dims: An iterable containing output number of channels of
       each individual stages.
-      drop_path_rate: Stochastic depth probability. If 0.0, then stochastic depth
+      drop_path_rate: Stochastic depth probability. If 0.0, then stochastic
+        depth won't be used.
+      layer_scale_init_value: Layer scale coefficient. If 0.0, layer scaling
         won't be used.
-      layer_scale_init_value: Layer scale coefficient. If 0.0, layer scaling won't
-        be used.
       default_size: Default input image size.
       model_name: An optional name for the model.
       include_preprocessing: boolean denoting whther to include preprocessing in
         the model. When `weights="imagenet"` this should be always set to True.
         But for other models (e.g., randomly initialized) users should set it
         to False and apply preprocessing to data accordingly.
-      include_top: Boolean denoting whether to include classification head to the
-        model.
+      include_top: Boolean denoting whether to include classification head to
+        the model.
       weights: one of `None` (random initialization), `"imagenet"` (pre-training
         on ImageNet-1k), or the path to the weights file to be loaded.
-      input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use
-        as image input for the model.
-      input_shape: optional shape tuple, only to be specified if `include_top` is
-        False. It should have exactly 3 inputs channels.
-      pooling: optional pooling mode for feature extraction when `include_top` is
-        `False`. - `None` means that the output of the model will be the 4D tensor
-        output of the last convolutional layer. - `avg` means that global average
-        pooling will be applied to the output of the last convolutional layer, and
-        thus the output of the model will be a 2D tensor. - `max` means that
-        global max pooling will be applied.
+      input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to
+        use as image input for the model.
+      input_shape: optional shape tuple, only to be specified if `include_top`
+        is False. It should have exactly 3 inputs channels.
+      pooling: optional pooling mode for feature extraction when `include_top`
+        is `False`.
+        - `None` means that the output of the model will be the 4D tensor output
+          of the last convolutional layer.
+        - `avg` means that global average pooling will be applied to the output
+          of the last convolutional layer, and thus the output of the model will
+          be a 2D tensor.
+        - `max` means that global max pooling will be applied.
       classes: optional number of classes to classify images into, only to be
         specified if `include_top` is True, and if no `weights` argument is
         specified.
@@ -734,16 +736,16 @@ def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the convnext model
-    implementation. Users are no longer required to call this method to normalize
-    the input data. This method does nothing and only kept as a placeholder to
-    align the API surface between old and new version of model.
+    implementation. Users are no longer required to call this method to
+    normalize the input data. This method does nothing and only kept as a
+    placeholder to align the API surface between old and new version of model.
 
     Args:
       x: A floating point `numpy.array` or a `tf.Tensor`.
       data_format: Optional data format of the image tensor/array. Defaults to
         None, in which case the global setting
-        `tf.keras.backend.image_data_format()` is used (unless you changed it, it
-        defaults to "channels_last").{mode}
+        `tf.keras.backend.image_data_format()` is used (unless you changed it,
+        it defaults to "channels_last").{mode}
 
     Returns:
       Unchanged `numpy.array` or `tf.Tensor`.

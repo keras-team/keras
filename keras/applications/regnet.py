@@ -490,9 +490,10 @@ def XBlock(filters_in, filters_out, group_width, stride=1, name=None):
     def apply(inputs):
         if filters_in != filters_out and stride == 1:
             raise ValueError(
-                f"Input filters({filters_in}) and output filters({filters_out}) "
-                f"are not equal for stride {stride}. Input and output filters must "
-                f"be equal for stride={stride}."
+                f"Input filters({filters_in}) and output "
+                f"filters({filters_out}) "
+                f"are not equal for stride {stride}. Input and output filters "
+                f"must be equal for stride={stride}."
             )
 
         # Declare layers
@@ -590,9 +591,10 @@ def YBlock(
     def apply(inputs):
         if filters_in != filters_out and stride == 1:
             raise ValueError(
-                f"Input filters({filters_in}) and output filters({filters_out}) "
-                f"are not equal for stride {stride}. Input and output filters must  "
-                f"be equal for stride={stride}."
+                f"Input filters({filters_in}) and output "
+                f"filters({filters_out}) "
+                f"are not equal for stride {stride}. Input and output filters "
+                f"must be equal for stride={stride}."
             )
 
         groups = filters_out // group_width
@@ -674,7 +676,8 @@ def ZBlock(
     bottleneck_ratio=0.25,
     name=None,
 ):
-    """Implementation of Z block Reference: [Fast and Accurate Model Scaling](https://arxiv.org/abs/2103.06877).
+    """Implementation of Z block Reference: [Fast and Accurate Model
+    Scaling](https://arxiv.org/abs/2103.06877).
 
     Args:
       filters_in: filters in the input tensor
@@ -694,8 +697,8 @@ def ZBlock(
         if filters_in != filters_out and stride == 1:
             raise ValueError(
                 f"Input filters({filters_in}) and output filters({filters_out})"
-                f"are not equal for stride {stride}. Input and output filters must be"
-                f" equal for stride={stride}."
+                f"are not equal for stride {stride}. Input and output filters "
+                f"must be equal for stride={stride}."
             )
 
         groups = filters_out // group_width
@@ -882,20 +885,20 @@ def RegNet(
       model_name: An optional name for the model.
       include_preprocessing: boolean denoting whther to include preprocessing in
         the model
-      include_top: Boolean denoting whether to include classification head to the
-        model.
-      weights: one of `None` (random initialization), "imagenet" (pre-training on
-        ImageNet), or the path to the weights file to be loaded.
-      input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use
-        as image input for the model.
-      input_shape: optional shape tuple, only to be specified if `include_top` is
-        False. It should have exactly 3 inputs channels.
-      pooling: optional pooling mode for feature extraction when `include_top` is
-        `False`. - `None` means that the output of the model will be the 4D tensor
-        output of the last convolutional layer. - `avg` means that global average
-        pooling will be applied to the output of the last convolutional layer, and
-        thus the output of the model will be a 2D tensor. - `max` means that
-        global max pooling will be applied.
+      include_top: Boolean denoting whether to include classification head to
+        the model.
+      weights: one of `None` (random initialization), "imagenet" (pre-training
+        on ImageNet), or the path to the weights file to be loaded.
+      input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to
+        use as image input for the model.
+      input_shape: optional shape tuple, only to be specified if `include_top`
+        is False. It should have exactly 3 inputs channels.
+      pooling: optional pooling mode for feature extraction when `include_top`
+        is `False`. - `None` means that the output of the model will be the 4D
+        tensor output of the last convolutional layer. - `avg` means that global
+        average pooling will be applied to the output of the last convolutional
+        layer, and thus the output of the model will be a 2D tensor. - `max`
+        means that global max pooling will be applied.
       classes: optional number of classes to classify images into, only to be
         specified if `include_top` is True, and if no `weights` argument is
         specified.
@@ -1810,16 +1813,16 @@ def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the regnet model
-    implementation. Users are no longer required to call this method to normalize
-    the input data. This method does nothing and only kept as a placeholder to
-    align the API surface between old and new version of model.
+    implementation. Users are no longer required to call this method to
+    normalize the input data. This method does nothing and only kept as a
+    placeholder to align the API surface between old and new version of model.
 
     Args:
       x: A floating point `numpy.array` or a `tf.Tensor`.
       data_format: Optional data format of the image tensor/array. Defaults to
         None, in which case the global setting
-        `tf.keras.backend.image_data_format()` is used (unless you changed it, it
-        defaults to "channels_last").{mode}
+        `tf.keras.backend.image_data_format()` is used (unless you changed it,
+        it defaults to "channels_last").{mode}
 
     Returns:
       Unchanged `numpy.array` or `tf.Tensor`.

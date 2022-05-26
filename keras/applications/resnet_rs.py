@@ -191,10 +191,12 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
             specified.
         classifier_activation: A `str` or callable. The activation function to
             use on the "top" layer. Ignored unless `include_top=True`. Set
-            `classifier_activation=None` to return the logits of the "top" layer.
-        include_preprocessing: Boolean, whether to include the preprocessing layer
-            (`Rescaling`) at the bottom of the network. Defaults to `True`.
-            Note: Input image is normalized by ImageNet mean and standard deviation.
+            `classifier_activation=None` to return the logits of the "top"
+            layer.
+        include_preprocessing: Boolean, whether to include the preprocessing
+            layer (`Rescaling`) at the bottom of the network. Defaults to
+            `True`.  Note: Input image is normalized by ImageNet mean and
+            standard deviation.
 
     Returns:
         A `keras.Model` instance.
@@ -461,7 +463,8 @@ def BlockGroup(
         name = f"block_group_{counter}"
 
     def apply(inputs):
-        # Only the first block per block_group uses projection shortcut and strides.
+        # Only the first block per block_group uses projection shortcut and
+        # strides.
         x = BottleneckBlock(
             filters=filters,
             strides=strides,
@@ -504,7 +507,8 @@ def allow_bigger_recursion(target_limit: int):
 
 
 def fixed_padding(inputs, kernel_size):
-    """Pad the input along the spatial dimensions independently of input size."""
+    """Pad the input along the spatial dimensions independently of input
+    size."""
     pad_total = kernel_size - 1
     pad_beg = pad_total // 2
     pad_end = pad_total - pad_beg
@@ -542,8 +546,8 @@ def ResNetRS(
     Args:
         depth: Depth of ResNet network.
         input_shape: optional shape tuple. It should have exactly 3 inputs
-          channels, and width and height should be no smaller than 32. E.g. (200,
-          200, 3) would be one valid value.
+          channels, and width and height should be no smaller than 32. E.g.
+          (200, 200, 3) would be one valid value.
         bn_momentum: Momentum parameter for Batch Normalization layers.
         bn_epsilon: Epsilon parameter for Batch Normalization layers.
         activation: activation function.
@@ -555,27 +559,31 @@ def ResNetRS(
         block_args: list of dicts, parameters to construct block modules.
         model_name: name of the model.
         pooling: optional pooling mode for feature extraction when `include_top`
-          is `False`. - `None` means that the output of the model will be the 4D
-          tensor output of the last convolutional layer. - `avg` means that global
-          average pooling will be applied to the output of the last convolutional
-          layer, and thus the output of the model will be a 2D tensor. - `max`
-          means that global max pooling will be applied.
-        weights: one of `None` (random initialization), `'imagenet'` (pre-training
-          on ImageNet), or the path to the weights file to be loaded. Note- one
-          model can have multiple imagenet variants depending on input shape it
-          was trained with. For input_shape 224x224 pass `imagenet-i224` as
-          argument. By default, highest input shape weights are downloaded.
+          is `False`.
+          - `None` means that the output of the model will be the 4D tensor
+            output of the last convolutional layer.
+          - `avg` means that global average pooling will be applied to the
+            output of the last convolutional layer, and thus the output of the
+            model will be a 2D tensor.
+          - `max` means that global max pooling will be applied.
+        weights: one of `None` (random initialization), `'imagenet'`
+          (pre-training on ImageNet), or the path to the weights file to be
+          loaded. Note- one model can have multiple imagenet variants depending
+          on input shape it was trained with. For input_shape 224x224 pass
+          `imagenet-i224` as argument. By default, highest input shape weights
+          are downloaded.
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to
           use as image input for the model.
         classes: optional number of classes to classify images into, only to be
           specified if `include_top` is True, and if no `weights` argument is
           specified.
-        classifier_activation: A `str` or callable. The activation function to use
-          on the "top" layer. Ignored unless `include_top=True`. Set
+        classifier_activation: A `str` or callable. The activation function to
+          use on the "top" layer. Ignored unless `include_top=True`. Set
           `classifier_activation=None` to return the logits of the "top" layer.
-        include_preprocessing: Boolean, whether to include the preprocessing layer
-          (`Rescaling`) at the bottom of the network. Defaults to `True`. Note-
-          Input image is normalized by ImageNet mean and standard deviation.
+        include_preprocessing: Boolean, whether to include the preprocessing
+          layer (`Rescaling`) at the bottom of the network. Defaults to `True`.
+          Note- Input image is normalized by ImageNet mean and standard
+          deviation.
 
     Returns:
         A `tf.keras.Model` instance.
@@ -610,7 +618,8 @@ def ResNetRS(
 
     if weights in weights_allow_list and include_top and classes != 1000:
         raise ValueError(
-            f"If using `weights` as `'imagenet'` or any of {weights_allow_list} "
+            f"If using `weights` as `'imagenet'` or any "
+            f"of {weights_allow_list} "
             f"with `include_top` as true, `classes` should be 1000. "
             f"Received classes={classes}"
         )

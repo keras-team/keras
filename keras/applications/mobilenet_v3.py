@@ -93,8 +93,8 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
   For MobileNetV3, by default input preprocessing is included as a part of the
   model (as a `Rescaling` layer), and thus
   `tf.keras.applications.mobilenet_v3.preprocess_input` is actually a
-  pass-through function. In this use case, MobileNetV3 models expect their inputs
-  to be float tensors of pixels with values in the [0-255] range.
+  pass-through function. In this use case, MobileNetV3 models expect their
+  inputs to be float tensors of pixels with values in the [0-255] range.
   At the same time, preprocessing as a part of the model (i.e. `Rescaling`
   layer) can be disabled by setting `include_preprocessing` argument to False.
   With preprocessing disabled MobileNetV3 models expect their inputs to be float
@@ -672,9 +672,9 @@ def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the mobilenet_v3 model
-    implementation. Users are no longer required to call this method to normalize
-    the input data. This method does nothing and only kept as a placeholder to
-    align the API surface between old and new version of model.
+    implementation. Users are no longer required to call this method to
+    normalize the input data. This method does nothing and only kept as a
+    placeholder to align the API surface between old and new version of model.
 
     Args:
       x: A floating point `numpy.array` or a `tf.Tensor`.
