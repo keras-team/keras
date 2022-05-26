@@ -34,7 +34,8 @@ class TestModel(keras.Model):
     """A model subclass."""
 
     def __init__(self, n_outputs=4, trainable=True):
-        """A test class with one dense layer and number of outputs as a variable."""
+        """A test class with one dense layer and number of outputs as a
+        variable."""
         super().__init__()
         self.layer1 = keras.layers.Dense(n_outputs)
         self.n_outputs = tf.Variable(n_outputs, trainable=trainable)
@@ -157,7 +158,8 @@ class TestModelCloning(test_combinations.TestCase):
             )[0],
             keras.layers.InputLayer,
         )
-        # The new models inputs should have the properties of the new input tensor
+        # The new models inputs should have the properties of the new input
+        # tensor
         if tf.__internal__.tf2.enabled():
             # In TF1, the new model will be a:0
             self.assertEqual(new_model.input_names[0], input_a.name)
@@ -167,8 +169,8 @@ class TestModelCloning(test_combinations.TestCase):
         # On top of new, non-Keras tensor  -- clone model should always have an
         # InputLayer.
         if not tf.executing_eagerly():
-            # TODO(b/121277734):Skip Eager contexts, as Input() layers raise an error
-            # saying they should not be used with EagerTensors
+            # TODO(b/121277734):Skip Eager contexts, as Input() layers raise an
+            # error saying they should not be used with EagerTensors
             input_a = keras.backend.variable(val_a)
             new_model = clone_fn(model, input_tensors=input_a)
             self.assertIsInstance(
@@ -250,8 +252,8 @@ class TestModelCloning(test_combinations.TestCase):
 
         # On top of new, non-Keras tensors
         if not tf.executing_eagerly():
-            # TODO(b/121277734):Skip Eager contexts, as Input() layers raise an error
-            # saying they should not be used with EagerTensors
+            # TODO(b/121277734):Skip Eager contexts, as Input() layers raise an
+            # error saying they should not be used with EagerTensors
             input_a = keras.backend.variable(val_a)
             input_b = keras.backend.variable(val_b)
             new_model = clone_fn(model, input_tensors=[input_a, input_b])

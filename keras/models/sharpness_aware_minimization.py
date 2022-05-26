@@ -33,9 +33,9 @@ class SharpnessAwareMinimization(Model):
     """Sharpness aware minimization (SAM) training flow.
 
     Sharpness-aware minimization (SAM) is a technique that improves the model
-    generalization and provides robustness to label noise. Mini-batch splitting is
-    proven to improve the SAM's performance, so users can control how mini batches
-    are split via setting the `num_batch_splits` argument.
+    generalization and provides robustness to label noise. Mini-batch splitting
+    is proven to improve the SAM's performance, so users can control how mini
+    batches are split via setting the `num_batch_splits` argument.
 
     Args:
       model: `tf.keras.Model` instance. The inner model that does the
@@ -111,7 +111,8 @@ class SharpnessAwareMinimization(Model):
             for (variable, epsilon_w) in zip(
                 trainable_variables, epsilon_w_cache
             ):
-                # Restore the variable to its original value before `apply_gradients()`.
+                # Restore the variable to its original value before
+                # `apply_gradients()`.
                 self._distributed_apply_epsilon_w(
                     variable, -epsilon_w, tf.distribute.get_strategy()
                 )
