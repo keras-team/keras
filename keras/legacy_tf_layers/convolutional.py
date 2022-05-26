@@ -52,8 +52,8 @@ class Conv1D(keras_layers.Conv1D, base.Layer):
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, length)`.
@@ -200,8 +200,8 @@ def conv1d(
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, length)`.
@@ -331,8 +331,8 @@ class Conv2D(keras_layers.Conv2D, base.Layer):
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, height, width, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, height, width)`.
@@ -487,8 +487,8 @@ def conv2d(
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, height, width, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, height, width)`.
@@ -622,8 +622,8 @@ class Conv3D(keras_layers.Conv3D, base.Layer):
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, depth, height, width, channels)` while `channels_first`
         corresponds to inputs with shape
@@ -779,8 +779,8 @@ def conv3d(
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, depth, height, width, channels)` while `channels_first`
         corresponds to inputs with shape
@@ -894,7 +894,8 @@ class SeparableConv1D(keras_layers.SeparableConv1D, base.Layer):
     channels, followed by a pointwise convolution that mixes channels.
     If `use_bias` is True and a bias initializer is provided,
     it adds a bias vector to the output.
-    It then optionally applies an activation function to produce the final output.
+    It then optionally applies an activation function to produce the final
+    output.
 
     Args:
       filters: Integer, the dimensionality of the output space (i.e. the number
@@ -909,8 +910,8 @@ class SeparableConv1D(keras_layers.SeparableConv1D, base.Layer):
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, length)`.
@@ -924,8 +925,10 @@ class SeparableConv1D(keras_layers.SeparableConv1D, base.Layer):
       activation: Activation function. Set it to None to maintain a
         linear activation.
       use_bias: Boolean, whether the layer uses a bias.
-      depthwise_initializer: An initializer for the depthwise convolution kernel.
-      pointwise_initializer: An initializer for the pointwise convolution kernel.
+      depthwise_initializer: An initializer for the depthwise convolution
+        kernel.
+      pointwise_initializer: An initializer for the pointwise convolution
+        kernel.
       bias_initializer: An initializer for the bias vector. If None, the default
         initializer will be used.
       depthwise_regularizer: Optional regularizer for the depthwise
@@ -1039,8 +1042,8 @@ class SeparableConv2D(keras_layers.SeparableConv2D, base.Layer):
     This layer performs a depthwise convolution that acts separately on
     channels, followed by a pointwise convolution that mixes channels.
     If `use_bias` is True and a bias initializer is provided,
-    it adds a bias vector to the output.
-    It then optionally applies an activation function to produce the final output.
+    it adds a bias vector to the output. It then optionally applies an
+    activation function to produce the final output.
 
     Args:
       filters: Integer, the dimensionality of the output space (i.e. the number
@@ -1049,16 +1052,16 @@ class SeparableConv2D(keras_layers.SeparableConv2D, base.Layer):
         dimensions of the filters. Can be a single integer to specify the same
         value for all spatial dimensions.
       strides: A tuple or list of 2 positive integers specifying the strides
-        of the convolution. Can be a single integer to specify the same value for
-        all spatial dimensions.
+        of the convolution. Can be a single integer to specify the same value
+        for all spatial dimensions.
         Specifying any `stride` value != 1 is incompatible with specifying
         any `dilation_rate` value != 1.
       padding: One of `"valid"` or `"same"` (case-insensitive).
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, height, width, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, height, width)`.
@@ -1075,8 +1078,10 @@ class SeparableConv2D(keras_layers.SeparableConv2D, base.Layer):
       activation: Activation function. Set it to None to maintain a
         linear activation.
       use_bias: Boolean, whether the layer uses a bias.
-      depthwise_initializer: An initializer for the depthwise convolution kernel.
-      pointwise_initializer: An initializer for the pointwise convolution kernel.
+      depthwise_initializer: An initializer for the depthwise convolution
+        kernel.
+      pointwise_initializer: An initializer for the pointwise convolution
+        kernel.
       bias_initializer: An initializer for the bias vector. If None, the default
         initializer will be used.
       depthwise_regularizer: Optional regularizer for the depthwise
@@ -1214,8 +1219,8 @@ def separable_conv1d(
     This layer performs a depthwise convolution that acts separately on
     channels, followed by a pointwise convolution that mixes channels.
     If `use_bias` is True and a bias initializer is provided,
-    it adds a bias vector to the output.
-    It then optionally applies an activation function to produce the final output.
+    it adds a bias vector to the output. It then optionally applies an
+    activation function to produce the final output.
 
     Args:
       inputs: Input tensor.
@@ -1231,8 +1236,8 @@ def separable_conv1d(
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, length)`.
@@ -1246,8 +1251,10 @@ def separable_conv1d(
       activation: Activation function. Set it to None to maintain a
         linear activation.
       use_bias: Boolean, whether the layer uses a bias.
-      depthwise_initializer: An initializer for the depthwise convolution kernel.
-      pointwise_initializer: An initializer for the pointwise convolution kernel.
+      depthwise_initializer: An initializer for the depthwise convolution
+        kernel.
+      pointwise_initializer: An initializer for the pointwise convolution
+        kernel.
       bias_initializer: An initializer for the bias vector. If None, the default
         initializer will be used.
       depthwise_regularizer: Optional regularizer for the depthwise
@@ -1380,8 +1387,8 @@ def separable_conv2d(
     This layer performs a depthwise convolution that acts separately on
     channels, followed by a pointwise convolution that mixes channels.
     If `use_bias` is True and a bias initializer is provided,
-    it adds a bias vector to the output.
-    It then optionally applies an activation function to produce the final output.
+    it adds a bias vector to the output. It then optionally applies an
+    activation function to produce the final output.
 
     Args:
       inputs: Input tensor.
@@ -1391,16 +1398,15 @@ def separable_conv2d(
         dimensions of the filters. Can be a single integer to specify the same
         value for all spatial dimensions.
       strides: A tuple or list of 2 positive integers specifying the strides
-        of the convolution. Can be a single integer to specify the same value for
-        all spatial dimensions.
-        Specifying any `stride` value != 1 is incompatible with specifying
-        any `dilation_rate` value != 1.
+        of the convolution. Can be a single integer to specify the same value
+        for all spatial dimensions. Specifying any `stride` value != 1 is
+        incompatible with specifying any `dilation_rate` value != 1.
       padding: One of `"valid"` or `"same"` (case-insensitive).
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, height, width, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, height, width)`.
@@ -1417,8 +1423,10 @@ def separable_conv2d(
       activation: Activation function. Set it to None to maintain a
         linear activation.
       use_bias: Boolean, whether the layer uses a bias.
-      depthwise_initializer: An initializer for the depthwise convolution kernel.
-      pointwise_initializer: An initializer for the pointwise convolution kernel.
+      depthwise_initializer: An initializer for the depthwise convolution
+        kernel.
+      pointwise_initializer: An initializer for the pointwise convolution
+        kernel.
       bias_initializer: An initializer for the bias vector. If None, the default
         initializer will be used.
       depthwise_regularizer: Optional regularizer for the depthwise
@@ -1538,14 +1546,14 @@ class Conv2DTranspose(keras_layers.Conv2DTranspose, base.Layer):
         dimensions of the filters. Can be a single integer to specify the same
         value for all spatial dimensions.
       strides: A tuple or list of 2 positive integers specifying the strides
-        of the convolution. Can be a single integer to specify the same value for
-        all spatial dimensions.
+        of the convolution. Can be a single integer to specify the same value
+        for all spatial dimensions.
       padding: one of `"valid"` or `"same"` (case-insensitive).
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, height, width, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, height, width)`.
@@ -1682,14 +1690,14 @@ def conv2d_transpose(
         dimensions of the filters. Can be a single integer to specify the same
         value for all spatial dimensions.
       strides: A tuple or list of 2 positive integers specifying the strides
-        of the convolution. Can be a single integer to specify the same value for
-        all spatial dimensions.
+        of the convolution. Can be a single integer to specify the same value
+        for all spatial dimensions.
       padding: one of `"valid"` or `"same"` (case-insensitive).
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, height, width, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, height, width)`.
@@ -1697,8 +1705,8 @@ def conv2d_transpose(
         linear activation.
       use_bias: Boolean, whether the layer uses a bias.
       kernel_initializer: An initializer for the convolution kernel.
-      bias_initializer: An initializer for the bias vector. If `None`, the default
-        initializer will be used.
+      bias_initializer: An initializer for the bias vector. If `None`, the
+        default initializer will be used.
       kernel_regularizer: Optional regularizer for the convolution kernel.
       bias_regularizer: Optional regularizer for the bias vector.
       activity_regularizer: Optional regularizer function for the output.
@@ -1807,8 +1815,8 @@ class Conv3DTranspose(keras_layers.Conv3DTranspose, base.Layer):
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, depth, height, width, channels)` while `channels_first`
         corresponds to inputs with shape
@@ -1817,8 +1825,8 @@ class Conv3DTranspose(keras_layers.Conv3DTranspose, base.Layer):
         linear activation.
       use_bias: Boolean, whether the layer uses a bias.
       kernel_initializer: An initializer for the convolution kernel.
-      bias_initializer: An initializer for the bias vector. If `None`, the default
-        initializer will be used.
+      bias_initializer: An initializer for the bias vector. If `None`, the
+        default initializer will be used.
       kernel_regularizer: Optional regularizer for the convolution kernel.
       bias_regularizer: Optional regularizer for the bias vector.
       activity_regularizer: Optional regularizer function for the output.
@@ -1939,14 +1947,14 @@ def conv3d_transpose(
         dimensions of the filters. Can be a single integer to specify the same
         value for all spatial dimensions.
       strides: A tuple or list of 3 positive integers specifying the strides
-        of the convolution. Can be a single integer to specify the same value for
-        all spatial dimensions.
+        of the convolution. Can be a single integer to specify the same value
+        for all spatial dimensions.
       padding: one of `"valid"` or `"same"` (case-insensitive).
         `"valid"` means no padding. `"same"` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, depth, height, width, channels)` while `channels_first`
         corresponds to inputs with shape

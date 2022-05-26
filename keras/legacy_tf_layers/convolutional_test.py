@@ -321,7 +321,8 @@ class ConvTest(tf.test.TestCase):
                 self.assertTrue("bias" in weights[1].name)
                 self.evaluate(tf.compat.v1.global_variables_initializer())
                 weights = self.evaluate(weights)
-                # Check that the kernel weights got initialized to ones (from scope)
+                # Check that the kernel weights got initialized to ones (from
+                # scope)
                 self.assertAllClose(weights[0], np.ones((3, 3, 3, 32)))
                 # Check that the bias still got initialized to zeros.
                 self.assertAllClose(weights[1], np.zeros((32)))
@@ -806,7 +807,8 @@ class SeparableConv2DTest(tf.test.TestCase):
                 self.assertTrue("bias" in weights[2].name)
                 self.evaluate(tf.compat.v1.global_variables_initializer())
                 weights = self.evaluate(weights)
-                # Check that the kernel weights got initialized to ones (from scope)
+                # Check that the kernel weights got initialized to ones (from
+                # scope)
                 self.assertAllClose(weights[0], np.ones((3, 3, 3, 1)))
                 self.assertAllClose(weights[1], np.ones((1, 1, 3, 32)))
                 # Check that the bias still got initialized to zeros.
@@ -1115,7 +1117,8 @@ class Conv2DTransposeTest(tf.test.TestCase):
                 self.assertTrue("bias" in weights[1].name)
                 self.evaluate(tf.compat.v1.global_variables_initializer())
                 weights = self.evaluate(weights)
-                # Check that the kernel weights got initialized to ones (from scope)
+                # Check that the kernel weights got initialized to ones (from
+                # scope)
                 self.assertAllClose(weights[0], np.ones((3, 3, 32, 3)))
                 # Check that the bias still got initialized to zeros.
                 self.assertAllClose(weights[1], np.zeros((32)))
@@ -1356,7 +1359,8 @@ class Conv3DTransposeTest(tf.test.TestCase):
                 self.assertTrue("bias" in weights[1].name)
                 self.evaluate(tf.compat.v1.global_variables_initializer())
                 weights = self.evaluate(weights)
-                # Check that the kernel weights got initialized to ones (from scope)
+                # Check that the kernel weights got initialized to ones (from
+                # scope)
                 self.assertAllClose(weights[0], np.ones((3, 3, 3, 4, 32)))
                 # Check that the bias still got initialized to zeros.
                 self.assertAllClose(weights[1], np.zeros((4)))

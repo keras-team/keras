@@ -47,7 +47,8 @@ def _has_kwargs(fn):
     """Returns whether the passed callable has **kwargs in its signature.
 
     Args:
-      fn: Function, or function-like object (e.g., result of `functools.partial`).
+      fn: Function, or function-like object (e.g., result of
+        `functools.partial`).
 
     Returns:
       `bool`: if `fn` has **kwargs in its signature.
@@ -72,7 +73,8 @@ def fn_args(fn):
     """Get argument names for function-like object.
 
     Args:
-      fn: Function, or function-like object (e.g., result of `functools.partial`).
+      fn: Function, or function-like object (e.g., result of
+        `functools.partial`).
 
     Returns:
       `tuple` of string argument names.
@@ -115,9 +117,8 @@ def validate_synchronization_aggregation_trainable(
                 aggregation = tf.VariableAggregation(aggregation)
             except ValueError:
                 raise ValueError(
-                    "Invalid variable aggregation mode: {} for variable: {}".format(
-                        aggregation, name
-                    )
+                    "Invalid variable aggregation mode: {} "
+                    "for variable: {}".format(aggregation, name)
                 )
     if synchronization is None:
         synchronization = tf.VariableSynchronization.AUTO
@@ -126,9 +127,8 @@ def validate_synchronization_aggregation_trainable(
             synchronization = tf.VariableSynchronization(synchronization)
         except ValueError:
             raise ValueError(
-                "Invalid variable synchronization mode: {} for variable: {}".format(
-                    synchronization, name
-                )
+                "Invalid variable synchronization mode: {} "
+                "for variable: {}".format(synchronization, name)
             )
     if trainable is None:
         trainable = synchronization != tf.VariableSynchronization.ON_READ
@@ -149,8 +149,8 @@ class _EagerVariableStore(tf.Module):
     tf.compat.v1.AUTO_REUSE
 
     Attributes:
-      vars: a dictionary with string names (same as passed in GetVar) as keys and
-        the corresponding TensorFlow Variables as values.
+      vars: a dictionary with string names (same as passed in GetVar) as keys
+        and the corresponding TensorFlow Variables as values.
       regularizers: a dictionary with string names as keys and the corresponding
         callables that return losses as values.
       layers: a dictionary with string names as keys and the corresponding
@@ -192,22 +192,22 @@ class _EagerVariableStore(tf.Module):
     ):
         """Gets an existing variable with these parameters or create a new one.
 
-        If a variable with the given name is already stored, we return the stored
-        variable. Otherwise, we create a new one.
+        If a variable with the given name is already stored, we return the
+        stored variable. Otherwise, we create a new one.
 
         Set `reuse` to `True` when you only want to reuse existing Variables.
-        Set `reuse` to None (the default) or tf.compat.v1.AUTO_REUSE when you want
-        variables to be created if they don't exist or returned if they do.
+        Set `reuse` to None (the default) or tf.compat.v1.AUTO_REUSE when you
+        want variables to be created if they don't exist or returned if they do.
         In this shim, `reuse` of `False` will be treated as auto-reuse.
 
-        If initializer is `None` (the default), the default initializer passed in
-        the constructor is used. If that one is `None` too, we use a new
-        `glorot_uniform_initializer`. If initializer is a Tensor, we use
-        it as a value and derive the shape from the initializer.
+        If initializer is `None` (the default), the default initializer passed
+        in the constructor is used. If that one is `None` too, we use a new
+        `glorot_uniform_initializer`. If initializer is a Tensor, we use it as a
+        value and derive the shape from the initializer.
 
         If a partitioner is provided, a `PartitionedVariable` is returned.
-        Accessing this object as a `Tensor` returns the shards concatenated along
-        the partition axis.
+        Accessing this object as a `Tensor` returns the shards concatenated
+        along the partition axis.
 
         Some useful partitioners are available.  See, e.g.,
         `variable_axis_size_partitioner` and `min_max_variable_partitioner`.
@@ -217,55 +217,60 @@ class _EagerVariableStore(tf.Module):
           shape: Shape of the new or existing variable.
           dtype: Type of the new or existing variable (defaults to `DT_FLOAT`).
           initializer: Initializer for the variable.
-          regularizer: A (Tensor -> Tensor or None) function; the result of applying
-            it on a newly created variable will be added to the collection
-            GraphKeys.REGULARIZATION_LOSSES and can be used for regularization.
-          reuse: a Boolean, None, or tf.AUTO_REUSE. Controls reuse or creation of
-            variables. When eager execution is enabled  this argument is always
-            forced to be False.
+          regularizer: A (Tensor -> Tensor or None) function; the result of
+            applying it on a newly created variable will be added to the
+            collection GraphKeys.REGULARIZATION_LOSSES and can be used for
+            regularization.
+          reuse: a Boolean, None, or tf.AUTO_REUSE. Controls reuse or creation
+            of variables. When eager execution is enabled  this argument is
+            always forced to be False.
           trainable: If `True` also add the variable to the graph collection
             `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`). `trainable`
             defaults to `True`, unless `synchronization` is set to `ON_READ`, in
             which case it defaults to `False`.
           collections: List of graph collections keys to add the `Variable` to.
             Defaults to `[GraphKeys.GLOBAL_VARIABLES]` (see `tf.Variable`).
-          caching_device: Optional device string or function describing where the
-            Variable should be cached for reading.  Defaults to the Variable's
-            device.  If not `None`, caches on another device.  Typical use is to
-            cache on the device where the Ops using the `Variable` reside, to
-            deduplicate copying through `Switch` and other conditional statements.
-          partitioner: Optional callable that accepts a fully defined `TensorShape`
-            and dtype of the `Variable` to be created, and returns a list of
-            partitions for each axis (currently only one axis can be partitioned).
+          caching_device: Optional device string or function describing where
+            the Variable should be cached for reading.  Defaults to the
+            Variable's device.  If not `None`, caches on another device.
+            Typical use is to cache on the device where the Ops using the
+            `Variable` reside, to deduplicate copying through `Switch` and other
+            conditional statements.
+          partitioner: Optional callable that accepts a fully defined
+            `TensorShape` and dtype of the `Variable` to be created, and returns
+            a list of partitions for each axis (currently only one axis can be
+            partitioned).
           validate_shape: If False, allows the variable to be initialized with a
-            value of unknown shape. If True, the default, the shape of initial_value
-            must be known.
+            value of unknown shape. If True, the default, the shape of
+            initial_value must be known.
           use_resource: If False, creates a regular Variable. If True, creates
             instead an experimental ResourceVariable which has well-defined
             semantics. Defaults to False (will later change to True). When eager
             execution is enabled this argument is always forced to be true.
-          custom_getter: Callable that takes as a first argument the true getter,
-            and allows overwriting the internal get_variable method. The signature
-            of `custom_getter` should match that of this method,
-            but the most future-proof version will allow for changes: `def
-              custom_getter(getter, *args, **kwargs)`.  Direct access to
-            all `get_variable` parameters is also allowed: `def
-              custom_getter(getter, name, *args, **kwargs)`.  A simple identity
-            custom getter that simply creates variables with modified names is:
-              ```python
-            def custom_getter(getter, name, *args, **kwargs): return getter(name +
-              '_suffix', *args, **kwargs) ```
-          constraint: An optional projection function to be applied to the variable
-            after being updated by an `Optimizer` (e.g. used to implement norm
-            constraints or value constraints for layer weights). The function must
-            take as input the unprojected Tensor representing the value of the
-            variable and return the Tensor for the projected value (which must have
-            the same shape). Constraints are not safe to use when doing asynchronous
-            distributed training.
+          custom_getter: Callable that takes as a first argument the true
+            getter, and allows overwriting the internal get_variable method. The
+            signature of `custom_getter` should match that of this method, but
+            the most future-proof version will allow for changes:
+            `def custom_getter(getter, *args, **kwargs)`.
+            Direct access to all `get_variable` parameters is also allowed:
+            `def custom_getter(getter, name, *args, **kwargs)`.
+            A simple identity custom getter that simply creates variables with
+            modified names is:
+            ```python
+            def custom_getter(getter, name, *args, **kwargs):
+              return getter(name + '_suffix', *args, **kwargs)
+            ```
+          constraint: An optional projection function to be applied to the
+            variable after being updated by an `Optimizer` (e.g. used to
+            implement norm constraints or value constraints for layer weights).
+            The function must take as input the unprojected Tensor representing
+            the value of the variable and return the Tensor for the projected
+            value (which must have the same shape). Constraints are not safe to
+            use when doing asynchronous distributed training.
           synchronization: Indicates when a distributed a variable will be
             aggregated. Accepted values are constants defined in the class
-            `tf.VariableSynchronization`. By default the synchronization is set to
-            `AUTO` and the current `DistributionStrategy` chooses when to
+            `tf.VariableSynchronization`. By default the synchronization is set
+            to `AUTO` and the current `DistributionStrategy` chooses when to
             synchronize.
           aggregation: Indicates how a distributed variable will be aggregated.
             Accepted values are constants defined in the class
@@ -290,27 +295,28 @@ class _EagerVariableStore(tf.Module):
 
         with tf.init_scope():
             if tf.executing_eagerly():
-                # Variable creation and initialization takes place in `init_scope`s;
-                # as such, if an `init_scope` lifts us into the eager context, then we
-                # need to use `ResourceVariable`s.
+                # Variable creation and initialization takes place in
+                # `init_scope`s; as such, if an `init_scope` lifts us into the
+                # eager context, then we need to use `ResourceVariable`s.
                 use_resource = True
 
         # Note that it's fine to reuse eager variables whose initialization was
-        # lifted from a function-building graph into the eager context (that's why
-        # the following clause is not wrapped in an `init_scope`); lifted variables
-        # are tracked by the graph's `VariableStore`.
+        # lifted from a function-building graph into the eager context (that's
+        # why the following clause is not wrapped in an `init_scope`); lifted
+        # variables are tracked by the graph's `VariableStore`.
         if not reuse:
             reuse = tf.compat.v1.AUTO_REUSE
 
-        # If a *_ref type is passed in an error would be triggered further down the
-        # stack. We prevent this using base_dtype to get a non-ref version of the
-        # type, before doing anything else. When _ref types are removed in favor of
-        # resources, this line can be removed.
+        # If a *_ref type is passed in an error would be triggered further down
+        # the stack. We prevent this using base_dtype to get a non-ref version
+        # of the type, before doing anything else. When _ref types are removed
+        # in favor of resources, this line can be removed.
         try:
             dtype = dtype.base_dtype
         except AttributeError:
-            # .base_dtype not existing means that we will try and use the raw dtype
-            # which was passed in - this might be a NumPy type which is valid.
+            # .base_dtype not existing means that we will try and use the raw
+            # dtype which was passed in - this might be a NumPy type which is
+            # valid.
             pass
 
         # This is the main logic of get_variable.  However, custom_getter
@@ -338,16 +344,18 @@ class _EagerVariableStore(tf.Module):
             # Partitioned variable currently unsupported w/ the shim
             if partitioner is not None:
                 raise ValueError(
-                    "`partitioner` arg for `get_variable` is unsupported in TF2."
-                    "File a bug if you need help. You passed %s" % partitioner
+                    "`partitioner` arg for `get_variable` is unsupported in "
+                    "TF2. File a bug if you need help. "
+                    "You passed %s" % partitioner
                 )
 
             # Single variable case
             if "%s/part_0" % name in self._vars:
                 raise ValueError(
-                    "No partitioner was provided, but a partitioned version of the "
-                    "variable was found: %s/part_0. Perhaps a variable of the same "
-                    "name was already created with partitioning?" % name
+                    "No partitioner was provided, but a partitioned version of "
+                    "the variable was found: %s/part_0. Perhaps a variable of "
+                    "the same name was already created with "
+                    "partitioning?" % name
                 )
 
             return self._get_single_variable(
@@ -374,8 +382,8 @@ class _EagerVariableStore(tf.Module):
         )
 
         if custom_getter is not None:
-            # Handle backwards compatibility with getter arguments that were added
-            # to the API after users started writing custom getters.
+            # Handle backwards compatibility with getter arguments that were
+            # added to the API after users started writing custom getters.
             custom_getter_kwargs = {
                 "getter": _true_getter,
                 "name": name,
@@ -393,8 +401,8 @@ class _EagerVariableStore(tf.Module):
                 "synchronization": synchronization,
                 "aggregation": aggregation,
             }
-            # `fn_args` and `has_kwargs` can handle functions, `functools.partial`,
-            # `lambda`.
+            # `fn_args` and `has_kwargs` can handle functions,
+            # `functools.partial`, `lambda`.
             if "constraint" in fn_args(custom_getter) or _has_kwargs(
                 custom_getter
             ):
@@ -435,12 +443,10 @@ class _EagerVariableStore(tf.Module):
         synchronization=tf.VariableSynchronization.AUTO,
         aggregation=tf.compat.v1.VariableAggregation.NONE,
     ):
-        """Get or create a single Variable (e.g.
+        """Get or create a single Variable (e.g. a shard or entire variable).
 
-        a shard or entire variable).
-
-        See the documentation of get_variable above (ignore partitioning components)
-        for details.
+        See the documentation of get_variable above (ignore partitioning
+        components) for details.
 
         Args:
           name: see get_variable.
@@ -515,7 +521,8 @@ class _EagerVariableStore(tf.Module):
                 init_val = initializer
                 variable_dtype = None
             else:
-                # Instantiate initializer if provided initializer is a type object.
+                # Instantiate initializer if provided initializer is a type
+                # object.
                 if tf_inspect.isclass(initializer):
                     initializer = initializer()
                 if shape.is_fully_defined():
@@ -611,7 +618,8 @@ class _EagerVariableStore(tf.Module):
         ):
             initializer = tf.compat.v1.zeros_initializer()
             initializing_from_value = False
-        # NOTES:Do we need to support for handling DT_STRING and DT_COMPLEX here?
+        # NOTES:Do we need to support for handling DT_STRING and DT_COMPLEX
+        # here?
         else:
             raise ValueError(
                 "An initializer for variable %s of %s is required"
@@ -623,7 +631,8 @@ class _EagerVariableStore(tf.Module):
 
 @keras_export(v1=["keras.utils.track_tf1_style_variables"])
 def track_tf1_style_variables(method):
-    """Wrap layer & module methods in this decorator to capture tf1-style weights.
+    """Wrap layer & module methods in this decorator to capture tf1-style
+    weights.
 
     Decorating a `tf.keras.Layer`'s  or `tf.Module`'s methods with this
     decorator will cause the layer/module to track weights created/used
@@ -637,9 +646,11 @@ def track_tf1_style_variables(method):
     tracked by the layer under the standard `layer.losses` property.
 
     This tracking enables using large classes of TF1-style model-forward-pass
-    code inside of Keras layers or `tf.Modules` in TF2 with TF2 behaviors enabled.
+    code inside of Keras layers or `tf.Modules` in TF2 with TF2 behaviors
+    enabled.
 
-    Example of capturing tf.compat.v1.layer-based modeling code as a Keras layer:
+    Example of capturing tf.compat.v1.layer-based modeling code as a Keras
+    layer:
 
     ```python
     class WrappedDoubleDenseLayer(tf.keras.layers.Layer):
@@ -734,10 +745,10 @@ def track_tf1_style_variables(method):
     ```
 
     Regularization losses:
-      Any regularizers specified in the `get_variable` calls or `compat.v1.layer`
-      creations will get captured if they occur in your decorated method
-      and the method belongs to a `tf.keras.Layer`/`tf.keras.Module`.
-      Regularization losses
+      Any regularizers specified in the `get_variable` calls or
+      `compat.v1.layer` creations will get captured if they occur in your
+      decorated method and the method belongs to a
+      `tf.keras.Layer`/`tf.keras.Module`. Regularization losses
       are accessible in `layer.losses` after a call just like in a standard
       Keras layer, and will be captured by any model that includes this layer.
       Regularization losses attached to Keras layers/models set as attributes
@@ -786,10 +797,10 @@ def track_tf1_style_variables(method):
         assign them as attributes of your layer so that Keras/Module's standard
         object-oriented weights (and loss tracking for layers) will kick in.
         See the intro to modules, layers, and models
-        [guide](https://www.tensorflow.org/guide/intro_to_modules) for more info.
-        As a backup, the `compat.v1.keras.utils.get_or_create_layer` method will
-        ease tracking nested keras model weights and losses for existing TF1 code,
-        but new code should use explicit tracking.
+        [guide](https://www.tensorflow.org/guide/intro_to_modules) for more
+        info.  As a backup, the `compat.v1.keras.utils.get_or_create_layer`
+        method will ease tracking nested keras model weights and losses for
+        existing TF1 code, but new code should use explicit tracking.
 
     Args:
       method: The method to decorate. This should belong to a custom tf.Module,
@@ -806,12 +817,12 @@ def track_tf1_style_variables(method):
                 # Raise an error if you incorrectly decorate a method
                 # that is not a method of a Module, Layer, or Model:
                 raise ValueError(
-                    "`@tf.compat.v1.keras.utils.track_tf1_layers_and_variables` must "
-                    "be applied to a method of a subclassed `tf.Module`, "
-                    "`tf.keras.layers.Layer`, or `tf.keras.Model` and which takes "
-                    "`self` as the first argument. But, the first argument passed "
-                    "to the decorated method was {}, which does not "
-                    "extend Module, Layer, or Model.".format(self)
+                    "`@tf.compat.v1.keras.utils.track_tf1_layers_and_variables`"
+                    " must be applied to a method of a subclassed `tf.Module`, "
+                    "`tf.keras.layers.Layer`, or `tf.keras.Model` and which "
+                    "takes `self` as the first argument. But, the first "
+                    "argument passed to the decorated method was {}, which "
+                    "does not extend Module, Layer, or Model.".format(self)
                 )
             var_store = _EagerVariableStore()
             self._tf1_style_var_store = (
@@ -856,7 +867,8 @@ class VariableScopeLayer(base_layer.Layer):
     Below are some examples, and then more details on the functionality of this
     shim layer to wrap TF1 model forward passes.
 
-    Example of capturing tf.compat.v1.layer-based modeling code as a Keras layer:
+    Example of capturing tf.compat.v1.layer-based modeling code as a Keras
+    layer:
 
     ```python
     class WrappedDoubleDenseLayer(variable_scope_shim.VariableScopeLayer):
@@ -949,13 +961,13 @@ class VariableScopeLayer(base_layer.Layer):
     ```
 
     Regularization losses:
-      Any regularizers specified in the `get_variable` calls or `compat.v1.layer`
-      creations will get captured by this wrapper layer. Regularization losses
-      are accessible in `layer.losses` after a call just like in a standard
-      Keras layer, and will be captured by any model that includes this layer.
-      Regularization losses attached to Keras layers/models set as attributes
-      of your layer will also get captured in the standard Keras regularization
-      loss tracking.
+      Any regularizers specified in the `get_variable` calls or
+      `compat.v1.layer` creations will get captured by this wrapper layer.
+      Regularization losses are accessible in `layer.losses` after a call just
+      like in a standard Keras layer, and will be captured by any model that
+      includes this layer.  Regularization losses attached to Keras
+      layers/models set as attributes of your layer will also get captured in
+      the standard Keras regularization loss tracking.
 
     Variable scope / variable reuse:
       variable-scope based reuse in the `forward_pass` will be respected,
@@ -1022,11 +1034,12 @@ def get_or_create_layer(name, create_layer_method):
 
     This method can be used within a `tf.keras.Layer`'s methods decorated by
     the`track_tf1_style_variables` shim, to additionally track inner keras Model
-    objects created within the same method. The inner model's variables and losses
-    will be accessible via the outer model's `variables` and `losses` attributes.
+    objects created within the same method. The inner model's variables and
+    losses will be accessible via the outer model's `variables` and `losses`
+    attributes.
 
-    This enables tracking of inner keras models using TF2 behaviors, with minimal
-    changes to existing TF1-style code.
+    This enables tracking of inner keras models using TF2 behaviors, with
+    minimal changes to existing TF1-style code.
 
     Example:
 
@@ -1052,8 +1065,8 @@ def get_or_create_layer(name, create_layer_method):
         return model(inputs)
     ```
     The inner model creation should be confined to its own zero-arg function,
-    which should be passed into this method. In TF1, this method will immediately
-    create and return the desired model, without any tracking.
+    which should be passed into this method. In TF1, this method will
+    immediately create and return the desired model, without any tracking.
 
     Args:
       name: A name to give the nested layer to track.
@@ -1070,8 +1083,9 @@ def get_or_create_layer(name, create_layer_method):
             return create_layer_method()
         else:
             raise ValueError(
-                "Tried to call get_or_create_layer in eager mode from a method not"
-                "decorated with @tf.compat.v1.keras.utils.track_tf1_style_variables."
+                "Tried to call get_or_create_layer in eager mode from a method "
+                "notdecorated with "
+                "@tf.compat.v1.keras.utils.track_tf1_style_variables."
             )
     vs_name = tf.compat.v1.get_variable_scope().name
     name = f"{vs_name}/{name}"

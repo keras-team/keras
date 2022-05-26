@@ -326,8 +326,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(ValueError, r"expected ndim=2"):
             layer(tf.constant([1]))
 
-        # Note that we re-create the layer since in Eager mode, input spec checks
-        # only happen on first call.
+        # Note that we re-create the layer since in Eager mode, input spec
+        # checks only happen on first call.
         # Works
         layer = CustomerLayer()
         layer(tf.constant([[1], [2]]))
@@ -576,8 +576,9 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
         with outer_graph.as_default():
             with function_building_graph.as_default():
                 layer = MyLayer()
-                # Create a variable by invoking build through __call__ and assert that
-                # it is both tracked and lifted into the outer graph.
+                # Create a variable by invoking build through __call__ and
+                # assert that it is both tracked and lifted into the outer
+                # graph.
                 inputs = tf.compat.v1.placeholder(tf.float32, (), "inputs")
                 layer(inputs)
                 self.assertEqual(len(layer.variables), 1)

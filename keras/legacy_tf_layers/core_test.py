@@ -350,7 +350,8 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
             self.evaluate(tf.compat.v1.global_variables_initializer())
             weights = _get_variable_dict_from_varstore()
             self.assertEqual(len(weights), 2)
-            # Check that the matrix weights got initialized to ones (from scope).
+            # Check that the matrix weights got initialized to ones (from
+            # scope).
             self.assertAllClose(
                 weights["scope/dense/kernel"].read_value(), np.ones((3, 2))
             )
