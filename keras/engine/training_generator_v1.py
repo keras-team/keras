@@ -306,7 +306,7 @@ def model_iteration(
             aggregator.aggregate(batch_outs)
 
             # Callbacks batch end.
-            batch_logs = cbks.make_logs(model, batch_logs, batch_outs, mode)
+            batch_logs = callbacks.make_logs(model, batch_logs, batch_outs, mode)
             callbacks._call_batch_hook(mode, "end", step, batch_logs)
             step += 1
 
@@ -315,7 +315,7 @@ def model_iteration(
 
         aggregator.finalize()
         results = aggregator.results
-        epoch_logs = cbks.make_logs(model, epoch_logs, results, mode)
+        epoch_logs = callbacks.make_logs(model, epoch_logs, results, mode)
         if len(results) == 1:
             results = results[0]
 
@@ -342,7 +342,7 @@ def model_iteration(
 
             if not isinstance(val_results, list):
                 val_results = [val_results]
-            epoch_logs = cbks.make_logs(
+            epoch_logs = callbacks.make_logs(
                 model, epoch_logs, val_results, mode, prefix="val_"
             )
 
