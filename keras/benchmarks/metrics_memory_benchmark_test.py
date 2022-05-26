@@ -42,8 +42,9 @@ class KerasMetricMemoryBenchmark(tf.test.Benchmark):
             memory_usage_2 = memory_profiler.memory_usage(
                 (self.uneven_thresholds_auc)
             )
-            # memory usage is a list of number which sampled when running the function
-            # The pure memory consumption is approximately max(usage) - min(usage)
+            # memory usage is a list of number which sampled when running the
+            # function The pure memory consumption is approximately max(usage) -
+            # min(usage)
             memory_usage_1 = max(memory_usage_1) - min(memory_usage_1)
             memory_usage_2 = max(memory_usage_2) - min(memory_usage_2)
 

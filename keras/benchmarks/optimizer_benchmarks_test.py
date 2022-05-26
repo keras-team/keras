@@ -62,7 +62,8 @@ class KerasOptimizerBenchmark(
 
         Args:
           optimizer: The optimizer instance to be benchmarked.
-          num_iters: The number of iterations to run for performance measurement.
+          num_iters: The number of iterations to run for performance
+            measurement.
         """
         model, train_x, train_y = bidirect_imdb_lstm_config()
         metrics, wall_time, extras = benchmark_util.measure_performance(

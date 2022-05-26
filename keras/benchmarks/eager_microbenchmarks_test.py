@@ -73,10 +73,11 @@ class MicroBenchmarksBase(tf.test.Benchmark):
             f_self = f_locals.get("self", None)
             if isinstance(f_self, tf.test.Benchmark):
                 name = frame[3]  # Get the method name
-                # This is a hack to get around the fact that some methods might have a
-                # disable_tfrt decorator around them. In that case a function called
-                # 'decorated' wraps the real called function underneath and so we
-                # peek one deeper into the stack to get the real name.
+                # This is a hack to get around the fact that some methods might
+                # have a disable_tfrt decorator around them. In that case a
+                # function called 'decorated' wraps the real called function
+                # underneath and so we peek one deeper into the stack to get the
+                # real name.
                 if name == "decorated":
                     continue
                 else:

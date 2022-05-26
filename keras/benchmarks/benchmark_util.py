@@ -48,7 +48,8 @@ def generate_benchmark_params_cpu_gpu(*params_list):
       *params_list: A list of tuples represents the benchmark parameters.
 
     Returns:
-      A list of strings with the benchmark name extended with CPU and GPU suffix.
+      A list of strings with the benchmark name extended with CPU and GPU
+      suffix.
     """
     benchmark_params = []
     for params in params_list:
@@ -114,16 +115,16 @@ def measure_performance(
       y: Target data. See `y` in the `fit()` method of `keras.Model`.
       epochs: Integer. Number of epochs to train the model.
         If unspecified, `epochs` will default to 2.
-      batch_size: Integer. Number of samples per gradient update. If unspecified,
-        `batch_size` will default to 32.
-      run_iters: Integer. Number of iterations to run the performance measurement.
-        If unspecified, `run_iters` will default to 4.
+      batch_size: Integer. Number of samples per gradient update. If
+        unspecified, `batch_size` will default to 32.
+      run_iters: Integer. Number of iterations to run the performance
+        measurement.  If unspecified, `run_iters` will default to 4.
       optimizer: String (name of optimizer) or optimizer instance. See
         `tf.keras.optimizers`.
       loss: String (name of objective function), objective function or
         `tf.keras.losses.Loss` instance. See `tf.keras.losses`.
-      metrics: Lists of metrics to be evaluated by the model during training. See
-        `metrics` in the `compile()` method of  `keras.Model`.
+      metrics: Lists of metrics to be evaluated by the model during training.
+        See `metrics` in the `compile()` method of  `keras.Model`.
       verbose: 0, 1, 2. Verbosity mode. See `verbose` in the `fit()` method of
         `keras.Model`. If unspecified, `verbose` will default to 0.
       num_gpus: Number of GPUs to run the model.
