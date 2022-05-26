@@ -42,13 +42,13 @@ def model_to_estimator(
 ):
     """Constructs an `Estimator` instance from given keras model.
 
-    If you use infrastructure or other tooling that relies on Estimators, you can
-    still build a Keras model and use model_to_estimator to convert the Keras
-    model to an Estimator for use with downstream systems.
+    If you use infrastructure or other tooling that relies on Estimators, you
+    can still build a Keras model and use model_to_estimator to convert the
+    Keras model to an Estimator for use with downstream systems.
 
     For usage example, please see:
     [Creating estimators from Keras Models](
-      https://www.tensorflow.org/guide/estimator#create_an_estimator_from_a_keras_model).
+    https://www.tensorflow.org/guide/estimator#create_an_estimator_from_a_keras_model).
 
     Sample Weights:
     Estimators returned by `model_to_estimator` are configured so that they can
@@ -99,13 +99,14 @@ def model_to_estimator(
         exclusive with `keras_model_path`. Estimator's `model_fn` uses the
         structure of the model to clone the model. Defaults to `None`.
       keras_model_path: Path to a compiled Keras model saved on disk, in HDF5
-        format, which can be generated with the `save()` method of a Keras model.
-        This argument is mutually exclusive with `keras_model`.
+        format, which can be generated with the `save()` method of a Keras
+        model.  This argument is mutually exclusive with `keras_model`.
         Defaults to `None`.
       custom_objects: Dictionary for cloning customized objects. This is
         used with classes that is not part of this pip package. For example, if
-        user maintains a `relu6` class that inherits from `tf.keras.layers.Layer`,
-        then pass `custom_objects={'relu6': relu6}`. Defaults to `None`.
+        user maintains a `relu6` class that inherits from
+        `tf.keras.layers.Layer`, then pass `custom_objects={'relu6': relu6}`.
+        Defaults to `None`.
       model_dir: Directory to save `Estimator` model parameters, graph, summary
         files for TensorBoard, etc. If unset a directory will be created with
         `tempfile.mkdtemp`
@@ -114,19 +115,19 @@ def model_to_estimator(
         `model_dir`. Defaults to `None`. If both `config.model_dir` and the
         `model_dir` argument (above) are specified the `model_dir` **argument**
         takes precedence.
-      checkpoint_format: Sets the format of the checkpoint saved by the estimator
-        when training. May be `saver` or `checkpoint`, depending on whether to
-        save checkpoints from `tf.train.Saver` or `tf.train.Checkpoint`. This
-        argument currently defaults to `saver`. When 2.0 is released, the default
-        will be `checkpoint`. Estimators use name-based `tf.train.Saver`
-        checkpoints, while Keras models use object-based checkpoints from
-        `tf.train.Checkpoint`. Currently, saving object-based checkpoints from
-        `model_to_estimator` is only supported by Functional and Sequential
-        models. Defaults to 'saver'.
+      checkpoint_format: Sets the format of the checkpoint saved by the
+        estimator when training. May be `saver` or `checkpoint`, depending on
+        whether to save checkpoints from `tf.train.Saver` or
+        `tf.train.Checkpoint`. This argument currently defaults to `saver`. When
+        2.0 is released, the default will be `checkpoint`. Estimators use
+        name-based `tf.train.Saver` checkpoints, while Keras models use
+        object-based checkpoints from `tf.train.Checkpoint`. Currently, saving
+        object-based checkpoints from `model_to_estimator` is only supported by
+        Functional and Sequential models. Defaults to 'saver'.
       metric_names_map: Optional dictionary mapping Keras model output metric
         names to custom names. This can be used to override the default Keras
-        model output metrics names in a multi IO model use case and provide custom
-        names for the `eval_metric_ops` in Estimator.
+        model output metrics names in a multi IO model use case and provide
+        custom names for the `eval_metric_ops` in Estimator.
         The Keras model metric names can be obtained using `model.metrics_names`
         excluding any loss metrics such as total loss and output losses.
         For example, if your Keras model has two outputs `out_1` and `out_2`,
@@ -143,9 +144,10 @@ def model_to_estimator(
         A dict `{name: output}` where:
           * name: An arbitrary name for this output.
           * output: an `ExportOutput` class such as `ClassificationOutput`,
-            `RegressionOutput`, or `PredictOutput`. Single-headed models only need
-            to specify one entry in this dictionary. Multi-headed models should
-            specify one entry for each head, one of which must be named using
+            `RegressionOutput`, or `PredictOutput`. Single-headed models only
+            need to specify one entry in this dictionary. Multi-headed models
+            should specify one entry for each head, one of which must be named
+            using
             `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`
             If no entry is provided, a default `PredictOutput` mapping to
             `predictions` will be created.
@@ -167,8 +169,8 @@ def model_to_estimator(
         )
     except ImportError:
         raise NotImplementedError(
-            "tf.keras.estimator.model_to_estimator function not available in your "
-            "installation."
+            "tf.keras.estimator.model_to_estimator function not available in "
+            "your installation."
         )
     _model_to_estimator_usage_gauge.get_cell("v1").set(True)
     return (
@@ -199,13 +201,13 @@ def model_to_estimator_v2(
 ):
     """Constructs an `Estimator` instance from given keras model.
 
-    If you use infrastructure or other tooling that relies on Estimators, you can
-    still build a Keras model and use model_to_estimator to convert the Keras
-    model to an Estimator for use with downstream systems.
+    If you use infrastructure or other tooling that relies on Estimators, you
+    can still build a Keras model and use model_to_estimator to convert the
+    Keras model to an Estimator for use with downstream systems.
 
     For usage example, please see:
     [Creating estimators from Keras Models](
-      https://www.tensorflow.org/guide/estimators#creating_estimators_from_keras_models).
+    https://www.tensorflow.org/guide/estimators#creating_estimators_from_keras_models).
 
     Sample Weights:
     Estimators returned by `model_to_estimator` are configured so that they can
@@ -251,10 +253,10 @@ def model_to_estimator_v2(
     estimator.train(input_fn, steps=1)
     ```
 
-    Note: We do not support creating weighted metrics in Keras and converting them
-    to weighted metrics in the Estimator API using `model_to_estimator`.
-    You will have to create these metrics directly on the estimator spec using the
-    `add_metrics` function.
+    Note: We do not support creating weighted metrics in Keras and converting
+    them to weighted metrics in the Estimator API using `model_to_estimator`.
+    You will have to create these metrics directly on the estimator spec using
+    the `add_metrics` function.
 
     To customize the estimator `eval_metric_ops` names, you can pass in the
     `metric_names_map` dictionary mapping the keras model output metric names
@@ -296,13 +298,14 @@ def model_to_estimator_v2(
         exclusive with `keras_model_path`. Estimator's `model_fn` uses the
         structure of the model to clone the model. Defaults to `None`.
       keras_model_path: Path to a compiled Keras model saved on disk, in HDF5
-        format, which can be generated with the `save()` method of a Keras model.
-        This argument is mutually exclusive with `keras_model`.
+        format, which can be generated with the `save()` method of a Keras
+        model.  This argument is mutually exclusive with `keras_model`.
         Defaults to `None`.
       custom_objects: Dictionary for cloning customized objects. This is
         used with classes that is not part of this pip package. For example, if
-        user maintains a `relu6` class that inherits from `tf.keras.layers.Layer`,
-        then pass `custom_objects={'relu6': relu6}`. Defaults to `None`.
+        user maintains a `relu6` class that inherits from
+        `tf.keras.layers.Layer`, then pass `custom_objects={'relu6': relu6}`.
+        Defaults to `None`.
       model_dir: Directory to save `Estimator` model parameters, graph, summary
         files for TensorBoard, etc. If unset a directory will be created with
         `tempfile.mkdtemp`
@@ -311,18 +314,18 @@ def model_to_estimator_v2(
         `model_dir`. Defaults to `None`. If both `config.model_dir` and the
         `model_dir` argument (above) are specified the `model_dir` **argument**
         takes precedence.
-      checkpoint_format: Sets the format of the checkpoint saved by the estimator
-        when training. May be `saver` or `checkpoint`, depending on whether to
-        save checkpoints from `tf.compat.v1.train.Saver` or `tf.train.Checkpoint`.
-        The default is `checkpoint`. Estimators use name-based `tf.train.Saver`
-        checkpoints, while Keras models use object-based checkpoints from
-        `tf.train.Checkpoint`. Currently, saving object-based checkpoints from
-        `model_to_estimator` is only supported by Functional and Sequential
-        models. Defaults to 'checkpoint'.
+      checkpoint_format: Sets the format of the checkpoint saved by the
+        estimator when training. May be `saver` or `checkpoint`, depending on
+        whether to save checkpoints from `tf.compat.v1.train.Saver` or
+        `tf.train.Checkpoint`.  The default is `checkpoint`. Estimators use
+        name-based `tf.train.Saver` checkpoints, while Keras models use
+        object-based checkpoints from `tf.train.Checkpoint`. Currently, saving
+        object-based checkpoints from `model_to_estimator` is only supported by
+        Functional and Sequential models. Defaults to 'checkpoint'.
       metric_names_map: Optional dictionary mapping Keras model output metric
         names to custom names. This can be used to override the default Keras
-        model output metrics names in a multi IO model use case and provide custom
-        names for the `eval_metric_ops` in Estimator.
+        model output metrics names in a multi IO model use case and provide
+        custom names for the `eval_metric_ops` in Estimator.
         The Keras model metric names can be obtained using `model.metrics_names`
         excluding any loss metrics such as total loss and output losses.
         For example, if your Keras model has two outputs `out_1` and `out_2`,
@@ -339,9 +342,10 @@ def model_to_estimator_v2(
         A dict `{name: output}` where:
           * name: An arbitrary name for this output.
           * output: an `ExportOutput` class such as `ClassificationOutput`,
-            `RegressionOutput`, or `PredictOutput`. Single-headed models only need
-            to specify one entry in this dictionary. Multi-headed models should
-            specify one entry for each head, one of which must be named using
+            `RegressionOutput`, or `PredictOutput`. Single-headed models only
+            need to specify one entry in this dictionary. Multi-headed models
+            should specify one entry for each head, one of which must be named
+            using
             `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`
             If no entry is provided, a default `PredictOutput` mapping to
             `predictions` will be created.
@@ -363,8 +367,8 @@ def model_to_estimator_v2(
         )
     except ImportError:
         raise NotImplementedError(
-            "tf.keras.estimator.model_to_estimator function not available in your "
-            "installation."
+            "tf.keras.estimator.model_to_estimator function not available in "
+            "your installation."
         )
     _model_to_estimator_usage_gauge.get_cell("v2").set(True)
     return (
