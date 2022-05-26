@@ -83,8 +83,10 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
         """ "Constructs a SequenceFeatures layer.
 
         Args:
-          feature_columns: An iterable of dense sequence columns. Valid columns are
-            - `embedding_column` that wraps a `sequence_categorical_column_with_*`
+          feature_columns: An iterable of dense sequence columns. Valid columns
+            are
+            - `embedding_column` that wraps a
+              `sequence_categorical_column_with_*`
             - `sequence_numeric_column`.
           trainable: Boolean, whether the layer's variables will be updated via
             gradient descent during training.
@@ -115,22 +117,23 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
 
         Args:
           features: A dict mapping keys to tensors.
-          training: Python boolean or None, indicating whether to the layer is being
-            run in training mode. This argument is passed to the call method of any
-            `FeatureColumn` that takes a `training` argument. For example, if a
-            `FeatureColumn` performed dropout, the column could expose a `training`
-            argument to control whether the dropout should be applied. If `None`,
-            defaults to `tf.keras.backend.learning_phase()`.
+          training: Python boolean or None, indicating whether to the layer is
+            being run in training mode. This argument is passed to the call
+            method of any `FeatureColumn` that takes a `training` argument. For
+            example, if a `FeatureColumn` performed dropout, the column could
+            expose a `training` argument to control whether the dropout should
+            be applied. If `None`, defaults to
+            `tf.keras.backend.learning_phase()`.
 
 
         Returns:
           An `(input_layer, sequence_length)` tuple where:
           - input_layer: A float `Tensor` of shape `[batch_size, T, D]`.
-              `T` is the maximum sequence length for this batch, which could differ
-              from batch to batch. `D` is the sum of `num_elements` for all
-              `feature_columns`.
-          - sequence_length: An int `Tensor` of shape `[batch_size]`. The sequence
-              length for each example.
+              `T` is the maximum sequence length for this batch, which could
+              differ from batch to batch. `D` is the sum of `num_elements` for
+              all `feature_columns`.
+          - sequence_length: An int `Tensor` of shape `[batch_size]`. The
+            sequence length for each example.
 
         Raises:
           ValueError: If features are not a dictionary.
@@ -172,7 +175,7 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
                 sequence_lengths.append(sequence_length)
 
         # Check and process sequence lengths.
-        kfc._verify_static_batch_size_equality(  # pylint: disable=protected-access
+        kfc._verify_static_batch_size_equality(
             sequence_lengths, self._feature_columns
         )
         sequence_length = _assert_all_equal_and_return(sequence_lengths)
