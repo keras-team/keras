@@ -44,7 +44,8 @@ class WideDeepModel(keras_training.Model):
     dnn_model = keras.Sequential([keras.layers.Dense(units=64),
                                  keras.layers.Dense(units=1)])
     combined_model = WideDeepModel(linear_model, dnn_model)
-    combined_model.compile(optimizer=['sgd', 'adam'], loss='mse', metrics=['mse'])
+    combined_model.compile(optimizer=['sgd', 'adam'],
+                           loss='mse', metrics=['mse'])
     # define dnn_inputs and linear_inputs as separate numpy arrays or
     # a single numpy array if dnn_inputs is same as linear_inputs.
     combined_model.fit([linear_inputs, dnn_inputs], y, epochs)
@@ -66,7 +67,8 @@ class WideDeepModel(keras_training.Model):
     dnn_model.compile('rmsprop', 'mse')
     dnn_model.fit(dnn_inputs, y, epochs)
     combined_model = WideDeepModel(linear_model, dnn_model)
-    combined_model.compile(optimizer=['sgd', 'adam'], loss='mse', metrics=['mse'])
+    combined_model.compile(optimizer=['sgd', 'adam'],
+                           loss='mse', metrics=['mse'])
     combined_model.fit([linear_inputs, dnn_inputs], y, epochs)
     ```
 
@@ -76,14 +78,14 @@ class WideDeepModel(keras_training.Model):
         """Create a Wide & Deep Model.
 
         Args:
-          linear_model: a premade LinearModel, its output must match the output of
-            the dnn model.
+          linear_model: a premade LinearModel, its output must match the output
+            of the dnn model.
           dnn_model: a `tf.keras.Model`, its output must match the output of the
             linear model.
           activation: Activation function. Set it to None to maintain a linear
             activation.
-          **kwargs: The keyword arguments that are passed on to BaseLayer.__init__.
-            Allowed keyword arguments include `name`.
+          **kwargs: The keyword arguments that are passed on to
+            BaseLayer.__init__. Allowed keyword arguments include `name`.
         """
         super().__init__(**kwargs)
         base_layer.keras_premade_model_gauge.get_cell("WideDeep").set(True)
@@ -171,12 +173,12 @@ class WideDeepModel(keras_training.Model):
                     # Training updates
                     updates = []
                     linear_updates = linear_optimizer.get_updates(
-                        params=self.linear_model.trainable_weights,  # pylint: disable=protected-access
+                        params=self.linear_model.trainable_weights,
                         loss=self.total_loss,
                     )
                     updates += linear_updates
                     dnn_updates = dnn_optimizer.get_updates(
-                        params=self.dnn_model.trainable_weights,  # pylint: disable=protected-access
+                        params=self.dnn_model.trainable_weights,
                         loss=self.total_loss,
                     )
                     updates += dnn_updates
