@@ -67,7 +67,8 @@ class CustomModelX(keras.Model):
     package="my_custom_package"
 )
 def my_mean_squared_error(y_true, y_pred):
-    """Identical to built-in `mean_squared_error`, added here as a custom func."""
+    """Identical to built-in `mean_squared_error`, added here as a custom
+    func."""
     return backend.mean(tf.math.squared_difference(y_pred, y_true), axis=-1)
 
 
@@ -145,8 +146,8 @@ class NewSavingTest(tf.test.TestCase):
                 keras.metrics.base_metric.Mean,
             )
 
-        # Except for a custom function used because the loaded model is supposed to
-        # be using the newly registered custom function.
+        # Except for a custom function used because the loaded model is supposed
+        # to be using the newly registered custom function.
         self.assertIs(
             subclassed_model.compiled_loss._losses[3],
             module_my_mean_squared_error,
@@ -167,8 +168,8 @@ class NewSavingTest(tf.test.TestCase):
         loaded_model = saving_lib.load(temp_dir)
 
         io_utils.enable_interactive_logging()
-        # `tf.print` writes to stderr. This is to make sure the custom training step
-        # is used.
+        # `tf.print` writes to stderr. This is to make sure the custom training
+        # step is used.
         with self.captureWritesToStream(sys.stderr) as printed:
             loaded_model.fit(x, y, epochs=1)
             self.assertRegex(printed.contents(), train_step_message)

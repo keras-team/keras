@@ -55,8 +55,8 @@ def save(
       overwrite: whether to overwrite the existing filepath.
       include_optimizer: If True, save the model's optimizer state.
       signatures: Signatures to save with the SavedModel. Applicable to the 'tf'
-        format only. Please see the `signatures` argument in `tf.saved_model.save`
-        for details.
+        format only. Please see the `signatures` argument in
+        `tf.saved_model.save` for details.
       options: (only applies to SavedModel format) `tf.saved_model.SaveOptions`
         object that specifies options for saving to SavedModel.
       save_traces: (only applies to SavedModel format) When enabled, the
@@ -109,7 +109,8 @@ def save(
 
 
 def generate_keras_metadata(saved_nodes, node_paths):
-    """Constructs a KerasMetadata proto with the metadata of each keras object."""
+    """Constructs a KerasMetadata proto with the metadata of each keras
+    object."""
     metadata = saved_metadata_pb2.SavedMetadata()
     for node_id, node in enumerate(saved_nodes):
         if isinstance(node, base_layer.Layer):
@@ -127,12 +128,12 @@ def generate_keras_metadata(saved_nodes, node_paths):
                 version=versions_pb2.VersionDef(
                     producer=2, min_consumer=1, bad_consumers=[]
                 ),
-                identifier=node._object_identifier,  # pylint: disable=protected-access
+                identifier=node._object_identifier,
                 metadata=node._tracking_metadata,
             )  # pylint: disable=protected-access
 
-            # Log warning if the node's class name conflicts with a Keras built-in
-            # object.
+            # Log warning if the node's class name conflicts with a Keras
+            # built-in object.
             class_name = node.__class__.__name__
             builtin_layer = serialization.get_builtin_layer(class_name)
             if builtin_layer:
@@ -141,8 +142,10 @@ def generate_keras_metadata(saved_nodes, node_paths):
                         "%s has the same name '%s' as a built-in Keras "
                         "object. Consider renaming %s to avoid naming "
                         "conflicts when loading with "
-                        "`tf.keras.models.load_model`. If renaming is not possible, pass "
-                        "the object in the `custom_objects` parameter of the load "
+                        "`tf.keras.models.load_model`. "
+                        "If renaming is not possible, pass "
+                        "the object in the `custom_objects` "
+                        "parameter of the load "
                         "function.",
                         node,
                         class_name,

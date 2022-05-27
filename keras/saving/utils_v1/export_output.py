@@ -42,8 +42,8 @@ class ExportOutput:
         and will use the provided receiver_tensors as inputs.
 
         Args:
-          receiver_tensors: a `Tensor`, or a dict of string to `Tensor`, specifying
-            input nodes that will be fed.
+          receiver_tensors: a `Tensor`, or a dict of string to `Tensor`,
+            specifying input nodes that will be fed.
         """
         pass
 
@@ -79,8 +79,8 @@ class ExportOutput:
           A dict of tensors
 
         Raises:
-          ValueError: if the outputs dict keys are not strings or tuples of strings
-            or the values are not Tensors.
+          ValueError: if the outputs dict keys are not strings or tuples of
+            strings or the values are not Tensors.
         """
         if not isinstance(outputs, dict):
             outputs = {single_output_default_name: outputs}
@@ -110,8 +110,8 @@ class ClassificationOutput(ExportOutput):
     If only classes is set, it is interpreted as providing top-k results in
     descending order.
 
-    If only scores is set, it is interpreted as providing a score for every class
-    in order of class ID.
+    If only scores is set, it is interpreted as providing a score for every
+    class in order of class ID.
 
     If both classes and scores are set, they are interpreted as zipped, so each
     score corresponds to the class at the same index.  Clients should not depend
@@ -123,14 +123,16 @@ class ClassificationOutput(ExportOutput):
 
         Args:
           scores: A float `Tensor` giving scores (sometimes but not always
-              interpretable as probabilities) for each class.  May be `None`, but
-              only if `classes` is set.  Interpretation varies-- see class doc.
-          classes: A string `Tensor` giving predicted class labels.  May be `None`,
-              but only if `scores` is set.  Interpretation varies-- see class doc.
+              interpretable as probabilities) for each class.  May be `None`,
+              but only if `classes` is set.  Interpretation varies-- see class
+              doc.
+          classes: A string `Tensor` giving predicted class labels. May be
+              `None`, but only if `scores` is set.  Interpretation varies-- see
+              class doc.
 
         Raises:
-          ValueError: if neither classes nor scores is set, or one of them is not a
-              `Tensor` with the correct dtype.
+          ValueError: if neither classes nor scores is set, or one of them is
+              not a `Tensor` with the correct dtype.
         """
         if scores is not None and not (
             isinstance(scores, tf.Tensor) and scores.dtype.is_floating
@@ -167,21 +169,23 @@ class ClassificationOutput(ExportOutput):
     def as_signature_def(self, receiver_tensors):
         if len(receiver_tensors) != 1:
             raise ValueError(
-                "Classification signatures can only accept a single tensor input of "
-                "type tf.string. Please check to make sure that you have structured "
-                "the serving_input_receiver_fn so that it creates a single string "
-                "placeholder. If your model function expects multiple inputs, then "
-                "use `tf.io.parse_example()` to parse the string into multiple "
+                "Classification signatures can only accept a single tensor "
+                "input of type tf.string. Please check to make sure that "
+                "you have structured the serving_input_receiver_fn so that it "
+                "creates a single string placeholder. If your model function "
+                "expects multiple inputs, then use `tf.io.parse_example()` to "
+                "parse the string into multiple "
                 f"tensors.\n Received: {receiver_tensors}"
             )
         ((_, examples),) = receiver_tensors.items()
         if tf.as_dtype(examples.dtype) != tf.string:
             raise ValueError(
-                "Classification signatures can only accept a single tensor input of "
-                "type tf.string. Please check to make sure that you have structured "
-                "the serving_input_receiver_fn so that it creates a single string "
-                "placeholder. If your model function expects multiple inputs, then "
-                "use `tf.io.parse_example()` to parse the string into multiple "
+                "Classification signatures can only accept a single tensor "
+                "input of type tf.string. Please check to make sure that you "
+                "have structured the serving_input_receiver_fn so that it "
+                "creates a single string placeholder. If your model function "
+                "expects multiple inputs, then use `tf.io.parse_example()` to "
+                "parse the string into multiple "
                 f"tensors.\n Received: {receiver_tensors}"
             )
         return tf.compat.v1.saved_model.classification_signature_def(
@@ -215,21 +219,23 @@ class RegressionOutput(ExportOutput):
     def as_signature_def(self, receiver_tensors):
         if len(receiver_tensors) != 1:
             raise ValueError(
-                "Regression signatures can only accept a single tensor input of "
-                "type tf.string. Please check to make sure that you have structured "
-                "the serving_input_receiver_fn so that it creates a single string "
-                "placeholder. If your model function expects multiple inputs, then "
-                "use `tf.io.parse_example()` to parse the string into multiple "
+                "Regression signatures can only accept a single tensor input "
+                "of type tf.string. Please check to make sure that you have "
+                "structured the serving_input_receiver_fn so that it creates "
+                "a single string placeholder. If your model function expects "
+                "multiple inputs, then use `tf.io.parse_example()` to parse "
+                "the string into multiple "
                 f"tensors.\n Received: {receiver_tensors}"
             )
         ((_, examples),) = receiver_tensors.items()
         if tf.as_dtype(examples.dtype) != tf.string:
             raise ValueError(
-                "Regression signatures can only accept a single tensor input of "
-                "type tf.string. Please check to make sure that you have structured "
-                "the serving_input_receiver_fn so that it creates a single string "
-                "placeholder. If your model function expects multiple inputs, then "
-                "use `tf.io.parse_example()` to parse the string into multiple "
+                "Regression signatures can only accept a single tensor input "
+                "of type tf.string. Please check to make sure that you have "
+                "structured the serving_input_receiver_fn so that it creates "
+                "a single string placeholder. If your model function expects "
+                "multiple inputs, then use `tf.io.parse_example()` to parse "
+                "the string into multiple "
                 f"tensors.\n Received: {receiver_tensors}"
             )
         return tf.compat.v1.saved_model.regression_signature_def(
@@ -303,9 +309,9 @@ class _SupervisedOutput(ExportOutput):
             metric_value must be a Tensor, and update_op must be a Tensor or Op.
 
         Raises:
-          ValueError: if any of the outputs' dict keys are not strings or tuples of
-            strings or the values are not Tensors (or Operations in the case of
-            update_op).
+          ValueError: if any of the outputs' dict keys are not strings or tuples
+            of strings or the values are not Tensors (or Operations in the case
+            of update_op).
         """
 
         if loss is not None:
@@ -349,8 +355,9 @@ class _SupervisedOutput(ExportOutput):
     def _wrap_and_check_metrics(self, metrics):
         """Handle the saving of metrics.
 
-        Metrics is either a tuple of (value, update_op), or a dict of such tuples.
-        Here, we separate out the tuples and create a dict with names to tensors.
+        Metrics is either a tuple of (value, update_op), or a dict of such
+        tuples.  Here, we separate out the tuples and create a dict with names
+        to tensors.
 
         Args:
           metrics: Dict of metric results keyed by name.
@@ -363,8 +370,8 @@ class _SupervisedOutput(ExportOutput):
           dict of output_names to tensors
 
         Raises:
-          ValueError: if the dict key is not a string, or the metric values or ops
-            are not tensors.
+          ValueError: if the dict key is not a string, or the metric values or
+            ops are not tensors.
         """
         if not isinstance(metrics, dict):
             metrics = {self.METRICS_NAME: metrics}
@@ -392,13 +399,12 @@ class _SupervisedOutput(ExportOutput):
                 tf.is_tensor(metric_op) or isinstance(metric_op, tf.Operation)
             ):
                 raise ValueError(
-                    "{} update_op must be a Tensor or Operation; got {}.".format(
-                        key, metric_op
-                    )
+                    f"{key} update_op must be a "
+                    f"Tensor or Operation; got {metric_op}."
                 )
 
-            # We must wrap any ops (or variables) in a Tensor before export, as the
-            # SignatureDef proto expects tensors only. See b/109740581
+            # We must wrap any ops (or variables) in a Tensor before export, as
+            # the SignatureDef proto expects tensors only. See b/109740581
             metric_op_tensor = metric_op
             if not isinstance(metric_op, tf.Tensor):
                 with tf.control_dependencies([metric_op]):
@@ -423,7 +429,8 @@ class _SupervisedOutput(ExportOutput):
 
     @abc.abstractmethod
     def _get_signature_def_fn(self):
-        """Returns a function that produces a SignatureDef given desired outputs."""
+        """Returns a function that produces a SignatureDef given desired
+        outputs."""
         pass
 
     def as_signature_def(self, receiver_tensors):

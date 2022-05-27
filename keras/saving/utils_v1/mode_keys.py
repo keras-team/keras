@@ -66,12 +66,12 @@ class ModeKeyMap(collections.abc.Mapping):
     """Map using ModeKeys as keys.
 
     This class creates an immutable mapping from modes to values. For example,
-    SavedModel export of Keras and Estimator models use this to map modes to their
-    corresponding MetaGraph tags/SignatureDef keys.
+    SavedModel export of Keras and Estimator models use this to map modes to
+    their corresponding MetaGraph tags/SignatureDef keys.
 
     Since this class uses modes, rather than strings, as keys, both "predict"
-    (Keras's PREDICT ModeKey) and "infer" (Estimator's PREDICT ModeKey) map to the
-    same value.
+    (Keras's PREDICT ModeKey) and "infer" (Estimator's PREDICT ModeKey) map to
+    the same value.
     """
 
     def __init__(self, **kwargs):
@@ -82,9 +82,8 @@ class ModeKeyMap(collections.abc.Mapping):
             dict_key = self._get_internal_key(key)
             if dict_key in self._internal_dict:
                 raise ValueError(
-                    "Error creating ModeKeyMap. Multiple keys/values found for {} mode.".format(
-                        dict_key
-                    )
+                    "Error creating ModeKeyMap. "
+                    f"Multiple keys/values found for {dict_key} mode."
                 )
             self._internal_dict[dict_key] = kwargs[key]
 

@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Helper classes that list&validate all attributes to serialize to SavedModel."""
+"""Helper classes that list&validate all attributes to serialize to
+SavedModel."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -25,7 +26,8 @@ from keras.saving.saved_model import utils
 
 
 class SavedModelSaver(object, metaclass=abc.ABCMeta):
-    """Saver defining the methods and properties used to serialize Keras objects."""
+    """Saver defining the methods and properties used to serialize Keras
+    objects."""
 
     def __init__(self, obj):
         self.obj = obj
@@ -44,7 +46,8 @@ class SavedModelSaver(object, metaclass=abc.ABCMeta):
         """String stored in metadata field in the SavedModel proto.
 
         Returns:
-          A serialized JSON storing information necessary for recreating this layer.
+          A serialized JSON storing information necessary for recreating this
+          layer.
         """
         # TODO(kathywu): check that serialized JSON can be loaded (e.g., if an
         # object is in the python property)
@@ -65,8 +68,8 @@ class SavedModelSaver(object, metaclass=abc.ABCMeta):
 
         This dictionary must be serializable and deserializable to/from JSON.
 
-        When loading, the items in this dict are used to initialize the object and
-        define attributes in the revived object.
+        When loading, the items in this dict are used to initialize the object
+        and define attributes in the revived object.
         """
         raise NotImplementedError
 
@@ -78,8 +81,8 @@ class SavedModelSaver(object, metaclass=abc.ABCMeta):
         effects.
 
         Args:
-          serialization_cache: Dictionary passed to all objects in the same object
-            graph during serialization.
+          serialization_cache: Dictionary passed to all objects in the same
+            object graph during serialization.
 
         Returns:
             A dictionary mapping attribute names to checkpointable objects.
@@ -112,23 +115,24 @@ class SavedModelSaver(object, metaclass=abc.ABCMeta):
         loaded.w  # AttributeError
         ```
 
-        Assigning trackable objects to attributes creates a graph, which is used for
-        both checkpointing and SavedModel serialization.
+        Assigning trackable objects to attributes creates a graph, which is used
+        for both checkpointing and SavedModel serialization.
 
         When the graph generated from attribute tracking is insufficient, extra
         objects and functions may be added at serialization time. For example,
         most models do not have their call function wrapped with a @tf.function
-        decorator. This results in `model.call` not being saved. Since Keras objects
-        should be revivable from the SavedModel format, the call function is added
-        as an extra function to serialize.
+        decorator. This results in `model.call` not being saved. Since Keras
+        objects should be revivable from the SavedModel format, the call
+        function is added as an extra function to serialize.
 
         This function and `objects_to_serialize` is called multiple times when
         exporting to SavedModel. Please use the cache to avoid generating new
-        functions and objects. A fresh cache is created for each SavedModel export.
+        functions and objects. A fresh cache is created for each SavedModel
+        export.
 
         Args:
-          serialization_cache: Dictionary passed to all objects in the same object
-            graph during serialization.
+          serialization_cache: Dictionary passed to all objects in the same
+            object graph during serialization.
 
         Returns:
             A dictionary mapping attribute names to `Function` or

@@ -75,7 +75,8 @@ class TestPickleProtocol(test_combinations.TestCase):
         ("deepcopy", copy.deepcopy),
     )
     def test_unbuilt_models(self, serializer):
-        """Unbuilt models should be copyable & deepcopyable for all model types."""
+        """Unbuilt models should be copyable & deepcopyable for all model
+        types."""
         if not tf.__internal__.tf2.enabled():
             self.skipTest(
                 "pickle model only available in v2 when tf format is used."

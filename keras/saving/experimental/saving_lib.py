@@ -47,8 +47,8 @@ def save(model, dirpath):
 
     # TODO(rchao): Save the model's metadata (e.g. Keras version) in a separate
     # file in the archive.
-    # TODO(rchao): Save the model's state (e.g. layer weights/vocab) in a separate
-    # set of files in the archive.
+    # TODO(rchao): Save the model's state (e.g. layer weights/vocab) in a
+    # separate set of files in the archive.
     # TODO(rchao): Write the config into a file in an archive. In this prototype
     # we're temporarily settled on a standalone json file.
     serialized_model_dict = serialize_keras_object(model)
@@ -84,8 +84,8 @@ def deserialize_keras_object(config_dict):
       the format of '{package}>{name}', where `package` and `name` are the
       arguments passed to `register_keras_serializable()`. If `name` is not
       provided, it defaults to the class name. If `registered_name` successfully
-      resolves to a class (that was registered), `class_name` and `config` values
-      in the dict will not be used. `registered_name` is only used for
+      resolves to a class (that was registered), `class_name` and `config`
+      values in the dict will not be used. `registered_name` is only used for
       non-built-in classes.
 
     For example, the following dictionary represents the built-in Adam optimizer
@@ -113,8 +113,8 @@ def deserialize_keras_object(config_dict):
     deserialize_keras_object(dict_structure)
     ```
 
-    If the class does not have an exported Keras namespace, the library tracks it
-    by its `module` and `class_name`. For example:
+    If the class does not have an exported Keras namespace, the library tracks
+    it by its `module` and `class_name`. For example:
 
     ```
     dict_structure = {
@@ -153,14 +153,15 @@ def deserialize_keras_object(config_dict):
     ```
 
     Args:
-      config_dict: the python dict structure to deserialize the Keras object from.
+      config_dict: the python dict structure to deserialize the Keras object
+        from.
 
     Returns:
       The Keras object that is deserialized from `config_dict`.
 
     """
-    # TODO(rchao): Design a 'version' key for `config_dict` for defining versions
-    # for classes.
+    # TODO(rchao): Design a 'version' key for `config_dict` for defining
+    # versions for classes.
     class_name = config_dict["class_name"]
     config = config_dict["config"]
     module = config_dict["module"]
@@ -185,14 +186,15 @@ def deserialize_keras_object(config_dict):
                 # `register_keras_serializable` API), that takes precedence.
                 return custom_function
 
-            # Otherwise, attempt to import the tracked module, and find the function.
+            # Otherwise, attempt to import the tracked module, and find the
+            # function.
             function_module = config.get("module", None)
             try:
                 function_module = importlib.import_module(function_module)
             except ImportError as e:
                 raise ImportError(
-                    f"The function module {function_module} is not available. The "
-                    f"config dictionary provided is {config_dict}."
+                    f"The function module {function_module} is not available. "
+                    f"The config dictionary provided is {config_dict}."
                 ) from e
             return vars(function_module).get(config["function_name"])
 
@@ -204,18 +206,18 @@ def deserialize_keras_object(config_dict):
         # `register_keras_serializable` API). If so, that takes precedence.
         return custom_class.from_config(config)
     else:
-        # Otherwise, attempt to retrieve the class object given the `module`, and
-        # `class_name`.
+        # Otherwise, attempt to retrieve the class object given the `module`,
+        # and `class_name`.
         if module is None:
-            # In the case where `module` is not recorded, the `class_name` represents
-            # the full exported Keras namespace (used by `keras_export`) such as
-            # "keras.optimizers.Adam".
+            # In the case where `module` is not recorded, the `class_name`
+            # represents the full exported Keras namespace (used by
+            # `keras_export`) such as "keras.optimizers.Adam".
             cls = tf_export.get_symbol_from_name(class_name)
         else:
-            # In the case where `module` is available, the class does not have an
-            # Keras namespace (which is the case when the symbol is not exported via
-            # `keras_export`). Import the tracked module (that is used for the
-            # internal path), find the class, and use its config.
+            # In the case where `module` is available, the class does not have
+            # an Keras namespace (which is the case when the symbol is not
+            # exported via `keras_export`). Import the tracked module (that is
+            # used for the internal path), find the class, and use its config.
             mod = importlib.import_module(module)
             cls = vars(mod).get(class_name, None)
         if not hasattr(cls, "from_config"):
@@ -239,9 +241,9 @@ def serialize_keras_object(obj):
       deserialized via `deserialize_keras_object()`.
     """
 
-    # Note that in the case of the `obj` being a function, the module used will be
-    # "builtins", and the `class_name` used will be "function"; in the case of the
-    # `obj` being a string, the module used will be "builtins", and the
+    # Note that in the case of the `obj` being a function, the module used will
+    # be "builtins", and the `class_name` used will be "function"; in the case
+    # of the `obj` being a string, the module used will be "builtins", and the
     # `class_name` used will be "str"
     module = None
 
