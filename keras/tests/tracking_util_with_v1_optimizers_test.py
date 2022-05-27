@@ -61,8 +61,8 @@ class CheckpointingTests(test_combinations.TestCase):
     def testNamingWithOptimizer(self):
         input_value = tf.constant([[3.0]])
         model = MyModel()
-        # A nuisance Model using the same optimizer. Its slot variables should not
-        # go in the checkpoint, since it is never depended on.
+        # A nuisance Model using the same optimizer. Its slot variables should
+        # not go in the checkpoint, since it is never depended on.
         other_model = MyModel()
         optimizer = tf.compat.v1.train.AdamOptimizer(0.001)
         optimizer_step = tf.compat.v1.train.get_or_create_global_step()
@@ -119,7 +119,8 @@ class CheckpointingTests(test_combinations.TestCase):
         self.assertEqual(
             len(expected_checkpoint_names), len(named_variables.keys())
         )
-        # Check that we've created the right full_names of objects (not exhaustive)
+        # Check that we've created the right full_names of objects (not
+        # exhaustive)
         expected_names = {
             "optimizer_step" + suffix: "global_step",
             "model/_second/kernel" + suffix: "my_model/dense_1/kernel",
@@ -205,8 +206,9 @@ class CheckpointingTests(test_combinations.TestCase):
                 optimizer.minimize(lambda: model(input_value))
             else:
                 train_op = optimizer.minimize(model(input_value))
-                # TODO(allenl): Make initialization more pleasant when graph building.
-                root_trackable.save_counter  # pylint: disable=pointless-statement
+                # TODO(allenl): Make initialization more pleasant when graph
+                # building.
+                root_trackable.save_counter
                 self.evaluate(
                     trackable_utils.gather_initializers(root_trackable)
                 )
@@ -237,7 +239,8 @@ class CheckpointingTests(test_combinations.TestCase):
             self.assertAllEqual(1, self.evaluate(root_trackable.save_counter))
             self.assertAllEqual([1.5], self.evaluate(m_bias_slot))
             if not tf.executing_eagerly():
-                return  # Restore-on-create is only supported when executing eagerly
+                # Restore-on-create is only supported when executing eagerly
+                return
             on_create_model = MyModel()
             on_create_optimizer = tf.compat.v1.train.AdamOptimizer(
                 0.001,
@@ -449,7 +452,8 @@ class CheckpointingTests(test_combinations.TestCase):
     )
     def testAgnosticUsage(self):
         """Graph/eager agnostic usage."""
-        # Does create garbage when executing eagerly due to ops.Graph() creation.
+        # Does create garbage when executing eagerly due to ops.Graph()
+        # creation.
         with self.test_session():
             num_training_steps = 10
             checkpoint_directory = self.get_temp_dir()
@@ -586,7 +590,8 @@ class CheckpointingTests(test_combinations.TestCase):
                 model = MyModel()
                 optimizer = tf.compat.v1.train.AdamOptimizer(0.001)
                 root = tf.train.Checkpoint(
-                    model=model,  # Do not save the optimizer with the checkpoint.
+                    # Do not save the optimizer with the checkpoint.
+                    model=model,
                     global_step=tf.compat.v1.train.get_or_create_global_step(),
                 )
                 optimizer_checkpoint = tf.train.Checkpoint(optimizer=optimizer)
@@ -756,8 +761,8 @@ class CheckpointCompatibilityTests(test_combinations.TestCase):
                     status.assert_existing_objects_matched()
                     status.assert_nontrivial_match()
                 else:
-                    # When graph building, we haven't read any keys, so we don't know
-                    # whether the restore will be complete.
+                    # When graph building, we haven't read any keys, so we don't
+                    # know whether the restore will be complete.
                     with self.assertRaisesRegex(AssertionError, "not restored"):
                         status.assert_consumed()
                     with self.assertRaisesRegex(AssertionError, "not restored"):
@@ -770,8 +775,8 @@ class CheckpointCompatibilityTests(test_combinations.TestCase):
                 status = object_saver.read(save_path)
                 status.initialize_or_restore()
                 self._check_sentinels(root)
-                # Check that there is no error when keys are missing from the name-based
-                # checkpoint.
+                # Check that there is no error when keys are missing from the
+                # name-based checkpoint.
                 root.not_in_name_checkpoint = tf.Variable([1.0])
                 status = object_saver.read(save_path)
                 with self.assertRaises(AssertionError):

@@ -104,7 +104,8 @@ class NestedTestModel2(keras.Model):
 
 def get_nested_model_3(input_dim, num_classes):
     # A functional-API model with a subclassed model inside.
-    # NOTE: this requires the inner subclass to implement `compute_output_shape`.
+    # NOTE: this requires the inner subclass to implement
+    # `compute_output_shape`.
 
     inputs = keras.Input(shape=(input_dim,))
     x = keras.layers.Dense(32, activation="relu")(inputs)

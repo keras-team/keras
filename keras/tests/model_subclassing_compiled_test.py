@@ -101,7 +101,8 @@ class ModelSubclassCompiledTest(test_combinations.TestCase):
             _ = model.evaluate(dataset, steps=10, verbose=0)
 
     def test_attributes(self):
-        # layers, weights, trainable_weights, non_trainable_weights, inputs, outputs
+        # layers, weights, trainable_weights, non_trainable_weights, inputs,
+        # outputs
 
         num_classes = (2, 3)
         num_samples = 100
