@@ -203,10 +203,11 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
         )
 
     def testV2SummaryWithKerasSequentialModel(self):
-        # Histogram summaries require the MLIR bridge; see b/178826597#comment107.
-        # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove this
-        #   if histogram summaries are supported fully on non-MLIR bridge or
-        #   non-MLIR bridge is no longer run.
+        # Histogram summaries require the MLIR bridge; see
+        # b/178826597#comment107.
+        # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove
+        # this if histogram summaries are supported fully on non-MLIR bridge or
+        # non-MLIR bridge is no longer run.
         enable_histograms = tf_test_utils.is_mlir_bridge_enabled()
         strategy = get_tpu_strategy()
 
@@ -231,7 +232,8 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
                 os.path.join(self.summary_dir, "train", "event*")
             )
             # Since total of 10 steps are ran and summary ops should be invoked
-            # every 2 batches, we should see total of 5 event logs for each summary.
+            # every 2 batches, we should see total of 5 event logs for each
+            # summary.
             expected_event_counts = {
                 "sequential/layer_for_histogram_summary/custom_histogram_summary_v2": 5
                 if enable_histograms
@@ -243,10 +245,11 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
             )
 
     def testV2SummaryWithKerasSubclassedModel(self):
-        # Histogram summaries require the MLIR bridge; see b/178826597#comment107.
-        # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove this
-        #   if histogram summaries are supported fully on non-MLIR bridge or
-        #   non-MLIR bridge is no longer run.
+        # Histogram summaries require the MLIR bridge; see
+        # b/178826597#comment107.
+        # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove
+        # this if histogram summaries are supported fully on non-MLIR bridge or
+        # non-MLIR bridge is no longer run.
         enable_histograms = tf_test_utils.is_mlir_bridge_enabled()
         strategy = get_tpu_strategy()
         with strategy.scope():
@@ -268,7 +271,8 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
                 os.path.join(self.summary_dir, "train", "event*")
             )
             # Since total of 10 steps are ran and summary ops should be invoked
-            # every 2 batches, we should see total of 5 event logs for each summary.
+            # every 2 batches, we should see total of 5 event logs for each
+            # summary.
             expected_event_counts = {
                 (
                     "custom_model/layer_for_scalar_summary/"

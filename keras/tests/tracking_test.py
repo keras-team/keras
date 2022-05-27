@@ -400,9 +400,9 @@ class MappingTests(test_combinations.TestCase):
         # This update() is super tricky. If the dict wrapper subclasses dict,
         # CPython will access its storage directly instead of calling any
         # methods/properties on the object. So the options are either not to
-        # subclass dict (in which case update will call normal iter methods, but the
-        # object won't pass isinstance checks) or to subclass dict and keep that
-        # storage updated (no shadowing all its methods like ListWrapper).
+        # subclass dict (in which case update will call normal iter methods, but
+        # the object won't pass isinstance checks) or to subclass dict and keep
+        # that storage updated (no shadowing all its methods like ListWrapper).
         new_dict.update(model.d)
         self.assertEqual({1: 3}, new_dict)
 
