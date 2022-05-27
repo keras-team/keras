@@ -272,8 +272,9 @@ def print_summary(
         name = layer.name
         cls_name = layer.__class__.__name__
         if not layer.built and not getattr(layer, "_is_graph_network", False):
-            # If a subclassed model has a layer that is not called in Model.call, the
-            # layer will not be built and we cannot call layer.count_params().
+            # If a subclassed model has a layer that is not called in
+            # Model.call, the layer will not be built and we cannot call
+            # layer.count_params().
             params = "0 (unused)"
         else:
             params = layer.count_params()
@@ -441,8 +442,8 @@ def cached_per_instance(f):
     For classes with custom getattr / setattr behavior (such as trackable
     objects), storing cache results as object attributes is not performant.
     Instead, a specialized cache can significantly reduce property lookup
-    overhead. (While still allowing the decorated property to be lazily computed.)
-    Consider the following class:
+    overhead. (While still allowing the decorated property to be lazily
+    computed.) Consider the following class:
 
     ```
     class MyClass:
@@ -472,8 +473,8 @@ def cached_per_instance(f):
 
     Slows down attribute assignment by nearly 10x.
 
-    By contrast, replacing the definition of `thing` with the following sidesteps
-    the expensive __setattr__ altogether:
+    By contrast, replacing the definition of `thing` with the following
+    sidesteps the expensive __setattr__ altogether:
 
     '''
     @property
@@ -486,7 +487,8 @@ def cached_per_instance(f):
 
     Performance:
     The overhead for this decorator is ~0.4 us / call. A much lower overhead
-    implementation (~0.085 us / call) can be achieved by using a custom dict type:
+    implementation (~0.085 us / call) can be achieved by using a custom dict
+    type:
 
     ```
     def dict_based_cache(f):
@@ -545,7 +547,8 @@ def filter_empty_layer_containers(layer_list):
 
 
 class CallFunctionSpec:
-    """Caches the spec and provides utilities for handling call function args."""
+    """Caches the spec and provides utilities for handling call function
+    args."""
 
     def __init__(self, full_argspec):
         """Initialies a `CallFunctionSpec`.
@@ -571,12 +574,12 @@ class CallFunctionSpec:
 
         call_fn_defaults = self._full_argspec.defaults or []
         defaults = dict()
-        # The call arg defaults are an n-tuple of the last n elements of the args
-        # list. (n = # of elements that have a default argument)
+        # The call arg defaults are an n-tuple of the last n elements of the
+        # args list. (n = # of elements that have a default argument)
         for i in range(-1 * len(call_fn_defaults), 0):
             defaults[self._arg_names[i]] = call_fn_defaults[i]
-        # The default training arg will be any (non-None) default specified in the
-        # method signature, or None if no value is specified.
+        # The default training arg will be any (non-None) default specified in
+        # the method signature, or None if no value is specified.
         defaults.update(self._full_argspec.kwonlydefaults or {})
         self._default_training_arg = defaults.get("training")
 
@@ -599,7 +602,8 @@ class CallFunctionSpec:
     @cached_per_instance
     def arg_positions(self):
         """Returns a dict mapping arg names to their index positions."""
-        # `arg_positions` is not accurate if the layer has variable positional args.
+        # `arg_positions` is not accurate if the layer has variable positional
+        # args.
         call_fn_arg_positions = dict()
         for pos, arg in enumerate(self._arg_names):
             call_fn_arg_positions[arg] = pos
@@ -635,8 +639,8 @@ class CallFunctionSpec:
           arg_name: String name of the argument to find.
           args: Tuple of args passed to the call function.
           kwargs: Dictionary of kwargs  passed to the call function.
-          inputs_in_args: Whether the input argument (the first argument in the call
-            function) is included in `args`. Defaults to `False`.
+          inputs_in_args: Whether the input argument (the first argument in the
+            call function) is included in `args`. Defaults to `False`.
 
         Returns:
           True if argument with `arg_name` is present in `args` or `kwargs`.
@@ -660,12 +664,12 @@ class CallFunctionSpec:
           arg_name: String name of the argument to find.
           args: Tuple of args passed to the call function.
           kwargs: Dictionary of kwargs  passed to the call function.
-          inputs_in_args: Whether the input argument (the first argument in the call
-            function) is included in `args`. Defaults to `False`.
+          inputs_in_args: Whether the input argument (the first argument in the
+            call function) is included in `args`. Defaults to `False`.
 
         Returns:
-          The value of the argument with name `arg_name`, extracted from `args` or
-          `kwargs`.
+          The value of the argument with name `arg_name`, extracted from `args`
+          or `kwargs`.
 
         Raises:
           KeyError if the value of `arg_name` cannot be found.
@@ -695,10 +699,10 @@ class CallFunctionSpec:
           new_value: New value to give to the argument.
           args: Tuple of args passed to the call function.
           kwargs: Dictionary of kwargs  passed to the call function.
-          inputs_in_args: Whether the input argument (the first argument in the call
-            function) is included in `args`. Defaults to `False`.
-          pop_kwarg_if_none: If the new value is `None`, and this is `True`, then
-            the argument is deleted from `kwargs`.
+          inputs_in_args: Whether the input argument (the first argument in the
+            call function) is included in `args`. Defaults to `False`.
+          pop_kwarg_if_none: If the new value is `None`, and this is `True`,
+            then the argument is deleted from `kwargs`.
 
         Returns:
           The updated `(args, kwargs)`.

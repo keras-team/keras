@@ -115,7 +115,8 @@ def timeseries_dataset_from_array(
     for batch in dataset:
       inputs, targets = batch
       assert np.array_equal(inputs[0], data[:10])  # First sequence: steps [0-9]
-      assert np.array_equal(targets[0], data[10])  # Corresponding target: step 10
+      # Corresponding target: step 10
+      assert np.array_equal(targets[0], data[10])
       break
     ```
 
@@ -206,7 +207,8 @@ def timeseries_dataset_from_array(
     if end_index is None:
         end_index = len(data)
 
-    # Determine the lowest dtype to store start positions (to lower memory usage).
+    # Determine the lowest dtype to store start positions (to lower memory
+    # usage).
     num_seqs = end_index - start_index - (sequence_length * sampling_rate) + 1
     if targets is not None:
         num_seqs = min(num_seqs, len(targets))

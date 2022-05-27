@@ -61,8 +61,8 @@ class KernelizedUtilsTest(tf.test.TestCase, parameterized.TestCase):
         exact_kernel = exact_kernel_fn(x, y)
         shape = exact_kernel.shape.as_list()
         self.assertLen(shape, 2)
-        # x and y are almost identical and therefore K(x, y) will be almost equal to
-        # the identity value of the kernel.
+        # x and y are almost identical and therefore K(x, y) will be almost
+        # equal to the identity value of the kernel.
         self.assertAllClose(expected_values, exact_kernel, atol=1e-3)
 
     @parameterized.named_parameters(
@@ -70,7 +70,8 @@ class KernelizedUtilsTest(tf.test.TestCase, parameterized.TestCase):
         ("laplacian", _exact_laplacian(stddev=5.0), [[0.96], [0.94]]),
     )
     def test_similar_matrices(self, exact_kernel_fn, expected_values):
-        """Pairwise "close" vectors give high kernel values (similarity scores)."""
+        """Pairwise "close" vectors give high kernel values (similarity
+        scores)."""
         x = tf.constant([1.0, 3.4, -2.1, 0.9, 3.3, -2.0], shape=[2, 3])
         y = tf.constant([1.1, 3.35, -2.05])
         exact_kernel = exact_kernel_fn(x, y)

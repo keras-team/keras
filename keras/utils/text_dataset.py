@@ -53,9 +53,9 @@ def text_dataset_from_directory(
     ......b_text_2.txt
     ```
 
-    Then calling `text_dataset_from_directory(main_directory, labels='inferred')`
-    will return a `tf.data.Dataset` that yields batches of texts from
-    the subdirectories `class_a` and `class_b`, together with labels
+    Then calling `text_dataset_from_directory(main_directory,
+    labels='inferred')` will return a `tf.data.Dataset` that yields batches of
+    texts from the subdirectories `class_a` and `class_b`, together with labels
     0 and 1 (0 corresponding to `class_a` and 1 corresponding to `class_b`).
 
     Only `.txt` files are supported at this time.
@@ -124,10 +124,11 @@ def text_dataset_from_directory(
     if labels not in ("inferred", None):
         if not isinstance(labels, (list, tuple)):
             raise ValueError(
-                "`labels` argument should be a list/tuple of integer labels, of "
-                "the same size as the number of text files in the target "
-                "directory. If you wish to infer the labels from the subdirectory "
-                'names in the target directory, pass `labels="inferred"`. '
+                "`labels` argument should be a list/tuple of integer labels, "
+                "of the same size as the number of text files in the target "
+                "directory. If you wish to infer the labels from the "
+                "subdirectory names in the target directory, "
+                'pass `labels="inferred"`. '
                 "If you wish to get a dataset that only contains text samples "
                 f"(no labels), pass `labels=None`. Received: labels={labels}"
             )
@@ -139,7 +140,8 @@ def text_dataset_from_directory(
             )
     if label_mode not in {"int", "categorical", "binary", None}:
         raise ValueError(
-            '`label_mode` argument must be one of "int", "categorical", "binary", '
+            '`label_mode` argument must be one of "int", '
+            '"categorical", "binary", '
             f"or None. Received: label_mode={label_mode}"
         )
     if labels is None or label_mode is None:

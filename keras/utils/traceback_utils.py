@@ -51,7 +51,8 @@ def _process_traceback_frames(tb):
 
 
 def filter_traceback(fn):
-    """Filter out Keras-internal stack trace frames in exceptions raised by fn."""
+    """Filter out Keras-internal stack trace frames in exceptions raised by
+    fn."""
     if sys.version_info.major != 3 or sys.version_info.minor < 7:
         return fn
 
@@ -123,8 +124,8 @@ def inject_argument_info_in_traceback(fn, object_name=None):
                 if isinstance(e, tf.errors.OpError):
                     message = e.message
                 elif e.args:
-                    # Canonically, the 1st argument in an exception is the error message.
-                    # This works for all built-in Python exceptions.
+                    # Canonically, the 1st argument in an exception is the error
+                    # message.  This works for all built-in Python exceptions.
                     message = e.args[0]
                 else:
                     message = ""
@@ -141,10 +142,12 @@ def inject_argument_info_in_traceback(fn, object_name=None):
                     new_e = e.__class__(e.node_def, e.op, message, e.error_code)
                 else:
                     try:
-                        # For standard exceptions such as ValueError, TypeError, etc.
+                        # For standard exceptions such as ValueError, TypeError,
+                        # etc.
                         new_e = e.__class__(message)
                     except TypeError:
-                        # For any custom error that doesn't have a standard signature.
+                        # For any custom error that doesn't have a standard
+                        # signature.
                         new_e = RuntimeError(message)
                 new_e._keras_call_info_injected = (
                     True  # pylint: disable=protected-access
