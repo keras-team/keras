@@ -143,7 +143,8 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
         return loaded
 
     def _test_evaluation(self, model, loaded):
-        # Assert that original and loaded models have the same results when called.
+        # Assert that original and loaded models have the same results when
+        # called.
         self.evaluate(tf.compat.v1.variables_initializer(loaded.variables))
         self.assertAllClose(
             self.evaluate(model.weights), self.evaluate(loaded.weights)
@@ -153,8 +154,8 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
         self.assertAllClose(
             self.evaluate(model(input_arr)), self.evaluate(loaded(input_arr))
         )
-        # Validate losses. The order of conditional losses may change between the
-        # model and loaded model, so sort the losses first.
+        # Validate losses. The order of conditional losses may change between
+        # the model and loaded model, so sort the losses first.
         if tf.executing_eagerly():
             self.assertAllClose(
                 sorted(self.evaluate(model.losses)),
@@ -255,8 +256,8 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
         input_arr = np.random.random((1, 3))
         target_arr = np.random.random((1, 3))
 
-        # Test that symbolic losses are maintained (train_on_batch saves symbolic
-        # losses.)
+        # Test that symbolic losses are maintained (train_on_batch saves
+        # symbolic losses.)
         model.train_on_batch(input_arr, target_arr)
         previous_losses = model.losses[:]
 
@@ -264,8 +265,8 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
         model.save(saved_model_dir, save_format="tf")
 
         with previous_losses[0].graph.as_default():
-            # If we try to compare symbolic Tensors in eager mode assertAllEqual will
-            # return False even if they are the same Tensor.
+            # If we try to compare symbolic Tensors in eager mode assertAllEqual
+            # will return False even if they are the same Tensor.
             self.assertEqual(previous_losses, model.losses)
 
         if tf.executing_eagerly():
@@ -340,8 +341,8 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
 
     @test_combinations.run_with_all_model_types
     def test_compiled_model(self):
-        # TODO(b/134519980): Issue with model.fit if the model call function uses
-        # a tf.function (Graph mode only).
+        # TODO(b/134519980): Issue with model.fit if the model call function
+        # uses a tf.function (Graph mode only).
         if not tf.executing_eagerly():
             return
 
@@ -647,12 +648,12 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
             arg_spec = tf_inspect.getfullargspec(fn)
             fn_defaults = arg_spec.defaults or []
             defaults = dict()
-            # The call arg defaults are an n-tuple of the last n elements of the args
-            # list. (n = # of elements that have a default argument)
+            # The call arg defaults are an n-tuple of the last n elements of the
+            # args list. (n = # of elements that have a default argument)
             for i in range(-1 * len(fn_defaults), 0):
                 defaults[arg_spec.args[i]] = fn_defaults[i]
-            # The default training arg will be any (non-None) default specified in the
-            # method signature, or None if no value is specified.
+            # The default training arg will be any (non-None) default specified
+            # in the method signature, or None if no value is specified.
             defaults.update(arg_spec.kwonlydefaults or {})
             self.assertEqual(defaults["training"], default_value)
 
@@ -731,8 +732,8 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
                 loaded_without_scope.predict(np.ones([1, 3]).astype("float32"))
 
     def testFeatureColumns(self):
-        # TODO(b/120099662): Error with table initialization with Keras models in
-        # graph mode.
+        # TODO(b/120099662): Error with table initialization with Keras models
+        # in graph mode.
         if tf.executing_eagerly():
             numeric = tf.feature_column.numeric_column("a")
             bucketized = tf.feature_column.bucketized_column(
@@ -929,8 +930,9 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
         self.assertAllClose(model(input_arr), loaded(input_arr))
 
     def testSaveBidirectionalLSTM(self):
-        # Make sure that the input spec of an unrolled RNN is not used when wrapped
-        # in a Bidirectional layer. https://github.com/keras-team/keras/issues/15454
+        # Make sure that the input spec of an unrolled RNN is not used when
+        # wrapped in a Bidirectional layer.
+        # https://github.com/keras-team/keras/issues/15454
         input_layer = keras.Input(
             batch_input_shape=(1, 15, 128), name="input", dtype=tf.float32
         )
@@ -1432,9 +1434,9 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
             def update_state(
                 self, *args
             ):  # pylint: disable=useless-super-delegation
-                # Sometimes built-in metrics return an op in update_state. Custom
-                # metrics don't support returning ops, so wrap the update_state method
-                # while returning nothing.
+                # Sometimes built-in metrics return an op in update_state.
+                # Custom metrics don't support returning ops, so wrap the
+                # update_state method while returning nothing.
                 super().update_state(*args)
 
         with self.cached_session():
@@ -1500,8 +1502,8 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
 
     @test_combinations.run_with_all_model_types
     def test_custom_metric_model(self):
-        # TODO(b/134519980): Issue with `model.fit` if the model call function uses
-        # a `tf.function` in graph mode.
+        # TODO(b/134519980): Issue with `model.fit` if the model call function
+        # uses a `tf.function` in graph mode.
         if not tf.executing_eagerly():
             return
 

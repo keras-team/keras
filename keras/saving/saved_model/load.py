@@ -70,26 +70,27 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
     """Loads Keras objects from a SavedModel.
 
     Any Keras layer or model saved to the SavedModel will be loaded back
-    as Keras objects. Other objects are loaded as regular trackable objects (same
-    as `tf.saved_model.load`).
+    as Keras objects. Other objects are loaded as regular trackable objects
+    (same as `tf.saved_model.load`).
 
     Currently, Keras saving/loading only retains the Keras object's weights,
     losses, and call function.
 
-    The loaded model can be re-compiled, but the original optimizer, compiled loss
-    functions, and metrics are not retained. This is temporary, and `model.save`
-    will soon be able to serialize compiled models.
+    The loaded model can be re-compiled, but the original optimizer, compiled
+    loss functions, and metrics are not retained. This is temporary, and
+    `model.save` will soon be able to serialize compiled models.
 
     Args:
       path: Path to SavedModel.
       compile: If true, compile the model after loading it.
-      options: Optional `tf.saved_model.LoadOptions` object that specifies options
-        for loading from SavedModel.
+      options: Optional `tf.saved_model.LoadOptions` object that specifies
+        options for loading from SavedModel.
 
     Returns:
       Object loaded from SavedModel.
     """
-    # TODO(kathywu): Add saving/loading of optimizer, compiled losses and metrics.
+    # TODO(kathywu): Add saving/loading of optimizer, compiled losses and
+    # metrics.
     # TODO(kathywu): Add code to load from objects that contain all endpoints
 
     # Look for metadata file or parse the SavedModel
@@ -120,7 +121,8 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
         _read_legacy_metadata(object_graph_def, metadata, path)
 
     if not metadata.nodes:
-        # When there are no Keras objects, return the results from the core loader
+        # When there are no Keras objects, return the results from the core
+        # loader
         return tf.saved_model.load(path, options=options)
 
     metadata = _update_to_current_version(metadata)
@@ -218,11 +220,13 @@ def _read_legacy_metadata(object_graph_def, metadata, path):
         ):
             if not proto.user_object.metadata:
                 raise ValueError(
-                    f"Unable to create a Keras model from SavedModel at {path}. "
-                    "This SavedModel was exported with `tf.saved_model.save`, and "
-                    "lacks the Keras metadata file. Please save your Keras model by "
-                    "calling `model.save`or `tf.keras.models.save_model`. Note that "
-                    "you can still load this SavedModel with `tf.saved_model.load`."
+                    "Unable to create a Keras model from SavedModel at "
+                    f"{path}. This SavedModel was exported with "
+                    "`tf.saved_model.save`, and lacks the Keras metadata file. "
+                    "Please save your Keras model by calling `model.save` "
+                    "or `tf.keras.models.save_model`. Note that "
+                    "you can still load this SavedModel with "
+                    "`tf.saved_model.load`."
                 )
             metadata.nodes.add(
                 node_id=node_id,
@@ -236,7 +240,8 @@ def _read_legacy_metadata(object_graph_def, metadata, path):
 
 
 def _generate_object_paths(object_graph_def):
-    """Traverses through an ObjectGraphDef and builds a map of all node paths."""
+    """Traverses through an ObjectGraphDef and builds a map of all node
+    paths."""
     paths = {0: "root"}
     nodes_to_visit = [0]
 
@@ -274,13 +279,13 @@ class KerasObjectLoader:
     Layers and models are revived from either the config or SavedModel following
     these rules:
     1. If object is a graph network (i.e. Sequential or Functional) then it will
-       be initialized using the structure from the config only after the children
-       layers have been created. Graph networks must be initialized with inputs
-       and outputs, so all child layers must be created beforehand.
+       be initialized using the structure from the config only after the
+       children layers have been created. Graph networks must be initialized
+       with inputs and outputs, so all child layers must be created beforehand.
     2. If object's config exists and the class can be found, then revive from
        config.
-    3. Object may have already been created if its parent was revived from config.
-       In this case, do nothing.
+    3. Object may have already been created if its parent was revived from
+       config. In this case, do nothing.
     4. If nothing of the above applies, compose the various artifacts from the
        SavedModel to create a subclassed layer or model. At this time, custom
        metrics are not supported.
@@ -297,23 +302,25 @@ class KerasObjectLoader:
         }
         self.loaded_nodes = {}  # Maps node path -> loaded node
 
-        # Store all node ids that have already been traversed when tracking nodes
-        # that were recreated from the config.
+        # Store all node ids that have already been traversed when tracking
+        # nodes that were recreated from the config.
         self._traversed_nodes_from_config = set()
 
-        # Maps model id -> (blank model obj, list of child layer or their node ids)
-        # This tracks all layers in functional and sequential models. These models
-        # are only reconstructed after all of their child layers have been created.
+        # Maps model id -> (blank model obj, list of child layer or their node
+        # ids) This tracks all layers in functional and sequential models. These
+        # models are only reconstructed after all of their child layers have
+        # been created.
         self.model_layer_dependencies = {}
         self._models_to_reconstruct = []
 
     def del_tracking(self):
-        """Removes tracked references that are only used when loading the model."""
+        """Removes tracked references that are only used when loading the
+        model."""
         # Now that the node object has been fully loaded, and the checkpoint has
         # been restored, the object no longer needs to track objects added from
         # SerializedAttributes. (Note that saving a training checkpoint still
-        # functions correctly, because layers and variables are tracked separately
-        # by the Layer object.)
+        # functions correctly, because layers and variables are tracked
+        # separately by the Layer object.)
         # TODO(kathywu): Instead of outright deleting these nodes (which would
         # make restoring from a different checkpoint tricky), mark them as extra
         # dependencies that are OK to overwrite.
@@ -327,10 +334,10 @@ class KerasObjectLoader:
                 node._delete_tracking(name)  # pylint: disable=protected-access
 
             if isinstance(node, functional_lib.Functional):
-                # Delete the temporary layer dependencies, which were used to restore
-                # the checkpointed values. When the model is live, the user can delete
-                # or add layers to the model at any time, so these layer dependencies
-                # may be obsolete.
+                # Delete the temporary layer dependencies, which were used to
+                # restore the checkpointed values. When the model is live, the
+                # user can delete or add layers to the model at any time, so
+                # these layer dependencies may be obsolete.
                 dependencies = list(
                     node._self_unconditional_dependency_names
                 )  # pylint: disable=protected-access
@@ -406,13 +413,13 @@ class KerasObjectLoader:
 
             if child_id in self.loaded_nodes:
                 if self.loaded_nodes[child_id][0] is not obj_child:
-                    # This means that the same trackable object is referenced by two
-                    # different objects that were recreated from the config.
+                    # This means that the same trackable object is referenced by
+                    # two different objects that were recreated from the config.
                     logging.warning(
                         "Looks like there is an object (perhaps variable or "
-                        "layer) that is shared between different layers/models. "
-                        "This may cause issues when restoring the variable "
-                        "values. Object: {}".format(obj_child)
+                        "layer) that is shared between different "
+                        "layers/models. This may cause issues when restoring "
+                        "the variable values. Object: {}".format(obj_child)
                     )
                 continue
 
@@ -440,8 +447,8 @@ class KerasObjectLoader:
     def load_layers(self, compile=True):  # pylint: disable=redefined-builtin
         """Load all layer nodes from the metadata."""
         # Load metrics after models and layers, since it's likely that models
-        # and layers will create the metric when initialized (this avoids wasting
-        # time by creating objects multiple times).
+        # and layers will create the metric when initialized (this avoids
+        # wasting time by creating objects multiple times).
         metric_list = []
         for node_metadata in self._metadata.values():
             if node_metadata.identifier == constants.METRIC_IDENTIFIER:
@@ -462,9 +469,10 @@ class KerasObjectLoader:
                     node_metadata.metadata,
                 )
             except ValueError as e:
-                # Metrics are only needed when the model is compiled later. We ignore
-                # errors when trying to load custom metrics when `compile=False` until
-                # custom metrics are serialized properly (b/135550038).
+                # Metrics are only needed when the model is compiled later. We
+                # ignore errors when trying to load custom metrics when
+                # `compile=False` until custom metrics are serialized properly
+                # (b/135550038).
                 if compile:
                     raise e
                 logging.warning(
@@ -482,8 +490,8 @@ class KerasObjectLoader:
         if node_id in self.loaded_nodes:
             node, setter = self.loaded_nodes[node_id]
 
-            # Revive setter requires the object to have a `_serialized_attributes`
-            # property. Add it here.
+            # Revive setter requires the object to have a
+            # `_serialized_attributes` property. Add it here.
             _maybe_add_serialized_attributes(node, metadata)
 
             config = metadata.get("config")
@@ -496,8 +504,8 @@ class KerasObjectLoader:
                     self._models_to_reconstruct.append(node_id)
             return node, setter
 
-        # Detect whether this object can be revived from the config. If not, then
-        # revive from the SavedModel instead.
+        # Detect whether this object can be revived from the config. If not,
+        # then revive from the SavedModel instead.
         obj, setter = self._revive_from_config(identifier, metadata, node_id)
         if obj is None:
             obj, setter = revive_custom_object(identifier, metadata)
@@ -546,10 +554,10 @@ class KerasObjectLoader:
         if not model_is_functional_or_sequential:
             return None
 
-        # Revive functional and sequential models as blank model objects for now (
-        # must be initialized to enable setattr tracking and attribute caching).
-        # Reconstruction of the network is deferred until all of the model's layers
-        # have been revived.
+        # Revive functional and sequential models as blank model objects for now
+        # ( must be initialized to enable setattr tracking and attribute
+        # caching).  Reconstruction of the network is deferred until all of the
+        # model's layers have been revived.
         if class_name == "Sequential":
             model = models_lib.Sequential(name=config["name"])
         # The model is a custom Sequential model.
@@ -561,8 +569,8 @@ class KerasObjectLoader:
                 inputs=[], outputs=[], name=config["name"]
             )
 
-        # Record this model and its layers. This will later be used to reconstruct
-        # the model.
+        # Record this model and its layers. This will later be used to
+        # reconstruct the model.
         layers = self._get_child_layer_node_ids(node_id)
         self.model_layer_dependencies[node_id] = (model, layers)
         if not layers:
@@ -570,11 +578,13 @@ class KerasObjectLoader:
         return model
 
     def _revive_layer_or_model_from_config(self, metadata, node_id):
-        """Revives a layer/custom model from config; returns None if infeasible."""
-        # Check that the following requirements are met for reviving from config:
+        """Revives a layer/custom model from config; returns None if
+        infeasible."""
+        # Check that the following requirements are met for reviving from
+        # config:
         #    1. Object can be deserialized from config.
-        #    2. If the object needs to be built, then the build input shape can be
-        #       found.
+        #    2. If the object needs to be built, then the build input shape can
+        #       be found.
         class_name = metadata.get("class_name")
         config = metadata.get("config")
         shared_object_id = metadata.get("shared_object_id")
@@ -589,17 +599,19 @@ class KerasObjectLoader:
                 )
             )
         except (TypeError, KeyError) as e:
-            # A name conflict has occurred. The `class_name` is in the Keras native
-            # framework; however, the value in the framework is different from the
-            # user's class definition which confuses the KerasObjectLoader.
+            # A name conflict has occurred. The `class_name` is in the Keras
+            # native framework; however, the value in the framework is different
+            # from the user's class definition which confuses the
+            # KerasObjectLoader.
             builtin_layer = layers_module.get_builtin_layer(class_name)
             if builtin_layer:
                 raise RuntimeError(
-                    f"Unable to restore object of class '{class_name}' likely due to "
-                    f"name conflict with built-in Keras class '{builtin_layer}'. To "
-                    "override the built-in Keras definition of the object, decorate "
-                    "your class with `@keras.utils.register_keras_serializable` and "
-                    "include that file in your program, or pass your class in a "
+                    f"Unable to restore object of class '{class_name}' likely "
+                    f"due to name conflict with built-in Keras class "
+                    f"'{builtin_layer}'. To override the built-in Keras "
+                    "definition of the object, decorate your class with "
+                    "`@keras.utils.register_keras_serializable` and include "
+                    "that file in your program, or pass your class in a "
                     "`keras.utils.CustomObjectScope` that wraps this load call."
                 ) from e
             else:
@@ -611,7 +623,8 @@ class KerasObjectLoader:
                 return None
 
         # Use the dtype, name, and trainable status. Often times these are not
-        # specified in custom configs, so retrieve their values from the metadata.
+        # specified in custom configs, so retrieve their values from the
+        # metadata.
         # pylint: disable=protected-access
         obj._name = metadata["name"]
         if metadata.get("trainable") is not None:
@@ -685,15 +698,16 @@ class KerasObjectLoader:
     def finalize_objects(self):
         """Finish setting up Keras objects.
 
-        This function is executed after all objects and functions have been created.
-        Call functions and losses are attached to each layer, and once all layers
-        have been fully set up, graph networks are initialized.
+        This function is executed after all objects and functions have been
+        created.  Call functions and losses are attached to each layer, and once
+        all layers have been fully set up, graph networks are initialized.
 
         Subclassed models that are revived from the SavedModel are treated like
         layers, and have their call/loss functions attached here.
         """
-        # Finish setting up layers and subclassed models. This step attaches call
-        # functions and losses to each object, and sets model inputs/outputs.
+        # Finish setting up layers and subclassed models. This step attaches
+        # call functions and losses to each object, and sets model
+        # inputs/outputs.
         layers_revived_from_config = []
         layers_revived_from_saved_model = []
         for node_id, (node, _) in self.loaded_nodes.items():
@@ -720,7 +734,8 @@ class KerasObjectLoader:
         _finalize_saved_model_layers(layers_revived_from_saved_model)
         _finalize_config_layers(layers_revived_from_config)
 
-        # Initialize graph networks, now that layer dependencies have been resolved.
+        # Initialize graph networks, now that layer dependencies have been
+        # resolved.
         self._reconstruct_all_models()
 
     def _unblock_model_reconstruction(self, layer_id, layer):
@@ -765,8 +780,8 @@ class KerasObjectLoader:
 
         # Set up model inputs
         if model.inputs:
-            # Inputs may already be created if the model is instantiated in another
-            # object's __init__.
+            # Inputs may already be created if the model is instantiated in
+            # another object's __init__.
             pass
         elif isinstance(model, models_lib.Sequential):
             if not layers or not isinstance(layers[0], input_layer.InputLayer):
@@ -820,7 +835,8 @@ class KerasObjectLoader:
         self._unblock_model_reconstruction(model_id, model)
 
     def _get_child_layer_node_ids(self, node_id):
-        """Returns the node ids of each layer in a Sequential/Functional model."""
+        """Returns the node ids of each layer in a Sequential/Functional
+        model."""
         # Sequential and Functional track layers with names following the format
         # "layer-N". Use this to generate the list of layers.
         num_layers = 0
@@ -848,8 +864,8 @@ class KerasObjectLoader:
 
         A helper method for traversing the object graph proto.
 
-        As an example, say that the object graph proto in the SavedModel contains an
-        object with the following child and grandchild attributes:
+        As an example, say that the object graph proto in the SavedModel
+        contains an object with the following child and grandchild attributes:
 
         `parent.child_a.child_b`
 
@@ -933,8 +949,9 @@ def _finalize_saved_model_layers(layers):
                 "expects_training_arg"
             ]
             if "training" in layer_call.function_spec.arg_names:
-                # This could change the value of `expects_training_arg` if this layer
-                # doesn't expect a training arg, but has a child layer that does.
+                # This could change the value of `expects_training_arg` if this
+                # layer doesn't expect a training arg, but has a child layer
+                # that does.
                 expects_training_arg = True
             layer._init_call_fn_args(expects_training_arg)
         else:
@@ -970,9 +987,9 @@ def _finalize_saved_model_layers(layers):
                     inputs, args, kwargs
                 )  # pylint: disable=protected-access
 
-                # V1 models require calling _set_inputs to set the `.inputs` attr.
-                # Skip this step when there are multiple tensor inputs (this behavior
-                # is not well supported in V1 models).
+                # V1 models require calling _set_inputs to set the `.inputs`
+                # attr.  Skip this step when there are multiple tensor inputs
+                # (this behavior is not well supported in V1 models).
                 if not any(
                     isinstance(x, tf.TensorSpec)
                     for x in tf.nest.flatten([args, kwargs])
@@ -997,11 +1014,12 @@ def _unable_to_call_layer_due_to_serialization_issue(
     Keras Model/Layer serialization is relatively relaxed because SavedModels
     are not always loaded back as keras models. Thus, when there is an issue
     tracing a non-signature function, a warning is logged instead of raising an
-    error. This results in a SavedModel where the model's call function is saved,
-    but the internal layer call functions are not.
+    error. This results in a SavedModel where the model's call function is
+    saved, but the internal layer call functions are not.
 
     When deserialized with `tf.keras.models.load_model`, the internal layers
-    which do not have serialized call functions should raise an error when called.
+    which do not have serialized call functions should raise an error when
+    called.
 
     Args:
       layer: Layer without the serialized call function.
@@ -1029,19 +1047,19 @@ def _unable_to_call_layer_due_to_serialization_issue(
 def _finalize_config_layers(layers):
     """Runs the final steps of loading Keras Layers from config."""
     for layer in layers:
-        # It is assumed that layers define their unconditional losses after being
-        # recreated from the config and built. The exceptions to this
-        # are Functional and Sequential models, which only store conditional losses
-        # (losses dependent on the inputs) in the config. Unconditional losses like
-        # weight regularization must be revived from the SavedModel.
+        # It is assumed that layers define their unconditional losses after
+        # being recreated from the config and built. The exceptions to this are
+        # Functional and Sequential models, which only store conditional losses
+        # (losses dependent on the inputs) in the config. Unconditional losses
+        # like weight regularization must be revived from the SavedModel.
         if _is_graph_network(layer):
             _restore_layer_unconditional_losses(layer)
 
         # Some layers, like Dense, record their activation loss function in the
         # config. However, not all layers do this, so the activation loss may be
         # missing when restored from the config/hdf5.
-        # TODO(kathywu): Investigate ways to improve the config to ensure consistent
-        # loading behavior between HDF5 and SavedModel.
+        # TODO(kathywu): Investigate ways to improve the config to ensure
+        # consistent loading behavior between HDF5 and SavedModel.
         _restore_layer_activation_loss(layer)
 
         # Restore metrics list.
@@ -1098,7 +1116,8 @@ def _restore_layer_activation_loss(layer):
             layer.activity_regularizer = activity_regularizer
         except AttributeError:
             # This may happen if a layer wrapper is saved with an activity
-            # regularizer. The wrapper object's activity regularizer is unsettable.
+            # regularizer. The wrapper object's activity regularizer is
+            # unsettable.
             pass
 
 
@@ -1139,8 +1158,8 @@ def revive_custom_object(identifier, metadata):
         raise ValueError(
             f"Unable to restore custom object of type {identifier}. "
             f"Please make sure that any custom layers are included in the "
-            f"`custom_objects` arg when calling `load_model()` and make sure that "
-            f"all layers implement `get_config` and `from_config`."
+            f"`custom_objects` arg when calling `load_model()` and make sure "
+            f"that all layers implement `get_config` and `from_config`."
         )
 
 
@@ -1151,7 +1170,8 @@ def _restore_layer_metrics(layer):
     }  # pylint: disable=protected-access
     for name, metric in metrics_list.items():
         if name not in layer_metrics:
-            # Metrics may be added during initialization/building of custom layers.
+            # Metrics may be added during initialization/building of custom
+            # layers.
             layer._metrics.append(metric)  # pylint: disable=protected-access
 
 
@@ -1222,15 +1242,15 @@ def _revive_setter(layer, name, value):
         and re.match(r"^layer(_with_weights)?-[\d+]", name) is not None
     ):
         # Edges named "layer-n" or "layer_with_weights-n", which are tracked in
-        # network._track_layers, should not be added as an attribute. They should
-        # be temporarily added as a dependency so that checkpointed values can be
-        # restored. These dependencies are manually deleted in
+        # network._track_layers, should not be added as an attribute. They
+        # should be temporarily added as a dependency so that checkpointed
+        # values can be restored. These dependencies are manually deleted in
         # KerasObjectLoader.del_tracking.
 
-        # Set `overwrite=True` in the case that `layer` already tracks a different
-        # layer-n. This may cause variable values to not be loaded properly in the
-        # original layer-n, but we already warn the users about this
-        # (ctrl-f "shared between different layers/models").
+        # Set `overwrite=True` in the case that `layer` already tracks a
+        # different layer-n. This may cause variable values to not be loaded
+        # properly in the original layer-n, but we already warn the users about
+        # this (ctrl-f "shared between different layers/models").
         layer._track_trackable(
             value, name, overwrite=True
         )  # pylint: disable=protected-access
@@ -1287,8 +1307,8 @@ def recursively_deserialize_keras_object(config, module_objects=None):
         ]
     else:
         raise ValueError(
-            f"Unable to decode Keras layer config. Config should be a dictionary, "
-            f"tuple or list. Received: config={config}"
+            f"Unable to decode Keras layer config. Config should be a "
+            f"dictionary, tuple or list. Received: config={config}"
         )
 
 
@@ -1305,8 +1325,8 @@ def infer_inputs_from_restored_call_function(fn):
 
     def common_spec(x, y):
         if not isinstance(x, tf.TypeSpec):
-            # Doesn't particularly matter what is returned in this case because the
-            # result will be filtered out in _set_input_shape.
+            # Doesn't particularly matter what is returned in this case because
+            # the result will be filtered out in _set_input_shape.
             return x
         # pylint:disable=protected-access
         result = x._without_tensor_names().most_specific_common_supertype(
@@ -1329,7 +1349,8 @@ class RevivedNetwork(RevivedLayer):
 
     @classmethod
     def _init_from_metadata(cls, metadata):
-        """Create revived network from metadata stored in the SavedModel proto."""
+        """Create revived network from metadata stored in the SavedModel
+        proto."""
         revived_obj = cls(name=metadata["name"])
 
         # Store attributes revived from SerializedAttributes in a un-tracked

@@ -57,7 +57,8 @@ sequential_lib = LazyLoader(
 
 
 def should_skip_serialization(layer):
-    """Skip serializing extra objects and functions if layer inputs aren't set."""
+    """Skip serializing extra objects and functions if layer inputs aren't
+    set."""
     saved_model_input_spec_set = (
         isinstance(layer, training_lib.Model)
         and layer._saved_model_inputs_spec is not None
@@ -250,8 +251,8 @@ def _replace_child_layer_functions(layer, serialization_cache):
     This step allows functions from parent layers to reference the wrapped
     functions from their children layers instead of retracing the ops.
 
-    This function also resets all losses stored in the layer. These are stored in
-    the returned dictionary. Use `_restore_child_layer_functions` to restore
+    This function also resets all losses stored in the layer. These are stored
+    in the returned dictionary. Use `_restore_child_layer_functions` to restore
     the original attributes.
 
     Args:
@@ -272,7 +273,8 @@ def _replace_child_layer_functions(layer, serialization_cache):
     original_fns = {}
 
     def replace_layer_functions(child_layer, serialized_fns):
-        """Replaces layer call and activity regularizer with wrapped functions."""
+        """Replaces layer call and activity regularizer with wrapped
+        functions."""
         original_fns[child_layer] = {
             "call": child_layer.call,
             "_activity_regularizer": child_layer._activity_regularizer,
@@ -320,9 +322,9 @@ def _replace_child_layer_functions(layer, serialization_cache):
             # This indicates either:
             #   - circular dependency, which means the current layer's functions
             #     should be wrapped first.
-            #   - Child layer's inputs are not defined, so its functions have not been
-            #     wrapped. In this case, no replacement is necessary so move on to the
-            #     next child.
+            #   - Child layer's inputs are not defined, so its functions have
+            #     not been wrapped. In this case, no replacement is necessary so
+            #     move on to the next child.
             continue
 
         if isinstance(child_layer, metrics.Metric):
@@ -344,8 +346,9 @@ def _restore_child_layer_functions(original_fns):
                         child_layer, fn_name, fn
                     )  # pylint: disable=protected-access
                 except AttributeError:
-                    pass  # In the case of _activity_regularizer, setting the attribute
-                    # may be disallowed.
+                    # In the case of _activity_regularizer, setting the
+                    # attribute may be disallowed.
+                    pass
 
 
 # pylint: disable=protected-access
@@ -422,8 +425,8 @@ def tracing_enabled():
 class LayerCallCollection:
     """Groups wrapped layer call functions.
 
-    This is used to ensure that all layer call functions are traced with the same
-    inputs-
+    This is used to ensure that all layer call functions are traced with the
+    same inputs-
       - call
       - call_and_return_conditional_losses
       - call_and_return_all_conditional_losses
@@ -436,9 +439,10 @@ class LayerCallCollection:
         self._expects_training_arg = utils.layer_uses_training_bool(layer)
         self._call_spec = layer._call_spec  # pylint: disable=protected-access
 
-        # Create new call spec if the layer itself does not accept a training arg,
-        # but one of its child layers does. When this layer's call functions are
-        # traced, they will be traced with an added `training` keyword argument.
+        # Create new call spec if the layer itself does not accept a training
+        # arg, but one of its child layers does. When this layer's call
+        # functions are traced, they will be traced with an added `training`
+        # keyword argument.
         if (
             not self.layer._expects_training_arg and self._expects_training_arg
         ):  # pylint: disable=protected-access
@@ -454,8 +458,8 @@ class LayerCallCollection:
         if self._call_spec.arg_names:
             self._input_arg_name = self._call_spec.arg_names[0]
         else:
-            # Layer could be defined with only varargs, in which case use a default
-            # name.
+            # Layer could be defined with only varargs, in which case use a
+            # default name.
             self._input_arg_name = "inputs"
 
     def _get_layer_inputs(self, layer):
@@ -465,8 +469,8 @@ class LayerCallCollection:
           layer: Layer object.
 
         Returns:
-          List of possibly nested TensorSpecs of the layer call function inputs in
-          the form of `(args, kwargs)`
+          List of possibly nested TensorSpecs of the layer call function inputs
+          in the form of `(args, kwargs)`
         """
         if (
             isinstance(layer.call, tf.__internal__.function.Function)
@@ -484,10 +488,11 @@ class LayerCallCollection:
                 spec = input_spec.to_tensor_spec(
                     x, layer._compute_dtype
                 )  # pylint: disable=protected-access
-                # If the shape is too general (e.g. multiple dimensions are allowed),
-                # return None so that separate functions can be generated for each
-                # inferred input signature.
-                # TODO(b/134962016): currently partial signatures are not supported.
+                # If the shape is too general (e.g. multiple dimensions are
+                # allowed), return None so that separate functions can be
+                # generated for each inferred input signature.
+                # TODO(b/134962016): currently partial signatures are not
+                # supported.
                 if spec.shape == tf.TensorShape(None):
                     return None, None
                 return spec
@@ -511,16 +516,13 @@ class LayerCallCollection:
         kwargs = kwargs.copy()
 
         for fn in self._functions.values():
-            # TODO(kathywu): Replace arguments with broader shapes defined in the
-            # input signature.
+            # TODO(kathywu): Replace arguments with broader shapes defined in
+            # the input signature.
             if self._expects_training_arg:
 
                 def trace_with_training(value, fn=fn):
                     nonlocal args, kwargs
-                    (
-                        args,
-                        kwargs,
-                    ) = self._call_spec.set_arg_value(  # pylint: disable=protected-access
+                    (args, kwargs,) = self._call_spec.set_arg_value(
                         "training", value, args, kwargs, inputs_in_args=True
                     )
                     add_trace_to_queue(fn, args, kwargs, value)
@@ -539,7 +541,7 @@ class LayerCallCollection:
 
     def get_training_arg_value(self, args, kwargs):
         try:
-            return self._call_spec.get_arg_value(  # pylint: disable=protected-access
+            return self._call_spec.get_arg_value(
                 "training", args, kwargs, inputs_in_args=True
             )
         except KeyError:  # Training is not in args or kwargs.
@@ -557,18 +559,16 @@ class LayerCallCollection:
         if (
             not self.layer._expects_training_arg and self._expects_training_arg
         ):  # pylint: disable=protected-access
-            # Add training arg to wrapper function.  # pylint: disable=protected-access
+            # Add training arg to wrapper function.
             def wrap_with_training_arg(*args, **kwargs):
                 if match_layer_training_arg:
-                    # Remove the training value, since the original call_fn does not
-                    # expect a training arg. Instead, the training value will be
-                    # propagated using the call context created in LayerCall.
+                    # Remove the training value, since the original call_fn does
+                    # not expect a training arg. Instead, the training value
+                    # will be propagated using the call context created in
+                    # LayerCall.
                     args = list(args)
                     kwargs = kwargs.copy()
-                    (
-                        args,
-                        kwargs,
-                    ) = self._call_spec.set_arg_value(  # pylint: disable=protected-access
+                    (args, kwargs,) = self._call_spec.set_arg_value(
                         "training",
                         None,
                         args,
@@ -619,8 +619,8 @@ class LayerCallCollection:
                 "training", False, args, kwargs, inputs_in_args=True
             )
         if None not in tf.nest.flatten([args, kwargs]):
-            # Manually add traces for layers that have keyword arguments and have
-            # a fully defined input signature.
+            # Manually add traces for layers that have keyword arguments and
+            # have a fully defined input signature.
             self.add_trace(*args, **kwargs)
 
 
@@ -629,7 +629,8 @@ def _filtered_inputs(inputs):
 
 
 def layer_call_wrapper(call_collection, method, name):
-    """Ensures layer losses are kept the same, and runs method in call context."""
+    """Ensures layer losses are kept the same, and runs method in call
+    context."""
 
     # Create wrapper that deals with losses and call context.
     def wrapper(*args, **kwargs):
@@ -669,7 +670,8 @@ def layer_call_wrapper(call_collection, method, name):
 
 
 class LayerCall:
-    """Function that triggers traces of other functions in the same collection."""
+    """Function that triggers traces of other functions in the same
+    collection."""
 
     def __init__(self, call_collection, call_fn, name):
         """Initializes a LayerCall object.
@@ -703,15 +705,16 @@ class LayerCall:
 def _wrap_call_and_conditional_losses(layer):
     """Wraps call function that returns a tuple of (outputs, losses).
 
-    The losses returned are conditional on the inputs passed to the call function.
-    Unconditional losses (e.g. weight regularizeration) are wrapped separately.
+    The losses returned are conditional on the inputs passed to the call
+    function.  Unconditional losses (e.g. weight regularizeration) are wrapped
+    separately.
 
     Args:
       layer: a Keras layer object
 
     Returns:
-      python call function that returns outputs and conditional losses -- excludes
-      activity regularizer
+      python call function that returns outputs and conditional losses --
+      excludes activity regularizer
     """
     # Create function that generates both outputs and losses
     layer_call = _get_layer_call_method(layer)
@@ -746,7 +749,8 @@ def _extract_outputs_from_fn(layer, call_and_return_conditional_losses):
 def _append_activity_regularizer_loss(
     layer, call_fn_with_losses, activity_regularizer_fn
 ):
-    """Appends activity regularizer loss to losses returned by the wrapped fn."""
+    """Appends activity regularizer loss to losses returned by the wrapped
+    fn."""
 
     def fn(inputs, *args, **kwargs):
         outputs, losses = call_fn_with_losses(inputs, *args, **kwargs)
