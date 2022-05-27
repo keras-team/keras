@@ -43,18 +43,18 @@ class TestCase(tf.test.TestCase, parameterized.TestCase):
 def run_with_all_saved_model_formats(test_or_class=None, exclude_formats=None):
     """Execute the decorated test with all Keras saved model formats).
 
-    This decorator is intended to be applied either to individual test methods in
-    a `test_combinations.TestCase` class, or directly to a test class that
-    extends it. Doing so will cause the contents of the individual test
-    method (or all test methods in the class) to be executed multiple times - once
-    for each Keras saved model format.
+    This decorator is intended to be applied either to individual test methods
+    in a `test_combinations.TestCase` class, or directly to a test class that
+    extends it. Doing so will cause the contents of the individual test method
+    (or all test methods in the class) to be executed multiple times - once for
+    each Keras saved model format.
 
     The Keras saved model formats include:
     1. HDF5: 'h5'
     2. SavedModel: 'tf'
 
-    Note: if stacking this decorator with absl.testing's parameterized decorators,
-    those should be at the bottom of the stack.
+    Note: if stacking this decorator with absl.testing's parameterized
+    decorators, those should be at the bottom of the stack.
 
     Various methods in `testing_utils` to get file path for saved models will
     auto-generate a string of the two saved model formats. This allows unittests
@@ -84,8 +84,8 @@ def run_with_all_saved_model_formats(test_or_class=None, exclude_formats=None):
     This test tries to save the model into the formats of 'hdf5', 'h5', 'keras',
     'tensorflow', and 'tf'.
 
-    We can also annotate the whole class if we want this to apply to all tests in
-    the class:
+    We can also annotate the whole class if we want this to apply to all tests
+    in the class:
     ```python
     @test_utils.run_with_all_saved_model_formats
     class MyTests(test_utils.KerasTestCase):
@@ -115,8 +115,8 @@ def run_with_all_saved_model_formats(test_or_class=None, exclude_formats=None):
         Defaults to None.
 
     Returns:
-      Returns a decorator that will run the decorated test method multiple times:
-      once for each desired Keras saved model format.
+      Returns a decorator that will run the decorated test method multiple
+      times: once for each desired Keras saved model format.
 
     Raises:
       ImportError: If abseil parameterized is not installed or not included as
@@ -134,7 +134,8 @@ def run_with_all_saved_model_formats(test_or_class=None, exclude_formats=None):
 
     def single_method_decorator(f):
         """Decorator that constructs the test cases."""
-        # Use named_parameters so it can be individually run from the command line
+        # Use named_parameters so it can be individually run from the command
+        # line
         @parameterized.named_parameters(*params)
         @functools.wraps(f)
         def decorated(self, saved_format, *args, **kwargs):
@@ -180,16 +181,16 @@ def run_with_all_weight_formats(test_or_class=None, exclude_formats=None):
 def run_with_all_model_types(test_or_class=None, exclude_models=None):
     """Execute the decorated test with all Keras model types.
 
-    This decorator is intended to be applied either to individual test methods in
-    a `test_combinations.TestCase` class, or directly to a test class that
-    extends it. Doing so will cause the contents of the individual test
-    method (or all test methods in the class) to be executed multiple times - once
-    for each Keras model type.
+    This decorator is intended to be applied either to individual test methods
+    in a `test_combinations.TestCase` class, or directly to a test class that
+    extends it. Doing so will cause the contents of the individual test method
+    (or all test methods in the class) to be executed multiple times - once for
+    each Keras model type.
 
     The Keras model types are: ['functional', 'subclass', 'sequential']
 
-    Note: if stacking this decorator with absl.testing's parameterized decorators,
-    those should be at the bottom of the stack.
+    Note: if stacking this decorator with absl.testing's parameterized
+    decorators, those should be at the bottom of the stack.
 
     Various methods in `testing_utils` to get models will auto-generate a model
     of the currently active Keras model type. This allows unittests to confirm
@@ -224,8 +225,8 @@ def run_with_all_model_types(test_or_class=None, exclude_models=None):
     This test tries building a small mlp as both a functional model and as a
     subclass model.
 
-    We can also annotate the whole class if we want this to apply to all tests in
-    the class:
+    We can also annotate the whole class if we want this to apply to all tests
+    in the class:
     ```python
     @test_utils.run_with_all_model_types(exclude_models = ['sequential'])
     class MyTests(test_utils.KerasTestCase):
@@ -260,8 +261,8 @@ def run_with_all_model_types(test_or_class=None, exclude_models=None):
         Defaults to None.
 
     Returns:
-      Returns a decorator that will run the decorated test method multiple times:
-      once for each desired Keras model type.
+      Returns a decorator that will run the decorated test method multiple
+      times: once for each desired Keras model type.
 
     Raises:
       ImportError: If abseil parameterized is not installed or not included as
@@ -276,7 +277,8 @@ def run_with_all_model_types(test_or_class=None, exclude_models=None):
 
     def single_method_decorator(f):
         """Decorator that constructs the test cases."""
-        # Use named_parameters so it can be individually run from the command line
+        # Use named_parameters so it can be individually run from the command
+        # line
         @parameterized.named_parameters(*params)
         @functools.wraps(f)
         def decorated(self, model_type, *args, **kwargs):
@@ -319,19 +321,19 @@ def run_all_keras_modes(
 ):
     """Execute the decorated test with all keras execution modes.
 
-    This decorator is intended to be applied either to individual test methods in
-    a `test_combinations.TestCase` class, or directly to a test class that
-    extends it. Doing so will cause the contents of the individual test
-    method (or all test methods in the class) to be executed multiple times -
-    once executing in legacy graph mode, once running eagerly and with
+    This decorator is intended to be applied either to individual test methods
+    in a `test_combinations.TestCase` class, or directly to a test class that
+    extends it. Doing so will cause the contents of the individual test method
+    (or all test methods in the class) to be executed multiple times - once
+    executing in legacy graph mode, once running eagerly and with
     `should_run_eagerly` returning True, and once running eagerly with
     `should_run_eagerly` returning False.
 
     If Tensorflow v2 behavior is enabled, legacy graph mode will be skipped, and
     the test will only run twice.
 
-    Note: if stacking this decorator with absl.testing's parameterized decorators,
-    those should be at the bottom of the stack.
+    Note: if stacking this decorator with absl.testing's parameterized
+    decorators, those should be at the bottom of the stack.
 
     For example, consider the following unittest:
 
@@ -379,7 +381,8 @@ def run_all_keras_modes(
        rolled out yet
 
     Returns:
-      Returns a decorator that will run the decorated test method multiple times.
+      Returns a decorator that will run the decorated test method multiple
+      times.
 
     Raises:
       ImportError: If abseil parameterized is not installed or not included as
@@ -397,7 +400,8 @@ def run_all_keras_modes(
     def single_method_decorator(f):
         """Decorator that constructs the test cases."""
 
-        # Use named_parameters so it can be individually run from the command line
+        # Use named_parameters so it can be individually run from the command
+        # line
         @parameterized.named_parameters(*params)
         @functools.wraps(f)
         def decorated(self, run_mode, *args, **kwargs):
@@ -447,7 +451,8 @@ def _test_or_class_decorator(test_or_class, single_method_decorator):
       parameterized decorators w/ each other, and to apply them to test methods
       that have already been marked with an absl parameterized decorator.
 
-    Otherwise, treat the obj as a single method and apply the decorator directly.
+    Otherwise, treat the obj as a single method and apply the decorator
+    directly.
 
     Args:
       test_or_class: A test method (that may have already been decorated with a
