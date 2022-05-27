@@ -1648,7 +1648,8 @@ class TestImageDataGenerator(test_combinations.TestCase):
             # number of classes, because labels are sorted
             with self.assertRaisesRegex(
                 ValueError,
-                "Training and validation subsets have different number of classes",
+                "Training and validation subsets have "
+                "different number of classes",
             ):
                 generator.flow(
                     images,

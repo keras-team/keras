@@ -90,9 +90,11 @@ class TestText(tf.test.TestCase):
 
     def test_tokenizer_serde_fitting(self):
         sample_texts = [
-            "There was a time that the pieces fit, but I watched them fall away",
+            "There was a time that the pieces fit, but I watched "
+            "them fall away",
             "Mildewed and smoldering, strangled by our coveting",
-            "I've done the math enough to know the dangers of our second guessing",
+            "I've done the math enough to know the dangers of our second "
+            "guessing",
         ]
         tokenizer = text.Tokenizer(num_words=100)
         tokenizer.fit_on_texts(sample_texts)
