@@ -80,14 +80,15 @@ class LinearModel(training.Model):
           units: Positive integer, output dimension without the batch size.
           activation: Activation function to use.
             If you don't specify anything, no activation is applied.
-          use_bias: whether to calculate the bias/intercept for this model. If set
-            to False, no bias/intercept will be used in calculations, e.g., the data
-            is already centered.
+          use_bias: whether to calculate the bias/intercept for this model. If
+            set to False, no bias/intercept will be used in calculations, e.g.,
+            the data is already centered.
           kernel_initializer: Initializer for the `kernel` weights matrices.
           bias_initializer: Initializer for the bias vector.
           kernel_regularizer: regularizer for kernel vectors.
           bias_regularizer: regularizer for bias vector.
-          **kwargs: The keyword arguments that are passed on to BaseLayer.__init__.
+          **kwargs: The keyword arguments that are passed on to
+            BaseLayer.__init__.
         """
 
         self.units = units
