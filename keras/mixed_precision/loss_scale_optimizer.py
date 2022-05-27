@@ -1394,6 +1394,22 @@ class LossScaleOptimizerV3(
     def learning_rate(self, learning_rate):
         self._optimizer.learning_rate = learning_rate
 
+    @property
+    def use_ema(self):
+        return self._optimizer.use_ema
+
+    @use_ema.setter
+    def use_ema(self, use_ema):
+        self._optimizer.use_ema = use_ema
+
+    @property
+    def ema_momentum(self):
+        return self._optimizer.ema_momentum
+
+    @ema_momentum.setter
+    def ema_momentum(self, ema_momentum):
+        self._optimizer.ema_momentum = ema_momentum
+
 
 class FakeOptimizerForRestoration(tf.__internal__.tracking.Trackable):
     """A fake optimizer used to support restoring TensorFlow 2.2 checkpoints.
