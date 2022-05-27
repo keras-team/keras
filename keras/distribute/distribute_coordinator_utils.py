@@ -32,6 +32,8 @@ import threading
 import time
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.core.protobuf import cluster_pb2
 from tensorflow.python.platform import tf_logging as logging
 

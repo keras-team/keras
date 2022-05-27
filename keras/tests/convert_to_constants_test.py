@@ -18,12 +18,14 @@ import os
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import convert_to_constants
-from tensorflow.python.saved_model.load import load
-from tensorflow.python.saved_model.save import save
 
 import keras
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.framework import convert_to_constants
+from tensorflow.python.saved_model.load import load
+from tensorflow.python.saved_model.save import save
 
 
 class VariablesToConstantsTest(tf.test.TestCase):

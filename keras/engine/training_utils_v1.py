@@ -24,7 +24,6 @@ import time
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras import callbacks as cbks
@@ -34,6 +33,9 @@ from keras.utils import data_utils
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 def is_composite_or_composite_value(tensor):

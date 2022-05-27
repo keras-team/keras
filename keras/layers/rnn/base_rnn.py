@@ -19,8 +19,6 @@ import collections
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras.engine import base_layer
@@ -30,6 +28,10 @@ from keras.layers.rnn.dropout_rnn_cell_mixin import DropoutRNNCellMixin
 from keras.layers.rnn.stacked_rnn_cells import StackedRNNCells
 from keras.saving.saved_model import layer_serialization
 from keras.utils import generic_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 @keras_export("keras.layers.RNN")

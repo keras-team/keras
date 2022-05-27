@@ -17,10 +17,12 @@
 import time
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.eager import context
-from tensorflow.python.eager.context import get_executor
 
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.eager import context
+from tensorflow.python.eager.context import get_executor
 
 
 def _run_benchmark(func, num_iters, execution_mode=None):

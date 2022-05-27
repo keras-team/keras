@@ -14,6 +14,12 @@
 # ==============================================================================
 """Contains the TFOpLambda layer."""
 import tensorflow.compat.v2 as tf
+
+from keras import backend
+from keras.engine import keras_tensor
+from keras.engine.base_layer import Layer
+
+# isort: off
 from tensorflow.python.platform import tf_logging
 from tensorflow.python.util.tf_export import (
     get_canonical_name_for_symbol,
@@ -21,10 +27,6 @@ from tensorflow.python.util.tf_export import (
 from tensorflow.python.util.tf_export import (
     get_symbol_from_name,
 )
-
-from keras import backend
-from keras.engine import keras_tensor
-from keras.engine.base_layer import Layer
 
 # pylint: enable=g-bad-import-order
 

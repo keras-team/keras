@@ -21,13 +21,15 @@ from __future__ import print_function
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
+from keras.feature_column import dense_features as df
+from keras.testing_infra import test_combinations
+
+# isort: off
 from tensorflow.python.eager import backprop
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-
-from keras.feature_column import dense_features as df
-from keras.testing_infra import test_combinations
 
 
 def _initialized_session(config=None):

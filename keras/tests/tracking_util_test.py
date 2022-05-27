@@ -18,14 +18,6 @@ import os
 import weakref
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.eager import context
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.tracking import (
-    util as trackable_utils,
-)
 
 from keras.engine import input_layer
 from keras.engine import sequential
@@ -35,6 +27,16 @@ from keras.layers import reshaping
 from keras.optimizers.optimizer_v2 import adam
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.eager import context
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.training.tracking import (
+    util as trackable_utils,
+)
 
 
 # pylint: disable=not-callable

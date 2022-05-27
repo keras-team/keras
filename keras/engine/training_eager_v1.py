@@ -16,14 +16,16 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.eager.backprop import GradientTape
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras.engine import training_utils
 from keras.engine import training_utils_v1
 from keras.mixed_precision import loss_scale_optimizer
 from keras.utils import losses_utils
+
+# isort: off
+from tensorflow.python.eager.backprop import GradientTape
+from tensorflow.python.platform import tf_logging as logging
 
 # pylint: disable=protected-access
 

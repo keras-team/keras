@@ -17,12 +17,14 @@
 """Constraints: functions that impose constraints on weight values."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 @keras_export("keras.constraints.Constraint")

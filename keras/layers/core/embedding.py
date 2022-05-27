@@ -16,7 +16,6 @@
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import constraints
@@ -26,6 +25,9 @@ from keras.dtensor import utils
 from keras.engine import base_layer_utils
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Embedding")

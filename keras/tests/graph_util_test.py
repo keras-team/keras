@@ -16,13 +16,15 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+import keras
+
+# isort: off
 from tensorflow.core.protobuf import meta_graph_pb2
 from tensorflow.python.grappler import tf_optimizer
 from tensorflow.python.training.saver import (
     export_meta_graph,
 )
-
-import keras
 
 
 class ConvertVariablesToConstantsTest(tf.test.TestCase):

@@ -22,10 +22,12 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.feature_column import base_feature_layer as kfc
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 # pylint: disable=protected-access
 

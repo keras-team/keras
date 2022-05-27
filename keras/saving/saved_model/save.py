@@ -18,7 +18,6 @@ import os
 
 import tensorflow.compat.v2 as tf
 from absl import logging
-from tensorflow.python.saved_model import save as save_lib
 
 from keras import backend
 from keras.layers import serialization
@@ -30,6 +29,9 @@ from keras.saving.saved_model import save_impl
 from keras.saving.saved_model import utils
 from keras.utils.generic_utils import LazyLoader
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
+
+# isort: off
+from tensorflow.python.saved_model import save as save_lib
 
 # To avoid circular dependencies between keras/engine and keras/saving,
 # code in keras/saving must delay imports.

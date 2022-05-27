@@ -20,12 +20,14 @@ import os
 import time
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 from keras.saving.utils_v1 import export_output as export_output_lib
 from keras.saving.utils_v1 import mode_keys
 from keras.saving.utils_v1 import unexported_constants
 from keras.saving.utils_v1.mode_keys import KerasModeKeys as ModeKeys
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 # Mapping of the modes to appropriate MetaGraph tags in the SavedModel.
 EXPORT_TAG_MAP = mode_keys.ModeKeyMap(

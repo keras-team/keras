@@ -15,6 +15,7 @@
 # pylint: disable=protected-access
 """Functions that save the model's config into different formats."""
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

@@ -17,6 +17,8 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
+# isort: off
 from tensorflow.dtensor.python import api as dtensor_api
 from tensorflow.python.eager import context
 

@@ -20,7 +20,6 @@ For more examples see the base class `tf.keras.optimizers.Optimizer`.
 """
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 # Imports needed for deserialization.
 from keras import backend
@@ -79,6 +78,9 @@ from keras.optimizers.optimizer_v2.nadam import Nadam
 from keras.optimizers.optimizer_v2.rmsprop import RMSprop
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.optimizers.serialize")

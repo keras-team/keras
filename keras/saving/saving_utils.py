@@ -19,7 +19,6 @@ import os
 
 # pylint: disable=g-bad-import-order, g-direct-tensorflow-import
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 import keras
 from keras import backend
@@ -30,6 +29,9 @@ from keras.optimizers import optimizer_v1
 from keras.utils import generic_utils
 from keras.utils import version_utils
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 # pylint: enable=g-bad-import-order, g-direct-tensorflow-import
 

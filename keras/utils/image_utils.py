@@ -22,9 +22,11 @@ import warnings
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 try:
     from PIL import Image as pil_image

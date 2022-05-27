@@ -21,13 +21,15 @@ import abc
 
 import tensorflow.compat.v2 as tf
 from absl import logging
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras import initializers
 from keras.optimizers.optimizer_v2 import utils as optimizer_utils
 from keras.optimizers.schedules import learning_rate_schedule
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 class _BaseOptimizer(tf.Module):

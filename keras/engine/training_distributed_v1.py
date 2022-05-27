@@ -16,8 +16,6 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.distribute import input_lib
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras import callbacks as cbks
@@ -28,6 +26,10 @@ from keras.engine import training_arrays_v1
 from keras.engine import training_utils_v1
 from keras.utils.generic_utils import Progbar
 from keras.utils.mode_keys import ModeKeys
+
+# isort: off
+from tensorflow.python.distribute import input_lib
+from tensorflow.python.platform import tf_logging as logging
 
 # pylint: disable=protected-access
 

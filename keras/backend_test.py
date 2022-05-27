@@ -21,11 +21,6 @@ import numpy as np
 import scipy.sparse
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.eager import context
-from tensorflow.python.eager.context import get_config
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
 
 from keras import activations
 from keras import backend
@@ -35,6 +30,13 @@ from keras.layers.normalization import batch_normalization_v1
 from keras.testing_infra import test_combinations
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.eager import context
+from tensorflow.python.eager.context import get_config
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
 
 
 def compare_single_input_op_to_numpy(

@@ -18,7 +18,6 @@
 import copy
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine.base_layer import Layer
@@ -28,6 +27,9 @@ from keras.layers.rnn.base_wrapper import Wrapper
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Bidirectional")

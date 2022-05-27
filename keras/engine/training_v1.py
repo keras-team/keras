@@ -20,7 +20,6 @@ import numpy as np
 
 # pylint: disable=g-classes-have-attributes
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras import losses
@@ -47,6 +46,9 @@ from keras.utils import losses_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils.mode_keys import ModeKeys
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 try:
     from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top

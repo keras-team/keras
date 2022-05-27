@@ -36,11 +36,13 @@ import threading
 import warnings
 
 import numpy as np
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.utils import data_utils
 from keras.utils import image_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 try:
     import scipy

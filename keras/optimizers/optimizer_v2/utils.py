@@ -15,6 +15,8 @@
 """Optimizer utilities."""
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 
 

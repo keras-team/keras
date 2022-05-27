@@ -23,10 +23,6 @@ import weakref
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.eager import context
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras import callbacks as callbacks_module
@@ -57,6 +53,12 @@ from keras.utils import tf_utils
 from keras.utils import traceback_utils
 from keras.utils import version_utils
 from keras.utils.mode_keys import ModeKeys
+
+# isort: off
+from tensorflow.python.eager import context
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 try:
     import h5py

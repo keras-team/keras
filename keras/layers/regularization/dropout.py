@@ -16,11 +16,13 @@
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import base_layer
 from keras.utils import control_flow_util
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Dropout")

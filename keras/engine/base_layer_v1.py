@@ -22,8 +22,6 @@ import threading
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras import constraints
@@ -49,6 +47,10 @@ from keras.utils.generic_utils import (
 from keras.utils.tf_utils import (
     is_tensor_or_tensor_list,  # pylint: disable=unused-import
 )
+
+# isort: off
+from tensorflow.python.platform import tf_logging
+from tensorflow.tools.docs import doc_controls
 
 
 # pylint: disable=g-classes-have-attributes

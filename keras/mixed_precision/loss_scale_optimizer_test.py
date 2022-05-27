@@ -20,13 +20,6 @@ from unittest import mock
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.keras.optimizer_v2 import (
-    gradient_descent as legacy_sgd,
-)
-from tensorflow.python.platform import tf_logging
 
 from keras import optimizers
 from keras.mixed_precision import loss_scale_optimizer
@@ -40,6 +33,15 @@ from keras.optimizers.optimizer_v2 import adam
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.testing_infra import test_combinations
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+from tensorflow.python.keras.optimizer_v2 import (
+    gradient_descent as legacy_sgd,
+)
+from tensorflow.python.platform import tf_logging
 
 # If called outside any strategy.scope() calls, this will return the default
 # strategy.

@@ -17,7 +17,6 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.ops.losses import losses_impl
 
 import keras
 from keras import optimizers
@@ -26,6 +25,9 @@ from keras.datasets import fashion_mnist
 from keras.distribute import optimizer_combinations
 from keras.distribute import strategy_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.ops.losses import losses_impl
 
 _NUM_SAMPLES = 66
 _BATCH_SIZE = 32

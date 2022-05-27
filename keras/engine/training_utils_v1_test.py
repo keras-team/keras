@@ -21,13 +21,15 @@ import time
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras.engine import keras_tensor
 from keras.engine import training_utils_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 class ModelInputsTest(tf.test.TestCase):

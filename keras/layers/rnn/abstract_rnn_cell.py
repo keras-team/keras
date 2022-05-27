@@ -15,10 +15,11 @@
 """Base class for RNN cells."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from tensorflow.python.util.tf_export import keras_export
-
 from keras.engine import base_layer
 from keras.layers.rnn import rnn_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.AbstractRNNCell")

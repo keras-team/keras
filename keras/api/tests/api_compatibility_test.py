@@ -34,6 +34,8 @@ import sys
 
 import six
 import tensorflow as tf
+
+# isort: off
 from google.protobuf import message
 from google.protobuf import text_format
 from tensorflow.python.lib.io import file_io

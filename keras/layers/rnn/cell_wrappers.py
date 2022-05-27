@@ -28,12 +28,14 @@ import types as python_types
 import warnings
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import tf_export
 
 from keras.layers.rnn import lstm
 from keras.layers.rnn.abstract_rnn_cell import AbstractRNNCell
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.util.tf_export import tf_export
 
 
 class _RNNCellWrapper(AbstractRNNCell):

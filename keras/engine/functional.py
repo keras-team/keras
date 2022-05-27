@@ -22,8 +22,6 @@ import itertools
 import warnings
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras.dtensor import layout_map as layout_map_lib
@@ -40,6 +38,10 @@ from keras.saving.saved_model import network_serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.tools.docs import doc_controls
 
 
 # pylint: disable=g-classes-have-attributes

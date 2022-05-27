@@ -17,11 +17,13 @@
 import json
 
 import numpy as np
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.preprocessing.sequence import _remove_long_seq
 from keras.utils.data_utils import get_file
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.datasets.reuters.load_data")

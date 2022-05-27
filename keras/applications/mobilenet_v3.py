@@ -17,8 +17,6 @@
 """MobileNet v3 models for Keras."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import models
@@ -26,6 +24,10 @@ from keras.applications import imagenet_utils
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 # TODO(scottzhu): Change this to the GCS path.
 BASE_WEIGHT_PATH = (

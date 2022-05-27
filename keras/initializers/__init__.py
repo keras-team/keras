@@ -17,14 +17,16 @@
 import threading
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python import tf2
-from tensorflow.python.ops import init_ops
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.initializers import initializers_v1
 from keras.initializers import initializers_v2
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
+
+# isort: off
+from tensorflow.python import tf2
+from tensorflow.python.ops import init_ops
+from tensorflow.python.util.tf_export import keras_export
 
 # LOCAL.ALL_OBJECTS is meant to be a global mutable. Hence we need to make it
 # thread-local to avoid concurrent mutations.

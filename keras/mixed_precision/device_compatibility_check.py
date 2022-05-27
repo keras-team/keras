@@ -17,6 +17,8 @@
 import itertools
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.platform import tf_logging
 
 _COMPAT_CHECK_PREFIX = "Mixed precision compatibility check (mixed_float16): "

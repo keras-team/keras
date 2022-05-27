@@ -14,11 +14,13 @@
 # =============================================================================
 
 import tensorflow.compat.v2 as tf
+
+import keras
+
+# isort: off
 from tensorflow.python.framework.memory_checker import (
     MemoryChecker,
 )
-
-import keras
 
 
 class MemoryCheckerTest(tf.test.TestCase):

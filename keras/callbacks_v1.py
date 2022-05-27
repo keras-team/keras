@@ -20,11 +20,13 @@ import os
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import callbacks
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(v1=["keras.callbacks.TensorBoard"])
@@ -315,6 +317,7 @@ class TensorBoard(callbacks.TensorBoard):
                 embeddings_metadata = self.embeddings_metadata
 
             try:
+                # isort: off
                 from tensorboard.plugins import projector
             except ImportError:
                 raise ImportError(

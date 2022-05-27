@@ -18,6 +18,8 @@
 import uuid
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.eager.context import get_device_name
 
 # The following string constants are used by Defun approach for unified backend

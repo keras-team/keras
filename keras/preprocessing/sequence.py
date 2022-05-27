@@ -28,9 +28,11 @@ import json
 import random
 
 import numpy as np
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils import data_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 def _remove_long_seq(maxlen, seq, label):

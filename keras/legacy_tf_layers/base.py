@@ -22,9 +22,6 @@ import copy
 import warnings
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.ops import variable_scope as vs
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.python.util.tf_export import tf_export
 
 from keras import backend
 from keras.engine import base_layer_utils
@@ -32,6 +29,11 @@ from keras.engine import base_layer_v1 as base_layer
 from keras.legacy_tf_layers import variable_scope_shim
 from keras.mixed_precision import policy
 from keras.utils import tf_contextlib
+
+# isort: off
+from tensorflow.python.ops import variable_scope as vs
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.util.tf_export import tf_export
 
 _KERAS_STYLE_SCOPE = False
 

@@ -18,16 +18,18 @@ import os
 import numpy
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.training.tracking import (
-    data_structures,
-)
-from tensorflow.python.training.tracking import util
 
 from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
 from keras.layers.normalization import batch_normalization_v1
 from keras.testing_infra import test_combinations
+
+# isort: off
+from tensorflow.python.training.tracking import (
+    data_structures,
+)
+from tensorflow.python.training.tracking import util
 
 
 class HasList(training.Model):
