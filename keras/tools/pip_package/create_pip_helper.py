@@ -96,7 +96,8 @@ def verify_python_files_in_pip(pip_root, bazel_root):
         python_files = set(fnmatch.filter(files, "*.py"))
         python_test_files = set(fnmatch.filter(files, "*test.py"))
         python_benchmark_files = set(fnmatch.filter(files, "*benchmark.py"))
-        # We only care about python files in the pip package, see create_init_files.
+        # We only care about python files in the pip package, see
+        # create_init_files.
         files = python_files - python_test_files - python_benchmark_files
         for f in files:
             pip_path = os.path.join(
@@ -108,8 +109,9 @@ def verify_python_files_in_pip(pip_root, bazel_root):
             if not path_exists and not file_excluded:
                 raise PipPackagingError(
                     (
-                        "Pip package missing the file %s. If this is expected, add it "
-                        "to PIP_EXCLUDED_FILES in create_pip_helper.py. Otherwise, "
+                        "Pip package missing the file %s. If this is expected, "
+                        "add it to PIP_EXCLUDED_FILES in "
+                        "create_pip_helper.py. Otherwise, "
                         "make sure it is a build dependency of the pip package"
                     )
                     % file_name

@@ -62,15 +62,15 @@ def smart_resize(x, size, interpolation="bilinear"):
 
     Warning: `tf.keras.preprocessing.image.smart_resize` is not recommended for
     new code. Prefer `tf.keras.layers.Resizing`, which provides the same
-    functionality as a preprocessing layer and adds `tf.RaggedTensor` support. See
-    the [preprocessing layer guide](
+    functionality as a preprocessing layer and adds `tf.RaggedTensor` support.
+    See the [preprocessing layer guide](
     https://www.tensorflow.org/guide/keras/preprocessing_layers)
     for an overview of preprocessing layers.
 
     TensorFlow image datasets typically yield images that have each a different
     size. However, these images need to be batched before they can be
-    processed by Keras layers. To be batched, images need to share the same height
-    and width.
+    processed by Keras layers. To be batched, images need to share the same
+    height and width.
 
     You could simply do:
 
@@ -101,9 +101,10 @@ def smart_resize(x, size, interpolation="bilinear"):
 
     The resizing process is:
 
-    1. Take the largest centered crop of the image that has the same aspect ratio
-    as the target size. For instance, if `size=(200, 200)` and the input image has
-    size `(340, 500)`, we take a crop of `(340, 340)` centered along the width.
+    1. Take the largest centered crop of the image that has the same aspect
+    ratio as the target size. For instance, if `size=(200, 200)` and the input
+    image has size `(340, 500)`, we take a crop of `(340, 340)` centered along
+    the width.
     2. Resize the cropped image to the target size. In the example above,
     we resize the `(340, 340)` crop to `(200, 200)`.
 
@@ -129,8 +130,8 @@ def smart_resize(x, size, interpolation="bilinear"):
     if img.shape.rank is not None:
         if img.shape.rank < 3 or img.shape.rank > 4:
             raise ValueError(
-                "Expected an image array with shape `(height, width, channels)`, "
-                "or `(batch_size, height, width, channels)`, but "
+                "Expected an image array with shape `(height, width, "
+                "channels)`, or `(batch_size, height, width, channels)`, but "
                 f"got input with incorrect rank, of shape {img.shape}."
             )
     shape = tf.shape(img)
@@ -148,7 +149,8 @@ def smart_resize(x, size, interpolation="bilinear"):
         tf.cast(height * target_width, "float32") / target_height, "int32"
     )
 
-    # Set back to input height / width if crop_height / crop_width is not smaller.
+    # Set back to input height / width if crop_height / crop_width is not
+    # smaller.
     crop_height = tf.minimum(height, crop_height)
     crop_width = tf.minimum(width, crop_width)
 
@@ -207,14 +209,14 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
     Args:
         x: Input data, in any form that can be converted to a Numpy array.
         data_format: Image data format, can be either `"channels_first"` or
-          `"channels_last"`. Defaults to `None`, in which case the global setting
-          `tf.keras.backend.image_data_format()` is used (unless you changed it,
-          it defaults to `"channels_last"`).
+          `"channels_last"`. Defaults to `None`, in which case the global
+          setting `tf.keras.backend.image_data_format()` is used (unless you
+          changed it, it defaults to `"channels_last"`).
         scale: Whether to rescale the image such that minimum and maximum values
           are 0 and 255 respectively. Defaults to `True`.
         dtype: Dtype to use. Default to `None`, in which case the global setting
-          `tf.keras.backend.floatx()` is used (unless you changed it, it defaults
-          to `"float32"`)
+          `tf.keras.backend.floatx()` is used (unless you changed it, it
+          defaults to `"float32"`)
 
     Returns:
         A PIL Image instance.
@@ -289,12 +291,12 @@ def img_to_array(img, data_format=None, dtype=None):
     Args:
         img: Input PIL Image instance.
         data_format: Image data format, can be either `"channels_first"` or
-          `"channels_last"`. Defaults to `None`, in which case the global setting
-          `tf.keras.backend.image_data_format()` is used (unless you changed it,
-          it defaults to `"channels_last"`).
+          `"channels_last"`. Defaults to `None`, in which case the global
+          setting `tf.keras.backend.image_data_format()` is used (unless you
+          changed it, it defaults to `"channels_last"`).
         dtype: Dtype to use. Default to `None`, in which case the global setting
-          `tf.keras.backend.floatx()` is used (unless you changed it, it defaults
-          to `"float32"`).
+          `tf.keras.backend.floatx()` is used (unless you changed it, it
+          defaults to `"float32"`).
 
     Returns:
         A 3D Numpy array.
@@ -335,9 +337,9 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
         x: Numpy array.
         data_format: Image data format, either `"channels_first"` or
           `"channels_last"`.
-        file_format: Optional file format override. If omitted, the format to use
-          is determined from the filename extension. If a file object was used
-          instead of a filename, this parameter should always be used.
+        file_format: Optional file format override. If omitted, the format to
+          use is determined from the filename extension. If a file object was
+          used instead of a filename, this parameter should always be used.
         scale: Whether to rescale image values to be within `[0, 255]`.
         **kwargs: Additional keyword arguments passed to `PIL.Image.save()`.
     """

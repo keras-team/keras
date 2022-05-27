@@ -95,7 +95,8 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
         return temp_dir
 
     def test_image_dataset_from_directory_standalone(self):
-        # Test retrieving images without labels from a directory and its subdirs.
+        # Test retrieving images without labels from a directory and its
+        # subdirs.
         if PIL is None:
             return  # Skip test if PIL is not available.
 

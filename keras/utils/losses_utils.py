@@ -29,31 +29,32 @@ class ReductionV2:
 
     Contains the following values:
 
-    * `AUTO`: Indicates that the reduction option will be determined by the usage
-       context. For almost all cases this defaults to `SUM_OVER_BATCH_SIZE`. When
-       used with `tf.distribute.Strategy`, outside of built-in training loops such
-       as `tf.keras` `compile` and `fit`, we expect reduction value to be
-       `SUM` or `NONE`. Using `AUTO` in that case will raise an error.
-    * `NONE`: No **additional** reduction is applied to the output of the wrapped
-       loss function. When non-scalar losses are returned to Keras functions like
-       `fit`/`evaluate`, the unreduced vector loss is passed to the optimizer
-       but the reported loss will be a scalar value.
+    * `AUTO`: Indicates that the reduction option will be determined by the
+      usage context. For almost all cases this defaults to
+      `SUM_OVER_BATCH_SIZE`. When used with `tf.distribute.Strategy`, outside of
+      built-in training loops such as `tf.keras` `compile` and `fit`, we expect
+      reduction value to be `SUM` or `NONE`. Using `AUTO` in that case will
+      raise an error.
+    * `NONE`: No **additional** reduction is applied to the output of the
+      wrapped loss function. When non-scalar losses are returned to Keras
+      functions like `fit`/`evaluate`, the unreduced vector loss is passed to
+      the optimizer but the reported loss will be a scalar value.
 
        Caution: **Verify the shape of the outputs when using** `Reduction.NONE`.
-       The builtin loss functions wrapped by the loss classes reduce
-       one dimension (`axis=-1`, or `axis` if specified by loss function).
-       `Reduction.NONE` just means that no **additional** reduction is applied by
-       the class wrapper. For categorical losses with an example input shape of
-       `[batch, W, H, n_classes]` the `n_classes` dimension is reduced. For
+       The builtin loss functions wrapped by the loss classes reduce one
+       dimension (`axis=-1`, or `axis` if specified by loss function).
+       `Reduction.NONE` just means that no **additional** reduction is applied
+       by the class wrapper. For categorical losses with an example input shape
+       of `[batch, W, H, n_classes]` the `n_classes` dimension is reduced. For
        pointwise losses you must include a dummy axis so that `[batch, W, H, 1]`
        is reduced to `[batch, W, H]`. Without the dummy axis `[batch, W, H]`
        will be incorrectly reduced to `[batch, W]`.
 
     * `SUM`: Scalar sum of weighted losses.
-    * `SUM_OVER_BATCH_SIZE`: Scalar `SUM` divided by number of elements in losses.
-       This reduction type is not supported when used with
-       `tf.distribute.Strategy` outside of built-in training loops like `tf.keras`
-       `compile`/`fit`.
+    * `SUM_OVER_BATCH_SIZE`: Scalar `SUM` divided by number of elements in
+       losses.  This reduction type is not supported when used with
+       `tf.distribute.Strategy` outside of built-in training loops like
+       `tf.keras` `compile`/`fit`.
 
        You can implement 'SUM_OVER_BATCH_SIZE' using global batch size like:
        ```
@@ -96,10 +97,10 @@ def remove_squeezable_dimensions(
     defaults to 0, and we squeeze the last dimension of the larger rank if they
     differ by 1.
 
-    But, for example, if `labels` contains class IDs and `predictions` contains 1
-    probability per class, we expect `predictions` to have 1 more dimension than
-    `labels`, so `expected_rank_diff` would be 1. In this case, we'd squeeze
-    `labels` if `rank(predictions) - rank(labels) == 0`, and
+    But, for example, if `labels` contains class IDs and `predictions` contains
+    1 probability per class, we expect `predictions` to have 1 more dimension
+    than `labels`, so `expected_rank_diff` would be 1. In this case, we'd
+    squeeze `labels` if `rank(predictions) - rank(labels) == 0`, and
     `predictions` if `rank(predictions) - rank(labels) == 2`.
 
     This will use static shape if available. Otherwise, it will add graph
@@ -185,10 +186,10 @@ def squeeze_or_expand_dimensions(y_pred, y_true=None, sample_weight=None):
     y_pred_rank = y_pred_shape.ndims
     if y_true is not None:
 
-        # If sparse matrix is provided as `y_true`, the last dimension in `y_pred`
-        # may be > 1. Eg: y_true = [0, 1, 2] (shape=(3,)),
-        # y_pred = [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]] (shape=(3, 3))
-        # In this case, we should not try to remove squeezable dimension.
+        # If sparse matrix is provided as `y_true`, the last dimension in
+        # `y_pred` may be > 1. Eg: y_true = [0, 1, 2] (shape=(3,)), y_pred =
+        # [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]] (shape=(3, 3)) In
+        # this case, we should not try to remove squeezable dimension.
         y_true_shape = y_true.shape
         y_true_rank = y_true_shape.ndims
         if (y_true_rank is not None) and (y_pred_rank is not None):
@@ -198,9 +199,7 @@ def squeeze_or_expand_dimensions(y_pred, y_true=None, sample_weight=None):
         else:
             # Use dynamic rank.
             rank_diff = tf.rank(y_pred) - tf.rank(y_true)
-            squeeze_dims = lambda: remove_squeezable_dimensions(  # pylint: disable=g-long-lambda
-                y_true, y_pred
-            )
+            squeeze_dims = lambda: remove_squeezable_dimensions(y_true, y_pred)
             is_last_dim_1 = tf.equal(1, tf.shape(y_pred)[-1])
             maybe_squeeze_dims = (
                 lambda: tf.cond(  # pylint: disable=g-long-lambda
@@ -298,14 +297,15 @@ def compute_weighted_loss(
 
     Args:
       losses: `Tensor` of shape `[batch_size, d1, ... dN]`.
-      sample_weight: Optional `Tensor` whose rank is either 0, or the same rank as
-        `losses`, or be broadcastable to `losses`.
-      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to loss.
-        Default value is `SUM_OVER_BATCH_SIZE`.
+      sample_weight: Optional `Tensor` whose rank is either 0, or the same rank
+        as `losses`, or be broadcastable to `losses`.
+      reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
+        loss. Default value is `SUM_OVER_BATCH_SIZE`.
       name: Optional name for the op.
 
     Raises:
-      ValueError: If the shape of `sample_weight` is not compatible with `losses`.
+      ValueError: If the shape of `sample_weight` is not compatible with
+        `losses`.
 
     Returns:
       Weighted loss `Tensor` of the same type as `losses`. If `reduction` is
@@ -334,8 +334,8 @@ def compute_weighted_loss(
         ):
             sample_weight = tf.convert_to_tensor(sample_weight)
 
-        # Convert any non float dtypes to floats, to avoid it loss any precision for
-        # dtype like int or bool.
+        # Convert any non float dtypes to floats, to avoid it loss any precision
+        # for dtype like int or bool.
         if not losses.dtype.is_floating:
             input_dtype = losses.dtype
             losses = tf.cast(losses, "float32")
@@ -343,14 +343,13 @@ def compute_weighted_loss(
         else:
             input_casted = False
         sample_weight = tf.cast(sample_weight, losses.dtype)
-        # Update dimensions of `sample_weight` to match with `losses` if possible.
+        # Update dimensions of `sample_weight` to match with `losses` if
+        # possible.
         (
             losses,
             _,
             sample_weight,
-        ) = squeeze_or_expand_dimensions(  # pylint: disable=unbalanced-tuple-unpacking
-            losses, None, sample_weight
-        )
+        ) = squeeze_or_expand_dimensions(losses, None, sample_weight)
         weighted_losses = tf.multiply(losses, sample_weight)
 
         # Apply reduction function to the individual weighted losses.
@@ -373,8 +372,8 @@ def cast_losses_to_common_dtype(losses):
     """Cast a list of losses to a common dtype.
 
     If any loss is floating-point, they will all be casted to the most-precise
-    floating-point loss. Otherwise the losses are not casted. We also skip casting
-    losses if there are any complex losses.
+    floating-point loss. Otherwise the losses are not casted. We also skip
+    casting losses if there are any complex losses.
 
     Args:
       losses: A list of losses.

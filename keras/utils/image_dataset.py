@@ -63,9 +63,9 @@ def image_dataset_from_directory(
     ......b_image_2.jpg
     ```
 
-    Then calling `image_dataset_from_directory(main_directory, labels='inferred')`
-    will return a `tf.data.Dataset` that yields batches of images from
-    the subdirectories `class_a` and `class_b`, together with labels
+    Then calling `image_dataset_from_directory(main_directory,
+    labels='inferred')` will return a `tf.data.Dataset` that yields batches of
+    images from the subdirectories `class_a` and `class_b`, together with labels
     0 and 1 (0 corresponding to `class_a` and 1 corresponding to `class_b`).
 
     Supported image formats: jpeg, png, bmp, gif.
@@ -124,8 +124,8 @@ def image_dataset_from_directory(
           Defaults to False.
       crop_to_aspect_ratio: If True, resize the images without aspect
         ratio distortion. When the original aspect ratio differs from the target
-        aspect ratio, the output image will be cropped so as to return the largest
-        possible window in the image (of size `image_size`) that matches
+        aspect ratio, the output image will be cropped so as to return the
+        largest possible window in the image (of size `image_size`) that matches
         the target aspect ratio. By default (`crop_to_aspect_ratio=False`),
         aspect ratio may not be preserved.
       **kwargs: Legacy keyword arguments.
@@ -163,9 +163,10 @@ def image_dataset_from_directory(
     if labels not in ("inferred", None):
         if not isinstance(labels, (list, tuple)):
             raise ValueError(
-                "`labels` argument should be a list/tuple of integer labels, of "
-                "the same size as the number of image files in the target "
-                "directory. If you wish to infer the labels from the subdirectory "
+                "`labels` argument should be a list/tuple of integer labels, "
+                "of the same size as the number of image files in the target "
+                "directory. If you wish to infer the labels from the "
+                "subdirectory "
                 'names in the target directory, pass `labels="inferred"`. '
                 "If you wish to get a dataset that only contains images "
                 f"(no labels), pass `labels=None`. Received: labels={labels}"
@@ -178,7 +179,8 @@ def image_dataset_from_directory(
             )
     if label_mode not in {"int", "categorical", "binary", None}:
         raise ValueError(
-            '`label_mode` argument must be one of "int", "categorical", "binary", '
+            '`label_mode` argument must be one of "int", '
+            '"categorical", "binary", '
             f"or None. Received: label_mode={label_mode}"
         )
     if labels is None or label_mode is None:

@@ -40,7 +40,8 @@ class _ObjectIdentityWrapper:
         if not isinstance(other, _ObjectIdentityWrapper):
             raise TypeError(
                 "Cannot compare wrapped object with unwrapped object. "
-                f"Expect the object to be `_ObjectIdentityWrapper`. Got: {other}"
+                f"Expect the object to be `_ObjectIdentityWrapper`. "
+                f"Got: {other}"
             )
 
     def __lt__(self, other):

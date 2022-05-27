@@ -199,8 +199,8 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
             )
 
     # we do not support such cases that ragged_ranks are different but overall
-    # dimension shapes and sizes are identical due to adding too much performance
-    # overheads to the overall use cases.
+    # dimension shapes and sizes are identical due to adding too much
+    # performance overheads to the overall use cases.
     def test_failing_different_ragged_ranks(self):
         dt = tf.constant([[[1, 2]]])
         # adding a ragged dimension
@@ -308,8 +308,8 @@ class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
         y_pred = tf.constant(np.random.random((6, 7)))
         self.assertEqual(matches_method(y_true, y_pred).dtype, backend.floatx())
 
-        # Tests that resulting Tensor always has same shape as y_true. Tests from
-        # 1 dim to 4 dims
+        # Tests that resulting Tensor always has same shape as y_true. Tests
+        # from 1 dim to 4 dims
         dims = []
         for _ in range(4):
             dims.append(np.random.randint(1, 7))
@@ -331,8 +331,8 @@ class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
             matches_method(y_true, y_pred), [[0.0], [1.0], [1.0], [1.0]]
         )
 
-        # Test correctness if the shape of y_true is (batch_size, seq_length) and
-        # y_pred is (batch_size, seq_length, num_classes)
+        # Test correctness if the shape of y_true is (batch_size, seq_length)
+        # and y_pred is (batch_size, seq_length, num_classes)
         y_pred = tf.constant(
             [
                 [[0.2, 0.3, 0.1], [0.1, 0.2, 0.7]],
@@ -354,8 +354,8 @@ class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
             matches_method(y_true, y_pred, 1).dtype, backend.floatx()
         )
 
-        # Tests that resulting Tensor always has same shape as y_true. Tests from
-        # 1 dim to 4 dims
+        # Tests that resulting Tensor always has same shape as y_true. Tests
+        # from 1 dim to 4 dims
         dims = []
         for _ in range(4):
             dims.append(np.random.randint(1, 7))
@@ -365,7 +365,8 @@ class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
                 matches_method(y_true, y_pred, 1).shape, y_true.shape
             )
 
-        # Test correctness if the shape of y_true is (num_samples,) for k = 1,2,3
+        # Test correctness if the shape of y_true is (num_samples,) for k =
+        # 1,2,3
         y_true = tf.constant([1.0, 0.0, 0.0, 0.0])
         y_pred = tf.constant(
             [[0.7, 0.2, 0.1], [0.5, 0.3, 0.2], [0.6, 0.3, 0.1], [0.0, 0.1, 0.9]]
@@ -396,8 +397,8 @@ class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
             matches_method(y_true, y_pred, 3), [[1.0], [1.0], [1.0], [1.0]]
         )
 
-        # Test correctness if the shape of y_true is (batch_size, seq_length) and
-        # y_pred is (batch_size, seq_length, num_classes) for k = 1,2,3
+        # Test correctness if the shape of y_true is (batch_size, seq_length)
+        # and y_pred is (batch_size, seq_length, num_classes) for k = 1,2,3
         y_pred = tf.constant(
             [
                 [[0.2, 0.3, 0.1], [0.1, 0.2, 0.7]],
@@ -425,8 +426,8 @@ class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
             matches_method(y_true, y_pred, 0.5).dtype, backend.floatx()
         )
 
-        # Tests that resulting Tensor always has same shape as y_true. Tests from
-        # 1 dim to 4 dims.
+        # Tests that resulting Tensor always has same shape as y_true. Tests
+        # from 1 dim to 4 dims.
         dims = []
         for _ in range(4):
             dims.append(np.random.randint(1, 7))

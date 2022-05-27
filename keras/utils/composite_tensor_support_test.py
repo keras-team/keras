@@ -54,7 +54,8 @@ class ToDense(Layer):
         else:
             raise TypeError("Unexpected tensor type %s" % type(inputs).__name__)
 
-        # Return a float so that we can compile models with this as the final layer.
+        # Return a float so that we can compile models with this as the final
+        # layer.
         return tf.cast(output, tf.float32)
 
 
@@ -87,8 +88,8 @@ class _SubclassModel(keras.Model):
 
     def __init__(self, layers, i_layer=None):
         super().__init__()
-        # Note that clone and build doesn't support lists of layers in subclassed
-        # models. Adding each layer directly here.
+        # Note that clone and build doesn't support lists of layers in
+        # subclassed models. Adding each layer directly here.
         for i, layer in enumerate(layers):
             setattr(self, self._layer_name_for_i(i), layer)
         self.num_layers = len(layers)
@@ -181,9 +182,9 @@ class CompositeTensorInternalTest(test_combinations.TestCase):
 
     def test_training_internal_ragged_tensors(self):
         # Create a model that implements y=Mx. This is easy to learn and will
-        # demonstrate appropriate gradient passing. (We have to use RaggedTensors
-        # for this test, as ToSparse() doesn't support gradient propagation through
-        # the layer.) TODO(b/124796939): Investigate this.
+        # demonstrate appropriate gradient passing. (We have to use
+        # RaggedTensors for this test, as ToSparse() doesn't support gradient
+        # propagation through the layer.) TODO(b/124796939): Investigate this.
         layers = [core.Dense(2), ToRagged(padding=0), ToDense(default_value=-1)]
         model = test_utils.get_model_from_layers(layers, input_shape=(1,))
 
@@ -195,8 +196,8 @@ class CompositeTensorInternalTest(test_combinations.TestCase):
         model.compile(loss="mse", optimizer="adam", **get_test_mode_kwargs())
         history = model.fit(input_data, expected_data, epochs=10, verbose=0)
 
-        # If the model trained, the loss stored at history[0] should be different
-        # than the one stored at history[-1].
+        # If the model trained, the loss stored at history[0] should be
+        # different than the one stored at history[-1].
         self.assertNotEqual(
             history.history["loss"][-1], history.history["loss"][0]
         )
@@ -371,7 +372,8 @@ class SparseTensorInputTest(test_combinations.TestCase):
                 result = model.evaluate(input_data, expected_output, **kwargs)
                 self.assertAllEqual(1.0, result[-1])
             if action == "fit":
-                # TODO(momernick): What's the best way of validating that fit happened?
+                # TODO(momernick): What's the best way of validating that fit
+                # happened?
                 _ = model.fit(
                     input_data, expected_output, shuffle=False, **kwargs
                 )
@@ -381,9 +383,10 @@ class SparseTensorInputTest(test_combinations.TestCase):
 @test_combinations.run_all_keras_modes
 class ScipySparseTensorInputTest(test_combinations.TestCase, tf.test.TestCase):
     def test_sparse_scipy_predict_inputs_via_input_layer_args(self):
-        # Create a model that accepts a sparse input and converts the sparse tensor
-        # back to a dense tensor. Scipy sparse matrices are limited to 2D, so use
-        # a one-dimensional shape; note also that scipy's default dtype is int64.
+        # Create a model that accepts a sparse input and converts the sparse
+        # tensor back to a dense tensor. Scipy sparse matrices are limited to
+        # 2D, so use a one-dimensional shape; note also that scipy's default
+        # dtype is int64.
         model_input = input_layer.Input(shape=(3,), sparse=True, dtype=tf.int64)
         layers = [ToDense(default_value=-1)]
         model = get_model_from_layers_with_input(
@@ -405,9 +408,10 @@ class ScipySparseTensorInputTest(test_combinations.TestCase, tf.test.TestCase):
         self.assertAllEqual(expected_output_2, output_2)
 
     def test_sparse_scipy_eval_inputs(self):
-        # Create a model that accepts a sparse input and converts the sparse tensor
-        # back to a dense tensor. Scipy sparse matrices are limited to 2D, so use
-        # a one-dimensional shape; note also that scipy's default dtype is int64.
+        # Create a model that accepts a sparse input and converts the sparse
+        # tensor back to a dense tensor. Scipy sparse matrices are limited to
+        # 2D, so use a one-dimensional shape; note also that scipy's default
+        # dtype is int64.
         model_input = input_layer.Input(shape=(3,), sparse=True, dtype=tf.int64)
         layers = [ToDense(default_value=-1)]
         model = get_model_from_layers_with_input(
@@ -431,9 +435,10 @@ class ScipySparseTensorInputTest(test_combinations.TestCase, tf.test.TestCase):
         self.assertAllEqual(1.0, output_2[-1])
 
     def test_sparse_scipy_predict_input_dicts_via_input_layer_args(self):
-        # Create a model that accepts a sparse input and converts the sparse tensor
-        # back to a dense tensor. Scipy sparse matrices are limited to 2D, so use
-        # a one-dimensional shape; note also that scipy's default dtype is int64.
+        # Create a model that accepts a sparse input and converts the sparse
+        # tensor back to a dense tensor. Scipy sparse matrices are limited to
+        # 2D, so use a one-dimensional shape; note also that scipy's default
+        # dtype is int64.
         if test_utils.get_model_type() == "subclass":
             input_name = "input_1"  # Subclass models don"t support input names.
         else:
@@ -465,9 +470,10 @@ class ScipySparseTensorInputTest(test_combinations.TestCase, tf.test.TestCase):
         self.assertAllEqual(expected_output_2, output_2)
 
     def test_sparse_scipy_eval_input_dicts(self):
-        # Create a model that accepts a sparse input and converts the sparse tensor
-        # back to a dense tensor. Scipy sparse matrices are limited to 2D, so use
-        # a one-dimensional shape; note also that scipy's default dtype is int64.
+        # Create a model that accepts a sparse input and converts the sparse
+        # tensor back to a dense tensor. Scipy sparse matrices are limited to
+        # 2D, so use a one-dimensional shape; note also that scipy's default
+        # dtype is int64.
         if test_utils.get_model_type() == "subclass":
             input_name = "input_1"  # Subclass models don"t support input names.
         else:
@@ -553,7 +559,8 @@ class RaggedTensorInputTest(test_combinations.TestCase, tf.test.TestCase):
                 result = model.evaluate(input_data, expected_output)
                 self.assertAllEqual(1.0, result[-1])
             if action == "fit":
-                # TODO(momernick): What's the best way of validating that fit happened?
+                # TODO(momernick): What's the best way of validating that fit
+                # happened?
                 _ = model.fit(input_data, expected_output, shuffle=False)
 
 
@@ -656,7 +663,8 @@ class CompositeTensorModelPredictTest(test_combinations.TestCase):
         return shape
 
     def test_sparse_tensor_model_predict(self):
-        # Create a model that accepts a sparse input and runs a "Dense" layer on it.
+        # Create a model that accepts a sparse input and runs a "Dense" layer on
+        # it.
         model_input = input_layer.Input(
             shape=(3,), sparse=True, dtype=tf.float32
         )
@@ -682,7 +690,8 @@ class CompositeTensorModelPredictTest(test_combinations.TestCase):
         self.assertEqual((6, 2), self._normalize_shape(shape))
 
     def test_ragged_tensor_model_predict(self):
-        # Create a model that accepts a sparse input and runs a "Dense" layer on it.
+        # Create a model that accepts a sparse input and runs a "Dense" layer on
+        # it.
         model_input = input_layer.Input(shape=(None,), ragged=True)
         self.assertEqual([None, None], model_input.shape.as_list())
 

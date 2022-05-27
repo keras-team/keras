@@ -23,10 +23,10 @@ from tensorflow.python.util.tf_export import keras_export
 class DatasetCreator:
     """Object that returns a `tf.data.Dataset` upon invoking.
 
-    `tf.keras.utils.experimental.DatasetCreator` is designated as a supported type
-    for `x`, or the input, in `tf.keras.Model.fit`. Pass an instance of this class
-    to `fit` when using a callable (with a `input_context` argument) that returns
-    a `tf.data.Dataset`.
+    `tf.keras.utils.experimental.DatasetCreator` is designated as a supported
+    type for `x`, or the input, in `tf.keras.Model.fit`. Pass an instance of
+    this class to `fit` when using a callable (with a `input_context` argument)
+    that returns a `tf.data.Dataset`.
 
     ```python
     model = tf.keras.Sequential([tf.keras.layers.Dense(10)])
@@ -73,10 +73,10 @@ class DatasetCreator:
 
     Args:
       dataset_fn: A callable that takes a single argument of type
-        `tf.distribute.InputContext`, which is used for batch size calculation and
-        cross-worker input pipeline sharding (if neither is needed, the
-        `InputContext` parameter can be ignored in the `dataset_fn`), and returns
-        a `tf.data.Dataset`.
+        `tf.distribute.InputContext`, which is used for batch size calculation
+        and cross-worker input pipeline sharding (if neither is needed, the
+        `InputContext` parameter can be ignored in the `dataset_fn`), and
+        returns a `tf.data.Dataset`.
       input_options: Optional `tf.distribute.InputOptions`, used for specific
         options when used with distribution, for example, whether to prefetch
         dataset elements to accelerator device memory or host device memory, and
@@ -103,8 +103,8 @@ class DatasetCreator:
         self.input_options = input_options
 
     def __call__(self, *args, **kwargs):
-        # When a `DatasetCreator` is invoked, it forwards args/kwargs straight to
-        # the callable.
+        # When a `DatasetCreator` is invoked, it forwards args/kwargs straight
+        # to the callable.
         dataset = self.dataset_fn(*args, **kwargs)
         if not isinstance(dataset, tf.data.Dataset):
             raise TypeError(

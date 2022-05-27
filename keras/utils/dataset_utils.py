@@ -38,12 +38,12 @@ def split_dataset(
           same length.
         left_size: If float, it should be in range `[0, 1]` range and signifies
           the fraction of the data to pack in the left dataset. If integer, it
-          signifies the number of samples to pack in the left dataset. If `None`,
-          it defaults to the complement to `right_size`.
+          signifies the number of samples to pack in the left dataset. If
+          `None`, it defaults to the complement to `right_size`.
         right_size: If float, it should be in range `[0, 1]` range and signifies
           the fraction of the data to pack in the right dataset. If integer, it
-          signifies the number of samples to pack in the right dataset. If `None`,
-          it defaults to the complement to `left_size`.
+          signifies the number of samples to pack in the right dataset. If
+          `None`, it defaults to the complement to `left_size`.
         shuffle: Boolean, whether to shuffle the data before splitting it.
         seed: A random seed for shuffling.
 
@@ -116,9 +116,9 @@ def _convert_dataset_to_list(
     Args:
         dataset : A `tf.data.Dataset` object or a list/tuple of arrays.
         dataset_type_spec : the type of the dataset
-        data_size_warning_flag (bool, optional): If set to True, a warning will be
-          issued if the dataset takes longer than 10 seconds to iterate. Defaults
-          to True.
+        data_size_warning_flag (bool, optional): If set to True, a warning will
+          be issued if the dataset takes longer than 10 seconds to iterate.
+          Defaults to True.
         ensure_shape_similarity (bool, optional): If set to True, the shape of
           the first sample will be used to validate the shape of rest of the
           samples. Defaults to True.
@@ -237,11 +237,11 @@ def _get_next_sample(
         ensure_shape_similarity (bool, optional): If set to True, the shape of
           the first sample will be used to validate the shape of rest of the
           samples. Defaults to True.
-        data_size_warning_flag (bool, optional): If set to True, a warning will be
-          issued if the dataset takes longer than 10 seconds to iterate. Defaults
-          to True.
-        start_time (float): the start time of the dataset iteration. this is used
-          only if `data_size_warning_flag` is set to true.
+        data_size_warning_flag (bool, optional): If set to True, a warning will
+          be issued if the dataset takes longer than 10 seconds to iterate.
+          Defaults to True.
+        start_time (float): the start time of the dataset iteration. this is
+          used only if `data_size_warning_flag` is set to true.
 
     Raises:
         ValueError: - If the dataset is empty.
@@ -284,9 +284,10 @@ def _get_next_sample(
                 if int(cur_time - start_time) > 10 and data_size_warning_flag:
                     warnings.warn(
                         "The dataset is taking longer than 10 seconds to "
-                        "iterate over. This may be due to the size of the dataset. "
-                        "Keep in mind that the `split_dataset` utility is only for "
-                        "small in-memory dataset (e.g. < 10,000 samples).",
+                        "iterate over. This may be due to the size of the "
+                        "dataset. Keep in mind that the `split_dataset` "
+                        "utility is only for small in-memory dataset "
+                        "(e.g. < 10,000 samples).",
                         category=ResourceWarning,
                         source="split_dataset",
                     )
@@ -383,7 +384,8 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
             f"{left_size}"
         )
 
-    # check right_size is non-negative and less than 1 and less than total_length
+    # check right_size is non-negative and less than 1 and less than
+    # total_length
     if (
         right_size_type == int
         and (right_size <= 0 or right_size >= total_length)
@@ -397,7 +399,8 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
             f"{right_size}"
         )
 
-    # check sum of left_size and right_size is less than or equal to total_length
+    # check sum of left_size and right_size is less than or equal to
+    # total_length
     if (
         right_size_type == left_size_type == float
         and right_size + left_size > 1
@@ -509,7 +512,8 @@ def index_directory(
       tuple (file_paths, labels, class_names).
         file_paths: list of file paths (strings).
         labels: list of matching integer labels (same length as file_paths)
-        class_names: names of the classes corresponding to these labels, in order.
+        class_names: names of the classes corresponding to these labels, in
+          order.
     """
     if labels is None:
         # in the no-label case, index from the parent directory down.
@@ -670,8 +674,8 @@ def labels_to_dataset(labels, label_mode, num_classes):
       label_mode: String describing the encoding of `labels`. Options are:
       - 'binary' indicates that the labels (there can be only 2) are encoded as
         `float32` scalars with values 0 or 1 (e.g. for `binary_crossentropy`).
-      - 'categorical' means that the labels are mapped into a categorical vector.
-        (e.g. for `categorical_crossentropy` loss).
+      - 'categorical' means that the labels are mapped into a categorical
+        vector.  (e.g. for `categorical_crossentropy` loss).
       num_classes: number of classes of labels.
 
     Returns:
@@ -718,7 +722,7 @@ def check_validation_split_arg(validation_split, subset, shuffle, seed):
         )
     if validation_split and shuffle and seed is None:
         raise ValueError(
-            "If using `validation_split` and shuffling the data, you must provide "
-            "a `seed` argument, to make sure that there is no overlap between the "
-            "training and validation subset."
+            "If using `validation_split` and shuffling the data, you must "
+            "provide a `seed` argument, to make sure that there is no "
+            "overlap between the training and validation subset."
         )
