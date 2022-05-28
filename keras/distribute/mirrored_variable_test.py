@@ -51,7 +51,7 @@ def get_strategy_with_mimicing_cpus():
             filter(
                 None.__ne__,
                 [
-                    tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                    tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
                     get_strategy_with_mimicing_cpus(),
                 ],
             )

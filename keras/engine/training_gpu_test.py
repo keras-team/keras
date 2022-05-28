@@ -45,7 +45,7 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
             num_channels = None
             activation = None
             if loss_name == "sparse_categorical_crossentropy":
-                loss = lambda y_true, y_pred: backend.sparse_categorical_crossentropy(
+                loss = lambda y_true, y_pred: backend.sparse_categorical_crossentropy(  # noqa: E501
                     y_true, y_pred, axis=axis
                 )
                 num_channels = int(np.amax(target) + 1)

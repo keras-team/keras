@@ -106,7 +106,7 @@ def _maybe_warn_about_scaling(
             "LossScaleOptimizer.apply_gradients(). This will likely result in "
             "worse model quality, so please call them in the correct places! "
             f"For example:{example_code}\nFor more information, see "
-            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"
+            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"  # noqa: E501
         )
     elif not loss_has_been_scaled:
         tf_logging.warning(
@@ -116,7 +116,7 @@ def _maybe_warn_about_scaling(
             "worse model quality, so please call get_scaled_loss() in the "
             f"correct place! For example:{example_code}\nFor more information, "
             "see "
-            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"
+            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"  # noqa: E501
         )
     elif not gradients_have_been_unscaled:
         tf_logging.warning(
@@ -126,7 +126,7 @@ def _maybe_warn_about_scaling(
             "model quality, so please call get_unscaled_gradients() in the "
             f"correct place! For example:{example_code}\nFor more information, "
             "see "
-            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"
+            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"  # noqa: E501
         )
 
 
@@ -899,8 +899,8 @@ class LossScaleOptimizer(
             loss_scale = generic_utils.deserialize_keras_object(
                 config.pop("loss_scale"),
                 module_objects={
-                    "FixedLossScale": tf.compat.v1.mixed_precision.FixedLossScale,
-                    "DynamicLossScale": tf.compat.v1.mixed_precision.DynamicLossScale,
+                    "FixedLossScale": tf.compat.v1.mixed_precision.FixedLossScale,  # noqa: E501
+                    "DynamicLossScale": tf.compat.v1.mixed_precision.DynamicLossScale,  # noqa: E501
                 },
                 printable_module_name="loss scale",
             )

@@ -25,11 +25,11 @@ class TrainingCheckpointTests(tf.test.TestCase, parameterized.TestCase):
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-                tf.__internal__.distribute.combinations.tpu_strategy,
-                tf.__internal__.distribute.combinations.tpu_strategy_packed_var,
-                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.tpu_strategy,  # noqa: E501
+                tf.__internal__.distribute.combinations.tpu_strategy_packed_var,  # noqa: E501
+                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,  # noqa: E501
             ],
             mode=["eager"],
         )
@@ -87,12 +87,12 @@ class TrainingCheckpointTests(tf.test.TestCase, parameterized.TestCase):
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-                tf.__internal__.distribute.combinations.cloud_tpu_strategy,
-                tf.__internal__.distribute.combinations.tpu_strategy,
-                tf.__internal__.distribute.combinations.tpu_strategy_packed_var,
-                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.cloud_tpu_strategy,  # noqa: E501
+                tf.__internal__.distribute.combinations.tpu_strategy,  # noqa: E501
+                tf.__internal__.distribute.combinations.tpu_strategy_packed_var,  # noqa: E501
+                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,  # noqa: E501
             ],
             mode=["eager"],
         )

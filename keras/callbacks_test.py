@@ -1319,19 +1319,19 @@ class KerasCallbacksTest(test_combinations.TestCase):
 
         return func
 
-    test_model_checkpoint_load_weights_on_restart_true_save_weights_only_true = get_ModelCheckpoint_load_weights_on_restart_true_test.__func__(
+    test_model_checkpoint_load_weights_on_restart_true_save_weights_only_true = get_ModelCheckpoint_load_weights_on_restart_true_test.__func__(  # noqa: E501
         True
     )
 
-    test_model_checkpoint_load_weights_on_restart_true_save_weights_only_false = get_ModelCheckpoint_load_weights_on_restart_true_test.__func__(
+    test_model_checkpoint_load_weights_on_restart_true_save_weights_only_false = get_ModelCheckpoint_load_weights_on_restart_true_test.__func__(  # noqa: E501
         False
     )
 
-    test_model_checkpoint_load_weights_on_restart_false_save_weights_only_true = get_ModelCheckpoint_load_weights_on_restart_false_test.__func__(
+    test_model_checkpoint_load_weights_on_restart_false_save_weights_only_true = get_ModelCheckpoint_load_weights_on_restart_false_test.__func__(  # noqa: E501
         True
     )
 
-    test_model_checkpoint_load_weights_on_restart_false_save_weights_only_false = get_ModelCheckpoint_load_weights_on_restart_false_test.__func__(
+    test_model_checkpoint_load_weights_on_restart_false_save_weights_only_false = get_ModelCheckpoint_load_weights_on_restart_false_test.__func__(  # noqa: E501
         False
     )
 

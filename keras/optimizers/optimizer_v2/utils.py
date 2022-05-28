@@ -130,7 +130,8 @@ def make_global_gradient_clipnorm_fn(clipnorm):
             ),
         ):
             raise ValueError(
-                "`global_clipnorm` is not supported with `CenteralStorageStrategy`. "
+                "`global_clipnorm` is not supported with "
+                "`CenteralStorageStrategy`. "
                 f"The strategy used is {tf.distribute.get_strategy()}."
             )
 

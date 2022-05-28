@@ -240,7 +240,7 @@ class Ftrl(optimizer.Optimizer):
                 "initial_accumulator_value": self.initial_accumulator_value,
                 "l1_regularization_strength": self.l1_regularization_strength,
                 "l2_regularization_strength": self.l2_regularization_strength,
-                "l2_shrinkage_regularization_strength": self.l2_shrinkage_regularization_strength,
+                "l2_shrinkage_regularization_strength": self.l2_shrinkage_regularization_strength,  # noqa: E501
                 "beta": self.beta,
             }
         )

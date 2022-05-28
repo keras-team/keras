@@ -100,9 +100,9 @@ def distributions_and_v1_optimizers():
     return tf.__internal__.test.combinations.combine(
         distribution=[
             tf.__internal__.distribute.combinations.one_device_strategy,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,  # noqa: E501
         ],
         optimizer_fn=optimizers_v1,
     )
@@ -114,9 +114,9 @@ def distributions_and_v2_optimizers():
     return tf.__internal__.test.combinations.combine(
         distribution=[
             tf.__internal__.distribute.combinations.one_device_strategy,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,  # noqa: E501
         ],
         optimizer_fn=optimizers_v2,
     )
@@ -128,9 +128,9 @@ def distributions_and_v1_and_v2_optimizers():
     return tf.__internal__.test.combinations.combine(
         distribution=[
             tf.__internal__.distribute.combinations.one_device_strategy,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,  # noqa: E501
         ],
         optimizer_fn=optimizers_v1_and_v2,
     )

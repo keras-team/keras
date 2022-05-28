@@ -77,7 +77,7 @@ def load_data(label_mode="fine"):
         dirname,
         origin=origin,
         untar=True,
-        file_hash="85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7",
+        file_hash="85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7",  # noqa: E501
     )
 
     fpath = os.path.join(path, "train")

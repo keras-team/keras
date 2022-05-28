@@ -455,7 +455,7 @@ class Reduce(Metric):
         """
         [
             values
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [values], sample_weight
         )
         try:
@@ -687,7 +687,7 @@ class MeanMetricWrapper(Mean):
         [
             y_true,
             y_pred,
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [y_true, y_pred], sample_weight
         )
         y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(

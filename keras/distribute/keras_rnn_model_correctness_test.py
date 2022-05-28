@@ -31,7 +31,7 @@ from keras.testing_infra import test_utils
 
 
 class _DistributionStrategyRnnModelCorrectnessTest(
-    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase
+    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase  # noqa: E501
 ):
     def _get_layer_class(self):
         raise NotImplementedError

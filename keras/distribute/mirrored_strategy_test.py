@@ -49,7 +49,7 @@ class MiniModel(keras_training.Model):
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         distribution=[
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
         ],
         mode=["eager"],
     )

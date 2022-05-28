@@ -463,7 +463,7 @@ if __name__ == "__main__":
             "CustomNetworkWithConfigName": CustomNetworkWithConfigName,
             "SubclassedModelWithConfig": SubclassedModelWithConfig,
             "FunctionalSubclassModel": FunctionalSubclassModel,
-            "FunctionalSubclassModelWrongConfig": FunctionalSubclassModelWrongConfig,
+            "FunctionalSubclassModelWrongConfig": FunctionalSubclassModelWrongConfig,  # noqa: E501
             "WideDeepModel": WideDeepModel,
         }
     ):

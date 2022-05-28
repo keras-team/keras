@@ -115,7 +115,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             epsilon,
             centered,
         ) in _TESTPARAMS:
-            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():
+            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():  # noqa: E501
                 # Initialize variables for numpy implementation.
                 var0_np = np.array([1.0, 2.0], dtype=dtype.as_numpy_dtype)
                 grads0_np = np.array([0.1, 0.2], dtype=dtype.as_numpy_dtype)
@@ -504,7 +504,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             epsilon,
             centered,
         ) in _TESTPARAMS:
-            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():
+            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():  # noqa: E501
                 # Initialize variables for numpy implementation.
                 var0_np = np.array([1.0, 2.0], dtype=dtype.as_numpy_dtype)
                 grads0_np = np.array([0.1], dtype=dtype.as_numpy_dtype)

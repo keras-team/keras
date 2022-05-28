@@ -341,7 +341,7 @@ class CheckpointingTests(test_combinations.TestCase):
                 root = tf.train.Checkpoint(
                     optimizer=optimizer,
                     model=model,
-                    optimizer_step=tf.compat.v1.train.get_or_create_global_step(),
+                    optimizer_step=tf.compat.v1.train.get_or_create_global_step(),  # noqa: E501
                 )
                 root.restore(tf.train.latest_checkpoint(checkpoint_directory))
 
@@ -377,7 +377,7 @@ class CheckpointingTests(test_combinations.TestCase):
                     root = tf.train.Checkpoint(
                         optimizer=optimizer,
                         model=model,
-                        optimizer_step=tf.compat.v1.train.get_or_create_global_step(),
+                        optimizer_step=tf.compat.v1.train.get_or_create_global_step(),  # noqa: E501
                     )
                     status = root.restore(
                         tf.train.latest_checkpoint(checkpoint_directory)
@@ -410,7 +410,7 @@ class CheckpointingTests(test_combinations.TestCase):
                     root = tf.compat.v1.train.Checkpoint(
                         optimizer=optimizer,
                         model=model,
-                        global_step=tf.compat.v1.train.get_or_create_global_step(),
+                        global_step=tf.compat.v1.train.get_or_create_global_step(),  # noqa: E501
                     )
                     input_value = tf.constant([[3.0]])
                     train_op = optimizer.minimize(
@@ -464,7 +464,7 @@ class CheckpointingTests(test_combinations.TestCase):
                     root = tf.train.Checkpoint(
                         optimizer=optimizer,
                         model=model,
-                        global_step=tf.compat.v1.train.get_or_create_global_step(),
+                        global_step=tf.compat.v1.train.get_or_create_global_step(),  # noqa: E501
                     )
                     manager = tf.train.CheckpointManager(
                         root, checkpoint_directory, max_to_keep=1
@@ -508,7 +508,7 @@ class CheckpointingTests(test_combinations.TestCase):
                     root = tf.train.Checkpoint(
                         optimizer=optimizer,
                         model=model,
-                        global_step=tf.compat.v1.train.get_or_create_global_step(),
+                        global_step=tf.compat.v1.train.get_or_create_global_step(),  # noqa: E501
                     )
                     checkpoint_path = tf.train.latest_checkpoint(
                         checkpoint_directory

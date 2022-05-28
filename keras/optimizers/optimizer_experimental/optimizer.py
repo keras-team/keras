@@ -605,20 +605,20 @@ base_optimizer_keyword_args = """name: String. The name to use
         average of the weights of the model (as the weight values change after
         each training batch), and periodically overwriting the weights with
         their moving average.
-      ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`. This is
+      ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`. This is  # noqa: E501
         the momentum to use when computing the EMA of the model's weights:
         `new_average = ema_momentum * old_average + (1 - ema_momentum) *
         current_variable_value`.
       ema_overwrite_frequency: Int or None, defaults to None. Only used if
         `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations, we
-        overwrite the model variable by its moving average. If None, the optimizer
+        overwrite the model variable by its moving average. If None, the optimizer  # noqa: E501
          does not overwrite model variables in the middle of training, and you
         need to explicitly overwrite the variables at the end of training
-        by calling `optimizer.finalize_variable_values()` (which updates the model
+        by calling `optimizer.finalize_variable_values()` (which updates the model  # noqa: E501
         variables in-place). When using the built-in `fit()` training loop, this
         happens automatically after the last epoch, and you don't need to do
         anything.
-      jit_compile: Boolean, defaults to True. If True, the optimizer will use XLA
+      jit_compile: Boolean, defaults to True. If True, the optimizer will use XLA  # noqa: E501
         compilation. If no GPU device is found, this flag will be ignored.
       **kwargs: keyword arguments only used for backward compatibility."""
 
@@ -943,7 +943,7 @@ class Optimizer(_BaseOptimizer):
                 )
                 tf.cond(
                     tf.cast(should_overwrite_model_vars, tf.bool),
-                    true_fn=lambda: self._overwrite_model_variables_with_average_value(
+                    true_fn=lambda: self._overwrite_model_variables_with_average_value(  # noqa: E501
                         var_list
                     ),
                     false_fn=lambda: None,

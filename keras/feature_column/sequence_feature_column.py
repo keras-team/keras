@@ -101,7 +101,7 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
             feature_columns=feature_columns,
             trainable=trainable,
             name=name,
-            expected_column_type=tf.__internal__.feature_column.SequenceDenseColumn,
+            expected_column_type=tf.__internal__.feature_column.SequenceDenseColumn,  # noqa: E501
             **kwargs
         )
 

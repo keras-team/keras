@@ -1250,7 +1250,7 @@ class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
             {(2, 3), (4, 5)},
             set(
                 tuple(c.structured_input_signature[0][0].shape.as_list())
-                for c in fn2.wrapped_call._list_all_concrete_functions_for_serialization()
+                for c in fn2.wrapped_call._list_all_concrete_functions_for_serialization()  # noqa: E501
             ),
         )
 
@@ -1263,13 +1263,13 @@ class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
             with keras_save.tracing_scope():
                 fn(np.ones((2, 3)), training=True)
             self.assertLen(
-                fn.wrapped_call._list_all_concrete_functions_for_serialization(),
+                fn.wrapped_call._list_all_concrete_functions_for_serialization(),  # noqa: E501
                 2,
             )
             with keras_save.tracing_scope():
                 fn(np.ones((2, 4)), training=False)
             self.assertLen(
-                fn.wrapped_call._list_all_concrete_functions_for_serialization(),
+                fn.wrapped_call._list_all_concrete_functions_for_serialization(),  # noqa: E501
                 4,
             )
 
@@ -1277,13 +1277,13 @@ class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
                 with keras_save.tracing_scope():
                     fn(np.ones((2, 5)), True)
                 self.assertLen(
-                    fn.wrapped_call._list_all_concrete_functions_for_serialization(),
+                    fn.wrapped_call._list_all_concrete_functions_for_serialization(),  # noqa: E501
                     6,
                 )
                 with keras_save.tracing_scope():
                     fn(np.ones((2, 6)))
                 self.assertLen(
-                    fn.wrapped_call._list_all_concrete_functions_for_serialization(),
+                    fn.wrapped_call._list_all_concrete_functions_for_serialization(),  # noqa: E501
                     8,
                 )
 

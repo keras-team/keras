@@ -306,7 +306,7 @@ def model_iteration(
                     # case.
                     if not callable(ins) or (
                         model._distribution_strategy
-                        and not distributed_training_utils_v1.is_distributing_by_cloning(
+                        and not distributed_training_utils_v1.is_distributing_by_cloning(  # noqa: E501
                             model
                         )
                     ):
@@ -353,7 +353,7 @@ def model_iteration(
                     batch_outs = [batch_outs]
 
                 if model._distribution_strategy:
-                    batch_outs = distributed_training_utils_v1._per_replica_aggregate_batch(
+                    batch_outs = distributed_training_utils_v1._per_replica_aggregate_batch(  # noqa: E501
                         model._distribution_strategy, batch_outs, model, mode
                     )
 

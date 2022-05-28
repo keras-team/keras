@@ -346,7 +346,7 @@ class TestTrainingWithDataset(test_combinations.TestCase):
         )
 
     def test_dataset_input_shape_validation(self):
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():  # noqa: E501
             model = test_utils.get_small_functional_mlp(1, 4, input_dim=3)
             model.compile(optimizer="rmsprop", loss="mse")
 

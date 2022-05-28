@@ -49,7 +49,7 @@ strategies = [
     tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
     tf.__internal__.distribute.combinations.tpu_strategy,
     tf.__internal__.distribute.combinations.tpu_strategy_packed_var,
-    tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
+    tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,  # noqa: E501
 ]
 
 

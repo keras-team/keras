@@ -109,7 +109,7 @@ def load_data(
     path = get_file(
         path,
         origin=origin_folder + "imdb.npz",
-        file_hash="69664113be75683a8fe16e3ed0ab59fda8886cb3cd7ada244f7d9544e4676b9f",
+        file_hash="69664113be75683a8fe16e3ed0ab59fda8886cb3cd7ada244f7d9544e4676b9f",  # noqa: E501
     )
     with np.load(
         path, allow_pickle=True

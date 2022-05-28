@@ -194,8 +194,8 @@ class KerasMultiWorkerTestIndependentWorker(
         tf.__internal__.test.combinations.combine(
             mode=["eager"],
             strategy=[
-                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
-                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,  # noqa: E501
             ],
         )
     )
@@ -236,7 +236,7 @@ class KPLMultiWorkerTest(tf.test.TestCase, parameterized.TestCase):
             mode=["eager"],
             use_adapt=[False],  # TODO(b/180742437): Add tests for using adapt.
             strategy=[
-                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,  # noqa: E501
                 # TODO(b/183956672): Re-enable
                 # strategy_combinations.multi_worker_mirrored_2x2_gpu,
             ],

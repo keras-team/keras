@@ -593,7 +593,7 @@ class GraphSpecificModelSubclassingTests(tf.test.TestCase):
             def call(self, x):
                 return self.bn(self.fc(x))
 
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():  # noqa: E501
             model = TestModel1()
 
             x = tf.ones(shape=[100, 784], dtype="float32")
@@ -615,7 +615,7 @@ class GraphSpecificModelSubclassingTests(tf.test.TestCase):
             def call(self, x):
                 return self.bn(self.fc(x))
 
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():  # noqa: E501
             model = TestModel2()
 
             x = tf.ones(shape=[100, 784], dtype="float32")

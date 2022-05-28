@@ -254,8 +254,8 @@ def all_strategy_minus_default_and_tpu_combinations():
         distribution=[
             tf.__internal__.distribute.combinations.one_device_strategy,
             tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
         ],
         mode=["graph", "eager"],
     )
@@ -1434,7 +1434,7 @@ class TestDistributionStrategyWithDatasets(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
                 tf.__internal__.distribute.combinations.one_device_strategy,
             ],
             mode=["graph", "eager"],
@@ -1467,7 +1467,7 @@ class TestDistributionStrategyWithDatasets(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu  # noqa: E501
             ],
             mode=["graph", "eager"],
         )
@@ -1492,8 +1492,8 @@ class TestDistributionStrategyWithDatasets(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )
@@ -2309,8 +2309,8 @@ class TestDistributionStrategyWithKerasModels(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
             ],
             mode=["graph", "eager"],
             reduction=[
@@ -2476,8 +2476,8 @@ class TestDistributionStrategyWithKerasModels(
             distribution=[
                 tf.__internal__.distribute.combinations.one_device_strategy,
                 tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
             ],
             mode=["eager"],
         )
@@ -3011,7 +3011,7 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
-            distribution=tf.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,
+            distribution=tf.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,  # noqa: E501
             mode=["eager"],
         )
     )

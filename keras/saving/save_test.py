@@ -343,7 +343,7 @@ class TestJson(test_combinations.TestCase):
         cols = [
             tf.feature_column.sequence_numeric_column("a"),
             tf.feature_column.indicator_column(
-                tf.feature_column.sequence_categorical_column_with_vocabulary_list(
+                tf.feature_column.sequence_categorical_column_with_vocabulary_list(  # noqa: E501
                     "b", ["one", "two"]
                 )
             ),
