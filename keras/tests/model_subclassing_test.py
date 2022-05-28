@@ -20,17 +20,19 @@ import os
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
+import keras
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
+from keras.tests import model_subclassing_test_util as model_util
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
 from tensorflow.python.training.tracking import (
     data_structures,
 )
-
-import keras
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
-from keras.tests import model_subclassing_test_util as model_util
 
 try:
     import h5py  # pylint:disable=g-import-not-at-top

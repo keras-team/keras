@@ -21,11 +21,13 @@ from __future__ import print_function
 import json
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.feature_column import base_feature_layer as kfc
 from keras.saving.saved_model import json_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(v1=["keras.layers.DenseFeatures"])

@@ -18,10 +18,12 @@
 # pylint: disable=g-classes-have-attributes
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.engine import base_layer
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.UnitNormalization", v1=[])

@@ -18,7 +18,6 @@ import functools
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras import callbacks as cbks
@@ -28,6 +27,9 @@ from keras.utils import io_utils
 from keras.utils.generic_utils import make_batches
 from keras.utils.generic_utils import slice_arrays
 from keras.utils.mode_keys import ModeKeys
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 # pylint: disable=protected-access
 

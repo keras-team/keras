@@ -27,10 +27,6 @@ import time
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util import deprecation
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras.distribute import distributed_file_utils
@@ -43,6 +39,12 @@ from keras.utils import version_utils
 from keras.utils.data_utils import Sequence
 from keras.utils.generic_utils import Progbar
 from keras.utils.mode_keys import ModeKeys
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util import deprecation
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 try:
     import requests
@@ -2523,10 +2525,11 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     def _configure_embeddings(self):
         """Configure the Projector for embeddings."""
         # TODO(omalleyt): Add integration tests.
-        from google.protobuf import text_format
-
         from keras.layers import core
         from keras.protobuf import projector_config_pb2
+
+        # isort: off
+        from google.protobuf import text_format
 
         config = projector_config_pb2.ProjectorConfig()
         for layer in self.model.layers:

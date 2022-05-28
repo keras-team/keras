@@ -17,12 +17,14 @@
 import os
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
 
 from keras.layers import core
 from keras.optimizers.optimizer_v2 import adam
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
 
 
 class _ModelWithOptimizerUsingDefun(tf.train.Checkpoint):

@@ -15,6 +15,8 @@
 """Keras backend config API."""
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 # The type of float to use throughout a session.

@@ -18,6 +18,13 @@ import functools
 import os
 
 import tensorflow.compat.v2 as tf
+
+from keras.engine import training
+from keras.layers import core
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
+
+# isort: off
 from tensorflow.python.eager import context
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
@@ -25,11 +32,6 @@ from tensorflow.python.framework import (
 from tensorflow.python.training.tracking import (
     util as trackable_utils,
 )
-
-from keras.engine import training
-from keras.layers import core
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 
 
 class NonLayerTrackable(tf.Module):

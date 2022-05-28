@@ -27,7 +27,6 @@ from typing import List
 from typing import Union
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import layers
@@ -35,6 +34,9 @@ from keras.applications import imagenet_utils
 from keras.engine import training
 from keras.utils import data_utils
 from keras.utils import layer_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHTS_URL = (
     "https://storage.googleapis.com/tensorflow/" "keras-applications/resnet_rs/"

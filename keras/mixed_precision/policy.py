@@ -17,12 +17,14 @@
 import contextlib
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
 from keras.utils import generic_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 # pylint: disable=g-classes-have-attributes

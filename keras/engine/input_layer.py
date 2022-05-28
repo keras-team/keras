@@ -16,7 +16,6 @@
 """Input layer code (`Input` and `InputLayer`)."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.distribute import distributed_training_utils
@@ -26,6 +25,9 @@ from keras.engine import node as node_module
 from keras.saving.saved_model import layer_serialization
 from keras.utils import tf_utils
 from keras.utils import traceback_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 def _assert_other_arg_none(arg_name, arg):

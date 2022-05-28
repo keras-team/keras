@@ -21,9 +21,11 @@ import re
 import sys
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils import io_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 try:
     # pydot-ng is a fork of pydot that is better maintained.

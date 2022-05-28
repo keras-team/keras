@@ -15,7 +15,6 @@
 """Keras model saving code."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.saving import hdf5_format
 from keras.saving import saving_utils
@@ -25,6 +24,9 @@ from keras.saving.saved_model import save as saved_model_save
 from keras.utils import generic_utils
 from keras.utils import traceback_utils
 from keras.utils.io_utils import path_to_string
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 # pylint: disable=g-import-not-at-top
 try:

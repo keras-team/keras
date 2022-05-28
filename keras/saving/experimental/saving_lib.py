@@ -19,10 +19,12 @@ import os
 import types
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util import tf_export
 
 from keras.saving.saved_model import json_utils
 from keras.utils import generic_utils
+
+# isort: off
+from tensorflow.python.util import tf_export
 
 _CONFIG_FILE = "config.keras"
 

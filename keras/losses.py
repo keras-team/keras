@@ -20,11 +20,6 @@ import abc
 import functools
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.ops.ragged import ragged_map_ops
-from tensorflow.python.ops.ragged import ragged_util
-from tensorflow.python.util import dispatch
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras.saving.experimental import saving_lib
@@ -33,6 +28,13 @@ from keras.utils import losses_utils
 from keras.utils import tf_utils
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
+
+# isort: off
+from tensorflow.python.ops.ragged import ragged_map_ops
+from tensorflow.python.ops.ragged import ragged_util
+from tensorflow.python.util import dispatch
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 @keras_export("keras.losses.Loss")

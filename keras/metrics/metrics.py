@@ -23,7 +23,6 @@ from typing import Union
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import activations
 from keras import backend
@@ -46,6 +45,9 @@ from keras.utils import losses_utils
 from keras.utils import metrics_utils
 from keras.utils.generic_utils import to_list
 from keras.utils.tf_utils import is_tensor_or_variable
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.metrics.MeanRelativeError")

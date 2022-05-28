@@ -18,10 +18,6 @@ import warnings
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import extension_type
-from tensorflow.python.training.tracking.util import (
-    Checkpoint,
-)
 
 from keras import backend
 from keras import layers
@@ -36,6 +32,12 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import layer_utils
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.framework import extension_type
+from tensorflow.python.training.tracking.util import (
+    Checkpoint,
+)
 
 
 class NetworkConstructionTest(test_combinations.TestCase):

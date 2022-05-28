@@ -21,8 +21,6 @@ import string
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import constraints
 from keras import initializers
@@ -32,6 +30,10 @@ from keras.layers import activation
 from keras.layers import core
 from keras.layers import regularization
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 _CHR_IDX = string.ascii_lowercase
 

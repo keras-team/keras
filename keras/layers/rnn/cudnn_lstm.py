@@ -18,13 +18,15 @@
 import collections
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import constraints
 from keras import initializers
 from keras import regularizers
 from keras.layers.rnn import gru_lstm_utils
 from keras.layers.rnn.base_cudnn_rnn import _CuDNNRNN
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(v1=["keras.layers.CuDNNLSTM"])

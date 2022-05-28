@@ -18,6 +18,11 @@ import threading
 import unittest
 
 import tensorflow.compat.v2 as tf
+
+import keras
+from keras.optimizers.optimizer_v2 import gradient_descent
+
+# isort: off
 from tensorflow.python.distribute.cluster_resolver import (
     SimpleClusterResolver,
 )
@@ -25,9 +30,6 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.server_lib import (
     ClusterSpec,
 )
-
-import keras
-from keras.optimizers.optimizer_v2 import gradient_descent
 
 _portpicker_import_error = None
 try:

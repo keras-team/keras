@@ -29,9 +29,11 @@ import json
 import numpy as np
 import tensorflow.compat.v2 as tf
 import wrapt
-from tensorflow.python.framework import type_spec
 
 from keras.utils import generic_utils
+
+# isort: off
+from tensorflow.python.framework import type_spec
 
 _EXTENSION_TYPE_SPEC = "_EXTENSION_TYPE_SPEC"
 

@@ -20,7 +20,6 @@ import os
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras.optimizers import optimizer_v1
@@ -32,6 +31,9 @@ from keras.saving import saving_utils
 from keras.saving.saved_model import json_utils
 from keras.utils.generic_utils import LazyLoader
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 try:
     import h5py

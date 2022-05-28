@@ -20,13 +20,15 @@ import types
 import warnings
 
 import numpy as np
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import losses
 from keras.models import Sequential
 from keras.utils.generic_utils import has_arg
 from keras.utils.np_utils import to_categorical
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 class BaseWrapper:

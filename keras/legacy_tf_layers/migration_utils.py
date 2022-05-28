@@ -8,6 +8,8 @@ eager execution.
 import sys
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

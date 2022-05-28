@@ -19,7 +19,6 @@ import sys
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 import keras
 from keras import callbacks
@@ -27,6 +26,9 @@ from keras import metrics as metrics_module
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import io_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 class BatchCounterCallback(callbacks.Callback):

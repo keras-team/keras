@@ -20,18 +20,20 @@ import os
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.framework import (
-    test_util as tf_test_util,
-)
-from tensorflow.python.training.rmsprop import (
-    RMSPropOptimizer,
-)
 
 import keras
 from keras.layers.locally_connected import locally_connected_utils
 from keras.optimizers.optimizer_v2 import rmsprop
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_util,
+)
+from tensorflow.python.training.rmsprop import (
+    RMSPropOptimizer,
+)
 
 _DATA_FORMAT_PADDING_IMPLEMENTATION = [
     {"data_format": "channels_first", "padding": "valid", "implementation": 1},

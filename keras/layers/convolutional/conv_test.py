@@ -18,13 +18,15 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
 
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
 
 
 @test_combinations.run_all_keras_modes

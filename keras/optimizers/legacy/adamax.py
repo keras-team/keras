@@ -14,9 +14,10 @@
 # ==============================================================================
 """Legacy Adamax optimizer implementation."""
 
-from tensorflow.python.util.tf_export import keras_export
-
 from keras.optimizers.optimizer_v2 import adamax
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.optimizers.legacy.Adamax")

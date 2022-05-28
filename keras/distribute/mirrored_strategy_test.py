@@ -17,16 +17,18 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.eager import backprop
-from tensorflow.python.training import (
-    optimizer as optimizer_lib,
-)
 
 import keras
 from keras.engine import training as keras_training
 from keras.layers import core as keras_core
 from keras.optimizers.optimizer_v2 import rmsprop
 from keras.utils import kpl_test_utils
+
+# isort: off
+from tensorflow.python.eager import backprop
+from tensorflow.python.training import (
+    optimizer as optimizer_lib,
+)
 
 
 class MiniModel(keras_training.Model):

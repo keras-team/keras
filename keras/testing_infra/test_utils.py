@@ -24,10 +24,6 @@ import unittest
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import layers
@@ -44,6 +40,12 @@ from keras.optimizers.optimizer_v2 import nadam as nadam_v2
 from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_v2
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+from tensorflow.python.util.tf_export import keras_export
 
 
 def string_test(actual, expected):

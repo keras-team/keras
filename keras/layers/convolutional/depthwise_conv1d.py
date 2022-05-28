@@ -16,11 +16,13 @@
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.layers.convolutional.base_depthwise_conv import DepthwiseConv
 from keras.utils import conv_utils
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.DepthwiseConv1D")

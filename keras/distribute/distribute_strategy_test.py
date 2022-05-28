@@ -19,9 +19,6 @@ import os
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.distribute.cluster_resolver import (
-    SimpleClusterResolver,
-)
 
 import keras
 from keras import backend
@@ -46,6 +43,11 @@ from keras.optimizers.optimizer_v2 import (
 from keras.testing_infra import test_utils
 from keras.utils import losses_utils
 from keras.utils import np_utils
+
+# isort: off
+from tensorflow.python.distribute.cluster_resolver import (
+    SimpleClusterResolver,
+)
 
 _RANDOM_SEED = 1337
 _TRAIN_SIZE = 200

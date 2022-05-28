@@ -15,8 +15,6 @@
 """Built-in linear model classes."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util import deprecation
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import activations
 from keras import initializers
@@ -25,6 +23,10 @@ from keras.engine import base_layer
 from keras.engine import input_spec
 from keras.engine import training
 from keras.layers import core
+
+# isort: off
+from tensorflow.python.util import deprecation
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(

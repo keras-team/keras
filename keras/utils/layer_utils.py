@@ -21,10 +21,12 @@ import weakref
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils import io_utils
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.utils.get_source_inputs")

@@ -16,7 +16,6 @@
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import activations
 from keras import constraints
@@ -26,6 +25,9 @@ from keras.dtensor import utils
 from keras.engine.input_spec import InputSpec
 from keras.layers.convolutional.conv1d import Conv1D
 from keras.utils import conv_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(

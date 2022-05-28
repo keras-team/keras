@@ -19,7 +19,6 @@ import os
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.platform import tf_logging as logging
 
 import keras
 from keras import callbacks as callbacks_lib
@@ -28,6 +27,9 @@ from keras.layers import core as core_layers
 from keras.layers.preprocessing import string_lookup
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.utils import dataset_creator
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):

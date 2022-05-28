@@ -15,6 +15,8 @@
 """Python module for evaluation loop."""
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util import deprecation
 from tensorflow.python.util.tf_export import keras_export

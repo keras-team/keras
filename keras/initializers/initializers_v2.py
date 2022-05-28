@@ -17,10 +17,12 @@
 import math
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.dtensor import utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 _PARTITION_SHAPE = "partition_shape"
 _PARTITION_OFFSET = "partition_offset"

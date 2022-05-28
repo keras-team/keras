@@ -17,9 +17,11 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.engine.base_layer import Layer
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Reshape")

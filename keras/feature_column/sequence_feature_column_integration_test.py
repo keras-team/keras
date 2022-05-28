@@ -19,12 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-from google.protobuf import text_format
-from tensorflow.core.example import example_pb2
-from tensorflow.core.example import feature_pb2
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
 
 from keras import backend
 from keras.feature_column import dense_features
@@ -32,6 +26,14 @@ from keras.feature_column import sequence_feature_column as ksfc
 from keras.layers import merging
 from keras.layers.rnn import base_rnn
 from keras.layers.rnn import simple_rnn
+
+# isort: off
+from google.protobuf import text_format
+from tensorflow.core.example import example_pb2
+from tensorflow.core.example import feature_pb2
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
 
 
 class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):

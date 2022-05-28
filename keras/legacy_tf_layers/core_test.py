@@ -24,13 +24,15 @@ import platform
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
+from keras.legacy_tf_layers import core as core_layers
+from keras.testing_infra import test_combinations
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
 from tensorflow.python.ops import variable_scope
-
-from keras.legacy_tf_layers import core as core_layers
-from keras.testing_infra import test_combinations
 
 
 class DenseTest(tf.test.TestCase, parameterized.TestCase):

@@ -16,6 +16,7 @@
 
 import threading
 
+# isort: off
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops

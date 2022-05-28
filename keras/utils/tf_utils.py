@@ -20,13 +20,15 @@ import random
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import ops
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import keras_tensor
 from keras.utils import object_identity
 from keras.utils import tf_contextlib
+
+# isort: off
+from tensorflow.python.framework import ops
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.utils.set_random_seed", v1=[])

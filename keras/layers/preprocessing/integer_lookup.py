@@ -19,11 +19,13 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(
@@ -432,7 +434,7 @@ class IntegerLookup(index_lookup.IndexLookup):
         time, any models using the layer should be re-compiled. For more
         information see
         `tf.keras.layers.experimental.preprocessing.PreprocessingLayer.adapt`.
-        
+
         `adapt()` is meant only as a single machine utility to compute layer
         state.  To analyze a dataset that cannot fit on a single machine, see
         [Tensorflow Transform](
