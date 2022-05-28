@@ -352,11 +352,12 @@ class TestStatefulLambda(test_combinations.TestCase):
 
         expected_error = textwrap.dedent(
             r"""
-    (    )?The following Variables were created within a Lambda layer \(shift_and_scale\)
-    (    )?but are not tracked by said layer:
-    (    )?  <tf.Variable \'.*shift_and_scale/scale:0\'.+
-    (    )?  <tf.Variable \'.*shift_and_scale/shift:0\'.+
-    (    )?The layer cannot safely ensure proper Variable reuse.+"""
+(    )?The following Variables were created within a Lambda layer \(shift_and_scale\)"""  # noqa: E501
+            r"""
+(    )?but are not tracked by said layer:
+(    )?  <tf.Variable \'.*shift_and_scale/scale:0\'.+
+(    )?  <tf.Variable \'.*shift_and_scale/shift:0\'.+
+(    )?The layer cannot safely ensure proper Variable reuse.+"""
         )
 
         with self.assertRaisesRegex(ValueError, expected_error):
@@ -374,10 +375,10 @@ class TestStatefulLambda(test_combinations.TestCase):
 
         expected_error = textwrap.dedent(
             r"""
-    (    )?The following Variables were created within a Lambda layer \(bias_dense\)
-    (    )?but are not tracked by said layer:
-    (    )?  <tf.Variable \'.*bias_dense/dense/kernel:0\'.+
-    (    )?The layer cannot safely ensure proper Variable reuse.+"""
+(    )?The following Variables were created within a Lambda layer \(bias_dense\)
+(    )?but are not tracked by said layer:
+(    )?  <tf.Variable \'.*bias_dense/dense/kernel:0\'.+
+(    )?The layer cannot safely ensure proper Variable reuse.+"""
         )
 
         with self.assertRaisesRegex(ValueError, expected_error):
@@ -395,10 +396,10 @@ class TestStatefulLambda(test_combinations.TestCase):
 
         expected_warning = textwrap.dedent(
             r"""
-    (    )?The following Variables were used a Lambda layer\'s call \(lambda\), but
-    (    )?are not present in its tracked objects:
-    (    )?  <tf.Variable \'.*Variable:0\'.+
-    (    )?It is possible that this is intended behavior.+"""
+(    )?The following Variables were used a Lambda layer\'s call \(lambda\), but
+(    )?are not present in its tracked objects:
+(    )?  <tf.Variable \'.*Variable:0\'.+
+(    )?It is possible that this is intended behavior.+"""
         )
 
         layer = keras.layers.Lambda(lambda_fn)

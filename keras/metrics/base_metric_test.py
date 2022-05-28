@@ -102,7 +102,7 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAlmostEqual(self.evaluate(m.total), 63.75, 2)
 
     def test_sum_graph_with_placeholder(self):
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:  # noqa: E501
             m = metrics.Sum()
             v = tf.compat.v1.placeholder(tf.float32)
             w = tf.compat.v1.placeholder(tf.float32)
@@ -261,7 +261,7 @@ class MeanTest(test_combinations.TestCase):
 
     @test_combinations.run_all_keras_modes
     def test_mean_graph_with_placeholder(self):
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:  # noqa: E501
             m = metrics.Mean()
             v = tf.compat.v1.placeholder(tf.float32)
             w = tf.compat.v1.placeholder(tf.float32)

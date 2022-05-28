@@ -644,12 +644,12 @@ class Model(training_lib.Model):
         # Case 1: distribution strategy.
         if self._distribution_strategy:
             if self._in_multi_worker_mode():
-                return training_distributed_v1.DistributionMultiWorkerTrainingLoop(
-                    training_distributed_v1.DistributionSingleWorkerTrainingLoop()
+                return training_distributed_v1.DistributionMultiWorkerTrainingLoop(  # noqa: E501
+                    training_distributed_v1.DistributionSingleWorkerTrainingLoop()  # noqa: E501
                 )
             else:
                 return (
-                    training_distributed_v1.DistributionSingleWorkerTrainingLoop()
+                    training_distributed_v1.DistributionSingleWorkerTrainingLoop()  # noqa: E501
                 )
 
         # Case 2: generator-like. Input is Python generator, or Sequence object,

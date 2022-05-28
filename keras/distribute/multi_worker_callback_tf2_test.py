@@ -159,7 +159,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
         tf.__internal__.distribute.multi_process_runner.run(
             proc_model_checkpoint_saves_on_chief_but_not_otherwise,
-            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(  # noqa: E501
                 num_workers=2
             ),
             args=(self, file_format),
@@ -192,7 +192,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
         tf.__internal__.distribute.multi_process_runner.run(
             proc_model_checkpoint_works_with_same_file_path,
-            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(  # noqa: E501
                 num_workers=2
             ),
             args=(self, saving_filepath),
@@ -263,7 +263,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
         tf.__internal__.distribute.multi_process_runner.run(
             proc_model_checkpoint_works_with_same_file_path,
-            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(  # noqa: E501
                 num_workers=2
             ),
             args=(self, saving_filepath),
@@ -306,7 +306,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
         tf.__internal__.distribute.multi_process_runner.run(
             proc_profiler_saves_on_both_chief_and_non_chief,
-            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(  # noqa: E501
                 num_workers=2
             ),
             args=(self,),
@@ -357,7 +357,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
         tf.__internal__.distribute.multi_process_runner.run(
             proc_tensorboard_saves_on_chief_but_not_otherwise,
-            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(  # noqa: E501
                 num_workers=2
             ),
             args=(self,),
@@ -395,7 +395,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
         tf.__internal__.distribute.multi_process_runner.run(
             proc_tensorboard_can_still_save_to_temp_even_if_it_exists,
-            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(  # noqa: E501
                 num_workers=2
             ),
             args=(self,),
@@ -432,7 +432,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
         tf.__internal__.distribute.multi_process_runner.run(
             proc_tensorboard_works_with_same_file_path,
-            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(  # noqa: E501
                 num_workers=2
             ),
             args=(self, saving_filepath),
@@ -466,7 +466,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
         tf.__internal__.distribute.multi_process_runner.run(
             proc_early_stopping,
-            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+            cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(  # noqa: E501
                 num_workers=2
             ),
             args=(self,),

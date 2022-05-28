@@ -606,7 +606,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
           gradient can be `None`.
 
         Raises:
-          TypeError: If `var_list` contains anything else than `Variable` objects.
+          TypeError: If `var_list` contains anything else than `Variable`
+            objects.
           ValueError: If some arguments are invalid, or var_list is None.
         """
         # TODO(joshl): Test that we handle weight decay in a reasonable way.
@@ -713,10 +714,10 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 and isinstance(
                     strategy,
                     (
-                        tf.compat.v1.distribute.experimental.ParameterServerStrategy,
+                        tf.compat.v1.distribute.experimental.ParameterServerStrategy,  # noqa: E501
                         tf.distribute.experimental.ParameterServerStrategy,
                         tf.distribute.experimental.CentralStorageStrategy,
-                        tf.compat.v1.distribute.experimental.CentralStorageStrategy,
+                        tf.compat.v1.distribute.experimental.CentralStorageStrategy,  # noqa: E501
                     ),
                 )
             ):

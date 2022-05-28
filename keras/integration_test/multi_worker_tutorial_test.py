@@ -242,7 +242,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
         try:
             mpr_result = tf.__internal__.distribute.multi_process_runner.run(
                 fn,
-                tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+                tf.__internal__.distribute.multi_process_runner.create_cluster_spec(  # noqa: E501
                     num_workers=NUM_WORKERS
                 ),
                 args=(model_path, checkpoint_dir),

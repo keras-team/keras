@@ -153,7 +153,7 @@ class Optimizer(optimizer_lib._BaseOptimizer):
     def _overwrite_model_variables_with_average_value_helper(self, var_list):
         """Helper function to _overwrite_model_variables_with_average_value."""
         (
-            optimizer_lib._BaseOptimizer._overwrite_model_variables_with_average_value_helper(
+            optimizer_lib._BaseOptimizer._overwrite_model_variables_with_average_value_helper(  # noqa: E501
                 self, var_list
             )
         )

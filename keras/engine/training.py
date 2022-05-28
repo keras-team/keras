@@ -1498,7 +1498,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 )
             )
 
-        with self.distribute_strategy.scope(), training_utils.RespectCompiledTrainableState(
+        with self.distribute_strategy.scope(), training_utils.RespectCompiledTrainableState(  # noqa: E501
             self
         ):
             # Creates a `tf.data.Dataset` and handles batch and epoch iteration.
@@ -2377,7 +2377,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         _disallow_inside_tf_function("train_on_batch")
         if reset_metrics:
             self.reset_metrics()
-        with self.distribute_strategy.scope(), training_utils.RespectCompiledTrainableState(
+        with self.distribute_strategy.scope(), training_utils.RespectCompiledTrainableState(  # noqa: E501
             self
         ):
             iterator = data_adapter.single_batch_iterator(

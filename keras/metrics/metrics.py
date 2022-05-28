@@ -110,7 +110,7 @@ class MeanRelativeError(base_metric.Mean):
         [
             y_pred,
             y_true,
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [y_pred, y_true], sample_weight
         )
         y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
@@ -902,8 +902,8 @@ class Precision(base_metric.Metric):
         """
         return metrics_utils.update_confusion_matrix_variables(
             {
-                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,
-                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,  # noqa: E501
             },
             y_true,
             y_pred,
@@ -1048,8 +1048,8 @@ class Recall(base_metric.Metric):
         """
         return metrics_utils.update_confusion_matrix_variables(
             {
-                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,
-                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,  # noqa: E501
             },
             y_true,
             y_pred,
@@ -1144,10 +1144,10 @@ class SensitivitySpecificityBase(base_metric.Metric, metaclass=abc.ABCMeta):
         """
         return metrics_utils.update_confusion_matrix_variables(
             {
-                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,
-                metrics_utils.ConfusionMatrix.TRUE_NEGATIVES: self.true_negatives,
-                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,
-                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.TRUE_NEGATIVES: self.true_negatives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,  # noqa: E501
             },
             y_true,
             y_pred,
@@ -1918,10 +1918,10 @@ class AUC(base_metric.Metric):
 
         return metrics_utils.update_confusion_matrix_variables(
             {
-                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,
-                metrics_utils.ConfusionMatrix.TRUE_NEGATIVES: self.true_negatives,
-                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,
-                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.TRUE_NEGATIVES: self.true_negatives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,  # noqa: E501
             },
             y_true,
             y_pred,

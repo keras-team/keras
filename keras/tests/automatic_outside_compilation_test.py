@@ -235,7 +235,7 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
             # every 2 batches, we should see total of 5 event logs for each
             # summary.
             expected_event_counts = {
-                "sequential/layer_for_histogram_summary/custom_histogram_summary_v2": 5
+                "sequential/layer_for_histogram_summary/custom_histogram_summary_v2": 5  # noqa: E501
                 if enable_histograms
                 else 0,
                 "sequential/layer_for_image_summary/custom_image_summary_v2": 5,

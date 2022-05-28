@@ -709,7 +709,7 @@ class TestOutputLossMetrics(test_combinations.TestCase):
                 "output_2_loss": [116, 116],
             },
             losses_utils.ReductionV2.AUTO: sum_over_batch_size_fit_result,
-            losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE: sum_over_batch_size_fit_result,
+            losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE: sum_over_batch_size_fit_result,  # noqa: E501
         }
 
         # In the order: 'loss', 'output_1_loss', 'output_2_loss',

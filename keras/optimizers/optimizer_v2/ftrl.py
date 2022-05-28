@@ -300,7 +300,7 @@ class Ftrl(optimizer_v2.OptimizerV2):
                     "l2_regularization_strength"
                 ),
                 "beta": self._serialize_hyperparameter("beta"),
-                "l2_shrinkage_regularization_strength": self._l2_shrinkage_regularization_strength,
+                "l2_shrinkage_regularization_strength": self._l2_shrinkage_regularization_strength,  # noqa: E501
             }
         )
         return config

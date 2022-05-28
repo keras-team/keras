@@ -958,7 +958,7 @@ class VariableScopeModule(tf.Module):
         `get_variable`&`compat.v1.layers`."""
         return {
             name: regularizer()
-            for name, regularizer in self._tf1_style_var_store._regularizers.items()
+            for name, regularizer in self._tf1_style_var_store._regularizers.items()  # noqa: E501
         }  # pylint: disable=protected-access
 
 
@@ -1148,7 +1148,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                 """Dict w/ regularization losses from `get_variable`."""
                 return {
                     name: regularizer()
-                    for name, regularizer in self._variable_store._regularizers.items()
+                    for name, regularizer in self._variable_store._regularizers.items()  # noqa: E501
                 }  # pylint: disable=protected-access
 
             def __call__(self, inputs, training=None):

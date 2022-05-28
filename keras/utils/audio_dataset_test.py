@@ -312,7 +312,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         for seq_len in sequence_lengths:
             self.assertIn(seq_len, possible_sequence_lengths)
 
-    def test_audio_dataset_from_directory_no_output_sequence_length_same_lengths(
+    def test_audio_dataset_from_directory_no_output_sequence_length_same_lengths(  # noqa: E501
         self,
     ):
         # This test case tests `audio_dataset_from_directory` when `ragged` and

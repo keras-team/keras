@@ -311,7 +311,7 @@ def _replace_child_layer_functions(layer, serialization_cache):
             continue
 
         if child_layer not in serialization_cache[constants.KERAS_CACHE_KEY]:
-            serialized_functions = child_layer._trackable_saved_model_saver._get_serialized_attributes(
+            serialized_functions = child_layer._trackable_saved_model_saver._get_serialized_attributes(  # noqa: E501
                 serialization_cache
             ).functions
         else:

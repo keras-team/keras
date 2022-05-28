@@ -29,8 +29,8 @@ from keras.testing_infra import test_utils
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=[
-            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
-            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,  # noqa: E501
         ],
         mode=["eager"],
     )
