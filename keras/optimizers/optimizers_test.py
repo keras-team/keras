@@ -28,7 +28,7 @@ from keras.utils import np_utils
 
 # isort: off
 from tensorflow.python.training.adam import AdamOptimizer
-from tensorflow.python.training.experimental.loss_scale_optimizer import (
+from tensorflow.python.training.experimental.loss_scale_optimizer import (  # noqa: E501
     MixedPrecisionLossScaleOptimizer,
 )
 

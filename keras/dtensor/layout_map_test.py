@@ -17,14 +17,15 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-# TODO(scottzhu): Fix the layout map test with keras/dtensor/test_util
-from keras.dtensor.tests import test_util
-
 from keras import backend
 from keras import layers
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layout_map as layout_map_lib
 from keras.utils import tf_utils
+
+# isort: off
+# TODO(scottzhu): Fix the layout map test with keras/dtensor/test_util
+from keras.dtensor.tests import test_util
 
 
 class LayoutMapTest(test_util.DTensorBaseTest):
