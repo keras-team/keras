@@ -548,11 +548,14 @@ class MultiHeadAttention(Layer):
         attention_mask=None,
         return_attention_scores=False,
         training=None,
-        use_causal_mask=False
+        use_causal_mask=False,
     ):
         attention_mask = self._compute_attention_mask(
-            query, value, key=key, attention_mask=attention_mask,
-            use_causal_mask=use_causal_mask
+            query,
+            value,
+            key=key,
+            attention_mask=attention_mask,
+            use_causal_mask=use_causal_mask,
         )
 
         if not self._built_from_signature:
@@ -668,19 +671,19 @@ class MultiHeadAttention(Layer):
         """Computes a causal mask (e.g., for masked self-attention layers).
 
         For example, if query and value both contain sequences of length 4,
-        this function returns:
-        [[True,  False, False, False],
-         [True,  True,  False, False],
-         [True,  True,  True,  False],
-         [True,  True,  True,  True]]
+        this function returns a boolean `Tensor` equal to:
+        [[[True,  False, False, False],
+          [True,  True,  False, False],
+          [True,  True,  True,  False],
+          [True,  True,  True,  True]]]
 
         Args:
           query: query `Tensor` of shape `(B, T, ...)`.
           value: value `Tensor` of shape `(B, S, ...)` (optional, defaults to
           query).
         Returns:
-          mask: an array of shape [1, T, S] containing a lower triangular matrix
-          of shape [T, S].
+          mask: a boolean `Tensor` of shape [1, T, S] containing a lower
+                triangular matrix of shape [T, S].
         """
         q_seq_length = tf.shape(query)[1]
         v_seq_length = q_seq_length if value is None else tf.shape(value)[1]

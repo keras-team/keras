@@ -347,8 +347,11 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         masked_query = keras.layers.Embedding(4, 8, mask_zero=True)(query)
         value = np.array([[5, 4, 0], [3, 0, 0], [2, 1, 1]])
         masked_value = keras.layers.Embedding(6, 8, mask_zero=True)(value)
-        output = test_layer(query=masked_query, value=masked_value,
-                            use_causal_mask=use_causal_mask)
+        output = test_layer(
+            query=masked_query,
+            value=masked_value,
+            use_causal_mask=use_causal_mask,
+        )
         mask = np.array(
             [[[True, True, False]] * 3 + [[False, False, False]] * 2]
             + [[[True, False, False]] * 5]
