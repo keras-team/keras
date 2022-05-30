@@ -197,8 +197,6 @@ class MultiHeadAttention(Layer):
       activity_regularizer: Regularizer for dense layer activity.
       kernel_constraint: Constraint for dense layer kernels.
       bias_constraint: Constraint for dense layer kernels.
-      causal: Boolean, whether to apply a causal mask to prevent tokens from
-      attending to future tokens (e.g., used in a decoder Transformer).
 
     Call arguments:
       query: Query `Tensor` of shape `(B, T, dim)`.
@@ -217,6 +215,9 @@ class MultiHeadAttention(Layer):
         training mode (adding dropout) or in inference mode (no dropout).
         Defaults to either using the training mode of the parent layer/model,
         or False (inference) if there is no parent layer.
+      use_causal_mask: A boolean to indicate whether to apply a causal mask to
+      prevent tokens from attending to future tokens (e.g., used in a decoder
+      Transformer).
 
     Returns:
       attention_output: The result of the computation, of shape `(B, T, E)`,
@@ -243,7 +244,6 @@ class MultiHeadAttention(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
-        causal=False,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -261,7 +261,6 @@ class MultiHeadAttention(Layer):
         self._activity_regularizer = regularizers.get(activity_regularizer)
         self._kernel_constraint = constraints.get(kernel_constraint)
         self._bias_constraint = constraints.get(bias_constraint)
-        self._causal = causal
         if attention_axes is not None and not isinstance(
             attention_axes, collections.abc.Sized
         ):
@@ -293,7 +292,6 @@ class MultiHeadAttention(Layer):
             ),
             "kernel_constraint": constraints.serialize(self._kernel_constraint),
             "bias_constraint": constraints.serialize(self._bias_constraint),
-            "causal": self._causal,
             "query_shape": self._query_shape,
             "key_shape": self._key_shape,
             "value_shape": self._value_shape,
@@ -550,9 +548,11 @@ class MultiHeadAttention(Layer):
         attention_mask=None,
         return_attention_scores=False,
         training=None,
+        use_causal_mask=False
     ):
         attention_mask = self._compute_attention_mask(
-            query, value, key, attention_mask
+            query, value, key=key, attention_mask=attention_mask,
+            use_causal_mask=use_causal_mask
         )
 
         if not self._built_from_signature:
@@ -605,7 +605,7 @@ class MultiHeadAttention(Layer):
         return attention_output
 
     def _compute_attention_mask(
-        self, query, value, key=None, attention_mask=None
+        self, query, value, key=None, attention_mask=None, use_causal_mask=False
     ):
         """Computes the attention mask, using the Keras masks of the inputs.
 
@@ -613,8 +613,8 @@ class MultiHeadAttention(Layer):
         * The `value`'s mask is reshaped from [B, S] to [B, 1, S].
         * The `key`'s mask is reshaped from [B, S] to [B, 1, S]. The `key`'s
           mask is ignored if `key` is `None` or if `key is value`.
-        * If the layer was created with `causal=True`, then the causal mask is
-          computed. Its shape is [1, T, S].
+        * If `use_causal_mask=True`, then the causal mask is computed. Its shape
+          is [1, T, S].
 
         All defined masks are merged using a logical AND operation (`&`).
 
@@ -627,11 +627,14 @@ class MultiHeadAttention(Layer):
           value: Projected value `Tensor` of shape `(B, T, N, value_dim)`.
           attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
             attention to certain positions.
+          use_causal_mask: A boolean to indicate whether to apply a causal mask
+            to prevent tokens from attending to future tokens (e.g., used in a
+            decoder Transformer).
         Returns:
           attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
             attention to certain positions, based on the Keras masks of the
             `query`, `key`, `value`, and `attention_mask` tensors, and the
-            causal mask if the layer was created with `causal=True`.
+            causal mask if `use_causal_mask=True`.
         """
         query_mask = getattr(query, "_keras_mask", None)
         value_mask = getattr(value, "_keras_mask", None)
@@ -648,7 +651,7 @@ class MultiHeadAttention(Layer):
             # B == batch size, S == max key length == max value length
             mask = key_mask[:, tf.newaxis, :]  # shape is [B, 1, S]
             auto_mask = mask if auto_mask is None else auto_mask & mask
-        if self._causal:
+        if use_causal_mask:
             # the shape of the causal mask is [1, T, S]
             mask = self._compute_causal_mask(query, value)
             auto_mask = mask if auto_mask is None else auto_mask & mask

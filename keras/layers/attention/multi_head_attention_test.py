@@ -340,22 +340,21 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         self.assertAllEqual(masked_query._keras_mask, output._keras_mask)
 
     @parameterized.named_parameters(("causal", True), ("not_causal", False))
-    def test_value_mask(self, causal):
+    def test_value_mask(self, use_causal_mask):
         """Test that the value and causal masks are taken into account."""
-        test_layer = keras.layers.MultiHeadAttention(
-            num_heads=2, key_dim=2, causal=causal
-        )
+        test_layer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2)
         query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
         masked_query = keras.layers.Embedding(4, 8, mask_zero=True)(query)
         value = np.array([[5, 4, 0], [3, 0, 0], [2, 1, 1]])
         masked_value = keras.layers.Embedding(6, 8, mask_zero=True)(value)
-        output = test_layer(query=masked_query, value=masked_value)
+        output = test_layer(query=masked_query, value=masked_value,
+                            use_causal_mask=use_causal_mask)
         mask = np.array(
             [[[True, True, False]] * 3 + [[False, False, False]] * 2]
             + [[[True, False, False]] * 5]
             + [[[True, True, True]] + [[False, False, False]] * 4]
         )
-        if causal:
+        if use_causal_mask:
             mask = mask & np.array(
                 [
                     [[True, False, False], [True, True, False]]
