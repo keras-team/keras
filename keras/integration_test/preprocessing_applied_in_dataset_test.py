@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+
 from keras.integration_test import preprocessing_test_utils as utils
 
 ds_combinations = tf.__internal__.distribute.combinations
@@ -41,21 +42,24 @@ STRATEGIES = [
 
 
 @ds_combinations.generate(
-    test_combinations.combine(strategy=STRATEGIES, mode="eager"))
+    test_combinations.combine(strategy=STRATEGIES, mode="eager")
+)
 class PreprocessingAppliedInDatasetTest(tf.test.TestCase):
-  """Demonstrate Keras preprocessing layers applied in tf.data.Dataset.map."""
+    """Demonstrate Keras preprocessing layers applied in tf.data.Dataset.map."""
 
-  def testDistributedModelFit(self, strategy):
-    with strategy.scope():
-      preprocessing_model = utils.make_preprocessing_model(self.get_temp_dir())
-      training_model = utils.make_training_model()
-      training_model.compile(optimizer="sgd", loss="binary_crossentropy")
+    def testDistributedModelFit(self, strategy):
+        with strategy.scope():
+            preprocessing_model = utils.make_preprocessing_model(
+                self.get_temp_dir()
+            )
+            training_model = utils.make_training_model()
+            training_model.compile(optimizer="sgd", loss="binary_crossentropy")
 
-    dataset = utils.make_dataset()
-    dataset = dataset.batch(utils.BATCH_SIZE)
-    dataset = dataset.map(lambda x, y: (preprocessing_model(x), y))
-    training_model.fit(dataset, epochs=2)
+        dataset = utils.make_dataset()
+        dataset = dataset.batch(utils.BATCH_SIZE)
+        dataset = dataset.map(lambda x, y: (preprocessing_model(x), y))
+        training_model.fit(dataset, epochs=2)
 
 
 if __name__ == "__main__":
-  multi_process_runner.test_main()
+    multi_process_runner.test_main()

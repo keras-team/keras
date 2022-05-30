@@ -15,80 +15,87 @@
 # pylint: disable=protected-access
 """Tests the JSON encoder and decoder."""
 
+import enum
+
 import tensorflow.compat.v2 as tf
 
-import enum
 from keras.saving.saved_model import json_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 
 class JsonUtilsTest(test_combinations.TestCase):
+    def test_encode_decode_tensor_shape(self):
+        metadata = {
+            "key1": tf.TensorShape(None),
+            "key2": [tf.TensorShape([None]), tf.TensorShape([3, None, 5])],
+        }
+        string = json_utils.Encoder().encode(metadata)
+        loaded = json_utils.decode(string)
 
-  def test_encode_decode_tensor_shape(self):
-    metadata = {
-        'key1': tf.TensorShape(None),
-        'key2': [tf.TensorShape([None]),
-                 tf.TensorShape([3, None, 5])]}
-    string = json_utils.Encoder().encode(metadata)
-    loaded = json_utils.decode(string)
+        self.assertEqual(set(loaded.keys()), {"key1", "key2"})
+        self.assertAllEqual(loaded["key1"].rank, None)
+        self.assertAllEqual(loaded["key2"][0].as_list(), [None])
+        self.assertAllEqual(loaded["key2"][1].as_list(), [3, None, 5])
 
-    self.assertEqual(set(loaded.keys()), {'key1', 'key2'})
-    self.assertAllEqual(loaded['key1'].rank, None)
-    self.assertAllEqual(loaded['key2'][0].as_list(), [None])
-    self.assertAllEqual(loaded['key2'][1].as_list(), [3, None, 5])
+    def test_encode_decode_tuple(self):
+        metadata = {"key1": (3, 5), "key2": [(1, (3, 4)), (1,)]}
+        string = json_utils.Encoder().encode(metadata)
+        loaded = json_utils.decode(string)
 
-  def test_encode_decode_tuple(self):
-    metadata = {
-        'key1': (3, 5),
-        'key2': [(1, (3, 4)), (1,)]}
-    string = json_utils.Encoder().encode(metadata)
-    loaded = json_utils.decode(string)
+        self.assertEqual(set(loaded.keys()), {"key1", "key2"})
+        self.assertAllEqual(loaded["key1"], (3, 5))
+        self.assertAllEqual(loaded["key2"], [(1, (3, 4)), (1,)])
 
-    self.assertEqual(set(loaded.keys()), {'key1', 'key2'})
-    self.assertAllEqual(loaded['key1'], (3, 5))
-    self.assertAllEqual(loaded['key2'], [(1, (3, 4)), (1,)])
+    def test_encode_decode_type_spec(self):
+        spec = tf.TensorSpec((1, 5), tf.float32)
+        string = json_utils.Encoder().encode(spec)
+        loaded = json_utils.decode(string)
+        self.assertEqual(spec, loaded)
 
-  def test_encode_decode_type_spec(self):
-    spec = tf.TensorSpec((1, 5), tf.float32)
-    string = json_utils.Encoder().encode(spec)
-    loaded = json_utils.decode(string)
-    self.assertEqual(spec, loaded)
+        invalid_type_spec = {
+            "class_name": "TypeSpec",
+            "type_spec": "Invalid Type",
+            "serialized": None,
+        }
+        string = json_utils.Encoder().encode(invalid_type_spec)
+        with self.assertRaisesRegexp(
+            ValueError, "No TypeSpec has been registered"
+        ):
+            loaded = json_utils.decode(string)
 
-    invalid_type_spec = {'class_name': 'TypeSpec', 'type_spec': 'Invalid Type',
-                         'serialized': None}
-    string = json_utils.Encoder().encode(invalid_type_spec)
-    with self.assertRaisesRegexp(ValueError, 'No TypeSpec has been registered'):
-      loaded = json_utils.decode(string)
+    def test_encode_decode_enum(self):
+        class Enum(enum.Enum):
+            CLASS_A = "a"
+            CLASS_B = "b"
 
-  def test_encode_decode_enum(self):
-    class Enum(enum.Enum):
-      CLASS_A = 'a'
-      CLASS_B = 'b'
-    config = {'key': Enum.CLASS_A, 'key2': Enum.CLASS_B}
-    string = json_utils.Encoder().encode(config)
-    loaded = json_utils.decode(string)
-    self.assertAllEqual({'key': 'a', 'key2': 'b'}, loaded)
+        config = {"key": Enum.CLASS_A, "key2": Enum.CLASS_B}
+        string = json_utils.Encoder().encode(config)
+        loaded = json_utils.decode(string)
+        self.assertAllEqual({"key": "a", "key2": "b"}, loaded)
 
-  @test_utils.run_v2_only
-  def test_encode_decode_ragged_tensor(self):
-    x = tf.ragged.constant([[1., 2.], [3.]])
-    string = json_utils.Encoder().encode(x)
-    loaded = json_utils.decode(string)
-    self.assertAllEqual(loaded, x)
+    @test_utils.run_v2_only
+    def test_encode_decode_ragged_tensor(self):
+        x = tf.ragged.constant([[1.0, 2.0], [3.0]])
+        string = json_utils.Encoder().encode(x)
+        loaded = json_utils.decode(string)
+        self.assertAllEqual(loaded, x)
 
-  @test_utils.run_v2_only
-  def test_encode_decode_extension_type_tensor(self):
-    class MaskedTensor(tf.experimental.ExtensionType):
-      __name__ = 'MaskedTensor'
-      values: tf.Tensor
-      mask: tf.Tensor
-    x = MaskedTensor(values=[[1, 2, 3], [4, 5, 6]],
-                     mask=[[True, True, False], [True, False, True]])
-    string = json_utils.Encoder().encode(x)
-    loaded = json_utils.decode(string)
-    self.assertAllEqual(loaded, x)
+    @test_utils.run_v2_only
+    def test_encode_decode_extension_type_tensor(self):
+        class MaskedTensor(tf.experimental.ExtensionType):
+            __name__ = "MaskedTensor"
+            values: tf.Tensor
+            mask: tf.Tensor
+
+        x = MaskedTensor(
+            values=[[1, 2, 3], [4, 5, 6]],
+            mask=[[True, True, False], [True, False, True]],
+        )
+        string = json_utils.Encoder().encode(x)
+        loaded = json_utils.decode(string)
+        self.assertAllEqual(loaded, x)
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

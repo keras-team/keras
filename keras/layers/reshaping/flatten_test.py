@@ -14,41 +14,46 @@
 # ==============================================================================
 """Tests for flatten layer."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes
 class FlattenTest(test_combinations.TestCase):
+    def test_flatten(self):
+        test_utils.layer_test(
+            keras.layers.Flatten, kwargs={}, input_shape=(3, 2, 4)
+        )
 
-  def test_flatten(self):
-    test_utils.layer_test(
-        keras.layers.Flatten, kwargs={}, input_shape=(3, 2, 4))
+        # Test channels_first
+        inputs = np.random.random((10, 3, 5, 5)).astype("float32")
+        outputs = test_utils.layer_test(
+            keras.layers.Flatten,
+            kwargs={"data_format": "channels_first"},
+            input_data=inputs,
+        )
+        target_outputs = np.reshape(
+            np.transpose(inputs, (0, 2, 3, 1)), (-1, 5 * 5 * 3)
+        )
+        self.assertAllClose(outputs, target_outputs)
 
-    # Test channels_first
-    inputs = np.random.random((10, 3, 5, 5)).astype('float32')
-    outputs = test_utils.layer_test(
-        keras.layers.Flatten,
-        kwargs={'data_format': 'channels_first'},
-        input_data=inputs)
-    target_outputs = np.reshape(
-        np.transpose(inputs, (0, 2, 3, 1)), (-1, 5 * 5 * 3))
-    self.assertAllClose(outputs, target_outputs)
+    def test_flatten_scalar_channels(self):
+        test_utils.layer_test(keras.layers.Flatten, kwargs={}, input_shape=(3,))
 
-  def test_flatten_scalar_channels(self):
-    test_utils.layer_test(keras.layers.Flatten, kwargs={}, input_shape=(3,))
+        # Test channels_first
+        inputs = np.random.random((10,)).astype("float32")
+        outputs = test_utils.layer_test(
+            keras.layers.Flatten,
+            kwargs={"data_format": "channels_first"},
+            input_data=inputs,
+        )
+        target_outputs = np.expand_dims(inputs, -1)
+        self.assertAllClose(outputs, target_outputs)
 
-    # Test channels_first
-    inputs = np.random.random((10,)).astype('float32')
-    outputs = test_utils.layer_test(
-        keras.layers.Flatten,
-        kwargs={'data_format': 'channels_first'},
-        input_data=inputs)
-    target_outputs = np.expand_dims(inputs, -1)
-    self.assertAllClose(outputs, target_outputs)
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

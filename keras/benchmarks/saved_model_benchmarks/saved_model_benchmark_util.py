@@ -18,50 +18,49 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import tempfile
 import time
 
+import tensorflow.compat.v2 as tf
+
 
 def save_and_load_benchmark(app):
-  """Util for saved model benchmarks."""
-  trials = 3
+    """Util for saved model benchmarks."""
+    trials = 3
 
-  model = app(weights=None)
-  model_name = app.__name__
+    model = app(weights=None)
+    model_name = app.__name__
 
-  tmp_dir = tf.compat.v1.test.get_temp_dir()
-  tf.io.gfile.makedirs(tmp_dir)
-  save_dir = tempfile.mkdtemp(dir=tmp_dir)
+    tmp_dir = tf.compat.v1.test.get_temp_dir()
+    tf.io.gfile.makedirs(tmp_dir)
+    save_dir = tempfile.mkdtemp(dir=tmp_dir)
 
-  total_save_time = 0
-  total_load_time = 0
+    total_save_time = 0
+    total_load_time = 0
 
-  # Run one untimed iteration of saving/loading.
-  model.save(save_dir, save_format='tf')
-  tf.keras.models.load_model(save_dir)
-
-  for _ in range(trials):
-    start_time = time.time()
-    model.save(save_dir, save_format='tf')
-    total_save_time += time.time() - start_time
-
-    start_time = time.time()
+    # Run one untimed iteration of saving/loading.
+    model.save(save_dir, save_format="tf")
     tf.keras.models.load_model(save_dir)
-    total_load_time += time.time() - start_time
 
-  save_result = {
-      'iters': trials,
-      'wall_time': total_save_time / trials,
-      'name': '{}.save'.format(model_name)
-  }
+    for _ in range(trials):
+        start_time = time.time()
+        model.save(save_dir, save_format="tf")
+        total_save_time += time.time() - start_time
 
-  load_result = {
-      'iters': trials,
-      'wall_time': total_load_time / trials,
-      'name': '{}.load'.format(model_name)
-  }
-  tf.compat.v1.gfile.DeleteRecursively(save_dir)
-  return save_result, load_result
+        start_time = time.time()
+        tf.keras.models.load_model(save_dir)
+        total_load_time += time.time() - start_time
 
+    save_result = {
+        "iters": trials,
+        "wall_time": total_save_time / trials,
+        "name": "{}.save".format(model_name),
+    }
+
+    load_result = {
+        "iters": trials,
+        "wall_time": total_load_time / trials,
+        "name": "{}.load".format(model_name),
+    }
+    tf.compat.v1.gfile.DeleteRecursively(save_dir)
+    return save_result, load_result

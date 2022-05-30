@@ -15,22 +15,21 @@
 """Keras merging layers."""
 # pylint: disable=g-bad-import-order
 
+# Merging functions.
 # Merging layers.
 from keras.layers.merging.add import Add
-from keras.layers.merging.subtract import Subtract
-from keras.layers.merging.multiply import Multiply
-from keras.layers.merging.average import Average
-from keras.layers.merging.maximum import Maximum
-from keras.layers.merging.minimum import Minimum
-from keras.layers.merging.concatenate import Concatenate
-from keras.layers.merging.dot import Dot
-
-# Merging functions.
 from keras.layers.merging.add import add
-from keras.layers.merging.subtract import subtract
-from keras.layers.merging.multiply import multiply
+from keras.layers.merging.average import Average
 from keras.layers.merging.average import average
-from keras.layers.merging.maximum import maximum
-from keras.layers.merging.minimum import minimum
+from keras.layers.merging.concatenate import Concatenate
 from keras.layers.merging.concatenate import concatenate
+from keras.layers.merging.dot import Dot
 from keras.layers.merging.dot import dot
+from keras.layers.merging.maximum import Maximum
+from keras.layers.merging.maximum import maximum
+from keras.layers.merging.minimum import Minimum
+from keras.layers.merging.minimum import minimum
+from keras.layers.merging.multiply import Multiply
+from keras.layers.merging.multiply import multiply
+from keras.layers.merging.subtract import Subtract
+from keras.layers.merging.subtract import subtract

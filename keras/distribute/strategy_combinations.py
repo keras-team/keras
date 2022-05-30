@@ -16,7 +16,6 @@
 
 import tensorflow.compat.v2 as tf
 
-
 multidevice_strategies = [
     tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
     tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
@@ -26,7 +25,7 @@ multidevice_strategies = [
 multiworker_strategies = [
     tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
     tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
-    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu
+    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
 ]
 
 strategies_minus_default_minus_tpu = [
@@ -34,7 +33,7 @@ strategies_minus_default_minus_tpu = [
     tf.__internal__.distribute.combinations.one_device_strategy_gpu,
     tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
     tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-    tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu
+    tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu,  # noqa: E501
 ]
 
 strategies_minus_tpu = [
@@ -43,13 +42,13 @@ strategies_minus_tpu = [
     tf.__internal__.distribute.combinations.one_device_strategy_gpu,
     tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
     tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-    tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu
+    tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu,  # noqa: E501
 ]
 
 multi_worker_mirrored_strategies = [
     tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
     tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
-    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu
+    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
 ]
 
 tpu_strategies = [
@@ -57,13 +56,13 @@ tpu_strategies = [
 ]
 
 parameter_server_strategies_single_worker = [
-    tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_cpu,
-    tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_1gpu,
+    tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_cpu,  # noqa: E501
+    tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_1gpu,  # noqa: E501
 ]
 
 parameter_server_strategies_multi_worker = [
-    tf.__internal__.distribute.combinations.parameter_server_strategy_3worker_2ps_cpu,
-    tf.__internal__.distribute.combinations.parameter_server_strategy_3worker_2ps_1gpu,
+    tf.__internal__.distribute.combinations.parameter_server_strategy_3worker_2ps_cpu,  # noqa: E501
+    tf.__internal__.distribute.combinations.parameter_server_strategy_3worker_2ps_1gpu,  # noqa: E501
 ]
 
 all_strategies = strategies_minus_tpu + tpu_strategies

@@ -18,8 +18,9 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-from absl import logging
+
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 NUM_WORKERS = 2
 NUM_EPOCHS = 2
@@ -27,51 +28,59 @@ NUM_STEPS_PER_EPOCH = 50
 
 
 class MwmsMultiProcessRunnerTest(tf.test.TestCase):
-  """Test to demonstrate Keras training with MultiWorkerMirroredStrategy."""
+    """Test to demonstrate Keras training with MultiWorkerMirroredStrategy."""
 
-  def testMwmsWithModelFit(self):
+    def testMwmsWithModelFit(self):
+        def worker_fn():
+            def dataset_fn(input_context):
+                # User should shard data accordingly. Omitted here.
+                del input_context
+                return tf.data.Dataset.from_tensor_slices(
+                    (tf.random.uniform((6, 10)), tf.random.uniform((6, 10)))
+                ).batch(2)
 
-    def worker_fn():
+            strategy = tf.distribute.MultiWorkerMirroredStrategy()
+            with strategy.scope():
+                model = tf.keras.models.Sequential([tf.keras.layers.Dense(10)])
+            model.compile(
+                loss=tf.keras.losses.CategoricalCrossentropy(),
+                optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.001),
+                metrics=["accuracy"],
+            )
 
-      def dataset_fn(input_context):
-        del input_context  # User should shard data accordingly. Omitted here.
-        return tf.data.Dataset.from_tensor_slices((tf.random.uniform(
-            (6, 10)), tf.random.uniform((6, 10)))).batch(2)
+            callbacks = [
+                tf.keras.callbacks.ModelCheckpoint(
+                    filepath=os.path.join(self.get_temp_dir(), "checkpoint")
+                )
+            ]
+            dataset = strategy.distribute_datasets_from_function(dataset_fn)
+            model.fit(
+                dataset,
+                epochs=NUM_EPOCHS,
+                steps_per_epoch=NUM_STEPS_PER_EPOCH,
+                callbacks=callbacks,
+            )
 
-      strategy = tf.distribute.MultiWorkerMirroredStrategy()
-      with strategy.scope():
-        model = tf.keras.models.Sequential([tf.keras.layers.Dense(10)])
-      model.compile(
-          loss=tf.keras.losses.CategoricalCrossentropy(),
-          optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.001),
-          metrics=['accuracy'])
+            logging.info("testMwmsWithModelFit successfully ends")
 
-      callbacks = [
-          tf.keras.callbacks.ModelCheckpoint(
-              filepath=os.path.join(self.get_temp_dir(), 'checkpoint'))
-      ]
-      dataset = strategy.distribute_datasets_from_function(dataset_fn)
-      model.fit(
-          dataset,
-          epochs=NUM_EPOCHS,
-          steps_per_epoch=NUM_STEPS_PER_EPOCH,
-          callbacks=callbacks)
+        mpr_result = tf.__internal__.distribute.multi_process_runner.run(
+            worker_fn,
+            tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+                num_workers=NUM_WORKERS
+            ),
+            return_output=True,
+        )
 
-      logging.info('testMwmsWithModelFit successfully ends')
-
-    mpr_result = tf.__internal__.distribute.multi_process_runner.run(
-        worker_fn,
-        tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
-            num_workers=NUM_WORKERS),
-        return_output=True)
-
-    # Verifying the worker functions ended successfully.
-    self.assertTrue(
-        any([
-            'testMwmsWithModelFit successfully ends' in msg
-            for msg in mpr_result.stdout
-        ]))
+        # Verifying the worker functions ended successfully.
+        self.assertTrue(
+            any(
+                [
+                    "testMwmsWithModelFit successfully ends" in msg
+                    for msg in mpr_result.stdout
+                ]
+            )
+        )
 
 
-if __name__ == '__main__':
-  tf.__internal__.distribute.multi_process_runner.test_main()
+if __name__ == "__main__":
+    tf.__internal__.distribute.multi_process_runner.test_main()

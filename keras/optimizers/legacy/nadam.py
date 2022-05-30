@@ -16,9 +16,10 @@
 
 from keras.optimizers.optimizer_v2 import nadam
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.optimizers.legacy.Nadam')
+@keras_export("keras.optimizers.legacy.Nadam")
 class Nadam(nadam.Nadam):
-  pass
+    pass

@@ -14,47 +14,52 @@
 # ==============================================================================
 """Tests for trackable object SavedModel save."""
 
+import os
+
 import tensorflow.compat.v2 as tf
 
-import os
-from tensorflow.python.framework import test_util as tf_test_utils
 from keras.layers import core
 from keras.optimizers.optimizer_v2 import adam
 
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+
 
 class _ModelWithOptimizerUsingDefun(tf.train.Checkpoint):
+    def __init__(self):
+        self.dense = core.Dense(1)
+        self.optimizer = adam.Adam(0.01)
 
-  def __init__(self):
-    self.dense = core.Dense(1)
-    self.optimizer = adam.Adam(0.01)
-
-  @tf.function(
-      input_signature=(tf.TensorSpec([None, 2], tf.float32),
-                       tf.TensorSpec([None], tf.float32)),
-  )
-  def call(self, x, y):
-    with tf.GradientTape() as tape:
-      loss = tf.reduce_mean((self.dense(x) - y) ** 2.)
-    trainable_variables = self.dense.trainable_variables
-    gradients = tape.gradient(loss, trainable_variables)
-    self.optimizer.apply_gradients(zip(gradients, trainable_variables))
-    return {"loss": loss}
+    @tf.function(
+        input_signature=(
+            tf.TensorSpec([None, 2], tf.float32),
+            tf.TensorSpec([None], tf.float32),
+        ),
+    )
+    def call(self, x, y):
+        with tf.GradientTape() as tape:
+            loss = tf.reduce_mean((self.dense(x) - y) ** 2.0)
+        trainable_variables = self.dense.trainable_variables
+        gradients = tape.gradient(loss, trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, trainable_variables))
+        return {"loss": loss}
 
 
 class MemoryTests(tf.test.TestCase):
+    def setUp(self):
+        super().setUp()
+        self._model = _ModelWithOptimizerUsingDefun()
 
-  def setUp(self):
-    super().setUp()
-    self._model = _ModelWithOptimizerUsingDefun()
-
-  @tf_test_utils.assert_no_garbage_created
-  def DISABLED_test_no_reference_cycles(self):
-    x = tf.constant([[3., 4.]])
-    y = tf.constant([2.])
-    self._model.call(x, y)
-    save_dir = os.path.join(self.get_temp_dir(), "saved_model")
-    tf.saved_model.save(self._model, save_dir, self._model.call)
+    @tf_test_utils.assert_no_garbage_created
+    def DISABLED_test_no_reference_cycles(self):
+        x = tf.constant([[3.0, 4.0]])
+        y = tf.constant([2.0])
+        self._model.call(x, y)
+        save_dir = os.path.join(self.get_temp_dir(), "saved_model")
+        tf.saved_model.save(self._model, save_dir, self._model.call)
 
 
 if __name__ == "__main__":
-  tf.test.main()
+    tf.test.main()

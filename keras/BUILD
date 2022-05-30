@@ -301,7 +301,10 @@ tf_py_test(
     size = "medium",
     srcs = ["callbacks_v1_test.py"],
     python_version = "PY3",
-    tags = ["notsan"],
+    tags = [
+        "nomac",  # Using profiler causes segfault in MacOS runs.
+        "notsan",
+    ],
     deps = [
         ":callbacks",
         ":callbacks_v1",

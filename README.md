@@ -174,7 +174,7 @@ version maps to a specific stable version of TensorFlow.
 The table below shows the compatibility version mapping
 between TensorFlow versions and Keras versions.
 
-All the release branches can be found on [Github](https://github.com/keras-team/keras/releases).
+All the release branches can be found on [GitHub](https://github.com/keras-team/keras/releases).
 
 All the release binaries can be found on [Pypi](https://pypi.org/project/keras/#history).
 

@@ -20,12 +20,13 @@ from __future__ import print_function
 
 # pylint: disable=wildcard-import
 from keras.saving.utils_v1.export_output import *
+from keras.saving.utils_v1.export_utils import EXPORT_TAG_MAP
+from keras.saving.utils_v1.export_utils import SIGNATURE_KEY_MAP
 from keras.saving.utils_v1.export_utils import build_all_signature_defs
 from keras.saving.utils_v1.export_utils import export_outputs_for_mode
-from keras.saving.utils_v1.export_utils import EXPORT_TAG_MAP
 from keras.saving.utils_v1.export_utils import get_export_outputs
 from keras.saving.utils_v1.export_utils import get_temp_export_dir
 from keras.saving.utils_v1.export_utils import get_timestamped_export_dir
-from keras.saving.utils_v1.export_utils import SIGNATURE_KEY_MAP
+
 # pylint: enable=wildcard-import
 # LINT.ThenChange(//tensorflow/python/saved_model/model_utils/__init__.py)

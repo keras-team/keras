@@ -15,69 +15,74 @@
 """Tests for io_utils."""
 
 import builtins
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import tensorflow.compat.v2 as tf
 
 from keras.testing_infra import test_combinations
 from keras.utils import io_utils
-import tensorflow.compat.v2 as tf
 
 
 class TestIOUtils(test_combinations.TestCase):
+    def test_ask_to_proceed_with_overwrite(self):
+        with tf.compat.v1.test.mock.patch.object(builtins, "input") as mock_log:
+            mock_log.return_value = "y"
+            self.assertTrue(
+                io_utils.ask_to_proceed_with_overwrite("/tmp/not_exists")
+            )
 
-  def test_ask_to_proceed_with_overwrite(self):
-    with tf.compat.v1.test.mock.patch.object(builtins, 'input') as mock_log:
-      mock_log.return_value = 'y'
-      self.assertTrue(io_utils.ask_to_proceed_with_overwrite('/tmp/not_exists'))
+            mock_log.return_value = "n"
+            self.assertFalse(
+                io_utils.ask_to_proceed_with_overwrite("/tmp/not_exists")
+            )
 
-      mock_log.return_value = 'n'
-      self.assertFalse(
-          io_utils.ask_to_proceed_with_overwrite('/tmp/not_exists'))
+            mock_log.side_effect = ["m", "y"]
+            self.assertTrue(
+                io_utils.ask_to_proceed_with_overwrite("/tmp/not_exists")
+            )
 
-      mock_log.side_effect = ['m', 'y']
-      self.assertTrue(io_utils.ask_to_proceed_with_overwrite('/tmp/not_exists'))
+            mock_log.side_effect = ["m", "n"]
+            self.assertFalse(
+                io_utils.ask_to_proceed_with_overwrite("/tmp/not_exists")
+            )
 
-      mock_log.side_effect = ['m', 'n']
-      self.assertFalse(
-          io_utils.ask_to_proceed_with_overwrite('/tmp/not_exists'))
+    def test_path_to_string(self):
+        class PathLikeDummy:
+            def __fspath__(self):
+                return "dummypath"
 
-  def test_path_to_string(self):
+        dummy = object()
+        # conversion of PathLike
+        self.assertEqual(io_utils.path_to_string(Path("path")), "path")
+        self.assertEqual(io_utils.path_to_string(PathLikeDummy()), "dummypath")
 
-    class PathLikeDummy:
+        # pass-through, works for all versions of python
+        self.assertEqual(io_utils.path_to_string("path"), "path")
+        self.assertIs(io_utils.path_to_string(dummy), dummy)
 
-      def __fspath__(self):
-        return 'dummypath'
+    def test_print_msg(self):
+        enabled = io_utils.is_interactive_logging_enabled()
 
-    dummy = object()
-    # conversion of PathLike
-    self.assertEqual(io_utils.path_to_string(Path('path')), 'path')
-    self.assertEqual(io_utils.path_to_string(PathLikeDummy()), 'dummypath')
+        io_utils.disable_interactive_logging()
+        self.assertFalse(io_utils.is_interactive_logging_enabled())
 
-    # pass-through, works for all versions of python
-    self.assertEqual(io_utils.path_to_string('path'), 'path')
-    self.assertIs(io_utils.path_to_string(dummy), dummy)
+        with self.assertLogs(level="INFO") as logged:
+            io_utils.print_msg("Testing Message")
+        self.assertIn("Testing Message", logged.output[0])
 
-  def test_print_msg(self):
-    enabled = io_utils.is_interactive_logging_enabled()
+        io_utils.enable_interactive_logging()
+        self.assertTrue(io_utils.is_interactive_logging_enabled())
 
-    io_utils.disable_interactive_logging()
-    self.assertFalse(io_utils.is_interactive_logging_enabled())
+        with self.captureWritesToStream(sys.stdout) as printed:
+            io_utils.print_msg("Testing Message")
+        self.assertEqual("Testing Message\n", printed.contents())
 
-    with self.assertLogs(level='INFO') as logged:
-      io_utils.print_msg('Testing Message')
-    self.assertIn('Testing Message', logged.output[0])
+        if enabled:
+            io_utils.enable_interactive_logging()
+        else:
+            io_utils.disable_interactive_logging()
 
-    io_utils.enable_interactive_logging()
-    self.assertTrue(io_utils.is_interactive_logging_enabled())
 
-    with self.captureWritesToStream(sys.stdout) as printed:
-      io_utils.print_msg('Testing Message')
-    self.assertEqual('Testing Message\n', printed.contents())
-
-    if enabled:
-      io_utils.enable_interactive_logging()
-    else:
-      io_utils.disable_interactive_logging()
-
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

@@ -15,12 +15,13 @@
 """Keras regularization layers."""
 # pylint: disable=g-bad-import-order
 
+from keras.layers.regularization.activity_regularization import (
+    ActivityRegularization,
+)
+from keras.layers.regularization.alpha_dropout import AlphaDropout
 from keras.layers.regularization.dropout import Dropout
+from keras.layers.regularization.gaussian_dropout import GaussianDropout
+from keras.layers.regularization.gaussian_noise import GaussianNoise
 from keras.layers.regularization.spatial_dropout1d import SpatialDropout1D
 from keras.layers.regularization.spatial_dropout2d import SpatialDropout2D
 from keras.layers.regularization.spatial_dropout3d import SpatialDropout3D
-from keras.layers.regularization.gaussian_dropout import GaussianDropout
-from keras.layers.regularization.gaussian_noise import GaussianNoise
-from keras.layers.regularization.activity_regularization import ActivityRegularization
-from keras.layers.regularization.alpha_dropout import AlphaDropout
-

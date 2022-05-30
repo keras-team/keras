@@ -14,62 +14,61 @@
 # ==============================================================================
 """Tests for max pooling layers."""
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import tensorflow.compat.v2 as tf
 
 
-@test_combinations.generate(test_combinations.combine(mode=['graph', 'eager']))
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class MaxPoolingTest(tf.test.TestCase, parameterized.TestCase):
-
-  def test_max_pooling_1d(self):
-    for padding in ['valid', 'same']:
-      for stride in [1, 2]:
+    def test_max_pooling_1d(self):
+        for padding in ["valid", "same"]:
+            for stride in [1, 2]:
+                test_utils.layer_test(
+                    keras.layers.MaxPooling1D,
+                    kwargs={"strides": stride, "padding": padding},
+                    input_shape=(3, 5, 4),
+                )
         test_utils.layer_test(
             keras.layers.MaxPooling1D,
+            kwargs={"data_format": "channels_first"},
+            input_shape=(3, 2, 6),
+        )
+
+    def test_max_pooling_2d(self):
+        pool_size = (3, 3)
+        for strides in [(1, 1), (2, 2)]:
+            test_utils.layer_test(
+                keras.layers.MaxPooling2D,
+                kwargs={
+                    "strides": strides,
+                    "padding": "valid",
+                    "pool_size": pool_size,
+                },
+                input_shape=(3, 5, 6, 4),
+            )
+
+    def test_max_pooling_3d(self):
+        pool_size = (3, 3, 3)
+        test_utils.layer_test(
+            keras.layers.MaxPooling3D,
+            kwargs={"strides": 2, "padding": "valid", "pool_size": pool_size},
+            input_shape=(3, 11, 12, 10, 4),
+        )
+        test_utils.layer_test(
+            keras.layers.MaxPooling3D,
             kwargs={
-                'strides': stride,
-                'padding': padding
+                "strides": 3,
+                "padding": "valid",
+                "data_format": "channels_first",
+                "pool_size": pool_size,
             },
-            input_shape=(3, 5, 4))
-    test_utils.layer_test(
-        keras.layers.MaxPooling1D,
-        kwargs={'data_format': 'channels_first'},
-        input_shape=(3, 2, 6))
+            input_shape=(3, 4, 11, 12, 10),
+        )
 
-  def test_max_pooling_2d(self):
-    pool_size = (3, 3)
-    for strides in [(1, 1), (2, 2)]:
-      test_utils.layer_test(
-          keras.layers.MaxPooling2D,
-          kwargs={
-              'strides': strides,
-              'padding': 'valid',
-              'pool_size': pool_size
-          },
-          input_shape=(3, 5, 6, 4))
 
-  def test_max_pooling_3d(self):
-    pool_size = (3, 3, 3)
-    test_utils.layer_test(
-        keras.layers.MaxPooling3D,
-        kwargs={
-            'strides': 2,
-            'padding': 'valid',
-            'pool_size': pool_size
-        },
-        input_shape=(3, 11, 12, 10, 4))
-    test_utils.layer_test(
-        keras.layers.MaxPooling3D,
-        kwargs={
-            'strides': 3,
-            'padding': 'valid',
-            'data_format': 'channels_first',
-            'pool_size': pool_size
-        },
-        input_shape=(3, 4, 11, 12, 10))
-
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

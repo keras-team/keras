@@ -20,18 +20,20 @@ from keras.layers.core.einsum_dense import EinsumDense
 from keras.layers.core.embedding import Embedding
 from keras.layers.core.lambda_layer import Lambda
 from keras.layers.core.masking import Masking
+
 # Required by third_party/py/tensorflow_gnn/keras/keras_tensors.py
-from keras.layers.core.tf_op_layer import _delegate_method
-from keras.layers.core.tf_op_layer import _delegate_property
 from keras.layers.core.tf_op_layer import ClassMethod
 from keras.layers.core.tf_op_layer import InstanceMethod
 from keras.layers.core.tf_op_layer import InstanceProperty
-
 from keras.layers.core.tf_op_layer import SlicingOpLambda
 from keras.layers.core.tf_op_layer import TFOpLambda
+from keras.layers.core.tf_op_layer import _delegate_method
+from keras.layers.core.tf_op_layer import _delegate_property
 
 # Regularization layers imported for backwards namespace compatibility
-from keras.layers.regularization.activity_regularization import ActivityRegularization
+from keras.layers.regularization.activity_regularization import (
+    ActivityRegularization,
+)
 from keras.layers.regularization.dropout import Dropout
 from keras.layers.regularization.spatial_dropout1d import SpatialDropout1D
 from keras.layers.regularization.spatial_dropout2d import SpatialDropout2D

@@ -18,6 +18,13 @@
 from keras.engine.functional import Functional
 from keras.engine.sequential import Sequential
 from keras.engine.training import Model
+
+# Private symbols that are used in tests.
+# TODO(b/221261361): Clean up private symbols usage and remove these imports.
+from keras.models.cloning import _clone_functional_model
+from keras.models.cloning import _clone_layer
+from keras.models.cloning import _clone_layers_and_model_config
+from keras.models.cloning import _clone_sequential_model
 from keras.models.cloning import clone_and_build_model
 from keras.models.cloning import clone_model
 from keras.models.cloning import share_weights
@@ -27,10 +34,3 @@ from keras.saving.model_config import model_from_json
 from keras.saving.model_config import model_from_yaml
 from keras.saving.save import load_model
 from keras.saving.save import save_model
-
-# Private symbols that are used in tests.
-# TODO(b/221261361): Clean up private symbols usage and remove these imports.
-from keras.models.cloning import _clone_functional_model
-from keras.models.cloning import _clone_layer
-from keras.models.cloning import _clone_layers_and_model_config
-from keras.models.cloning import _clone_sequential_model

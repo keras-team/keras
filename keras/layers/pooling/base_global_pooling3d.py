@@ -15,40 +15,39 @@
 """Private base class for global pooling 3D layers."""
 # pylint: disable=g-classes-have-attributes
 
+import tensorflow.compat.v2 as tf
+
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
 
 
 class GlobalPooling3D(Layer):
-  """Abstract class for different global pooling 3D layers."""
+    """Abstract class for different global pooling 3D layers."""
 
-  def __init__(self, data_format=None, keepdims=False, **kwargs):
-    super().__init__(**kwargs)
-    self.data_format = conv_utils.normalize_data_format(data_format)
-    self.input_spec = InputSpec(ndim=5)
-    self.keepdims = keepdims
+    def __init__(self, data_format=None, keepdims=False, **kwargs):
+        super().__init__(**kwargs)
+        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.input_spec = InputSpec(ndim=5)
+        self.keepdims = keepdims
 
-  def compute_output_shape(self, input_shape):
-    input_shape = tf.TensorShape(input_shape).as_list()
-    if self.data_format == 'channels_last':
-      if self.keepdims:
-        return tf.TensorShape(
-            [input_shape[0], 1, 1, 1, input_shape[4]])
-      else:
-        return tf.TensorShape([input_shape[0], input_shape[4]])
-    else:
-      if self.keepdims:
-        return tf.TensorShape(
-            [input_shape[0], input_shape[1], 1, 1, 1])
-      else:
-        return tf.TensorShape([input_shape[0], input_shape[1]])
+    def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
+        if self.data_format == "channels_last":
+            if self.keepdims:
+                return tf.TensorShape([input_shape[0], 1, 1, 1, input_shape[4]])
+            else:
+                return tf.TensorShape([input_shape[0], input_shape[4]])
+        else:
+            if self.keepdims:
+                return tf.TensorShape([input_shape[0], input_shape[1], 1, 1, 1])
+            else:
+                return tf.TensorShape([input_shape[0], input_shape[1]])
 
-  def call(self, inputs):
-    raise NotImplementedError
+    def call(self, inputs):
+        raise NotImplementedError
 
-  def get_config(self):
-    config = {'data_format': self.data_format, 'keepdims': self.keepdims}
-    base_config = super().get_config()
-    return dict(list(base_config.items()) + list(config.items()))
+    def get_config(self):
+        config = {"data_format": self.data_format, "keepdims": self.keepdims}
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))

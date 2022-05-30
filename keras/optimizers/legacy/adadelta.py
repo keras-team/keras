@@ -16,9 +16,10 @@
 
 from keras.optimizers.optimizer_v2 import adadelta
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.optimizers.legacy.Adadelta')
+@keras_export("keras.optimizers.legacy.Adadelta")
 class Adadelta(adadelta.Adadelta):
-  pass
+    pass
