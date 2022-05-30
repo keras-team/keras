@@ -15,13 +15,15 @@
 """Tests for TimeDistributed wrapper."""
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.training.tracking import (
     util as trackable_util,
 )
@@ -296,7 +298,8 @@ class TimeDistributedTest(test_combinations.TestCase):
         td1 = keras.layers.TimeDistributed(keras.layers.Dense(5))
         self.assertTrue(td1._always_use_reshape)
 
-        # Built-in layers that are stateful don't use the reshape implementation.
+        # Built-in layers that are stateful don't use the reshape
+        # implementation.
         td2 = keras.layers.TimeDistributed(
             keras.layers.RNN(keras.layers.SimpleRNNCell(10), stateful=True)
         )

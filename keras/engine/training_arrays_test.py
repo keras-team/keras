@@ -14,24 +14,25 @@
 # ==============================================================================
 """Tests for model.fit calls with a Dataset object passed as validation_data."""
 
-import tensorflow.compat.v2 as tf
-
 import io
 import sys
 from unittest import mock
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
+from keras.engine import data_adapter
+from keras.layers import core
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
+from keras.utils import io_utils
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from keras.engine import data_adapter
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
-from keras.layers import core
-from keras.utils import io_utils
 
 
 def _create_dataset(num_samples, batch_size):
@@ -71,7 +72,8 @@ class ValidationDatasetAndValidationSplit(
         train_dataset = _create_dataset(num_samples=200, batch_size=10)
         eval_dataset = _create_dataset(num_samples=50, batch_size=25)
 
-        # Make sure model.fit doesn't raise an error because of the mocking alone.
+        # Make sure model.fit doesn't raise an error because of the mocking
+        # alone.
         mock_train_validation_split_return = (
             (train_dataset, None, None),
             eval_dataset,
@@ -123,8 +125,8 @@ class ValidationDatasetNoLimitTest(test_combinations.TestCase):
         evaluation = model.evaluate(x=eval_dataset)
 
         # If the fit call used the entire dataset, then the final val MAE error
-        # from the fit history should be equal to the final element in the output
-        # of evaluating the model on the same eval dataset.
+        # from the fit history should be equal to the final element in the
+        # output of evaluating the model on the same eval dataset.
         self.assertAlmostEqual(
             history.history["val_mean_absolute_error"][-1],
             evaluation[-1],

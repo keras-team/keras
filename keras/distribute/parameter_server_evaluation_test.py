@@ -16,10 +16,12 @@
 
 import time
 
-import keras
-from keras.testing_infra import test_utils
 import tensorflow.compat.v2 as tf
 
+import keras
+from keras.testing_infra import test_utils
+
+# isort: off
 from tensorflow.python.distribute import (
     multi_worker_test_base,
 )
@@ -142,8 +144,8 @@ class EvaluationTest(tf.test.TestCase):
         def metric_fn():
             return MeanMetricAsCompositeTensor()
 
-        # TODO(yuefengz): make _create_per_worker_resources public and get rid of
-        # the type_spec hack.
+        # TODO(yuefengz): make _create_per_worker_resources public and get rid
+        # of the type_spec hack.
         per_worker_metric = self.cluster_coord._create_per_worker_resources(
             metric_fn
         )
@@ -165,8 +167,8 @@ class EvaluationTest(tf.test.TestCase):
             for i in dataset_shard:
                 metric.update_state(i)
 
-            # TODO(yuefengz): we should return the internal state of the metric and
-            # then use the combiner API.
+            # TODO(yuefengz): we should return the internal state of the metric
+            # and then use the combiner API.
             return metric.result()
 
         total_shards = 128

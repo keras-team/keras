@@ -18,18 +18,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import os
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
+from keras.legacy_tf_layers import convolutional as conv_layers
+from keras.legacy_tf_layers import normalization as normalization_layers
+
+# isort: off
 from tensorflow.core.protobuf import saver_pb2
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from keras.legacy_tf_layers import convolutional as conv_layers
-from keras.legacy_tf_layers import normalization as normalization_layers
 
 
 @tf_test_utils.run_v1_only("b/120545219")
@@ -1104,8 +1105,8 @@ class BNTest(tf.test.TestCase):
                 moving_mean += (mean - moving_mean) * (1.0 - momentum)
                 moving_stddev += (stddev - moving_stddev) * (1.0 - momentum)
 
-                # Compute test values first, before the train mode updates the moving
-                # averages.
+                # Compute test values first, before the train mode updates the
+                # moving averages.
                 yt_val_test, _, _ = sess.run(
                     [yt] + bn.updates, feed_dict={xt: x, training: False}
                 )
@@ -1113,9 +1114,10 @@ class BNTest(tf.test.TestCase):
                     [yt] + bn.updates, feed_dict={xt: x, training: True}
                 )
 
-                # Due to initialization inconsistencies, values may not be identical
-                # on the first iteration (but shouldn't be different by much more than
-                # epsilon). After the first iteration they should be identical.
+                # Due to initialization inconsistencies, values may not be
+                # identical on the first iteration (but shouldn't be different
+                # by much more than epsilon). After the first iteration they
+                # should be identical.
                 atol = epsilon * 1.5 if step == 0 else 1e-5
                 self.assertAllClose(y_train, yt_val_train, atol=atol)
                 self.assertAllClose(y_test, yt_val_test, atol=atol)

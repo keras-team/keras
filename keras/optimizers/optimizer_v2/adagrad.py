@@ -14,14 +14,16 @@
 # ==============================================================================
 """Adagrad optimizer implementation."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-classes-have-attributes
-
-import numpy as np
 from keras import backend_config
 from keras.optimizers.optimizer_v2 import optimizer_v2
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
+
+# pylint: disable=g-classes-have-attributes
 
 
 # pylint: disable=g-classes-have-attributes
@@ -122,9 +124,9 @@ class Adagrad(optimizer_v2.OptimizerV2):
 
         Args:
             config: A Python dictionary, typically the output of get_config.
-            custom_objects: A Python dictionary mapping names to additional Python
-              objects used to create this optimizer, such as a function used for a
-              hyperparameter.
+            custom_objects: A Python dictionary mapping names to additional
+              Python objects used to create this optimizer, such as a function
+              used for a hyperparameter.
 
         Returns:
             An optimizer instance.

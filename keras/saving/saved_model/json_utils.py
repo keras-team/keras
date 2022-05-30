@@ -21,20 +21,19 @@ separate inputs if the given input_shape is a list, and will create a single
 input if the given shape is a tuple.
 """
 
-import tensorflow.compat.v2 as tf
-
 import collections
-import functools
 import enum
+import functools
 import json
+
 import numpy as np
+import tensorflow.compat.v2 as tf
 import wrapt
 
 from keras.utils import generic_utils
 
-
+# isort: off
 from tensorflow.python.framework import type_spec
-
 
 _EXTENSION_TYPE_SPEC = "_EXTENSION_TYPE_SPEC"
 
@@ -43,7 +42,8 @@ class Encoder(json.JSONEncoder):
     """JSON encoder and decoder that handles TensorShapes and tuples."""
 
     def default(self, obj):  # pylint: disable=method-hidden
-        """Encodes objects for types that aren't handled by the default encoder."""
+        """Encodes objects for types that aren't handled by the default
+        encoder."""
         if isinstance(obj, tf.TensorShape):
             items = obj.as_list() if obj.rank is not None else None
             return {"class_name": "TensorShape", "items": items}
@@ -96,7 +96,8 @@ def _decode_helper(
       deserialize: Boolean, defaults to False. When True, deserializes any Keras
         objects found in `obj`.
       module_objects: A dictionary of built-in objects to look the name up in.
-        Generally, `module_objects` is provided by midlevel library implementers.
+        Generally, `module_objects` is provided by midlevel library
+        implementers.
       custom_objects: A dictionary of custom objects to look the name up in.
         Generally, `custom_objects` is provided by the end user.
 
@@ -127,8 +128,8 @@ def _decode_helper(
         elif obj["class_name"] == "__ellipsis__":
             return Ellipsis
         elif deserialize and "__passive_serialization__" in obj:
-            # __passive_serialization__ is added by the JSON encoder when encoding
-            # an object that has a `get_config()` method.
+            # __passive_serialization__ is added by the JSON encoder when
+            # encoding an object that has a `get_config()` method.
             try:
                 return generic_utils.deserialize_keras_object(
                     obj,

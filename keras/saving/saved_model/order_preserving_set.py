@@ -81,7 +81,8 @@ class OrderPreservingSet(collections.abc.MutableSet):
         # ensure that other is ordered before performing __or__
         if not isinstance(other, OrderPreservingSet):
             raise TypeError(
-                "cannot union an 'OrderPreservingSet' with an unordered iterable."
+                "cannot union an 'OrderPreservingSet' with an "
+                "unordered iterable."
             )
         result = self._from_iterable(value for value in self)
         for value in other:

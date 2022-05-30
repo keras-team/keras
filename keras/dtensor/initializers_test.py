@@ -14,14 +14,15 @@
 # ==============================================================================
 """Tests for initializers."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras import backend
 from keras import initializers
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import test_util
 from keras.utils import tf_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 class InitializersTest(test_util.DTensorBaseTest):
@@ -110,8 +111,8 @@ class InitializersTest(test_util.DTensorBaseTest):
             new_value = initializer(shape=shape, layout=layout)
             self.assertAllClose(value, new_value)
         finally:
-            # Unset the keras global generator so that it doesn't affect other tests
-            # that need to verify the existence of global generator.
+            # Unset the keras global generator so that it doesn't affect other
+            # tests that need to verify the existence of global generator.
             backend._SEED_GENERATOR.generator = None
 
     @parameterized.named_parameters(

@@ -14,9 +14,9 @@
 # ==============================================================================
 """TFDecorator-aware replacements for the contextlib module."""
 
-import tensorflow.compat.v2 as tf
-
 import contextlib as _contextlib
+
+import tensorflow.compat.v2 as tf
 
 
 def contextmanager(target):

@@ -15,11 +15,13 @@
 """Thresholded Rectified Linear Unit activation layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -50,8 +52,8 @@ class ThresholdedReLU(Layer):
         super().__init__(**kwargs)
         if theta is None:
             raise ValueError(
-                "Theta of a Thresholded ReLU layer cannot be None, expecting a float."
-                f" Received: {theta}"
+                "Theta of a Thresholded ReLU layer cannot be None, expecting a "
+                f"float. Received: {theta}"
             )
         if theta < 0:
             raise ValueError(

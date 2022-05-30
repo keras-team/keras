@@ -20,6 +20,8 @@ import os
 import numpy as np
 
 from keras.utils.data_utils import get_file
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

@@ -14,12 +14,12 @@
 # ==============================================================================
 r"""Benchmarks on Keras components with different Keras model types."""
 
-import tensorflow.compat.v2 as tf
-
 import time
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_executor
 

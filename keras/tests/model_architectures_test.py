@@ -15,17 +15,16 @@
 # pylint: disable=protected-access
 """Tests for saving/loading function for keras Model."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import shutil
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
 from keras.optimizers import optimizer_v1
+from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.tests import model_architectures
 

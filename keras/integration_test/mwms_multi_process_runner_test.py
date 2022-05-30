@@ -18,8 +18,9 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-from absl import logging
+
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 NUM_WORKERS = 2
 NUM_EPOCHS = 2
@@ -32,7 +33,8 @@ class MwmsMultiProcessRunnerTest(tf.test.TestCase):
     def testMwmsWithModelFit(self):
         def worker_fn():
             def dataset_fn(input_context):
-                del input_context  # User should shard data accordingly. Omitted here.
+                # User should shard data accordingly. Omitted here.
+                del input_context
                 return tf.data.Dataset.from_tensor_slices(
                     (tf.random.uniform((6, 10)), tf.random.uniform((6, 10)))
                 ).batch(2)

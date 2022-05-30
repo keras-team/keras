@@ -20,6 +20,8 @@ import numpy as np
 
 from keras.preprocessing.sequence import _remove_long_seq
 from keras.utils.data_utils import get_file
+
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -109,7 +111,7 @@ def load_data(
     path = get_file(
         path,
         origin=origin_folder + "imdb.npz",
-        file_hash="69664113be75683a8fe16e3ed0ab59fda8886cb3cd7ada244f7d9544e4676b9f",
+        file_hash="69664113be75683a8fe16e3ed0ab59fda8886cb3cd7ada244f7d9544e4676b9f",  # noqa: E501
     )
     with np.load(
         path, allow_pickle=True
@@ -175,7 +177,8 @@ def get_word_index(path="imdb_word_index.json"):
         path: where to cache the data (relative to `~/.keras/dataset`).
 
     Returns:
-        The word index dictionary. Keys are word strings, values are their index.
+        The word index dictionary. Keys are word strings, values are their
+        index.
 
     Example:
 

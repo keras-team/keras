@@ -15,13 +15,14 @@
 """Tests for Keras-based einsum dense layer."""
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.layers.core import einsum_dense
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes
@@ -277,7 +278,8 @@ class TestEinsumDenseLayer(test_combinations.TestCase):
         expected_bias_shape,
         expected_output_shape,
     ):
-        # Keras elides the 0-dimension of the input shape when constructing inputs.
+        # Keras elides the 0-dimension of the input shape when constructing
+        # inputs.
         non_batch_input_shape = list(input_shape)[1:]
 
         input_tensor = keras.Input(shape=non_batch_input_shape)

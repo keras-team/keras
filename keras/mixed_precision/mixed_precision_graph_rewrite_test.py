@@ -14,11 +14,10 @@
 # ==============================================================================
 """Tests Keras integration with enable_mixed_precision_graph_rewrite()."""
 
+import os
+
 import tensorflow.compat.v2 as tf
 
-import os
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.mixed_precision import (
     loss_scale_optimizer as loss_scale_optimizer_v2,
 )
@@ -26,6 +25,8 @@ from keras.mixed_precision import policy
 from keras.optimizers.optimizer_v2 import (
     gradient_descent as gradient_descent_v2,
 )
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class MixedPrecisionTest(test_combinations.TestCase):
@@ -34,8 +35,8 @@ class MixedPrecisionTest(test_combinations.TestCase):
 
     def setUp(self):
         super().setUp()
-        # Enable the tests to be run on pre-Volta GPUs by telling the grappler pass
-        # to ignore performance and always transform the graph.
+        # Enable the tests to be run on pre-Volta GPUs by telling the grappler
+        # pass to ignore performance and always transform the graph.
         self._original_ignore_perf_value = os.getenv(self.IGNORE_PERF_VAR)
         os.environ[self.IGNORE_PERF_VAR] = "1"
 
@@ -163,7 +164,7 @@ class MixedPrecisionTest(test_combinations.TestCase):
             with self.assertRaisesRegex(
                 ValueError, "the global Keras dtype Policy has been set"
             ):
-                tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+                tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(  # noqa: E501
                     gradient_descent_v2.SGD(1.0)
                 )
         # Test no error is thrown when the policy is currently the default.

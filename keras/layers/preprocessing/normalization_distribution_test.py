@@ -15,14 +15,15 @@
 """Distribution tests for keras.layers.preprocessing.normalization."""
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import normalization
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 def _get_layer_computation_test_cases():

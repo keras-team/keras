@@ -14,14 +14,12 @@
 # ==============================================================================
 """Tests various Layer subclasses have correct outputs with mixed precision."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras import layers
 from keras import models
-from keras.testing_infra import test_utils
 from keras.layers import activation
 from keras.layers import attention
 from keras.layers import convolutional
@@ -31,19 +29,21 @@ from keras.layers import merging
 from keras.layers import pooling
 from keras.layers import regularization
 from keras.layers import reshaping
-from keras.layers.rnn import bidirectional
-from keras.layers.rnn import conv_lstm2d
-from keras.layers.rnn import simple_rnn
-from keras.layers.rnn import gru
-from keras.layers.rnn import gru_v1
-from keras.layers.rnn import lstm
-from keras.layers.rnn import lstm_v1
-from keras.layers.rnn import time_distributed
 from keras.layers.normalization import batch_normalization
 from keras.layers.normalization import layer_normalization
 from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import normalization
+from keras.layers.rnn import bidirectional
+from keras.layers.rnn import conv_lstm2d
+from keras.layers.rnn import gru
+from keras.layers.rnn import gru_v1
+from keras.layers.rnn import lstm
+from keras.layers.rnn import lstm_v1
+from keras.layers.rnn import simple_rnn
+from keras.layers.rnn import time_distributed
 from keras.mixed_precision import policy
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 def create_mirrored_strategy():
@@ -254,20 +254,20 @@ class LayerCorrectnessTest(test_combinations.TestCase):
     ):
         """Tests a layer by comparing the float32 and mixed precision weights.
 
-        A float32 layer, a mixed precision layer, and a distributed mixed precision
-        layer are run. The three layers are identical other than their dtypes and
-        distribution strategies. The outputs after predict() and weights after fit()
-        are asserted to be close.
+        A float32 layer, a mixed precision layer, and a distributed mixed
+        precision layer are run. The three layers are identical other than their
+        dtypes and distribution strategies. The outputs after predict() and
+        weights after fit() are asserted to be close.
 
         Args:
-          f32_layer_fn: A function returning a float32 layer. The other two layers
-            will automatically be created from this
+          f32_layer_fn: A function returning a float32 layer. The other two
+            layers will automatically be created from this.
           input_shape: The shape of the input to the layer, including the batch
             dimension. Or a list of shapes if the layer takes multiple inputs.
           rtol: The relative tolerance to be asserted.
           atol: The absolute tolerance to be asserted.
-          input_data: A Numpy array with the data of the input. If None, input data
-            will be randomly generated
+          input_data: A Numpy array with the data of the input. If None, input
+            data will be randomly generated.
         """
 
         if (
@@ -292,8 +292,8 @@ class LayerCorrectnessTest(test_combinations.TestCase):
         # Compute per_replica_input_shapes for the distributed model
         global_batch_size = input_shapes[0][0]
         assert global_batch_size % strategy.num_replicas_in_sync == 0, (
-            "The number of replicas, %d, does not divide the global batch size of "
-            "%d" % (strategy.num_replicas_in_sync, global_batch_size)
+            "The number of replicas, %d, does not divide the global batch "
+            "size of %d" % (strategy.num_replicas_in_sync, global_batch_size)
         )
         per_replica_batch_size = (
             global_batch_size // strategy.num_replicas_in_sync
@@ -317,8 +317,8 @@ class LayerCorrectnessTest(test_combinations.TestCase):
 
         # Generate input data
         if input_data is None:
-            # Cast inputs to float16 to avoid measuring error from having f16 layers
-            # cast to float16.
+            # Cast inputs to float16 to avoid measuring error from having f16
+            # layers cast to float16.
             input_data = [
                 np.random.normal(size=s).astype("float16") for s in input_shapes
             ]

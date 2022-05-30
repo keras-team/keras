@@ -14,19 +14,18 @@
 # ==============================================================================
 """Test for allowing TF ops to work with Keras Functional API."""
 
-import tensorflow.compat.v2 as tf
-
 import time
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.engine import keras_tensor
 from keras.optimizers.optimizer_v2 import adam
 from keras.saving import model_config
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 def _single_op_at_end():
@@ -609,8 +608,8 @@ class AutoLambdaTest(test_combinations.TestCase):
             tf.constant(stop, shape=(batch_size,)),
             tf.constant(step, shape=(batch_size,)),
         ]
-        # Slice the innermost dim. only grab one index from the second-to-innermost
-        # dim, removing that dim from the shape.
+        # Slice the innermost dim. only grab one index from the
+        # second-to-innermost dim, removing that dim from the shape.
         expected = tf.stack(
             [
                 tf.stack([tf.range(8)[start:stop:step] for _ in range(4)])
@@ -757,7 +756,8 @@ class InputInEagerTest(test_combinations.TestCase):
         x = keras.Input(shape=(1,))
         ident = tf.identity(x)
 
-        # This is now a graph tensor, and should be able to continue in graphland
+        # This is now a graph tensor, and should be able to continue in
+        # graphland
         self.assertIn("Identity", ident.name)
 
     def test_size(self):
@@ -765,7 +765,8 @@ class InputInEagerTest(test_combinations.TestCase):
         self.assertAllEqual(x.get_shape().as_list(), [None, 3])
         sz = tf.size(x)
 
-        # This is now a graph tensor, and should be able to continue in graphland
+        # This is now a graph tensor, and should be able to continue in
+        # graphland
         self.assertIn("Size", sz.name)
 
 

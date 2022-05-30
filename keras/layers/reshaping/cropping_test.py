@@ -14,11 +14,12 @@
 # ==============================================================================
 """Tests for cropping layers."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes

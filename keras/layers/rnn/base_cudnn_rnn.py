@@ -15,10 +15,11 @@
 """Base class for recurrent layers backed by cuDNN."""
 # pylint: disable=g-classes-have-attributes
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine.input_spec import InputSpec
 from keras.layers.rnn.base_rnn import RNN
-import tensorflow.compat.v2 as tf
 
 
 class _CuDNNRNN(RNN):
@@ -35,9 +36,9 @@ class _CuDNNRNN(RNN):
       stateful: Boolean (default False). If True, the last state
           for each sample at index i in a batch will be used as initial
           state for the sample of index i in the following batch.
-      time_major: Boolean (default False). If true, the inputs and outputs will be
-          in shape `(timesteps, batch, ...)`, whereas in the False case, it will
-          be `(batch, timesteps, ...)`.
+      time_major: Boolean (default False). If true, the inputs and outputs will
+          be in shape `(timesteps, batch, ...)`, whereas in the False case, it
+          will be `(batch, timesteps, ...)`.
     """
 
     def __init__(

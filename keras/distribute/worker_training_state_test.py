@@ -14,12 +14,12 @@
 # ==============================================================================
 """Tests of `worker_training_state.py` utilities."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import sys
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras import callbacks
 from keras.distribute import multi_worker_testing_utils
 

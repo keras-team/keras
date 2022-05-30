@@ -14,6 +14,8 @@
 # ==============================================================================
 """Strategy and optimizer combinations for combinations.combine()."""
 
+import tensorflow.compat.v2 as tf
+
 from keras.optimizers.optimizer_experimental import adam as adam_experimental
 from keras.optimizers.optimizer_v2 import adadelta as adadelta_keras_v2
 from keras.optimizers.optimizer_v2 import adagrad as adagrad_keras_v2
@@ -25,8 +27,6 @@ from keras.optimizers.optimizer_v2 import (
 )
 from keras.optimizers.optimizer_v2 import nadam as nadam_keras_v2
 from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_keras_v2
-import tensorflow.compat.v2 as tf
-
 
 gradient_descent_optimizer_v1_fn = (
     tf.__internal__.test.combinations.NamedObject(
@@ -95,39 +95,42 @@ optimizers_v1_and_v2 = optimizers_v1 + optimizers_v2
 
 
 def distributions_and_v1_optimizers():
-    """A common set of combination with DistributionStrategies and Optimizers."""
+    """A common set of combination with DistributionStrategies and
+    Optimizers."""
     return tf.__internal__.test.combinations.combine(
         distribution=[
             tf.__internal__.distribute.combinations.one_device_strategy,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,  # noqa: E501
         ],
         optimizer_fn=optimizers_v1,
     )
 
 
 def distributions_and_v2_optimizers():
-    """A common set of combination with DistributionStrategies and Optimizers."""
+    """A common set of combination with DistributionStrategies and
+    Optimizers."""
     return tf.__internal__.test.combinations.combine(
         distribution=[
             tf.__internal__.distribute.combinations.one_device_strategy,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,  # noqa: E501
         ],
         optimizer_fn=optimizers_v2,
     )
 
 
 def distributions_and_v1_and_v2_optimizers():
-    """A common set of combination with DistributionStrategies and Optimizers."""
+    """A common set of combination with DistributionStrategies and
+    Optimizers."""
     return tf.__internal__.test.combinations.combine(
         distribution=[
             tf.__internal__.distribute.combinations.one_device_strategy,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,  # noqa: E501
         ],
         optimizer_fn=optimizers_v1_and_v2,
     )

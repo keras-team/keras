@@ -20,7 +20,10 @@ public API/contract.
 """
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl import logging
+
 from keras import layers
 from keras import losses
 from keras import models
@@ -28,8 +31,6 @@ from keras.datasets import mnist
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layout_map as layout_map_lib
 from keras.utils import np_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 # pylint: disable=missing-function-docstring
 

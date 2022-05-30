@@ -14,12 +14,12 @@
 # ==============================================================================
 """Tests for image_dataset."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import shutil
 
 import numpy as np
+import tensorflow.compat.v2 as tf
+
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import image_dataset
@@ -95,7 +95,8 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
         return temp_dir
 
     def test_image_dataset_from_directory_standalone(self):
-        # Test retrieving images without labels from a directory and its subdirs.
+        # Test retrieving images without labels from a directory and its
+        # subdirs.
         if PIL is None:
             return  # Skip test if PIL is not available.
 

@@ -14,10 +14,9 @@
 # ==============================================================================
 """Tests that show that DistributionStrategy works with optimizer v2."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras.optimizers.optimizer_v2 import adam
@@ -35,7 +34,7 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )
@@ -75,10 +74,12 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
 
             # first step.
             train_fn()
-            # var(1) = var(0) - lr * m(1) * sqrt(1 - beta2) / sqrt(v(1)) / (1 - beta1)
+            # var(1) = var(0) - lr * m(1) * sqrt(1 - beta2) / sqrt(v(1)) / (1 -
+            # beta1)
             #        = 2.0 - 0.01 * 1.2 * sqrt(0.8) / sqrt(1.8) / 0.8
             self.assertAllClose(1.99, self.evaluate(all_vars[0]))
-            # m(1) = beta1 * m(0) + (1-beta1) * grad = 0.2 * 0 + 0.8 * (1 + 2) / 2
+            # m(1) = beta1 * m(0) + (1-beta1) * grad = 0.2 * 0 + 0.8 * (1 + 2) /
+            # 2
             self.assertAllClose(1.2, self.evaluate(all_vars[1]))
             # v(1) = beta2 * v(0) + (1-beta2) * grad^2 = 0.2 * 0 + 0.8 * 2.25
             self.assertAllClose(1.8, self.evaluate(all_vars[2]))
@@ -95,7 +96,7 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )

@@ -14,12 +14,13 @@
 # ==============================================================================
 """Tests for initializers."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import optimizers
 from keras.dtensor import test_util
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 class OptimizersTest(test_util.DTensorBaseTest):

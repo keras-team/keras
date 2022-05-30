@@ -14,10 +14,11 @@
 # ,============================================================================
 """Tests for layer graphs construction & handling."""
 
+import tensorflow.compat.v2 as tf
+
 from keras.engine import base_layer
 from keras.engine import node as node_module
 from keras.testing_infra import test_combinations
-import tensorflow.compat.v2 as tf
 
 
 class DummyTensor(tf.__internal__.types.Tensor):

@@ -15,18 +15,17 @@
 """Tests for GRU V1 layer."""
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.core.protobuf import rewriter_config_pb2
+
 import keras
 from keras.layers.rnn import gru
 from keras.layers.rnn import gru_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
-
-from tensorflow.core.protobuf import rewriter_config_pb2
-
 
 # Global config for grappler setting that is used for graph mode test.
 _rewrites = rewriter_config_pb2.RewriterConfig()
@@ -41,7 +40,8 @@ _config = tf.compat.v1.ConfigProto(graph_options=_graph_options)
 class GRUGraphRewriteTest(test_combinations.TestCase):
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded input yet.",
+        skip_message="Skipping as ROCm MIOpen does not support padded "
+        "input yet.",
     )
     @test_utils.run_v2_only
     def test_gru_feature_parity_v1_v2(self):
@@ -143,7 +143,8 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded input yet.",
+        skip_message="Skipping as ROCm MIOpen does not support padded "
+        "input yet.",
     )
     @test_utils.run_v2_only
     def test_explicit_device_with_go_backward_and_mask_v1(self):

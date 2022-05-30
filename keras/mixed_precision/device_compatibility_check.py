@@ -14,11 +14,12 @@
 # ==============================================================================
 """Contains function to log if devices are compatible with mixed precision."""
 
+import itertools
+
 import tensorflow.compat.v2 as tf
 
-import itertools
+# isort: off
 from tensorflow.python.platform import tf_logging
-
 
 _COMPAT_CHECK_PREFIX = "Mixed precision compatibility check (mixed_float16): "
 _COMPAT_CHECK_OK_PREFIX = _COMPAT_CHECK_PREFIX + "OK"
@@ -67,8 +68,8 @@ def _log_device_compatibility_check(policy_name, gpu_details_list):
         `tf.config.experimental.get_device_details()`.
     """
     if policy_name != "mixed_float16":
-        # TODO(b/145686977): Log if the policy is 'mixed_bfloat16'. This requires
-        # checking if a TPU is available.
+        # TODO(b/145686977): Log if the policy is 'mixed_bfloat16'. This
+        # requires checking if a TPU is available.
         return
     supported_device_strs = []
     unsupported_device_strs = []

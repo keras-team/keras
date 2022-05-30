@@ -15,17 +15,16 @@
 """Tests for layer serialization utils."""
 
 import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
+from keras.layers.normalization import batch_normalization as batchnorm_v2
+from keras.layers.normalization import batch_normalization_v1 as batchnorm_v1
 from keras.layers.rnn import gru
 from keras.layers.rnn import gru_v1
 from keras.layers.rnn import lstm
 from keras.layers.rnn import lstm_v1
-from keras.layers.normalization import batch_normalization as batchnorm_v2
-from keras.layers.normalization import batch_normalization_v1 as batchnorm_v1
+from keras.testing_infra import test_combinations
 
 
 class SerializableInt(int):
@@ -74,8 +73,8 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
             bias_regularizer="l2",
         )
         config = keras.layers.serialize(layer)
-        # Because we're passing an unknown class here, deserialization should fail
-        # unless we add SerializableInt to the custom object dict.
+        # Because we're passing an unknown class here, deserialization should
+        # fail unless we add SerializableInt to the custom object dict.
         with self.assertRaisesRegex(
             ValueError, "Unknown config_item: SerializableInt.*"
         ):
@@ -89,8 +88,8 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
             bias_regularizer="l2",
         )
         config = keras.layers.serialize(layer)
-        # Because we're passing an unknown class here, deserialization should fail
-        # unless we add SerializableInt to the custom object dict.
+        # Because we're passing an unknown class here, deserialization should
+        # fail unless we add SerializableInt to the custom object dict.
         new_layer = keras.layers.deserialize(
             config, custom_objects={"SerializableInt": SerializableInt}
         )

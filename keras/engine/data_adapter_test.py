@@ -14,18 +14,19 @@
 # ==============================================================================
 """DataAdapter tests."""
 
-import tensorflow.compat.v2 as tf
-
 import math
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
+from keras.engine import data_adapter
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.engine import data_adapter
 from keras.utils import data_utils
+
+# isort: off
 from tensorflow.python.eager import context
 
 
@@ -138,8 +139,8 @@ class TestBatchSequence(data_utils.Sequence):
         """Creates a keras.utils.Sequence with increasing batch_size.
 
         Args:
-            batch_size (Union[int, List[int]]): Can be a list containing two values:
-              start and end batch_size
+            batch_size (Union[int, List[int]]): Can be a list containing two
+                values: start and end batch_size
             feature_shape (int): Number of features in a sample
             epochs (int, optional): Number of epochs
         """
@@ -147,8 +148,8 @@ class TestBatchSequence(data_utils.Sequence):
         self.feature_shape = feature_shape
 
         self._epochs = epochs
-        # we use `on_epoch_end` method to prepare data for the next epoch
-        # set current epoch to `-1`, so that `on_epoch_end` will increase it to `0`
+        # we use `on_epoch_end` method to prepare data for the next epoch set
+        # current epoch to `-1`, so that `on_epoch_end` will increase it to `0`
         self._current_epoch = -1
         # actual batch size will be set inside `on_epoch_end`
         self._current_batch_size = 0
@@ -683,8 +684,8 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
             tf.convert_to_tensor(self.arraylike_input)
 
         # Then train on the array like.
-        # It should not be converted to a tensor directly (which would force it into
-        # memory), only the sliced data should be converted.
+        # It should not be converted to a tensor directly (which would force it
+        # into memory), only the sliced data should be converted.
         self.model.compile(
             loss="sparse_categorical_crossentropy",
             optimizer="sgd",
@@ -973,8 +974,8 @@ class GeneratorDataAdapterTest(DataAdapterTestBase):
             max_queue_size=10,
             steps_per_epoch=10,
         )
-        # Fit twice to ensure there isn't any duplication that prevent the worker
-        # from starting.
+        # Fit twice to ensure there isn't any duplication that prevent the
+        # worker from starting.
         self.model.fit(
             self.iterator_input,
             workers=1,
@@ -1075,8 +1076,8 @@ class KerasSequenceAdapterTest(DataAdapterTestBase):
             max_queue_size=10,
             steps_per_epoch=10,
         )
-        # Fit twice to ensure there isn't any duplication that prevent the worker
-        # from starting.
+        # Fit twice to ensure there isn't any duplication that prevent the
+        # worker from starting.
         self.model.fit(
             self.sequence_input,
             workers=1,

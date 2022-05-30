@@ -15,9 +15,11 @@
 """Average pooling 3D layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from keras.layers.pooling.base_pooling3d import Pooling3D
 import tensorflow.compat.v2 as tf
 
+from keras.layers.pooling.base_pooling3d import Pooling3D
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -25,8 +27,8 @@ from tensorflow.python.util.tf_export import keras_export
 class AveragePooling3D(Pooling3D):
     """Average pooling operation for 3D data (spatial or spatio-temporal).
 
-    Downsamples the input along its spatial dimensions (depth, height, and width)
-    by taking the average value over an input window
+    Downsamples the input along its spatial dimensions (depth, height, and
+    width) by taking the average value over an input window
     (of size defined by `pool_size`) for each channel of the input.
     The window is shifted by `strides` along each dimension.
 

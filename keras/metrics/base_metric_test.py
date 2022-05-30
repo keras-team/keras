@@ -17,16 +17,17 @@
 import copy
 import os
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
+from keras import Model
 from keras import layers
 from keras import metrics
-from keras import Model
 from keras.engine import base_layer
 from keras.engine import training as training_module
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
@@ -49,7 +50,8 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(self.evaluate(m(100)), 100)
             self.assertEqual(self.evaluate(m.total), 100)
 
-            # check update_state() and result() + state accumulation + tensor input
+            # check update_state() and result() + state accumulation + tensor
+            # input
             update_op = m.update_state(tf.convert_to_tensor([1, 5]))
             self.evaluate(update_op)
             self.assertAlmostEqual(self.evaluate(m.result()), 106)
@@ -100,7 +102,7 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAlmostEqual(self.evaluate(m.total), 63.75, 2)
 
     def test_sum_graph_with_placeholder(self):
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:  # noqa: E501
             m = metrics.Sum()
             v = tf.compat.v1.placeholder(tf.float32)
             w = tf.compat.v1.placeholder(tf.float32)
@@ -259,7 +261,7 @@ class MeanTest(test_combinations.TestCase):
 
     @test_combinations.run_all_keras_modes
     def test_mean_graph_with_placeholder(self):
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:  # noqa: E501
             m = metrics.Mean()
             v = tf.compat.v1.placeholder(tf.float32)
             w = tf.compat.v1.placeholder(tf.float32)
@@ -411,7 +413,8 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
             self.assertAllClose(self.evaluate(m.total), [100, 40])
             self.assertAllClose(self.evaluate(m.count), [1, 1])
 
-            # check update_state() and result() + state accumulation + tensor input
+            # check update_state() and result() + state accumulation + tensor
+            # input
             update_op = m.update_state(
                 [tf.convert_to_tensor(1), tf.convert_to_tensor(5)]
             )

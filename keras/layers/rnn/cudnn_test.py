@@ -14,21 +14,22 @@
 # ==============================================================================
 """Tests for cudnn recurrent layers."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import tempfile
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
+from keras.optimizers.optimizer_v2.rmsprop import RMSprop
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
-from keras.optimizers.optimizer_v2.rmsprop import RMSprop
 
 
 @test_combinations.run_all_keras_modes
@@ -390,8 +391,9 @@ class CuDNNV1OnlyTest(test_combinations.TestCase):
     def test_load_weights_between_noncudnn_rnn_time_distributed(
         self, rnn_type, to_cudnn
     ):
-        # Similar test as test_load_weights_between_noncudnn_rnn() but has different
-        # rank of input due to usage of TimeDistributed. Issue: #10356.
+        # Similar test as test_load_weights_between_noncudnn_rnn() but has
+        # different rank of input due to usage of TimeDistributed. Issue:
+        # #10356.
         input_size = 10
         steps = 6
         timesteps = 6

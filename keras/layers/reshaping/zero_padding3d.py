@@ -15,12 +15,14 @@
 """Keras zero-padding layer for 3D input."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -62,17 +64,17 @@ class ZeroPadding3D(Layer):
     Input shape:
       5D tensor with shape:
       - If `data_format` is `"channels_last"`:
-          `(batch_size, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad,
-            depth)`
+          `(batch_size, first_axis_to_pad, second_axis_to_pad,
+          third_axis_to_pad, depth)`
       - If `data_format` is `"channels_first"`:
           `(batch_size, depth, first_axis_to_pad, second_axis_to_pad,
-            third_axis_to_pad)`
+          third_axis_to_pad)`
 
     Output shape:
       5D tensor with shape:
       - If `data_format` is `"channels_last"`:
-          `(batch_size, first_padded_axis, second_padded_axis, third_axis_to_pad,
-            depth)`
+          `(batch_size, first_padded_axis, second_padded_axis,
+          third_axis_to_pad, depth)`
       - If `data_format` is `"channels_first"`:
           `(batch_size, depth, first_padded_axis, second_padded_axis,
             third_axis_to_pad)`

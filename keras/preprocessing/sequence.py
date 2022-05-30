@@ -27,9 +27,11 @@ for more details.
 import json
 import random
 
-from keras.utils import data_utils
 import numpy as np
 
+from keras.utils import data_utils
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

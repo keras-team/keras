@@ -14,21 +14,22 @@
 # ==============================================================================
 """Tests for Model subclassing."""
 
-import tensorflow.compat.v2 as tf
-
 import copy
 import os
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.tests import model_subclassing_test_util as model_util
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
 from tensorflow.python.training.tracking import (
     data_structures,
 )
@@ -594,7 +595,7 @@ class GraphSpecificModelSubclassingTests(tf.test.TestCase):
             def call(self, x):
                 return self.bn(self.fc(x))
 
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():  # noqa: E501
             model = TestModel1()
 
             x = tf.ones(shape=[100, 784], dtype="float32")
@@ -616,7 +617,7 @@ class GraphSpecificModelSubclassingTests(tf.test.TestCase):
             def call(self, x):
                 return self.bn(self.fc(x))
 
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():  # noqa: E501
             model = TestModel2()
 
             x = tf.ones(shape=[100, 784], dtype="float32")

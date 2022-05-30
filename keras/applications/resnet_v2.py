@@ -22,6 +22,8 @@ Reference:
 
 from keras.applications import imagenet_utils
 from keras.applications import resnet
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

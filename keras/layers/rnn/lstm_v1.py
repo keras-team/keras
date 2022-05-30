@@ -24,6 +24,7 @@ from keras.layers.rnn import lstm
 from keras.layers.rnn import rnn_utils
 from keras.layers.rnn.base_rnn import RNN
 
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 

@@ -20,6 +20,7 @@ import functools
 from keras import backend
 from keras.layers.pooling.base_pooling1d import Pooling1D
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

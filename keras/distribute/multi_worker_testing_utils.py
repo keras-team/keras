@@ -14,20 +14,22 @@
 # ==============================================================================
 """Utilities for testing multi-worker distribution strategies with Keras."""
 
-import tensorflow.compat.v2 as tf
-
 import threading
 import unittest
+
+import tensorflow.compat.v2 as tf
+
 import keras
+from keras.optimizers.optimizer_v2 import gradient_descent
+
+# isort: off
 from tensorflow.python.distribute.cluster_resolver import (
     SimpleClusterResolver,
 )
-from keras.optimizers.optimizer_v2 import gradient_descent
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.server_lib import (
     ClusterSpec,
 )
-
 
 _portpicker_import_error = None
 try:
@@ -227,15 +229,15 @@ def create_in_process_cluster(
     eval_config = tf.compat.v1.ConfigProto()
     eval_config.experimental.collective_group_leader = ""
 
-    # Create in-process servers. Once an in-process tensorflow server is created,
-    # there is no way to terminate it. So we create one cluster per test process.
-    # We could've started the server in another process, we could then kill that
-    # process to terminate the server. The reasons why we don"t want multiple
-    # processes are
+    # Create in-process servers. Once an in-process tensorflow server is
+    # created, there is no way to terminate it. So we create one cluster per
+    # test process.  We could've started the server in another process, we could
+    # then kill that process to terminate the server. The reasons why we don"t
+    # want multiple processes are
     # 1) it is more difficult to manage these processes;
-    # 2) there is something global in CUDA such that if we initialize CUDA in the
-    # parent process, the child process cannot initialize it again and thus cannot
-    # use GPUs (https://stackoverflow.com/questions/22950047).
+    # 2) there is something global in CUDA such that if we initialize CUDA in
+    # the parent process, the child process cannot initialize it again and thus
+    # cannot use GPUs (https://stackoverflow.com/questions/22950047).
     cluster = None
     try:
         cluster = _create_cluster(

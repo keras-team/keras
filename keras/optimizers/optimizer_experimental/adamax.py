@@ -14,10 +14,12 @@
 # ==============================================================================
 """Adamax optimizer implementation."""
 
-from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
 
+from keras.optimizers.optimizer_experimental import optimizer
+from keras.utils import generic_utils
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -42,8 +44,8 @@ class Adamax(optimizer.Optimizer):
     t = 0  # Initialize timestep
     ```
 
-    The update rule for parameter `w` with gradient `g` is
-    described at the end of section 7.1 of the paper (see the referenece section):
+    The update rule for parameter `w` with gradient `g` is described at the end
+    of section 7.1 of the paper (see the referenece section):
 
     ```python
     t += 1

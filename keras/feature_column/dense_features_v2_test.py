@@ -18,12 +18,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
-from tensorflow.python.eager import backprop
-from keras.testing_infra import test_combinations
 from keras.feature_column import dense_features_v2 as df
+from keras.testing_infra import test_combinations
+
+# isort: off
+from tensorflow.python.eager import backprop
 
 
 def _initialized_session(config=None):
@@ -82,8 +84,8 @@ class DenseFeaturesTest(test_combinations.TestCase):
         # Check that only one variable was created.
         self.assertEqual(1, len(variables))
 
-        # Check that invoking dense_features on the same features does not create
-        # additional variables
+        # Check that invoking dense_features on the same features does not
+        # create additional variables
         _ = dense_features(features)
         self.assertEqual(1, len(variables))
         self.assertIs(variables[0], dense_features.variables[0])

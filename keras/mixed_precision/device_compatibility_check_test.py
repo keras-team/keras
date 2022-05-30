@@ -14,12 +14,14 @@
 # ==============================================================================
 """Tests the device compatibility check."""
 
-import tensorflow.compat.v2 as tf
-
 import re
 
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+
 from keras.mixed_precision import device_compatibility_check
+from keras.testing_infra import test_combinations
+
+# isort: off
 from tensorflow.python.platform import tf_logging
 
 
@@ -60,9 +62,9 @@ class DeviceCompatibilityCheckTest(tf.test.TestCase):
         details_list = [device_details("GPU 1", (7, 1))]
         regex = re.compile(
             r".*compatibility check \(mixed_float16\): OK\n"
-            r"Your GPU will likely run quickly with dtype policy mixed_float16 as "
-            r"it has compute capability of at least 7.0. Your GPU: GPU 1, compute "
-            r"capability 7.1",
+            r"Your GPU will likely run quickly with dtype policy mixed_float16 "
+            r"as it has compute capability of at least 7.0. Your GPU: GPU 1, "
+            r"compute capability 7.1",
             flags=re.MULTILINE,
         )
         self._test_compat_check(details_list, False, regex)
@@ -74,8 +76,9 @@ class DeviceCompatibilityCheckTest(tf.test.TestCase):
         ]
         regex = re.compile(
             r".*compatibility check \(mixed_float16\): OK\n"
-            r"Your GPUs will likely run quickly with dtype policy mixed_float16 as "
-            r"they all have compute capability of at least 7.0",
+            r"Your GPUs will likely run quickly with dtype policy "
+            r"mixed_float16 as they all have compute capability of "
+            r"at least 7.0",
             flags=re.MULTILINE,
         )
         self._test_compat_check(details_list, False, regex)
@@ -95,8 +98,8 @@ class DeviceCompatibilityCheckTest(tf.test.TestCase):
         regex = re.compile(
             r".*compatibility check \(mixed_float16\): WARNING\n"
             r"Your GPU may run slowly with dtype policy mixed_float16.*\n"
-            r"  Unknown GPU, no compute capability \(probably not an Nvidia GPU\)\n"
-            r"See.*",
+            r"  Unknown GPU, no compute capability "
+            r"\(probably not an Nvidia GPU\)\nSee.*",
             flags=re.MULTILINE,
         )
         self._test_compat_check(details_list, True, regex)
@@ -134,8 +137,8 @@ class DeviceCompatibilityCheckTest(tf.test.TestCase):
         details_list = []
         regex = re.compile(
             r".*compatibility check \(mixed_float16\): WARNING\n"
-            r"The dtype policy mixed_float16 may run slowly because this machine "
-            r"does not have a GPU",
+            r"The dtype policy mixed_float16 may run slowly because this "
+            r"machine does not have a GPU",
             flags=re.MULTILINE,
         )
         self._test_compat_check(details_list, True, regex)
@@ -148,8 +151,8 @@ class DeviceCompatibilityCheckTest(tf.test.TestCase):
         ]
         regex = re.compile(
             r".*compatibility check \(mixed_float16\): WARNING\n"
-            r"Some of your GPUs may run slowly with dtype policy mixed_float16.*\n"
-            r"  GPU 1, compute capability 7.0 \(x2\)\n"
+            r"Some of your GPUs may run slowly with dtype policy "
+            r"mixed_float16.*\n  GPU 1, compute capability 7.0 \(x2\)\n"
             r"  GPU 2, compute capability 6.0\n"
             r"See.*",
             flags=re.MULTILINE,

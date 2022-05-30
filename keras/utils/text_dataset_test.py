@@ -14,12 +14,13 @@
 # ==============================================================================
 """Tests for text_dataset."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import random
 import shutil
 import string
+
+import tensorflow.compat.v2 as tf
+
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import text_dataset
@@ -68,8 +69,8 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
         return temp_dir
 
     def test_text_dataset_from_directory_standalone(self):
-        # Test retrieving txt files without labels from a directory and its subdirs.
-        # Save a few extra files in the parent directory.
+        # Test retrieving txt files without labels from a directory and its
+        # subdirs. Save a few extra files in the parent directory.
         directory = self._prepare_directory(count=7, num_classes=2)
         for i in range(3):
             filename = "text_%s.txt" % (i,)

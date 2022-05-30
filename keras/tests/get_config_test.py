@@ -14,11 +14,12 @@
 # ,============================================================================
 """Tests for `get_config` backwards compatibility."""
 
+import tensorflow.compat.v2 as tf
+
 from keras.engine import sequential
 from keras.engine import training
 from keras.testing_infra import test_combinations
 from keras.tests import get_config_samples
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes

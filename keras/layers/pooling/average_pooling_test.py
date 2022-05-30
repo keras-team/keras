@@ -14,11 +14,12 @@
 # ==============================================================================
 """Tests for average pooling layers."""
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
@@ -53,7 +54,8 @@ class AveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
         # This part of the test can only run on GPU but doesn't appear
         # to be properly assigned to a GPU when running in eager mode.
         if not tf.executing_eagerly():
-            # Only runs on GPU with CUDA, channels_first is not supported on CPU.
+            # Only runs on GPU with CUDA, channels_first is not supported on
+            # CPU.
             # TODO(b/62340061): Support channels_first on CPU.
             if tf.test.is_gpu_available(cuda_only=True):
                 test_utils.layer_test(

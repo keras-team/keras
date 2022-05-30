@@ -16,15 +16,16 @@
 # pylint: disable=g-import-not-at-top
 """Utilities related to model visualization."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import sys
 
+import tensorflow.compat.v2 as tf
+
 from keras.utils import io_utils
 from keras.utils import layer_utils
-from tensorflow.python.util.tf_export import keras_export
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 try:
     # pydot-ng is a fork of pydot that is better maintained.
@@ -129,9 +130,9 @@ def model_to_dot(
             "the model on a batch of data."
         )
 
-    from keras.layers import Wrapper
-    from keras.engine import sequential
     from keras.engine import functional
+    from keras.engine import sequential
+    from keras.layers import Wrapper
 
     if not check_pydot():
         raise ImportError(
@@ -382,13 +383,14 @@ def plot_model(
       expand_nested: Whether to expand nested models into clusters.
       dpi: Dots per inch.
       layer_range: input of `list` containing two `str` items, which is the
-        starting layer name and ending layer name (both inclusive) indicating the
-        range of layers for which the plot will be generated. It also accepts
-        regex patterns instead of exact name. In such case, start predicate will
-        be the first element it matches to `layer_range[0]` and the end predicate
-        will be the last element it matches to `layer_range[1]`. By default `None`
-        which considers all layers of model. Note that you must pass range such
-        that the resultant subgraph must be complete.
+        starting layer name and ending layer name (both inclusive) indicating
+        the range of layers for which the plot will be generated. It also
+        accepts regex patterns instead of exact name. In such case, start
+        predicate will be the first element it matches to `layer_range[0]` and
+        the end predicate will be the last element it matches to
+        `layer_range[1]`. By default `None` which considers all layers of model.
+        Note that you must pass range such that the resultant subgraph must be
+        complete.
       show_layer_activations: Display layer activations (only for layers that
         have an `activation` property).
 
@@ -416,8 +418,8 @@ def plot_model(
             "for plot_model to work."
         )
         if "IPython.core.magics.namespace" in sys.modules:
-            # We don't raise an exception here in order to avoid crashing notebook
-            # tests where graphviz is not available.
+            # We don't raise an exception here in order to avoid crashing
+            # notebook tests where graphviz is not available.
             io_utils.print_msg(message)
             return
         else:

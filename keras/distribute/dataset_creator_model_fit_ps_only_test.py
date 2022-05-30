@@ -14,11 +14,12 @@
 # ==============================================================================
 """Tests for `DatasetCreator` with `Model.fit` across usages and strategies."""
 
+import tensorflow.compat.v2 as tf
+
 from keras import callbacks as callbacks_lib
 from keras.distribute import dataset_creator_model_fit_test_base as test_base
 from keras.distribute import strategy_combinations
 from keras.testing_infra import test_utils
-import tensorflow.compat.v2 as tf
 
 
 @test_utils.run_v2_only

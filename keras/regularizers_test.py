@@ -14,17 +14,15 @@
 # ==============================================================================
 """Tests for Keras regularizers."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
 from keras import regularizers
+from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
-
 
 DATA_DIM = 5
 NUM_CLASSES = 2
@@ -281,8 +279,8 @@ class KerasRegularizersTest(test_combinations.TestCase, parameterized.TestCase):
 
         # We expect to see 9 losses on the model:
         # - 2 from the 2 add_loss calls on the outer model.
-        # - 3 from the weight regularizers on the shared_dense layer, unshared_dense
-        # in inner model 1, unshared_dense in inner model 2.
+        # - 3 from the weight regularizers on the shared_dense layer,
+        # unshared_dense in inner model 1, unshared_dense in inner model 2.
         # - 4 from activity regularizers on the shared_dense layer.
         self.assertLen(model.losses, 9)
 
@@ -344,7 +342,8 @@ class KerasRegularizersTest(test_combinations.TestCase, parameterized.TestCase):
         self.assertAllClose(
             reg_rows(inputs), factor * sum(rows_pairs) / num_row_pairs
         )
-        # Expected: factor * sum(pairwise_dot_products_of_columns) / num_col_pairs
+        # Expected: factor * sum(pairwise_dot_products_of_columns) /
+        # num_col_pairs
         self.assertAllClose(
             reg_cols(inputs), factor * sum(col_pairs) / num_col_pairs
         )

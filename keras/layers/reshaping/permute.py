@@ -17,10 +17,12 @@
 
 import copy
 
-from keras.engine.base_layer import Layer
-from keras.engine.input_spec import InputSpec
 import tensorflow.compat.v2 as tf
 
+from keras.engine.base_layer import Layer
+from keras.engine.input_spec import InputSpec
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -61,8 +63,8 @@ class Permute(Layer):
         if sorted(dims) != list(range(1, len(dims) + 1)):
             raise ValueError(
                 "Invalid permutation argument `dims` for Permute Layer. "
-                "The set of indices in `dims` must be consecutive and start from 1. "
-                f"Received dims={dims}"
+                "The set of indices in `dims` must be consecutive and start "
+                f"from 1. Received dims={dims}"
             )
         self.input_spec = InputSpec(ndim=len(self.dims) + 1)
 

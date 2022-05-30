@@ -21,7 +21,10 @@ from __future__ import print_function
 import gc
 import threading
 
+import numpy
+import tensorflow as tf
 from absl.testing import parameterized
+
 from keras import models
 from keras import regularizers
 from keras.engine import base_layer
@@ -32,9 +35,7 @@ from keras.legacy_tf_layers import core as core_layers
 from keras.legacy_tf_layers import variable_scope_shim
 from keras.testing_infra import test_combinations
 
-import numpy
-import tensorflow as tf
-
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
@@ -44,9 +45,9 @@ from tensorflow.python.ops import variable_scope
 def run_inside_wrap_function_in_eager_mode(graph_function):
     """Decorator to execute the same graph code in eager and graph modes.
 
-    In graph mode, we just execute the graph_function passed as argument. In eager
-    mode, we wrap the function using wrap_function and then execute the wrapped
-    result.
+    In graph mode, we just execute the graph_function passed as argument. In
+    eager mode, we wrap the function using wrap_function and then execute the
+    wrapped result.
 
     Args:
       graph_function: python function containing graph code to be wrapped
@@ -210,7 +211,8 @@ class VariableScopeTest(tf.test.TestCase):
                 tf.compat.v1.get_variable("u", [])
                 vs.set_regularizer(regularizer2)
                 tf.compat.v1.get_variable("w", [])
-                # Next 3 variable not regularized to test disabling regularization.
+                # Next 3 variable not regularized to test disabling
+                # regularization.
                 tf.compat.v1.get_variable(
                     "x", [], regularizer=tf.compat.v1.no_regularizer
                 )
@@ -230,7 +232,8 @@ class VariableScopeTest(tf.test.TestCase):
         self.assertAllClose(self.evaluate(w.value()), 0.1)
 
         with self.assertRaisesRegex(ValueError, "shape"):
-            # We disallow explicit shape specification when initializer is constant.
+            # We disallow explicit shape specification when initializer is
+            # constant.
             tf.compat.v1.get_variable("u", [1], initializer=init)
 
         with tf.compat.v1.variable_scope("foo", initializer=init):
@@ -286,8 +289,8 @@ class VariableScopeTest(tf.test.TestCase):
                     _ = tf.compat.v1.assign(
                         tf.compat.v1.get_variable("var", []), x
                     )
-                # We need to ignore reuse=False in the shim, because the
-                # code is expected to get rerun each time the user calls the shim.
+                # We need to ignore reuse=False in the shim, because the code is
+                # expected to get rerun each time the user calls the shim.
                 with tf.compat.v1.variable_scope(
                     "testVarScopeGetOrCreateReuse_bar", reuse=False
                 ):
@@ -683,7 +686,7 @@ class VariableScopeTest(tf.test.TestCase):
     @tf_test_utils.run_in_graph_and_eager_modes
     @run_inside_wrap_function_in_eager_mode
     def testReuseScopeWithoutNameScopeCollision(self):
-        # Github issue: #13429
+        # GitHub issue: #13429
         with self.cached_session():
             with tf.compat.v1.variable_scope("outer"):
                 with tf.compat.v1.variable_scope("inner") as inner:
@@ -906,7 +909,8 @@ class VariableScopeMultithreadedTest(tf.test.TestCase):
                         v = tf.compat.v1.get_variable("v", [])
                         self.assertEqual("main/foo/v:0", v.name)
 
-                # Variable created outside main scope will not have prefix "main".
+                # Variable created outside main scope will not have prefix
+                # "main".
                 with tf.compat.v1.variable_scope("bar"):
                     v = tf.compat.v1.get_variable("v", [])
                     self.assertEqual("bar/v:0", v.name)
@@ -952,10 +956,11 @@ class VariableScopeModule(tf.Module):
             return self.forward_pass(*args, **kwargs)
 
     def get_compat_v1_regularization_losses(self):
-        """Dict w/ regularization losses from `get_variable`&`compat.v1.layers`."""
+        """Dict w/ regularization losses from
+        `get_variable`&`compat.v1.layers`."""
         return {
             name: regularizer()
-            for name, regularizer in self._tf1_style_var_store._regularizers.items()
+            for name, regularizer in self._tf1_style_var_store._regularizers.items()  # noqa: E501
         }  # pylint: disable=protected-access
 
 
@@ -1013,7 +1018,8 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
         out = layer(tf.ones(shape=(5, 5)))
         weights = {x.name: x for x in layer.variables}
 
-        # Verify the correct output, regularization losses, + variables were made
+        # Verify the correct output, regularization losses, + variables were
+        # made
         self.assertEqual(
             weights.keys(),
             {
@@ -1131,7 +1137,8 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
         tf.saved_model.save(model, tmp_dir)
 
     def test_variable_store_scope_get_variable(self):
-        # Test the module shim when using `get_variable` (and regularizers) directly
+        # Test the module shim when using `get_variable` (and regularizers)
+        # directly
 
         class WrappedDenseLayer(tf.Module):
             def __init__(self, units, *args, **kwargs):
@@ -1143,7 +1150,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                 """Dict w/ regularization losses from `get_variable`."""
                 return {
                     name: regularizer()
-                    for name, regularizer in self._variable_store._regularizers.items()
+                    for name, regularizer in self._variable_store._regularizers.items()  # noqa: E501
                 }  # pylint: disable=protected-access
 
             def __call__(self, inputs, training=None):
@@ -1190,7 +1197,8 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
         out = layer(tf.ones(shape=(5, 5)))
         weights = {x.name: x for x in layer.variables}
 
-        # Verify the correct output, regularization losses, + variables were made
+        # Verify the correct output, regularization losses, + variables were
+        # made
         self.assertEqual(
             weights.keys(),
             {
@@ -1217,7 +1225,8 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
         )
 
     def test_module_get_variable(self):
-        # Test the module shim when using `get_variable` (and regularizers) directly
+        # Test the module shim when using `get_variable` (and regularizers)
+        # directly
 
         class WrappedDenseLayer(VariableScopeModule):
             def __init__(self, units, *args, **kwargs):
@@ -1267,7 +1276,8 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
         out = layer(tf.ones(shape=(5, 5)))
         weights = {x.name: x for x in layer.variables}
 
-        # Verify the correct output, regularization losses, + variables were made
+        # Verify the correct output, regularization losses, + variables were
+        # made
         self.assertEqual(
             weights.keys(),
             {
@@ -1389,8 +1399,8 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
 
             @variable_scope_shim.track_tf1_style_variables
             def call(self, inputs):
-                # Only create the nested tf.variable/module/layer/model if it has not
-                # already been created!
+                # Only create the nested tf.variable/module/layer/model if it
+                # has not already been created!
                 if not self.dense_layer_a:
                     self.dense_layer_a = NestedLayer(
                         self.units * 2, "dense_one"

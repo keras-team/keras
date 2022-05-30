@@ -28,8 +28,9 @@ from keras.engine import training
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
-from tensorflow.python.util.tf_export import keras_export
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHTS_PATH = (
     "https://storage.googleapis.com/tensorflow/keras-applications/resnet/"

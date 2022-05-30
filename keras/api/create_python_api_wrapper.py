@@ -24,6 +24,8 @@ from __future__ import division
 from __future__ import print_function
 
 import keras  # pylint: disable=unused-import
+
+# isort: off
 from tensorflow.python.tools.api.generator import (
     create_python_api,
 )

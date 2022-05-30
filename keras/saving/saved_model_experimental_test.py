@@ -15,17 +15,16 @@
 # pylint: disable=protected-access
 """Tests for saving/loading function for keras Model."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import shutil
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.optimizers import optimizer_v1
 from keras.engine import training as model_lib
+from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import adadelta
 from keras.optimizers.optimizer_v2 import rmsprop
 from keras.saving import saved_model_experimental as keras_saved_model
@@ -389,8 +388,8 @@ class TestModelSavedModelExport(tf.test.TestCase, parameterized.TestCase):
                     sess, saved_model_dir, mode_keys.ModeKeys.TEST
                 )
 
-                # First obtain the loss and predictions, and run the metric update op by
-                # feeding in the inputs and targets.
+                # First obtain the loss and predictions, and run the metric
+                # update op by feeding in the inputs and targets.
                 metrics_name = (
                     "mae"
                     if tf.__internal__.tf2.enabled()
@@ -411,8 +410,8 @@ class TestModelSavedModelExport(tf.test.TestCase, parameterized.TestCase):
                     },
                 )
 
-                # The metric value should be run after the update op, to ensure that it
-                # reflects the correct value.
+                # The metric value should be run after the update op, to ensure
+                # that it reflects the correct value.
                 metric_value = sess.run(outputs[metrics_value_op_key])
 
                 self.assertEqual(
@@ -423,7 +422,8 @@ class TestModelSavedModelExport(tf.test.TestCase, parameterized.TestCase):
                 self.assertAllClose(ref_mae, metric_value, atol=1e-05)
                 self.assertAllClose(ref_predict, predictions, atol=1e-05)
 
-            # Load train graph, and check for the train op, and prediction values
+            # Load train graph, and check for the train op, and prediction
+            # values
             with tf.compat.v1.Session(graph=tf.Graph()) as sess:
                 inputs, outputs, meta_graph_def = load_model(
                     sess, saved_model_dir, mode_keys.ModeKeys.TRAIN

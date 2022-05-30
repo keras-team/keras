@@ -14,19 +14,18 @@
 # ==============================================================================
 """Integration tests for Keras."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import random
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
+from keras import utils
 from keras.layers.rnn import legacy_cells
 from keras.legacy_tf_layers import base as base_layer
-from keras import utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class KerasIntegrationTest(test_combinations.TestCase):
@@ -394,9 +393,9 @@ class TokenClassificationIntegrationTest(test_combinations.TestCase):
     """Tests a very simple token classification model.
 
     The main purpose of this test is to verify that everything works as expected
-    when input sequences have variable length, and batches are padded only to the
-    maximum length of each batch. This is very common in NLP, and results in the
-    sequence dimension varying with each batch step for both the features
+    when input sequences have variable length, and batches are padded only to
+    the maximum length of each batch. This is very common in NLP, and results in
+    the sequence dimension varying with each batch step for both the features
     and the labels.
     """
 

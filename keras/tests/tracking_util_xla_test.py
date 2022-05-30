@@ -13,12 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorflow.compiler.tests import xla_test
-
 import tensorflow.compat.v2 as tf
+
 from keras.engine import training
 from keras.layers import core
 from keras.optimizers.optimizer_v2 import adam
+
+# isort: off
+from tensorflow.compiler.tests import xla_test
 from tensorflow.python.training.tracking import (
     util as trackable_utils,
 )

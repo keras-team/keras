@@ -52,9 +52,10 @@ def GetContainingWhileContext(ctxt, stop_ctxt=None):
         if it sees stop_ctxt.
 
     Returns:
-      `ctxt` if `ctxt` is a WhileContext, the most nested WhileContext containing
-      `ctxt`, or None if `ctxt` is not in a while loop.  If `stop_ctxt` is not
-      `None`, this returns `ctxt` if it matches `stop_ctxt` in its traversal.
+      `ctxt` if `ctxt` is a WhileContext, the most nested WhileContext
+      containing `ctxt`, or None if `ctxt` is not in a while loop.  If
+      `stop_ctxt` is not `None`, this returns `ctxt` if it matches `stop_ctxt`
+      in its traversal.
     """
     while ctxt:
         if ctxt.IsWhileContext() or ctxt == stop_ctxt:

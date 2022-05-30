@@ -15,13 +15,15 @@
 """Tests for convolutional layers."""
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
@@ -642,7 +644,8 @@ class ConvSequentialTest(test_combinations.TestCase):
             input_shape = (5, None, None, 2)
             inputs = keras.Input(shape=input_shape)
             x = layer(inputs)
-            # Won't raise error here with None values in input shape (b/144282043).
+            # Won't raise error here with None values in input shape
+            # (b/144282043).
             layer(x)
 
 

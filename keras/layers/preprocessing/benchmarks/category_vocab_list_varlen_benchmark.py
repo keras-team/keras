@@ -12,17 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Benchmark for KPL implementation of vocabulary columns from lists with varying-length inputs."""
+"""Benchmark for KPL implementation of vocabulary columns from lists with
+varying-length inputs."""
 
 import tensorflow.compat.v2 as tf
 
 import keras
-from tensorflow.python.eager.def_function import (
-    function as tf_function,
-)
 from keras.layers.preprocessing import string_lookup
 from keras.layers.preprocessing.benchmarks import (
     feature_column_benchmark as fc_bm,
+)
+
+# isort: off
+from tensorflow.python.eager.def_function import (
+    function as tf_function,
 )
 
 NUM_REPEATS = 10

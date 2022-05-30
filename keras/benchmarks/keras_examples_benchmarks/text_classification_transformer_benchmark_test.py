@@ -39,7 +39,8 @@ class TextWithTransformerBenchmark(tf.test.Benchmark):
         )
 
     def _build_model(self):
-        """Model from https://keras.io/examples/nlp/text_classification_with_transformer/."""
+        """Model from
+        https://keras.io/examples/nlp/text_classification_with_transformer/."""
         embed_dim = 32
         num_heads = 2
         ff_dim = 32

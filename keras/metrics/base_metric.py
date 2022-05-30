@@ -21,6 +21,9 @@ import copy
 import types
 import warnings
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import utils as dtensor_utils
@@ -32,9 +35,8 @@ from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import metrics_utils
 from keras.utils.tf_utils import is_tensor_or_variable
-import numpy as np
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -127,9 +129,9 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
         obj = super(Metric, cls).__new__(cls)
 
         # If `update_state` is not in eager/tf.function and it is not from a
-        # built-in metric, wrap it in `tf.function`. This is so that users writing
-        # custom metrics in v1 need not worry about control dependencies and
-        # return ops.
+        # built-in metric, wrap it in `tf.function`. This is so that users
+        # writing custom metrics in v1 need not worry about control dependencies
+        # and return ops.
         if base_layer_utils.is_in_eager_or_tf_function() or is_built_in(cls):
             obj_update_state = obj.update_state
 
@@ -194,10 +196,11 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
             with tf.control_dependencies(update_ops):
                 result_t = self.result()  # pylint: disable=not-callable
 
-                # We are adding the metric object as metadata on the result tensor.
-                # This is required when we want to use a metric with `add_metric` API on
-                # a Model/Layer in graph mode. This metric instance will later be used
-                # to reset variable state after each epoch of training.
+                # We are adding the metric object as metadata on the result
+                # tensor.  This is required when we want to use a metric with
+                # `add_metric` API on a Model/Layer in graph mode. This metric
+                # instance will later be used to reset variable state after each
+                # epoch of training.
                 # Example:
                 #   model = Model()
                 #   mean = Mean()
@@ -206,8 +209,8 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
                 return result_t
 
         from keras.distribute import (
-            distributed_training_utils,
-        )  # pylint:disable=g-import-not-at-top
+            distributed_training_utils,  # pylint:disable=g-import-not-at-top
+        )
 
         return distributed_training_utils.call_replica_local_fn(
             replica_local_fn, *args, **kwargs
@@ -224,13 +227,13 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
         for k, v in self.__dict__.items():
             if k in ["update_state", "result"]:
                 # `update_state` keeps a closure of `update_state_fn`, and deep
-                # copying it would result in copying that old reference. Avoid that.
-                # Likewise for `result`.
+                # copying it would result in copying that old reference. Avoid
+                # that.  Likewise for `result`.
                 continue
             if k in ["_obj_reference_counts_dict"]:
                 # `Layer.__setattr__` attempts to flatten the
-                # `ObjectIdentityDictionary`, which can't be done since it stores
-                # heterogeneous instances.
+                # `ObjectIdentityDictionary`, which can't be done since it
+                # stores heterogeneous instances.
                 tf.Module.__setattr__(result, k, copy.deepcopy(v, memo))
             elif k in ["_thread_local", "_metrics_lock"]:
                 # Can't pickle _thread.lock objects.
@@ -276,7 +279,8 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
              This should make it easier to do things like add the updated
              value of a variable to another, for example.
           b) You don't need to worry about collecting the update ops to execute.
-             All update ops added to the graph by this function will be executed.
+             All update ops added to the graph by this function will be
+             executed.
           As a result, code should generally work the same way with graph or
           eager execution.
 
@@ -289,12 +293,13 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
     def merge_state(self, metrics):
         """Merges the state from one or more metrics.
 
-        This method can be used by distributed systems to merge the state computed
-        by different metric instances. Typically the state will be stored in the
-        form of the metric's weights. For example, a tf.keras.metrics.Mean metric
-        contains a list of two weight values: a total and a count. If there were two
-        instances of a tf.keras.metrics.Accuracy that each independently aggregated
-        partial state for an overall accuracy calculation, these two metric's states
+        This method can be used by distributed systems to merge the state
+        computed by different metric instances. Typically the state will be
+        stored in the form of the metric's weights. For example, a
+        tf.keras.metrics.Mean metric contains a list of two weight values: a
+        total and a count. If there were two instances of a
+        tf.keras.metrics.Accuracy that each independently aggregated partial
+        state for an overall accuracy calculation, these two metric's states
         could be combined as follows:
 
         >>> m1 = tf.keras.metrics.Accuracy()
@@ -308,11 +313,12 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
         0.75
 
         Args:
-          metrics: an iterable of metrics. The metrics must have compatible state.
+          metrics: an iterable of metrics. The metrics must have compatible
+            state.
 
         Raises:
-          ValueError: If the provided iterable does not contain metrics matching the
-            metric's required specifications.
+          ValueError: If the provided iterable does not contain metrics matching
+            the metric's required specifications.
         """
         assign_add_ops = []
         for metric in metrics:
@@ -326,7 +332,8 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def result(self):
-        """Computes and returns the scalar metric value tensor or a dict of scalars.
+        """Computes and returns the scalar metric value tensor or a dict of
+        scalars.
 
         Result computation is an idempotent operation that simply calculates the
         metric value using the state variables.
@@ -450,7 +457,7 @@ class Reduce(Metric):
         """
         [
             values
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [values], sample_weight
         )
         try:
@@ -542,11 +549,11 @@ class Sum(Reduce):
     For example, if values is [1, 3, 5, 7] then the sum is 16.
     If the weights were specified as [1, 1, 0, 0] then the sum would be 4.
 
-    This metric creates one variable, `total`, that is used to compute the sum of
-    `values`. This is ultimately returned as `sum`.
+    This metric creates one variable, `total`, that is used to compute the sum
+    of `values`. This is ultimately returned as `sum`.
 
-    If `sample_weight` is `None`, weights default to 1.  Use `sample_weight` of 0
-    to mask values.
+    If `sample_weight` is `None`, weights default to 1.  Use `sample_weight` of
+    0 to mask values.
 
     Args:
       name: (Optional) string name of the metric instance.
@@ -582,8 +589,9 @@ class Mean(Reduce):
     If the weights were specified as [1, 1, 0, 0] then the mean would be 2.
 
     This metric creates two variables, `total` and `count` that are used to
-    compute the average of `values`. This average is ultimately returned as `mean`
-    which is an idempotent operation that simply divides `total` by `count`.
+    compute the average of `values`. This average is ultimately returned as
+    `mean` which is an idempotent operation that simply divides `total` by
+    `count`.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
@@ -663,14 +671,15 @@ class MeanMetricWrapper(Mean):
           y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
           y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
           sample_weight: Optional `sample_weight` acts as a
-            coefficient for the metric. If a scalar is provided, then the metric is
-            simply scaled by the given value. If `sample_weight` is a tensor of size
-            `[batch_size]`, then the metric for each sample of the batch is rescaled
-            by the corresponding element in the `sample_weight` vector. If the shape
-            of `sample_weight` is `[batch_size, d0, .. dN-1]` (or can be broadcasted
-            to this shape), then each metric element of `y_pred` is scaled by the
-            corresponding value of `sample_weight`. (Note on `dN-1`: all metric
-            functions reduce by 1 dimension, usually the last axis (-1)).
+            coefficient for the metric. If a scalar is provided, then the metric
+            is simply scaled by the given value. If `sample_weight` is a tensor
+            of size `[batch_size]`, then the metric for each sample of the batch
+            is rescaled by the corresponding element in the `sample_weight`
+            vector. If the shape of `sample_weight` is `[batch_size, d0, ..
+            dN-1]` (or can be broadcasted to this shape), then each metric
+            element of `y_pred` is scaled by the corresponding value of
+            `sample_weight`. (Note on `dN-1`: all metric functions reduce by 1
+            dimension, usually the last axis (-1)).
 
         Returns:
           Update op.
@@ -680,7 +689,7 @@ class MeanMetricWrapper(Mean):
         [
             y_true,
             y_pred,
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [y_true, y_pred], sample_weight
         )
         y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
@@ -699,8 +708,8 @@ class MeanMetricWrapper(Mean):
         if (
             type(self) is MeanMetricWrapper
         ):  # pylint: disable=unidiomatic-typecheck
-            # Only include function argument when the object is a MeanMetricWrapper
-            # and not a subclass.
+            # Only include function argument when the object is a
+            # MeanMetricWrapper and not a subclass.
             config["fn"] = self._fn
 
         for k, v in self._fn_kwargs.items():
@@ -733,8 +742,8 @@ class MeanTensor(Metric):
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
       shape: (Optional) A list of integers, a tuple of integers, or a 1-D Tensor
-        of type int32. If not specified, the shape is inferred from the values at
-        the first call of update_state.
+        of type int32. If not specified, the shape is inferred from the values
+        at the first call of update_state.
 
     Standalone usage:
 
@@ -808,7 +817,8 @@ class MeanTensor(Metric):
         elif values.shape != self._shape:
             raise ValueError(
                 "MeanTensor input values must always have the same "
-                f"shape. Expected shape (set during the first call): {self._shape}. "
+                f"shape. Expected shape (set during the first call): "
+                f"{self._shape}. "
                 f"Got: {values.shape}."
             )
 
@@ -847,8 +857,9 @@ class MeanTensor(Metric):
     def result(self):
         if not self._built:
             raise ValueError(
-                "MeanTensor does not have any value yet. Please call the MeanTensor "
-                "instance or use `.update_state(value)` before retrieving the result."
+                "MeanTensor does not have any value yet. Please call the "
+                "MeanTensor instance or use `.update_state(value)` "
+                "before retrieving the result."
             )
         return tf.math.divide_no_nan(self.total, self.count)
 
@@ -870,8 +881,8 @@ class SumOverBatchSize(Reduce):
     over batch size which is an idempotent operation that simply divides `total`
     by `count`.
 
-    If `sample_weight` is `None`, weights default to 1.  Use `sample_weight` of 0
-    to mask values.
+    If `sample_weight` is `None`, weights default to 1.  Use `sample_weight` of
+    0 to mask values.
     """
 
     def __init__(self, name="sum_over_batch_size", dtype=None):

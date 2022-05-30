@@ -14,12 +14,12 @@
 # ==============================================================================
 """Tests for Adadelta Optimizer."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras.optimizers.optimizer_v2 import adadelta
+from keras.testing_infra import test_combinations
 
 _DATA_TYPES = [tf.half, tf.float32, tf.float64, tf.complex64, tf.complex128]
 
@@ -49,8 +49,8 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                     epsilon = 1e-8
                     if use_callable_params:
                         adadelta_opt = adadelta.Adadelta(
-                            learning_rate=lambda: lr,  # pylint: disable=cell-var-from-loop
-                            rho=lambda: rho,  # pylint: disable=cell-var-from-loop
+                            learning_rate=lambda: lr,
+                            rho=lambda: rho,
                             epsilon=epsilon,
                         )  # pylint: disable=cell-var-from-loop
                     else:

@@ -15,11 +15,13 @@
 """Keras cropping layer for 1D input."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

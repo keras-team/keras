@@ -14,19 +14,20 @@
 # ==============================================================================
 """Keras training and evaluation routines for eager execution."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=protected-access
-
-import numpy as np
-
-from tensorflow.python.eager.backprop import GradientTape
 from keras import backend
 from keras.engine import training_utils
 from keras.engine import training_utils_v1
 from keras.mixed_precision import loss_scale_optimizer
 from keras.utils import losses_utils
+
+# isort: off
+from tensorflow.python.eager.backprop import GradientTape
 from tensorflow.python.platform import tf_logging as logging
+
+# pylint: disable=protected-access
 
 
 def _eager_loss_fn(outputs, targets, loss_fn, output_name):
@@ -53,8 +54,8 @@ def _eager_metrics_fn(model, outputs, targets, sample_weights=None, masks=None):
     # Invoke all(weighted and unweighted) metrics.
     metric_results = []
     if targets:
-        # Insert None values corresponding to the targets that need to be skipped
-        # on the model.
+        # Insert None values corresponding to the targets that need to be
+        # skipped on the model.
         if len(model._targets) != len(targets):
             new_targets = [
                 None if t is None else targets.pop(0) for t in model._targets
@@ -103,8 +104,8 @@ def _model_loss(
 
     Returns:
        Returns the model output, total loss, loss value calculated using the
-       specified loss function and masks for each output. The total loss includes
-       regularization losses and applies masking and sample weighting
+       specified loss function and masks for each output. The total loss
+       includes regularization losses and applies masking and sample weighting
        to the loss value.
     """
     # TODO(psv): Dedup code here with graph mode prepare_total_loss() fn.
@@ -176,7 +177,8 @@ def _model_loss(
                     if weights is None:
                         weights = mask
                     else:
-                        # Update dimensions of weights to match with mask if possible.
+                        # Update dimensions of weights to match with mask if
+                        # possible.
                         weights = tf.cast(weights, outs[i].dtype)
                         (
                             mask,
@@ -196,8 +198,8 @@ def _model_loss(
                     )
                     loss_reduction = loss_fn.reduction
 
-                    # `AUTO` loss reduction defaults to `SUM_OVER_BATCH_SIZE` for all
-                    # compile use cases.
+                    # `AUTO` loss reduction defaults to `SUM_OVER_BATCH_SIZE`
+                    # for all compile use cases.
                     if loss_reduction == losses_utils.ReductionV2.AUTO:
                         loss_reduction = (
                             losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE
@@ -212,7 +214,8 @@ def _model_loss(
                     # Here we assume that the class takes care of loss reduction
                     # because if this class returns a vector value we cannot
                     # differentiate between use case where a custom optimizer
-                    # expects a vector loss value vs unreduced per-sample loss value.
+                    # expects a vector loss value vs unreduced per-sample loss
+                    # value.
                     output_loss = loss_fn(
                         targets[i], outs[i], sample_weight=weights
                     )
@@ -222,8 +225,8 @@ def _model_loss(
 
             # If the number of outputs is 1 then we don't append the loss metric
             # associated with each model output. When there are multiple outputs
-            # associated with a model, each output's loss is calculated and returned
-            # as part of the loss_metrics.
+            # associated with a model, each output's loss is calculated and
+            # returned as part of the loss_metrics.
             if len(model.outputs) > 1:
                 # Keep track of the stateful output loss result.
                 output_losses.append(output_loss_metrics[i](output_loss))
@@ -263,9 +266,9 @@ def _process_single_batch(
         output_loss_metrics: List of metrics that are used to aggregated output
           loss values.
         sample_weights: Optional list of sample weight arrays.
-        training: The boolean represents if the weights of the model are updated.
-                'fit' methods will set this to True while 'evaluate' methods will
-                set this to False.
+        training: The boolean represents if the weights of the model are
+          updated. 'fit' methods will set this to True while 'evaluate' methods
+          will set this to False.
 
     Returns:
         output of the model, total loss, the loss and the mask
@@ -295,8 +298,8 @@ def _process_single_batch(
         if training:
             trainable_weights = model.trainable_weights
             if trainable_weights:
-                # TODO(tanzheny) b/132690565: Provide mechanism for user to override
-                # model.train_on_batch.
+                # TODO(tanzheny) b/132690565: Provide mechanism for user to
+                # override model.train_on_batch.
                 if hasattr(model, "_backwards"):
                     model._backwards(tape, scaled_total_loss)
                 else:

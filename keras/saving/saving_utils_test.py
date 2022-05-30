@@ -14,20 +14,19 @@
 # ==============================================================================
 """Tests for saving utility functions."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras import backend
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.engine import sequential
 from keras.feature_column import dense_features
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.saving import saving_utils
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 class TraceModelCallTest(test_combinations.TestCase):
@@ -138,8 +137,8 @@ class TraceModelCallTest(test_combinations.TestCase):
 
         fn = saving_utils.trace_model_call(model)
         # tf.function requires that the input structures match when calling a
-        # ConcreteFunction. For some reason V1 models defines the inputs as a list,
-        # while V2 models sets the inputs as a tuple.
+        # ConcreteFunction. For some reason V1 models defines the inputs as a
+        # list, while V2 models sets the inputs as a tuple.
         if (
             not tf.executing_eagerly()
             and test_utils.get_model_type() != "functional"
@@ -454,7 +453,8 @@ class UnbuiltModelSavingErrorMessageTest(test_combinations.TestCase):
         # Forward pass not called yet. Input shape not available and thus error.
         with self.assertRaisesRegex(
             ValueError,
-            "Model.*cannot be saved.*specify an input shape either by calling.*",
+            "Model.*cannot be saved."
+            "*specify an input shape either by calling.*",
         ):
             model.save(os.path.join(self.get_temp_dir(), "my_saved_model"))
 
@@ -497,9 +497,9 @@ class UnbuiltModelSavingErrorMessageTest(test_combinations.TestCase):
         subclassed_model.fit(x, y, epochs=1)
 
         # Saving of this subclassed model is supposed to raise an error, even if
-        # `fit` has been called. This is because the model does not have `call()`
-        # overridden. Forward pass using `layer.__call__` works for training, but
-        # saving requires that `call()` be used.
+        # `fit` has been called. This is because the model does not have
+        # `call()` overridden. Forward pass using `layer.__call__` works for
+        # training, but saving requires that `call()` be used.
         with self.assertRaisesRegex(
             ValueError,
             r"Model.*cannot be saved.*as opposed to `model.call\(\).*",
@@ -537,10 +537,11 @@ class UnbuiltModelSavingErrorMessageTest(test_combinations.TestCase):
         subclassed_model.fit(x, y, epochs=1)
 
         # Saving of this subclassed model is supposed to raise an error, even if
-        # `fit` has been called. This is because the model has `call()` overridden,
-        # but the forward pass uses `Model.call` as opposed to `Model.__call__`, and
-        # as a result the `Model` is not really built. The error message hints the
-        # user to use `Model.__call__`, i.e., `Model(inputs)` instead.
+        # `fit` has been called. This is because the model has `call()`
+        # overridden, but the forward pass uses `Model.call` as opposed to
+        # `Model.__call__`, and as a result the `Model` is not really built. The
+        # error message hints the user to use `Model.__call__`, i.e.,
+        # `Model(inputs)` instead.
         with self.assertRaisesRegex(
             ValueError,
             r"Model.*cannot be saved.*as opposed to `model.call\(\).*",

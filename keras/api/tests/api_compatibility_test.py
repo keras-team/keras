@@ -27,18 +27,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import argparse
 import os
 import re
 import sys
 
 import six
+import tensorflow as tf
 
+# isort: off
 from google.protobuf import message
 from google.protobuf import text_format
-
 from tensorflow.python.lib.io import file_io
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.tools.api.lib import api_objects_pb2
@@ -47,7 +46,6 @@ from tensorflow.tools.api.lib import (
 )
 from tensorflow.tools.common import public_api
 from tensorflow.tools.common import traverse
-
 
 # FLAGS defined at the bottom:
 FLAGS = None
@@ -177,7 +175,8 @@ def _FilterGoldenProtoDict(golden_proto_dict, omit_golden_symbols_map):
                 filtered_members = [
                     m for m in members if m.name not in symbol_list
                 ]
-                # Two steps because protobuf repeated fields disallow slice assignment.
+                # Two steps because protobuf repeated fields disallow slice
+                # assignment.
                 del members[:]
                 members.extend(filtered_members)
     return filtered_proto_dict
@@ -207,11 +206,12 @@ class ApiCompatibilityTest(tf.test.TestCase):
         """Diff given dicts of protobufs and report differences a readable way.
 
         Args:
-          expected_dict: a dict of TFAPIObject protos constructed from golden files.
-          actual_dict: a ict of TFAPIObject protos constructed by reading from the
-            TF package linked to the test.
-          verbose: Whether to log the full diffs, or simply report which files were
-            different.
+          expected_dict: a dict of TFAPIObject protos constructed from golden
+            files.
+          actual_dict: a ict of TFAPIObject protos constructed by reading from
+            the TF package linked to the test.
+          verbose: Whether to log the full diffs, or simply report which files
+            were different.
           update_goldens: Whether to update goldens when there are diffs found.
           additional_missing_object_message: Message to print when a symbol is
             missing.
@@ -253,8 +253,8 @@ class ApiCompatibilityTest(tf.test.TestCase):
                     diff_message = "Change detected in python object: %s." % key
                     verbose_diff_message = str(e)
 
-            # All difference cases covered above. If any difference found, add to the
-            # list.
+            # All difference cases covered above. If any difference found, add
+            # to the list.
             if diff_message:
                 diffs.append(diff_message)
                 verbose_diffs.append(verbose_diff_message)
@@ -277,8 +277,9 @@ class ApiCompatibilityTest(tf.test.TestCase):
                     filepath = _KeyToFilePath(key, api_version)
                     tf.io.gfile.remove(filepath)
 
-                # If the files are only in actual (current library), these are new
-                # modules. Write them to files. Also record all updates in files.
+                # If the files are only in actual (current library), these are
+                # new modules. Write them to files. Also record all updates in
+                # files.
                 for key in only_in_actual | set(updated_keys):
                     filepath = _KeyToFilePath(key, api_version)
                     file_io.write_string_to_file(
@@ -336,7 +337,8 @@ class ApiCompatibilityTest(tf.test.TestCase):
         )
 
         # Diff them. Do not fail if called with update.
-        # If the test is run to update goldens, only report diffs but do not fail.
+        # If the test is run to update goldens, only report diffs but do not
+        # fail.
         self._AssertProtoDictEquals(
             golden_proto_dict,
             proto_dict,

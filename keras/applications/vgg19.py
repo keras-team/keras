@@ -28,8 +28,9 @@ from keras.engine import training
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
-from tensorflow.python.util.tf_export import keras_export
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 WEIGHTS_PATH = (
     "https://storage.googleapis.com/tensorflow/keras-applications/"
@@ -74,8 +75,8 @@ def VGG19(
     For VGG19, call `tf.keras.applications.vgg19.preprocess_input` on your
     inputs before passing them to the model.
     `vgg19.preprocess_input` will convert the input images from RGB to BGR,
-    then will zero-center each color channel with respect to the ImageNet dataset,
-    without scaling.
+    then will zero-center each color channel with respect to the ImageNet
+    dataset, without scaling.
 
     Args:
       include_top: whether to include the 3 fully-connected

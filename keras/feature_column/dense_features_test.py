@@ -18,16 +18,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
+from keras.feature_column import dense_features as df
+from keras.testing_infra import test_combinations
+
+# isort: off
 from tensorflow.python.eager import backprop
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from keras.testing_infra import test_combinations
-from keras.feature_column import dense_features as df
 
 
 def _initialized_session(config=None):
@@ -86,8 +88,8 @@ class DenseFeaturesTest(test_combinations.TestCase):
         # Check that only one variable was created.
         self.assertEqual(1, len(variables))
 
-        # Check that invoking dense_features on the same features does not create
-        # additional variables
+        # Check that invoking dense_features on the same features does not
+        # create additional variables
         _ = dense_features(features)
         self.assertEqual(1, len(variables))
         self.assertIs(variables[0], dense_features.variables[0])
@@ -137,8 +139,8 @@ class DenseFeaturesTest(test_combinations.TestCase):
         # Check that only one variable was created.
         self.assertEqual(2, len(variables))
 
-        # Check that invoking dense_features on the same features does not create
-        # additional variables
+        # Check that invoking dense_features on the same features does not
+        # create additional variables
         _ = dense_features(features)
         self.assertEqual(2, len(variables))
         self.assertIs(variables[0], dense_features.variables[0])
@@ -894,7 +896,8 @@ class EmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
         expected_lookups = (
             # example 0, ids [2], embedding = [7, 11]
             (7.0, 11.0),
-            # example 1, ids [0, 1], embedding = mean([1, 2] + [3, 5]) = [2, 3.5]
+            # example 1, ids [0, 1], embedding = mean([1, 2] + [3, 5]) = [2,
+            # 3.5]
             (2.0, 3.5),
             # example 2, ids [], embedding = [0, 0]
             (0.0, 0.0),
@@ -928,8 +931,10 @@ class EmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
         if partition_variables:
             self.assertCountEqual(
                 (
-                    "vars/dense_features/aaa_embedding/embedding_weights/part_0:0",
-                    "vars/dense_features/aaa_embedding/embedding_weights/part_1:0",
+                    "vars/dense_features/aaa_embedding/embedding_weights/"
+                    "part_0:0",
+                    "vars/dense_features/aaa_embedding/embedding_weights/"
+                    "part_1:0",
                 ),
                 tuple([v.name for v in global_vars]),
             )
@@ -946,8 +951,10 @@ class EmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
         if partition_variables:
             self.assertCountEqual(
                 (
-                    "vars/dense_features/aaa_embedding/embedding_weights/part_0:0",
-                    "vars/dense_features/aaa_embedding/embedding_weights/part_1:0",
+                    "vars/dense_features/aaa_embedding/embedding_weights/"
+                    "part_0:0",
+                    "vars/dense_features/aaa_embedding/embedding_weights/"
+                    "part_1:0",
                 ),
                 tuple([v.name for v in trainable_vars]),
             )
@@ -1012,7 +1019,8 @@ class EmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
         expected_lookups = (
             # example 0, ids [2], embedding = [7, 11]
             (7.0, 11.0),
-            # example 1, ids [0, 1], embedding = mean([1, 2] + [3, 5]) = [2, 3.5]
+            # example 1, ids [0, 1], embedding = mean([1, 2] + [3, 5]) = [2,
+            # 3.5]
             (2.0, 3.5),
             # example 2, ids [], embedding = [0, 0]
             (0.0, 0.0),
@@ -1328,8 +1336,8 @@ class SequenceFeatureColumnsTest(tf.test.TestCase):
         input_layer = df.DenseFeatures([embedding_column_a])
         with self.assertRaisesRegex(
             ValueError,
-            r"In embedding_column: aaa_embedding\. categorical_column must not be "
-            r"of type SequenceCategoricalColumn\.",
+            r"In embedding_column: aaa_embedding\. categorical_column must not "
+            r"be of type SequenceCategoricalColumn\.",
         ):
             _ = input_layer({"aaa": sparse_input})
 
@@ -1356,8 +1364,8 @@ class SequenceFeatureColumnsTest(tf.test.TestCase):
         input_layer = df.DenseFeatures([indicator_column_a])
         with self.assertRaisesRegex(
             ValueError,
-            r"In indicator_column: aaa_indicator\. categorical_column must not be "
-            r"of type SequenceCategoricalColumn\.",
+            r"In indicator_column: aaa_indicator\. categorical_column must not "
+            r"be of type SequenceCategoricalColumn\.",
         ):
             _ = input_layer({"aaa": sparse_input})
 

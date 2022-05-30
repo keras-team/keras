@@ -19,9 +19,11 @@ Attention is formed by three tensors: Query, Key and Value.
 """
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from keras.layers.attention.base_dense_attention import BaseDenseAttention
 import tensorflow.compat.v2 as tf
 
+from keras.layers.attention.base_dense_attention import BaseDenseAttention
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -29,8 +31,8 @@ from tensorflow.python.util.tf_export import keras_export
 class Attention(BaseDenseAttention):
     """Dot-product attention layer, a.k.a. Luong-style attention.
 
-    Inputs are `query` tensor of shape `[batch_size, Tq, dim]`, `value` tensor of
-    shape `[batch_size, Tv, dim]` and `key` tensor of shape
+    Inputs are `query` tensor of shape `[batch_size, Tq, dim]`, `value` tensor
+    of shape `[batch_size, Tv, dim]` and `key` tensor of shape
     `[batch_size, Tv, dim]`. The calculation follows the steps:
 
     1. Calculate scores with shape `[batch_size, Tq, Tv]` as a `query`-`key` dot
@@ -44,10 +46,10 @@ class Attention(BaseDenseAttention):
     Args:
       use_scale: If `True`, will create a scalar variable to scale the attention
         scores.
-      causal: Boolean. Set to `True` for decoder self-attention. Adds a mask such
-        that position `i` cannot attend to positions `j > i`. This prevents the
-        flow of information from the future towards the past.
-        Defaults to `False`.
+      causal: Boolean. Set to `True` for decoder self-attention. Adds a mask
+        such that position `i` cannot attend to positions `j > i`. This prevents
+        the flow of information from the future towards the past.  Defaults to
+        `False`.
       dropout: Float between 0 and 1. Fraction of the units to drop for the
         attention scores. Defaults to 0.0.
       score_mode: Function to use to compute attention scores, one of
@@ -142,7 +144,8 @@ class Attention(BaseDenseAttention):
             )
 
     def build(self, input_shape):
-        """Creates variable when `use_scale` is True or `score_mode` is `concat`."""
+        """Creates variable when `use_scale` is True or `score_mode` is
+        `concat`."""
         if self.use_scale:
             self.scale = self.add_weight(
                 name="scale",

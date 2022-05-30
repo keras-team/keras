@@ -15,11 +15,13 @@
 """Contains the SpatialDropout3D layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine.input_spec import InputSpec
 from keras.layers.regularization.dropout import Dropout
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -37,11 +39,12 @@ class SpatialDropout3D(Dropout):
 
     Args:
       rate: Float between 0 and 1. Fraction of the input units to drop.
-      data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode,
-        the channels dimension (the depth) is at index 1, in 'channels_last' mode
-        is it at index 4. It defaults to the `image_data_format` value found in
-        your Keras config file at `~/.keras/keras.json`. If you never set it, then
-        it will be "channels_last".
+      data_format: 'channels_first' or 'channels_last'. In 'channels_first'
+        mode, the channels dimension (the depth) is at index 1, in
+        'channels_last' mode is it at index 4. It defaults to the
+        `image_data_format` value found in your Keras config file at
+        `~/.keras/keras.json`. If you never set it, then it will be
+        "channels_last".
     Call arguments:
       inputs: A 5D tensor.
       training: Python boolean indicating whether the layer should behave in

@@ -14,18 +14,17 @@
 # ==============================================================================
 """Correctness tests for tf.keras DNN model using DistributionStrategy."""
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras import backend
-from keras.testing_infra import test_utils
 from keras.distribute import keras_correctness_test_base
 from keras.distribute import strategy_combinations
 from keras.optimizers.optimizer_v2 import (
     gradient_descent as gradient_descent_keras,
 )
+from keras.testing_infra import test_utils
 
 
 def all_strategy_combinations_with_eager_and_graph_modes():
@@ -116,7 +115,7 @@ class TestDistributionStrategyDnnCorrectness(
         self.run_correctness_test(distribution, use_numpy, use_validation_data)
 
     @tf.__internal__.distribute.combinations.generate(
-        keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()
+        keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()  # noqa: E501
         + keras_correctness_test_base.multi_worker_mirrored_eager()
     )
     def test_dnn_correctness_with_partial_last_batch_eval(
@@ -130,7 +129,7 @@ class TestDistributionStrategyDnnCorrectness(
         )
 
     @tf.__internal__.distribute.combinations.generate(
-        keras_correctness_test_base.strategy_minus_tpu_and_input_config_combinations_eager()
+        keras_correctness_test_base.strategy_minus_tpu_and_input_config_combinations_eager()  # noqa: E501
         + keras_correctness_test_base.multi_worker_mirrored_eager()
     )
     def test_dnn_correctness_with_partial_last_batch(
@@ -313,8 +312,8 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
         ):
             with self.assertRaisesRegex(
                 ValueError,
-                "Expected `model` argument to be a functional `Model` instance, "
-                "but got a subclassed model instead.",
+                "Expected `model` argument to be a functional `Model` "
+                "instance, but got a subclassed model instead.",
             ):
                 self.run_correctness_test(
                     distribution, use_numpy, use_validation_data
@@ -341,8 +340,8 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
         elif backend.is_tpu_strategy(distribution):
             with self.assertRaisesRegex(
                 ValueError,
-                "Expected `model` argument to be a functional `Model` instance, "
-                "but got a subclassed model instead.",
+                "Expected `model` argument to be a functional `Model` "
+                "instance, but got a subclassed model instead.",
             ):
                 self.run_dynamic_lr_test(distribution)
         else:
@@ -355,7 +354,7 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
                 self.run_dynamic_lr_test(distribution)
 
     @tf.__internal__.distribute.combinations.generate(
-        keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()
+        keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()  # noqa: E501
     )
     def test_dnn_correctness_with_partial_last_batch_eval(
         self, distribution, use_numpy, use_validation_data

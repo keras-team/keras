@@ -14,12 +14,15 @@
 # =============================================================================
 """Tests for tensorflow.python.training.saver.py."""
 
-import tensorflow.compat.v2 as tf
-
 import functools
 import os
+
+import tensorflow.compat.v2 as tf
+
 from keras.engine import training
 from keras.layers import core
+
+# isort: off
 from tensorflow.python.training.tracking import (
     util as trackable_utils,
 )

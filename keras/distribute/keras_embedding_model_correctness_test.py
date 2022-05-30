@@ -14,9 +14,8 @@
 # ==============================================================================
 """Correctness test for tf.keras Embedding models using DistributionStrategy."""
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.distribute import keras_correctness_test_base
@@ -26,7 +25,7 @@ from keras.optimizers.optimizer_v2 import (
 
 
 class DistributionStrategyEmbeddingModelCorrectnessTest(
-    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase
+    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase  # noqa: E501
 ):
     def get_model(
         self,
@@ -84,7 +83,7 @@ class DistributionStrategyEmbeddingModelCorrectnessTest(
 
 
 class DistributionStrategySiameseEmbeddingModelCorrectnessTest(
-    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase
+    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase  # noqa: E501
 ):
     def get_model(
         self,
@@ -123,8 +122,8 @@ class DistributionStrategySiameseEmbeddingModelCorrectnessTest(
             if initial_weights:
                 model.set_weights(initial_weights)
 
-            # TODO(b/130808953): Switch back to the V1 optimizer after global_step
-            # is made mirrored.
+            # TODO(b/130808953): Switch back to the V1 optimizer after
+            # global_step is made mirrored.
             model.compile(
                 optimizer=gradient_descent_keras.SGD(learning_rate=0.1),
                 loss="mse",

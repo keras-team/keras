@@ -18,18 +18,20 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import platform
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
+from keras.legacy_tf_layers import core as core_layers
+from keras.testing_infra import test_combinations
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from keras.testing_infra import test_combinations
-from keras.legacy_tf_layers import core as core_layers
 from tensorflow.python.ops import variable_scope
 
 
@@ -350,7 +352,8 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
             self.evaluate(tf.compat.v1.global_variables_initializer())
             weights = _get_variable_dict_from_varstore()
             self.assertEqual(len(weights), 2)
-            # Check that the matrix weights got initialized to ones (from scope).
+            # Check that the matrix weights got initialized to ones (from
+            # scope).
             self.assertAllClose(
                 weights["scope/dense/kernel"].read_value(), np.ones((3, 2))
             )

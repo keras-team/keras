@@ -14,11 +14,10 @@
 # ==============================================================================
 """Tests for Keras Premade Linear models."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras import losses
 from keras.engine import input_layer
 from keras.engine import sequential
@@ -27,6 +26,7 @@ from keras.feature_column import dense_features_v2
 from keras.layers import core
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.premade_models import linear
+from keras.testing_infra import test_combinations
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)

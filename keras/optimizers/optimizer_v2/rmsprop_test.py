@@ -14,21 +14,23 @@
 # ==============================================================================
 """Tests for rmsprop."""
 
-import tensorflow.compat.v2 as tf
-
 import copy
 import itertools
 import math
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
+from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.schedules import learning_rate_schedule
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
-from keras.optimizers.schedules import learning_rate_schedule
-from keras.optimizers.optimizer_v2 import rmsprop
 
 _DATA_TYPES = [tf.half, tf.float32, tf.float64, tf.complex64, tf.complex128]
 
@@ -115,7 +117,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             epsilon,
             centered,
         ) in _TESTPARAMS:
-            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():
+            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():  # noqa: E501
                 # Initialize variables for numpy implementation.
                 var0_np = np.array([1.0, 2.0], dtype=dtype.as_numpy_dtype)
                 grads0_np = np.array([0.1, 0.2], dtype=dtype.as_numpy_dtype)
@@ -473,7 +475,8 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                     )  # pylint: disable=cell-var-from-loop
                     return pred * pred
 
-                # loss = lambda: pred * pred  # pylint: disable=cell-var-from-loop
+                # loss = lambda: pred * pred  # pylint:
+                # disable=cell-var-from-loop
                 sgd_op = rmsprop.RMSprop(
                     learning_rate=1.0,
                     rho=0.0,
@@ -503,7 +506,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             epsilon,
             centered,
         ) in _TESTPARAMS:
-            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():
+            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():  # noqa: E501
                 # Initialize variables for numpy implementation.
                 var0_np = np.array([1.0, 2.0], dtype=dtype.as_numpy_dtype)
                 grads0_np = np.array([0.1], dtype=dtype.as_numpy_dtype)
@@ -674,7 +677,8 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 ),
                 self.evaluate(var1),
             )
-            # Step 2: the root mean square accumulators contain the previous update.
+            # Step 2: the root mean square accumulators contain the previous
+            # update.
             opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
             # Check the parameters.
             self.assertAllCloseAccordingToType(
@@ -732,7 +736,8 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
         opt = rmsprop.RMSprop(learning_rate=1.0, momentum=0.2, centered=False)
         opt.minimize(lambda: v1 + v2, var_list=[v1, v2])
-        # There should be iteration, and two unique slot variables for v1 and v2.
+        # There should be iteration, and two unique slot variables for v1 and
+        # v2.
         self.assertLen(set({id(v) for v in opt.variables()}), 5)
         self.assertEqual(
             self.evaluate(opt.variables()[0]), self.evaluate(opt.iterations)
@@ -740,7 +745,8 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
         opt = rmsprop.RMSprop(learning_rate=1.0, momentum=0.2, centered=True)
         opt.minimize(lambda: v1 + v2, var_list=[v1, v2])
-        # There should be iteration, and three unique slot variables for v1 and v2
+        # There should be iteration, and three unique slot variables for v1 and
+        # v2
         self.assertLen(set({id(v) for v in opt.variables()}), 7)
         self.assertEqual(
             self.evaluate(opt.variables()[0]), self.evaluate(opt.iterations)
@@ -784,11 +790,11 @@ class SlotColocationTest(tf.test.TestCase, parameterized.TestCase):
 
         # Run 1 step through optimizer on GPU.
         # Slot variables are created the first time optimizer is used on some
-        # variable. This tests that slot variables will be colocated with the base
-        # variable.
+        # variable. This tests that slot variables will be colocated with the
+        # base variable.
         with tf.device("/device:GPU:0"):
-            # Note that for eager execution, minimize expects a function instead of a
-            # Tensor.
+            # Note that for eager execution, minimize expects a function instead
+            # of a Tensor.
             opt_op = opt.minimize(loss, [var0, var1])
             self.evaluate(tf.compat.v1.global_variables_initializer())
             self.evaluate(opt_op)

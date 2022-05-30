@@ -14,8 +14,6 @@
 # ==============================================================================
 """Test multi-worker Keras."""
 
-import tensorflow.compat.v2 as tf
-
 import collections
 import copy
 import functools
@@ -24,16 +22,16 @@ import os
 import sys
 import threading
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-
 
 import keras
 from keras import backend
 from keras import callbacks
 from keras import metrics as metrics_module
 from keras import models
-from keras.optimizers import optimizer_v1
 from keras.distribute import multi_worker_testing_utils
+from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import rmsprop
 from keras.utils import kpl_test_utils
 
@@ -70,15 +68,16 @@ def _clone_and_build_model(model, strategy):
 
 # TODO(b/123918215): Possibly merge this Callback with keras_test.Counter.
 class MultiWorkerVerificationCallback(callbacks.Callback):
-    """MultiWorkerVerificationCallback verifies the callbacks in multi-worker scheme.
+    """MultiWorkerVerificationCallback verifies the callbacks in multi-worker
+    scheme.
 
     This Callback is intended to be used for verifying the callback is indeed
     called the correct number of times in various task types.
 
     Attributes:
       _task_dict: A nested dictionary storing the number of times a callback has
-                  been called in specific task type, task index, and method name.
-                  Look up structure is
+                  been called in specific task type, task index, and method
+                  name.  Look up structure is
                   task_name -> task_id -> tracking_method_name -> invoke_count
                   For example, a _task_dict of
                   {
@@ -99,8 +98,8 @@ class MultiWorkerVerificationCallback(callbacks.Callback):
                            }
                       }
                   }
-                  indicates the ps task has 'on_epoch_begin' called twice on each
-                  of the two indices, and likewise for worker task.
+                  indicates the ps task has 'on_epoch_begin' called twice on
+                  each of the two indices, and likewise for worker task.
     """
 
     # TODO(rchao): Add other method calls to verify.
@@ -110,8 +109,10 @@ class MultiWorkerVerificationCallback(callbacks.Callback):
         """Initialize a MultiWorkerVerificationCallback.
 
         Args:
-          num_epoch: Number of epochs this Callback is expected to be called for.
-          num_worker: Number of workers this Callback is expected to be called from.
+          num_epoch: Number of epochs this Callback is expected to be called
+            for.
+          num_worker: Number of workers this Callback is expected to be called
+            from.
         """
         super().__init__()
         self._num_epoch = num_epoch
@@ -163,9 +164,9 @@ class MultiWorkerVerificationCallback(callbacks.Callback):
         }
         assert self._is_between_graph is not None
         if self._is_between_graph:
-            # TODO(b/124171024): In between-graph replication, by default only the
-            # chief calls callback. Fix this test to cover that, as well as the rare
-            # cases where all workers call.
+            # TODO(b/124171024): In between-graph replication, by default only
+            # the chief calls callback. Fix this test to cover that, as well as
+            # the rare cases where all workers call.
             worker_call_count = {
                 i: method_count_dict for i in range(0, self._num_worker)
             }
@@ -193,8 +194,8 @@ class KerasMultiWorkerTestIndependentWorker(
         tf.__internal__.test.combinations.combine(
             mode=["eager"],
             strategy=[
-                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
-                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,  # noqa: E501
             ],
         )
     )
@@ -235,7 +236,7 @@ class KPLMultiWorkerTest(tf.test.TestCase, parameterized.TestCase):
             mode=["eager"],
             use_adapt=[False],  # TODO(b/180742437): Add tests for using adapt.
             strategy=[
-                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,  # noqa: E501
                 # TODO(b/183956672): Re-enable
                 # strategy_combinations.multi_worker_mirrored_2x2_gpu,
             ],
@@ -299,8 +300,8 @@ class KPLMultiWorkerTest(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == "__main__":
-    # Enable manual variable initialization to make sure variables are initialized
-    # by `init_restore_or_wait_for_variables`.
+    # Enable manual variable initialization to make sure variables are
+    # initialized by `init_restore_or_wait_for_variables`.
     backend.manual_variable_initialization(True)
     with tf.compat.v1.test.mock.patch.object(sys, "exit", os._exit):
         tf.__internal__.distribute.multi_process_runner.test_main()

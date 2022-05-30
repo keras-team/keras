@@ -20,13 +20,11 @@ To add a new model for memory profile:
 3. Add the model function to the dict `models`.
 """
 
+import numpy as np
 import tensorflow.compat.v2 as tf
-
 from absl import app
 from absl import flags
-
 from absl import logging
-import numpy as np
 
 try:
     import memory_profiler  # pylint:disable=g-import-not-at-top

@@ -15,7 +15,6 @@
 """Utility functions for tests using TPUStrategy."""
 
 import tensorflow.compat.v2 as tf
-
 from absl import flags
 
 FLAGS = flags.FLAGS

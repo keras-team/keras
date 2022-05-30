@@ -39,9 +39,10 @@ python efficientnet_weight_update_util.py --model b3 --notop \
 import argparse
 import warnings
 
-from keras.utils import io_utils
 import tensorflow.compat.v2 as tf
 from tensorflow.keras.applications import efficientnet
+
+from keras.utils import io_utils
 
 
 def write_ckpt_to_h5(path_h5, path_ckpt, keras_model, use_ema=True):

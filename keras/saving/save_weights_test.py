@@ -14,21 +14,20 @@
 # ,============================================================================
 """Tests for model saving in the HDF5 format."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 import shutil
 import uuid
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
-from keras.optimizers import optimizer_v1
-from keras.testing_infra import test_utils
 from keras.engine import training
+from keras.optimizers import optimizer_v1
 from keras.saving import hdf5_format
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 try:
     import h5py  # pylint:disable=g-import-not-at-top
@@ -389,8 +388,8 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
             )
             with self.assertRaises(
                 ValueError,
-                msg="Shape mismatch in layer #0 (named d1) for weight d1_1/kernel:0. "
-                "Weight expects shape (3, 10). "
+                msg="Shape mismatch in layer #0 (named d1) for weight "
+                "d1_1/kernel:0. Weight expects shape (3, 10). "
                 "Received saved weight with shape (3, 5)",
             ):
                 hdf5_format.load_weights_from_hdf5_group_by_name(f_model, model)
@@ -538,8 +537,8 @@ class TestWeightSavingAndLoadingTFFormat(
             model.load_weights(prefix)
             self.assertAllClose(ref_y_before_train, self.evaluate(model(x)))
 
-            # Test restore-on-create if this is a subclassed Model (graph Networks
-            # will have already created their variables).
+            # Test restore-on-create if this is a subclassed Model (graph
+            # Networks will have already created their variables).
             load_model = make_model_fn()
             load_model.load_weights(prefix)
             self.assertAllClose(
@@ -603,7 +602,8 @@ class TestWeightSavingAndLoadingTFFormat(
             second_model(x)
             status.run_restore_ops()
             second_model.save_weights(prefix)
-            # Check that the second model's checkpoint loads into the original model
+            # Check that the second model's checkpoint loads into the original
+            # model
             status = model.load_weights(prefix)
             status.run_restore_ops(session)
             y = self.evaluate(model(x))

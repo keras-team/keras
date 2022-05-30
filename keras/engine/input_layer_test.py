@@ -15,13 +15,16 @@
 """Tests for InputLayer construction."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import type_spec
+
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras.engine import functional
 from keras.engine import input_layer as input_layer_lib
 from keras.layers import core
 from keras.saving import model_config
+from keras.testing_infra import test_combinations
+
+# isort: off
+from tensorflow.python.framework import type_spec
 
 
 class TwoTensors(tf.__internal__.CompositeTensor):

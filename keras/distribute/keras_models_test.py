@@ -14,10 +14,9 @@
 # ==============================================================================
 """Tests for Keras high level APIs, e.g. fit, evaluate and predict."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras.distribute.strategy_combinations import all_strategies

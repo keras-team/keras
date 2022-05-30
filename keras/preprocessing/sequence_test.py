@@ -16,9 +16,10 @@
 
 import math
 
-from keras.preprocessing import sequence
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+from keras.preprocessing import sequence
 
 
 class TestSequence(tf.test.TestCase):
@@ -181,7 +182,8 @@ class TestSequence(tf.test.TestCase):
             self.assertEqual(expected, actual)
 
             if len(g) > 0:  # pylint: disable=g-explicit-length-test
-                # All elements in range(length, 10) should be used as current step
+                # All elements in range(length, 10) should be used as current
+                # step
                 expected = np.arange(length, 10).reshape(-1, 1)
 
                 y = np.concatenate([g[ix][1] for ix in range(len(g))], axis=0)

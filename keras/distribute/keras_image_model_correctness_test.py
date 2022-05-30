@@ -14,13 +14,13 @@
 # ==============================================================================
 """Correctness tests for tf.keras CNN models using DistributionStrategy."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
 import keras
-from keras.testing_infra import test_utils
 from keras.distribute import keras_correctness_test_base
 from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.testing_infra import test_utils
 
 
 @test_utils.run_all_without_tensor_float_32(
@@ -106,7 +106,7 @@ class DistributionStrategyCnnCorrectnessTest(
     ):
         if (
             distribution
-            == tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu
+            == tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu  # noqa: E501
         ):
             self.skipTest("b/183958183")
         self.run_correctness_test(distribution, use_numpy, use_validation_data)
@@ -140,9 +140,9 @@ class DistributionStrategyCnnCorrectnessTest(
         )
 
     @tf.__internal__.distribute.combinations.generate(
-        keras_correctness_test_base.all_strategy_and_input_config_combinations_eager()
+        keras_correctness_test_base.all_strategy_and_input_config_combinations_eager()  # noqa: E501
         + keras_correctness_test_base.multi_worker_mirrored_eager()
-        + keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()
+        + keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()  # noqa: E501
     )
     def test_cnn_correctness_with_partial_last_batch_eval(
         self, distribution, use_numpy, use_validation_data
@@ -156,9 +156,9 @@ class DistributionStrategyCnnCorrectnessTest(
         )
 
     @tf.__internal__.distribute.combinations.generate(
-        keras_correctness_test_base.all_strategy_and_input_config_combinations_eager()
+        keras_correctness_test_base.all_strategy_and_input_config_combinations_eager()  # noqa: E501
         + keras_correctness_test_base.multi_worker_mirrored_eager()
-        + keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()
+        + keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()  # noqa: E501
     )
     def test_cnn_with_batch_norm_correctness_and_partial_last_batch_eval(
         self, distribution, use_numpy, use_validation_data

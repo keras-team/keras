@@ -14,9 +14,9 @@
 # ==============================================================================
 """Tests for timeseries_dataset."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
 from keras.testing_infra import test_utils
 from keras.utils import timeseries_dataset
 
@@ -102,7 +102,8 @@ class TimeseriesDatasetTest(tf.test.TestCase):
             self.assertNotAllClose(x, np.arange(0, 5))
             self.assertAllClose(x[:, 0] * 2, y)
             first_seq = x
-        # Check that a new iteration with the same dataset yields different results
+        # Check that a new iteration with the same dataset yields different
+        # results
         for x, _ in dataset.take(1):
             self.assertNotAllClose(x, first_seq)
         # Check determism with same seed

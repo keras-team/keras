@@ -15,11 +15,13 @@
 """Keras upsampling layer for 1D inputs."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

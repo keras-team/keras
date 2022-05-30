@@ -14,10 +14,12 @@
 # ==============================================================================
 """RMSprop optimizer implementation."""
 
-from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
 
+from keras.optimizers.optimizer_experimental import optimizer
+from keras.utils import generic_utils
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

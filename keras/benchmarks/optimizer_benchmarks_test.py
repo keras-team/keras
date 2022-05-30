@@ -18,6 +18,8 @@ import tensorflow.compat.v2 as tf
 
 from keras.benchmarks import benchmark_util
 from keras.optimizers.optimizer_v2 import adam
+
+# isort: off
 from tensorflow.python.platform.benchmark import (
     ParameterizedBenchmark,
 )
@@ -62,7 +64,8 @@ class KerasOptimizerBenchmark(
 
         Args:
           optimizer: The optimizer instance to be benchmarked.
-          num_iters: The number of iterations to run for performance measurement.
+          num_iters: The number of iterations to run for performance
+            measurement.
         """
         model, train_x, train_y = bidirect_imdb_lstm_config()
         metrics, wall_time, extras = benchmark_util.measure_performance(

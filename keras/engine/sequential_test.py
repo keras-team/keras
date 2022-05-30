@@ -14,17 +14,18 @@
 # ==============================================================================
 """Tests specific to `Sequential` model."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 
 
 class TestSequential(test_combinations.TestCase):
@@ -547,7 +548,8 @@ class TestSequential(test_combinations.TestCase):
 class TestSequentialEagerIntegration(test_combinations.TestCase):
     @test_combinations.run_all_keras_modes
     def test_defun_on_call(self):
-        # Check that one can subclass Sequential and place the `call` in a `defun`.
+        # Check that one can subclass Sequential and place the `call` in a
+        # `defun`.
 
         class MySequential(keras.Sequential):
             def __init__(self, name=None):

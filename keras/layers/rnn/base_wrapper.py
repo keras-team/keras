@@ -23,6 +23,7 @@ import copy
 from keras.engine.base_layer import Layer
 from keras.utils import generic_utils
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -63,9 +64,7 @@ class Wrapper(Layer):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        from keras.layers import (
-            deserialize as deserialize_layer,
-        )  # pylint: disable=g-import-not-at-top
+        from keras.layers import deserialize as deserialize_layer
 
         # Avoid mutating the input dict
         config = copy.deepcopy(config)

@@ -20,10 +20,12 @@ from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
+from keras.legacy_tf_layers import pooling as pooling_layers
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from keras.legacy_tf_layers import pooling as pooling_layers
 
 
 class PoolingTest(tf.test.TestCase):

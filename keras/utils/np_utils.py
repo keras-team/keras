@@ -15,6 +15,8 @@
 """Numpy-related utilities."""
 
 import numpy as np
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

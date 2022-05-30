@@ -15,6 +15,8 @@
 """Optimizer utilities."""
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 
 
@@ -79,9 +81,9 @@ def filter_empty_gradients(grads_and_vars):
     if vars_with_empty_grads:
         logging.warning(
             (
-                "Gradients do not exist for variables %s when minimizing the loss. "
-                "If you're using `model.compile()`, did you forget to provide a `loss`"
-                "argument?"
+                "Gradients do not exist for variables %s when minimizing . "
+                "the lossIf you're using `model.compile()`, did you forget "
+                "to provide a `loss` argument?"
             ),
             ([v.name for v in vars_with_empty_grads]),
         )
@@ -130,7 +132,8 @@ def make_global_gradient_clipnorm_fn(clipnorm):
             ),
         ):
             raise ValueError(
-                "`global_clipnorm` is not supported with `CenteralStorageStrategy`. "
+                "`global_clipnorm` is not supported with "
+                "`CenteralStorageStrategy`. "
                 f"The strategy used is {tf.distribute.get_strategy()}."
             )
 

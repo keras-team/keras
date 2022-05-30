@@ -15,12 +15,13 @@
 """Contains the AlphaDropout layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine import base_layer
 from keras.utils import tf_utils
 
-import tensorflow.compat.v2 as tf
-
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

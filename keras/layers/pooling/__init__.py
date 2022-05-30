@@ -15,30 +15,29 @@
 """Keras Pooling layers."""
 # pylint: disable=g-bad-import-order
 
+# Pooling layer aliases.
 # Pooling layers.
 from keras.layers.pooling.average_pooling1d import AveragePooling1D
-from keras.layers.pooling.average_pooling2d import AveragePooling2D
-from keras.layers.pooling.average_pooling3d import AveragePooling3D
-from keras.layers.pooling.max_pooling1d import MaxPooling1D
-from keras.layers.pooling.max_pooling2d import MaxPooling2D
-from keras.layers.pooling.max_pooling3d import MaxPooling3D
-from keras.layers.pooling.global_average_pooling1d import GlobalAveragePooling1D
-from keras.layers.pooling.global_average_pooling2d import GlobalAveragePooling2D
-from keras.layers.pooling.global_average_pooling3d import GlobalAveragePooling3D
-from keras.layers.pooling.global_max_pooling1d import GlobalMaxPooling1D
-from keras.layers.pooling.global_max_pooling2d import GlobalMaxPooling2D
-from keras.layers.pooling.global_max_pooling3d import GlobalMaxPooling3D
-
-# Pooling layer aliases.
 from keras.layers.pooling.average_pooling1d import AvgPool1D
+from keras.layers.pooling.average_pooling2d import AveragePooling2D
 from keras.layers.pooling.average_pooling2d import AvgPool2D
+from keras.layers.pooling.average_pooling3d import AveragePooling3D
 from keras.layers.pooling.average_pooling3d import AvgPool3D
-from keras.layers.pooling.max_pooling1d import MaxPool1D
-from keras.layers.pooling.max_pooling2d import MaxPool2D
-from keras.layers.pooling.max_pooling3d import MaxPool3D
+from keras.layers.pooling.global_average_pooling1d import GlobalAveragePooling1D
 from keras.layers.pooling.global_average_pooling1d import GlobalAvgPool1D
+from keras.layers.pooling.global_average_pooling2d import GlobalAveragePooling2D
 from keras.layers.pooling.global_average_pooling2d import GlobalAvgPool2D
+from keras.layers.pooling.global_average_pooling3d import GlobalAveragePooling3D
 from keras.layers.pooling.global_average_pooling3d import GlobalAvgPool3D
 from keras.layers.pooling.global_max_pooling1d import GlobalMaxPool1D
+from keras.layers.pooling.global_max_pooling1d import GlobalMaxPooling1D
 from keras.layers.pooling.global_max_pooling2d import GlobalMaxPool2D
+from keras.layers.pooling.global_max_pooling2d import GlobalMaxPooling2D
 from keras.layers.pooling.global_max_pooling3d import GlobalMaxPool3D
+from keras.layers.pooling.global_max_pooling3d import GlobalMaxPooling3D
+from keras.layers.pooling.max_pooling1d import MaxPool1D
+from keras.layers.pooling.max_pooling1d import MaxPooling1D
+from keras.layers.pooling.max_pooling2d import MaxPool2D
+from keras.layers.pooling.max_pooling2d import MaxPooling2D
+from keras.layers.pooling.max_pooling3d import MaxPool3D
+from keras.layers.pooling.max_pooling3d import MaxPooling3D

@@ -1,8 +1,9 @@
 """Tests for migration_utils."""
 
+import tensorflow as tf
+
 from keras.initializers import GlorotUniform as V2GlorotUniform
 from keras.legacy_tf_layers import migration_utils
-import tensorflow as tf
 
 
 class DeterministicRandomTestToolTest(tf.test.TestCase):
@@ -21,8 +22,8 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
             graph = tf.Graph()
             with graph.as_default(), tf.compat.v1.Session(graph=graph) as sess:
                 a = tf.compat.v1.random.uniform(shape=(3, 1))
-                # adding additional computation/ops to the graph and ensuring consistant
-                # random number generation
+                # adding additional computation/ops to the graph and ensuring
+                # consistant random number generation
                 a = a * 3
                 b = tf.compat.v1.random.uniform(shape=(3, 3))
                 b = b * 3
@@ -45,9 +46,9 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
         self.assertAllClose(graph_b, b)
         self.assertAllClose(graph_c, c)
         self.assertAllClose(graph_d, d)
-        # In constant mode, because b and c were generated with the same seed within
-        # the same scope and have the same shape, they will have exactly the same
-        # values.
+        # In constant mode, because b and c were generated with the same seed
+        # within the same scope and have the same shape, they will have exactly
+        # the same values.
         # validate that b and c are the same, also graph_b and graph_c
         self.assertAllClose(b, c)
         self.assertAllClose(graph_b, graph_c)
@@ -62,8 +63,8 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
         with random_tool.scope():
             graph = tf.Graph()
             with graph.as_default(), tf.compat.v1.Session(graph=graph) as sess:
-                # adding additional computation/ops to the graph and ensuring consistant
-                # random number generation
+                # adding additional computation/ops to the graph and ensuring
+                # consistant random number generation
                 a = tf.compat.v1.random.uniform(shape=(3, 1), seed=1234)
                 a = a * 3
                 b = tf.compat.v1.random.uniform(shape=(3, 3), seed=1234)
@@ -96,8 +97,8 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
         with random_tool.scope():
             graph = tf.Graph()
             with graph.as_default(), tf.compat.v1.Session(graph=graph) as sess:
-                # adding additional computation/ops to the graph and ensuring consistant
-                # random number generation
+                # adding additional computation/ops to the graph and ensuring
+                # consistant random number generation
                 a = tf.compat.v1.random.uniform(shape=(3, 1))
                 a = a * 3
                 b = tf.compat.v1.random.uniform(shape=(3, 3))
@@ -132,16 +133,16 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
     def test_num_rand_ops_program_order(self):
         """Test random tensor generation consistancy in num_random_ops mode.
 
-        validate that in this mode random number generation is sensitive to program
-        order, so the generated random tesnors should not match.
+        validate that in this mode random number generation is sensitive to
+        program order, so the generated random tesnors should not match.
         """
         random_tool = migration_utils.DeterministicRandomTestTool(
             mode="num_random_ops"
         )
         with random_tool.scope():
             a = tf.random.uniform(shape=(3, 1))
-            # adding additional computation/ops to the graph and ensuring consistant
-            # random number generation
+            # adding additional computation/ops to the graph and ensuring
+            # consistant random number generation
             a = a * 3
             b = tf.random.uniform(shape=(3, 3))
             b = b * 3
@@ -151,8 +152,8 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
         )
         with random_tool.scope():
             b_prime = tf.random.uniform(shape=(3, 3))
-            # adding additional computation/ops to the graph and ensuring consistant
-            # random number generation
+            # adding additional computation/ops to the graph and ensuring
+            # consistant random number generation
             b_prime = b_prime * 3
             a_prime = tf.random.uniform(shape=(3, 1))
             a_prime = a_prime * 3

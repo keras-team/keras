@@ -15,22 +15,22 @@
 """Tests for CollectiveAllReduceStrategy."""
 
 import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
+
 from keras import layers
-from keras.testing_infra import test_utils
 from keras.engine import training
 from keras.optimizers.optimizer_v2 import (
     gradient_descent as gradient_descent_keras,
 )
+from keras.testing_infra import test_utils
 
 
 @test_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         strategy=[
-            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
-            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,  # noqa: E501
         ],
         mode=["eager"],
     )
@@ -46,8 +46,8 @@ class MultiWorkerMirroredStrategyTest(tf.test.TestCase, parameterized.TestCase):
         def _get_dataset():
             inputs = tf.expand_dims(tf.constant(range(10)), axis=1)
             targets = tf.expand_dims(tf.constant(range(10)), axis=1)
-            # Make global batch size 12 for 2 replicas and a non-repeated dataset
-            # with 10 elements so that we have partial batch
+            # Make global batch size 12 for 2 replicas and a non-repeated
+            # dataset with 10 elements so that we have partial batch
             dataset = tf.data.Dataset.from_tensor_slices(
                 (inputs, targets)
             ).batch(12, drop_remainder=False)

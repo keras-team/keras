@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for tf.keras models with callbacks, checkpointing with dist strategy."""
-
-import tensorflow.compat.v2 as tf
+"""Tests for tf.keras models with callbacks, checkpointing with dist
+strategy."""
 
 import collections
 import tempfile
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras import losses
@@ -108,8 +108,9 @@ class TestDistributionStrategyWithCallbacks(
             )
             and not tf.executing_eagerly()
         ):
-            # TPU Strategy can have multi step training, from extended.steps_per_run
-            # if steps_per_run = 1, then num_batch_call_per_epoch = steps_per_epoch
+            # TPU Strategy can have multi step training, from
+            # extended.steps_per_run if steps_per_run = 1, then
+            # num_batch_call_per_epoch = steps_per_epoch
             steps_per_run = distribution.extended.steps_per_run
             num_batch_call_per_epoch = steps_per_epoch // steps_per_run
             if steps_per_epoch % steps_per_run:
@@ -196,7 +197,7 @@ class TestDistributionStrategyErrorCases(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph"],
         )
@@ -216,9 +217,9 @@ class TestDistributionStrategyErrorCases(
 
             x = distribution.run(run)
 
-            # Removed device and input tensor shape details from the error message
-            # since the order of the device and the corresponding input tensor shape
-            # is not deterministic over different runs.
+            # Removed device and input tensor shape details from the error
+            # message since the order of the device and the corresponding input
+            # tensor shape is not deterministic over different runs.
             with self.assertRaisesRegex(
                 ValueError,
                 "Input tensor shapes do not match for "
@@ -226,14 +227,14 @@ class TestDistributionStrategyErrorCases(
                 "PerReplica:.+",
             ):
                 with distribution.scope():
-                    distributed_training_utils_v1.validate_distributed_dataset_inputs(
+                    distributed_training_utils_v1.validate_distributed_dataset_inputs(  # noqa: E501
                         distribution, x, None
                     )
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )
@@ -253,9 +254,9 @@ class TestDistributionStrategyErrorCases(
 
             x = distribution.run(run)
 
-            # Removed device and input tensor dtype details from the error message
-            # since the order of the device and the corresponding input tensor dtype
-            # is not deterministic over different runs.
+            # Removed device and input tensor dtype details from the error
+            # message since the order of the device and the corresponding input
+            # tensor dtype is not deterministic over different runs.
             with self.assertRaisesRegex(
                 ValueError,
                 "Input tensor dtypes do not match for "
@@ -263,14 +264,14 @@ class TestDistributionStrategyErrorCases(
                 "PerReplica:.+",
             ):
                 with distribution.scope():
-                    distributed_training_utils_v1.validate_distributed_dataset_inputs(
+                    distributed_training_utils_v1.validate_distributed_dataset_inputs(  # noqa: E501
                         distribution, x, None
                     )
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )
@@ -307,8 +308,8 @@ class TestDistributionStrategyErrorCases(
                     sample_weight=sample_weight,
                 )
 
-            # Test with not specifying the `steps` argument for dataset with infinite
-            # cardinality.
+            # Test with not specifying the `steps` argument for dataset with
+            # infinite cardinality.
             dataset = dataset.repeat()
             with self.assertRaises(ValueError):
                 model.fit(dataset, epochs=1, verbose=0)
@@ -321,7 +322,7 @@ class TestDistributionStrategyErrorCases(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
                 tf.__internal__.distribute.combinations.one_device_strategy,
             ],
             mode=["graph", "eager"],
@@ -354,7 +355,7 @@ class TestDistributionStrategyErrorCases(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
                 tf.__internal__.distribute.combinations.one_device_strategy,
             ],
             mode=["graph", "eager"],
@@ -405,10 +406,10 @@ class TestDistributionStrategyWithLossMasking(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph", "eager"],
-            optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
+            optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,  # noqa: E501
         )
     )
     def test_masking(self, distribution, optimizer):
@@ -442,7 +443,7 @@ class TestDistributionStrategyWithNormalizationLayer(
             keras_test_lib.all_strategy_combinations(),
             tf.__internal__.test.combinations.combine(
                 fused=[True, False],
-                optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
+                optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,  # noqa: E501
             ),
         )
     )
@@ -488,7 +489,7 @@ class TestDistributionStrategyWithNormalizationLayer(
         tf.__internal__.test.combinations.times(
             keras_test_lib.tpu_strategy_combinations(),
             tf.__internal__.test.combinations.combine(
-                optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn
+                optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn  # noqa: E501
             ),
         )
     )
@@ -652,7 +653,7 @@ class TestDistributionStrategyWithStaticShapes(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )
@@ -669,7 +670,7 @@ class TestDistributionStrategyWithStaticShapes(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )

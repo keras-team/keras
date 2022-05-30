@@ -14,12 +14,13 @@
 # ==============================================================================
 """Tests BaseDenseAttention layer."""
 
-from absl.testing import parameterized
-from keras.layers.attention.base_dense_attention import _lower_triangular_mask
-from keras.layers.attention.base_dense_attention import BaseDenseAttention
-from keras.testing_infra import test_combinations
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
+from keras.layers.attention.base_dense_attention import BaseDenseAttention
+from keras.layers.attention.base_dense_attention import _lower_triangular_mask
+from keras.testing_infra import test_combinations
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
@@ -71,8 +72,8 @@ class BaseDenseAttentionTest(tf.test.TestCase, parameterized.TestCase):
             scores=scores, value=v, scores_mask=scores_mask
         )
 
-        # Expected softmax scores = softmax(scores) with zeros in positions where
-        # v_mask == False.
+        # Expected softmax scores = softmax(scores) with zeros in positions
+        # where v_mask == False.
         # => softmax_scores000 = exp(1)/(exp(1) + exp(0)) = 0.73105857863
         #    softmax_scores001 = exp(0)/(exp(1) + exp(0)) = 0.26894142137
         #    softmax_scores002 = 0

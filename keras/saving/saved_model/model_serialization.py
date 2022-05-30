@@ -54,8 +54,8 @@ class ModelSavedModelSaver(layer_serialization.LayerSavedModelSaver):
         if len(serialization_cache[constants.KERAS_CACHE_KEY]) == 1:
             default_signature = save_impl.default_save_signature(self.obj)
 
-        # Other than the default signature function, all other attributes match with
-        # the ones serialized by Layer.
+        # Other than the default signature function, all other attributes match
+        # with the ones serialized by Layer.
         objects, functions = super()._get_serialized_attributes_internal(
             serialization_cache
         )

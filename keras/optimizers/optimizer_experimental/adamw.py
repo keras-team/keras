@@ -14,10 +14,12 @@
 # ==============================================================================
 """AdamW optimizer implementation."""
 
-from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
 import tensorflow.compat.v2 as tf
 
+from keras.optimizers.optimizer_experimental import optimizer
+from keras.utils import generic_utils
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -136,8 +138,8 @@ class AdamW(optimizer.Optimizer):
 
         Args:
           var_list: list of model variables to build AdamW variables on.
-          exclude_from_weight_decay: list of model variables that will be excluded
-            from weight decay.
+          exclude_from_weight_decay: list of model variables that will be
+            excluded from weight decay.
         """
         super().build(var_list)
         if hasattr(self, "_built") and self._built:

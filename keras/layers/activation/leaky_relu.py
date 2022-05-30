@@ -19,6 +19,7 @@ from keras import backend
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

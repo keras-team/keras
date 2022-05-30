@@ -14,11 +14,13 @@
 # ==============================================================================
 """Tests for tensorflow.python.client.graph_util."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
-from tensorflow.core.protobuf import meta_graph_pb2
 import keras
+
+# isort: off
+from tensorflow.core.protobuf import meta_graph_pb2
 from tensorflow.python.grappler import tf_optimizer
 from tensorflow.python.training.saver import (
     export_meta_graph,

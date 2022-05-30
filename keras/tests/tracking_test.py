@@ -15,15 +15,17 @@
 
 import os
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
 from keras.layers.normalization import batch_normalization_v1
+from keras.testing_infra import test_combinations
+
+# isort: off
 from tensorflow.python.training.tracking import (
     data_structures,
 )
@@ -400,9 +402,9 @@ class MappingTests(test_combinations.TestCase):
         # This update() is super tricky. If the dict wrapper subclasses dict,
         # CPython will access its storage directly instead of calling any
         # methods/properties on the object. So the options are either not to
-        # subclass dict (in which case update will call normal iter methods, but the
-        # object won't pass isinstance checks) or to subclass dict and keep that
-        # storage updated (no shadowing all its methods like ListWrapper).
+        # subclass dict (in which case update will call normal iter methods, but
+        # the object won't pass isinstance checks) or to subclass dict and keep
+        # that storage updated (no shadowing all its methods like ListWrapper).
         new_dict.update(model.d)
         self.assertEqual({1: 3}, new_dict)
 

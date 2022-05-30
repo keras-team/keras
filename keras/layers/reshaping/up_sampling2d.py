@@ -15,12 +15,14 @@
 """Keras upsampling layer for 2D inputs."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -66,7 +68,8 @@ class UpSampling2D(Layer):
         Keras config file at `~/.keras/keras.json`.
         If you never set it, then it will be "channels_last".
       interpolation: A string, one of `"area"`, `"bicubic"`, `"bilinear"`,
-        `"gaussian"`, `"lanczos3"`, `"lanczos5"`, `"mitchellcubic"`, `"nearest"`.
+        `"gaussian"`, `"lanczos3"`, `"lanczos5"`, `"mitchellcubic"`,
+        `"nearest"`.
 
     Input shape:
       4D tensor with shape:

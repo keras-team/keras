@@ -14,13 +14,11 @@
 # ==============================================================================
 """Functional preprocessing stage tests."""
 
+import time
+
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-classes-have-attributes
-
-import time
-import numpy as np
-from keras.testing_infra import test_combinations
 from keras.engine import base_preprocessing_layer
 from keras.engine.input_layer import Input
 from keras.layers import convolutional
@@ -30,6 +28,9 @@ from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import normalization
 from keras.layers.preprocessing import preprocessing_stage
 from keras.layers.preprocessing import preprocessing_test_utils
+from keras.testing_infra import test_combinations
+
+# pylint: disable=g-classes-have-attributes
 
 
 class PL(base_preprocessing_layer.PreprocessingLayer):

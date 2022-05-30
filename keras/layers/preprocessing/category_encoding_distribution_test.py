@@ -15,6 +15,9 @@
 """Distribution tests for keras.layers.preprocessing.category_encoding."""
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras import backend
 from keras.distribute import strategy_combinations
@@ -22,8 +25,8 @@ from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )

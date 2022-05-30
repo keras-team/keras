@@ -19,14 +19,15 @@ See also: lstm_test.py, gru_test.py.
 
 import os
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.layers.rnn import gru
 from keras.layers.rnn import lstm
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes
@@ -66,7 +67,8 @@ class RNNV2Test(test_combinations.TestCase):
 
     @parameterized.parameters([lstm.LSTM, gru.GRU])
     def test_reset_dropout_mask_between_batch(self, layer):
-        # See https://github.com/tensorflow/tensorflow/issues/29187 for more details
+        # See https://github.com/tensorflow/tensorflow/issues/29187 for more
+        # details
         batch_size = 8
         timestep = 12
         embedding_dim = 10

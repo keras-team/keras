@@ -14,6 +14,8 @@
 # ==============================================================================
 """Tests for keras premade models using tf.distribute.Strategy."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras.engine import sequential
@@ -23,8 +25,6 @@ from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.premade_models import linear
 from keras.premade_models import wide_deep
 from keras.utils import dataset_creator
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 def strategy_combinations_eager_data_fn():
@@ -33,14 +33,14 @@ def strategy_combinations_eager_data_fn():
             tf.__internal__.distribute.combinations.default_strategy,
             tf.__internal__.distribute.combinations.one_device_strategy,
             tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
-            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
-            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
-            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
-            tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_cpu,
-            tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_1gpu,
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,  # noqa: E501
+            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_cpu,  # noqa: E501
+            tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_1gpu,  # noqa: E501
             # NOTE: TPUStrategy not tested because the models in this test are
             # sparse and do not work with TPUs.
         ],
@@ -93,8 +93,8 @@ class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
             distribution, tf.distribute.experimental.ParameterServerStrategy
         ):
             self.skipTest(
-                "Parameter Server strategy requires dataset creator to be used in "
-                "model.fit."
+                "Parameter Server strategy requires dataset creator to be used "
+                "in model.fit."
             )
         if (
             not tf.__internal__.tf2.enabled()
@@ -104,8 +104,8 @@ class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
             )
         ):
             self.skipTest(
-                "Parameter Server strategy with dataset creator needs to be run when "
-                "eager execution is enabled."
+                "Parameter Server strategy with dataset creator needs to be "
+                "run when eager execution is enabled."
             )
         with distribution.scope():
             model = linear.LinearModel()
@@ -130,8 +130,8 @@ class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
             distribution, tf.distribute.experimental.ParameterServerStrategy
         ):
             self.skipTest(
-                "Parameter Server strategy requires dataset creator to be used in "
-                "model.fit."
+                "Parameter Server strategy requires dataset creator to be used "
+                "in model.fit."
             )
         if (
             not tf.__internal__.tf2.enabled()
@@ -141,8 +141,8 @@ class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
             )
         ):
             self.skipTest(
-                "Parameter Server strategy with dataset creator needs to be run when "
-                "eager execution is enabled."
+                "Parameter Server strategy with dataset creator needs to be "
+                "run when eager execution is enabled."
             )
         with distribution.scope():
             linear_model = linear.LinearModel(units=1)

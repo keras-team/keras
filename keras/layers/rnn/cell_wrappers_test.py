@@ -14,15 +14,16 @@
 # ==============================================================================
 """Tests for RNN cell wrappers."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras import layers
 from keras.layers.rnn import cell_wrappers
 from keras.layers.rnn import legacy_cells
 from keras.legacy_tf_layers import base as legacy_base_layer
 from keras.testing_infra import test_combinations
 from keras.utils import generic_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

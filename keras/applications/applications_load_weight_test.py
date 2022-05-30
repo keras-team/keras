@@ -14,11 +14,10 @@
 # ==============================================================================
 """Integration tests for Keras applications."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
-
 from absl import flags
 from absl.testing import parameterized
-import numpy as np
 
 from keras.applications import convnext
 from keras.applications import densenet
@@ -39,7 +38,6 @@ from keras.applications import vgg19
 from keras.applications import xception
 from keras.utils import data_utils
 from keras.utils import image_utils
-
 
 ARG_TO_MODEL = {
     "resnet": (resnet, [resnet.ResNet50, resnet.ResNet101, resnet.ResNet152]),

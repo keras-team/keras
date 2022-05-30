@@ -382,6 +382,7 @@ tf_py_test(
         "//keras:losses",
         "//keras/layers",
         "//keras/metrics",
+        "//keras/mixed_precision:policy",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
         "//keras/utils:data_utils",

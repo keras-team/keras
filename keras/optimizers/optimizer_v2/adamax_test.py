@@ -14,12 +14,12 @@
 # ==============================================================================
 """Tests for Adamax."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras.optimizers.optimizer_v2 import adamax
+from keras.testing_infra import test_combinations
 
 
 def adamax_update_numpy(
@@ -133,8 +133,8 @@ class AdamaxOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             with tf.Graph().as_default(), self.cached_session(
                 force_gpu=tf.test.is_gpu_available()
             ):
-                # If a GPU is available, tests that all optimizer ops can be placed on
-                # it (i.e. they have GPU kernels).
+                # If a GPU is available, tests that all optimizer ops can be
+                # placed on it (i.e. they have GPU kernels).
                 var = tf.Variable([[1.0], [2.0]])
                 indices = tf.constant([0, 1], dtype=index_dtype)
                 g_sum = lambda: tf.reduce_sum(
@@ -403,7 +403,8 @@ class AdamaxOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         v2 = tf.Variable(1.0)
         opt = adamax.Adamax(1.0)
         opt.minimize(lambda: v1 + v2, var_list=[v1, v2])
-        # There should be iteration, and two unique slot variables for v1 and v2.
+        # There should be iteration, and two unique slot variables for v1 and
+        # v2.
         self.assertLen({id(v) for v in opt.variables()}, 5)
 
     def testConstructAdamaxWithLR(self):

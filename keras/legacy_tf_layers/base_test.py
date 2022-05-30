@@ -18,18 +18,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import copy
 
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras.engine import base_layer as keras_base_layer
 from keras.engine import input_spec
 from keras.legacy_tf_layers import base as base_tf_layers
 from keras.legacy_tf_layers import core as core_tf_layers
+from keras.testing_infra import test_combinations
 
 
 class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
@@ -326,8 +326,8 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(ValueError, r"expected ndim=2"):
             layer(tf.constant([1]))
 
-        # Note that we re-create the layer since in Eager mode, input spec checks
-        # only happen on first call.
+        # Note that we re-create the layer since in Eager mode, input spec
+        # checks only happen on first call.
         # Works
         layer = CustomerLayer()
         layer(tf.constant([[1], [2]]))
@@ -506,7 +506,7 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(len(layer.get_losses_for(x)), 1)
 
     def testNameScopeIsConsistentWithVariableScope(self):
-        # Github issue 13429.
+        # GitHub issue 13429.
 
         class MyLayer(base_tf_layers.Layer):
             def build(self, input_shape):
@@ -576,8 +576,9 @@ class BaseLayerTest(tf.test.TestCase, parameterized.TestCase):
         with outer_graph.as_default():
             with function_building_graph.as_default():
                 layer = MyLayer()
-                # Create a variable by invoking build through __call__ and assert that
-                # it is both tracked and lifted into the outer graph.
+                # Create a variable by invoking build through __call__ and
+                # assert that it is both tracked and lifted into the outer
+                # graph.
                 inputs = tf.compat.v1.placeholder(tf.float32, (), "inputs")
                 layer(inputs)
                 self.assertEqual(len(layer.variables), 1)

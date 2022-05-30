@@ -14,17 +14,19 @@
 # ==============================================================================
 """Tests add_loss API correctness."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-import numpy as np
 from keras import Input
-from keras.testing_infra import test_combinations
+from keras import Model
+from keras import Sequential
 from keras import layers
 from keras import losses
-from keras import Model
 from keras.optimizers import optimizer_v2
-from keras import Sequential
+from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.rmsprop import (
     RMSPropOptimizer,

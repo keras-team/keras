@@ -75,8 +75,9 @@ class FunctionTest(tf.test.TestCase):
             self.assertNotIn("ValueError", printed.contents())
 
         # Shape relaxation passes TensorShape([None, None]), which causes layer
-        # matmul to fail, due to incompatible dims.  What would have been a graph
-        # build time error (layer would complain about the inner dim being 4).
+        # matmul to fail, due to incompatible dims.  What would have been a
+        # graph build time error (layer would complain about the inner dim being
+        # 4).
         with self.captureWritesToStream(sys.stderr) as printed:
             with self.assertRaisesRegex(
                 tf.errors.InvalidArgumentError, r"Matrix size-incompatible"
@@ -153,8 +154,8 @@ class FunctionTest(tf.test.TestCase):
 
         # Verifying if the variables are only referenced from variable_refs.
         # We expect the reference counter to be 1, but `sys.getrefcount` reports
-        # one higher reference counter because a temporary is created when we call
-        # sys.getrefcount().  Hence check if the number returned is 2.
+        # one higher reference counter because a temporary is created when we
+        # call sys.getrefcount().  Hence check if the number returned is 2.
         # https://docs.python.org/3/library/sys.html#sys.getrefcount
         self.assertEqual(sys.getrefcount(variable_refs[0].deref()), 2)
         self.assertEqual(sys.getrefcount(variable_refs[1].deref()), 2)
@@ -226,20 +227,21 @@ class FunctionTest(tf.test.TestCase):
 
 class AutomaticControlDependenciesTest(tf.test.TestCase):
     def testVariableInitializersCanBeLifted(self):
-        # The initializer is a stateful op, but using it inside a function should
-        # *not* create additional dependencies.  That's what we're testing.
+        # The initializer is a stateful op, but using it inside a function
+        # should *not* create additional dependencies.  That's what we're
+        # testing.
         layer = tf.keras.layers.Dense(1, kernel_initializer="glorot_uniform")
 
         @tf.function
         def fn(x):
             # Stateful operation
             tf.debugging.Assert(x, ["Error"])
-            # Variable initialization should be lifted.  Prior to the change that
-            # added this test, the lifting would crash because of an auto control dep
-            # added on `x`.  Note, the error did not happen if we
+            # Variable initialization should be lifted.  Prior to the change
+            # that added this test, the lifting would crash because of an auto
+            # control dep added on `x`. Note, the error did not happen if we
             # manually created a tf.Variable outside of function and used it
-            # here.  Alternatively, creating a tf.Variable inside fn() causes
-            # a different sort of error that is out of scope for this test.
+            # here.  Alternatively, creating a tf.Variable inside fn() causes a
+            # different sort of error that is out of scope for this test.
             return layer(tf.convert_to_tensor([[1.0, 1.0]]))
 
         true = tf.convert_to_tensor(True)

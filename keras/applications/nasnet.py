@@ -46,9 +46,10 @@ from keras.engine import training
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
+
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
-
 
 BASE_WEIGHTS_PATH = (
     "https://storage.googleapis.com/tensorflow/" "keras-applications/nasnet/"
@@ -389,8 +390,8 @@ def NASNetMobile(
         include_top: Whether to include the fully-connected
             layer at the top of the network.
         weights: `None` (random initialization) or
-            `imagenet` (ImageNet weights)
-            For loading `imagenet` weights, `input_shape` should be (224, 224, 3)
+            `imagenet` (ImageNet weights). For loading `imagenet` weights,
+            `input_shape` should be (224, 224, 3)
         input_tensor: Optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.
@@ -409,11 +410,11 @@ def NASNetMobile(
         classes: Optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
-        classifier_activation: A `str` or callable. The activation function to use
-            on the "top" layer. Ignored unless `include_top=True`. Set
-            `classifier_activation=None` to return the logits of the "top" layer.
-            When loading pretrained weights, `classifier_activation` can only
-            be `None` or `"softmax"`.
+        classifier_activation: A `str` or callable. The activation function to
+            use on the "top" layer. Ignored unless `include_top=True`. Set
+            `classifier_activation=None` to return the logits of the "top"
+            layer.  When loading pretrained weights, `classifier_activation` can
+            only be `None` or `"softmax"`.
 
     Returns:
         A Keras model instance.
@@ -477,8 +478,8 @@ def NASNetLarge(
         include_top: Whether to include the fully-connected
             layer at the top of the network.
         weights: `None` (random initialization) or
-            `imagenet` (ImageNet weights)
-            For loading `imagenet` weights, `input_shape` should be (331, 331, 3)
+            `imagenet` (ImageNet weights).  For loading `imagenet` weights,
+            `input_shape` should be (331, 331, 3)
         input_tensor: Optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.
@@ -497,11 +498,11 @@ def NASNetLarge(
         classes: Optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
-        classifier_activation: A `str` or callable. The activation function to use
-            on the "top" layer. Ignored unless `include_top=True`. Set
-            `classifier_activation=None` to return the logits of the "top" layer.
-            When loading pretrained weights, `classifier_activation` can only
-            be `None` or `"softmax"`.
+        classifier_activation: A `str` or callable. The activation function to
+            use on the "top" layer. Ignored unless `include_top=True`. Set
+            `classifier_activation=None` to return the logits of the "top"
+            layer.  When loading pretrained weights, `classifier_activation` can
+            only be `None` or `"softmax"`.
 
     Returns:
         A Keras model instance.

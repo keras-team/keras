@@ -16,9 +16,8 @@
 
 import warnings
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.testing_infra import test_utils

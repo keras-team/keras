@@ -20,10 +20,11 @@ import re
 import unittest
 import uuid
 import zipfile
-from absl import logging
-from absl.testing import parameterized
+
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl import logging
+from absl.testing import parameterized
 
 PER_WORKER_BATCH_SIZE = 64
 NUM_WORKERS = 2
@@ -70,8 +71,8 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
         try:
             yield
         except zipfile.BadZipfile as e:
-            # There can be a race when multiple processes are downloading the data.
-            # Skip the test if that results in loading errors.
+            # There can be a race when multiple processes are downloading the
+            # data.  Skip the test if that results in loading errors.
             self.skipTest(
                 "Data loading error: Bad magic number for file header."
             )
@@ -241,7 +242,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
         try:
             mpr_result = tf.__internal__.distribute.multi_process_runner.run(
                 fn,
-                tf.__internal__.distribute.multi_process_runner.create_cluster_spec(
+                tf.__internal__.distribute.multi_process_runner.create_cluster_spec(  # noqa: E501
                     num_workers=NUM_WORKERS
                 ),
                 args=(model_path, checkpoint_dir),
@@ -284,7 +285,8 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
         )
     )
     def testMwmsWithCtl(self, mode):
-        """Test multi-worker CTL training flow demo'ed in a to-be-added tutorial."""
+        """Test multi-worker CTL training flow demo'ed in a to-be-added
+        tutorial."""
 
         def proc_func(checkpoint_dir):
             global_batch_size = PER_WORKER_BATCH_SIZE * NUM_WORKERS

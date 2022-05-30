@@ -15,14 +15,15 @@
 """Tests for hashed crossing layer."""
 
 import os
+
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
 from keras.layers.preprocessing import hashed_crossing
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)

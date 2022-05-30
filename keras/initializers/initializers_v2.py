@@ -13,15 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 """Keras initializers for TF 2."""
-# pylint: disable=g-classes-have-attributes, missing-docstring, g-direct-tensorflow-import
 
 import math
+
+import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras.dtensor import utils
 
-import tensorflow.compat.v2 as tf
-
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 _PARTITION_SHAPE = "partition_shape"
@@ -66,10 +66,10 @@ class Initializer:
         return {"mean": self.mean, "stddev": self.stddev}
     ```
 
-    Note that we don't have to implement `from_config` in the example above since
-    the constructor arguments of the class the keys in the config returned by
-    `get_config` are the same. In this case, the default `from_config`
-    works fine.
+    Note that we don't have to implement `from_config` in the example above
+    since the constructor arguments of the class the keys in the config returned
+    by `get_config` are the same. In this case, the default `from_config` works
+    fine.
     """
 
     def __call__(self, shape, dtype=None, **kwargs):
@@ -136,10 +136,10 @@ class Zeros(Initializer):
 
         Args:
           shape: Shape of the tensor.
-          dtype: Optional dtype of the tensor. Only numeric or boolean dtypes are
-           supported. If not specified, `tf.keras.backend.floatx()` is used,
-           which default to `float32` unless you configured it otherwise
-           (via `tf.keras.backend.set_floatx(float_dtype)`).
+          dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
+            are supported. If not specified, `tf.keras.backend.floatx()` is
+            used, which default to `float32` unless you configured it otherwise
+            (via `tf.keras.backend.set_floatx(float_dtype)`).
           **kwargs: Additional keyword arguments.
         """
         _validate_kwargs(self.__class__.__name__, kwargs)
@@ -178,10 +178,10 @@ class Ones(Initializer):
 
         Args:
           shape: Shape of the tensor.
-          dtype: Optional dtype of the tensor. Only numeric or boolean dtypes are
-           supported. If not specified, `tf.keras.backend.floatx()` is used,
-           which default to `float32` unless you configured it otherwise
-           (via `tf.keras.backend.set_floatx(float_dtype)`).
+          dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
+            are supported. If not specified, `tf.keras.backend.floatx()` is
+            used, which default to `float32` unless you configured it otherwise
+            (via `tf.keras.backend.set_floatx(float_dtype)`).
           **kwargs: Additional keyword arguments.
         """
         _validate_kwargs(self.__class__.__name__, kwargs)
@@ -280,10 +280,9 @@ class RandomUniform(Initializer):
       maxval: A python scalar or a scalar tensor. Upper bound of the range of
         random values to generate (exclusive).
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
     """
 
     def __init__(self, minval=-0.05, maxval=0.05, seed=None):
@@ -357,13 +356,12 @@ class RandomNormal(Initializer):
     Args:
       mean: a python scalar or a scalar tensor. Mean of the random values to
         generate.
-      stddev: a python scalar or a scalar tensor. Standard deviation of the random
-        values to generate.
+      stddev: a python scalar or a scalar tensor. Standard deviation of the
+        random values to generate.
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
     """
 
     def __init__(self, mean=0.0, stddev=0.05, seed=None):
@@ -378,8 +376,8 @@ class RandomNormal(Initializer):
         Args:
           shape: Shape of the tensor.
           dtype: Optional dtype of the tensor. Only floating point types are
-            supported. If not specified, `tf.keras.backend.floatx()` is used, which
-            default to `float32` unless you configured it otherwise (via
+            supported. If not specified, `tf.keras.backend.floatx()` is used,
+            which default to `float32` unless you configured it otherwise (via
             `tf.keras.backend.set_floatx(float_dtype)`)
           **kwargs: Additional keyword arguments.
         """
@@ -444,10 +442,9 @@ class TruncatedNormal(Initializer):
       stddev: a python scalar or a scalar tensor. Standard deviation of the
         random values to generate before truncation.
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
     """
 
     def __init__(self, mean=0.0, stddev=0.05, seed=None):
@@ -462,8 +459,8 @@ class TruncatedNormal(Initializer):
         Args:
           shape: Shape of the tensor.
           dtype: Optional dtype of the tensor. Only floating point types are
-            supported. If not specified, `tf.keras.backend.floatx()` is used, which
-            default to `float32` unless you configured it otherwise (via
+            supported. If not specified, `tf.keras.backend.floatx()` is used,
+            which default to `float32` unless you configured it otherwise (via
             `tf.keras.backend.set_floatx(float_dtype)`)
           **kwargs: Additional keyword arguments.
         """
@@ -508,9 +505,9 @@ class VarianceScaling(Initializer):
     `tf.keras.initializers.variance_scaling`.
 
     With `distribution="truncated_normal" or "untruncated_normal"`, samples are
-    drawn from a truncated/untruncated normal distribution with a mean of zero and
-    a standard deviation (after truncation, if used) `stddev = sqrt(scale / n)`,
-    where `n` is:
+    drawn from a truncated/untruncated normal distribution with a mean of zero
+    and a standard deviation (after truncation, if used) `stddev = sqrt(scale /
+    n)`, where `n` is:
 
     - number of input units in the weight tensor, if `mode="fan_in"`
     - number of output units, if `mode="fan_out"`
@@ -537,10 +534,9 @@ class VarianceScaling(Initializer):
       distribution: Random distribution to use. One of "truncated_normal",
         "untruncated_normal" and  "uniform".
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
     """
 
     def __init__(
@@ -586,8 +582,8 @@ class VarianceScaling(Initializer):
         Args:
           shape: Shape of the tensor.
           dtype: Optional dtype of the tensor. Only floating point types are
-            supported. If not specified, `tf.keras.backend.floatx()` is used, which
-            default to `float32` unless you configured it otherwise (via
+            supported. If not specified, `tf.keras.backend.floatx()` is used,
+            which default to `float32` unless you configured it otherwise (via
             `tf.keras.backend.set_floatx(float_dtype)`)
           **kwargs: Additional keyword arguments.
         """
@@ -622,7 +618,8 @@ class VarianceScaling(Initializer):
         else:
             scale /= max(1.0, (fan_in + fan_out) / 2.0)
         if self.distribution == "truncated_normal":
-            # constant from scipy.stats.truncnorm.std(a=-2, b=2, loc=0., scale=1.)
+            # constant from scipy.stats.truncnorm.std(a=-2, b=2, loc=0.,
+            # scale=1.)
             stddev = math.sqrt(scale) / 0.87962566103423978
             return self._random_generator.truncated_normal(
                 shape, 0.0, stddev, dtype, nonce
@@ -655,11 +652,11 @@ class Orthogonal(Initializer):
 
     Also available via the shortcut function `tf.keras.initializers.orthogonal`.
 
-    If the shape of the tensor to initialize is two-dimensional, it is initialized
-    with an orthogonal matrix obtained from the QR decomposition of a matrix of
-    random numbers drawn from a normal distribution.
-    If the matrix has fewer rows than columns then the output will have orthogonal
-    rows. Otherwise, the output will have orthogonal columns.
+    If the shape of the tensor to initialize is two-dimensional, it is
+    initialized with an orthogonal matrix obtained from the QR decomposition of
+    a matrix of random numbers drawn from a normal distribution. If the matrix
+    has fewer rows than columns then the output will have orthogonal rows.
+    Otherwise, the output will have orthogonal columns.
 
     If the shape of the tensor to initialize is more than two-dimensional,
     a matrix of shape `(shape[0] * ... * shape[n - 2], shape[n - 1])`
@@ -679,10 +676,9 @@ class Orthogonal(Initializer):
     Args:
       gain: multiplicative factor to apply to the orthogonal matrix
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
 
     References:
       - [Saxe et al., 2014](https://openreview.net/forum?id=_wzZwKpTDF_9C)
@@ -824,8 +820,8 @@ class GlorotUniform(VarianceScaling):
     `tf.keras.initializers.glorot_uniform`.
 
     Draws samples from a uniform distribution within `[-limit, limit]`, where
-    `limit = sqrt(6 / (fan_in + fan_out))` (`fan_in` is the number of input units
-    in the weight tensor and `fan_out` is the number of output units).
+    `limit = sqrt(6 / (fan_in + fan_out))` (`fan_in` is the number of input
+    units in the weight tensor and `fan_out` is the number of output units).
 
     Examples:
 
@@ -839,10 +835,9 @@ class GlorotUniform(VarianceScaling):
 
     Args:
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
 
     References:
       - [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
@@ -866,10 +861,10 @@ class GlorotNormal(VarianceScaling):
     Also available via the shortcut function
     `tf.keras.initializers.glorot_normal`.
 
-    Draws samples from a truncated normal distribution centered on 0 with `stddev
-    = sqrt(2 / (fan_in + fan_out))` where `fan_in` is the number of input units in
-    the weight tensor and `fan_out` is the number of output units in the weight
-    tensor.
+    Draws samples from a truncated normal distribution centered on 0 with
+    `stddev = sqrt(2 / (fan_in + fan_out))` where `fan_in` is the number of
+    input units in the weight tensor and `fan_out` is the number of output units
+    in the weight tensor.
 
     Examples:
 
@@ -883,10 +878,9 @@ class GlorotNormal(VarianceScaling):
 
     Args:
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
 
     References:
       - [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
@@ -917,9 +911,9 @@ class LecunNormal(VarianceScaling):
     the Initializer object, without knowing the shape and dtype of the variable
     being initialized.
 
-    Draws samples from a truncated normal distribution centered on 0 with `stddev
-    = sqrt(1 / fan_in)` where `fan_in` is the number of input units in the weight
-    tensor.
+    Draws samples from a truncated normal distribution centered on 0 with
+    `stddev = sqrt(1 / fan_in)` where `fan_in` is the number of input units in
+    the weight tensor.
 
     Examples:
 
@@ -933,10 +927,9 @@ class LecunNormal(VarianceScaling):
 
     Args:
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
 
     References:
       - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
@@ -960,8 +953,8 @@ class LecunUniform(VarianceScaling):
      Also available via the shortcut function
     `tf.keras.initializers.lecun_uniform`.
 
-    Draws samples from a uniform distribution within `[-limit, limit]`,
-    where `limit = sqrt(3 / fan_in)` (`fan_in` is the number of input units in the
+    Draws samples from a uniform distribution within `[-limit, limit]`, where
+    `limit = sqrt(3 / fan_in)` (`fan_in` is the number of input units in the
     weight tensor).
 
     Examples:
@@ -976,10 +969,9 @@ class LecunUniform(VarianceScaling):
 
     Args:
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
 
     References:
       - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
@@ -1004,8 +996,8 @@ class HeNormal(VarianceScaling):
     `tf.keras.initializers.he_normal`.
 
     It draws samples from a truncated normal distribution centered on 0 with
-    `stddev = sqrt(2 / fan_in)` where `fan_in` is the number of input units in the
-    weight tensor.
+    `stddev = sqrt(2 / fan_in)` where `fan_in` is the number of input units in
+    the weight tensor.
 
     Examples:
 
@@ -1019,10 +1011,9 @@ class HeNormal(VarianceScaling):
 
     Args:
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
 
     References:
       - [He et al., 2015](https://arxiv.org/abs/1502.01852)
@@ -1062,10 +1053,9 @@ class HeUniform(VarianceScaling):
 
     Args:
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded
-        initializer will not produce the same random values across multiple calls,
-        but multiple initializers will produce the same sequence when constructed
-        with the same seed value.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
 
     References:
       - [He et al., 2015](https://arxiv.org/abs/1502.01852)
@@ -1153,8 +1143,8 @@ def _ensure_keras_seeded():
     """Make sure the keras.backend global seed generator is set.
 
     This is important for DTensor use case to ensure that each client are
-    initialized with same seed for tf.random.Generator, so that the value created
-    are in sync among all the clients.
+    initialized with same seed for tf.random.Generator, so that the value
+    created are in sync among all the clients.
     """
     if not getattr(
         backend._SEED_GENERATOR, "generator", None

@@ -64,8 +64,8 @@ class _FloatExtractor(object):
             dot_digits=r"(?:\.[0-9]+)",
             # digits: "12"
             digits=r"(?:[0-9]+)",
-            # The exponent: An "e" or "E", optional sign, and at least one digit.
-            # "e-123", "E+12", "e12"
+            # The exponent: An "e" or "E", optional sign, and at least one
+            # digit.  "e-123", "E+12", "e12"
             exponent=r"(?:[eE][-+]?[0-9]+)",
         ),
         re.VERBOSE,
@@ -84,8 +84,9 @@ class _FloatExtractor(object):
           string: the string to extract floats from.
 
         Returns:
-          A (string, array) pair, where `string` has each float replaced by "..."
-          and `array` is a `float32` `numpy.array` containing the extracted floats.
+          A (string, array) pair, where `string` has each float replaced by
+          "..." and `array` is a `float32` `numpy.array` containing the
+          extracted floats.
         """
         texts = []
         floats = []
@@ -128,13 +129,15 @@ class KerasDoctestOutputChecker(doctest.OutputChecker, object):
     )
 
     def check_output(self, want, got, optionflags):
-        """Compares the docstring output to the output gotten by running the code.
+        """Compares the docstring output to the output gotten by running the
+        code.
 
         Python addresses in the output are replaced with wildcards.
 
         Float values in the output compared as using `np.allclose`:
 
-          * Float values are extracted from the text and replaced with wildcards.
+          * Float values are extracted from the text and replaced with
+            wildcards.
           * The wildcard text is compared to the actual output.
           * The float values are compared using `np.allclose`.
 
@@ -157,15 +160,16 @@ class KerasDoctestOutputChecker(doctest.OutputChecker, object):
 
         # If the docstring's output is empty and there is some output generated
         # after running the snippet, return True. This is because if the user
-        # doesn't want to display output, respect that over what the doctest wants.
+        # doesn't want to display output, respect that over what the doctest
+        # wants.
         if got and not want:
             return True
 
         if want is None:
             want = ""
 
-        # Replace python's addresses with ellipsis (`...`) since it can change on
-        # each execution.
+        # Replace python's addresses with ellipsis (`...`) since it can change
+        # on each execution.
         want = self._ADDRESS_RE.sub("at ...>", want)
 
         # Replace tf.Tensor strings with only their numpy field values.
@@ -188,8 +192,9 @@ class KerasDoctestOutputChecker(doctest.OutputChecker, object):
             return False
 
         if self.want_floats.size == 0:
-            # If there are no floats in the "want" string, ignore all the floats in
-            # the result. "np.array([ ... ])" matches "np.array([ 1.0, 2.0 ])"
+            # If there are no floats in the "want" string, ignore all the floats
+            # in the result. "np.array([ ... ])" matches "np.array([ 1.0, 2.0
+            # ])"
             return True
 
         self.float_size_good = self.want_floats.size == self.got_floats.size
@@ -202,10 +207,10 @@ class KerasDoctestOutputChecker(doctest.OutputChecker, object):
     def output_difference(self, example, got, optionflags):
         got = [got]
 
-        # If the some of the float output is hidden with `...`, `float_size_good`
-        # will be False. This is because the floats extracted from the string is
-        # converted into a 1-D numpy array. Hence hidding floats is not allowed
-        # anymore.
+        # If the some of the float output is hidden with `...`,
+        # `float_size_good` will be False. This is because the floats extracted
+        # from the string is converted into a 1-D numpy array. Hence hidding
+        # floats is not allowed anymore.
         if self.text_good:
             if not self.float_size_good:
                 got.append(

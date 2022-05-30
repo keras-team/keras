@@ -28,8 +28,9 @@ from keras.engine import training
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
-from tensorflow.python.util.tf_export import keras_export
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 WEIGHTS_PATH = (
     "https://storage.googleapis.com/tensorflow/keras-applications/"
@@ -74,9 +75,10 @@ def InceptionV3(
       https://keras.io/guides/transfer_learning/).
 
     Note: each Keras Application expects a specific kind of input preprocessing.
-    For `InceptionV3`, call `tf.keras.applications.inception_v3.preprocess_input`
-    on your inputs before passing them to the model.
-    `inception_v3.preprocess_input` will scale input pixels between -1 and 1.
+    For `InceptionV3`, call
+    `tf.keras.applications.inception_v3.preprocess_input` on your inputs before
+    passing them to the model. `inception_v3.preprocess_input` will scale input
+    pixels between -1 and 1.
 
     Args:
       include_top: Boolean, whether to include the fully-connected
@@ -85,8 +87,8 @@ def InceptionV3(
         `imagenet` (pre-training on ImageNet),
         or the path to the weights file to be loaded. Default to `imagenet`.
       input_tensor: Optional Keras tensor (i.e. output of `layers.Input()`)
-        to use as image input for the model. `input_tensor` is useful for sharing
-        inputs between multiple different networks. Default to None.
+        to use as image input for the model. `input_tensor` is useful for
+        sharing inputs between multiple different networks. Default to None.
       input_shape: Optional shape tuple, only to be specified
         if `include_top` is False (otherwise the input shape
         has to be `(299, 299, 3)` (with `channels_last` data format)

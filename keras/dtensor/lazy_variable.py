@@ -16,7 +16,7 @@
 
 import threading
 
-
+# isort: off
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
@@ -28,7 +28,6 @@ from tensorflow.python.training.tracking import (
 )
 from tensorflow.python.util import compat
 from tensorflow.python.util import tf_contextlib
-
 
 _DISABLE_LAZY_VARIABLE_INIT = threading.local()
 
@@ -57,8 +56,8 @@ def _infer_shape_dtype_and_create_handle(initial_value, shape, dtype, name):
                         initial_value, trackable.CheckpointInitialValue
                     ):
                         raise NotImplementedError(
-                            "CheckpointInitialValue is not supported to be the initial "
-                            "value of a lazy variable."
+                            "CheckpointInitialValue is not supported to be the "
+                            "initial value of a lazy variable."
                         )
                     initial_value = ops.convert_to_tensor(
                         initial_value, name="initial_value", dtype=dtype
@@ -71,15 +70,18 @@ def _infer_shape_dtype_and_create_handle(initial_value, shape, dtype, name):
 
             assert dtype
             assert shape
-            handle = resource_variable_ops._variable_handle_from_shape_and_dtype(  # pylint: disable=protected-access
-                shape=shape,
-                dtype=dtype,
-                shared_name=None,  # Never shared
-                name=name,
-                graph_mode=False,
-                initial_value=None,
+            handle = (
+                resource_variable_ops._variable_handle_from_shape_and_dtype(
+                    shape=shape,
+                    dtype=dtype,
+                    shared_name=None,  # Never shared
+                    name=name,
+                    graph_mode=False,
+                    initial_value=None,
+                )
             )
-            # initial_value=initial_value if not callable(initial_value) else None)
+            # initial_value=initial_value if not callable(initial_value) else
+            # None)
     return initial_value, shape, dtype, handle, handle_name, unique_id
 
 
@@ -190,9 +192,10 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
 
                 if not initial_value.shape.is_compatible_with(self._shape):
                     raise ValueError(
-                        f"In this `tf.Variable` creation, the initial value's shape "
-                        f"({initial_value.shape}) is not compatible with "
-                        f"the explicitly supplied `shape` argument ({self._shape})."
+                        f"In this `tf.Variable` creation, the initial value's "
+                        f"shape ({initial_value.shape}) is not compatible with "
+                        f"the explicitly supplied `shape` "
+                        f"argument ({self._shape})."
                     )
                 assert self._dtype is initial_value.dtype.base_dtype
             gen_resource_variable_ops.assign_variable_op(

@@ -14,9 +14,10 @@
 # ==============================================================================
 """Utils for preprocessing layers."""
 
-from keras.utils import tf_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+from keras.utils import tf_utils
 
 INT = "int"
 ONE_HOT = "one_hot"
@@ -117,8 +118,9 @@ def encode_categorical_inputs(
     # TODO(b/190445202): remove output rank restriction.
     if inputs.shape.rank > 2:
         raise ValueError(
-            f"When output_mode is not `'int'`, maximum supported output rank is 2. "
-            f"Received output_mode {output_mode} and input shape {original_shape}, "
+            f"When output_mode is not `'int'`, maximum supported output rank "
+            f"is 2. Received output_mode {output_mode} and input shape "
+            f"{original_shape}, "
             f"which would result in output rank {inputs.shape.rank}."
         )
 

@@ -16,8 +16,9 @@
 # pylint:disable=g-classes-have-attributes
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 _v1_zeros_initializer = tf.compat.v1.zeros_initializer
 _v1_ones_initializer = tf.compat.v1.ones_initializer
@@ -72,8 +73,8 @@ class RandomNormal(tf.compat.v1.random_normal_initializer):
     Args:
       mean: a python scalar or a scalar tensor. Mean of the random values to
         generate.
-      stddev: a python scalar or a scalar tensor. Standard deviation of the random
-        values to generate.
+      stddev: a python scalar or a scalar tensor. Standard deviation of the
+        random values to generate.
       seed: A Python integer. Used to create random seeds. See
         `tf.compat.v1.set_random_seed` for behavior.
       dtype: Default data type, used if no `dtype` argument is provided when

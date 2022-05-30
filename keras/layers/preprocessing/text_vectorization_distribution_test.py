@@ -15,6 +15,9 @@
 """Distribution tests for keras.layers.preprocessing.text_vectorization."""
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras import backend
 from keras.distribute import strategy_combinations
@@ -22,8 +25,8 @@ from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import text_vectorization
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
@@ -80,7 +83,8 @@ class TextVectorizationDistributionTest(
         self.assertAllEqual(expected_output, output_dataset)
 
     def test_distribution_strategy_output_with_adapt(self, strategy):
-        # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
+        # TODO(b/180614455): remove this check when MLIR bridge is always
+        # enabled.
         if backend.is_tpu_strategy(strategy):
             self.skipTest("This test needs MLIR bridge on TPU.")
 

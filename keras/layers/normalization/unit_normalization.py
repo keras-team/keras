@@ -22,6 +22,7 @@ import tensorflow.compat.v2 as tf
 from keras.engine import base_layer
 from keras.utils import tf_utils
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -40,10 +41,10 @@ class UnitNormalization(base_layer.Layer):
     1.0
 
     Args:
-      axis: Integer or list/tuple. The axis or axes to normalize across. Typically
-        this is the features axis or axes. The left-out axes are typically the
-        batch axis or axes. Defaults to `-1`, the last dimension in
-        the input.
+      axis: Integer or list/tuple. The axis or axes to normalize across.
+        Typically this is the features axis or axes. The left-out axes are
+        typically the batch axis or axes. Defaults to `-1`, the last dimension
+        in the input.
     """
 
     def __init__(self, axis=-1, **kwargs):

@@ -14,15 +14,14 @@
 # ==============================================================================
 """Tests for imagenet_utils."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
 from keras.applications import imagenet_utils as utils
 from keras.mixed_precision.policy import set_global_policy
+from keras.testing_infra import test_combinations
 
 
 class TestImageNetUtils(test_combinations.TestCase):

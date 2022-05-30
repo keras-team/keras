@@ -14,17 +14,19 @@
 # ==============================================================================
 """Tests for Keras metrics functions."""
 
-import tensorflow.compat.v2 as tf
-
 import json
 
-from absl.testing import parameterized
 import numpy as np
-from keras.testing_infra import test_combinations
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
+
 from keras import layers
 from keras import metrics
 from keras import models
+from keras.testing_infra import test_combinations
 from keras.utils import metrics_utils
+
+# isort: off
 from tensorflow.python.platform import tf_logging
 
 
@@ -1195,8 +1197,10 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
             0.95,
         ]
         label_values = [0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1]
-        # precisions: [1/2, 6/11, 1/2, 5/9, 5/8, 5/7, 2/3, 3/5, 3/5, 2/3, 1/2, 1].
-        # recalls:    [1,   1,    5/6, 5/6, 5/6, 5/6, 2/3, 1/2, 1/2, 1/3, 1/6, 1/6].
+        # precisions: [1/2, 6/11, 1/2, 5/9, 5/8, 5/7, 2/3, 3/5, 3/5, 2/3, 1/2,
+        # 1].
+        # recalls:    [1,   1,    5/6, 5/6, 5/6, 5/6, 2/3, 1/2, 1/2, 1/3, 1/6,
+        # 1/6].
         y_pred = tf.constant(pred_values, dtype=tf.float32)
         y_true = tf.constant(label_values)
         self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
@@ -1221,8 +1225,10 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
             0.95,
         ]
         label_values = [0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1]
-        # precisions: [1/2, 6/11, 1/2, 5/9, 5/8, 5/7, 2/3, 3/5, 3/5, 2/3, 1/2, 1].
-        # recalls:    [1,   1,    5/6, 5/6, 5/6, 5/6, 2/3, 1/2, 1/2, 1/3, 1/6, 1/6].
+        # precisions: [1/2, 6/11, 1/2, 5/9, 5/8, 5/7, 2/3, 3/5, 3/5, 2/3, 1/2,
+        # 1].
+        # recalls:    [1,   1,    5/6, 5/6, 5/6, 5/6, 2/3, 1/2, 1/2, 1/3, 1/6,
+        # 1/6].
         y_pred = tf.constant(pred_values, dtype=tf.float32)
         y_true = tf.constant(label_values)
         self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
@@ -1247,8 +1253,10 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
             0.95,
         ]
         label_values = [0, 2, 0, 0, 0, 2, 2, 0, 2, 2, 0, 2]
-        # precisions: [1/2, 6/11, 1/2, 5/9, 5/8, 5/7, 2/3, 3/5, 3/5, 2/3, 1/2, 1].
-        # recalls:    [1,   1,    5/6, 5/6, 5/6, 5/6, 2/3, 1/2, 1/2, 1/3, 1/6, 1/6].
+        # precisions: [1/2, 6/11, 1/2, 5/9, 5/8, 5/7, 2/3, 3/5, 3/5, 2/3, 1/2,
+        # 1].
+        # recalls:    [1,   1,    5/6, 5/6, 5/6, 5/6, 2/3, 1/2, 1/2, 1/3, 1/6,
+        # 1/6].
         y_pred = tf.transpose([pred_values] * 3)
         y_true = tf.one_hot(label_values, depth=3)
         self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
@@ -1451,7 +1459,8 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_manual_thresholds(self):
         self.setup()
-        # Verify that when specified, thresholds are used instead of num_thresholds.
+        # Verify that when specified, thresholds are used instead of
+        # num_thresholds.
         auc_obj = metrics.AUC(num_thresholds=2, thresholds=[0.5])
         self.assertEqual(auc_obj.num_thresholds, 3)
         self.assertAllClose(auc_obj.thresholds, [0.0, 0.5, 1.0])
@@ -1957,8 +1966,8 @@ class ThresholdsTest(tf.test.TestCase, parameterized.TestCase):
         ]
     )
     def test_with_default_thresholds(self, metric_obj):
-        # By default, the thresholds will be evenly distributed if there are more
-        # than 1. In case there is only 1 thresholds, then we expect
+        # By default, the thresholds will be evenly distributed if there are
+        # more than 1. In case there is only 1 thresholds, then we expect
         # _thresholds_distributed_evenly to be false.
         expected = len(metric_obj.thresholds) > 1
         self.assertEqual(metric_obj._thresholds_distributed_evenly, expected)
@@ -1983,8 +1992,8 @@ class ThresholdsTest(tf.test.TestCase, parameterized.TestCase):
         self.assertFalse(metric_obj._thresholds_distributed_evenly)
 
     def test_manual_thresholds_auc(self):
-        # The AUC metric handles manual thresholds input differently (it will add
-        # 0.0 and 1.0 for user).
+        # The AUC metric handles manual thresholds input differently (it will
+        # add 0.0 and 1.0 for user).
         even_thresholds = [0.25, 0.5, 0.75]
         auc = metrics.AUC(thresholds=even_thresholds)
         self.assertTrue(auc._thresholds_distributed_evenly)

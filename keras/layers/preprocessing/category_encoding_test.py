@@ -15,15 +15,16 @@
 """Tests for Keras text category_encoding preprocessing layer."""
 
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras import backend
 from keras.layers import core
 from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
@@ -297,7 +298,8 @@ class CategoryEncodingInputTest(
         int_data = encoder_layer(input_data)
         self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
         model = keras.Model(inputs=input_data, outputs=int_data)
-        # Call predict once on valid input to compile a graph and test control flow.
+        # Call predict once on valid input to compile a graph and test control
+        # flow.
         _ = model.predict(valid_array, steps=1)
         with self.assertRaisesRegex(
             tf.errors.InvalidArgumentError,
@@ -315,7 +317,8 @@ class CategoryEncodingInputTest(
         int_data = encoder_layer(input_data)
         self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
         model = keras.Model(inputs=input_data, outputs=int_data)
-        # Call predict once on valid input to compile a graph and test control flow.
+        # Call predict once on valid input to compile a graph and test control
+        # flow.
         _ = model.predict(valid_array, steps=1)
         with self.assertRaisesRegex(
             tf.errors.InvalidArgumentError,

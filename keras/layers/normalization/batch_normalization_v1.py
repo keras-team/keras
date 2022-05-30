@@ -16,6 +16,8 @@
 # pylint: disable=g-classes-have-attributes
 
 from keras.layers.normalization import batch_normalization
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

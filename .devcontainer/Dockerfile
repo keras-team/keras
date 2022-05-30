@@ -17,11 +17,10 @@ RUN groupadd --gid $USER_GID $USERNAME \
 
 # Install Bazel
 RUN apt update
-RUN apt install curl gnupg -y
-RUN curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor > bazel.gpg
-RUN mv bazel.gpg /etc/apt/trusted.gpg.d/
-RUN echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list
-RUN apt update && apt install bazel -y
+RUN apt install wget git gcc g++ -y
+RUN wget https://github.com/bazelbuild/bazelisk/releases/download/v1.11.0/bazelisk-linux-amd64
+RUN chmod a+x bazelisk-linux-amd64
+RUN mv bazelisk-linux-amd64 /usr/bin/bazel
 
 USER $USERNAME
 ENV PATH="/home/$USERNAME/.local/bin:${PATH}"

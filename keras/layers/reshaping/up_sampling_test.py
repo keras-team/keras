@@ -15,12 +15,14 @@
 """Tests for up-sampling layers."""
 
 
-import keras
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 import numpy as np
 import tensorflow.compat.v2 as tf
 
+import keras
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )

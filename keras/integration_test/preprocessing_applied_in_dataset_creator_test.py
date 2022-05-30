@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+
 from keras.integration_test import preprocessing_test_utils as utils
 
 ds_combinations = tf.__internal__.distribute.combinations
@@ -51,8 +52,8 @@ class PreprocessingAppliedInDatasetCreatorTest(tf.test.TestCase):
             strategy, tf.distribute.experimental.ParameterServerStrategy
         ):
             self.skipTest(
-                "Parameter Server strategy with dataset creator need to be run when "
-                "eager execution is enabled."
+                "Parameter Server strategy with dataset creator need to be run "
+                "when eager execution is enabled."
             )
         with strategy.scope():
             preprocessing_model = utils.make_preprocessing_model(

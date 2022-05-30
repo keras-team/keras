@@ -17,13 +17,15 @@
 
 
 import copy
+
+import tensorflow.compat.v2 as tf
+
 from keras import losses as losses_mod
 from keras import metrics as metrics_mod
 from keras.saving.experimental import saving_lib
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
 
 
 class Container:
@@ -130,7 +132,8 @@ class LossesContainer(Container):
         self._built = False
 
     def get_config(self):
-        # In case `self._losses` is a single string where we convert it to a list.
+        # In case `self._losses` is a single string where we convert it to a
+        # list.
         self._losses = tf.nest.flatten(self._losses)
         return {
             "losses": [
@@ -216,13 +219,16 @@ class LossesContainer(Container):
         """Computes the overall loss.
 
         Args:
-          y_true: An arbitrary structure of Tensors representing the ground truth.
-          y_pred: An arbitrary structure of Tensors representing a Model's outputs.
+          y_true: An arbitrary structure of Tensors representing the ground
+            truth.
+          y_pred: An arbitrary structure of Tensors representing a Model's
+            outputs.
           sample_weight: An arbitrary structure of Tensors representing the
             per-sample loss weights. If one Tensor is passed, it is used for all
             losses. If multiple Tensors are passed, the structure should match
             `y_pred`.
-          regularization_losses: Additional losses to be added to the total loss.
+          regularization_losses: Additional losses to be added to the total
+            loss.
 
         Returns:
           The total loss as a `tf.Tensor`, or `None` if no loss results.
@@ -259,7 +265,8 @@ class LossesContainer(Container):
             loss_value = loss_obj(y_t, y_p, sample_weight=sw)
 
             total_loss_mean_value = loss_value
-            # Correct for the `Mean` loss metrics counting each replica as a batch.
+            # Correct for the `Mean` loss metrics counting each replica as a
+            # batch.
             if loss_obj.reduction == losses_utils.ReductionV2.SUM:
                 total_loss_mean_value *= (
                     tf.distribute.get_strategy().num_replicas_in_sync
@@ -398,17 +405,17 @@ class MetricsContainer(Container):
     def _check_duplicated_metrics(self, metrics, weighted_metrics):
         """Check and raise error when user provided metrics has any duplications.
 
-        Note that metrics are stateful container, a shared metric instance between
-        model.metric and model.weighted_metric will make the same intance to be
-        udpated twice, and report wrong value.
+        Note that metrics are stateful container, a shared metric instance
+        between model.metric and model.weighted_metric will make the same
+        intance to be udpated twice, and report wrong value.
 
         Args:
           metrics: User provided metrics list.
           weighted_metrics: User provided weighted metrics list.
 
         Raises:
-          ValueError, when duplicated metrics instance discovered in user provided
-            metrics and weighted metrics.
+          ValueError, when duplicated metrics instance discovered in user
+            provided metrics and weighted metrics.
         """
         seen = set()
         duplicated = []
@@ -439,7 +446,7 @@ class MetricsContainer(Container):
 
     @property
     def unweighted_metrics(self):
-        """Metrics in this container that should not be passed `sample_weight`."""
+        """Metrics in the container that should not be passed sample_weight."""
         if not self._built:
             return None
         return tf.nest.flatten(self._metrics)
@@ -473,8 +480,8 @@ class MetricsContainer(Container):
             self._weighted_metrics
         )
 
-        # Convert to `Metric` objects, potentially disambiguating based on output
-        # properties.
+        # Convert to `Metric` objects, potentially disambiguating based on
+        # output properties.
         self._metrics = tf.__internal__.nest.map_structure_up_to(
             y_pred, self._get_metric_objects, self._metrics, y_true, y_pred
         )
@@ -509,7 +516,8 @@ class MetricsContainer(Container):
     def _set_metric_names(self):
         """Sets unique metric names."""
         # For multi-output models, prepend the output name to the metric name.
-        # For weighted metrics, prepend "weighted_" if the name would be non-unique.
+        # For weighted metrics, prepend "weighted_" if the name would be
+        # non-unique.
         # pylint: disable=protected-access
         metric_names = set()
         is_multi_output = len(self._output_names) > 1
@@ -525,7 +533,8 @@ class MetricsContainer(Container):
                 if m._name in metric_names:
                     raise ValueError(
                         f"Found two metrics with the same name: {m._name}. "
-                        "All the metrics added to the model need to have unique names."
+                        "All the metrics added to the model need to have "
+                        "unique names."
                     )
                 metric_names.add(m._name)
 
@@ -542,14 +551,15 @@ class MetricsContainer(Container):
 
                 if wm._name in metric_names:
                     raise ValueError(
-                        f"Found two weighted metrics with the same name: {wm._name}."
-                        "All the metrics added to the model need to have unique names."
+                        "Found two weighted metrics with the same name: "
+                        f"{wm._name}.All the metrics added to the model need "
+                        "to have unique names."
                     )
                 metric_names.add(wm._name)
         # pylint: enable=protected-access
 
     def _create_ordered_metrics(self):
-        """Cache the flat order needed when returning metrics, for backwards compat."""
+        """Cache the flat order needed when return metrics, for backcompat."""
         self._metrics_in_order = []
         for output_metrics, output_weighted_metrics in zip(
             self._metrics, self._weighted_metrics

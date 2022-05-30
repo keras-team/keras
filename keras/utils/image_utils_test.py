@@ -18,12 +18,13 @@ import io
 import os
 import pathlib
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import image_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_utils.run_v2_only

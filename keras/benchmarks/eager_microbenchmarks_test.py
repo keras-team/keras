@@ -14,13 +14,15 @@
 # ==============================================================================
 """Microbenchmarks for Keras components in eager mode."""
 
-import tensorflow.compat.v2 as tf
-
 import time
 
+import tensorflow.compat.v2 as tf
+
+from keras.utils import tf_inspect
+
+# isort: off
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_executor
-from keras.utils import tf_inspect
 
 
 def _run_benchmark(func, num_iters, execution_mode=None):
@@ -73,10 +75,11 @@ class MicroBenchmarksBase(tf.test.Benchmark):
             f_self = f_locals.get("self", None)
             if isinstance(f_self, tf.test.Benchmark):
                 name = frame[3]  # Get the method name
-                # This is a hack to get around the fact that some methods might have a
-                # disable_tfrt decorator around them. In that case a function called
-                # 'decorated' wraps the real called function underneath and so we
-                # peek one deeper into the stack to get the real name.
+                # This is a hack to get around the fact that some methods might
+                # have a disable_tfrt decorator around them. In that case a
+                # function called 'decorated' wraps the real called function
+                # underneath and so we peek one deeper into the stack to get the
+                # real name.
                 if name == "decorated":
                     continue
                 else:

@@ -29,8 +29,9 @@ from keras.engine import training
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
-from tensorflow.python.util.tf_export import keras_export
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHT_URL = (
     "https://storage.googleapis.com/tensorflow/"
@@ -332,8 +333,8 @@ def inception_resnet_block(x, scale, block_type, block_idx, activation="relu"):
       x: input tensor.
       scale: scaling factor to scale the residuals (i.e., the output of passing
         `x` through an inception module) before adding them to the shortcut
-        branch. Let `r` be the output from the residual branch, the output of this
-        block will be `x + scale * r`.
+        branch. Let `r` be the output from the residual branch, the output of
+        this block will be `x + scale * r`.
       block_type: `'block35'`, `'block17'` or `'block8'`, determines the network
         structure in the residual branch.
       block_idx: an `int` used for generating layer names. The Inception-ResNet

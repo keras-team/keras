@@ -14,11 +14,10 @@
 # ==============================================================================
 """Tests for compiled Model subclassing."""
 
-import tensorflow.compat.v2 as tf
-
 import os
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.testing_infra import test_combinations
@@ -102,7 +101,8 @@ class ModelSubclassCompiledTest(test_combinations.TestCase):
             _ = model.evaluate(dataset, steps=10, verbose=0)
 
     def test_attributes(self):
-        # layers, weights, trainable_weights, non_trainable_weights, inputs, outputs
+        # layers, weights, trainable_weights, non_trainable_weights, inputs,
+        # outputs
 
         num_classes = (2, 3)
         num_samples = 100

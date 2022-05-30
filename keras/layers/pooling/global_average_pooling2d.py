@@ -18,6 +18,7 @@
 from keras import backend
 from keras.layers.pooling.base_global_pooling2d import GlobalPooling2D
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

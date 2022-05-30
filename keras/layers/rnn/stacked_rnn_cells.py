@@ -17,13 +17,15 @@
 
 import functools
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine import base_layer
 from keras.layers.rnn import rnn_utils
 from keras.utils import generic_utils
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -67,10 +69,11 @@ class StackedRNNCells(base_layer.Layer):
                     f"Received cell without a `state_size`: {cell}"
                 )
         self.cells = cells
-        # reverse_state_order determines whether the state size will be in a reverse
-        # order of the cells' state. User might want to set this to True to keep the
-        # existing behavior. This is only useful when use RNN(return_state=True)
-        # since the state will be returned as the same order of state_size.
+        # reverse_state_order determines whether the state size will be in a
+        # reverse order of the cells' state. User might want to set this to True
+        # to keep the existing behavior. This is only useful when use
+        # RNN(return_state=True) since the state will be returned as the same
+        # order of state_size.
         self.reverse_state_order = kwargs.pop("reverse_state_order", False)
         if self.reverse_state_order:
             logging.warning(
@@ -135,7 +138,8 @@ class StackedRNNCells(base_layer.Layer):
         new_nested_states = []
         for cell, states in zip(self.cells, nested_states):
             states = states if tf.nest.is_nested(states) else [states]
-            # TF cell does not wrap the state into list when there is only one state.
+            # TF cell does not wrap the state into list when there is only one
+            # state.
             is_tf_rnn_cell = getattr(cell, "_is_tf_rnn_cell", None) is not None
             states = (
                 states[0] if len(states) == 1 and is_tf_rnn_cell else states
@@ -144,8 +148,8 @@ class StackedRNNCells(base_layer.Layer):
                 kwargs["training"] = training
             else:
                 kwargs.pop("training", None)
-            # Use the __call__ function for callable objects, eg layers, so that it
-            # will have the proper name scopes for the ops, etc.
+            # Use the __call__ function for callable objects, eg layers, so that
+            # it will have the proper name scopes for the ops, etc.
             cell_call_fn = cell.__call__ if callable(cell) else cell.call
             if generic_utils.has_arg(cell.call, "constants"):
                 inputs, states = cell_call_fn(
@@ -202,9 +206,7 @@ class StackedRNNCells(base_layer.Layer):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        from keras.layers import (
-            deserialize as deserialize_layer,
-        )  # pylint: disable=g-import-not-at-top
+        from keras.layers import deserialize as deserialize_layer
 
         cells = []
         for cell_config in config.pop("cells"):

@@ -14,9 +14,8 @@
 # ==============================================================================
 """A simple functional keras model with one layer."""
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.distribute import model_collection_base

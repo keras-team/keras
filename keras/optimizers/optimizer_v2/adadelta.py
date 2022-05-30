@@ -14,14 +14,16 @@
 # ==============================================================================
 """Adadelta optimizer implementation."""
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
-# pylint: disable=g-classes-have-attributes
-
-import numpy as np
 from keras import backend_config
 from keras.optimizers.optimizer_v2 import optimizer_v2
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
+
+# pylint: disable=g-classes-have-attributes
 
 
 # pylint: disable=g-classes-have-attributes
@@ -29,8 +31,8 @@ from tensorflow.python.util.tf_export import keras_export
 class Adadelta(optimizer_v2.OptimizerV2):
     r"""Optimizer that implements the Adadelta algorithm.
 
-    Adadelta optimization is a stochastic gradient descent method that is based on
-    adaptive learning rate per dimension to address two drawbacks:
+    Adadelta optimization is a stochastic gradient descent method that is based
+    on adaptive learning rate per dimension to address two drawbacks:
 
     - The continual decay of learning rates throughout training.
     - The need for a manually selected global learning rate.

@@ -14,10 +14,11 @@
 # ==============================================================================
 """Tests for Keras metrics."""
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 from keras import metrics
 from keras.engine import base_layer
-import tensorflow.compat.v2 as tf
 
 combinations = tf.__internal__.distribute.combinations
 
@@ -176,8 +177,8 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
             def __init__(self):
                 super().__init__(name="metric_layer")
                 self.sum = metrics.Sum(name="sum")
-                # Using aggregation for jit_compile results in failure. Thus only set
-                # aggregation for PS Strategy for multi-gpu tests.
+                # Using aggregation for jit_compile results in failure. Thus
+                # only set aggregation for PS Strategy for multi-gpu tests.
                 if isinstance(
                     distribution,
                     tf.distribute.experimental.ParameterServerStrategy,

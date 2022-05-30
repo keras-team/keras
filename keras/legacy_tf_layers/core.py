@@ -21,12 +21,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
-
 import warnings
+
+import tensorflow.compat.v2 as tf
 
 from keras import layers as keras_layers
 from keras.legacy_tf_layers import base
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export
 
@@ -66,7 +68,8 @@ class Dense(keras_layers.Dense, base.Layer):
       trainable: Boolean, if `True` also add variables to the graph collection
         `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
       name: String, the name of the layer. Layers with the same name will
-        share weights, but to avoid mistakes we require reuse=True in such cases.
+        share weights, but to avoid mistakes we require reuse=True in such
+        cases.
       _reuse: Boolean, whether to reuse the weights of a previous layer
         by the same name.
 
@@ -423,8 +426,8 @@ class Flatten(keras_layers.Flatten, base.Layer):
     """Flattens an input tensor while preserving the batch axis (axis 0).
 
     Args:
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, ..., channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, ...)`.
@@ -482,8 +485,8 @@ def flatten(inputs, name=None, data_format="channels_last"):
     Args:
       inputs: Tensor input.
       name: The name of the layer (string).
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, height, width, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, height, width)`.

@@ -14,25 +14,25 @@
 # ==============================================================================
 """Tests for Keras text vectorization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
-
 import os
-from absl.testing import parameterized
+
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
-from keras.testing_infra import test_combinations
-from keras.testing_infra import test_utils
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import string_lookup
+from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 def _get_end_to_end_test_cases():
     test_cases = (
         {
             "testcase_name": "test_strings_soft_vocab_cap",
-            # Create an array where 'earth' is the most frequent term, followed by
-            # 'wind', then 'and', then 'fire'. This ensures that the vocab
+            # Create an array where 'earth' is the most frequent term, followed
+            # by 'wind', then 'and', then 'fire'. This ensures that the vocab
             # accumulator is sorting by frequency.
             "vocab_data": np.array(
                 [
@@ -105,13 +105,14 @@ class StringLookupLayerTest(
             # dataset batch separately, then tries to concatenate the results
             # together. When the results have different shapes on the non-concat
             # axis (which can happen in the output_mode = INT case for
-            # StringLookup), the concatenation fails. In real use cases, this may
-            # not be an issue because users are likely to pipe the preprocessing layer
-            # into other keras layers instead of predicting it directly. A workaround
-            # for these unit tests is to have the dataset only contain one batch, so
-            # no concatenation needs to happen with the result. For consistency with
-            # numpy input, we should make `predict` join differently shaped results
-            # together sensibly, with 0 padding.
+            # StringLookup), the concatenation fails. In real use cases, this
+            # may not be an issue because users are likely to pipe the
+            # preprocessing layer into other keras layers instead of predicting
+            # it directly. A workaround for these unit tests is to have the
+            # dataset only contain one batch, so no concatenation needs to
+            # happen with the result. For consistency with numpy input, we
+            # should make `predict` join differently shaped results together
+            # sensibly, with 0 padding.
             input_data = tf.data.Dataset.from_tensor_slices(input_data).batch(
                 input_shape[0]
             )

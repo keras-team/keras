@@ -14,15 +14,14 @@
 # ==============================================================================
 """Tests for Keras weights constraints."""
 
-import tensorflow.compat.v2 as tf
-
 import math
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 from keras import backend
-from keras.testing_infra import test_combinations
 from keras import constraints
+from keras.testing_infra import test_combinations
 
 
 def get_test_values():

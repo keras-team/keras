@@ -15,12 +15,14 @@
 """Keras upsampling layer for 3D inputs."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -63,9 +65,11 @@ class UpSampling3D(Layer):
     Output shape:
       5D tensor with shape:
       - If `data_format` is `"channels_last"`:
-          `(batch_size, upsampled_dim1, upsampled_dim2, upsampled_dim3, channels)`
+          `(batch_size, upsampled_dim1, upsampled_dim2, upsampled_dim3,
+          channels)`
       - If `data_format` is `"channels_first"`:
-          `(batch_size, channels, upsampled_dim1, upsampled_dim2, upsampled_dim3)`
+          `(batch_size, channels, upsampled_dim1, upsampled_dim2,
+          upsampled_dim3)`
     """
 
     def __init__(self, size=(2, 2, 2), data_format=None, **kwargs):

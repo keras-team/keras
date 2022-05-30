@@ -15,6 +15,9 @@
 """Tests for hashing layer."""
 
 import os
+
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
@@ -24,8 +27,6 @@ from keras.layers.preprocessing import hashing
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
@@ -67,8 +68,8 @@ class HashingTest(test_combinations.TestCase):
         )
         empty_mask_output = empty_mask_layer(inp)
         omar_mask_output = omar_mask_layer(inp)
-        # Outputs should be one more than test_hash_dense_input_farmhash (the zeroth
-        # bin is now reserved for masks).
+        # Outputs should be one more than test_hash_dense_input_farmhash (the
+        # zeroth bin is now reserved for masks).
         self.assertAllClose([[1], [1], [2], [1], [1]], empty_mask_output)
         # 'omar' should map to 0.
         self.assertAllClose([[0], [1], [2], [1], [1]], omar_mask_output)

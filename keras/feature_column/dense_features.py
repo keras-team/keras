@@ -18,12 +18,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import json
+
 import tensorflow.compat.v2 as tf
 
-import json
 from keras import backend
 from keras.feature_column import base_feature_layer as kfc
 from keras.saving.saved_model import json_utils
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -31,18 +34,19 @@ from tensorflow.python.util.tf_export import keras_export
 class DenseFeatures(kfc._BaseFeaturesLayer):  # pylint: disable=protected-access
     """A layer that produces a dense `Tensor` based on given `feature_columns`.
 
-    Generally a single example in training data is described with FeatureColumns.
-    At the first layer of the model, this column-oriented data should be converted
-    to a single `Tensor`.
+    Generally a single example in training data is described with
+    FeatureColumns.  At the first layer of the model, this column-oriented data
+    should be converted to a single `Tensor`.
 
     This layer can be called multiple times with different features.
 
-    This is the V1 version of this layer that uses variable_scope's or partitioner
-    to create variables which works well with PartitionedVariables. Variable
-    scopes are deprecated in V2, so the V2 version uses name_scopes instead. But
-    currently that lacks support for partitioned variables. Use this if you need
-    partitioned variables. Use the partitioner argument if you have a Keras model
-    and uses `tf.compat.v1.keras.estimator.model_to_estimator` for training.
+    This is the V1 version of this layer that uses variable_scope's or
+    partitioner to create variables which works well with PartitionedVariables.
+    Variable scopes are deprecated in V2, so the V2 version uses name_scopes
+    instead. But currently that lacks support for partitioned variables. Use
+    this if you need partitioned variables. Use the partitioner argument if you
+    have a Keras model and uses
+    `tf.compat.v1.keras.estimator.model_to_estimator` for training.
 
     Example:
 
@@ -78,11 +82,11 @@ class DenseFeatures(kfc._BaseFeaturesLayer):  # pylint: disable=protected-access
 
         Args:
           feature_columns: An iterable containing the FeatureColumns to use as
-            inputs to your model. All items should be instances of classes derived
-            from `DenseColumn` such as `numeric_column`, `embedding_column`,
-            `bucketized_column`, `indicator_column`. If you have categorical
-            features, you can wrap them with an `embedding_column` or
-            `indicator_column`.
+            inputs to your model. All items should be instances of classes
+            derived from `DenseColumn` such as `numeric_column`,
+            `embedding_column`, `bucketized_column`, `indicator_column`. If you
+            have categorical features, you can wrap them with an
+            `embedding_column` or `indicator_column`.
           trainable:  Boolean, whether the layer's variables will be updated via
             gradient descent during training.
           name: Name to give to the DenseFeatures.
@@ -110,7 +114,8 @@ class DenseFeatures(kfc._BaseFeaturesLayer):  # pylint: disable=protected-access
         """String stored in metadata field in the SavedModel proto.
 
         Returns:
-          A serialized JSON storing information necessary for recreating this layer.
+          A serialized JSON storing information necessary for recreating this
+          layer.
         """
         metadata = json.loads(super()._tracking_metadata)
         metadata["_is_feature_layer"] = True
@@ -129,22 +134,24 @@ class DenseFeatures(kfc._BaseFeaturesLayer):  # pylint: disable=protected-access
         ...    dimension=8)
         >>> t2 = tf.feature_column.numeric_column('t2')
         >>> feature_layer = tf.compat.v1.keras.layers.DenseFeatures([t1, t2])
-        >>> features = {"t1": tf.constant(["a", "b"]), "t2": tf.constant([1, 2])}
+        >>> features = {"t1": tf.constant(["a", "b"]),
+        ...             "t2": tf.constant([1, 2])}
         >>> dense_tensor = feature_layer(features, training=True)
 
         Args:
           features: A mapping from key to tensors. `FeatureColumn`s look up via
-            these keys. For example `numeric_column('price')` will look at 'price'
-            key in this dict. Values can be a `SparseTensor` or a `Tensor` depends
-            on corresponding `FeatureColumn`.
+            these keys. For example `numeric_column('price')` will look at
+            'price' key in this dict. Values can be a `SparseTensor` or a
+            `Tensor` depends on corresponding `FeatureColumn`.
           cols_to_output_tensors: If not `None`, this will be filled with a dict
             mapping feature columns to output tensors created.
-          training: Python boolean or None, indicating whether to the layer is being
-            run in training mode. This argument is passed to the call method of any
-            `FeatureColumn` that takes a `training` argument. For example, if a
-            `FeatureColumn` performed dropout, the column could expose a `training`
-            argument to control whether the dropout should be applied. If `None`,
-            defaults to `tf.keras.backend.learning_phase()`.
+          training: Python boolean or None, indicating whether to the layer is
+            being run in training mode. This argument is passed to the call
+            method of any `FeatureColumn` that takes a `training` argument. For
+            example, if a `FeatureColumn` performed dropout, the column could
+            expose a `training` argument to control whether the dropout should
+            be applied. If `None`, defaults to
+            `tf.keras.backend.learning_phase()`.
 
 
         Returns:

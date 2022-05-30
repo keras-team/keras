@@ -15,6 +15,8 @@
 """Fully connected RNN layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -26,8 +28,8 @@ from keras.layers.rnn import rnn_utils
 from keras.layers.rnn.base_rnn import RNN
 from keras.layers.rnn.dropout_rnn_cell_mixin import DropoutRNNCellMixin
 from keras.utils import tf_utils
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -53,31 +55,31 @@ class SimpleRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         used for the linear transformation of the inputs. Default:
         `glorot_uniform`.
       recurrent_initializer: Initializer for the `recurrent_kernel`
-        weights matrix, used for the linear transformation of the recurrent state.
-        Default: `orthogonal`.
+        weights matrix, used for the linear transformation of the recurrent
+        state.  Default: `orthogonal`.
       bias_initializer: Initializer for the bias vector. Default: `zeros`.
       kernel_regularizer: Regularizer function applied to the `kernel` weights
         matrix. Default: `None`.
       recurrent_regularizer: Regularizer function applied to the
         `recurrent_kernel` weights matrix. Default: `None`.
-      bias_regularizer: Regularizer function applied to the bias vector. Default:
-        `None`.
+      bias_regularizer: Regularizer function applied to the bias vector.
+        Default: `None`.
       kernel_constraint: Constraint function applied to the `kernel` weights
         matrix. Default: `None`.
-      recurrent_constraint: Constraint function applied to the `recurrent_kernel`
-        weights matrix. Default: `None`.
+      recurrent_constraint: Constraint function applied to the
+        `recurrent_kernel` weights matrix. Default: `None`.
       bias_constraint: Constraint function applied to the bias vector. Default:
         `None`.
-      dropout: Float between 0 and 1. Fraction of the units to drop for the linear
-        transformation of the inputs. Default: 0.
-      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop for
-        the linear transformation of the recurrent state. Default: 0.
+      dropout: Float between 0 and 1. Fraction of the units to drop for the
+        linear transformation of the inputs. Default: 0.
+      recurrent_dropout: Float between 0 and 1. Fraction of the units to drop
+        for the linear transformation of the recurrent state. Default: 0.
 
     Call arguments:
       inputs: A 2D tensor, with shape of `[batch, feature]`.
-      states: A 2D tensor with shape of `[batch, units]`, which is the state from
-        the previous time step. For timestep 0, the initial state provided by user
-        will be feed to cell.
+      states: A 2D tensor with shape of `[batch, units]`, which is the state
+        from the previous time step. For timestep 0, the initial state provided
+        by user will be feed to cell.
       training: Python boolean indicating whether the layer should behave in
         training mode or in inference mode. Only relevant when `dropout` or
         `recurrent_dropout` is used.
@@ -265,26 +267,26 @@ class SimpleRNN(RNN):
         used for the linear transformation of the inputs. Default:
         `glorot_uniform`.
       recurrent_initializer: Initializer for the `recurrent_kernel`
-        weights matrix, used for the linear transformation of the recurrent state.
-        Default: `orthogonal`.
+        weights matrix, used for the linear transformation of the recurrent
+        state.  Default: `orthogonal`.
       bias_initializer: Initializer for the bias vector. Default: `zeros`.
       kernel_regularizer: Regularizer function applied to the `kernel` weights
         matrix. Default: `None`.
       recurrent_regularizer: Regularizer function applied to the
         `recurrent_kernel` weights matrix. Default: `None`.
-      bias_regularizer: Regularizer function applied to the bias vector. Default:
-        `None`.
+      bias_regularizer: Regularizer function applied to the bias vector.
+        Default: `None`.
       activity_regularizer: Regularizer function applied to the output of the
         layer (its "activation"). Default: `None`.
       kernel_constraint: Constraint function applied to the `kernel` weights
         matrix. Default: `None`.
-      recurrent_constraint: Constraint function applied to the `recurrent_kernel`
-        weights matrix.  Default: `None`.
+      recurrent_constraint: Constraint function applied to the
+        `recurrent_kernel` weights matrix.  Default: `None`.
       bias_constraint: Constraint function applied to the bias vector. Default:
         `None`.
       dropout: Float between 0 and 1.
-        Fraction of the units to drop for the linear transformation of the inputs.
-        Default: 0.
+        Fraction of the units to drop for the linear transformation of the
+        inputs. Default: 0.
       recurrent_dropout: Float between 0 and 1.
         Fraction of the units to drop for the linear transformation of the
         recurrent state. Default: 0.
@@ -309,8 +311,8 @@ class SimpleRNN(RNN):
       inputs: A 3D tensor, with shape `[batch, timesteps, feature]`.
       mask: Binary tensor of shape `[batch, timesteps]` indicating whether
         a given timestep should be masked. An individual `True` entry indicates
-        that the corresponding timestep should be utilized, while a `False` entry
-        indicates that the corresponding timestep should be ignored.
+        that the corresponding timestep should be utilized, while a `False`
+        entry indicates that the corresponding timestep should be ignored.
       training: Python boolean indicating whether the layer should behave in
         training mode or in inference mode. This argument is passed to the cell
         when calling it. This is only relevant if `dropout` or

@@ -14,9 +14,8 @@
 # ==============================================================================
 """Tests for stateful tf.keras LSTM models using DistributionStrategy."""
 
-import tensorflow.compat.v2 as tf
-
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras.distribute import keras_correctness_test_base
@@ -43,7 +42,7 @@ def test_combinations_for_stateful_embedding_model():
 
 
 class DistributionStrategyStatefulLstmModelCorrectnessTest(
-    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase
+    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase  # noqa: E501
 ):
     def get_model(
         self,
@@ -98,7 +97,7 @@ class DistributionStrategyStatefulLstmModelCorrectnessTest(
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.times(
-            keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()
+            keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()  # noqa: E501
         )
     )
     def test_incorrectly_use_multiple_cores_for_stateful_lstm_model(

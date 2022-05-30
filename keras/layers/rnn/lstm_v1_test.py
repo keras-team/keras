@@ -17,19 +17,20 @@
 
 import time
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.layers.rnn import lstm
 from keras.layers.rnn import lstm_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.platform import tf_logging as logging
-
 
 # Global config for grappler setting that is used for graph mode test.
 _rewrites = rewriter_config_pb2.RewriterConfig()
@@ -43,7 +44,8 @@ _config = tf.compat.v1.ConfigProto(graph_options=_graph_options)
 class LSTMGraphRewriteTest(test_combinations.TestCase):
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded input yet.",
+        skip_message="Skipping as ROCm MIOpen does not support padded "
+        "input yet.",
     )
     @test_utils.run_v2_only
     def test_lstm_feature_parity_v1_v2(self):
@@ -170,7 +172,8 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded input yet.",
+        skip_message="Skipping as ROCm MIOpen does not support padded "
+        "input yet.",
     )
     @test_utils.run_v2_only
     def test_explicit_device_with_go_backward_and_mask_v1(self):

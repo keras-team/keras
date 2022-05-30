@@ -23,6 +23,8 @@ introspection (test_util decorators). Please be careful adding new tests here.
 import tensorflow.compat.v2 as tf
 
 import keras
+
+# isort: off
 from tensorflow.python.eager.memory_tests import (
     memory_test_util,
 )

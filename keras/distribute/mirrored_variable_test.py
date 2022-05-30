@@ -15,6 +15,7 @@
 """Test MirroredVariable in MirroredStrategy and MultiWorkerMirroredStrategy."""
 
 import tensorflow.compat.v2 as tf
+
 from keras.distribute import distributed_training_utils
 from keras.layers import core
 
@@ -50,7 +51,7 @@ def get_strategy_with_mimicing_cpus():
             filter(
                 None.__ne__,
                 [
-                    tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                    tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
                     get_strategy_with_mimicing_cpus(),
                 ],
             )
@@ -92,10 +93,10 @@ class MirroredVariableCreationTest(tf.test.TestCase):
             layer1(features)
             layer2 = core.Dense(1)
             layer2(features)
-            # We rely on names and orders to make sure replica references the same
-            # MirroredVariable. Uniquifying names may involve global states,
-            # merge_call switches threads so we need to test things work after
-            # merge_call.
+            # We rely on names and orders to make sure replica references the
+            # same MirroredVariable. Uniquifying names may involve global
+            # states, merge_call switches threads so we need to test things work
+            # after merge_call.
             tf.distribute.get_replica_context().merge_call(lambda _: _)
             layer3 = core.Dense(1)
             layer3(features)

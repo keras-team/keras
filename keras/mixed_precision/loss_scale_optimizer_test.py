@@ -17,6 +17,8 @@
 import os
 from unittest import mock
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras import optimizers
@@ -25,15 +27,14 @@ from keras.mixed_precision import test_util as mp_test_util
 from keras.optimizers.optimizer_experimental import (
     optimizer as optimizer_experimental,
 )
+from keras.optimizers.optimizer_experimental import adam as adam_experimental
 from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
 from keras.optimizers.optimizer_v2 import adam
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.testing_infra import test_combinations
 
-import numpy as np
-import tensorflow.compat.v2 as tf
-
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
@@ -116,9 +117,9 @@ def opt_and_strategy_and_mode_combinations():
     """Returns combinations for running with multiple optimizers and strategies.
 
     Returns:
-      Combinations that run with both OptimizerV2 and the experimental optimizer;
-      and with the default strategy and mirrored strategy; and in both graph and
-      eager mode.
+      Combinations that run with both OptimizerV2 and the experimental
+      optimizer; and with the default strategy and mirrored strategy; and in
+      both graph and eager mode.
     """
     # For the experimental optimizer, don't use graph mode directly since it's
     # unsupported. Instead, run both without and with a tf.function, in order to
@@ -152,17 +153,17 @@ def opt_combinations_only():
 @tf_test_utils.with_control_flow_v2
 class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     def _run_if_in_graph_mode(self, val):
-        # Running only in graph mode is useful, because optimizers sometimes return
-        # a value that, in Graph mode, is runnable with self.evaluate. But in Eager
-        # mode, the optimizer already does the computations and the return value
-        # cannot be run.
+        # Running only in graph mode is useful, because optimizers sometimes
+        # return a value that, in Graph mode, is runnable with self.evaluate.
+        # But in Eager mode, the optimizer already does the computations and the
+        # return value cannot be run.
         if not tf.executing_eagerly():
             self.evaluate(val)
 
     def _eval_if_tensor(self, val):
-        # Calls self.evaluate on val if val is a Tensor or Variable. This is useful,
-        # since hyperparameters are tf.Variables on OptimizerV2 and are Python
-        # floats on the experimental optimizer.
+        # Calls self.evaluate on val if val is a Tensor or Variable. This is
+        # useful, since hyperparameters are tf.Variables on OptimizerV2 and are
+        # Python floats on the experimental optimizer.
         return (
             self.evaluate(val)
             if isinstance(val, (tf.Tensor, tf.Variable))
@@ -198,9 +199,9 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             opt = create_lso(opt, dynamic=False, initial_scale=loss_scale)
             self.assertEqual(self.evaluate(opt.loss_scale), loss_scale)
             self.assertIsInstance(opt.loss_scale, tf.Tensor)
-            # We need num_replicas_in_sync to divide loss_scale, otherwise loss_scale
-            # / strategy.num_replicas_in_sync will not be exact, which could lead to
-            # assertion failures due to rounding issues.
+            # We need num_replicas_in_sync to divide loss_scale, otherwise
+            # loss_scale / strategy.num_replicas_in_sync will not be exact,
+            # which could lead to assertion failures due to rounding issues.
             self.assertEqual(loss_scale % strategy.num_replicas_in_sync, 0)
             run_fn = self._run_fn_with_grad_check(
                 strategy, var, opt, loss_scale / strategy.num_replicas_in_sync
@@ -210,8 +211,9 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             run_op = strategy.experimental_run(run_fn)
             self.evaluate(tf.compat.v1.global_variables_initializer())
             self._run_if_in_graph_mode(run_op)
-            # The loss is the identity of the variable. Therefore the gradient is 1,
-            # and so the variable will be init_val - grad * lr == 5 - 1 * 2 == 3
+            # The loss is the identity of the variable. Therefore the gradient
+            # is 1, and so the variable will be init_val - grad * lr == 5 - 1 *
+            # 2 == 3
             self.assertAllClose([3.0], self.evaluate(var))
 
     def testFixedLossScaleAppliedToLossWithGetGradients(self):
@@ -229,7 +231,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             run_op = opt.get_gradients(loss, [var])
             self.evaluate(tf.compat.v1.global_variables_initializer())
             # This will cause an assertion to run, as
-            # mp_test_util.create_identity_with_grad_check_fn added an assertion op.
+            # mp_test_util.create_identity_with_grad_check_fn added an assertion
+            # op.
             self.evaluate(run_op)
 
     @test_combinations.generate(opt_combinations_only())
@@ -310,11 +313,13 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             run_op = strategy.experimental_run(run_fn)
             self.evaluate(tf.compat.v1.global_variables_initializer())
             self._run_if_in_graph_mode(run_op)
-            # The loss is the identity of the variable. Therefore the gradient is 1,
-            # and so the variable will be init_val - grad * lr == 5 - 1 * 2 == 3
+            # The loss is the identity of the variable. Therefore the gradient
+            # is 1, and so the variable will be init_val - grad * lr == 5 - 1 *
+            # 2 == 3
             self.assertAllClose([3.0], self.evaluate(var))
 
-            # Loss scale will be double, so the expected gradient is also doubled.
+            # Loss scale will be double, so the expected gradient is also
+            # doubled.
             self.evaluate(
                 expected_gradient.assign(
                     2 * learning_rate / strategy.num_replicas_in_sync
@@ -322,8 +327,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             )
             run_op = strategy.experimental_run(run_fn)
             self._run_if_in_graph_mode(run_op)
-            # As before, the 2 is subtracted from the variable, making it's new value
-            # 1.
+            # As before, the 2 is subtracted from the variable, making it's new
+            # value 1.
             self.assertAllClose([1.0], self.evaluate(var))
 
     @test_combinations.generate(opt_combinations_only())
@@ -367,8 +372,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 self.assertEqual(self.evaluate(opt.loss_scale), 4)
 
                 if isinstance(opt, loss_scale_optimizer.LossScaleOptimizerV3):
-                    # Only OptimizerV2 exposes the clipping attributes, so we cannot set
-                    # them on the new optimizer
+                    # Only OptimizerV2 exposes the clipping attributes, so we
+                    # cannot set them on the new optimizer
                     return
                 # Test changing the clip amount and running again
                 setattr(opt, clip_type, 3.0)
@@ -441,8 +446,9 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             run_op = strategy.experimental_run(run_fn)
             self.evaluate(tf.compat.v1.global_variables_initializer())
             self._run_if_in_graph_mode(run_op)
-            # The loss is the identity of the variable. Therefore the gradient is 1,
-            # and so the variable will be init_val - grad * lr == 5 - 1 * 2 == 3
+            # The loss is the identity of the variable. Therefore the gradient
+            # is 1, and so the variable will be init_val - grad * lr == 5 - 1 *
+            # 2 == 3
             self.assertAllClose([3.0], self.evaluate(var))
 
     @test_combinations.generate(opt_and_strategy_and_mode_combinations())
@@ -488,8 +494,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
     def testCustomAggregater(self):
         def gradient_aggregator(grads_and_vars):
-            # Simulate an all-reduce where a replica has a NaN gradient by setting
-            # the last gradient to NaN
+            # Simulate an all-reduce where a replica has a NaN gradient by
+            # setting the last gradient to NaN
             grads_and_vars = list(grads_and_vars)
             last_grad, last_var = grads_and_vars[-1]
             grads_and_vars[-1] = (last_grad * float("NaN"), last_var)
@@ -537,18 +543,18 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             self.evaluate(tf.compat.v1.global_variables_initializer())
             self._run_if_in_graph_mode(run_op)
             # The momentum accumulator starts at 0 and the gradient is 1. The
-            # accumulator is incremented by the gradient, so it is now 1. Then the
-            # variable is subtracted by the accumulator, so the variable is subtracted
-            # by 1.
+            # accumulator is incremented by the gradient, so it is now 1. Then
+            # the variable is subtracted by the accumulator, so the variable is
+            # subtracted by 1.
             self.assertAllClose([0.0, 1.0], self.evaluate(var))
             self.assertEqual(self.evaluate(opt.loss_scale), initial_scale * 2)
 
             run_op = strategy.experimental_run(run_fn)
             self._run_if_in_graph_mode(run_op)
-            # The momentum accumulator was 1 before this step and the gradient is 1.
-            # The accumulator is incremented by the gradient, so it is now 2. Then the
-            # variable is subtracted by the accumulator, so the variable is subtracted
-            # by 2.
+            # The momentum accumulator was 1 before this step and the gradient
+            # is 1. The accumulator is incremented by the gradient, so it is
+            # now 2. Then the variable is subtracted by the accumulator, so the
+            # variable is subtracted by 2.
             self.assertAllClose([-2.0, -1.0], self.evaluate(var))
             self.assertEqual(self.evaluate(opt.loss_scale), initial_scale * 4)
 
@@ -583,8 +589,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             )  # Grad is 2, so var is 5 - 2
             self.assertEqual(self.evaluate(opt.iterations), 1)
 
-            # Test iterations is incremented in opt.minimize even if gradients aren't
-            # applied to variables due to NaN gradients.
+            # Test iterations is incremented in opt.minimize even if gradients
+            # aren't applied to variables due to NaN gradients.
             loss = lambda: var * float("NaN")
             run_fn = lambda: opt.minimize(loss, [var])
             if use_tf_function:
@@ -611,6 +617,23 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(self.evaluate(opt.variables()[0]), 1)
             opt.set_weights([np.array(2.0)])
             self.assertEqual(self.evaluate(opt.variables()[0]), 2)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def testHyperParametersExposedLSOV3(self):
+        opt = adam_experimental.Adam(
+            learning_rate=1.0, beta_1=0.5, beta_2=0.9)
+        lso = loss_scale_optimizer.BaseLossScaleOptimizer(opt)
+        lso.learning_rate = tf.Variable(0.005)
+        self.assertAllClose(self.evaluate(lso.learning_rate), 0.005)
+        self.assertIs(lso.learning_rate, opt.learning_rate)
+
+        lso.use_ema = True
+        self.assertEqual(lso.use_ema, True)
+        self.assertEqual(opt.use_ema, True)
+
+        lso.ema_momentum = 0.88
+        self.assertEqual(lso.ema_momentum, 0.88)
+        self.assertEqual(opt.ema_momentum, 0.88)
 
     def testHyperParametersExposed(self):
         with self.cached_session():
@@ -641,8 +664,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(self.evaluate(opt.learning_rate), 2.0)
             self.assertIs(lso.lr, opt.lr)
 
-            # Test setting attribute that is both attribute on LossScaleOptimizer and
-            # hyperparameter on wrapped optimizer.
+            # Test setting attribute that is both attribute on
+            # LossScaleOptimizer and hyperparameter on wrapped optimizer.
             class MyOpt(gradient_descent.SGD):
                 def __init__(self):
                     super().__init__()
@@ -684,8 +707,9 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     def testApplyGradientsGetsUnwrappedTensors(self):
         # Tests that gradients passed to apply_gradients are not wrapped in a
         # DistributionStrategy wrapper, such as PerReplica, but instead are raw
-        # Tensors. Optimizer subclasses that override apply_gradients() expect raw
-        # Tensors, even though the base Optimizer can handle PerReplica gradients.
+        # Tensors. Optimizer subclasses that override apply_gradients() expect
+        # raw Tensors, even though the base Optimizer can handle PerReplica
+        # gradients.
 
         outer_self = self
 
@@ -867,8 +891,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 self.assertEqual(self.evaluate(slot_var).item(), -1)
             self.assertEqual(self.evaluate(opt.iterations), 1)
 
-            # Set optimizer variable to check arbitrary optimizer attributes can be
-            # saved/restored
+            # Set optimizer variable to check arbitrary optimizer attributes can
+            # be saved/restored
             self.evaluate(inner_opt.my_var.assign(1.0))
 
             # Save a checkpoint.
@@ -1116,10 +1140,11 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             )
             config = optimizers.serialize(opt)
             if lso_type == "v1":
-                # LossScaleOptimizerV1 was an older experimental version of LSO that is
-                # now deleted. The config had the same format as LSO but the class
-                # name was different. This tests that LSO V1 configs can still be
-                # deserialized, which are deserialized as a (non-V1) LSO
+                # LossScaleOptimizerV1 was an older experimental version of LSO
+                # that is now deleted. The config had the same format as LSO but
+                # the class name was different. This tests that LSO V1 configs
+                # can still be deserialized, which are deserialized as a
+                # (non-V1) LSO
                 config["class_name"] = "LossScaleOptimizerV1"
         else:
             opt = sgd_experimental.SGD(2.0, momentum=0.5)
@@ -1246,8 +1271,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             lso.get_scaled_loss(tf.constant(1.0))
             lso.apply_gradients([(tf.constant(1.0), var)])
             self.assertIn(
-                "You forgot to call LossScaleOptimizer.get_unscaled_gradients() "
-                "before",
+                "You forgot to call "
+                "LossScaleOptimizer.get_unscaled_gradients() before",
                 mock_warn.call_args_list[0][0][0],
             )
         lso = create_lso(create_sgd(opt_cls))
@@ -1255,7 +1280,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             lso.get_unscaled_gradients([tf.constant(1.0)])
             lso.apply_gradients([(tf.constant(1.0), var)])
             self.assertIn(
-                "You forgot to call LossScaleOptimizer.get_scaled_loss() before",
+                "You forgot to call LossScaleOptimizer.get_scaled_loss() "
+                "before",
                 mock_warn.call_args_list[0][0][0],
             )
         lso = create_lso(create_sgd(opt_cls))

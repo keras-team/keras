@@ -17,9 +17,12 @@
 """Constraints: functions that impose constraints on weight values."""
 
 import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -44,7 +47,8 @@ class Constraint:
 
     >>> weight = tf.constant((-1.0, 1.0))
     >>> NonNegative()(weight)
-    <tf.Tensor: shape=(2,), dtype=float32, numpy=array([0.,  1.], dtype=float32)>
+    <tf.Tensor: shape=(2,), dtype=float32, numpy=array([0.,  1.],
+    dtype=float32)>
 
     >>> tf.keras.layers.Dense(4, kernel_constraint=NonNegative())
     """
@@ -173,7 +177,8 @@ class MinMaxNorm(Constraint):
     Constrains the weights incident to each hidden unit
     to have the norm between a lower bound and an upper bound.
 
-    Also available via the shortcut function `tf.keras.constraints.min_max_norm`.
+    Also available via the shortcut function
+    `tf.keras.constraints.min_max_norm`.
 
     Args:
       min_value: the minimum norm for the incoming weights.
@@ -253,9 +258,9 @@ class RadialConstraint(Constraint):
     ```
 
     This constraint can be applied to any `Conv2D` layer version, including
-    `Conv2DTranspose` and `SeparableConv2D`, and with either `"channels_last"` or
-    `"channels_first"` data format. The method assumes the weight tensor is of
-    shape `(rows, cols, input_depth, output_depth)`.
+    `Conv2DTranspose` and `SeparableConv2D`, and with either `"channels_last"`
+    or `"channels_first"` data format. The method assumes the weight tensor is
+    of shape `(rows, cols, input_depth, output_depth)`.
     """
 
     @doc_controls.do_not_generate_docs
@@ -281,7 +286,8 @@ class RadialConstraint(Constraint):
         )
 
     def _kernel_constraint(self, kernel):
-        """Radially constraints a kernel with shape (height, width, channels)."""
+        """Radially constraints a kernel with shape (height, width,
+        channels)."""
         padding = backend.constant([[1, 1], [1, 1]], dtype="int32")
 
         kernel_shape = backend.shape(kernel)[0]

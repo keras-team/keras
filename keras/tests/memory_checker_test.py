@@ -13,9 +13,11 @@
 # limitations under the License.
 # =============================================================================
 
+import tensorflow.compat.v2 as tf
+
 import keras
 
-import tensorflow.compat.v2 as tf
+# isort: off
 from tensorflow.python.framework.memory_checker import (
     MemoryChecker,
 )

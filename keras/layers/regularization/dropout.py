@@ -15,10 +15,13 @@
 """Contains the Dropout layer."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine import base_layer
 from keras.utils import control_flow_util
-import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -90,9 +93,9 @@ class Dropout(base_layer.BaseRandomLayer):
         self._random_generator._maybe_init()  # pylint: disable=protected-access
 
     def _get_noise_shape(self, inputs):
-        # Subclasses of `Dropout` may implement `_get_noise_shape(self, inputs)`,
-        # which will override `self.noise_shape`, and allows for custom noise
-        # shapes with dynamically sized inputs.
+        # Subclasses of `Dropout` may implement `_get_noise_shape(self,
+        # inputs)`, which will override `self.noise_shape`, and allows for
+        # custom noise shapes with dynamically sized inputs.
         if self.noise_shape is None:
             return None
 

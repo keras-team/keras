@@ -15,9 +15,11 @@
 """Layer that computes the maximum (element-wise) of several inputs."""
 
 
-from keras.layers.merging.base_merge import _Merge
 import tensorflow.compat.v2 as tf
 
+from keras.layers.merging.base_merge import _Merge
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 

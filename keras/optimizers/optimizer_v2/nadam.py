@@ -15,9 +15,12 @@
 """Nadam optimizer implementation."""
 
 import tensorflow.compat.v2 as tf
+
 from keras import backend_config
-from keras.optimizers.schedules import learning_rate_schedule
 from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.schedules import learning_rate_schedule
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -151,7 +154,8 @@ class Nadam(optimizer_v2.OptimizerV2):
         )
 
     def _prepare(self, var_list):
-        # Get the value of the momentum cache before starting to apply gradients.
+        # Get the value of the momentum cache before starting to apply
+        # gradients.
         self._m_cache_read = tf.identity(self._m_cache)
         return super()._prepare(var_list)
 

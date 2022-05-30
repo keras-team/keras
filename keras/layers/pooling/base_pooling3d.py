@@ -15,11 +15,12 @@
 """Private base class for pooling 3D layers."""
 # pylint: disable=g-classes-have-attributes
 
+import tensorflow.compat.v2 as tf
+
 from keras import backend
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
 
 
 class Pooling3D(Layer):
@@ -40,7 +41,8 @@ class Pooling3D(Layer):
         all spatial dimensions.
       padding: A string. The padding method, either 'valid' or 'same'.
         Case-insensitive.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`.
         The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch, depth, height, width, channels)`

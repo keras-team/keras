@@ -14,19 +14,20 @@
 # ==============================================================================
 """Tests for training routines."""
 
-import tensorflow.compat.v2 as tf
-
 import io
 import sys
 
 import numpy as np
+import tensorflow.compat.v2 as tf
 
 import keras
 from keras import callbacks
-from keras.testing_infra import test_combinations
 from keras import metrics as metrics_module
+from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import io_utils
+
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 
 
@@ -146,7 +147,8 @@ class TestTrainingWithDataset(test_combinations.TestCase):
         ):
             model.fit(dataset, dataset, epochs=1, steps_per_epoch=2, verbose=0)
 
-        # With an infinite dataset, `steps_per_epoch`/`steps` argument is required.
+        # With an infinite dataset, `steps_per_epoch`/`steps` argument is
+        # required.
         with self.assertRaises(ValueError):
             model.fit(dataset, epochs=1, verbose=0)
         with self.assertRaises(ValueError):
@@ -252,10 +254,10 @@ class TestTrainingWithDataset(test_combinations.TestCase):
             (inputs, targets, sample_weights)
         ).batch(2)
         result = model.evaluate(ds, verbose=1)
-        # The per sample loss is multiplied by the corresponding sample weight. The
-        # average of these weighted losses is the return value of the `evaluate`
-        # call. For example, in the test above the average weighted loss is
-        # calculated in the following manner:
+        # The per sample loss is multiplied by the corresponding sample weight.
+        # The average of these weighted losses is the return value of the
+        # `evaluate` call. For example, in the test above the average weighted
+        # loss is calculated in the following manner:
         # ((2-0)^2) * 0.25 + ((4-1)^2) * 0.5 + ((6-2)^2 * 0.75) + ((8-3)^2 * 1)
         #  equals 42.5 / 4 = 10.625
         self.assertEqual(result, 10.625)
@@ -321,7 +323,8 @@ class TestTrainingWithDataset(test_combinations.TestCase):
             history.history["loss"],
             [inputs[:20].sum() / 20, inputs[20:].sum() / 20],
         )
-        # The validation dataset will be reset at the end of each validation run.
+        # The validation dataset will be reset at the end of each validation
+        # run.
         self.assertAllClose(
             history.history["val_loss"],
             [inputs[:20].sum() / 20, inputs[:20].sum() / 20],
@@ -345,7 +348,7 @@ class TestTrainingWithDataset(test_combinations.TestCase):
         )
 
     def test_dataset_input_shape_validation(self):
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():  # noqa: E501
             model = test_utils.get_small_functional_mlp(1, 4, input_dim=3)
             model.compile(optimizer="rmsprop", loss="mse")
 
@@ -357,7 +360,8 @@ class TestTrainingWithDataset(test_combinations.TestCase):
 
             with self.assertRaisesRegex(
                 ValueError,
-                r"expected (.*?) to have shape \(3,\) but got array with shape \(1,\)",
+                r"expected (.*?) to have shape \(3,\) "
+                r"but got array with shape \(1,\)",
             ):
                 model.train_on_batch(dataset)
 
@@ -498,8 +502,9 @@ class TestTrainingWithDataset(test_combinations.TestCase):
         with tf.compat.v1.test.mock.patch.object(
             logging, "warning"
         ) as mock_log:
-            # steps_per_epoch (200) is greater than the dataset size (100). As this is
-            # unexpected, training will stop and not make it to the second epoch.
+            # steps_per_epoch (200) is greater than the dataset size (100). As
+            # this is unexpected, training will stop and not make it to the
+            # second epoch.
             history = model.fit(
                 dataset,
                 epochs=2,
@@ -513,8 +518,8 @@ class TestTrainingWithDataset(test_combinations.TestCase):
             )
             self.assertIn(
                 "can generate at least "
-                "`steps_per_epoch * epochs` batches (in this case, 400 batches). "
-                "You may need to use the repeat() function when "
+                "`steps_per_epoch * epochs` batches (in this case, "
+                "400 batches). You may need to use the repeat() function when "
                 "building your dataset.",
                 str(mock_log.call_args),
             )
@@ -557,8 +562,8 @@ class TestTrainingWithDataset(test_combinations.TestCase):
         )
 
         # Create eval dataset with generator, so that dataset won't contain the
-        # overall size metadata. Without eval_steps, we expect to run through all
-        # the data in this dataset every epoch.
+        # overall size metadata. Without eval_steps, we expect to run through
+        # all the data in this dataset every epoch.
         def gen():
             for _ in range(100):
                 yield (

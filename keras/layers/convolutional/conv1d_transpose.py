@@ -15,6 +15,8 @@
 """Keras 1D transposed convolution layer (sometimes called deconvolution)."""
 # pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
+import tensorflow.compat.v2 as tf
+
 from keras import activations
 from keras import constraints
 from keras import initializers
@@ -23,8 +25,8 @@ from keras.dtensor import utils
 from keras.engine.input_spec import InputSpec
 from keras.layers.convolutional.conv1d import Conv1D
 from keras.utils import conv_utils
-import tensorflow.compat.v2 as tf
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -54,15 +56,15 @@ class Conv1DTranspose(Conv1D):
         time dimension. Specifying a stride value != 1 is incompatible with
         specifying a `dilation_rate` value != 1. Defaults to 1.
       padding: one of `"valid"` or `"same"` (case-insensitive).
-        `"valid"` means no padding. `"same"` results in padding with zeros evenly
-        to the left/right or up/down of the input such that output has the same
-        height/width dimension as the input.
+        `"valid"` means no padding. `"same"` results in padding with zeros
+        evenly to the left/right or up/down of the input such that output has
+        the same height/width dimension as the input.
       output_padding: An integer specifying the amount of padding along
         the time dimension of the output tensor.
         The amount of output padding must be lower than the stride.
         If set to `None` (default), the output shape is inferred.
-      data_format: A string, one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`.  The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
         `(batch_size, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch_size, channels, length)`.

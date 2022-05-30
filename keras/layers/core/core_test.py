@@ -17,15 +17,15 @@
 import os
 import textwrap
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras import initializers
 from keras.layers import core
 from keras.mixed_precision import policy
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-
-import tensorflow.compat.v2 as tf
 
 
 @test_combinations.run_all_keras_modes
@@ -95,9 +95,9 @@ class DropoutLayersTest(test_combinations.TestCase):
         model = keras.Model(inputs, outputs)
         train = model(np.ones((20, 5, 10)), training=True)
         predict = model(np.ones((20, 5, 10)))
-        # Make sure the weights from tf.random.Generator is not present in the model
-        # which will cause weight loading issue for existing application models if
-        # it contains dropout layer.
+        # Make sure the weights from tf.random.Generator is not present in the
+        # model which will cause weight loading issue for existing application
+        # models if it contains dropout layer.
         self.assertEmpty(layer.get_weights())
         self.assertEmpty(model.get_weights())
 
@@ -321,8 +321,8 @@ class TestStatefulLambda(test_combinations.TestCase):
         def lambda_fn(x, v):
             return x * v
 
-        # While it is generally not advised to mix Variables with Lambda layers, if
-        # the variables are explicitly set as attributes then they are still
+        # While it is generally not advised to mix Variables with Lambda layers,
+        # if the variables are explicitly set as attributes then they are still
         # tracked. This is consistent with the base Layer behavior.
         layer = keras.layers.Lambda(lambda_fn, arguments={"v": v})
         self.assertLen(layer.trainable_weights, 0)
@@ -352,11 +352,12 @@ class TestStatefulLambda(test_combinations.TestCase):
 
         expected_error = textwrap.dedent(
             r"""
-    (    )?The following Variables were created within a Lambda layer \(shift_and_scale\)
-    (    )?but are not tracked by said layer:
-    (    )?  <tf.Variable \'.*shift_and_scale/scale:0\'.+
-    (    )?  <tf.Variable \'.*shift_and_scale/shift:0\'.+
-    (    )?The layer cannot safely ensure proper Variable reuse.+"""
+(    )?The following Variables were created within a Lambda layer \(shift_and_scale\)"""  # noqa: E501
+            r"""
+(    )?but are not tracked by said layer:
+(    )?  <tf.Variable \'.*shift_and_scale/scale:0\'.+
+(    )?  <tf.Variable \'.*shift_and_scale/shift:0\'.+
+(    )?The layer cannot safely ensure proper Variable reuse.+"""
         )
 
         with self.assertRaisesRegex(ValueError, expected_error):
@@ -374,10 +375,10 @@ class TestStatefulLambda(test_combinations.TestCase):
 
         expected_error = textwrap.dedent(
             r"""
-    (    )?The following Variables were created within a Lambda layer \(bias_dense\)
-    (    )?but are not tracked by said layer:
-    (    )?  <tf.Variable \'.*bias_dense/dense/kernel:0\'.+
-    (    )?The layer cannot safely ensure proper Variable reuse.+"""
+(    )?The following Variables were created within a Lambda layer \(bias_dense\)
+(    )?but are not tracked by said layer:
+(    )?  <tf.Variable \'.*bias_dense/dense/kernel:0\'.+
+(    )?The layer cannot safely ensure proper Variable reuse.+"""
         )
 
         with self.assertRaisesRegex(ValueError, expected_error):
@@ -395,10 +396,10 @@ class TestStatefulLambda(test_combinations.TestCase):
 
         expected_warning = textwrap.dedent(
             r"""
-    (    )?The following Variables were used a Lambda layer\'s call \(lambda\), but
-    (    )?are not present in its tracked objects:
-    (    )?  <tf.Variable \'.*Variable:0\'.+
-    (    )?It is possible that this is intended behavior.+"""
+(    )?The following Variables were used a Lambda layer\'s call \(lambda\), but
+(    )?are not present in its tracked objects:
+(    )?  <tf.Variable \'.*Variable:0\'.+
+(    )?It is possible that this is intended behavior.+"""
         )
 
         layer = keras.layers.Lambda(lambda_fn)
@@ -415,8 +416,8 @@ class TestStatefulLambda(test_combinations.TestCase):
     @test_combinations.run_all_keras_modes
     @test_combinations.run_with_all_model_types
     def test_lambda_skip_state_variable_from_initializer(self):
-        # Force the initializers to use the tf.random.Generator, which will contain
-        # the state variable.
+        # Force the initializers to use the tf.random.Generator, which will
+        # contain the state variable.
         kernel_initializer = initializers.RandomNormalV2()
         kernel_initializer._random_generator._rng_type = (
             kernel_initializer._random_generator.RNG_STATEFUL
@@ -428,8 +429,8 @@ class TestStatefulLambda(test_combinations.TestCase):
         def lambda_fn(x):
             return dense(x + 1)  # Dense layer is built on first call
 
-        # While it is generally not advised to mix Variables with Lambda layers, if
-        # the variables are explicitly set as attributes then they are still
+        # While it is generally not advised to mix Variables with Lambda layers,
+        # if the variables are explicitly set as attributes then they are still
         # tracked. This is consistent with the base Layer behavior.
         layer = keras.layers.Lambda(lambda_fn)
         layer.dense = dense

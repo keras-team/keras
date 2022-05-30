@@ -1,6 +1,8 @@
 """Tests for calling optimizer on ParameterServerStrategy."""
 
+import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+
 import keras
 from keras.optimizers.optimizer_experimental import adadelta
 from keras.optimizers.optimizer_experimental import adagrad
@@ -13,7 +15,6 @@ from keras.optimizers.optimizer_experimental import rmsprop
 from keras.optimizers.optimizer_experimental import sgd
 from keras.utils import dataset_creator
 from keras.utils import losses_utils
-import tensorflow.compat.v2 as tf
 
 ds_combinations = tf.__internal__.distribute.combinations
 
@@ -90,8 +91,8 @@ class OptimizerPssTest(tf.test.TestCase, parameterized.TestCase):
         variables = optimizer.variables
         for var in variables:
             if "iteration" not in var.name and "learning_rate" not in var.name:
-                # Find a variable not iteration or learning_rate, and verify its value
-                # is updated (not 0).
+                # Find a variable not iteration or learning_rate, and verify its
+                # value is updated (not 0).
                 self.assertNotAllEqual(var, 0)
 
     @ds_combinations.generate(

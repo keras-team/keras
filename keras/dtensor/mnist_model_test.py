@@ -14,18 +14,16 @@
 # ==============================================================================
 """E2E Tests for mnist_model."""
 
+import tensorflow.compat.v2 as tf
+from tensorflow.dtensor.python import mesh_util
+from tensorflow.dtensor.python import tpu_util
+
 from keras import backend
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import integration_test_utils
 from keras.dtensor import optimizers as optimizer_lib
 from keras.dtensor import test_util
 from keras.utils import tf_utils
-
-import tensorflow.compat.v2 as tf
-
-
-from tensorflow.dtensor.python import mesh_util
-from tensorflow.dtensor.python import tpu_util
 
 
 class MnistTest(test_util.DTensorBaseTest):
@@ -66,8 +64,8 @@ class MnistTest(test_util.DTensorBaseTest):
         self.assertEqual(train_losses, sorted(train_losses, reverse=True))
 
     def DISABLED_test_mnist_training_tpu(self):
-        # TODO(scottzhu): Enable TPU test once the dtensor_test rule is migrated out
-        # of learning/brain
+        # TODO(scottzhu): Enable TPU test once the dtensor_test rule is migrated
+        # out of learning/brain
         tpu_util.dtensor_initialize_tpu_system()
         total_tpu_device_count = dtensor.num_global_devices("TPU")
         mesh_shape = [total_tpu_device_count]
