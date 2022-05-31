@@ -23,7 +23,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import keras  # pylint: disable=unused-import
+import keras  # noqa: F401
 
 # isort: off
 from tensorflow.python.tools.api.generator import (

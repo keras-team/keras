@@ -41,12 +41,8 @@ from keras.utils import tf_inspect
 from keras.utils import tf_utils
 
 # A module that only depends on `keras.layers` import these from here.
-from keras.utils.generic_utils import (
-    to_snake_case,  # pylint: disable=unused-import
-)
-from keras.utils.tf_utils import (
-    is_tensor_or_tensor_list,  # pylint: disable=unused-import
-)
+from keras.utils.generic_utils import to_snake_case  # noqa: F401
+from keras.utils.tf_utils import is_tensor_or_tensor_list  # noqa: F401
 
 # isort: off
 from tensorflow.python.platform import tf_logging

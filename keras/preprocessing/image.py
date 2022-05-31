@@ -46,8 +46,8 @@ from tensorflow.python.util.tf_export import keras_export
 
 try:
     import scipy
-    from scipy import linalg  # pylint: disable=unused-import
-    from scipy import ndimage  # pylint: disable=unused-import
+    from scipy import linalg  # noqa: F401
+    from scipy import ndimage  # noqa: F401
 except ImportError:
     pass
 try:

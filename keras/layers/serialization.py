@@ -27,7 +27,6 @@ from keras.layers import convolutional
 from keras.layers import core
 from keras.layers import locally_connected
 from keras.layers import merging
-from keras.layers import noise
 from keras.layers import pooling
 from keras.layers import regularization
 from keras.layers import reshaping
