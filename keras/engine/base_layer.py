@@ -763,7 +763,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Returns:
             Python dictionary.
         """
-        all_args = tf_inspect.getfullargspec(self.__init__).args
+        all_args = tf_inspect.getfullargspec(self.__init__).args[1:]
         config = {
             "name": self.name,
             "trainable": self.trainable,
@@ -782,7 +782,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         extra_args = [arg for arg in all_args if arg not in expected_args]
         # Check that either the only argument in the `__init__` is  `self`,
         # or that `get_config` has been overridden:
-        if len(extra_args) > 1 and hasattr(self.get_config, "_is_default"):
+        if extra_args and hasattr(self.get_config, "_is_default"):
             raise NotImplementedError(
                 textwrap.dedent(
                     f"""
