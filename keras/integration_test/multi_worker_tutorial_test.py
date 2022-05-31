@@ -70,7 +70,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
     def skip_fetch_failure_exception(self):
         try:
             yield
-        except zipfile.BadZipfile as e:
+        except zipfile.BadZipfile:
             # There can be a race when multiple processes are downloading the
             # data.  Skip the test if that results in loading errors.
             self.skipTest(

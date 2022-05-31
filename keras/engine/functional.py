@@ -1237,9 +1237,8 @@ def _should_skip_first_node(layer):
     if layer._self_tracked_trackables:
         return (
             isinstance(layer, Functional)
-            and
             # Filter out Sequential models without an input shape.
-            isinstance(
+            and isinstance(
                 layer._self_tracked_trackables[0], input_layer_module.InputLayer
             )
         )

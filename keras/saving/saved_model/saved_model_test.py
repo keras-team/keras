@@ -1125,7 +1125,7 @@ class TestSavedModelFormat(tf.test.TestCase):
         class Model(keras.models.Model):
             def __init__(self):
                 super().__init__()
-                self.layer = CustomLayer()
+                self.layer = CustomLayer()  # noqa: F821
 
             @tf.function(input_signature=[tf.TensorSpec([None, 1])])
             def call(self, inputs):

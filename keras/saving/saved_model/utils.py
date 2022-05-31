@@ -16,7 +16,6 @@
 implementations."""
 
 import copy
-import inspect as _inspect
 import itertools
 import threading
 import types

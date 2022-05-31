@@ -51,12 +51,8 @@ from keras.utils import traceback_utils
 from keras.utils import version_utils
 
 # A module that only depends on `keras.layers` import these from here.
-from keras.utils.generic_utils import (
-    to_snake_case,  # pylint: disable=unused-import
-)
-from keras.utils.tf_utils import (
-    is_tensor_or_tensor_list,  # pylint: disable=unused-import
-)
+from keras.utils.generic_utils import to_snake_case  # noqa: F401
+from keras.utils.tf_utils import is_tensor_or_tensor_list  # noqa: F401
 
 # isort: off
 from google.protobuf import json_format
@@ -689,6 +685,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             and dtype.is_floating
         ):
             old_getter = getter
+
             # Wrap variable constructor to return an AutoCastVariable.
             def getter(*args, **kwargs):  # pylint: disable=function-redefined
                 variable = old_getter(*args, **kwargs)
@@ -3086,9 +3083,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         if (
             name == "_self_setattr_tracking"
             or not getattr(self, "_self_setattr_tracking", True)
-            or
             # Exclude @property.setters from tracking
-            hasattr(self.__class__, name)
+            or hasattr(self.__class__, name)
         ):
             try:
                 super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(

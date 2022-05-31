@@ -33,8 +33,8 @@ from absl.testing import parameterized
 
 import keras
 from keras.callbacks import BackupAndRestore
-from keras.callbacks import Callback
 from keras.callbacks import BackupAndRestoreExperimental
+from keras.callbacks import Callback
 from keras.engine import sequential
 from keras.layers import Activation
 from keras.layers import Dense
@@ -387,7 +387,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 if epoch == 5 or epoch == 12:
                     raise RuntimeError("Interruption")
 
-        log_dir = self.get_temp_dir()
+        self.get_temp_dir()
 
         # The following asserts that the train counter is fault tolerant.
         self.assertEqual(model._train_counter.numpy(), 0)
@@ -462,7 +462,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
             )
 
         class InterruptingCallback(keras.callbacks.Callback):
-            """A callback to intentionally introduce interruption to training."""
+            """A callback to intentionally introduce interruption to
+            training."""
 
             batch_count = 0
 

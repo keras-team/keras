@@ -898,9 +898,7 @@ class BatchNormalizationBase(Layer):
         # Determine a boolean value for `training`: could be True, False, or
         # None.
         training_value = control_flow_util.constant_value(training)
-        if (
-            training_value == False
-        ):  # pylint: disable=singleton-comparison,g-explicit-bool-comparison
+        if training_value == False:  # noqa: E712
             mean, variance = self.moving_mean, self.moving_variance
         else:
             if self.adjustment:

@@ -1547,7 +1547,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             (
                 data_handler._initial_epoch,
                 data_handler._initial_step,
-            ) = self._maybe_load_initial_counters_from_ckpt(  # pylint: disable=protected-access
+            ) = self._maybe_load_initial_counters_from_ckpt(
                 steps_per_epoch_inferred, initial_epoch
             )
             logs = None
@@ -3523,8 +3523,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Returns:
           If the training is recovering from previous failure under multi-worker
           training setting, return the (epoch, step) the training is supposed to
-          continue at. Otherwise, return the `initial_epoch, initial_step` the user
-          passes in.
+          continue at. Otherwise, return the `initial_epoch, initial_step` the
+          user passes in.
         """
         initial_step = 0
         if self._training_state is not None:

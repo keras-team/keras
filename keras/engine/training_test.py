@@ -1723,7 +1723,7 @@ class TrainingTest(test_combinations.TestCase):
             "mse",
             run_eagerly=test_utils.should_run_eagerly(),
         )
-        history = model.fit(x, y, epochs=2)
+        model.fit(x, y, epochs=2)
         policy.set_global_policy("float32")
 
     @test_combinations.run_all_keras_modes
@@ -2368,10 +2368,8 @@ class LossWeightingTest(test_combinations.TestCase):
             y_train[:batch_size],
             class_weight=class_weight,
         )
-        ref_score = model.evaluate(
-            x_test, y_test, verbose=0
-        )  # pylint: disable=unused-variable
-        score = model.evaluate(  # pylint: disable=unused-variable
+        ref_score = model.evaluate(x_test, y_test, verbose=0)  # noqa: F841
+        score = model.evaluate(  # noqa: F841
             x_test[test_ids, :], y_test[test_ids, :], verbose=0
         )
         # TODO(b/152990697): Fix the class weights test here.

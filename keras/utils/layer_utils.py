@@ -23,7 +23,6 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras.utils import io_utils
-from keras.utils import tf_inspect
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export

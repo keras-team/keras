@@ -181,9 +181,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
     # TODO(scottzhu): This method and create_and_initialize might be removed if
     # we decide to just use the tf.Variable to replace this class.
     def initialize(self):
-        with ops.name_scope(
-            self._name, "Variable", skip_on_eager=False
-        ) as name:
+        with ops.name_scope(self._name, "Variable", skip_on_eager=False):
             with ops.colocate_with(self._handle), ops.name_scope("Initializer"):
                 if callable(self._initial_value):
                     initial_value = self._initial_value()

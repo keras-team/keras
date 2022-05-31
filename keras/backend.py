@@ -45,7 +45,6 @@ from keras.utils import tf_inspect
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_config
-from tensorflow.python.framework import config
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls

@@ -209,9 +209,8 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
             a_prime = tf.random.uniform(shape=(3, 1))
             a_prime = a_prime * 3
             error_string = "An exception should have been raised before this"
-            error_raised = "An exception should have been raised before this"
             try:
-                c = tf.random.uniform(shape=(3, 1))
+                tf.random.uniform(shape=(3, 1))
                 raise RuntimeError(error_string)
 
             except ValueError as err:

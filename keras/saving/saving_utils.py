@@ -365,7 +365,7 @@ def try_build_compiled_arguments(model):
                 model.compiled_loss.build(model.outputs)
             if not model.compiled_metrics.built:
                 model.compiled_metrics.build(model.outputs, model.outputs)
-        except:  # pylint: disable=bare-except
+        except:  # noqa: E722
             logging.warning(
                 "Compiled the loaded model, but the compiled metrics have "
                 "yet to be built. `model.compile_metrics` will be empty "

@@ -41,12 +41,8 @@ from keras.utils import tf_inspect
 from keras.utils import tf_utils
 
 # A module that only depends on `keras.layers` import these from here.
-from keras.utils.generic_utils import (
-    to_snake_case,  # pylint: disable=unused-import
-)
-from keras.utils.tf_utils import (
-    is_tensor_or_tensor_list,  # pylint: disable=unused-import
-)
+from keras.utils.generic_utils import to_snake_case  # noqa: F401
+from keras.utils.tf_utils import is_tensor_or_tensor_list  # noqa: F401
 
 # isort: off
 from tensorflow.python.platform import tf_logging
@@ -1283,10 +1279,9 @@ class Layer(base_layer.Layer):
         if (
             tf.distribute.has_strategy()
             and tf.distribute.in_cross_replica_context()
-            and
             # When saving the model, the distribution strategy context should be
             # ignored, following the default path for adding updates.
-            not call_context.saving
+            and not call_context.saving
         ):
             # Updates don't need to be run in a cross-replica context.
             return
@@ -2334,9 +2329,8 @@ class Layer(base_layer.Layer):
         if (
             name == "_self_setattr_tracking"
             or not getattr(self, "_self_setattr_tracking", True)
-            or
             # Exclude @property.setters from tracking
-            hasattr(self.__class__, name)
+            or hasattr(self.__class__, name)
         ):
             try:
                 super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(

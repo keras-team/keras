@@ -713,9 +713,8 @@ class KerasObjectLoader:
         for node_id, (node, _) in self.loaded_nodes.items():
             if (
                 not isinstance(node, base_layer.Layer)
-                or
                 # Don't finalize models until all layers have finished loading.
-                node_id in self.model_layer_dependencies
+                or node_id in self.model_layer_dependencies
             ):
                 continue
 
