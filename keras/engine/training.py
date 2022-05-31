@@ -968,7 +968,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         This method can be overridden to support custom training logic.
         For concrete examples of how to override this method see
-        [Customizing what happends in fit](
+        [Customizing what happens in fit](
         https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit).
         This method is called by `Model.make_train_function`.
 
