@@ -899,7 +899,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           Boolean, whether the model should run eagerly.
         """
         if (
-            self.dynamic and self._run_eagerly is False
+            self.dynamic and self._run_eagerly == False
         ):  # pylint:disable=g-bool-id-comparison
             # TODO(fchollet): consider using py_func to enable this.
             raise ValueError(
@@ -1541,15 +1541,21 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # Handle fault-tolerance for multi-worker.
             # TODO(omalleyt): Fix the ordering issues that mean this has to
             # happen after `callbacks.on_train_begin`.
-            data_handler._initial_epoch = (  # pylint: disable=protected-access
-                self._maybe_load_initial_epoch_from_ckpt(initial_epoch)
+            steps_per_epoch_inferred = (
+                steps_per_epoch or data_handler.inferred_steps
+            )
+            (
+                data_handler._initial_epoch,
+                data_handler._initial_step,
+            ) = self._maybe_load_initial_counters_from_ckpt(  # pylint: disable=protected-access
+                steps_per_epoch_inferred, initial_epoch
             )
             logs = None
             for epoch, iterator in data_handler.enumerate_epochs():
                 self.reset_metrics()
                 callbacks.on_epoch_begin(epoch)
                 with data_handler.catch_stop_iteration():
-                    data_handler._initial_step = (
+                    data_handler._initial_step = data_handler._initial_step or (
                         self._maybe_load_initial_step_from_ckpt()
                     )  # pylint: disable=protected-access
                     for step in data_handler.steps():
@@ -3501,26 +3507,31 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         "distribution strategy scope."
                     )
 
-    def _maybe_load_initial_epoch_from_ckpt(self, initial_epoch):
+    def _maybe_load_initial_counters_from_ckpt(
+        self, steps_per_epoch, initial_epoch
+    ):
         """Maybe load initial epoch from ckpt considering possible worker recovery.
 
         Refer to tensorflow/python/keras/distribute/worker_training_state.py
         for more information.
 
         Args:
-          initial_epoch: The original initial_epoch user passes in in `fit()`.
+          steps_per_epoch: The number of step per epoch.
+          initial_epoch: The original initial_epoch user passes in `fit()`.
+          mode: The mode for running `model.fit()`.
 
         Returns:
           If the training is recovering from previous failure under multi-worker
-          training setting, return the epoch the training is supposed to
-          continue at. Otherwise, return the `initial_epoch` the user passes in.
+          training setting, return the (epoch, step) the training is supposed to
+          continue at. Otherwise, return the `initial_epoch, initial_step` the user
+          passes in.
         """
+        initial_step = 0
         if self._training_state is not None:
-            return self._training_state.maybe_load_initial_epoch_from_ckpt(
-                initial_epoch, mode=ModeKeys.TRAIN
+            return self._training_state.maybe_load_initial_counters_from_ckpt(
+                steps_per_epoch, initial_epoch, mode=ModeKeys.TRAIN
             )
-
-        return initial_epoch
+        return (initial_epoch, initial_step)
 
     def _maybe_load_initial_step_from_ckpt(self):
         if getattr(self, "_callback_step", 0) > 0:
