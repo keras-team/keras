@@ -22,8 +22,8 @@ import scipy.sparse
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
-from keras import activations
 from keras import backend
+from keras import activations
 from keras.engine import input_layer
 from keras.layers import activation
 from keras.layers.normalization import batch_normalization_v1
