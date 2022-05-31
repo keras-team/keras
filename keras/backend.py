@@ -33,8 +33,8 @@ import weakref
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from keras import backend_config
 from keras.distribute import distribute_coordinator_utils as dc
+from keras import backend_config
 from keras.engine import keras_tensor
 from keras.utils import control_flow_util
 from keras.utils import object_identity
