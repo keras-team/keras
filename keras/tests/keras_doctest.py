@@ -22,7 +22,6 @@ import os
 import sys
 
 import numpy as np
-import tensorflow as tf
 import tensorflow.compat.v2 as tf
 from absl import flags
 from absl.testing import absltest
