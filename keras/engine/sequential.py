@@ -333,7 +333,7 @@ class Sequential(functional.Functional):
                             # Create Functional API connection by calling the
                             # current layer
                             layer_output = layer(layer_input)
-                        except:  # pylint:disable=bare-except
+                        except:  # noqa: E722
                             # Functional API calls may fail for a number of
                             # reasons: 1) The layer may be buggy. In this case
                             # it will be easier for the user to debug if we fail
@@ -367,7 +367,7 @@ class Sequential(functional.Functional):
                         # not be supporting such layers.
                         self._init_graph_network(inputs, outputs)
                         self._graph_initialized = True
-                    except:  # pylint:disable=bare-except
+                    except:  # noqa: E722
                         self._use_legacy_deferred_behavior = True
                 self._inferred_input_shape = new_shape
 

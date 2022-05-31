@@ -18,4 +18,4 @@
 Everything has been moved to keras/saving/. This file will be deleted soon.
 """
 
-from keras.saving import *  # noqa: F401
+from keras.saving import *  # noqa: F401,F403

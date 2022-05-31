@@ -32,7 +32,7 @@ tf.compat.v1.enable_v2_behavior()
 
 # We put doctest after absltest so that it picks up the unittest monkeypatch.
 # Otherwise doctest tests aren't runnable at all.
-import doctest  # pylint: disable=g-import-not-at-top,g-bad-import-order
+import doctest  # noqa: E402
 
 FLAGS = flags.FLAGS
 

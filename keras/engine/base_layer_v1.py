@@ -1279,10 +1279,9 @@ class Layer(base_layer.Layer):
         if (
             tf.distribute.has_strategy()
             and tf.distribute.in_cross_replica_context()
-            and
             # When saving the model, the distribution strategy context should be
             # ignored, following the default path for adding updates.
-            not call_context.saving
+            and not call_context.saving
         ):
             # Updates don't need to be run in a cross-replica context.
             return
@@ -2330,9 +2329,8 @@ class Layer(base_layer.Layer):
         if (
             name == "_self_setattr_tracking"
             or not getattr(self, "_self_setattr_tracking", True)
-            or
             # Exclude @property.setters from tracking
-            hasattr(self.__class__, name)
+            or hasattr(self.__class__, name)
         ):
             try:
                 super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(

@@ -385,17 +385,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 self.assertEqual(self.evaluate(opt.loss_scale), 8)
 
                 # Test Inf gradients are still skipped instead of being clipped
-<<<<<<< HEAD
                 loss = lambda: var * float("Inf")
                 run_fn = lambda: opt.minimize(loss, var_list=[var])
-=======
-                def run_fn():
-                    def loss():
-                        return var * float("Inf")
-
-                    return opt.minimize(loss, var_list=[var])
-
->>>>>>> 0bb24689 (fix F811)
                 run_op = strategy.experimental_run(run_fn)
                 self._run_if_in_graph_mode(run_op)
                 self.assertAllClose(
@@ -426,17 +417,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(4.0, self.evaluate(opt.loss_scale))
 
             # Test optimizer with NaN gradients
-<<<<<<< HEAD
             loss = lambda: var * float("NaN")
             run_fn = lambda: opt.minimize(loss, var_list=[var])
-=======
-            def run_fn():
-                def loss():
-                    return var * float("NaN")
-
-                return opt.minimize(loss, var_list=[var])
-
->>>>>>> 0bb24689 (fix F811)
             run_op = strategy.experimental_run(run_fn)
             self._run_if_in_graph_mode(run_op)
             # Variable should not change from before, due to NaN gradients.

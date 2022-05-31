@@ -62,8 +62,8 @@ class WorkerTrainingState:
         backend.set_value(
             self._ckpt_saved_batch, self.CKPT_SAVED_BATCH_UNUSED_VALUE
         )
-        # _ckpt_saved_epoch  and _ckpt_saved_batch gets tracked and is included in
-        # the checkpoint file when backing up.
+        # _ckpt_saved_epoch  and _ckpt_saved_batch gets tracked and is included
+        # in the checkpoint file when backing up.
         checkpoint = tf.train.Checkpoint(
             model=self._model,
             ckpt_saved_epoch=self._ckpt_saved_epoch,
@@ -155,8 +155,8 @@ class WorkerTrainingState:
         Returns:
           If the training is recovering from previous failure under multi-worker
           training setting, return the (epoch, step) the training is supposed to
-          continue at. Otherwise, return the `initial_epoch, initial_step` the user
-          passes in.
+          continue at. Otherwise, return the `initial_epoch, initial_step` the
+          user passes in.
         """
 
         initial_step = 0
@@ -165,19 +165,20 @@ class WorkerTrainingState:
         if mode == mode_keys.ModeKeys.TRAIN:
             if self._save_freq == "epoch":
                 if epoch >= 0:
-                    # The most recently saved epoch is one epoch prior to the epoch it
-                    # failed at, so return the value of 'self._ckpt_saved_epoch' plus one.
+                    # The most recently saved epoch is one epoch prior to the
+                    # epoch it failed at, so return the value of
+                    # 'self._ckpt_saved_epoch' plus one.
                     initial_epoch = epoch + 1
             else:
                 if batch >= 0 and epoch >= 0:
-                    # If the checkpoint was last saved at last batch of the epoch, return
-                    # the next epoch number and batch=0
+                    # If the checkpoint was last saved at last batch of the
+                    # epoch, return the next epoch number and batch=0
                     if batch == steps_per_epoch - 1:
                         initial_epoch = epoch + 1
                         initial_step = 0
                     else:
-                        # If the checkpoint was not last saved at last batch of the epoch,
-                        # return the same epoch and next batch number
+                        # If the checkpoint was not last saved at last batch of
+                        # the epoch, return the same epoch and next batch number
                         initial_epoch = epoch
                         initial_step = batch + 1
         return (initial_epoch, initial_step)

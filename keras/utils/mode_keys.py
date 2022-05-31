@@ -15,6 +15,6 @@
 """Keras model mode constants."""
 
 # isort: off
-from tensorflow.python.saved_model.model_utils.mode_keys import (  # noqa: E501
+from tensorflow.python.saved_model.model_utils.mode_keys import (  # noqa: F401,E501
     KerasModeKeys as ModeKeys,
 )

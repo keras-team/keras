@@ -55,7 +55,7 @@ class KerasDoctestOutputCheckerTest(parameterized.TestCase):
         ["text1.0 text", []],
         ["text 1.0text", []],
         ["text1.0text", []],
-        ["0x12e4", []],  #  not 12000
+        ["0x12e4", []],  # not 12000
         ["TensorBoard: http://128.0.0.1:8888", []],
         # With a newline
         ["1.0 text\n 2.0 3.0 text", [1.0, 2.0, 3.0]],
