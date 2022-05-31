@@ -216,8 +216,8 @@ class MultiHeadAttention(Layer):
         Defaults to either using the training mode of the parent layer/model,
         or False (inference) if there is no parent layer.
       use_causal_mask: A boolean to indicate whether to apply a causal mask to
-      prevent tokens from attending to future tokens (e.g., used in a decoder
-      Transformer).
+        prevent tokens from attending to future tokens (e.g., used in a decoder
+        Transformer).
 
     Returns:
       attention_output: The result of the computation, of shape `(B, T, E)`,
@@ -548,7 +548,7 @@ class MultiHeadAttention(Layer):
         attention_mask=None,
         return_attention_scores=False,
         training=None,
-        use_causal_mask=False,
+        use_causal_mask=False
     ):
         attention_mask = self._compute_attention_mask(
             query,
@@ -633,6 +633,7 @@ class MultiHeadAttention(Layer):
           use_causal_mask: A boolean to indicate whether to apply a causal mask
             to prevent tokens from attending to future tokens (e.g., used in a
             decoder Transformer).
+
         Returns:
           attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
             attention to certain positions, based on the Keras masks of the
@@ -681,6 +682,7 @@ class MultiHeadAttention(Layer):
           query: query `Tensor` of shape `(B, T, ...)`.
           value: value `Tensor` of shape `(B, S, ...)` (optional, defaults to
           query).
+
         Returns:
           mask: a boolean `Tensor` of shape [1, T, S] containing a lower
                 triangular matrix of shape [T, S].
