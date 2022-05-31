@@ -37,13 +37,13 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from six.moves.urllib.parse import urlsplit
 
-from six.moves.urllib.request import urlopen
 from keras.utils import io_utils
 from keras.utils import tf_inspect
 from keras.utils.generic_utils import Progbar
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
+from six.moves.urllib.request import urlopen
 
 # Required to support google internal urlretrieve
 if True:  # This gets transformed to `if sys.version_info[0] == 2:` in OSS.

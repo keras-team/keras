@@ -168,12 +168,18 @@ pip install --upgrade tf-nightly
 The Keras uses [Black](https://black.readthedocs.io/en/stable/) and
 [isort](https://pycqa.github.io/isort/) to format the code. Please refer to
 [requirements.txt](https://github.com/keras-team/keras/blob/master/requirements.txt)
-for the required versions. Run the following command
-**at the root directory of the repo** to format your code.
+for the required versions. Run the following command **at the root directory of
+the repo** to format your code.
 
 ```
 sh shell/format.sh
 ```
+
+It will also display the errors that cannot be resolved by autoformatting. You
+need to follow the output of the command to resolve them manually.
+
+If you do not want to auto format the code but only show the lint errors, you
+can run `sh shell/lint.sh` **at the root directory of the repo**.
 
 ## Run tests
 
