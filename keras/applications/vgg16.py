@@ -54,6 +54,7 @@ def VGG16(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    dropout=0.0,
 ):
     """Instantiates the VGG16 model.
 
@@ -114,6 +115,8 @@ def VGG16(
             `classifier_activation=None` to return the logits of the "top"
             layer.  When loading pretrained weights, `classifier_activation` can
             only be `None` or `"softmax"`.
+        dropout: optional float dropout to use on the first two fully-connected
+            layers. In the original VGG paper, the dropout is of 0.5.
 
     Returns:
       A `keras.Model` instance.
@@ -207,7 +210,9 @@ def VGG16(
     if include_top:
         # Classification block
         x = layers.Flatten(name="flatten")(x)
+        x = layers.Dropout(dropout, name="dropout1")(x)
         x = layers.Dense(4096, activation="relu", name="fc1")(x)
+        x = layers.Dropout(dropout, name="dropout2")(x)
         x = layers.Dense(4096, activation="relu", name="fc2")(x)
 
         imagenet_utils.validate_activation(classifier_activation, weights)
