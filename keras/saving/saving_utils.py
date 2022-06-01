@@ -17,7 +17,6 @@
 import copy
 import os
 
-# pylint: disable=g-bad-import-order, g-direct-tensorflow-import
 import tensorflow.compat.v2 as tf
 
 import keras
@@ -32,8 +31,6 @@ from keras.utils.io_utils import ask_to_proceed_with_overwrite
 
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
-
-# pylint: enable=g-bad-import-order, g-direct-tensorflow-import
 
 
 def extract_model_metrics(model):
@@ -52,9 +49,7 @@ def extract_model_metrics(model):
         # TODO(psv/kathywu): use this implementation in model to estimator flow.
         # We are not using model.metrics here because we want to exclude the
         # metrics added using `add_metric` API.
-        return {
-            m.name: m for m in model._compile_metric_functions
-        }  # pylint: disable=protected-access
+        return {m.name: m for m in model._compile_metric_functions}
     return None
 
 
@@ -142,10 +137,7 @@ def trace_model_call(model, input_signature=None):
     @tf.function
     def _wrapped_model(*args, **kwargs):
         """A concrete tf.function that wraps the model's call function."""
-        (
-            args,
-            kwargs,
-        ) = model._call_spec.set_arg_value(  # pylint: disable=protected-access
+        (args, kwargs,) = model._call_spec.set_arg_value(
             "training", False, args, kwargs, inputs_in_args=True
         )
 
@@ -196,10 +188,8 @@ def model_metadata(model, include_optimizer=True, require_config=True):
                 "Prefer using a Keras optimizer instead "
                 "(see keras.io/optimizers)."
             )
-        elif model._compile_was_called:  # pylint: disable=protected-access
-            training_config = model._get_compile_args(
-                user_metrics=False
-            )  # pylint: disable=protected-access
+        elif model._compile_was_called:
+            training_config = model._get_compile_args(user_metrics=False)
             training_config.pop("optimizer", None)  # Handled separately.
             metadata["training_config"] = _serialize_nested_config(
                 training_config
@@ -342,7 +332,7 @@ def _enforce_names_consistency(specs):
     def _clear_name(spec):
         spec = copy.deepcopy(spec)
         if hasattr(spec, "name"):
-            spec._name = None  # pylint:disable=protected-access
+            spec._name = None
         return spec
 
     flat_specs = tf.nest.flatten(specs)

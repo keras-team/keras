@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
+
 """Xception V1 model for Keras.
 
 On ImageNet, this model gets to a top-1 validation accuracy of 0.790

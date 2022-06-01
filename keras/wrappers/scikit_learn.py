@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Wrapper for using the Scikit-Learn API with Keras models."""
-# pylint: disable=g-classes-have-attributes
+
 
 import copy
 import types
@@ -110,7 +110,7 @@ class BaseWrapper:
                         "{} is not a legal parameter".format(params_name)
                     )
 
-    def get_params(self, **params):  # pylint: disable=unused-argument
+    def get_params(self, **params):
         """Gets parameters for this estimator.
 
         Args:

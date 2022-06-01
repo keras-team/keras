@@ -29,9 +29,7 @@ from keras.utils import layer_utils
 from keras.utils import tf_contextlib
 from keras.utils.generic_utils import LazyLoader
 
-# pylint:disable=g-inconsistent-quotes
 training_lib = LazyLoader("training_lib", globals(), "keras.engine.training")
-# pylint:enable=g-inconsistent-quotes
 
 
 def use_wrapped_call(
@@ -74,14 +72,14 @@ def use_wrapped_call(
         # tensors). To fix this, whenever eager losses are added to one layer,
         # add eager losses to all child layers. This causes `.losses` to only
         # return eager losses.
-        # pylint: disable=protected-access
+
         if tf.executing_eagerly():
             for i in layer._flatten_layers():
                 if i is not layer:
                     i._eager_losses = [
                         base_layer_utils.REVIVED_LOSS_PLACEHOLDER
                     ]
-        # pylint: enable=protected-access
+
         return outputs
 
     decorated = tf.__internal__.decorator.make_decorator(
@@ -99,7 +97,7 @@ def use_wrapped_call(
 def layer_uses_training_bool(layer):
     """Returns whether this layer or any of its children uses the training
     arg."""
-    if layer._expects_training_arg:  # pylint: disable=protected-access
+    if layer._expects_training_arg:
         return True
     visited = {layer}
     to_visit = list_all_layers(layer)
@@ -120,9 +118,7 @@ def list_all_layers(obj):
         # the `Input` layer.
         return obj.layers
     else:
-        return list(
-            obj._flatten_layers(include_self=False, recursive=False)
-        )  # pylint: disable=protected-access
+        return list(obj._flatten_layers(include_self=False, recursive=False))
 
 
 def list_all_layers_and_sublayers(obj):
@@ -278,10 +274,8 @@ def no_automatic_dependency_tracking_scope(obj):
       a scope in which the object doesn't track dependencies.
     """
     previous_value = getattr(obj, "_setattr_tracking", True)
-    obj._setattr_tracking = False  # pylint: disable=protected-access
+    obj._setattr_tracking = False
     try:
         yield
     finally:
-        obj._setattr_tracking = (
-            previous_value  # pylint: disable=protected-access
-        )
+        obj._setattr_tracking = previous_value

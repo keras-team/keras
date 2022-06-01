@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras initializers for TF 1."""
-# pylint:disable=g-classes-have-attributes
+
 
 import tensorflow.compat.v2 as tf
 

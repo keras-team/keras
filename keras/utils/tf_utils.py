@@ -63,9 +63,7 @@ def set_random_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     tf.random.set_seed(seed)
-    backend._SEED_GENERATOR.generator = random.Random(
-        seed
-    )  # pylint:disable=protected-access
+    backend._SEED_GENERATOR.generator = random.Random(seed)
 
 
 def is_tensor_or_tensor_list(v):
@@ -107,7 +105,7 @@ def get_reachable_from_inputs(inputs, targets=None):
 
         if isinstance(x, tf.Operation):
             outputs = x.outputs[:] or []
-            outputs += x._control_outputs  # pylint: disable=protected-access
+            outputs += x._control_outputs
         elif isinstance(x, tf.Variable):
             try:
                 outputs = [x.op]
@@ -136,7 +134,8 @@ def get_reachable_from_inputs(inputs, targets=None):
 
 
 # This function needs access to private functions of `nest`.
-#  pylint: disable=protected-access
+
+
 def map_structure_with_atomic(is_atomic_fn, map_fn, nested):
     """Maps the atomic elements of a nested structure.
 
@@ -179,9 +178,6 @@ def get_shapes(tensors):
     return tf.nest.map_structure(
         lambda x: x.shape if hasattr(x, "shape") else None, tensors
     )
-
-
-#  pylint: enable=protected-access
 
 
 def convert_shapes(input_shape, to_tuples=True):
@@ -464,7 +460,7 @@ def register_symbolic_tensor_type(cls):
 def type_spec_from_value(value):
     """Grab type_spec without converting array-likes to tensors."""
     if is_extension_type(value):
-        return value._type_spec  # pylint: disable=protected-access
+        return value._type_spec
     # Get a TensorSpec for array-like data without
     # converting the data to a Tensor
     if hasattr(value, "shape") and hasattr(value, "dtype"):
@@ -568,7 +564,7 @@ def dataset_is_infinite(dataset):
 
 def get_tensor_spec(t, dynamic_batch=False, name=None):
     """Returns a `TensorSpec` given a single `Tensor` or `TensorSpec`."""
-    # pylint: disable=protected-access
+
     if isinstance(t, tf.TypeSpec):
         spec = t
     elif is_extension_type(t):
@@ -584,7 +580,6 @@ def get_tensor_spec(t, dynamic_batch=False, name=None):
         spec = tf.TensorSpec(shape=t.shape, dtype=t.dtype, name=name)
     else:
         return None  # Allow non-Tensors to pass through.
-    # pylint: enable=protected-access
 
     if not dynamic_batch:
         return spec

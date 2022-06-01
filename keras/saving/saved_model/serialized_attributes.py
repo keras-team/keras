@@ -24,12 +24,11 @@ from keras.utils.generic_utils import LazyLoader
 
 # TODO(b/134426265): Switch back to single-quotes to match the rest of the file
 # once the issue with copybara is fixed.
-# pylint:disable=g-inconsistent-quotes
+
 base_layer = LazyLoader("base_layer", globals(), "keras.engine.base_layer")
 training_lib = LazyLoader("training_lib", globals(), "keras.engine.training")
 metrics = LazyLoader("metrics", globals(), "keras.metrics")
 base_rnn = LazyLoader("base_rnn", globals(), "keras.layers.rnn.base_rnn")
-# pylint:enable=g-inconsistent-quotes
 
 
 class SerializedAttributes:

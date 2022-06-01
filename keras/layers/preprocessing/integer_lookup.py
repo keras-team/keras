@@ -14,8 +14,6 @@
 # ==============================================================================
 """Keras string lookup preprocessing layer."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import numpy as np
 import tensorflow.compat.v2 as tf

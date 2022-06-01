@@ -17,8 +17,6 @@ import copy
 import os
 
 import numpy as np
-
-# pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 
 from keras import backend
@@ -129,9 +127,7 @@ class BaseLayerTest(test_combinations.TestCase):
 
     def test_manual_compute_output_shape(self):
         class BuildCounter(base_layer.Layer):
-            def __init__(
-                self, *args, **kwargs
-            ):  # pylint: disable=redefined-outer-name
+            def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.build_counter = 0
 
@@ -679,9 +675,7 @@ class BaseLayerTest(test_combinations.TestCase):
         )
 
         class MyLayerNew2(base_layer.Layer):
-            def __init__(
-                self, name="MyLayerName", dtype=None, **kwargs
-            ):  # pylint:disable=redefined-outer-name
+            def __init__(self, name="MyLayerName", dtype=None, **kwargs):
                 super().__init__(name=name, dtype=dtype, **kwargs)
 
         # Check that if the kwargs in `__init__` are base layer constructor
@@ -922,13 +916,11 @@ class BaseLayerTest(test_combinations.TestCase):
 
     def _test_custom_layer_training_arg(
         self,
-        # pylint: disable=invalid-name
         CustomLayerNoTrainingArg,
         CustomLayerDefaultTrainingMissing,
         CustomLayerDefaultTrainingNone,
         CustomLayerDefaultTrainingFalse,
         CustomLayerDefaultTrainingTrue,
-        # pylint: enable=invalid-name
     ):
         x = tf.ones(shape=(1, 1))
 
@@ -1133,9 +1125,7 @@ class SymbolicSupportTest(test_combinations.TestCase):
         try:
             _ = TypeErrorLayer()(inputs)
         except TypeError as e:
-            self.assertIn(
-                "easily_identifiable_name", str(e)
-            )  # pylint: disable=g-assert-in-except
+            self.assertIn("easily_identifiable_name", str(e))
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])

@@ -14,5 +14,5 @@
 # ==============================================================================
 """Keras' Distribution Strategy library."""
 
-# pylint: disable=unused-import
+
 from keras.distribute import sidecar_evaluator

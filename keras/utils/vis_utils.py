@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
-# pylint: disable=g-import-not-at-top
+
+
 """Utilities related to model visualization."""
 
 import os

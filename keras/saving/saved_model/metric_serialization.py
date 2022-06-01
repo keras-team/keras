@@ -35,12 +35,8 @@ class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):
             dtype=self.obj.dtype,
         )
         metadata.update(layer_serialization.get_serialized(self.obj))
-        if (
-            self.obj._build_input_shape is not None
-        ):  # pylint: disable=protected-access
-            metadata[
-                "build_input_shape"
-            ] = self.obj._build_input_shape  # pylint: disable=protected-access
+        if self.obj._build_input_shape is not None:
+            metadata["build_input_shape"] = self.obj._build_input_shape
         return metadata
 
     def _get_serialized_attributes_internal(self, unused_serialization_cache):

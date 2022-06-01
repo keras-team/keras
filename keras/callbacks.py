@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-import-not-at-top
-# pylint: disable=g-classes-have-attributes
+
+
 """Callbacks: utilities called at certain points during model training."""
 
 import collections
@@ -99,9 +99,7 @@ def configure_callbacks(
     callback_list = CallbackList(callbacks)
 
     # Set callback model
-    callback_model = (
-        model._get_callback_model()
-    )  # pylint: disable=protected-access
+    callback_model = model._get_callback_model()
     callback_list.set_model(callback_model)
 
     set_callback_parameters(
@@ -229,7 +227,7 @@ class CallbackList:
             self.set_params(params)
 
         # Performance optimization: determines if batch hooks need to be called.
-        # pylint: disable=protected-access
+
         self._supports_tf_logs = all(
             getattr(cb, "_supports_tf_logs", False) for cb in self.callbacks
         )
@@ -250,7 +248,6 @@ class CallbackList:
         self._should_call_predict_batch_hooks = any(
             cb._implements_predict_batch_hooks() for cb in self.callbacks
         )
-        # pylint: enable=protected-access
 
         self._disallow_batch_hooks_in_ps_strategy()
 
@@ -587,7 +584,7 @@ class CallbackList:
 
     def _disallow_batch_hooks_in_ps_strategy(self):
         """Error out if batch-level callbacks are passed with PSStrategy."""
-        # pylint: disable=protected-access
+
         strategy = tf.distribute.get_strategy()
         if strategy._should_use_with_coordinator:
             unsupported_callbacks = []
@@ -607,7 +604,6 @@ class CallbackList:
                     "`ParameterServerStrategy`. Found unsupported "
                     f"callbacks: {unsupported_callbacks}"
                 )
-        # pylint: enable=protected-access
 
 
 @keras_export("keras.callbacks.Callback")
@@ -672,7 +668,7 @@ class Callback:
     """
 
     def __init__(self):
-        self.validation_data = None  # pylint: disable=g-missing-from-attributes
+        self.validation_data = None
         self.model = None
         # Whether this Callback should only run on the chief worker in a
         # Multi-Worker setting.
@@ -1056,15 +1052,9 @@ class ProgbarLogger(Callback):
         self._call_batch_hooks = self.verbose == 1
         if self.target is None:
             try:
-                self._train_step = (
-                    self.model._train_counter
-                )  # pylint: disable=protected-access
-                self._test_step = (
-                    self.model._test_counter
-                )  # pylint: disable=protected-access
-                self._predict_step = (
-                    self.model._predict_counter
-                )  # pylint: disable=protected-access
+                self._train_step = self.model._train_counter
+                self._test_step = self.model._test_counter
+                self._predict_step = self.model._predict_counter
             except AttributeError:
                 self._call_batch_hooks = True
 
@@ -1136,9 +1126,7 @@ class ProgbarLogger(Callback):
                 unit_name="step" if self.use_steps else "sample",
             )
 
-        self.progbar._update_stateful_metrics(
-            self.stateful_metrics
-        )  # pylint: disable=protected-access
+        self.progbar._update_stateful_metrics(self.stateful_metrics)
 
     def _implements_train_batch_hooks(self):
         return self._call_batch_hooks
@@ -1470,7 +1458,7 @@ class ModelCheckpoint(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         self.epochs_since_last_save += 1
-        # pylint: disable=protected-access
+
         if self.save_freq == "epoch":
             self._save_model(epoch=epoch, batch=None, logs=logs)
 
@@ -1584,7 +1572,7 @@ class ModelCheckpoint(Callback):
 
     def _get_file_path(self, epoch, batch, logs):
         """Returns the file path for checkpoint."""
-        # pylint: disable=protected-access
+
         try:
             # `filepath` may contain placeholders such as
             # `{epoch:02d}`,`{batch:02d}` and `{mape:.2f}`. A mismatch between
@@ -1832,7 +1820,6 @@ class BackupAndRestore(Callback):
     def on_train_begin(self, logs=None):
         # TrainingState is used to manage the training state needed for
         # failure-recovery of a worker in training.
-        # pylint: disable=protected-access
 
         if self.model._distribution_strategy and not isinstance(
             self.model.distribute_strategy, self._supported_strategies
@@ -1862,7 +1849,7 @@ class BackupAndRestore(Callback):
         return self._save_freq != "epoch"
 
     def on_train_end(self, logs=None):
-        # pylint: disable=protected-access
+
         # On exit of training, delete the training state backup file that was
         # saved for the purpose of worker recovery.
         self._training_state.delete_backup()
@@ -2243,7 +2230,7 @@ def keras_model_summary(name, data, step=None):
 
     try:
         json_string = data.to_json()
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         # An exception should not break a model code.
         logging.warning(
             "Model failed to serialize as JSON. Ignoring... %s", exc
@@ -2262,7 +2249,7 @@ def keras_model_summary(name, data, step=None):
 
 @keras_export("keras.callbacks.TensorBoard", v1=[])
 class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
-    # pylint: disable=line-too-long
+
     """Enable visualizations for TensorBoard.
 
     TensorBoard is a visualization tool provided with TensorFlow.
@@ -2389,8 +2376,6 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     ```
     """
 
-    # pylint: enable=line-too-long
-
     def __init__(
         self,
         log_dir="logs",
@@ -2477,14 +2462,10 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         self._log_write_dir = self._get_log_write_dir()
 
         self._train_dir = os.path.join(self._log_write_dir, "train")
-        self._train_step = (
-            self.model._train_counter
-        )  # pylint: disable=protected-access
+        self._train_step = self.model._train_counter
 
         self._val_dir = os.path.join(self._log_write_dir, "validation")
-        self._val_step = (
-            self.model._test_counter
-        )  # pylint: disable=protected-access
+        self._val_step = self.model._test_counter
 
         self._writers = {}  # Resets writers.
 
@@ -2529,9 +2510,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 # If the train_function is a `tf.function`, we can write out a
                 # graph
                 if hasattr(train_fn, "function_spec"):
-                    tf.summary.graph(
-                        train_fn._concrete_stateful_fn.graph
-                    )  # pylint: disable=protected-access
+                    tf.summary.graph(train_fn._concrete_stateful_fn.graph)
 
     def _write_keras_model_summary(self):
         """Writes Keras graph network summary to TensorBoard."""
@@ -2540,7 +2519,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 summary_writable = (
                     self.model._is_graph_network
                     or self.model.__class__.__name__ == "Sequential"
-                )  # pylint: disable=protected-access
+                )
                 if summary_writable:
                     keras_model_summary("keras", self.model, step=0)
 

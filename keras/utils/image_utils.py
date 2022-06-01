@@ -14,7 +14,6 @@
 # ==============================================================================
 """Utilities related to image handling."""
 
-# pylint: disable=g-import-not-at-top
 
 import io
 import pathlib

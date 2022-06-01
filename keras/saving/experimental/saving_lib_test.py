@@ -112,9 +112,7 @@ class NewSavingTest(tf.test.TestCase):
         @keras.utils.generic_utils.register_keras_serializable(
             package="my_custom_package"
         )
-        def my_mean_squared_error(
-            y_true, y_pred
-        ):  # pylint: disable=redefined-outer-name
+        def my_mean_squared_error(y_true, y_pred):
             """Function-local `mean_squared_error`."""
             return backend.mean(
                 tf.math.squared_difference(y_pred, y_true), axis=-1

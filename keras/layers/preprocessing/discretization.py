@@ -14,8 +14,6 @@
 # ==============================================================================
 """Keras discretization preprocessing layer."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -308,7 +306,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
             initializer=lambda shape, dtype: [
                 [],
                 [],
-            ],  # pylint: disable=unused-arguments
+            ],
             trainable=False,
         )
 
@@ -389,7 +387,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
             get_bin_boundaries(self.summary, self.num_bins)
         )
 
-    def reset_state(self):  # pylint: disable=method-hidden
+    def reset_state(self):
         if self.input_bin_boundaries is not None or not self.built:
             return
 

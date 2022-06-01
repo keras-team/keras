@@ -1146,9 +1146,7 @@ def _ensure_keras_seeded():
     initialized with same seed for tf.random.Generator, so that the value
     created are in sync among all the clients.
     """
-    if not getattr(
-        backend._SEED_GENERATOR, "generator", None
-    ):  # pylint:disable=protected-access
+    if not getattr(backend._SEED_GENERATOR, "generator", None):
         raise ValueError(
             "When using DTensor APIs, you need to set the global seed "
             "before using any Keras initializers. Please make sure "

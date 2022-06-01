@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras 3D convolution layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from keras import activations
 from keras import constraints

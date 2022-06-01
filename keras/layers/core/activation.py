@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Activation layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from keras import activations
 from keras.engine.base_layer import Layer

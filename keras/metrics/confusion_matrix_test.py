@@ -1615,7 +1615,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_extra_dims(self):
         try:
-            from scipy import special  # pylint: disable=g-import-not-at-top
+            from scipy import special
 
             self.setup()
             logits = special.expit(

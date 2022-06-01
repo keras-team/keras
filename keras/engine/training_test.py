@@ -54,7 +54,7 @@ from tensorflow.python.training.rmsprop import (
 )
 
 try:
-    import scipy.sparse as scipy_sparse  # pylint: disable=g-import-not-at-top
+    import scipy.sparse as scipy_sparse
 except ImportError:
     scipy_sparse = None
 
@@ -1762,9 +1762,7 @@ class TrainingTest(test_combinations.TestCase):
 
             _HAS_AGGREGATE_GRAD = False
 
-            def apply_gradients(
-                self, grads_and_vars, name=None
-            ):  # pylint: disable=useless-super-delegation
+            def apply_gradients(self, grads_and_vars, name=None):
                 return super().apply_gradients(grads_and_vars, name)
 
         mock_optimizer = _OptimizerOverrideApplyGradients()

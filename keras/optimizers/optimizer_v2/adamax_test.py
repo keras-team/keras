@@ -68,9 +68,7 @@ class AdamaxOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         for dtype in [tf.half, tf.float32, tf.float64]:
             with tf.Graph().as_default(), self.cached_session():
                 # Initialize variables for numpy implementation.
-                zero_slots = lambda: np.zeros(
-                    (3), dtype=dtype.as_numpy_dtype
-                )  # pylint: disable=cell-var-from-loop
+                zero_slots = lambda: np.zeros((3), dtype=dtype.as_numpy_dtype)
                 m0, v0, m1, v1 = (
                     zero_slots(),
                     zero_slots(),
@@ -137,9 +135,7 @@ class AdamaxOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 # placed on it (i.e. they have GPU kernels).
                 var = tf.Variable([[1.0], [2.0]])
                 indices = tf.constant([0, 1], dtype=index_dtype)
-                g_sum = lambda: tf.reduce_sum(
-                    tf.gather(var, indices)
-                )  # pylint: disable=cell-var-from-loop
+                g_sum = lambda: tf.reduce_sum(tf.gather(var, indices))
                 optimizer = adamax.Adamax(3.0)
                 minimize_op = optimizer.minimize(g_sum, var_list=[var])
                 self.evaluate(tf.compat.v1.global_variables_initializer())

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras Pooling layers."""
-# pylint: disable=g-bad-import-order
+
 
 # Pooling layer aliases.
 # Pooling layers.

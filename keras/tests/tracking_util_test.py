@@ -39,7 +39,6 @@ from tensorflow.python.training.tracking import (
 )
 
 
-# pylint: disable=not-callable
 class MyModel(training.Model):
     """A concrete Model for testing."""
 
@@ -433,7 +432,6 @@ class CheckpointingTests(test_combinations.TestCase):
         self.assertNotIn("(root).v1'", messages)
         self.assertIn("expect_partial()", messages)
 
-    # pylint: disable=cell-var-from-loop
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
     )
@@ -486,8 +484,6 @@ class CheckpointingTests(test_combinations.TestCase):
                         training_continuation + 1,
                         self.evaluate(root.save_counter),
                     )
-
-    # pylint: enable=cell-var-from-loop
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def testAnonymousVarsInInit(self):

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Base class for recurrent layers."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import collections
 
@@ -692,12 +692,8 @@ class RNN(base_layer.Layer):
                 )
 
             def step(inputs, states):
-                constants = states[
-                    -self._num_constants :
-                ]  # pylint: disable=invalid-unary-operand-type
-                states = states[
-                    : -self._num_constants
-                ]  # pylint: disable=invalid-unary-operand-type
+                constants = states[-self._num_constants :]
+                states = states[: -self._num_constants]
 
                 states = (
                     states[0] if len(states) == 1 and is_tf_rnn_cell else states
@@ -972,7 +968,7 @@ class RNN(base_layer.Layer):
         )
         num_constants = config.pop("num_constants", 0)
         layer = cls(cell, **config)
-        layer._num_constants = num_constants  # pylint: disable=protected-access
+        layer._num_constants = num_constants
         return layer
 
     @property

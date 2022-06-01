@@ -86,7 +86,7 @@ def save(
         model.optimizer = None
         # TODO(b/180760306) Change to del model.optimizer if Layer's __delattr__
         # calls AutoTrackable's __delattr__.
-        model._delete_tracking("optimizer")  # pylint: disable=protected-access
+        model._delete_tracking("optimizer")
 
     # Trace all functions and signatures with `training=0` instead of using an
     # already-set learning phase placeholder.
@@ -132,7 +132,7 @@ def generate_keras_metadata(saved_nodes, node_paths):
                 ),
                 identifier=node._object_identifier,
                 metadata=node._tracking_metadata,
-            )  # pylint: disable=protected-access
+            )
 
             # Log warning if the node's class name conflicts with a Keras
             # built-in object.

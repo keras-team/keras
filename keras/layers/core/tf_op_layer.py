@@ -28,8 +28,6 @@ from tensorflow.python.util.tf_export import (
     get_symbol_from_name,
 )
 
-# pylint: enable=g-bad-import-order
-
 
 class ClassMethod(Layer):
     """Wraps a TF API Class's class method  in a `Layer` object.
@@ -359,9 +357,7 @@ class TFOpLambda(Layer):
         return cls(**config)
 
 
-def _delegate_property(
-    keras_tensor_cls, property_name
-):  # pylint: disable=invalid-name
+def _delegate_property(keras_tensor_cls, property_name):
     """Register property on a KerasTensor class.
 
     Calling this multiple times with the same arguments should be a no-op.
@@ -380,13 +376,11 @@ def _delegate_property(
     # due to dynamic layer class versioning.
     property_access = property(
         lambda self: InstanceProperty(property_name)(self)
-    )  # pylint: disable=unnecessary-lambda
+    )
     setattr(keras_tensor_cls, property_name, property_access)
 
 
-def _delegate_method(
-    keras_tensor_cls, method_name
-):  # pylint: disable=invalid-name
+def _delegate_method(keras_tensor_cls, method_name):
     """Register method on a KerasTensor class.
 
     Calling this function times with the same arguments should be a no-op.
@@ -583,7 +577,7 @@ class TFSlicingOpDispatcher(tf.__internal__.dispatch.OpDispatcher):
 
 
 for slicing_op in [
-    tf.__operators__.getitem,  # pylint: disable=protected-access
+    tf.__operators__.getitem,
     tf.compat.v1.boolean_mask,
     tf.boolean_mask,
     tf.__operators__.ragged_getitem,

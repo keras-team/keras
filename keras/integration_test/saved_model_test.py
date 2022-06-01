@@ -223,7 +223,7 @@ class KerasLoadTest(tf.test.TestCase, parameterized.TestCase):
             def call(self, x):
                 return x + 1.0, x + 2.0
 
-        out = _MultiOutput(name="out")(inp)  # pylint: disable=not-callable
+        out = _MultiOutput(name="out")(inp)
         model = tf.keras.Model(inp, out)
         loaded = cycle(model, cycles)
         self.assertAllClose(

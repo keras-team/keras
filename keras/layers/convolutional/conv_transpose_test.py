@@ -141,7 +141,7 @@ class Conv2DTransposeTest(test_combinations.TestCase):
         )
 
         input_data = np.arange(48).reshape((1, 4, 4, 3)).astype(np.float32)
-        # pylint: disable=too-many-function-args
+
         expected_output = np.float32(
             [
                 [192, 228, 192, 228],

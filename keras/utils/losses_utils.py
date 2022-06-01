@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Utilities related to loss functions."""
 
 import tensorflow.compat.v2 as tf
@@ -203,10 +203,8 @@ def squeeze_or_expand_dimensions(y_pred, y_true=None, sample_weight=None):
             rank_diff = tf.rank(y_pred) - tf.rank(y_true)
             squeeze_dims = lambda: remove_squeezable_dimensions(y_true, y_pred)
             is_last_dim_1 = tf.equal(1, tf.shape(y_pred)[-1])
-            maybe_squeeze_dims = (
-                lambda: tf.cond(  # pylint: disable=g-long-lambda
-                    is_last_dim_1, squeeze_dims, lambda: (y_true, y_pred)
-                )
+            maybe_squeeze_dims = lambda: tf.cond(
+                is_last_dim_1, squeeze_dims, lambda: (y_true, y_pred)
             )
             y_true, y_pred = tf.cond(
                 tf.equal(1, rank_diff), maybe_squeeze_dims, squeeze_dims
@@ -324,9 +322,7 @@ def compute_weighted_loss(
     with backend.name_scope(name or "weighted_loss"):
         # Save the `reduction` argument for loss normalization when distributing
         # to multiple replicas. Used only for estimator + v1 optimizer flow.
-        tf.compat.v1.get_default_graph()._last_loss_reduction = (
-            reduction  # pylint: disable=protected-access
-        )
+        tf.compat.v1.get_default_graph()._last_loss_reduction = reduction
 
         if not isinstance(losses, (keras_tensor.KerasTensor, tf.RaggedTensor)):
             losses = tf.convert_to_tensor(losses)

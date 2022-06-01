@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Gated Recurrent Unit layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import uuid
 

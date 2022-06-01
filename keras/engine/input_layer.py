@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Input layer code (`Input` and `InputLayer`)."""
 
 import tensorflow.compat.v2 as tf
@@ -259,9 +259,7 @@ class InputLayer(base_layer.Layer):
         if isinstance(input_tensor, keras_tensor.KerasTensor) or (
             tf_utils.is_extension_type(input_tensor)
         ):
-            self._type_spec = (
-                input_tensor._type_spec
-            )  # pylint: disable=protected-access
+            self._type_spec = input_tensor._type_spec
         else:
             self._type_spec = tf.TensorSpec(
                 shape=input_tensor.shape,
@@ -289,7 +287,7 @@ class InputLayer(base_layer.Layer):
 
 @keras_export("keras.Input", "keras.layers.Input")
 @traceback_utils.filter_traceback
-def Input(  # pylint: disable=invalid-name
+def Input(
     shape=None,
     batch_size=None,
     name=None,

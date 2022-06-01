@@ -114,7 +114,7 @@ class DistributeKplTestUtils(tf.test.TestCase):
         )
 
         train_dataset = raw_dataset.map(
-            lambda x: (  # pylint: disable=g-long-lambda
+            lambda x: (
                 {"features": feature_mapper(x["features"])},
                 label_mapper(x["label"]),
             )

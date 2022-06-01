@@ -120,7 +120,7 @@ class _BaseOptimizer(tf.Module):
         # Get the distributed variable if it exists.
         # TODO(b/199214315): replace _unique_id with ref() after fixing ref()
         # issues on AggregatingVariable.
-        return variable._unique_id  # pylint: disable=protected-access
+        return variable._unique_id
 
     @abc.abstractmethod
     def update_step(self, gradient, variable):
@@ -625,7 +625,6 @@ base_optimizer_keyword_args = """name: String. The name to use
       **kwargs: keyword arguments only used for backward compatibility."""
 
 
-# pylint: disable=g-classes-have-attributes
 @keras_export("keras.optimizers.experimental.Optimizer", v1=[])
 class Optimizer(_BaseOptimizer):
     """Abstract optimizer base class.
@@ -837,7 +836,7 @@ class Optimizer(_BaseOptimizer):
 
     def _var_key(self, variable):
         """Get a unique identifier of the given variable."""
-        # pylint: disable=protected-access
+
         # Get the distributed variable if it exists.
         # TODO(b/197554203): replace _distributed_container() with a public api.
         if hasattr(variable, "_distributed_container"):

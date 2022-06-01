@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities for unit-testing Keras."""
-# pylint: disable=g-bad-import-order
+
 
 import collections
 import functools
@@ -27,7 +27,7 @@ import keras
 from keras.testing_infra import test_utils
 
 try:
-    import h5py  # pylint:disable=g-import-not-at-top
+    import h5py
 except ImportError:
     h5py = None
 

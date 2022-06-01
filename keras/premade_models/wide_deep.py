@@ -101,7 +101,7 @@ class WideDeepModel(keras_training.Model):
         else:
             linear_inputs, dnn_inputs = inputs
         linear_output = self.linear_model(linear_inputs)
-        # pylint: disable=protected-access
+
         if self.dnn_model._expects_training_arg:
             if training is None:
                 training = backend.learning_phase()
@@ -193,9 +193,7 @@ class WideDeepModel(keras_training.Model):
                 metrics_tensors = [
                     m._call_result
                     for m in metrics
-                    if hasattr(
-                        m, "_call_result"
-                    )  # pylint: disable=protected-access
+                    if hasattr(m, "_call_result")
                 ]
 
             with backend.name_scope("training"):

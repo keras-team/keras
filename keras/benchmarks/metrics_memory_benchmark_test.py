@@ -18,7 +18,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 try:
-    import memory_profiler  # pylint:disable=g-import-not-at-top
+    import memory_profiler
 except ImportError:
     memory_profiler = None
 

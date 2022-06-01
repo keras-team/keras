@@ -13,9 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Unit Normalization layer."""
-# pylint: disable=g-bad-import-order
 
-# pylint: disable=g-classes-have-attributes
 
 import tensorflow.compat.v2 as tf
 

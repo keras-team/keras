@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=g-import-not-at-top
-# pylint: disable=g-classes-have-attributes
+
 
 """Utilies for image preprocessing and augmentation.
 
@@ -338,9 +336,7 @@ class BatchFromFilesMixin:
         self.save_format = save_format
         self.interpolation = interpolation
         if subset is not None:
-            validation_split = (
-                self.image_data_generator._validation_split
-            )  # pylint: disable=protected-access
+            validation_split = self.image_data_generator._validation_split
             if subset == "validation":
                 split = (0, validation_split)
             elif subset == "training":

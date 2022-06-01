@@ -31,8 +31,6 @@ from keras.utils.mode_keys import ModeKeys
 from tensorflow.python.distribute import input_lib
 from tensorflow.python.platform import tf_logging as logging
 
-# pylint: disable=protected-access
-
 
 def _per_replica_execution_function(model, mode):
     exec_func = model._make_execution_function(mode)

@@ -402,7 +402,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     def testComputeOutputShape(self):
         dense = core_layers.Dense(2, activation=tf.nn.relu, name="dense1")
         ts = tf.TensorShape
-        # pylint: disable=protected-access
+
         with self.assertRaises(ValueError):
             dense.compute_output_shape(ts(None))
         with self.assertRaises(ValueError):
@@ -418,7 +418,6 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(
             [None, 4, 2], dense.compute_output_shape(ts([None, 4, 3])).as_list()
         )
-        # pylint: enable=protected-access
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
@@ -436,9 +435,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
 
 def _get_variable_dict_from_varstore():
-    var_dict = (
-        variable_scope._get_default_variable_store()._vars
-    )  # pylint: disable=protected-access
+    var_dict = variable_scope._get_default_variable_store()._vars
     sorted_var_dict = collections.OrderedDict(
         sorted(var_dict.items(), key=lambda t: t[0])
     )

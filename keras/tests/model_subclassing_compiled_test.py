@@ -25,7 +25,7 @@ from keras.testing_infra import test_utils
 from keras.tests import model_subclassing_test_util as model_util
 
 try:
-    import h5py  # pylint:disable=g-import-not-at-top
+    import h5py
 except ImportError:
     h5py = None
 

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Global max pooling 1D layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from keras import backend
 from keras.layers.pooling.base_global_pooling1d import GlobalPooling1D

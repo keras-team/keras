@@ -42,7 +42,7 @@ from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 
 try:
-    import h5py  # pylint:disable=g-import-not-at-top
+    import h5py
 except ImportError:
     h5py = None
 
@@ -1444,7 +1444,7 @@ def _make_sequential_input_shape(input_size, output_size):
     )
 
 
-class _make_subclassed(keras.Model):  # pylint: disable=invalid-name
+class _make_subclassed(keras.Model):
     def __init__(self, input_size, output_size):
         super().__init__()
         self._config = {"input_size": input_size, "output_size": output_size}
@@ -1465,7 +1465,7 @@ class _make_subclassed(keras.Model):  # pylint: disable=invalid-name
         return cls(**config)
 
 
-class _make_subclassed_built(_make_subclassed):  # pylint: disable=invalid-name
+class _make_subclassed_built(_make_subclassed):
     def __init__(self, input_size, output_size):
         super().__init__(input_size, output_size)
         self.build((None, input_size))

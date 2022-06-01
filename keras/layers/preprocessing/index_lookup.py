@@ -14,8 +14,6 @@
 # ==============================================================================
 """Keras index lookup preprocessing layer."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import collections
 
@@ -85,9 +83,7 @@ class VocabWeightHandler(base_layer_utils.TrackableWeightHandler):
 
     def set_weights(self, weights):
         tokens = tf.convert_to_tensor(weights[0], self._dtype)
-        self._layer.lookup_table = self._layer._lookup_table_from_tokens(
-            tokens
-        )  # pylint: disable=protected-access
+        self._layer.lookup_table = self._layer._lookup_table_from_tokens(tokens)
 
     def get_tensors(self):
         # Just save the non-config part of the vocab (no special tokens).
@@ -717,7 +713,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         # tables.
         self.reset_state()
 
-    def reset_state(self):  # pylint: disable=method-hidden
+    def reset_state(self):
         if self._has_input_vocabulary:
             return
 

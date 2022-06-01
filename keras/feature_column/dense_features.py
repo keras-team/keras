@@ -31,7 +31,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(v1=["keras.layers.DenseFeatures"])
-class DenseFeatures(kfc._BaseFeaturesLayer):  # pylint: disable=protected-access
+class DenseFeatures(kfc._BaseFeaturesLayer):
     """A layer that produces a dense `Tensor` based on given `feature_columns`.
 
     Generally a single example in training data is described with

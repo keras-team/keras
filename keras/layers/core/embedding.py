@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Embedding layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
 

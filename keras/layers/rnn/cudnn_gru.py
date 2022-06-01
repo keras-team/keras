@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Fast GRU layer backed by cuDNN."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import collections
 

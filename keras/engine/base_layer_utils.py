@@ -54,7 +54,7 @@ def make_variable(
     collections=None,
     synchronization=tf.VariableSynchronization.AUTO,
     aggregation=tf.VariableAggregation.NONE,
-    partitioner=None,  # pylint: disable=unused-argument
+    partitioner=None,
     layout=None,
 ):
     """Temporary util to create a variable (relies on `variable_scope.variable`).
@@ -449,7 +449,7 @@ def mark_checked(tensors):
     """
 
     def _mark_checked(tensor):
-        tensor._keras_history_checked = True  # pylint: disable=protected-access
+        tensor._keras_history_checked = True
 
     tf.nest.map_structure(_mark_checked, tensors)
 
@@ -751,7 +751,6 @@ def mark_as_return(outputs, acd):
         if not tf.is_tensor(tensor):
             return tensor
 
-        # pylint: disable=protected-access
         return_tensor = acd.mark_as_return(tensor)
         if getattr(tensor, "_keras_mask", None) is not None:
             return_tensor._keras_mask = acd.mark_as_return(tensor._keras_mask)
@@ -764,7 +763,6 @@ def mark_as_return(outputs, acd):
             return_tensor._tfp_distribution = tensor._tfp_distribution
 
         return return_tensor
-        # pylint: enable=protected-access
 
     return tf.nest.map_structure(_mark_as_return, outputs)
 

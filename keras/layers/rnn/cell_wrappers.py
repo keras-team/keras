@@ -454,9 +454,7 @@ class DropoutWrapper(_RNNCellWrapper):
             "input_size": self._input_size,
             "seed": self._seed,
         }
-        if (
-            self._dropout_state_filter != _default_dropout_state_filter_visitor
-        ):  # pylint: disable=comparison-with-callable
+        if self._dropout_state_filter != _default_dropout_state_filter_visitor:
             (
                 function,
                 function_type,

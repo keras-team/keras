@@ -52,7 +52,7 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                             learning_rate=lambda: lr,
                             rho=lambda: rho,
                             epsilon=epsilon,
-                        )  # pylint: disable=cell-var-from-loop
+                        )
                     else:
                         adadelta_opt = adadelta.Adadelta(
                             learning_rate=lr, rho=rho, epsilon=epsilon
@@ -178,7 +178,7 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 def loss():
                     pred = tf.matmul(
                         tf.compat.v1.nn.embedding_lookup([var0], [0]), x
-                    )  # pylint: disable=cell-var-from-loop
+                    )
                     return pred * pred
 
                 sgd_op = adadelta.Adadelta(1.0, 1.0, 1.0).minimize(

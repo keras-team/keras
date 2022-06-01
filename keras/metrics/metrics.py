@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-classes-have-attributes
-# pylint: disable=g-doc-return-or-yield
+
+
 """Built-in metrics."""
 
 import abc
@@ -1866,9 +1866,7 @@ class AUC(base_metric.Metric):
                 # AUC should be initialized outside of any tf.functions, and
                 # therefore in eager mode.
                 if not tf.executing_eagerly():
-                    backend._initialize_variables(
-                        backend._get_session()
-                    )  # pylint: disable=protected-access
+                    backend._initialize_variables(backend._get_session())
 
         self._built = True
 

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=g-classes-have-attributes
+
+
 """Constraints: functions that impose constraints on weight values."""
 
 import tensorflow.compat.v2 as tf
@@ -297,9 +297,7 @@ class RadialConstraint(Constraint):
             backend.cast(tf.math.floormod(kernel_shape, 2), "bool"),
             lambda: kernel[start - 1 : start, start - 1 : start],
             lambda: kernel[start - 1 : start, start - 1 : start]
-            + backend.zeros(  # pylint: disable=g-long-lambda
-                (2, 2), dtype=kernel.dtype
-            ),
+            + backend.zeros((2, 2), dtype=kernel.dtype),
         )
         index = backend.switch(
             backend.cast(tf.math.floormod(kernel_shape, 2), "bool"),

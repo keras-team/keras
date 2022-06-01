@@ -19,8 +19,6 @@ import tarfile
 import uuid
 
 import numpy
-
-# pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 
 from keras.saving import save as save_module

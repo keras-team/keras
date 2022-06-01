@@ -24,7 +24,6 @@ from keras.optimizers.schedules import learning_rate_schedule
 from tensorflow.python.util.tf_export import keras_export
 
 
-# pylint: disable=g-classes-have-attributes
 @keras_export("keras.optimizers.Nadam")
 class Nadam(optimizer_v2.OptimizerV2):
     r"""Optimizer that implements the NAdam algorithm.
@@ -139,7 +138,7 @@ class Nadam(optimizer_v2.OptimizerV2):
 
         apply_state[(var_device, var_dtype)] = dict(
             lr_t=lr_t,
-            neg_lr_t=-lr_t,  # pylint: disable=invalid-unary-operand-type
+            neg_lr_t=-lr_t,
             epsilon=tf.convert_to_tensor(self.epsilon, var_dtype),
             beta_1_t=beta_1_t,
             beta_2_t=beta_2_t,

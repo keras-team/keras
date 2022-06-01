@@ -488,12 +488,8 @@ def get_registered_object(name, custom_objects=None, module_objects=None):
     return None
 
 
-# pylint: disable=g-bad-exception-name
 class CustomMaskWarning(Warning):
     pass
-
-
-# pylint: enable=g-bad-exception-name
 
 
 @keras_export("keras.utils.serialize_keras_object")
@@ -515,7 +511,6 @@ def serialize_keras_object(instance):
     if instance is None:
         return None
 
-    # pylint: disable=protected-access
     #
     # For v1 layers, checking supports_masking is not enough. We have to also
     # check whether compute_mask has been overridden.
@@ -531,7 +526,6 @@ def serialize_keras_object(instance):
             category=CustomMaskWarning,
             stacklevel=2,
         )
-    # pylint: enable=protected-access
 
     if hasattr(instance, "get_config"):
         name = get_registered_name(instance.__class__)
@@ -722,9 +716,7 @@ def deserialize_keras_object(
         # If this object has already been loaded (i.e. it's shared between
         # multiple objects), return the already-loaded object.
         shared_object_id = config.get(SHARED_OBJECT_KEY)
-        shared_object = _shared_object_loading_scope().get(
-            shared_object_id
-        )  # pylint: disable=assignment-from-none
+        shared_object = _shared_object_loading_scope().get(shared_object_id)
         if shared_object is not None:
             return shared_object
 
@@ -839,7 +831,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
         """
 
         def dummy_fn():
-            # pylint: disable=pointless-statement
+
             value  # just access it so it gets captured in .__closure__
 
         cell_value = dummy_fn.__closure__[0]
@@ -1277,7 +1269,7 @@ def validate_config(config):
 
 def default(method):
     """Decorates a method to detect overrides in subclasses."""
-    method._is_default = True  # pylint: disable=protected-access
+    method._is_default = True
     return method
 
 
@@ -1320,4 +1312,4 @@ class LazyLoader(python_types.ModuleType):
 
 # Aliases
 
-custom_object_scope = CustomObjectScope  # pylint: disable=invalid-name
+custom_object_scope = CustomObjectScope

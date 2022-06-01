@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras models API."""
-# pylint: disable=g-bad-import-order
+
 
 from keras.engine.functional import Functional
 from keras.engine.sequential import Sequential

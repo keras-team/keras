@@ -26,7 +26,7 @@ from keras.utils import image_dataset
 from keras.utils import image_utils
 
 try:
-    import PIL  # pylint:disable=g-import-not-at-top
+    import PIL
 except ImportError:
     PIL = None
 

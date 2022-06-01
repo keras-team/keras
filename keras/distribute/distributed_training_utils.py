@@ -26,9 +26,7 @@ FLAGS = flags.FLAGS
 # core MirroredStrategy only. Remove this check when contrib MirroredStrategy is
 # no longer needed.
 def global_batch_size_supported(distribution_strategy):
-    return (
-        distribution_strategy.extended._global_batch_size
-    )  # pylint: disable=protected-access
+    return distribution_strategy.extended._global_batch_size
 
 
 def call_replica_local_fn(fn, *args, **kwargs):

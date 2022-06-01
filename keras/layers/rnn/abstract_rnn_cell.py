@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Base class for RNN cells."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from keras.engine import base_layer
 from keras.layers.rnn import rnn_utils

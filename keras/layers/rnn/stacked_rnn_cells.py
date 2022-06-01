@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Wrapper allowing a stack of RNN cells to behave as a single cell."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import functools
 

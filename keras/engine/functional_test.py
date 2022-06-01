@@ -228,7 +228,7 @@ class NetworkConstructionTest(test_combinations.TestCase):
 
         x = input_layer_lib.Input(shape=(32,))
         test_layer = PowersLayer()
-        p1, p2 = test_layer(x)  # pylint: disable=not-callable
+        p1, p2 = test_layer(x)
 
         self.assertIs(test_layer.input, x)
         self._assertAllIs(test_layer.output, [p1, p2])
@@ -247,7 +247,7 @@ class NetworkConstructionTest(test_combinations.TestCase):
         a = input_layer_lib.Input(shape=(32,))
         b = input_layer_lib.Input(shape=(32,))
         test_layer = AddLayer()
-        y = test_layer([a, b])  # pylint: disable=not-callable
+        y = test_layer([a, b])
 
         self._assertAllIs(test_layer.input, [a, b])
         self.assertIs(test_layer.output, y)
@@ -806,7 +806,7 @@ class NetworkConstructionTest(test_combinations.TestCase):
             self.assertAllEqual(self.evaluate(a * mask), self.evaluate(b))
         else:
             x = input_layer_lib.Input(shape=(32,))
-            y = MaskedLayer()(x)  # pylint: disable=not-callable
+            y = MaskedLayer()(x)
             network = functional.Functional(x, y)
 
             # test callability on Input
@@ -1591,7 +1591,7 @@ class DeferredModeTest(test_combinations.TestCase):
             def call(self, inputs):
                 return inputs[0] + inputs[1]
 
-        c = AddLayer()([a, input_b])  # pylint: disable=not-callable
+        c = AddLayer()([a, input_b])
         c = layers.Dense(2)(c)
 
         network = functional.Functional([input_a, input_b], [a, c])
@@ -1730,7 +1730,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
                 self.block = BasicBlock()
 
             def call(self, x):
-                x = self.block(x)  # pylint: disable=not-callable
+                x = self.block(x)
                 return x
 
         model = CompoundModel()
@@ -1741,7 +1741,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
             "Model should have its weights created as it " "has been built",
         )
         sample_input = tf.ones((1, 10, 10, 1))
-        output = model(sample_input)  # pylint: disable=not-callable
+        output = model(sample_input)
         self.assertEqual(output.shape, (1, 3))
 
     @test_combinations.generate(

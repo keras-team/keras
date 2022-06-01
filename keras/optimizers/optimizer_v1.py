@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=g-classes-have-attributes
+
+
 """Legacy v1 optimizer classes.
 
 For more examples see the base class `tf.compat.v1.keras.optimizers.Optimizer`.
@@ -836,9 +836,7 @@ class Nadam(Optimizer):
 class TFOptimizer(Optimizer, tf.__internal__.tracking.Trackable):
     """Wrapper class for native TensorFlow optimizers."""
 
-    def __init__(
-        self, optimizer, iterations=None
-    ):  # pylint: disable=super-init-not-called
+    def __init__(self, optimizer, iterations=None):
         self.optimizer = optimizer
         self._track_trackable(optimizer, name="optimizer")
         if iterations is None:

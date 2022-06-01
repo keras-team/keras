@@ -26,8 +26,6 @@ from keras.utils import tf_utils
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
-
 
 @keras_export("keras.layers.LayerNormalization")
 class LayerNormalization(Layer):

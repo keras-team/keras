@@ -29,8 +29,6 @@ from keras.feature_column import base_feature_layer as kfc
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=protected-access
-
 
 @keras_export("keras.experimental.SequenceFeatures")
 class SequenceFeatures(kfc._BaseFeaturesLayer):

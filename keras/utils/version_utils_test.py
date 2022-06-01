@@ -133,7 +133,7 @@ class SplitUtilsTest(test_combinations.TestCase):
                 return 2 * inputs
 
         with self.assertRaisesRegex(TypeError, "instantiate abstract class"):
-            AbstractModel()  # pylint: disable=abstract-class-instantiated
+            AbstractModel()
 
         model = MyModel()
         model_class = model.__class__.__bases__[0].__bases__[0]

@@ -42,7 +42,6 @@ class NonLayerTrackable(tf.Module):
         )
 
 
-# pylint: disable=not-callable
 class MyModel(training.Model):
     """A concrete Model for testing."""
 
@@ -312,9 +311,7 @@ class CheckpointingTests(test_combinations.TestCase):
                 # TODO(allenl): Use a Dataset and serialize/checkpoint it.
                 input_value = tf.constant([[3.0]])
                 optimizer.minimize(
-                    lambda: model(
-                        input_value
-                    ),  # pylint: disable=cell-var-from-loop
+                    lambda: model(input_value),
                     global_step=root.optimizer_step,
                 )
             root.save(file_prefix=checkpoint_prefix)
@@ -493,7 +490,6 @@ class CheckpointingTests(test_combinations.TestCase):
                         self.evaluate(root.save_counter),
                     )
 
-    # pylint: disable=cell-var-from-loop
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
     )
@@ -551,8 +547,6 @@ class CheckpointingTests(test_combinations.TestCase):
                         training_continuation + 1,
                         self.evaluate(root.save_counter),
                     )
-
-    # pylint: enable=cell-var-from-loop
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def testAnonymousVarsInInit(self):

@@ -368,10 +368,9 @@ class LegacyRNNTest(tf.test.TestCase):
 
         z = tf.zeros((2, 3))
 
-        kn1(z)  # pylint:disable=not-callable
-        kn2(z)  # pylint:disable=not-callable
+        kn1(z)
+        kn2(z)
 
-        # pylint: disable=protected-access
         self.assertTrue(all("kn1" in v.name for v in kn1._cell.variables))
         self.assertTrue(all("kn2" in v.name for v in kn2._cell.variables))
 
@@ -379,10 +378,10 @@ class LegacyRNNTest(tf.test.TestCase):
             kn1_new = KerasNetworkTFRNNs(name="kn1_new")
             kn2_new = KerasNetworkKerasRNNs(name="kn2_new")
 
-        kn2_new(z)  # pylint:disable=not-callable
+        kn2_new(z)
         # Most importantly, this doesn't fail due to variable scope reuse
         # issues.
-        kn1_new(z)  # pylint:disable=not-callable
+        kn1_new(z)
 
         self.assertTrue(
             all("kn1_new" in v.name for v in kn1_new._cell.variables)

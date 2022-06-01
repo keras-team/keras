@@ -24,7 +24,7 @@ from keras.engine.sequential import Sequential
 from keras.engine.training import Model
 
 # isort: off
-# pylint: disable=unused-import
+
 from tensorflow.python import tf2
 from tensorflow.python.util.tf_export import keras_export
 

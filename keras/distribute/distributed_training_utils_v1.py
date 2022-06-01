@@ -33,8 +33,6 @@ from keras.utils.mode_keys import ModeKeys
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
 
-# pylint:disable=protected-access
-
 
 def set_weights(distribution_strategy, dist_model, weights):
     """Sets the weights of the replicated models.
@@ -237,7 +235,7 @@ def flatten_per_replica_values(distribution_strategy, per_replica_values):
       List of values of all the PerReplica objects.
 
     """
-    # pylint: disable=g-complex-comprehension
+
     # This function takes a PerReplica object or a list of PerReplica objects
     # and returns all the values associated with it.
     return [
@@ -404,9 +402,7 @@ def validate_all_tensor_shapes(x, x_values):
 
 def _wait_for_variable_initialization(session):
     """Utility to wait for variables to be initialized."""
-    all_variables = backend._get_variables(
-        backend.get_graph()
-    )  # pylint: disable=protected-access
+    all_variables = backend._get_variables(backend.get_graph())
     candidate_vars = []
     for v in all_variables:
         if not getattr(v, "_keras_initialized", False):
@@ -423,7 +419,7 @@ def _wait_for_variable_initialization(session):
         for flag, v in zip(is_initialized, candidate_vars):
             if not flag:
                 uninitialized_vars.append(v)
-            v._keras_initialized = True  # pylint: disable=protected-access
+            v._keras_initialized = True
         if not uninitialized_vars:
             break
 
@@ -431,9 +427,7 @@ def _wait_for_variable_initialization(session):
 def init_restore_or_wait_for_variables():
     """Initialize or restore variables or wait for variables to be
     initialized."""
-    backend._initialize_variables(
-        backend._get_session()
-    )  # pylint: disable=protected-access
+    backend._initialize_variables(backend._get_session())
 
 
 def validate_inputs(x, y):
@@ -768,8 +762,8 @@ def _build_network_on_replica(model, mode, inputs=None, targets=None):
       A new model with shared layers with the old model.
     """
     # Need to do imports here since we run into a circular dependency error.
-    from keras import models  # pylint: disable=g-import-not-at-top
-    from keras.engine import sequential  # pylint: disable=g-import-not-at-top
+    from keras import models
+    from keras.engine import sequential
 
     # We rely on the internal methods to avoid having share_weights weights in
     # the public API.
@@ -833,7 +827,7 @@ def _clone_and_build_model(model, mode, inputs=None, targets=None):
     """Clone and build the given keras_model."""
     # We need to set the import here since we run into a circular dependency
     # error.
-    from keras import models  # pylint: disable=g-import-not-at-top
+    from keras import models
 
     cloned_model = models.clone_model(model, input_tensors=inputs)
 
@@ -1236,7 +1230,7 @@ def filter_distributed_callbacks(callbacks_list, model):
         callback
         for callback in callbacks_list
         if not callback._chief_worker_only
-    ]  # pylint: disable=protected-access
+    ]
 
 
 def _update_sample_weight_modes(model, mode, sample_weights):

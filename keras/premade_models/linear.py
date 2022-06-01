@@ -192,7 +192,7 @@ class LinearModel(training.Model):
         if self.use_bias:
             result = tf.nn.bias_add(result, self.bias)
         if self.activation is not None:
-            return self.activation(result)  # pylint: disable=not-callable
+            return self.activation(result)
         return result
 
     def get_config(self):

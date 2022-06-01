@@ -14,8 +14,6 @@
 # ==============================================================================
 """Normalization preprocessing layer."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -331,7 +329,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         self.adapt_variance.assign(total_variance)
         self.count.assign(total_count)
 
-    def reset_state(self):  # pylint: disable=method-hidden
+    def reset_state(self):
         if self.input_mean is not None or not self.built:
             return
 

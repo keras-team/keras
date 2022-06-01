@@ -40,7 +40,7 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
 try:
-    import pandas as pd  # pylint: disable=g-import-not-at-top
+    import pandas as pd
 except ImportError:
     pd = None
 
@@ -888,9 +888,7 @@ class GeneratorDataAdapter(DataAdapter):
 
         def _get_tensor_spec(t):
             # TODO(b/226395276): Remove _with_tensor_ranks_only usage.
-            return type_spec.type_spec_from_value(
-                t
-            )._with_tensor_ranks_only()  # pylint: disable=protected-access
+            return type_spec.type_spec_from_value(t)._with_tensor_ranks_only()
 
         output_signature = tf.nest.map_structure(_get_tensor_spec, peek)
 
@@ -1857,7 +1855,7 @@ def _get_tensor_types():
 
 def _is_scipy_sparse(x):
     try:
-        from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top
+        from scipy.sparse import issparse
 
         return issparse(x)
     except ImportError:

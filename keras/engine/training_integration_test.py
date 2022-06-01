@@ -143,9 +143,7 @@ def _gather_test_cases():
         arg_dict,
         filter_fn,
     ) in _LAYERS_TO_TEST:
-        arg_combinations = [
-            [(k, i) for i in v] for k, v in arg_dict.items()
-        ]  # pylint: disable=g-complex-comprehension
+        arg_combinations = [[(k, i) for i in v] for k, v in arg_dict.items()]
         for arguments in itertools.product(*arg_combinations):
             layer_kwargs = {k: v for k, v in arguments}
             if filter_fn is not None and not filter_fn(**layer_kwargs):

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Module implementing the V1 version of RNN cell wrappers."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from __future__ import absolute_import
 from __future__ import division
@@ -497,9 +497,7 @@ class DropoutWrapper(_RNNCellWrapperV1):
             "input_size": self._input_size,
             "seed": self._seed,
         }
-        if (
-            self._dropout_state_filter != _default_dropout_state_filter_visitor
-        ):  # pylint: disable=comparison-with-callable
+        if self._dropout_state_filter != _default_dropout_state_filter_visitor:
             (
                 function,
                 function_type,
@@ -659,7 +657,7 @@ class DeviceWrapper(_RNNCellWrapperV1):
 
 def _default_dropout_state_filter_visitor(substate):
     from keras.layers.rnn.legacy_cells import (
-        LSTMStateTuple,  # pylint: disable=g-import-not-at-top
+        LSTMStateTuple,
     )
 
     if isinstance(substate, LSTMStateTuple):

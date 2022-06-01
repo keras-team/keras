@@ -17,8 +17,6 @@ import copy
 import pickle
 
 import numpy as np
-
-# pylint: disable=g-bad-import-order
 import tensorflow.compat.v2 as tf
 
 from keras.testing_infra import test_combinations
@@ -38,7 +36,7 @@ class TestPickleProtocol(test_combinations.TestCase):
                 lambda model: pickle.loads(
                     pickle.dumps(model, protocol=protocol)
                 ),
-            )  # pylint: disable=cell-var-from-loop
+            )
             for protocol in range(pickle.HIGHEST_PROTOCOL + 1)
         ),
     )

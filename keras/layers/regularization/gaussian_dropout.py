@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the GaussianDropout layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import numpy as np
 import tensorflow.compat.v2 as tf

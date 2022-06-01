@@ -396,7 +396,7 @@ class DenseFeaturesTest(test_combinations.TestCase):
             with self.assertRaisesRegex(
                 ValueError,
                 r"Batch size \(first dimension\) of each feature must be same.",
-            ):  # pylint: disable=anomalous-backslash-in-string
+            ):
                 df.DenseFeatures([price1, price2])(features)
 
     def test_subset_of_static_batch_size_mismatch(self):
@@ -414,7 +414,7 @@ class DenseFeaturesTest(test_combinations.TestCase):
             with self.assertRaisesRegex(
                 ValueError,
                 r"Batch size \(first dimension\) of each feature must be same.",
-            ):  # pylint: disable=anomalous-backslash-in-string
+            ):
                 df.DenseFeatures([price1, price2, price3])(features)
 
     def test_runtime_batch_size_mismatch(self):

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=missing-function-docstring
+
+
 """ResNet-RS models for Keras.
 
 Reference:
@@ -539,7 +539,6 @@ def ResNetRS(
     weights="imagenet",
     input_tensor=None,
     classes=1000,
-    # pylint: disable=g-bare-generic
     classifier_activation: Union[str, Callable] = "softmax",
     include_preprocessing=True,
 ):
@@ -947,7 +946,6 @@ def ResNetRS420(
     )
 
 
-# pylint: disable=unused-argument
 @keras_export("keras.applications.resnet_rs.preprocess_input")
 def preprocess_input(x, data_format=None):
     """A placeholder method for backward compatibility.

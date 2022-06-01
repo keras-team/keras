@@ -181,7 +181,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             ),
             base_layer.Layer._TF_MODULE_IGNORED_PROPERTIES,
         )
-    )  # pylint: disable=protected-access
+    )
     _SCALAR_UPRANKING_ON = False
 
     def __new__(cls, *args, **kwargs):
@@ -836,7 +836,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 metrics += self.compiled_metrics.metrics
 
         for l in self._flatten_layers():
-            metrics.extend(l._metrics)  # pylint: disable=protected-access
+            metrics.extend(l._metrics)
         return metrics
 
     @property
@@ -898,9 +898,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Returns:
           Boolean, whether the model should run eagerly.
         """
-        if (
-            self.dynamic and self._run_eagerly == False
-        ):  # pylint:disable=g-bool-id-comparison
+        if self.dynamic and self._run_eagerly == False:
             # TODO(fchollet): consider using py_func to enable this.
             raise ValueError(
                 "Your model contains layers that can only be "
@@ -1137,9 +1135,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 outputs = model.train_step(data)
                 # Ensure counter is updated only if `train_step` succeeds.
                 with tf.control_dependencies(_minimum_control_deps(outputs)):
-                    model._train_counter.assign_add(
-                        1
-                    )  # pylint: disable=protected-access
+                    model._train_counter.assign_add(1)
                 return outputs
 
             if self._jit_compile:
@@ -1491,9 +1487,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 val_sample_weight,
             ) = data_adapter.unpack_x_y_sample_weight(validation_data)
 
-        if (
-            self.distribute_strategy._should_use_with_coordinator
-        ):  # pylint: disable=protected-access
+        if self.distribute_strategy._should_use_with_coordinator:
             self._cluster_coordinator = (
                 tf.distribute.experimental.coordinator.ClusterCoordinator(
                     self.distribute_strategy
@@ -1557,7 +1551,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 with data_handler.catch_stop_iteration():
                     data_handler._initial_step = data_handler._initial_step or (
                         self._maybe_load_initial_step_from_ckpt()
-                    )  # pylint: disable=protected-access
+                    )
                     for step in data_handler.steps():
                         with tf.profiler.experimental.Trace(
                             "train",
@@ -1707,9 +1701,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 outputs = model.test_step(data)
                 # Ensure counter is updated only if `test_step` succeeds.
                 with tf.control_dependencies(_minimum_control_deps(outputs)):
-                    model._test_counter.assign_add(
-                        1
-                    )  # pylint: disable=protected-access
+                    model._test_counter.assign_add(1)
                 return outputs
 
             if self._jit_compile:
@@ -1895,9 +1887,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if kwargs:
             raise TypeError(f"Invalid keyword arguments: {list(kwargs.keys())}")
 
-        if (
-            self.distribute_strategy._should_use_with_coordinator
-        ):  # pylint: disable=protected-access
+        if self.distribute_strategy._should_use_with_coordinator:
             self._cluster_coordinator = (
                 tf.distribute.experimental.coordinator.ClusterCoordinator(
                     self.distribute_strategy
@@ -2025,9 +2015,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 outputs = model.predict_step(data)
                 # Ensure counter is updated only if `test_step` succeeds.
                 with tf.control_dependencies(_minimum_control_deps(outputs)):
-                    model._predict_counter.assign_add(
-                        1
-                    )  # pylint: disable=protected-access
+                    model._predict_counter.assign_add(1)
                 return outputs
 
             if self._jit_compile:
@@ -2194,9 +2182,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # prediction.  If running under PSS, then swap it with OneDeviceStrategy
         # so that execution will run on the coordinator.
         original_pss_strategy = None
-        if (
-            self.distribute_strategy._should_use_with_coordinator
-        ):  # pylint: disable=protected-access
+        if self.distribute_strategy._should_use_with_coordinator:
             original_pss_strategy = self.distribute_strategy
             self._distribution_strategy = None
 
@@ -2665,7 +2651,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         options=None,
         save_traces=True,
     ):
-        # pylint: disable=line-too-long
+
         """Saves the model to Tensorflow SavedModel or a single HDF5 file.
 
         Please see `tf.keras.models.save_model` or the
@@ -2708,7 +2694,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         model = load_model('my_model.h5')
         ```
         """
-        # pylint: enable=line-too-long
+
         save.save_model(
             self,
             filepath,
@@ -3003,7 +2989,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # as a result.
         config = {}
 
-        if saving_lib._ENABLED:  # pylint: disable=protected-access
+        if saving_lib._ENABLED:
             if self.optimizer:
                 config["optimizer"] = saving_lib.serialize_keras_object(
                     self.optimizer
@@ -3073,7 +3059,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     f"Error encountered during deserialization:\n{e}"
                 )
 
-            if saving_lib._ENABLED:  # pylint: disable=protected-access
+            if saving_lib._ENABLED:
 
                 if optimizer or loss:
                     model.compile(optimizer=optimizer, loss=loss)
@@ -3560,7 +3546,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             and len(x.element_spec) == 3
         )
 
-        # pylint: disable=protected-access
         if (
             sample_weight_present
             and self.compiled_metrics._user_weighted_metrics is None
@@ -3632,7 +3617,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           Dictionary of arguments that were used when compiling the model.
         """
         self._assert_compile_was_called()
-        # pylint: disable=protected-access
 
         saved_metrics = self.compiled_metrics._user_metrics
         saved_weighted_metrics = self.compiled_metrics._user_weighted_metrics
@@ -3650,16 +3634,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             "weighted_metrics": saved_weighted_metrics,
             "loss_weights": self.compiled_loss._user_loss_weights,
         }
-        # pylint: enable=protected-access
+
         return compile_args
 
     def _get_callback_model(self):
         return self
 
     def _in_multi_worker_mode(self):
-        return (
-            self.distribute_strategy.extended._in_multi_worker_mode()
-        )  # pylint: disable=protected-access
+        return self.distribute_strategy.extended._in_multi_worker_mode()
 
     @property
     def _compile_was_called(self):
@@ -3757,9 +3739,7 @@ def potentially_ragged_concat(tensors):
 
 def _get_verbosity(verbose, distribute_strategy):
     """Find the right verbosity value for 'auto'."""
-    if (
-        verbose == 1 and distribute_strategy._should_use_with_coordinator
-    ):  # pylint: disable=protected-access
+    if verbose == 1 and distribute_strategy._should_use_with_coordinator:
         raise ValueError(
             "`verbose=1` is not allowed with `ParameterServerStrategy` for "
             f"performance reasons. Received: verbose={verbose}"
@@ -3931,7 +3911,7 @@ def disable_multi_worker(method):
     """Decorator that disallows multi-worker use of `method`."""
 
     def _method_wrapper(self, *args, **kwargs):
-        if self._in_multi_worker_mode():  # pylint: disable=protected-access
+        if self._in_multi_worker_mode():
             raise ValueError(
                 f"{method.__name__} is not supported in multi-worker "
                 "mode. Please use a non-multi-worker "

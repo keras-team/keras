@@ -21,7 +21,7 @@ import tensorflow.compat.v2 as tf
 
 
 def InXlaContext(graph):
-    ctxt = graph._get_control_flow_context()  # pylint: disable=protected-access
+    ctxt = graph._get_control_flow_context()
     return GetContainingXLAContext(ctxt) is not None
 
 
@@ -36,7 +36,7 @@ def GraphOrParentsInXlaContext(graph):
 
 
 def IsInWhileLoop(op):
-    ctxt = op._get_control_flow_context()  # pylint: disable=protected-access
+    ctxt = op._get_control_flow_context()
     return GetContainingWhileContext(ctxt) is not None
 
 
@@ -84,9 +84,7 @@ def GetContainingXLAContext(ctxt):
     return None
 
 
-def smart_cond(
-    pred, true_fn=None, false_fn=None, name=None
-):  # pylint: disable=invalid-name
+def smart_cond(pred, true_fn=None, false_fn=None, name=None):
     """Return either `true_fn()` if predicate `pred` is true else `false_fn()`.
 
     If `pred` is a bool or has a constant value, we return either `true_fn()`
@@ -112,7 +110,7 @@ def smart_cond(
     )
 
 
-def constant_value(pred):  # pylint: disable=invalid-name
+def constant_value(pred):
     """Return the bool value for `pred`, or None if `pred` had a dynamic value.
 
     Args:

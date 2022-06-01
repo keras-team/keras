@@ -33,11 +33,11 @@ from tensorflow.python.training.server_lib import (
 
 _portpicker_import_error = None
 try:
-    import portpicker  # pylint: disable=g-import-not-at-top
+    import portpicker
 except (
     ImportError,
     ModuleNotFoundError,
-) as _error:  # pylint: disable=invalid-name
+) as _error:
     _portpicker_import_error = _error
     portpicker = None
 
@@ -105,7 +105,7 @@ def make_parameter_server_cluster(num_workers, num_ps):
 def pick_unused_port():
     """Returns an unused and unassigned local port."""
     if _portpicker_import_error:
-        raise _portpicker_import_error  # pylint: disable=raising-bad-type
+        raise _portpicker_import_error
 
     global ASSIGNED_PORTS
     with lock:
@@ -138,7 +138,7 @@ def _create_cluster(
 ):
     """Creates and starts local servers and returns the cluster_spec dict."""
     if _portpicker_import_error:
-        raise _portpicker_import_error  # pylint: disable=raising-bad-type
+        raise _portpicker_import_error
     worker_ports = [pick_unused_port() for _ in range(num_workers)]
     ps_ports = [pick_unused_port() for _ in range(num_ps)]
 

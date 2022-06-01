@@ -94,7 +94,7 @@ def softmax(x, axis=-1):
         )
 
     # Cache the logits to use for crossentropy loss.
-    output._keras_logits = x  # pylint: disable=protected-access
+    output._keras_logits = x
     return output
 
 
@@ -410,7 +410,7 @@ def sigmoid(x):
     """
     output = tf.sigmoid(x)
     # Cache the logits to use for crossentropy loss.
-    output._keras_logits = x  # pylint: disable=protected-access
+    output._keras_logits = x
     return output
 
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """A `Network` is way to compose layers: the topological form of a `Model`."""
 
 
@@ -44,7 +44,6 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.tools.docs import doc_controls
 
 
-# pylint: disable=g-classes-have-attributes
 class Functional(training_lib.Model):
     """A `Functional` model is a `Model` defined as a directed graph of layers.
 
@@ -243,7 +242,7 @@ class Functional(training_lib.Model):
                 layer,
                 node_index,
                 tensor_index,
-            ) = x._keras_history  # pylint: disable=protected-access
+            ) = x._keras_history
             self._output_layers.append(layer)
             self._output_coordinates.append((layer, node_index, tensor_index))
 
@@ -253,7 +252,7 @@ class Functional(training_lib.Model):
                 layer,
                 node_index,
                 tensor_index,
-            ) = x._keras_history  # pylint: disable=protected-access
+            ) = x._keras_history
             # It's supposed to be an input layer, so only one node
             # and one tensor output.
             assert node_index == 0
@@ -586,9 +585,7 @@ class Functional(training_lib.Model):
                         layer_output_shapes, to_tuples=False
                     )
 
-                    node_index = layer._inbound_nodes.index(
-                        node
-                    )  # pylint: disable=protected-access
+                    node_index = layer._inbound_nodes.index(node)
                     for j, shape in enumerate(
                         tf.nest.flatten(layer_output_shapes)
                     ):
@@ -802,7 +799,7 @@ class Functional(training_lib.Model):
                     f"Received inputs={x} (missing previous layer metadata)."
                 )
             # Check that x is an input tensor.
-            # pylint: disable=protected-access
+
             layer = x._keras_history.layer
             if len(layer._inbound_nodes) > 1 or (
                 layer._inbound_nodes and not layer._inbound_nodes[0].is_input
@@ -1178,8 +1175,8 @@ def _build_map_helper(
         layer,
         node_index,
         _,
-    ) = tensor._keras_history  # pylint: disable=protected-access
-    node = layer._inbound_nodes[node_index]  # pylint: disable=protected-access
+    ) = tensor._keras_history
+    node = layer._inbound_nodes[node_index]
 
     # Don't repeat work for shared subgraphs
     if node in finished_nodes:

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Max pooling 3D layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
 

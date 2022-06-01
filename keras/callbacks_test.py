@@ -49,12 +49,12 @@ from keras.utils import np_utils
 from tensorflow.python.platform import tf_logging as logging
 
 try:
-    import h5py  # pylint:disable=g-import-not-at-top
+    import h5py
 except ImportError:
     h5py = None
 
 try:
-    import requests  # pylint:disable=g-import-not-at-top
+    import requests
 except ImportError:
     requests = None
 

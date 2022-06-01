@@ -27,7 +27,6 @@ from keras.engine import base_layer
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=missing-class-docstring
 
 # We will skip the path for certain attributes when mapping the layout, e.g.
 # model._self_tracked_trackables, or layer._trainable_weights/
@@ -257,7 +256,7 @@ def _map_subclass_model_variable(model, layout_map):
     # Note that the model._flatten is a method from tf.Module, and it returns
     # duplicated items (since some of the items have different paths).
     for path, variable in model._flatten(
-        predicate=_is_lazy_init_variable,  # pylint: disable=protected-access
+        predicate=_is_lazy_init_variable,
         with_path=True,
     ):
         # Note that path is a tuple that contains string and ints, eg:
@@ -271,7 +270,7 @@ def _map_subclass_model_variable(model, layout_map):
         _set_object_by_path(model, path, new_variable)
         lazy_init_variable_to_tf_variable_map[id(variable)] = new_variable
 
-    for layer in model._flatten(  # pylint: disable=protected-access
+    for layer in model._flatten(
         predicate=lambda o: isinstance(o, base_layer.Layer)
     ):
         _config_dvariable_regularization(
@@ -280,7 +279,7 @@ def _map_subclass_model_variable(model, layout_map):
     # After we replaced all the variables, we want to make sure all the cached
     # attributes are having the new variable, rather than old LazyInitVariable.
     for path, variable in model._flatten(
-        predicate=_is_lazy_init_variable,  # pylint: disable=protected-access
+        predicate=_is_lazy_init_variable,
         with_path=True,
     ):
         tf_variable = lazy_init_variable_to_tf_variable_map[id(variable)]
@@ -349,7 +348,7 @@ def _init_state_variable_for_rng(model, layout_map):
         BaseRandomLayers.
       layout_map: used to get the default mesh information to create DVariable.
     """
-    # pylint: disable=protected-access
+
     for l in model._flatten(
         predicate=lambda o: isinstance(o, base_layer.BaseRandomLayer)
     ):
@@ -393,7 +392,7 @@ def _config_dvariable_regularization(
       lazy_init_variable_to_tf_variable_map: the dict between LazyInitVariable
         ID and newly created DVariable.
     """
-    # pylint: disable=protected-access
+
     for (name, variable, regualarizer) in layer._captured_weight_regularizer:
         if not _is_lazy_init_variable(variable):
             raise ValueError(
@@ -432,7 +431,7 @@ def _create_dvariable(layout_map, object_path, variable):
         layout = dtensor.Layout.replicated(
             mesh=layout_map.get_default_mesh(), rank=variable_rank
         )
-    init_val = variable._initial_value  # pylint: disable=protected-access
+    init_val = variable._initial_value
     if callable(init_val):
         with lazy_variable.disable_init_variable_creator():
             init_val = utils.call_with_layout(init_val, layout)

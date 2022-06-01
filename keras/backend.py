@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
-# pylint: disable=redefined-outer-name
-# pylint: disable=redefined-builtin
-# pylint: disable=g-classes-have-attributes
-# pylint: disable=g-bad-import-order
-# pylint: disable=missing-function-docstring
+
+
 """Keras backend API."""
 
 import collections
@@ -708,7 +704,7 @@ def _current_graph(op_input_list, graph=None):
             op_input, (tf.Operation, tf.Tensor, tf.__internal__.CompositeTensor)
         ) and (
             (not isinstance(op_input, tf.Tensor)) or type(op_input) == tf.Tensor
-        ):  # pylint: disable=unidiomatic-typecheck
+        ):
             graph_element = op_input
         else:
             graph_element = _as_graph_element(op_input)
@@ -1451,7 +1447,7 @@ def placeholder(
         # when the placeholder is built in a top-level eager context
         # (intended to be used with keras.backend.function)
         from keras.engine import (
-            input_layer,  # pylint: disable=g-import-not-at-top
+            input_layer,
         )
 
         x = input_layer.Input(tensor=x)
@@ -1472,7 +1468,7 @@ def is_placeholder(x):
     try:
         if tf.compat.v1.executing_eagerly_outside_functions():
             return hasattr(x, "_is_backend_placeholder")
-        from keras.utils import tf_utils  # pylint: disable=g-import-not-at-top
+        from keras.utils import tf_utils
 
         if tf_utils.is_extension_type(x):
             flat_components = tf.nest.flatten(x, expand_composites=True)
@@ -1977,7 +1973,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             self._generator = None
         elif self._rng_type == self.RNG_STATEFUL:
             from keras.utils import (
-                tf_utils,  # pylint: disable=g-import-not-at-top
+                tf_utils,
             )
 
             with tf_utils.maybe_init_scope(self):
@@ -4242,7 +4238,7 @@ def batch_get_value(tensors):
     """
     if tf.executing_eagerly():
         return [x.numpy() for x in tensors]
-    elif tf.inside_function():  # pylint: disable=protected-access
+    elif tf.inside_function():
         raise RuntimeError("Cannot get value inside Tensorflow graph function.")
     if tensors:
         return get_session(tensors).run(tensors)
@@ -4526,7 +4522,7 @@ class GraphExecutionFunction:
         # the CompositeTensors. E.g., if output_structure contains a
         # SparseTensor, then this ensures that we return its value as a
         # SparseTensorValue rather than a SparseTensor.
-        from keras.utils import tf_utils  # pylint: disable=g-import-not-at-top
+        from keras.utils import tf_utils
 
         if tf_utils.is_extension_type(tensor):
             return self._session.run(tensor)
@@ -4623,8 +4619,8 @@ def function(inputs, outputs, updates=None, name=None, **kwargs):
                 "`updates` argument is not supported during "
                 "eager execution. You passed: %s" % (updates,)
             )
-        from keras import models  # pylint: disable=g-import-not-at-top
-        from keras.utils import tf_utils  # pylint: disable=g-import-not-at-top
+        from keras import models
+        from keras.utils import tf_utils
 
         model = models.Model(inputs=inputs, outputs=outputs)
 
@@ -5266,7 +5262,7 @@ def in_train_phase(x, alt, training=None):
         the `training` flag defaults to `K.learning_phase()`.
     """
     from keras.engine import (
-        base_layer_utils,  # pylint: disable=g-import-not-at-top
+        base_layer_utils,
     )
 
     if training is None:
@@ -5497,7 +5493,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     # Use logits whenever they are available. `softmax` and `sigmoid`
     # activations cache logits on the `output` Tensor.
     if hasattr(output, "_keras_logits"):
-        output = output._keras_logits  # pylint: disable=protected-access
+        output = output._keras_logits
         if from_logits:
             warnings.warn(
                 '"`categorical_crossentropy` received `from_logits=True`, but '
@@ -5564,7 +5560,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     # Use logits whenever they are available. `softmax` and `sigmoid`
     # activations cache logits on the `output` Tensor.
     if hasattr(output, "_keras_logits"):
-        output = output._keras_logits  # pylint: disable=protected-access
+        output = output._keras_logits
         if from_logits:
             warnings.warn(
                 '"`sparse_categorical_crossentropy` received '
@@ -5665,7 +5661,7 @@ def binary_crossentropy(target, output, from_logits=False):
     # Use logits whenever they are available. `softmax` and `sigmoid`
     # activations cache logits on the `output` Tensor.
     if hasattr(output, "_keras_logits"):
-        output = output._keras_logits  # pylint: disable=protected-access
+        output = output._keras_logits
         if from_logits:
             warnings.warn(
                 '"`binary_crossentropy` received `from_logits=True`, '
@@ -7222,7 +7218,7 @@ def configure_and_create_distributed_session(distribution_strategy):
             distribution_strategy.configure(session_config)
             master = (
                 distribution_strategy.extended._tpu_cluster_resolver.master()
-            )  # pylint: disable=protected-access
+            )
             session = tf.compat.v1.Session(config=session_config, target=master)
         else:
             worker_context = dc.get_current_worker_context()
@@ -7416,9 +7412,7 @@ class ContextValueCache(weakref.WeakKeyDictionary):
 
         value = self._get_recursive(key)
         if value is None:
-            value = self[
-                key
-            ] = self.default_factory()  # pylint:disable=not-callable
+            value = self[key] = self.default_factory()
         return value
 
     def setdefault(self, key=None, default=None, kwargs=None):

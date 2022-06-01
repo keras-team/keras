@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Functions for saving and loading a Keras Model from HDF5 format."""
 
 import json
@@ -44,11 +44,10 @@ except ImportError:
 
 # TODO(b/134426265): Switch back to single-quotes to match the rest of the file
 # once the issue with copybara is fixed.
-# pylint:disable=g-inconsistent-quotes
+
 sequential_lib = LazyLoader(
     "sequential_lib", globals(), "keras.engine.sequential"
 )
-# pylint:enable=g-inconsistent-quotes
 
 
 def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
@@ -147,9 +146,7 @@ def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
             f.close()
 
 
-def load_model_from_hdf5(
-    filepath, custom_objects=None, compile=True
-):  # pylint: disable=redefined-builtin
+def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model_to_hdf5`.
 
     Args:

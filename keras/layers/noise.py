@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Layers that operate regularization via the addition of noise."""
-# pylint: disable=g-bad-import-order,unused-import
+
 
 from keras.layers.regularization.alpha_dropout import AlphaDropout  # noqa: F401
 

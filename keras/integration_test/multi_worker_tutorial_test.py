@@ -76,7 +76,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
             self.skipTest(
                 "Data loading error: Bad magic number for file header."
             )
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             if "URL fetch failure" in str(e):
                 self.skipTest(
                     "URL fetch error not considered failure of the test."
@@ -269,9 +269,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
 
         for worker_id in range(NUM_WORKERS):
             accu_result = tf.nest.map_structure(
-                lambda x: extract_accuracy(
-                    worker_id, x
-                ),  # pylint: disable=cell-var-from-loop
+                lambda x: extract_accuracy(worker_id, x),
                 mpr_result.stdout,
             )
             self.assertTrue(
@@ -299,7 +297,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
                 multi_worker_dataset = (
                     strategy.distribute_datasets_from_function(
                         lambda input_context: self.dataset_fn(
-                            global_batch_size,  # pylint: disable=g-long-lambda
+                            global_batch_size,
                             input_context,
                         )
                     )

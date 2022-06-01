@@ -47,9 +47,7 @@ def _infer_shape_dtype_and_create_handle(initial_value, shape, dtype, name):
                 s=[compat.as_bytes("loc:@%s" % handle_name)]
             )
         )
-        with ops.get_default_graph()._attr_scope(
-            {"_class": attr}
-        ):  # pylint: disable=protected-access
+        with ops.get_default_graph()._attr_scope({"_class": attr}):
             with ops.name_scope("Initializer"), device_context_manager(None):
                 if not callable(initial_value):
                     if isinstance(
@@ -100,7 +98,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
         initial_value=None,
         trainable=None,
         collections=None,
-        validate_shape=True,  # pylint: disable=unused-argument
+        validate_shape=True,
         caching_device=None,
         name=None,
         dtype=None,

@@ -89,7 +89,7 @@ class FunctionTest(tf.test.TestCase):
         model.call = tf.function(model.call)
 
         x = tf.ones([1, 2])
-        y = model(x)  # pylint:disable=not-callable
+        y = model(x)
 
         self.assertAllEqual([[3.0]], self.evaluate(y))
 
@@ -147,7 +147,7 @@ class FunctionTest(tf.test.TestCase):
 
     def testDecoratedMethodVariableCleanup(self):
         m = DefunnedMiniModel()
-        m(tf.ones([1, 2]))  # pylint:disable=not-callable
+        m(tf.ones([1, 2]))
         variable_refs = list({v.ref() for v in m.variables})
         self.assertLen(variable_refs, 2)
         del m
@@ -222,7 +222,7 @@ class FunctionTest(tf.test.TestCase):
         x = tf.constant([[3.0, 4.0]])
         y = tf.constant([2.0])
         model = ModelWithOptimizer()
-        model(x, y)  # pylint:disable=not-callable
+        model(x, y)
 
 
 class AutomaticControlDependenciesTest(tf.test.TestCase):

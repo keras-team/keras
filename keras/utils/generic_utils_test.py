@@ -132,7 +132,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
         ):
 
             @keras.utils.generic_utils.register_keras_serializable()
-            class TestClass:  # pylint: disable=function-redefined
+            class TestClass:
                 def __init__(self, value):
                     self._value = value
 

@@ -35,7 +35,7 @@ from tensorflow.python.training.tracking import (
 )
 
 try:
-    import h5py  # pylint:disable=g-import-not-at-top
+    import h5py
 except ImportError:
     h5py = None
 
