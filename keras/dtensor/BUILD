@@ -69,6 +69,7 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras/layers",
+        "//keras/models",
         "//keras/utils:tf_utils",
         "//learning/brain/experimental/dtensor/tests:test_util",
     ],

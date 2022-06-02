@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras import layers
+from keras import models
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layout_map as layout_map_lib
 from keras.utils import tf_utils
@@ -137,7 +138,7 @@ class LayoutMapTest(test_util.DTensorBaseTest):
 
 
 # Class used for testing.
-class SubclassModel(tf.keras.Model):
+class SubclassModel(models.Model):
     def __init__(self, name=None):
         super().__init__(name=name)
         self.d1 = layers.Dense(1000)
@@ -217,12 +218,12 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         layout_map["d2.bias"] = self.layout_1d
 
         with layout_map_lib.layout_map_scope(layout_map):
-            inputs = tf.keras.Input((10,), batch_size=10)
+            inputs = layers.Input((10,), batch_size=10)
             x = layers.Dense(20, name="d1")(inputs)
             x = layers.Dropout(0.1)(x)
             output = layers.Dense(30, name="d2")(x)
 
-            model = tf.keras.Model(inputs, output)
+            model = models.Model(inputs, output)
 
         # It includes input layer as well.
         self.assertLen(model.layers, 4)
@@ -262,7 +263,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         layout_map["d2.bias"] = self.layout_1d
 
         with layout_map_lib.layout_map_scope(layout_map):
-            model = tf.keras.Sequential(
+            model = models.Sequential(
                 [
                     layers.Dense(20, name="d1", input_shape=(10,)),
                     layers.Dropout(0.1),
@@ -300,7 +301,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         # all replicated.
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
         with layout_map_lib.layout_map_scope(layout_map):
-            model = tf.keras.Sequential(
+            model = models.Sequential(
                 [
                     layers.Dense(20, name="d1", input_shape=(10,)),
                     layers.Dropout(0.1),
@@ -320,7 +321,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     def test_weight_regularization(self):
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
         with layout_map_lib.layout_map_scope(layout_map):
-            model = tf.keras.Sequential(
+            model = models.Sequential(
                 [
                     layers.Dense(
                         20,
@@ -348,7 +349,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     def test_dvariable_name(self):
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
         with layout_map_lib.layout_map_scope(layout_map):
-            model = tf.keras.Sequential(
+            model = models.Sequential(
                 [
                     layers.Dense(20, name="d1", input_shape=(10,)),
                     layers.Dropout(0.1),
