@@ -30,9 +30,7 @@ from keras.tests import model_subclassing_test_util as model_util
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from tensorflow.python.training.tracking import (
-    data_structures,
-)
+from tensorflow.python.trackable import data_structures
 
 try:
     import h5py

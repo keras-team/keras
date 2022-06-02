@@ -34,10 +34,10 @@ from keras.utils import layer_utils
 from keras.utils import tf_utils
 
 # isort: off
-from tensorflow.python.framework import extension_type
-from tensorflow.python.training.tracking.util import (
+from tensorflow.python.checkpoint.checkpoint import (
     Checkpoint,
 )
+from tensorflow.python.framework import extension_type
 
 
 class NetworkConstructionTest(test_combinations.TestCase):

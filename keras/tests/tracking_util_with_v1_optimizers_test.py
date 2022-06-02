@@ -25,12 +25,12 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 # isort: off
+from tensorflow.python.checkpoint import (
+    checkpoint as trackable_utils,
+)
 from tensorflow.python.eager import context
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
-)
-from tensorflow.python.training.tracking import (
-    util as trackable_utils,
 )
 
 

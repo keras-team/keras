@@ -26,10 +26,8 @@ from keras.layers.normalization import batch_normalization_v1
 from keras.testing_infra import test_combinations
 
 # isort: off
-from tensorflow.python.training.tracking import (
-    data_structures,
-)
-from tensorflow.python.training.tracking import util
+from tensorflow.python.trackable import data_structures
+from tensorflow.python.checkpoint import checkpoint as util
 
 
 class HasList(training.Model):

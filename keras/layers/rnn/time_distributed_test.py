@@ -24,8 +24,8 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 # isort: off
-from tensorflow.python.training.tracking import (
-    util as trackable_util,
+from tensorflow.python.checkpoint import (
+    checkpoint as trackable_util,
 )
 
 
