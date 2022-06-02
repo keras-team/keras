@@ -14,6 +14,9 @@
 # ==============================================================================
 """Tests for layout_map."""
 
+import os
+import shutil
+
 import numpy as np
 import tensorflow.compat.v2 as tf
 
@@ -149,6 +152,21 @@ class SubclassModel(models.Model):
         x = self.d1(inputs)
         x = self.dropout(x, training=training)
         return self.d2(x)
+
+
+class SubclassLayer(layers.Layer):
+    def __init__(self, unit):
+        super().__init__()
+        self.unit = unit
+
+    def build(self, input_shape):
+        weight_shape = (input_shape[-1], self.unit)
+        # Note that the variable name is "kernel", but assigned to "_weight"
+        # This will cause the checkpoint to record 2 dependencies.
+        self._weight = self.add_weight(shape=weight_shape, name="kernel")
+
+    def call(self, inputs):
+        return tf.matmul(inputs, self._weight)
 
 
 class ObjectPathMappingTest(test_util.DTensorBaseTest):
@@ -360,6 +378,23 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         self.assertLen(model.layers, 3)
         self.assertEqual(model.layers[0].kernel.name, "d1/kernel:0")
         self.assertEqual(model.layers[0].bias.name, "d1/bias:0")
+
+    def test_checkpoint(self):
+        layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
+        with layout_map_lib.layout_map_scope(layout_map):
+            model = tf.keras.Sequential(
+                [
+                    layers.Dense(20, name="d1", input_shape=(10,)),
+                    SubclassLayer(10),
+                ]
+            )
+        cpt = tf.experimental.dtensor.DTensorCheckpoint(
+            mesh=self.mesh, root=model
+        )
+        tmpdir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, tmpdir, ignore_errors=True)
+        saved_path = cpt.save(os.path.join(tmpdir, "checkpoint"))
+        cpt.restore(saved_path)
 
 
 if __name__ == "__main__":

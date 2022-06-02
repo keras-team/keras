@@ -19,6 +19,8 @@ import contextlib
 import re
 import threading
 
+import tensorflow.compat.v2 as tf
+
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import lazy_variable
 from keras.dtensor import utils
@@ -286,6 +288,7 @@ def _map_subclass_model_variable(model, layout_map):
         _set_object_by_path(model, path, tf_variable)
 
     _init_state_variable_for_rng(model, layout_map)
+    _update_trackable_reference(model, lazy_init_variable_to_tf_variable_map)
     return model
 
 
@@ -331,6 +334,7 @@ def _map_functional_model_variable(model, layout_map):
             _set_object_by_path(layer, path, tf_variable)
 
     _init_state_variable_for_rng(model, layout_map)
+    _update_trackable_reference(model, lazy_init_variable_to_tf_variable_map)
     return model
 
 
@@ -474,6 +478,34 @@ def _set_object_by_path(object_to_set, path, value):
                 object_to_set = object_to_set[attr_name]
             else:
                 object_to_set = getattr(object_to_set, attr_name)
+
+
+# TODO(b/228209108): Revisit this after we can reinit LazyInitVariable.
+def _update_trackable_reference(model, lazy_init_variable_to_tf_variable_map):
+    """Update the trackable object references for the model.
+
+    Note that this method is only needed because of a corner case for model
+    checkpoint, where it could accidently catch a LazyInitVariable in checkpoint
+    dependency and not visible to the model attribute graph itself.
+
+    Args:
+      model: the keras model instance whose checkpoint dependency will be
+        examed.
+      lazy_init_variable_to_tf_variable_map: the dict between LazyInitVariable
+        ID and newly created DVariable.
+    """
+    # See b/234621758 for more details.
+    object_graph = tf.__internal__.tracking.ObjectGraphView(model)
+    trackables, _ = object_graph.breadth_first_traversal()
+    for trackable in trackables:
+        for ref_name, ref in trackable._trackable_children().items():
+            if _is_lazy_init_variable(ref):
+                # Replacing the LazyVariable with DVariable.
+                trackable._track_trackable(
+                    lazy_init_variable_to_tf_variable_map[id(ref)],
+                    ref_name,
+                    overwrite=True,
+                )
 
 
 def _is_lazy_init_variable(obj):
