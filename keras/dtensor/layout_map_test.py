@@ -195,7 +195,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         layout_map["d2.kernel"] = self.layout_2d
         layout_map["d2.bias"] = self.layout_1d
 
-        with layout_map_lib.layout_map_scope(layout_map):
+        with layout_map.scope():
             model = SubclassModel(name="model")
 
         # Init the model with eager tensor, make sure the model weights have
@@ -248,7 +248,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         layout_map["d2.kernel"] = self.layout_2d
         layout_map["d2.bias"] = self.layout_1d
 
-        with layout_map_lib.layout_map_scope(layout_map):
+        with layout_map.scope():
             inputs = layers.Input((10,), batch_size=10)
             x = layers.Dense(20, name="d1")(inputs)
             x = layers.Dropout(0.1)(x)
@@ -304,7 +304,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         layout_map["d2.kernel"] = self.layout_2d
         layout_map["d2.bias"] = self.layout_1d
 
-        with layout_map_lib.layout_map_scope(layout_map):
+        with layout_map.scope():
             model = models.Sequential(
                 [
                     layers.Dense(20, name="d1", input_shape=(10,)),
@@ -353,7 +353,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         # Create empty layout map, which means all the weights just default to
         # all replicated.
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
-        with layout_map_lib.layout_map_scope(layout_map):
+        with layout_map.scope():
             model = models.Sequential(
                 [
                     layers.Dense(20, name="d1", input_shape=(10,)),
@@ -401,7 +401,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
     def test_dvariable_name(self):
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
-        with layout_map_lib.layout_map_scope(layout_map):
+        with layout_map.scope():
             model = models.Sequential(
                 [
                     layers.Dense(20, name="d1", input_shape=(10,)),
@@ -416,7 +416,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
     def test_checkpoint(self):
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
-        with layout_map_lib.layout_map_scope(layout_map):
+        with layout_map.scope():
             model = models.Sequential(
                 [
                     layers.Dense(20, name="d1", input_shape=(10,)),
