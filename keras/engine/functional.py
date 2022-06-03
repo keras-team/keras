@@ -780,6 +780,24 @@ class Functional(training_lib.Model):
         config = super().get_config()
         return copy.deepcopy(get_network_config(self, config=config))
 
+    def get_weight_paths(self):
+        result = {}
+        for layer in self.layers:
+            (
+                descendants,
+                object_paths_dict,
+            ) = tf.__internal__.tracking.ObjectGraphView(
+                layer
+            ).breadth_first_traversal()
+            for descendant in descendants:
+                if isinstance(descendant, tf.Variable):
+                    trackable_references = object_paths_dict[descendant]
+                    object_path = ".".join(
+                        [t.name for t in trackable_references]
+                    )
+                    result[layer.name + "." + object_path] = descendant
+        return result
+
     def _validate_graph_inputs_and_outputs(self):
         """Validates the inputs and outputs of a Graph Network."""
         # Check for redundancy in inputs.
