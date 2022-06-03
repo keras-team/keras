@@ -3005,6 +3005,18 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
+
+        # Grab the optimizer and loss from the `config` for `compile()` and
+        # `build()`.
+        optimizer, loss = None, None
+        optimizer_dict = config.pop("optimizer", {})
+        if optimizer_dict:
+            optimizer = saving_lib.deserialize_keras_object(optimizer_dict)
+        loss_dict = config.pop("loss", {})
+        if loss_dict:
+            loss = saving_lib.deserialize_keras_object(loss_dict)
+        input_shape = config.pop("input_shape", {})
+
         # `from_config` assumes `cls` is either `Functional` or a child class of
         # `Functional`. In the case that `cls` is meant to behave like a child
         # class of `Functional` but only inherits from the `Model` class, we
@@ -3026,38 +3038,27 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     inputs=inputs, outputs=outputs, name=config.get("name")
                 )
                 functional.connect_ancillary_layers(model, layers)
-                return model
 
-            # The config does not contain all the information necessary to
-            # revive a Functional model. This happens when the user creates
-            # subclassed models where `get_config()` is returning insufficient
-            # information to be considered a Functional model. In this case, we
-            # fall back to provide all config into the constructor of the class.
-            optimizer, loss = None, None
-
-            optimizer_dict = config.pop("optimizer", {})
-            if optimizer_dict:
-                optimizer = saving_lib.deserialize_keras_object(optimizer_dict)
-
-            loss_dict = config.pop("loss", {})
-            if loss_dict:
-                loss = saving_lib.deserialize_keras_object(loss_dict)
-
-            input_shape = config.pop("input_shape", {})
-
-            try:
-                model = cls(**config)
-            except TypeError as e:
-                raise TypeError(
-                    "Unable to revive model from config. When overriding "
-                    "the `get_config()`, make sure that the returned "
-                    "config contains all items used as arguments in the "
-                    f"constructor to {cls}, which is the default behavior. "
-                    "You can override this default behavior by defining a "
-                    "`from_config` method to specify how to create an "
-                    f"instance of {cls.__name__} from the config. \n\n"
-                    f"Error encountered during deserialization:\n{e}"
-                )
+            else:
+                # The config does not contain all the information necessary to
+                # revive a Functional model. This happens when the user creates
+                # subclassed models where `get_config()` is returning
+                # insufficient information to be considered a Functional model.
+                # In this case, we fall back to provide all config into the
+                # constructor of the class.
+                try:
+                    model = cls(**config)
+                except TypeError as e:
+                    raise TypeError(
+                        "Unable to revive model from config. When overriding "
+                        "the `get_config()`, make sure that the returned "
+                        "config contains all items used as arguments in the "
+                        f"constructor to {cls}, which is the default behavior. "
+                        "You can override this default behavior by defining a "
+                        "`from_config` method to specify how to create an "
+                        f"instance of {cls.__name__} from the config. \n\n"
+                        f"Error encountered during deserialization:\n{e}"
+                    )
 
             if saving_lib._ENABLED:
 

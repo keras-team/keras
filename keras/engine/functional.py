@@ -776,7 +776,9 @@ class Functional(training_lib.Model):
         return tensor
 
     def get_config(self):
-        return copy.deepcopy(get_network_config(self))
+        # Continue adding configs into what the super class has added.
+        config = super().get_config()
+        return copy.deepcopy(get_network_config(self, config=config))
 
     def _validate_graph_inputs_and_outputs(self):
         """Validates the inputs and outputs of a Graph Network."""
@@ -1500,12 +1502,14 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
     return input_tensors, output_tensors, created_layers
 
 
-def get_network_config(network, serialize_layer_fn=None):
+def get_network_config(network, serialize_layer_fn=None, config=None):
     """Builds the config, which consists of the node graph and serialized layers.
 
     Args:
       network: A Network object.
       serialize_layer_fn: Function used to serialize layers.
+      config: A dict to append more config entries into. If None, start with a
+          new dict for the config.
 
     Returns:
       Config dictionary.
@@ -1513,9 +1517,8 @@ def get_network_config(network, serialize_layer_fn=None):
     serialize_layer_fn = (
         serialize_layer_fn or generic_utils.serialize_keras_object
     )
-    config = {
-        "name": network.name,
-    }
+    config = config or {}
+    config["name"] = network.name
     node_conversion_map = {}
     for layer in network.layers:
         kept_nodes = 1 if _should_skip_first_node(layer) else 0
