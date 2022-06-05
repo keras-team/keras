@@ -1,4 +1,4 @@
-# Keras: Deep Learning for humans
+# Keras: Deep Learning for humans 
 
 ![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-2018-large-1200.png)
 
