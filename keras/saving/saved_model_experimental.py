@@ -63,7 +63,7 @@ def export_saved_model(
     The exported `SavedModel` is a standalone serialization of Tensorflow
     objects, and is supported by TF language APIs and the Tensorflow Serving
     system.  To load the model, use the function
-    `tf.keras.experimental.load_from_saved_model`.
+    `tf.compat.v1.keras.experimental.load_from_saved_model`.
 
     The `SavedModel` contains:
 
@@ -87,10 +87,10 @@ def export_saved_model(
 
     # Save the tf.keras model in the SavedModel format.
     path = '/tmp/simple_keras_model'
-    tf.keras.experimental.export_saved_model(model, path)
+    tf.compat.v1.keras.experimental.export_saved_model(model, path)
 
     # Load the saved keras model back.
-    new_model = tf.keras.experimental.load_from_saved_model(path)
+    new_model = tf.compat.v1.keras.experimental.load_from_saved_model(path)
     new_model.summary()
     ```
 
@@ -437,10 +437,10 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
 
     # Save the tf.keras model in the SavedModel format.
     path = '/tmp/simple_keras_model'
-    tf.keras.experimental.export_saved_model(model, path)
+    tf.compat.v1.keras.experimental.export_saved_model(model, path)
 
     # Load the saved keras model back.
-    new_model = tf.keras.experimental.load_from_saved_model(path)
+    new_model = tf.compat.v1.keras.experimental.load_from_saved_model(path)
     new_model.summary()
     ```
 
