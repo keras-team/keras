@@ -28,6 +28,7 @@ from keras.engine import functional
 from keras.engine import input_layer as input_layer_lib
 from keras.engine import sequential
 from keras.engine import training as training_lib
+from keras.saving import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import layer_utils
@@ -1834,6 +1835,28 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         # keras-team/Keras.
         self.assertLen(config["input_layers"], 1)
         self.assertLen(config["output_layers"], 1)
+
+    @test_combinations.generate(
+        test_combinations.combine(mode=["graph", "eager"])
+    )
+    @test_utils.run_v2_only
+    def test_save_load_with_single_elem_list_inputs(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._preserve_input_structure_in_config = True
+
+            def call(self, inputs):
+                return inputs[0]
+
+        inputs = input_layer_lib.Input(shape=(3,))
+        layer = MyLayer()
+        outputs = layer([inputs])
+
+        model = training_lib.Model(inputs=inputs, outputs=outputs)
+        model.save("/tmp/km2")
+
+        save.load_model("/tmp/km2")
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])

@@ -49,6 +49,7 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
             batch_input_shape=getattr(self.obj, "_batch_input_shape", None),
             stateful=self.obj.stateful,
             must_restore_from_config=self.obj._must_restore_from_config,
+            preserve_input_structure_in_config=self.obj._preserve_input_structure_in_config,  # noqa: E501
         )
 
         metadata.update(get_serialized(self.obj))
