@@ -1187,6 +1187,10 @@ class RevivedLayer:
                 revived_obj._is_feature_layer = metadata["_is_feature_layer"]
             if metadata.get("stateful") is not None:
                 revived_obj.stateful = metadata["stateful"]
+            if metadata.get("preserve_input_structure_in_config") is not None:
+                revived_obj._preserve_input_structure_in_config = metadata[
+                    "preserve_input_structure_in_config"
+                ]
 
         return revived_obj, _revive_setter
 
