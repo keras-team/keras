@@ -300,6 +300,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             self._distribution_strategy = tf.distribute.get_strategy()
         else:
             self._distribution_strategy = None
+        self._distribute_reduction_method = None
 
         self._cluster_coordinator = None
 
@@ -928,6 +929,19 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def run_eagerly(self, value):
         self._run_eagerly = value
 
+    @property
+    def distribute_reduction_method(self):
+        """Settable attribute indicating how the model should reduce
+        loss and metric values from replicas.
+
+        Default: 'first', which will get the value from the first replica.
+        """
+        return self._distribute_reduction_method or "first"
+
+    @distribute_reduction_method.setter
+    def distribute_reduction_method(self, value):
+        self._distribute_reduction_method = value
+
     def _validate_target_and_loss(self, y, loss):
         """Raises error if target or loss is not found.
 
@@ -1145,7 +1159,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             data = next(iterator)
             outputs = model.distribute_strategy.run(run_step, args=(data,))
             outputs = reduce_per_replica(
-                outputs, self.distribute_strategy, reduction="first"
+                outputs,
+                self.distribute_strategy,
+                reduction=self.distribute_reduction_method,
             )
             return outputs
 
@@ -1712,7 +1728,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             data = next(iterator)
             outputs = model.distribute_strategy.run(run_step, args=(data,))
             outputs = reduce_per_replica(
-                outputs, self.distribute_strategy, reduction="first"
+                outputs,
+                self.distribute_strategy,
+                reduction=self.distribute_reduction_method,
             )
             return outputs
 
@@ -3773,7 +3791,7 @@ def reduce_per_replica(values, strategy, reduction="first"):
       values: Structure of `PerReplica` objects or `tf.Tensor`s. `tf.Tensor`s
         are returned as-is.
       strategy: `tf.distribute.Strategy` object.
-      reduction: One of `"first"`, `"concat"`.
+      reduction: One of `"first"`, `"concat"`, or `"sum"`.
 
     Returns:
       Structure of `Tensor`s, representing the result of reduction.
@@ -3797,9 +3815,12 @@ def reduce_per_replica(values, strategy, reduction="first"):
                 return _tpu_multi_host_concat(v, strategy)
             else:
                 return concat(strategy.experimental_local_results(v))
+        elif reduction == "sum":
+            values = strategy.experimental_local_results(v)
+            return tf.reduce_sum(values)
         else:
             raise ValueError(
-                '`reduction` must be "first" or "concat". Received: '
+                '`reduction` must be "first" or "concat" or "sum". Received: '
                 f"reduction={reduction}."
             )
 
