@@ -131,7 +131,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 6,
     tags = [
-        "no_oss",  # TODO(b/226938240): Re-enable this.
         "no_windows",  # TODO(b/183102726)
         "noasan",  # TODO(b/156029134)
         "nomac",  # TODO(b/182567880)
