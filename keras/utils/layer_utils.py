@@ -17,6 +17,7 @@
 
 import copy
 import functools
+import re
 import weakref
 
 import numpy as np
@@ -123,6 +124,60 @@ def count_params(weights):
     return int(sum(np.prod(p) for p in standardized_weight_shapes))
 
 
+def get_layer_index_bound_by_layer_name(model, layer_range=None):
+    """Get the layer indexes from the model based on layer names.
+
+    The layer indexes can be used to slice the model into sub models for
+    display.
+
+    Args:
+        model: `tf.keras.Model` instance.
+        layer_names: a list or tuple of 2 strings, the starting layer name and
+            ending layer name (both inclusive) for the result. All layers will
+            be included when `None` is provided.
+
+    Returns:
+        The index value of layer based on its unique name (layer_names).
+        Output will be [first_layer_index, last_layer_index + 1].
+    """
+    if layer_range is not None:
+        if len(layer_range) != 2:
+            raise ValueError(
+                "layer_range must be a list or tuple of length 2. Received: "
+                f"layer_range = {layer_range} of length {len(layer_range)}"
+            )
+        if not isinstance(layer_range[0], str) or not isinstance(
+            layer_range[1], str
+        ):
+            raise ValueError(
+                "layer_range should contain string type only. "
+                f"Received: {layer_range}"
+            )
+    else:
+        return [0, len(model.layers)]
+
+    lower_index = [
+        idx
+        for idx, layer in enumerate(model.layers)
+        if re.match(layer_range[0], layer.name)
+    ]
+    upper_index = [
+        idx
+        for idx, layer in enumerate(model.layers)
+        if re.match(layer_range[1], layer.name)
+    ]
+
+    if not lower_index or not upper_index:
+        raise ValueError(
+            "Passed layer_names does not match the layer names in the model. "
+            f"Recieved: {layer_range}"
+        )
+
+    if min(lower_index) > max(upper_index):
+        return [min(upper_index), max(lower_index) + 1]
+    return [min(lower_index), max(upper_index) + 1]
+
+
 def print_summary(
     model,
     line_length=None,
@@ -130,6 +185,7 @@ def print_summary(
     print_fn=None,
     expand_nested=False,
     show_trainable=False,
+    layer_range=None,
 ):
     """Prints a summary of a model.
 
@@ -149,6 +205,14 @@ def print_summary(
             If not provided, defaults to `False`.
         show_trainable: Whether to show if a layer is trainable.
             If not provided, defaults to `False`.
+        layer_range: List or tuple containing two strings,
+            the starting layer name and ending layer name (both inclusive),
+            indicating the range of layers to be printed in the summary. The
+            strings could also be regexes instead of an exact name. In this
+             case, the starting layer will be the first layer that matches
+            `layer_range[0]` and the ending layer will be the last element that
+            matches `layer_range[1]`. By default (`None`) all
+            layers in the model are included in the summary.
     """
     if print_fn is None:
         print_fn = io_utils.print_msg
@@ -209,6 +273,8 @@ def print_summary(
         line_length += 11
         positions.append(line_length)
         to_display.append("Trainable")
+
+    layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
 
     def print_row(fields, positions, nested_level=0):
         left_to_print = [str(x) for x in fields]
@@ -363,8 +429,7 @@ def print_summary(
                 + "|" * nested_level
             )
 
-    layers = model.layers
-    for layer in layers:
+    for layer in model.layers[layer_range[0] : layer_range[1]]:
         print_layer(layer)
     print_fn("=" * line_length)
 

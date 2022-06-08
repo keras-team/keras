@@ -336,7 +336,7 @@ tf_class {
   }
   member_method {
     name: "summary"
-    argspec: "args=[\'self\', \'line_length\', \'positions\', \'print_fn\', \'expand_nested\', \'show_trainable\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\', \'False\', \'False\'], "
+    argspec: "args=[\'self\', \'line_length\', \'positions\', \'print_fn\', \'expand_nested\', \'show_trainable\', \'layer_range\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\', \'False\', \'False\', \'None\'], "
   }
   member_method {
     name: "test_on_batch"
