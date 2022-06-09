@@ -15,7 +15,6 @@
 """Keras initializers for TF 2."""
 
 import math
-import warnings
 
 import tensorflow.compat.v2 as tf
 
@@ -113,20 +112,6 @@ class Initializer:
         """
         config.pop("dtype", None)
         return cls(**config)
-
-    def _warn_reuse(self):
-        if getattr(self, "_used", False):
-            if getattr(self, "seed", None) is None:
-                warnings.warn(
-                    f"The initializer {self.__class__.__name__} is unseeded "
-                    "and being called multiple times, which will return "
-                    "identical values  each time (even if the initializer is "
-                    "unseeded). Please update your code to provide a seed to "
-                    "the initializer, or avoid using the same initalizer "
-                    "instance more than once."
-                )
-        else:
-            self._used = True
 
 
 @keras_export("keras.initializers.Zeros", "keras.initializers.zeros", v1=[])
@@ -295,17 +280,16 @@ class RandomUniform(Initializer):
       maxval: A python scalar or a scalar tensor. Upper bound of the range of
         random values to generate (exclusive).
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded initializer will produce the same
-        random values across multiple calls.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
     """
 
     def __init__(self, minval=-0.05, maxval=0.05, seed=None):
         self.minval = minval
         self.maxval = maxval
         self.seed = seed
-        self._random_generator = backend.RandomGenerator(
-            seed, rng_type="stateless"
-        )
+        self._random_generator = backend.RandomGenerator(seed)
 
     def __call__(self, shape, dtype=None, **kwargs):
         """Returns a tensor object initialized as specified by the initializer.
@@ -326,13 +310,12 @@ class RandomUniform(Initializer):
         if _PARTITION_SHAPE in kwargs:
             shape = kwargs[_PARTITION_SHAPE]
         partition_offset = kwargs.get(_PARTITION_OFFSET, None)
-        if partition_offset is None:
-            # We skip the reuse warning for partitioned variable, since the same
-            # initializer will be called multiple times for each partition.
-            self._warn_reuse()
         nonce = hash(partition_offset) if partition_offset else None
         layout = kwargs.pop("layout", None)
         if layout:
+            self._random_generator._rng_type = (
+                self._random_generator.RNG_STATEFUL
+            )
             _ensure_keras_seeded()
             return utils.call_with_layout(
                 self._random_generator.random_uniform,
@@ -376,17 +359,16 @@ class RandomNormal(Initializer):
       stddev: a python scalar or a scalar tensor. Standard deviation of the
         random values to generate.
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded initializer will produce the same
-        random values across multiple calls.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
     """
 
     def __init__(self, mean=0.0, stddev=0.05, seed=None):
         self.mean = mean
         self.stddev = stddev
         self.seed = seed
-        self._random_generator = backend.RandomGenerator(
-            seed, rng_type="stateless"
-        )
+        self._random_generator = backend.RandomGenerator(seed)
 
     def __call__(self, shape, dtype=None, **kwargs):
         """Returns a tensor object initialized to random normal values.
@@ -404,13 +386,12 @@ class RandomNormal(Initializer):
         if _PARTITION_SHAPE in kwargs:
             shape = kwargs[_PARTITION_SHAPE]
         partition_offset = kwargs.get(_PARTITION_OFFSET, None)
-        if partition_offset is None:
-            # We skip the reuse warning for partitioned variable, since the same
-            # initializer will be called multiple times for each partition.
-            self._warn_reuse()
         nonce = hash(partition_offset) if partition_offset else None
         layout = kwargs.pop("layout", None)
         if layout:
+            self._random_generator._rng_type = (
+                self._random_generator.RNG_STATEFUL
+            )
             _ensure_keras_seeded()
             return utils.call_with_layout(
                 self._random_generator.random_normal,
@@ -461,23 +442,16 @@ class TruncatedNormal(Initializer):
       stddev: a python scalar or a scalar tensor. Standard deviation of the
         random values to generate before truncation.
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded initializer will produce the same
-        random values across multiple calls.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
     """
 
     def __init__(self, mean=0.0, stddev=0.05, seed=None):
         self.mean = mean
         self.stddev = stddev
         self.seed = seed
-        if tf.compat.forward_compatible(2022, 6, 24):
-            # Use the new stateless implementation after the forward compat date
-            # is reached.
-            self._random_generator = backend.RandomGenerator(
-                seed, rng_type="stateless"
-            )
-        else:
-            # TODO(scottzhu): Remove this after the forward compat date expires.
-            self._random_generator = backend.RandomGenerator(seed)
+        self._random_generator = backend.RandomGenerator(seed)
 
     def __call__(self, shape, dtype=None, **kwargs):
         """Returns a tensor object initialized to random normal values (truncated).
@@ -495,15 +469,9 @@ class TruncatedNormal(Initializer):
         if _PARTITION_SHAPE in kwargs:
             shape = kwargs[_PARTITION_SHAPE]
         partition_offset = kwargs.get(_PARTITION_OFFSET, None)
-        if partition_offset is None:
-            # We skip the reuse warning for partitioned variable, since the same
-            # initializer will be called multiple times for each partition.
-            self._warn_reuse()
         nonce = hash(partition_offset) if partition_offset else None
         layout = kwargs.pop("layout", None)
         if layout:
-            # TODO(scottzhu): Remove this once the forward compat period above
-            # is expired.
             self._random_generator._rng_type = (
                 self._random_generator.RNG_STATEFUL
             )
@@ -566,8 +534,9 @@ class VarianceScaling(Initializer):
       distribution: Random distribution to use. One of "truncated_normal",
         "untruncated_normal" and  "uniform".
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded initializer will produce the same
-        random values across multiple calls.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
     """
 
     def __init__(
@@ -605,9 +574,7 @@ class VarianceScaling(Initializer):
         self.mode = mode
         self.distribution = distribution
         self.seed = seed
-        self._random_generator = backend.RandomGenerator(
-            seed, rng_type="stateless"
-        )
+        self._random_generator = backend.RandomGenerator(seed)
 
     def __call__(self, shape, dtype=None, **kwargs):
         """Returns a tensor object initialized as specified by the initializer.
@@ -625,13 +592,12 @@ class VarianceScaling(Initializer):
         if _PARTITION_SHAPE in kwargs:
             shape = kwargs[_PARTITION_SHAPE]
         partition_offset = kwargs.get(_PARTITION_OFFSET, None)
-        if partition_offset is None:
-            # We skip the reuse warning for partitioned variable, since the same
-            # initializer will be called multiple times for each partition.
-            self._warn_reuse()
         nonce = hash(partition_offset) if partition_offset else None
         layout = kwargs.pop("layout", None)
         if layout:
+            self._random_generator._rng_type = (
+                self._random_generator.RNG_STATEFUL
+            )
             _ensure_keras_seeded()
             return utils.call_with_layout(
                 self._generate_init_val,
@@ -710,8 +676,9 @@ class Orthogonal(Initializer):
     Args:
       gain: multiplicative factor to apply to the orthogonal matrix
       seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded initializer will produce the same
-        random values across multiple calls.
+        deterministic. Note that a seeded initializer will not produce the same
+        random values across multiple calls, but multiple initializers will
+        produce the same sequence when constructed with the same seed value.
 
     References:
       - [Saxe et al., 2014](https://openreview.net/forum?id=_wzZwKpTDF_9C)
@@ -720,9 +687,7 @@ class Orthogonal(Initializer):
     def __init__(self, gain=1.0, seed=None):
         self.gain = gain
         self.seed = seed
-        self._random_generator = backend.RandomGenerator(
-            seed, rng_type="stateless"
-        )
+        self._random_generator = backend.RandomGenerator(seed)
 
     def __call__(self, shape, dtype=None, **kwargs):
         """Returns a tensor object initialized to an orthogonal matrix.
@@ -746,9 +711,11 @@ class Orthogonal(Initializer):
                 "at least two-dimensional. Received: "
                 f"shape={shape} of rank {len(shape)}."
             )
-        self._warn_reuse()
         layout = kwargs.pop("layout", None)
         if layout:
+            self._random_generator._rng_type = (
+                self._random_generator.RNG_STATEFUL
+            )
             _ensure_keras_seeded()
             return utils.call_with_layout(
                 self._generate_init_val, layout, shape=shape, dtype=dtype
